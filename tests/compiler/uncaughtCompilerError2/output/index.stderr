@@ -1,0 +1,5 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/uncaughtCompilerError2/index.ts:4:5]
+ 4 │ )
+   · ─
+   ╰────

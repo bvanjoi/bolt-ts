@@ -6,11 +6,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::{Atom, AtomIntern};
 use rustc_hash::FxHashSet;
 
-use crate::{
-    emit::print::PPrint,
-    ir::{self, GraphID},
-    lowering::LoweringResult,
-};
+use crate::{emit::print::PPrint, ir, lowering::LoweringResult};
 
 pub struct EmitterOptions {
     indent: u32,
@@ -29,6 +25,7 @@ pub fn emit(atoms: &AtomIntern, ir: &LoweringResult) -> String {
         max_scope: ScopeID::root(),
         content: PPrint::new(1024),
         graph_arena: &ir.graph_arena,
+        current_graph: ir.entry_graph,
         nodes: &ir.nodes,
     };
     emitter.emit_root(ir.entry_graph)
@@ -43,6 +40,7 @@ struct Emitter<'cx, 'ir> {
     content: PPrint,
     nodes: &'ir ir::Nodes,
     graph_arena: &'ir ir::GraphArena,
+    current_graph: ir::GraphID,
 }
 
 impl<'ir> Emitter<'_, 'ir> {
@@ -52,21 +50,29 @@ impl<'ir> Emitter<'_, 'ir> {
         scope
     }
 
-    fn emit_root(&mut self, entry: GraphID) -> String {
+    fn emit_root(&mut self, entry: ir::GraphID) -> String {
         self.emit_program(entry);
         std::mem::take(&mut self.content.content)
     }
 
-    fn graph(&self, id: GraphID) -> &'ir ir::Graph {
+    fn graph(&self, id: ir::GraphID) -> &'ir ir::Graph {
         self.graph_arena.get(id)
     }
 
-    fn emit_basic_block(&mut self, graph: GraphID, id: ir::BasicBlockID) {
+    fn emit_basic_block(&mut self, graph: ir::GraphID, id: ir::BasicBlockID) {
+        let saved = self.current_graph;
+        self.current_graph = graph;
+
         let block = self.graph(graph).get_basic_block(id);
         self.emit_stmts(block.stmts());
+
+        self.current_graph = saved;
     }
 
-    fn emit_basic_block_with_brace(&mut self, graph: GraphID, id: ir::BasicBlockID) {
+    fn emit_basic_block_with_brace(&mut self, graph: ir::GraphID, id: ir::BasicBlockID) {
+        let saved = self.current_graph;
+        self.current_graph = graph;
+
         self.content.p_l_brace();
         let block = self.graph(graph).get_basic_block(id);
         if !block.stmts().is_empty() {
@@ -79,6 +85,8 @@ impl<'ir> Emitter<'_, 'ir> {
             self.content.p_newline();
         }
         self.content.p_r_brace();
+
+        self.current_graph = saved;
     }
 
     fn emit_list<T>(
@@ -95,8 +103,8 @@ impl<'ir> Emitter<'_, 'ir> {
         }
     }
 
-    fn emit_program(&mut self, root: GraphID) {
-        self.emit_basic_block(root, self.graph(root).entry());
+    fn emit_program(&mut self, root: ir::GraphID) {
+        self.emit_basic_block(root, ir::BasicBlockID::ENTRY);
     }
 
     fn emit_stmts(&mut self, stmts: &[ir::Stmt]) {
@@ -272,9 +280,7 @@ impl<'ir> Emitter<'_, 'ir> {
         self.emit_params(f.params());
         self.content.p_whitespace();
 
-        let graph = self.graph(f.body());
-        let entry = graph.entry();
-        self.emit_basic_block_with_brace(f.body(), entry);
+        self.emit_basic_block_with_brace(f.body(), ir::BasicBlockID::ENTRY);
     }
 
     fn emit_params(&mut self, params: &[ir::ParamDeclID]) {
@@ -329,13 +335,13 @@ impl<'ir> Emitter<'_, 'ir> {
         self.content.p_r_paren();
         self.content.p_whitespace();
         // block
-        self.emit_stmt(stmt.then());
+        self.emit_basic_block(self.current_graph, stmt.then());
         // else
         if let Some(else_then) = stmt.else_then() {
             self.content.p_whitespace();
             self.content.p("else");
             self.content.p_whitespace();
-            self.emit_stmt(else_then);
+            self.emit_basic_block(self.current_graph, else_then);
         }
         self.content.p_newline();
     }
@@ -503,9 +509,10 @@ impl<'ir> Emitter<'_, 'ir> {
         let elem = self.nodes.get_class_static_block(&elem);
         self.content.p("static");
         self.content.p_whitespace();
-        self.content.p("{");
+
+        self.content.p_l_brace();
         self.emit_block_stmt(elem.body());
-        self.content.p("}");
+        self.content.p_r_brace();
     }
 
     fn emit_class_prop_elem(&mut self, elem: ir::ClassPropElemID) {
@@ -944,6 +951,75 @@ impl<'ir> Emitter<'_, 'ir> {
             ExportAssign(id) => self.emit_export_assign(id),
             Labeled(id) => self.emit_labeled_stmt(id),
             Empty(id) => self.emit_empty_stmt(id),
+            Switch(id) => self.emit_switch_stmt(id),
+        }
+    }
+
+    fn emit_switch_stmt(&mut self, n: ir::SwitchStmtID) {
+        let n = self.nodes.get_switch_stmt(&n);
+        self.content.p("switch");
+        self.content.p_whitespace();
+        self.content.p_l_paren();
+        self.emit_expr(n.expr());
+        self.content.p_r_paren();
+        self.content.p_whitespace();
+
+        self.content.p_l_brace();
+        self.emit_case_block(n.case_block());
+        self.content.p_r_brace();
+    }
+
+    fn emit_case_block(&mut self, n: ir::CaseBlockID) {
+        let n = self.nodes.get_case_block(&n);
+        if !n.clauses().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_list(
+            n.clauses(),
+            |this, item| match *item {
+                ir::CaseOrDefaultClause::Case(n) => this.emit_case_clause(n),
+                ir::CaseOrDefaultClause::Default(n) => this.emit_default_clause(n),
+            },
+            |this, _| {
+                this.content.p_newline();
+            },
+        );
+        if !n.clauses().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
+        }
+    }
+
+    fn emit_case_clause(&mut self, n: ir::CaseClauseID) {
+        let n = self.nodes.get_case_clause(&n);
+        self.content.p("case");
+        self.content.p_whitespace();
+        self.emit_expr(n.expr());
+        self.content.p_colon();
+        if !n.stmts().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_stmts(n.stmts());
+        if !n.stmts().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
+        }
+    }
+
+    fn emit_default_clause(&mut self, n: ir::DefaultClauseID) {
+        let n = self.nodes.get_default_clause(&n);
+        self.content.p("default");
+        self.content.p_colon();
+        if !n.stmts().is_empty() {
+            self.content.indent += self.options.indent;
+            self.content.p_newline();
+        }
+        self.emit_stmts(n.stmts());
+        if !n.stmts().is_empty() {
+            self.content.indent -= self.options.indent;
+            self.content.p_newline();
         }
     }
 
@@ -1565,9 +1641,7 @@ impl<'ir> Emitter<'_, 'ir> {
         self.emit_params(n.params());
         self.content.p_whitespace();
 
-        let graph = self.graph(n.body());
-        let entry = graph.entry();
-        self.emit_basic_block_with_brace(n.body(), entry);
+        self.emit_basic_block_with_brace(n.body(), ir::BasicBlockID::ENTRY);
     }
 
     fn emit_call_expr(&mut self, call: ir::CallExprID) {
@@ -1639,8 +1713,7 @@ impl<'ir> Emitter<'_, 'ir> {
         self.content.p_whitespace();
 
         let graph = self.graph(n.body());
-        let entry = graph.entry();
-        let block = graph.get_basic_block(entry);
+        let block = graph.get_basic_block(ir::BasicBlockID::ENTRY);
         if block.stmts().len() == 1
             && let ir::Stmt::Ret(ret) = block.stmts()[0]
             && let Some(expr) = self.nodes.get_ret_stmt(&ret).expr()
@@ -1649,7 +1722,7 @@ impl<'ir> Emitter<'_, 'ir> {
             self.emit_expr(expr);
             self.content.p(")");
         } else {
-            self.emit_basic_block_with_brace(n.body(), entry);
+            self.emit_basic_block_with_brace(n.body(), ir::BasicBlockID::ENTRY);
         }
     }
 }

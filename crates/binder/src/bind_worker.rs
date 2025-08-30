@@ -487,7 +487,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 );
                 self.create_final_res(node, symbol);
             }
-            ObjectPropMember(n) => {
+            ObjectPropAssignment(n) => {
                 let symbol = self.bind_prop_or_method_or_access(
                     node,
                     n.name,

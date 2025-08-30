@@ -3,19 +3,19 @@ use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 use crate::SymbolTable;
 
 use bolt_ts_ast as ast;
-use bolt_ts_parser::ParseResultForGraph;
+use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 
 pub fn set_value_declaration(
     symbol: SymbolID,
     symbols: &mut Symbols,
     node: ast::NodeID,
-    p: &[ParseResultForGraph],
+    p: &ParsedMap<'_>,
 ) {
     let s = symbols.get_mut(symbol);
     // TODO: ambient declaration
     if s.value_decl.is_none_or(|value_decl| {
-        let v = p[value_decl.module().as_usize()].node(value_decl);
-        let other = p[node.module().as_usize()].node(node);
+        let v = p.node(value_decl);
+        let other = p.node(node);
         !v.is_same_kind(&other) && v.is_effective_module_decl()
     }) {
         s.value_decl = Some(node);

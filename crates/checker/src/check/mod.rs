@@ -112,7 +112,7 @@ use bolt_ts_binder::{
 };
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
-use bolt_ts_parser::{AccessKind, Parser};
+use bolt_ts_parser::{AccessKind, ParsedMap};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -167,6 +167,7 @@ pub struct TyChecker<'cx> {
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
+    instantiation_count: u32,
     activity_ty_mapper_caches: Vec<nohash_hasher::IntMap<TyKey, &'cx ty::Ty<'cx>>>,
     type_contextual: Vec<TyContextual<'cx>>,
     deferred_nodes: Vec<indexmap::IndexSet<ast::NodeID, FxBuildHasher>>,
@@ -189,7 +190,7 @@ pub struct TyChecker<'cx> {
     interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
     object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena<'cx>,
     // === ast ===
-    pub p: &'cx Parser<'cx>,
+    pub p: &'cx ParsedMap<'cx>,
     pub mg: &'cx ModuleGraph,
     // === global ===
     // === intrinsic types ===
@@ -239,6 +240,7 @@ pub struct TyChecker<'cx> {
     any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    any_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     resolving_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -304,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn new(
         ty_arena: &'cx bolt_ts_arena::bumpalo::Bump,
-        p: &'cx Parser<'cx>,
+        p: &'cx ParsedMap<'cx>,
         mg: &'cx ModuleGraph,
         atoms: AtomIntern,
         config: &'cx NormalizedCompilerOptions,
@@ -565,6 +567,7 @@ impl<'cx> TyChecker<'cx> {
 
             no_ty_pred: Default::default(),
 
+            any_sig: Default::default(),
             unknown_sig: Default::default(),
             resolving_sig: Default::default(),
             never_intersection_tys: no_hashmap_with_capacity(1024),
@@ -603,6 +606,7 @@ impl<'cx> TyChecker<'cx> {
             reverse_expanding_flags: RecursionFlags::empty(),
             activity_ty_mapper: Vec::with_capacity(1024),
             activity_ty_mapper_caches: Vec::with_capacity(1024),
+            instantiation_count: 0,
         };
 
         macro_rules! make_global {
@@ -648,6 +652,7 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, false, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
+            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
@@ -712,6 +717,10 @@ impl<'cx> TyChecker<'cx> {
         self.type_name
             .entry(ty.id)
             .or_insert_with(|| type_name.unwrap())
+    }
+
+    pub fn any_sig(&self) -> &'cx Sig<'cx> {
+        self.any_sig.get().unwrap()
     }
 
     pub fn unknown_sig(&self) -> &'cx Sig<'cx> {
@@ -1609,7 +1618,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_prop_member(
         &mut self,
-        member: &'cx ast::ObjectPropMember<'cx>,
+        member: &'cx ast::ObjectPropAssignment<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: computed member
 
@@ -2135,7 +2144,7 @@ impl<'cx> TyChecker<'cx> {
         op: BinOp,
         f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
     ) {
-        let mut would_work_with_await = false;
+        let would_work_with_await = false;
 
         let mut effective_left_ty = left_ty;
         let mut effective_right_ty = right_ty;
@@ -2439,7 +2448,6 @@ impl<'cx> TyChecker<'cx> {
                             has_ret_of_ty_never,
                         );
                     }
-                } else {
                 }
             }
 
@@ -3739,6 +3747,59 @@ impl<'cx> TyChecker<'cx> {
     pub fn ty_len(&self) -> usize {
         self.tys.len()
     }
+
+    fn get_constructor_for_ty_args(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        loc: ast::NodeID,
+    ) -> impl Iterator<Item = &'cx ty::Sig<'cx>> {
+        let count = ty_args.map_or(0, |t| t.list.len());
+        let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        // TODO: is_javascript
+        sigs.into_iter().filter_map(move |sig| {
+            let min = self.get_min_ty_arg_count(sig.ty_params);
+            if count >= min
+                && sig
+                    .ty_params
+                    .is_some_and(|ty_params| count <= ty_params.len())
+            {
+                Some(*sig)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn get_instantiated_constructors_for_ty_args(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        loc: ast::NodeID,
+    ) -> ty::Sigs<'cx> {
+        let sigs = self
+            .get_constructor_for_ty_args(ty, ty_args, loc)
+            .collect::<Vec<_>>();
+        let ty_args = ty_args.map(|t| {
+            let ty_args = t
+                .list
+                .iter()
+                .map(|ty| self.get_ty_from_type_node(ty))
+                .collect::<Vec<_>>();
+            self.alloc(ty_args) as ty::Tys<'cx>
+        });
+        let sigs = sigs
+            .iter()
+            .map(|sig| {
+                if sig.ty_params.is_some() {
+                    self.get_sig_instantiation(sig, ty_args, false, None)
+                } else {
+                    sig
+                }
+            })
+            .collect::<Vec<_>>();
+        self.alloc(sigs)
+    }
 }
 
 macro_rules! global_ty {
@@ -3791,7 +3852,7 @@ global_ty!(
 fn resolve_external_module_name(
     mg: &ModuleGraph,
     module_spec: ast::NodeID,
-    p: &bolt_ts_parser::Parser<'_>,
+    p: &bolt_ts_parser::ParsedMap<'_>,
 ) -> Option<bolt_ts_binder::SymbolID> {
     let from = module_spec.module();
     let name = match p.node(module_spec) {

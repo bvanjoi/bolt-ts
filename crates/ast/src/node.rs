@@ -5,10 +5,10 @@ use super::{ExprKind, ModifierKind};
 bolt_ts_utils::module_index!(NodeID);
 
 impl NodeID {
-    pub fn new(module: ModuleID, index: u32) -> Self {
+    pub const fn new(module: ModuleID, index: u32) -> Self {
         Self { module, index }
     }
-    pub fn into_root(&self) -> Self {
+    pub const fn into_root(&self) -> Self {
         Self::new(self.module(), 0)
     }
 }
@@ -46,13 +46,17 @@ pub enum Node<'cx> {
     ArrayBinding(&'cx super::ArrayBinding<'cx>),
     EnumMember(&'cx super::EnumMember<'cx>),
     ObjectShorthandMember(&'cx super::ObjectShorthandMember<'cx>),
-    ObjectPropMember(&'cx super::ObjectPropMember<'cx>),
+    ObjectPropAssignment(&'cx super::ObjectPropAssignment<'cx>),
     ObjectMethodMember(&'cx super::ObjectMethodMember<'cx>),
     SpreadAssignment(&'cx super::SpreadAssignment<'cx>),
     SpreadElement(&'cx super::SpreadElement<'cx>),
     // template
     TemplateHead(&'cx super::TemplateHead),
     TemplateSpan(&'cx super::TemplateSpan<'cx>),
+    // switch
+    CaseClause(&'cx super::CaseClause<'cx>),
+    DefaultClause(&'cx super::DefaultClause<'cx>),
+    CaseBlock(&'cx super::CaseBlock<'cx>),
 
     // stmt
     VarStmt(&'cx super::VarStmt<'cx>),
@@ -90,6 +94,7 @@ pub enum Node<'cx> {
     CatchClause(&'cx super::CatchClause<'cx>),
     DebuggerStmt(&'cx super::DebuggerStmt),
     LabeledStmt(&'cx super::LabeledStmt<'cx>),
+    SwitchStmt(&'cx super::SwitchStmt<'cx>),
     ExprStmt(&'cx super::ExprStmt<'cx>),
 
     // expr
@@ -281,7 +286,7 @@ impl<'cx> Node<'cx> {
             SetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
             GetterDecl(n) => Some(DeclarationName::from_prop_name(n.name)),
             MethodSignature(n) => Some(DeclarationName::from_prop_name(n.name)),
-            ObjectPropMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
+            ObjectPropAssignment(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
@@ -320,7 +325,7 @@ impl<'cx> Node<'cx> {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
-            ObjectPropMember(n) => match n.name.kind {
+            ObjectPropAssignment(n) => match n.name.kind {
                 super::PropNameKind::Ident(ident) => Some(ident),
                 _ => None,
             },
@@ -461,7 +466,7 @@ impl<'cx> Node<'cx> {
             self,
             VarDecl(_)
                 | ObjectShorthandMember(_)
-                | ObjectPropMember(_)
+                | ObjectPropAssignment(_)
                 | PropSignature(_)
                 | ObjectMethodMember(_)
                 | MethodSignature(_)
@@ -812,7 +817,7 @@ impl<'cx> Node<'cx> {
             };
         }
 
-        if let Some(init) = initializer!(ObjectPropMember) {
+        if let Some(init) = initializer!(ObjectPropAssignment) {
             return Some(init);
         }
 
@@ -914,6 +919,9 @@ as_node!(
     ),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
+    (CaseClause, super::CaseClause<'cx>, case_clause),
+    (DefaultClause, super::DefaultClause<'cx>, default_clause),
+    (CaseBlock, super::CaseBlock<'cx>, case_block),
     (
         ComputedPropName,
         super::ComputedPropName<'cx>,
@@ -943,8 +951,8 @@ as_node!(
         object_shorthand_member
     ),
     (
-        ObjectPropMember,
-        super::ObjectPropMember<'cx>,
+        ObjectPropAssignment,
+        super::ObjectPropAssignment<'cx>,
         object_prop_member
     ),
     (
@@ -1082,6 +1090,7 @@ as_node!(
     (DoStmt, super::DoStmt<'cx>, do_stmt),
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
+    (SwitchStmt, super::SwitchStmt<'cx>, switch_stmt),
     (LabeledStmt, super::LabeledStmt<'cx>, labeled_stmt),
     (QualifiedName, super::QualifiedName<'cx>, qualified_name),
     (ObjectPat, super::ObjectPat<'cx>, object_pat),

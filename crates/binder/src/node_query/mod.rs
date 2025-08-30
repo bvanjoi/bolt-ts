@@ -423,6 +423,35 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         unreachable!()
     }
 
+    pub fn get_super_container(
+        &self,
+        mut id: ast::NodeID,
+        stop_on_functions: bool,
+    ) -> Option<ast::NodeID> {
+        loop {
+            let parent = self.parent(id)?;
+            id = parent;
+            use ast::Node::*;
+            match self.node(id) {
+                ComputedPropName(_) => {
+                    id = self.parent(id).unwrap();
+                }
+                FnDecl(_) | FnExpr(_) | ArrowFnExpr(_) if stop_on_functions => return Some(id),
+                PropSignature(_)
+                | ClassPropElem(_)
+                | ObjectMethodMember(_)
+                | ClassMethodElem(_)
+                | MethodSignature(_)
+                | ClassCtor(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | ClassStaticBlock(_) => return Some(id),
+                // TODO: decorator
+                _ => {}
+            }
+        }
+    }
+
     pub fn is_const_context(&self, node: ast::NodeID) -> bool {
         let Some(parent) = self.parent(node) else {
             return false;

@@ -5,7 +5,7 @@ use bolt_ts_checker::ty::TyID;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 use bolt_ts_span::Span;
 
-use crate::ir::GraphID;
+use crate::ir;
 
 macro_rules! decl_nodes {
     ( $( $node_field: ident: $node_name:ident ),* ) => {
@@ -59,6 +59,8 @@ decl_nodes!(
     catch_clause: CatchClause,
     labeled_stmt: LabeledStmt,
     expr_stmt: ExprStmt,
+    switch_stmt: SwitchStmt,
+
     class_decl: ClassDecl,
     module_decl: ModuleDecl,
     class_ctor: ClassCtor,
@@ -107,6 +109,9 @@ decl_nodes!(
     modifier: Modifier,
     var_decl: VarDecl,
     class_extends_clause: ClassExtendsClause,
+    case_block: CaseBlock,
+    case_clause: CaseClause,
+    default_clause: DefaultClause,
     enum_member: EnumMember,
     ns_export: NsExport,
     shorthand_spec: ShorthandSpec,
@@ -149,6 +154,7 @@ fn usize_into_idx<T>(len: usize) -> la_arena::Idx<T> {
 }
 
 impl Nodes {
+    #[inline]
     pub fn alloc_jsx_elem(
         &mut self,
         span: Span,
@@ -168,6 +174,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_frag(
         &mut self,
         span: Span,
@@ -187,6 +194,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_opening_frag(&mut self, span: Span) -> JsxOpeningFragID {
         let idx = JsxOpeningFragID(usize_into_idx(self.jsx_opening_frag_nodes.0.len()));
         let id = self
@@ -197,6 +205,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_closing_frag(&mut self, span: Span) -> JsxClosingFragID {
         let idx = JsxClosingFragID(usize_into_idx(self.jsx_closing_frag_nodes.0.len()));
         let id = self
@@ -207,6 +216,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_self_closing_elem(
         &mut self,
         span: Span,
@@ -227,6 +237,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_expr(
         &mut self,
         span: Span,
@@ -244,6 +255,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_text(
         &mut self,
         span: Span,
@@ -261,6 +273,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_closing_elem(&mut self, span: Span, tag_name: JsxTagName) -> JsxClosingElemID {
         let idx = JsxClosingElemID(usize_into_idx(self.jsx_closing_elem_nodes.0.len()));
         let id = self.jsx_closing_elem_nodes.0.alloc(JsxClosingElem {
@@ -272,6 +285,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_opening_elem(
         &mut self,
         span: Span,
@@ -289,6 +303,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_named_attr(
         &mut self,
         span: Span,
@@ -306,6 +321,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_spread_attr(&mut self, span: Span, expr: Expr) -> JsxSpreadAttrID {
         let idx = JsxSpreadAttrID(usize_into_idx(self.jsx_spread_attr_nodes.0.len()));
         let id = self.jsx_spread_attr_nodes.0.alloc(JsxSpreadAttr {
@@ -317,6 +333,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_jsx_ns_name(&mut self, span: Span, ns: IdentID, name: IdentID) -> JsxNsNameID {
         let idx = JsxNsNameID(usize_into_idx(self.jsx_ns_name_nodes.0.len()));
         let id = self.jsx_ns_name_nodes.0.alloc(JsxNsName {
@@ -329,6 +346,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_spread_element(&mut self, span: Span, expr: Expr) -> SpreadElementID {
         let idx = SpreadElementID(usize_into_idx(self.spread_element_nodes.0.len()));
         let id = self.spread_element_nodes.0.alloc(SpreadElement {
@@ -340,6 +358,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_tagged_template_expr(
         &mut self,
         span: Span,
@@ -357,6 +376,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_template_expr(
         &mut self,
         span: Span,
@@ -374,6 +394,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_template_span(
         &mut self,
         span: Span,
@@ -393,6 +414,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_template_head(&mut self, span: Span, text: Atom) -> TemplateHeadID {
         let idx = TemplateHeadID(usize_into_idx(self.template_head_nodes.0.len()));
         let id = self.template_head_nodes.0.alloc(TemplateHead {
@@ -404,6 +426,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_void_expr(&mut self, span: Span, expr: Expr) -> VoidExprID {
         let idx = VoidExprID(usize_into_idx(self.void_expr_nodes.0.len()));
         let id = self.void_expr_nodes.0.alloc(VoidExpr {
@@ -415,6 +438,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_typeof_expr(&mut self, span: Span, expr: Expr) -> TypeofExprID {
         let idx = TypeofExprID(usize_into_idx(self.typeof_expr_nodes.0.len()));
         let id = self.typeof_expr_nodes.0.alloc(TypeofExpr {
@@ -426,6 +450,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_super_expr(&mut self, span: Span) -> SuperExprID {
         let idx = SuperExprID(usize_into_idx(self.super_expr_nodes.0.len()));
         let id = self.super_expr_nodes.0.alloc(SuperExpr { id: idx, span });
@@ -433,6 +458,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_ele_access_expr(&mut self, span: Span, expr: Expr, arg: Expr) -> EleAccessExprID {
         let idx = EleAccessExprID(usize_into_idx(self.ele_access_expr_nodes.0.len()));
         let id = self.ele_access_expr_nodes.0.alloc(EleAccessExpr {
@@ -445,6 +471,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_prop_access_expr(
         &mut self,
         span: Span,
@@ -464,6 +491,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_postfix_unary_expr(
         &mut self,
         span: Span,
@@ -481,6 +509,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_prefix_unary_expr(
         &mut self,
         span: Span,
@@ -498,11 +527,12 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_arrow_fn_expr(
         &mut self,
         span: Span,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> ArrowFnExprID {
         let idx = ArrowFnExprID(usize_into_idx(self.arrow_fn_expr_nodes.0.len()));
         let id = self.arrow_fn_expr_nodes.0.alloc(ArrowFnExpr {
@@ -515,6 +545,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_new_expr(&mut self, span: Span, expr: Expr, args: Vec<Expr>) -> NewExprID {
         let idx = NewExprID(usize_into_idx(self.new_expr_nodes.0.len()));
         let id = self.new_expr_nodes.0.alloc(NewExpr {
@@ -527,6 +558,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_expr(
         &mut self,
         span: Span,
@@ -546,12 +578,13 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_fn_expr(
         &mut self,
         span: Span,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> FnExprID {
         let idx = FnExprID(usize_into_idx(self.fn_expr_nodes.0.len()));
         let id = self.fn_expr_nodes.0.alloc(FnExpr {
@@ -565,6 +598,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_call_expr(&mut self, span: Span, callee: Expr, args: Vec<Expr>) -> CallExprID {
         let idx = CallExprID(usize_into_idx(self.call_expr_nodes.0.len()));
         let id = self.call_expr_nodes.0.alloc(CallExpr {
@@ -577,6 +611,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_lit(&mut self, span: Span, members: Vec<ObjectLitMember>) -> ObjectLitID {
         let idx = ObjectLitID(usize_into_idx(self.object_lit_nodes.0.len()));
         let id = self.object_lit_nodes.0.alloc(ObjectLit {
@@ -588,6 +623,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_spread_assignment(&mut self, span: Span, expr: Expr) -> SpreadAssignmentID {
         let idx = SpreadAssignmentID(usize_into_idx(self.spread_assignment_nodes.0.len()));
         let id = self.spread_assignment_nodes.0.alloc(SpreadAssignment {
@@ -599,6 +635,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_method_member(
         &mut self,
         span: Span,
@@ -618,6 +655,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_prop_member(
         &mut self,
         span: Span,
@@ -635,6 +673,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_shorthand_member(
         &mut self,
         span: Span,
@@ -654,6 +693,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_array_lit(&mut self, span: Span, elems: Vec<Expr>) -> ArrayLitID {
         let idx = ArrayLitID(usize_into_idx(self.array_lit_nodes.0.len()));
         let id = self.array_lit_nodes.0.alloc(ArrayLit {
@@ -665,6 +705,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_bool_lit(&mut self, span: Span, val: bool) -> BoolLitID {
         let idx = BoolLitID(usize_into_idx(self.bool_lit_nodes.0.len()));
         let id = self.bool_lit_nodes.0.alloc(BoolLit { id: idx, span, val });
@@ -672,6 +713,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_this_expr(&mut self, span: Span) -> ThisExprID {
         let idx = ThisExprID(usize_into_idx(self.this_expr_nodes.0.len()));
         let id = self.this_expr_nodes.0.alloc(ThisExpr { id: idx, span });
@@ -679,6 +721,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_bin_expr(
         &mut self,
         span: Span,
@@ -698,6 +741,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_labeled_stmt(&mut self, span: Span, label: IdentID, body: Stmt) -> LabeledStmtID {
         let idx = LabeledStmtID(usize_into_idx(self.labeled_stmt_nodes.0.len()));
         let id = self.labeled_stmt_nodes.0.alloc(LabeledStmt {
@@ -710,6 +754,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_empty_stmt(&mut self, span: Span) -> EmptyStmtID {
         let idx = EmptyStmtID(usize_into_idx(self.empty_stmt_nodes.0.len()));
         let id = self.empty_stmt_nodes.0.alloc(EmptyStmt { id: idx, span });
@@ -717,6 +762,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_do_stmt(&mut self, span: Span, stmt: Stmt, expr: Expr) -> DoStmtID {
         let idx = DoStmtID(usize_into_idx(self.do_stmt_nodes.0.len()));
         let id = self.do_stmt_nodes.0.alloc(DoStmt {
@@ -729,6 +775,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_while_stmt(&mut self, span: Span, expr: Expr, body: Stmt) -> WhileStmtID {
         let idx = WhileStmtID(usize_into_idx(self.while_stmt_nodes.0.len()));
         let id = self.while_stmt_nodes.0.alloc(WhileStmt {
@@ -741,6 +788,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_try_stmt(
         &mut self,
         span: Span,
@@ -760,6 +808,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_catch_clause(
         &mut self,
         span: Span,
@@ -777,6 +826,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_export_assign(
         &mut self,
         span: Span,
@@ -794,6 +844,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_export_decl(&mut self, span: Span, clause: ExportClause) -> ExportDeclID {
         let idx = ExportDeclID(usize_into_idx(self.export_decl_nodes.0.len()));
         let id = self.export_decl_nodes.0.alloc(ExportDecl {
@@ -805,6 +856,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_specs_export(
         &mut self,
         span: Span,
@@ -822,6 +874,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_export_named_spec(
         &mut self,
         span: Span,
@@ -839,6 +892,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_ns_export(
         &mut self,
         span: Span,
@@ -856,6 +910,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_glob_export(&mut self, span: Span, name: StringLitID) -> GlobExportID {
         let idx = GlobExportID(usize_into_idx(self.glob_export_nodes.0.len()));
         let id = self.glob_export_nodes.0.alloc(GlobExport {
@@ -867,6 +922,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_import_decl(
         &mut self,
         span: Span,
@@ -884,6 +940,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_import_clause(
         &mut self,
         span: Span,
@@ -901,6 +958,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_import_named_spec(
         &mut self,
         span: Span,
@@ -918,6 +976,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_shorthand_spec(&mut self, span: Span, name: IdentID) -> ShorthandSpecID {
         let idx = ShorthandSpecID(usize_into_idx(self.shorthand_spec_nodes.0.len()));
         let id = self.shorthand_spec_nodes.0.alloc(ShorthandSpec {
@@ -929,6 +988,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_ns_import(&mut self, span: Span, name: IdentID) -> NsImportID {
         let idx = NsImportID(usize_into_idx(self.ns_import_nodes.0.len()));
         let id = self.ns_import_nodes.0.alloc(NsImport {
@@ -940,6 +1000,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_enum_decl(
         &mut self,
         span: Span,
@@ -959,6 +1020,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_enum_member(
         &mut self,
         span: Span,
@@ -976,6 +1038,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_throw_stmt(&mut self, span: Span, expr: Expr) -> ThrowStmtID {
         let idx = ThrowStmtID(usize_into_idx(self.throw_stmt_nodes.0.len()));
         let id = self.throw_stmt_nodes.0.alloc(ThrowStmt {
@@ -987,6 +1050,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_module_decl(
         &mut self,
         span: Span,
@@ -1006,6 +1070,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_module_block(&mut self, span: Span, stmts: Vec<Stmt>) -> ModuleBlockID {
         let idx = ModuleBlockID(usize_into_idx(self.module_block_nodes.0.len()));
         let id = self.module_block_nodes.0.alloc(ModuleBlock {
@@ -1017,6 +1082,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_expr_stmt(&mut self, span: Span, expr: Expr) -> ExprStmtID {
         let idx = ExprStmtID(usize_into_idx(self.expr_stmt_nodes.0.len()));
         let id = self.expr_stmt_nodes.0.alloc(ExprStmt {
@@ -1028,6 +1094,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_static_block(
         &mut self,
         span: Span,
@@ -1043,6 +1110,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_setter_decl(
         &mut self,
         span: Span,
@@ -1064,6 +1132,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_getter_decl(
         &mut self,
         span: Span,
@@ -1083,6 +1152,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_method_elem(
         &mut self,
         span: Span,
@@ -1104,6 +1174,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_prop_elem(
         &mut self,
         span: Span,
@@ -1123,6 +1194,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_extends_clause(&mut self, span: Span, expr: Expr) -> ClassExtendsClauseID {
         let idx = ClassExtendsClauseID(usize_into_idx(self.class_extends_clause_nodes.0.len()));
         let id = self.class_extends_clause_nodes.0.alloc(ClassExtendsClause {
@@ -1134,6 +1206,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_decl(
         &mut self,
         span: Span,
@@ -1155,6 +1228,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_class_ctor(
         &mut self,
         span: Span,
@@ -1172,13 +1246,14 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_fn_decl(
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
         name: IdentID,
         params: Vec<ParamDeclID>,
-        body: GraphID,
+        body: ir::GraphID,
     ) -> FnDeclID {
         let idx = FnDeclID(usize_into_idx(self.fn_decl_nodes.0.len()));
         let id = self.fn_decl_nodes.0.alloc(FnDecl {
@@ -1193,6 +1268,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_param_decl(
         &mut self,
         span: Span,
@@ -1216,6 +1292,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_modifier(&mut self, span: Span, kind: ast::ModifierKind) -> ModifierID {
         let idx = ModifierID(usize_into_idx(self.modifier_nodes.0.len()));
         let id = self.modifier_nodes.0.alloc(Modifier {
@@ -1227,6 +1304,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_block_stmt(&mut self, span: Span, stmts: Vec<Stmt>) -> BlockStmtID {
         let idx = BlockStmtID(usize_into_idx(self.block_stmt_nodes.0.len()));
         let id = self.block_stmt_nodes.0.alloc(BlockStmt {
@@ -1238,6 +1316,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_ret_stmt(&mut self, span: Span, expr: Option<Expr>) -> RetStmtID {
         let idx = RetStmtID(usize_into_idx(self.ret_stmt_nodes.0.len()));
         let id = self.ret_stmt_nodes.0.alloc(RetStmt {
@@ -1249,6 +1328,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_continue_stmt(&mut self, span: Span, label: Option<IdentID>) -> ContinueStmtID {
         let idx = ContinueStmtID(usize_into_idx(self.continue_stmt_nodes.0.len()));
         let id = self.continue_stmt_nodes.0.alloc(ContinueStmt {
@@ -1260,6 +1340,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_break_stmt(&mut self, span: Span, label: Option<IdentID>) -> BreakStmtID {
         let idx = BreakStmtID(usize_into_idx(self.break_stmt_nodes.0.len()));
         let id = self.break_stmt_nodes.0.alloc(BreakStmt {
@@ -1271,6 +1352,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_for_in_stmt(
         &mut self,
         span: Span,
@@ -1290,6 +1372,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_for_of_stmt(
         &mut self,
         span: Span,
@@ -1311,6 +1394,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_for_stmt(
         &mut self,
         span: Span,
@@ -1332,25 +1416,30 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_if_stmt(
         &mut self,
         span: Span,
         expr: Expr,
-        then: Stmt,
-        else_then: Option<Stmt>,
+        then: ir::BasicBlockID,
+        else_then: Option<ir::BasicBlockID>,
     ) -> IfStmtID {
         let idx = IfStmtID(usize_into_idx(self.if_stmt_nodes.0.len()));
-        let id = self.if_stmt_nodes.0.alloc(IfStmt {
-            id: idx,
-            span,
+        let branch = Branch {
             expr,
             then,
             else_then,
+        };
+        let id = self.if_stmt_nodes.0.alloc(IfStmt {
+            id: idx,
+            span,
+            branch,
         });
         debug_assert_eq!(id, idx.0);
         idx
     }
 
+    #[inline]
     pub fn alloc_var_stmt(
         &mut self,
         span: Span,
@@ -1368,6 +1457,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_var_decl(&mut self, span: Span, name: Binding, init: Option<Expr>) -> VarDeclID {
         let idx = VarDeclID(usize_into_idx(self.var_decl_nodes.0.len()));
         let id = self.var_decl_nodes.0.alloc(VarDecl {
@@ -1380,6 +1470,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_ident(&mut self, ty: TyID, span: Span, name: Atom) -> IdentID {
         let idx = IdentID(usize_into_idx(self.ident_nodes.0.len()));
         let id = self.ident_nodes.0.alloc(Ident {
@@ -1392,6 +1483,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_pat(&mut self, span: Span, elems: Vec<ObjectBindingElemID>) -> ObjectPatID {
         let idx = ObjectPatID(usize_into_idx(self.object_pat_nodes.0.len()));
         let id = self.object_pat_nodes.0.alloc(ObjectPat {
@@ -1403,6 +1495,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_string_lit(&mut self, span: Span, val: Atom, is_template: bool) -> StringLitID {
         let idx = StringLitID(usize_into_idx(self.string_lit_nodes.0.len()));
         let id = self.string_lit_nodes.0.alloc(StringLit {
@@ -1415,6 +1508,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_num_lit(&mut self, span: Span, val: f64) -> NumLitID {
         let idx = NumLitID(usize_into_idx(self.num_lit_nodes.0.len()));
         let id = self.num_lit_nodes.0.alloc(NumLit { id: idx, span, val });
@@ -1422,6 +1516,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_bigint_lit(&mut self, span: Span, pos: bool, val: Atom) -> BigIntLitID {
         let idx = BigIntLitID(usize_into_idx(self.bigint_lit_nodes.0.len()));
         let id = self.bigint_lit_nodes.0.alloc(BigIntLit {
@@ -1433,6 +1528,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_null_lit(&mut self, span: Span) -> NullLitID {
         let idx = NullLitID(usize_into_idx(self.null_lit_nodes.0.len()));
         let id = self.null_lit_nodes.0.alloc(NullLit { id: idx, span });
@@ -1440,6 +1536,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_regexp_lit(&mut self, span: Span, val: Atom) -> RegExpLitID {
         let idx = RegExpLitID(usize_into_idx(self.regexp_lit_nodes.0.len()));
         let id = self
@@ -1450,6 +1547,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_computed_prop_name(&mut self, span: Span, expr: Expr) -> ComputedPropNameID {
         let idx = ComputedPropNameID(usize_into_idx(self.computed_prop_name_nodes.0.len()));
         let id = self.computed_prop_name_nodes.0.alloc(ComputedPropName {
@@ -1461,6 +1559,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_object_binding_elem(
         &mut self,
         span: Span,
@@ -1479,6 +1578,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_array_pat(&mut self, span: Span, elems: Vec<ArrayBindingElem>) -> ArrayPatID {
         let idx = ArrayPatID(usize_into_idx(self.array_pat_nodes.0.len()));
         let id = self.array_pat_nodes.0.alloc(ArrayPat {
@@ -1490,6 +1590,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_array_binding(
         &mut self,
         span: Span,
@@ -1509,6 +1610,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_omit_expr(&mut self, span: Span) -> OmitExprID {
         let idx = OmitExprID(usize_into_idx(self.omit_expr_nodes.0.len()));
         let id = self.omit_expr_nodes.0.alloc(OmitExpr { id: idx, span });
@@ -1516,6 +1618,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_paren_expr(&mut self, span: Span, expr: Expr) -> ParenExprID {
         let idx = ParenExprID(usize_into_idx(self.paren_expr_nodes.0.len()));
         let id = self.paren_expr_nodes.0.alloc(ParenExpr {
@@ -1527,6 +1630,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_assign_expr(
         &mut self,
         span: Span,
@@ -1546,6 +1650,7 @@ impl Nodes {
         idx
     }
 
+    #[inline]
     pub fn alloc_cond_expr(
         &mut self,
         span: Span,
@@ -1560,6 +1665,65 @@ impl Nodes {
             cond,
             when_true,
             when_false,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_case_block(
+        &mut self,
+        span: Span,
+        clauses: Vec<CaseOrDefaultClause>,
+    ) -> CaseBlockID {
+        let idx = CaseBlockID(usize_into_idx(self.case_block_nodes.0.len()));
+        let id = self.case_block_nodes.0.alloc(CaseBlock {
+            id: idx,
+            span,
+            clauses,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_default_clause(&mut self, span: Span, stmts: Vec<Stmt>) -> DefaultClauseID {
+        let idx = DefaultClauseID(usize_into_idx(self.default_clause_nodes.0.len()));
+        let id = self.default_clause_nodes.0.alloc(DefaultClause {
+            id: idx,
+            span,
+            stmts,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_case_clause(&mut self, span: Span, expr: Expr, stmts: Vec<Stmt>) -> CaseClauseID {
+        let idx = CaseClauseID(usize_into_idx(self.case_clause_nodes.0.len()));
+        let id = self.case_clause_nodes.0.alloc(CaseClause {
+            id: idx,
+            span,
+            expr,
+            stmts,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_switch_stmt(
+        &mut self,
+        span: Span,
+        expr: Expr,
+        case_block: CaseBlockID,
+    ) -> SwitchStmtID {
+        let idx = SwitchStmtID(usize_into_idx(self.switch_stmt_nodes.0.len()));
+        let id = self.switch_stmt_nodes.0.alloc(SwitchStmt {
+            id: idx,
+            span,
+            expr,
+            case_block,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -2097,7 +2261,7 @@ pub struct ArrowFnExpr {
     id: ArrowFnExprID,
     span: Span,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl ArrowFnExpr {
@@ -2109,7 +2273,7 @@ impl ArrowFnExpr {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }
@@ -2195,7 +2359,7 @@ pub struct FnExpr {
     span: Span,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl FnExpr {
@@ -2211,7 +2375,7 @@ impl FnExpr {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }
@@ -2524,6 +2688,84 @@ impl ArrayBinding {
     }
     pub fn init(&self) -> Option<Expr> {
         self.init
+    }
+}
+
+#[derive(Debug)]
+pub struct SwitchStmt {
+    id: SwitchStmtID,
+    span: Span,
+    expr: Expr,
+    case_block: CaseBlockID,
+}
+
+impl SwitchStmt {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+    pub fn case_block(&self) -> CaseBlockID {
+        self.case_block
+    }
+}
+
+#[derive(Debug)]
+pub struct CaseBlock {
+    id: CaseBlockID,
+    span: Span,
+    clauses: Vec<CaseOrDefaultClause>,
+}
+
+impl CaseBlock {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn clauses(&self) -> &[CaseOrDefaultClause] {
+        &self.clauses
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CaseOrDefaultClause {
+    Case(CaseClauseID),
+    Default(DefaultClauseID),
+}
+
+#[derive(Debug)]
+pub struct CaseClause {
+    id: CaseClauseID,
+    span: Span,
+    expr: Expr,
+    stmts: Vec<Stmt>,
+}
+
+impl CaseClause {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
+    }
+}
+
+#[derive(Debug)]
+pub struct DefaultClause {
+    id: DefaultClauseID,
+    span: Span,
+    stmts: Vec<Stmt>,
+}
+
+impl DefaultClause {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn stmts(&self) -> &[Stmt] {
+        &self.stmts
     }
 }
 
@@ -3466,25 +3708,30 @@ impl RetStmt {
 }
 
 #[derive(Debug)]
+struct Branch {
+    expr: Expr,
+    then: ir::BasicBlockID,
+    else_then: Option<ir::BasicBlockID>,
+}
+
+#[derive(Debug)]
 pub struct IfStmt {
     id: IfStmtID,
     span: Span,
-    expr: Expr,
-    then: Stmt,
-    else_then: Option<Stmt>,
+    branch: Branch,
 }
 
 impl IfStmt {
     pub fn expr(&self) -> Expr {
-        self.expr
+        self.branch.expr
     }
 
-    pub fn then(&self) -> Stmt {
-        self.then
+    pub fn then(&self) -> ir::BasicBlockID {
+        self.branch.then
     }
 
-    pub fn else_then(&self) -> Option<Stmt> {
-        self.else_then
+    pub fn else_then(&self) -> Option<ir::BasicBlockID> {
+        self.branch.else_then
     }
 }
 
@@ -3512,7 +3759,7 @@ pub struct FnDecl {
     modifiers: Option<Modifiers>,
     name: IdentID,
     params: Vec<ParamDeclID>,
-    body: GraphID,
+    body: ir::GraphID,
 }
 
 impl FnDecl {
@@ -3532,7 +3779,7 @@ impl FnDecl {
         &self.params
     }
 
-    pub fn body(&self) -> GraphID {
+    pub fn body(&self) -> ir::GraphID {
         self.body
     }
 }
@@ -3696,6 +3943,7 @@ pub enum Stmt {
     Do(DoStmtID),
     While(WhileStmtID),
     Empty(EmptyStmtID),
+    Switch(SwitchStmtID),
 }
 
 #[derive(Debug, Clone, Copy)]

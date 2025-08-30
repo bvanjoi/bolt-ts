@@ -51,3 +51,14 @@ fn test_target_options() {
 "#,
     }));
 }
+
+#[wasm_bindgen_test]
+fn test_cross_module() {
+    success_compile(serde_json::json!({
+        "/index.ts": r#"
+import { a } from "./a";
+const b: number = a;
+"#,
+        "/a.ts": "export const a = 42;"
+    }));
+}

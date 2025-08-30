@@ -7,6 +7,7 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
+use crate::check::node_check_flags::NodeCheckFlags;
 use crate::ty::CheckFlags;
 use crate::ty::TypeFlags;
 
@@ -169,6 +170,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::ExprKind::*;
         let saved_current_node = self.current_node;
         self.current_node = Some(expr.id());
+        self.instantiation_count = 0;
         let ty = match expr.kind {
             Bin(bin) => ensure_sufficient_stack(|| self.check_bin_expr(bin)),
             NumLit(lit) => self.check_num_lit(lit.val),
@@ -211,10 +213,7 @@ impl<'cx> TyChecker<'cx> {
             }
             EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
-            Super(_) => {
-                // TODO: support super
-                self.undefined_ty
-            }
+            Super(n) => self.check_super_expr(n),
             As(n) => self.check_assertion(n.id, n.expr, n.ty),
             TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
@@ -224,15 +223,15 @@ impl<'cx> TyChecker<'cx> {
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
             TaggedTemplate(n) => self.check_tagged_template_expr(n),
-            JsxElem(n) => {
+            JsxElem(_) => {
                 // TODO:
                 self.undefined_ty
             }
-            JsxSelfClosingElem(n) => {
+            JsxSelfClosingElem(_) => {
                 // TODO:
                 self.undefined_ty
             }
-            JsxFrag(n) => {
+            JsxFrag(_) => {
                 // TODO:
                 self.undefined_ty
             }
@@ -240,6 +239,67 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    pub(super) fn check_super_expr(&mut self, node: &'cx ast::SuperExpr) -> &'cx ty::Ty<'cx> {
+        let is_call_expr = self
+            .p
+            .node(self.parent(node.id).unwrap())
+            .as_call_expr()
+            .is_some_and(|call| call.expr.id() == node.id);
+        let immediate_container = self
+            .node_query(node.id.module())
+            .get_super_container(node.id, true)
+            .unwrap();
+        let mut container = immediate_container;
+        let need_to_capture_lexical_this = false;
+        let is_async_function = false;
+
+        if !is_call_expr {
+            while self.p.node(container).is_arrow_fn_expr() {
+                container = self
+                    .node_query(container.module())
+                    .get_super_container(container, true)
+                    .unwrap();
+            }
+        }
+
+        let node_check_flags;
+
+        if is_call_expr || self.p.node(container).is_static() {
+            node_check_flags = NodeCheckFlags::SUPER_STATIC;
+        } else {
+            node_check_flags = NodeCheckFlags::SUPER_INSTANCE;
+        }
+
+        let _ = self.get_node_links(node.id);
+        self.get_mut_node_links(node.id)
+            .config_flags(|old| old | node_check_flags);
+
+        let class_like_decl = self.parent(container).unwrap();
+
+        let has_extends = match self.p.node(class_like_decl) {
+            ast::Node::ClassDecl(c) => c.extends.is_some(),
+            ast::Node::ClassExpr(c) => c.extends.is_some(),
+            _ => unreachable!("class like: {:#?}", self.p.node(class_like_decl)),
+        };
+        if !has_extends {
+            let error = errors::SuperCanOnlyBeReferencedInADerivedClass { span: node.span };
+            self.push_error(Box::new(error));
+            return self.error_ty;
+        }
+
+        let class_ty = self.get_declared_ty_of_symbol(self.get_symbol_of_decl(class_like_decl));
+        let Some(base_class_ty) = self.get_base_tys(class_ty).get(0) else {
+            return self.error_ty;
+        };
+
+        if node_check_flags == NodeCheckFlags::SUPER_STATIC {
+            self.get_base_constructor_type_of_class(class_ty)
+        } else {
+            let this_ty = Self::this_ty(class_ty);
+            self.get_ty_with_this_arg(base_class_ty, this_ty, false)
+        }
     }
 
     fn check_tagged_template_expr(
@@ -601,17 +661,17 @@ impl<'cx> TyChecker<'cx> {
         let symbol = std::cell::OnceCell::new();
         for member in node.members {
             use bolt_ts_ast::ObjectMemberKind::*;
-            if matches!(member.kind, Shorthand(_) | Prop(_) | Method(_)) {
+            if matches!(member.kind, Shorthand(_) | PropAssignment(_) | Method(_)) {
                 let member_symbol = self.get_symbol_of_decl(member.id());
                 let ty = match member.kind {
                     Shorthand(n) => self.check_ident(n.name),
-                    Prop(n) => self.check_object_prop_member(n),
+                    PropAssignment(n) => self.check_object_prop_member(n),
                     Method(n) => self.check_object_method_member(n),
                     _ => unreachable!(),
                 };
                 let name = match member.kind {
                     Shorthand(n) => SymbolName::Atom(n.name.name),
-                    Prop(n) => bolt_ts_binder::prop_name(n.name),
+                    PropAssignment(n) => bolt_ts_binder::prop_name(n.name),
                     Method(n) => bolt_ts_binder::prop_name(n.name),
                     _ => unreachable!(),
                 };

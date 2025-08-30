@@ -730,3 +730,18 @@ pub(super) struct AGetAccessorMustReturnAValue {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type instantiation is excessively deep and possibly infinite.")]
+pub(super) struct TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
+    #[label(primary)]
+    pub span: Span,
+}
+
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'super' can only be referenced in a derived class.")]
+pub(super) struct SuperCanOnlyBeReferencedInADerivedClass {
+    #[label(primary)]
+    pub span: Span,
+}

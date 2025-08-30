@@ -11,7 +11,7 @@ use bolt_ts_parser::CommentDirective;
 
 pub(super) fn get_merged_diags(
     diags: Vec<bolt_ts_errors::Diag>,
-    p: &super::Parser,
+    p: &super::ParsedMap,
     ms: &super::ModuleArena,
 ) -> Vec<bolt_ts_errors::Diag> {
     // get_diags_with_preceding_directives
@@ -90,20 +90,20 @@ fn mark_preceding_comment_directive_line<'cx>(
 }
 
 struct CommentDirectivesMap<'p, 'cx> {
-    p: &'p super::Parser<'cx>,
+    p: &'p super::ParsedMap<'cx>,
     all: Vec<nohash_hasher::IntMap<u32, CommentDirective>>,
     used: Vec<nohash_hasher::IntSet<u32>>,
 }
 
 impl<'p, 'cx> CommentDirectivesMap<'p, 'cx> {
-    fn new(p: &'p super::Parser<'cx>) -> Self {
+    fn new(p: &'p super::ParsedMap<'cx>) -> Self {
         let used = p
-            .map
+            .get_map()
             .iter()
             .map(|r| no_hashset_with_capacity(r.comment_directives.len()))
             .collect();
         let all = p
-            .map
+            .get_map()
             .iter()
             .map(|r| r.comment_directives.iter().map(|c| (c.line, *c)).collect())
             .collect();

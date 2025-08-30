@@ -1,0 +1,5 @@
+  × 'super' can only be referenced in a derived class.
+    ╭─[../../tests/compiler/super/index.ts:35:9]
+ 35 │ super
+    · ─────
+    ╰────

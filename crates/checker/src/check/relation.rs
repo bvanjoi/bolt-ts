@@ -389,11 +389,7 @@ impl<'cx> TyChecker<'cx> {
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
         } else if ty.kind.as_intersection().is_some() {
-            if let Some(prop) = self.get_prop_of_union_or_intersection_ty(ty, name) {
-                Some(prop)
-            } else {
-                None
-            }
+            self.get_prop_of_union_or_intersection_ty(ty, name).map(|prop| prop)
         } else if ty.kind.as_union().is_some() {
             self.get_prop_of_union_or_intersection_ty(ty, name)
         } else {

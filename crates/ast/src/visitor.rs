@@ -33,6 +33,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Do(_) => {}
         Debugger(_) => {}
         Labeled(_) => {}
+        Switch(_) => {}
     }
 }
 
@@ -73,7 +74,7 @@ pub fn visit_var_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::VarDecl<
 }
 
 pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::ClassDecl<'cx>) {
-    for ele in class.elems.elems {
+    for ele in class.elems.list {
         v.visit_class_elem(ele);
     }
 }

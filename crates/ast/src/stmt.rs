@@ -36,20 +36,21 @@ pub enum StmtKind<'cx> {
     Do(&'cx DoStmt<'cx>),
     Debugger(&'cx DebuggerStmt),
     Labeled(&'cx LabeledStmt<'cx>),
+    Switch(&'cx SwitchStmt<'cx>),
 }
 
 impl Stmt<'_> {
     pub fn id(&self) -> NodeID {
         use StmtKind::*;
         match self.kind {
-            Empty(empty) => empty.id,
-            Var(var) => var.id,
-            If(if_) => if_.id,
-            Ret(ret) => ret.id,
-            Block(block) => block.id,
-            Fn(f) => f.id,
-            Class(c) => c.id,
-            Expr(expr) => expr.id,
+            Empty(n) => n.id,
+            Var(n) => n.id,
+            If(n) => n.id,
+            Ret(n) => n.id,
+            Block(n) => n.id,
+            Fn(n) => n.id,
+            Class(n) => n.id,
+            Expr(n) => n.id,
             Interface(i) => i.id,
             TypeAlias(t) => t.id,
             Module(n) => n.id,
@@ -68,8 +69,45 @@ impl Stmt<'_> {
             Do(n) => n.id,
             Debugger(n) => n.id,
             Labeled(n) => n.id,
+            Switch(n) => n.id,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SwitchStmt<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub case_block: &'cx CaseBlock<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CaseClause<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
+    pub stmts: Stmts<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DefaultClause<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub stmts: Stmts<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CaseOrDefaultClause<'cx> {
+    Case(&'cx CaseClause<'cx>),
+    Default(&'cx DefaultClause<'cx>),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CaseBlock<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub clauses: &'cx [CaseOrDefaultClause<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -356,7 +394,7 @@ pub struct ClassDecl<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct ClassElems<'cx> {
     pub span: Span,
-    pub elems: &'cx [&'cx ClassElem<'cx>],
+    pub list: &'cx [&'cx ClassElem<'cx>],
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1,0 +1,5 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/validRegexp/index.ts:3:24]
+ 3 │ i
+   · ─
+   ╰────

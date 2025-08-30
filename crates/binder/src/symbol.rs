@@ -1,7 +1,7 @@
 use bolt_ts_ast::NodeID;
 use bolt_ts_atom::Atom;
 use bolt_ts_middle::F64Represent;
-use bolt_ts_parser::Parser;
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
@@ -250,7 +250,7 @@ impl Symbol {
         node.is_decl() || matches!(node, FnTy(_))
     }
 
-    pub fn get_decl_of_alias_symbol(&self, p: &Parser) -> Option<NodeID> {
+    pub fn get_decl_of_alias_symbol(&self, p: &ParsedMap) -> Option<NodeID> {
         self.decls.as_ref().and_then(|decls| {
             decls
                 .iter()
@@ -277,7 +277,7 @@ impl Symbol {
     pub fn opt_decl(&self) -> Option<NodeID> {
         self.decls.as_ref().and_then(|decls| decls.first()).copied()
     }
-    pub fn is_shorthand_ambient_module(&self, p: &Parser) -> bool {
+    pub fn is_shorthand_ambient_module(&self, p: &ParsedMap) -> bool {
         self.value_decl.is_some_and(|value_decl| {
             p.node(value_decl)
                 .as_module_decl()

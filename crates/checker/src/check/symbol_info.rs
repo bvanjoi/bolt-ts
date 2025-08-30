@@ -40,7 +40,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
     fn empty_symbols(&self) -> &'cx SymbolTable;
     fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph;
-    fn p(&self) -> &bolt_ts_parser::Parser<'cx>;
+    fn p(&self) -> &bolt_ts_parser::ParsedMap<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomIntern;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
     fn push_error(&mut self, error: bolt_ts_middle::Diag);
@@ -457,7 +457,7 @@ impl<'cx> super::TyChecker<'cx> {
                     symbol,
                     early_symbols,
                     &mut late_symbols,
-                    n.elems.elems,
+                    n.elems.list,
                     is_static,
                 ),
                 ClassExpr(n) => handle_members_for_label_symbol(
@@ -465,7 +465,7 @@ impl<'cx> super::TyChecker<'cx> {
                     symbol,
                     early_symbols,
                     &mut late_symbols,
-                    n.elems.elems,
+                    n.elems.list,
                     is_static,
                 ),
                 ObjectLitTy(n) => handle_members_for_label_symbol(
@@ -1213,7 +1213,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph {
         self.mg
     }
-    fn p(&self) -> &bolt_ts_parser::Parser<'cx> {
+    fn p(&self) -> &bolt_ts_parser::ParsedMap<'cx> {
         self.p
     }
     fn atoms(&self) -> &bolt_ts_atom::AtomIntern {

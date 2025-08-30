@@ -102,7 +102,7 @@ impl<'cx> VarLike<'cx> for crate::PropSignature<'cx> {
     }
 }
 
-impl<'cx> VarLike<'cx> for crate::ObjectPropMember<'cx> {
+impl<'cx> VarLike<'cx> for crate::ObjectPropAssignment<'cx> {
     fn id(&self) -> crate::NodeID {
         self.id
     }

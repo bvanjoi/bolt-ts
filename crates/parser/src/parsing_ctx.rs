@@ -52,7 +52,7 @@ impl ParserState<'_, '_> {
                     && self.is_start_of_stmt()
             }
             ParsingContext::SWITCH_CLAUSES => {
-                todo!()
+                matches!(self.token.kind, TokenKind::Case | TokenKind::Default)
             }
             ParsingContext::TYPE_MEMBERS => self.lookahead(|l| is_ty_member_start(l.p())),
             ParsingContext::CLASS_MEMBERS => {

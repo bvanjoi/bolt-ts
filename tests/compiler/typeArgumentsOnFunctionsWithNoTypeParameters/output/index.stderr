@@ -1,0 +1,17 @@
+  × Expected 0 type arguments, but got 1.
+   ╭─[../../tests/compiler/typeArgumentsOnFunctionsWithNoTypeParameters/index.ts:4:13]
+ 4 │ <number>
+   · ────────
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'T'.
+   ╭─[../../tests/compiler/typeArgumentsOnFunctionsWithNoTypeParameters/index.ts:6:14]
+ 6 │ 1
+   · ─
+   ╰────
+
+  × Expected 0 type arguments, but got 1.
+   ╭─[../../tests/compiler/typeArgumentsOnFunctionsWithNoTypeParameters/index.ts:8:13]
+ 8 │ <any>
+   · ─────
+   ╰────

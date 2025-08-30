@@ -309,8 +309,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
 
-                let prop =
-                    this.create_class_prop_elem(start as u32, modifiers, name, ty, init, excl);
+                let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),
@@ -421,6 +420,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let end = self.token.end();
         self.expect(TokenKind::RBrace);
         let span = Span::new(start, end, self.module_id);
-        Ok(self.alloc(ast::ClassElems { span, elems }))
+        Ok(self.alloc(ast::ClassElems { span, list: elems }))
     }
 }

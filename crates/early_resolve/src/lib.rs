@@ -4,6 +4,7 @@ mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
+use bolt_ts_parser::ParsedMap;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -15,7 +16,6 @@ use bolt_ts_binder::{
     BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
     SymbolTable,
 };
-use bolt_ts_parser::Parser;
 use bolt_ts_span::Module;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
@@ -28,7 +28,7 @@ pub struct EarlyResolveResult {
 pub fn early_resolve_parallel<'cx>(
     modules: &[Module],
     states: &[BinderResult<'cx>],
-    p: &'cx Parser<'cx>,
+    p: &'cx ParsedMap<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
@@ -50,7 +50,7 @@ fn early_resolve<'cx>(
     states: &[BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
     root: &'cx ast::Program<'cx>,
-    p: &'cx Parser<'cx>,
+    p: &'cx ParsedMap<'cx>,
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
@@ -77,7 +77,7 @@ fn early_resolve<'cx>(
 pub struct Resolver<'cx, 'r, 'atoms> {
     states: &'r [BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
-    p: &'cx Parser<'cx>,
+    p: &'cx ParsedMap<'cx>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     final_res: FxHashMap<ast::NodeID, SymbolID>,
     globals: &'cx GlobalSymbols,
@@ -185,6 +185,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Labeled(n) => {
                 self.resolve_stmt(n.stmt);
             }
+            Switch(_) => {}
         };
     }
 
@@ -726,7 +727,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Shorthand(n) => {
                 self.resolve_value_by_ident(n.name);
             }
-            Prop(n) => {
+            PropAssignment(n) => {
                 self.resolve_expr(n.init);
             }
             Method(n) => {

@@ -20,8 +20,8 @@ use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_middle::Diag;
-use bolt_ts_optimize::optimize_and_emit;
-use bolt_ts_parser::{ParseResultForGraph, Parser};
+use bolt_ts_optimize::{IrOutput, optimize_and_emit};
+use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
 
@@ -33,9 +33,11 @@ pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 pub struct Output {
     pub root: PathBuf,
     pub module_arena: ModuleArena,
-    pub output: Vec<(ModuleID, String)>,
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub types_len: usize,
+
+    pub ir: Vec<(ModuleID, IrOutput)>,
+    pub output: Vec<(ModuleID, String)>,
 }
 
 pub fn current_exe_dir() -> std::path::PathBuf {
@@ -168,7 +170,7 @@ pub fn eval_from_with_fs(
         .collect::<Vec<_>>();
 
     // ==== build graph ====
-    let mut p = bolt_ts_parser::Parser::new();
+    let mut p = bolt_ts_parser::ParsedMap::new();
     let atoms = Arc::new(Mutex::new(atoms));
     let herd = bolt_ts_arena::bumpalo_herd::Herd::new();
     let mut mg = bolt_ts_module_graph::build_graph(
@@ -190,7 +192,7 @@ pub fn eval_from_with_fs(
             bind_parallel(module_arena.modules(), &atoms, p, tsconfig)
                 .into_iter()
                 .unzip();
-        let p = Parser { map: p_map };
+        let p = ParsedMap::from_map(p_map);
         (bind_list, p)
     };
 
@@ -332,7 +334,8 @@ pub fn eval_from_with_fs(
         root,
         module_arena,
         diags,
-        output,
+        output: output.files,
+        ir: output.ir,
         types_len,
     }
 }

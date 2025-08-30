@@ -8,6 +8,7 @@ use super::{
 };
 
 impl<'cx> ParserState<'cx, '_> {
+    #[inline]
     pub fn create_numeric_literal(&mut self, val: f64, span: Span) -> &'cx ast::NumLit {
         let id = self.next_node_id();
         let n = self.alloc(ast::NumLit { id, val, span });
@@ -16,6 +17,7 @@ impl<'cx> ParserState<'cx, '_> {
         n
     }
 
+    #[inline]
     pub fn create_jsx_text(
         &mut self,
         text: Atom,
@@ -34,6 +36,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_jsx_closing_fragment(&mut self, span: Span) -> &'cx ast::JsxClosingFrag {
         let id = self.next_node_id();
         let node = self.alloc(ast::JsxClosingFrag { id, span });
@@ -42,6 +45,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_named_attr(
         &mut self,
         name: ast::JsxAttrName<'cx>,
@@ -60,6 +64,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_spread_attr(
         &mut self,
         expr: &'cx ast::Expr,
@@ -72,6 +77,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_ns_name(
         &mut self,
         ns: &'cx ast::Ident,
@@ -85,6 +91,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_this_expr(&mut self, span: Span) -> &'cx ast::ThisExpr {
         let id = self.next_node_id();
         let this = self.alloc(ast::ThisExpr { id, span });
@@ -93,6 +100,7 @@ impl<'cx> ParserState<'cx, '_> {
         this
     }
 
+    #[inline]
     pub fn create_jsx_expr(
         &mut self,
         dotdotdot_token: Option<Span>,
@@ -111,10 +119,12 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_attrs(&mut self, attrs: &'cx [ast::JsxAttr<'cx>]) -> ast::JsxAttrs<'cx> {
         attrs
     }
 
+    #[inline]
     fn create_base_prop_access_expr(
         &mut self,
         span: Span,
@@ -140,6 +150,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_prop_access_expr(
         &mut self,
         start: u32,
@@ -151,6 +162,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_base_prop_access_expr(span, expr, None, name)
     }
 
+    #[inline]
     pub fn create_prop_access_chain(
         &mut self,
         start: u32,
@@ -163,6 +175,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_base_prop_access_expr(span, expr, question_dot, name)
     }
 
+    #[inline]
     pub fn create_jsx_opening_frag(&mut self, span: Span) -> &'cx ast::JsxOpeningFrag {
         let id = self.next_node_id();
         let node = self.alloc(ast::JsxOpeningFrag { id, span });
@@ -171,6 +184,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_opening_ele(
         &mut self,
         span: Span,
@@ -191,6 +205,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_closing_ele(
         &mut self,
         span: Span,
@@ -203,6 +218,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_self_closing_ele(
         &mut self,
         span: Span,
@@ -223,6 +239,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_frag(
         &mut self,
         span: Span,
@@ -243,6 +260,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_jsx_ele(
         &mut self,
         span: Span,
@@ -263,6 +281,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_tagged_template_expr(
         &mut self,
         start: u32,
@@ -301,6 +320,7 @@ impl<'cx> ParserState<'cx, '_> {
         tagged_template
     }
 
+    #[inline]
     pub fn create_binary_expr(
         &mut self,
         start: u32,
@@ -322,6 +342,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_class_ctor(
         &mut self,
         start: u32,
@@ -347,6 +368,7 @@ impl<'cx> ParserState<'cx, '_> {
         ctor
     }
 
+    #[inline]
     pub fn create_class_prop_elem(
         &mut self,
         start: u32,
@@ -372,6 +394,7 @@ impl<'cx> ParserState<'cx, '_> {
         prop
     }
 
+    #[inline]
     pub fn create_computed_prop_name(
         &mut self,
         start: u32,
@@ -388,6 +411,7 @@ impl<'cx> ParserState<'cx, '_> {
         node
     }
 
+    #[inline]
     pub fn create_class_static_block_decl(
         &mut self,
         start: u32,
@@ -402,6 +426,172 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(id, ast::Node::ClassStaticBlock(node));
         self.node_flags_map
             .insert(id, ast::NodeFlags::CLASS_STATIC_BLOCK);
+        node
+    }
+
+    #[inline]
+    pub fn create_method_signature(
+        &mut self,
+        start: u32,
+        name: &'cx ast::PropName<'cx>,
+        question: Option<Span>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+    ) -> &'cx ast::MethodSignature<'cx> {
+        let id = self.next_node_id();
+        let sig = self.alloc(ast::MethodSignature {
+            id,
+            span: self.new_span(start),
+            name,
+            question,
+            ty_params,
+            params,
+            ty,
+        });
+        self.nodes.insert(id, ast::Node::MethodSignature(sig));
+        self.node_flags_map.insert(id, Default::default());
+        sig
+    }
+
+    #[inline]
+    pub fn create_object_method_member(
+        &mut self,
+        start: u32,
+        name: &'cx ast::PropName<'cx>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        body: &'cx ast::BlockStmt<'cx>,
+    ) -> &'cx ast::ObjectMethodMember<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ObjectMethodMember {
+            id,
+            span: self.new_span(start),
+            name,
+            ty_params,
+            params,
+            ty,
+            body,
+        });
+        self.nodes.insert(id, ast::Node::ObjectMethodMember(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_class_method_elem(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::ClassMethodElem<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ClassMethodElem {
+            id,
+            span: self.new_span(start),
+            modifiers,
+            name,
+            ty_params,
+            params,
+            ty,
+            body,
+        });
+        self.nodes.insert(id, ast::Node::ClassMethodElem(node));
+        self.node_flags_map.insert(id, self.context_flags);
+        node
+    }
+
+    #[inline]
+    pub fn create_ret_stmt(
+        &mut self,
+        start: u32,
+        expr: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ast::RetStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::RetStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::RetStmt(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_switch_stmt(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        case_block: &'cx ast::CaseBlock<'cx>,
+    ) -> &'cx ast::SwitchStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::SwitchStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+            case_block,
+        });
+        self.nodes.insert(id, ast::Node::SwitchStmt(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_case_clause(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+        stmts: ast::Stmts<'cx>,
+    ) -> &'cx ast::CaseClause<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CaseClause {
+            id,
+            span: self.new_span(start),
+            expr,
+            stmts,
+        });
+        self.nodes.insert(id, ast::Node::CaseClause(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_default_clause(
+        &mut self,
+        start: u32,
+        stmts: ast::Stmts<'cx>,
+    ) -> &'cx ast::DefaultClause<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::DefaultClause {
+            id,
+            span: self.new_span(start),
+            stmts,
+        });
+        self.nodes.insert(id, ast::Node::DefaultClause(node));
+        self.node_flags_map.insert(id, Default::default());
+        node
+    }
+
+    #[inline]
+    pub fn create_case_block(
+        &mut self,
+        start: u32,
+        clauses: &'cx [ast::CaseOrDefaultClause<'cx>],
+    ) -> &'cx ast::CaseBlock<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CaseBlock {
+            id,
+            span: self.new_span(start),
+            clauses,
+        });
+        self.nodes.insert(id, ast::Node::CaseBlock(node));
+        self.node_flags_map.insert(id, Default::default());
         node
     }
 }

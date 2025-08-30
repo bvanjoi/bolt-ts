@@ -10,6 +10,7 @@ mod parse_class_like;
 mod parse_fn_like;
 mod parse_import_export_spec;
 mod parse_modifiers;
+mod parsed_map;
 mod parsing_ctx;
 mod pragmas;
 mod query;
@@ -34,6 +35,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub use self::nodes::Nodes;
+pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
 pub use self::query::AccessKind;
 use self::state::LanguageVariant;
@@ -129,55 +131,6 @@ impl<'cx> ParseResultForGraph<'cx> {
 
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
         !self.is_external_or_commonjs_module() && self.node(id).is_program()
-    }
-}
-
-pub struct Parser<'cx> {
-    pub map: Vec<ParseResultForGraph<'cx>>,
-}
-
-impl Default for Parser<'_> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'cx> Parser<'cx> {
-    pub fn new() -> Self {
-        Self {
-            map: Vec::with_capacity(2048),
-        }
-    }
-
-    #[inline(always)]
-    pub fn insert(&mut self, id: ModuleID, result: ParseResultForGraph<'cx>) {
-        assert_eq!(id.as_usize(), self.map.len());
-        self.map.push(result);
-    }
-
-    #[inline(always)]
-    pub fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
-        let idx = id.as_usize();
-        debug_assert!(idx < self.map.len());
-        unsafe { self.map.get_unchecked(idx) }
-    }
-
-    pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
-        self.map
-            .iter_mut()
-            .flat_map(|result| std::mem::take(&mut result.diags))
-            .collect()
-    }
-
-    #[inline(always)]
-    pub fn module_count(&self) -> usize {
-        self.map.len()
-    }
-
-    pub fn node_flags(&self, node: ast::NodeID) -> NodeFlags {
-        let idx = node.module().as_usize();
-        debug_assert!(idx < self.map.len());
-        unsafe { self.map.get_unchecked(idx).node_flags(node) }
     }
 }
 
