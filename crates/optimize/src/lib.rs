@@ -7,7 +7,8 @@ mod pipeline;
 use bolt_ts_checker::check::TyChecker;
 use bolt_ts_span::ModuleID;
 
-use crate::lowering::{LoweringResult, lowering};
+pub use crate::lowering::LoweringResult;
+use crate::lowering::lowering;
 
 pub struct IrOutput {
     pub lowered: LoweringResult,

@@ -351,7 +351,7 @@ fn get_sig_from_decl<'cx>(
             || node.is_arrow_fn_expr()
             || node.is_class_ctor()
             || node.is_ctor_sig_decl()
-            || node.is_class_method_ele()
+            || node.is_class_method_elem()
             || node.is_method_signature()
             || node.is_object_method_member()
             || node.is_call_sig_decl()

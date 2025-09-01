@@ -283,7 +283,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
             | MappedTy(_)
-            | ClassStaticBlock(_) => {
+            | ClassStaticBlockDecl(_) => {
                 assert!(
                     c.has_locals(),
                     "container({:?}) should have locals, but it doesn't",
@@ -1211,7 +1211,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.closing_elem.id);
             }
-            ClassStaticBlock(n) => {
+            ClassStaticBlockDecl(n) => {
                 self.bind(n.body.id);
             }
             CaseClause(n) => {

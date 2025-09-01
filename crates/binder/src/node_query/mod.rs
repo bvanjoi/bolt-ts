@@ -445,7 +445,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 | ClassCtor(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
-                | ClassStaticBlock(_) => return Some(id),
+                | ClassStaticBlockDecl(_) => return Some(id),
                 // TODO: decorator
                 _ => {}
             }
@@ -744,7 +744,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.find_ancestor(parent, |n| {
             if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
                 || n.is_program()
-                || n.is_class_prop_ele()
+                || n.is_class_prop_elem()
                 || n.is_block_stmt()
             {
                 Some(true)

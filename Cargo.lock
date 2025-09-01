@@ -448,6 +448,7 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
+ "bolt_ts_optimize",
  "bolt_ts_span",
  "console_error_panic_hook",
  "indexmap",

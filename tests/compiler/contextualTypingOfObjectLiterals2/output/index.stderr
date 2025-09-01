@@ -1,5 +1,5 @@
   × Property 'hmm' does not exist on type 'string'.
-   ╭─[../../tests/compiler/contextualTypingOfObjectLiterals2/index.ts:8:18]
- 8 │ hmm
+   ╭─[../../tests/compiler/contextualTypingOfObjectLiterals2/index.ts:7:18]
+ 7 │ hmm
    · ───
    ╰────

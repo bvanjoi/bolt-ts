@@ -415,11 +415,11 @@ pub enum ClassElemKind<'cx> {
     IndexSig(&'cx IndexSigDecl<'cx>),
     Getter(&'cx GetterDecl<'cx>),
     Setter(&'cx SetterDecl<'cx>),
-    StaticBlock(&'cx ClassStaticBlock<'cx>),
+    StaticBlockDecl(&'cx ClassStaticBlockDecl<'cx>),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ClassStaticBlock<'cx> {
+pub struct ClassStaticBlockDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub body: &'cx BlockStmt<'cx>,
@@ -429,7 +429,7 @@ impl<'cx> ClassElemKind<'cx> {
     pub fn is_static(&self) -> bool {
         use ClassElemKind::*;
         let ms = match self {
-            Ctor(_) | StaticBlock(_) => None,
+            Ctor(_) | StaticBlockDecl(_) => None,
             Prop(n) => n.modifiers,
             Method(n) => n.modifiers,
             IndexSig(n) => n.modifiers,
@@ -448,7 +448,7 @@ impl<'cx> ClassElemKind<'cx> {
             IndexSig(n) => n.id,
             Getter(n) => n.id,
             Setter(n) => n.id,
-            StaticBlock(n) => n.id,
+            StaticBlockDecl(n) => n.id,
         }
     }
 
@@ -458,9 +458,9 @@ impl<'cx> ClassElemKind<'cx> {
             ClassElemKind::Method(n) => Some(n.name),
             ClassElemKind::Getter(n) => Some(n.name),
             ClassElemKind::Setter(n) => Some(n.name),
-            ClassElemKind::IndexSig(_) | ClassElemKind::Ctor(_) | ClassElemKind::StaticBlock(_) => {
-                None
-            }
+            ClassElemKind::IndexSig(_)
+            | ClassElemKind::Ctor(_)
+            | ClassElemKind::StaticBlockDecl(_) => None,
         }
     }
 }

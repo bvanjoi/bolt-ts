@@ -51,7 +51,7 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.bind_list[symbol.module().as_usize()].symbols;
-        set_value_declaration(symbol, symbols, node, &self.p);
+        set_value_declaration(symbol, symbols, node, self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.bind_list[source.module().as_usize()].symbols;
@@ -158,7 +158,7 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
-        set_value_declaration(symbol, symbols, node, &self.p);
+        set_value_declaration(symbol, symbols, node, self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;

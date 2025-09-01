@@ -505,8 +505,8 @@ impl<'ir> Emitter<'_, 'ir> {
         self.content.p_r_brace();
     }
 
-    fn emit_class_static_block(&mut self, elem: ir::ClassStaticBlockID) {
-        let elem = self.nodes.get_class_static_block(&elem);
+    fn emit_class_static_block(&mut self, elem: ir::ClassStaticBlockDeclID) {
+        let elem = self.nodes.get_class_static_block_decl(&elem);
         self.content.p("static");
         self.content.p_whitespace();
 

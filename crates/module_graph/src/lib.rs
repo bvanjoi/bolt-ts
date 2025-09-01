@@ -1,7 +1,7 @@
 mod errors;
 
 use bolt_ts_ast::{self as ast};
-use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_utils::path::NormalizePath;
 
 use bolt_ts_span::{ModuleArena, ModuleID};

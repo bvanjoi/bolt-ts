@@ -249,23 +249,88 @@ impl<'cx> TyChecker<'cx> {
             .is_some_and(|call| call.expr.id() == node.id);
         let immediate_container = self
             .node_query(node.id.module())
-            .get_super_container(node.id, true)
-            .unwrap();
+            .get_super_container(node.id, true);
         let mut container = immediate_container;
         let need_to_capture_lexical_this = false;
         let is_async_function = false;
 
         if !is_call_expr {
-            while self.p.node(container).is_arrow_fn_expr() {
-                container = self
-                    .node_query(container.module())
-                    .get_super_container(container, true)
-                    .unwrap();
+            loop {
+                let Some(c) = container else {
+                    break;
+                };
+                if !self.p.node(c).is_arrow_fn_expr() {
+                    break;
+                };
+                container = self.node_query(c.module()).get_super_container(c, true);
             }
         }
 
-        let node_check_flags;
+        if container.is_none_or(|c| {
+            // is legal usage of super expr?
+            !(if is_call_expr {
+                self.p.node(c).is_class_ctor()
+            } else {
+                let p = self.parent(c).unwrap();
+                let p_node = self.p.node(p);
+                if p_node.is_class_like() || p_node.is_object_lit() {
+                    let node = self.p.node(c);
+                    if node.is_class_method_elem()
+                        || node.is_object_method_member()
+                        || node.is_method_signature()
+                        || node.is_getter_decl()
+                        || node.is_setter_decl()
+                        || node.is_class_prop_elem()
+                    {
+                        true
+                    } else if node.is_static() {
+                        node.is_class_static_block_decl()
+                    } else {
+                        node.is_prop_signature() || node.is_class_ctor()
+                    }
+                } else {
+                    false
+                }
+            })
+        }) {
+            let current = self
+                .node_query(node.id.module())
+                .find_ancestor(node.id, |n| {
+                    if container.is_some_and(|c| c == n.id()) {
+                        Some(false)
+                    } else if n.is_computed_prop_name() {
+                        Some(true)
+                    } else {
+                        None
+                    }
+                });
+            let error: bolt_ts_middle::Diag = if current
+                .is_some_and(|c| self.p.node(c).is_computed_prop_name())
+            {
+                Box::new(errors::SuperCannotBeReferencedInAComputedPropertyName { span: node.span })
+            } else if is_call_expr {
+                Box::new(errors::SuperCallsAreNotPermittedOutsideConstructorsOrInNestedFunctionsInsideConstructors { span: node.span })
+            } else if container.is_none_or(|c| {
+                self.parent(c).is_none_or(|p| {
+                    let p = self.p.node(p);
+                    !(p.is_class_like() || p.is_object_lit())
+                })
+            }) {
+                Box::new(errors::SuperCanOnlyBeReferencedInMembersOfDerivedClassesOrObjectLiteralExpressions {
+                    span: node.span,
+                })
+            } else {
+                Box::new(errors::SuperPropertyAccessIsPermittedOnlyInAConstructorMemberFunctionOrMemberAccessorOfADerivedClass {
+                    span: node.span,
+                })
+            };
+            self.push_error(error);
 
+            return self.error_ty;
+        }
+
+        let container = container.unwrap();
+        let node_check_flags;
         if is_call_expr || self.p.node(container).is_static() {
             node_check_flags = NodeCheckFlags::SUPER_STATIC;
         } else {
@@ -290,7 +355,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let class_ty = self.get_declared_ty_of_symbol(self.get_symbol_of_decl(class_like_decl));
-        let Some(base_class_ty) = self.get_base_tys(class_ty).get(0) else {
+        let Some(base_class_ty) = self.get_base_tys(class_ty).first() else {
             return self.error_ty;
         };
 

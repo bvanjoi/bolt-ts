@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/continueInIterationStatement1/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────

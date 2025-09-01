@@ -26,7 +26,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_fn_like_decl(ctor);
     }
 
-    fn check_class_method_ele(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
+    fn check_class_method_elem(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
         self.check_fn_like_decl(method);
     }
 
@@ -53,7 +53,7 @@ impl<'cx> TyChecker<'cx> {
                 IndexSig(_) => None,
                 Getter(n) => Some(n.name.id()),
                 Setter(n) => Some(n.name.id()),
-                StaticBlock(_) => None,
+                StaticBlockDecl(_) => None,
             };
 
             let declared_prop = member_name
@@ -234,12 +234,12 @@ impl<'cx> TyChecker<'cx> {
             use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
                 Prop(n) => self.check_class_prop_ele(n),
-                Method(n) => self.check_class_method_ele(n),
+                Method(n) => self.check_class_method_elem(n),
                 Ctor(n) => self.check_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_getter_decl(n),
                 Setter(n) => self.check_accessor_decl(n),
-                StaticBlock(n) => {
+                StaticBlockDecl(n) => {
                     self.check_block(n.body);
                 }
             }

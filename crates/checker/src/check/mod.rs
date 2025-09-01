@@ -1748,7 +1748,7 @@ impl<'cx> TyChecker<'cx> {
 
                 let parent_id = self.parent(current_id)?;
                 let parent_node = self.p.node(parent_id);
-                let prop_decl = parent_node.as_class_prop_ele()?;
+                let prop_decl = parent_node.as_class_prop_elem()?;
 
                 let init_of_prop = prop_decl
                     .init
@@ -1757,9 +1757,9 @@ impl<'cx> TyChecker<'cx> {
                 if init_of_prop {
                     if parent_node.is_static() {
                         let n = self.p.node(decl);
-                        if n.is_class_method_ele() {
+                        if n.is_class_method_elem() {
                             return Some(true);
-                        } else if let Some(prop_decl) = n.as_class_prop_ele()
+                        } else if let Some(prop_decl) = n.as_class_prop_elem()
                             && let Some(usage_class) = self
                                 .node_query(used.id.module())
                                 .get_containing_class(used.id)
@@ -1772,7 +1772,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                     } else {
                         let n = self.p.node(decl);
-                        let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
+                        let is_decl_instance_prop = n.is_class_prop_elem() && !n.is_static();
                         if !is_decl_instance_prop {
                             return Some(true);
                         } else if let Some(usage_class) = self
@@ -3757,7 +3757,7 @@ impl<'cx> TyChecker<'cx> {
         let count = ty_args.map_or(0, |t| t.list.len());
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         // TODO: is_javascript
-        sigs.into_iter().filter_map(move |sig| {
+        sigs.iter().filter_map(move |sig| {
             let min = self.get_min_ty_arg_count(sig.ty_params);
             if count >= min
                 && sig

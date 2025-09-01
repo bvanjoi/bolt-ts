@@ -116,7 +116,7 @@ impl<'cx> CheckState<'cx> {
                 if !(parent_node.is_class_decl()
                     && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
                 {
-                    let error = if n.is_class_prop_ele() {
+                    let error = if n.is_class_prop_elem() {
                         todo!()
                     } else {
                         errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {

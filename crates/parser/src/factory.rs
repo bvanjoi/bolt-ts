@@ -416,14 +416,14 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         start: u32,
         body: &'cx ast::BlockStmt<'cx>,
-    ) -> &'cx ast::ClassStaticBlock<'cx> {
+    ) -> &'cx ast::ClassStaticBlockDecl<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::ClassStaticBlock {
+        let node = self.alloc(ast::ClassStaticBlockDecl {
             id,
             span: self.new_span(start),
             body,
         });
-        self.nodes.insert(id, ast::Node::ClassStaticBlock(node));
+        self.nodes.insert(id, ast::Node::ClassStaticBlockDecl(node));
         self.node_flags_map
             .insert(id, ast::NodeFlags::CLASS_STATIC_BLOCK);
         node

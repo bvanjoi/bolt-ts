@@ -3,6 +3,7 @@ use bolt_ts_span::ModuleID;
 
 use crate::ParseResultForGraph;
 
+#[derive(Default)]
 pub struct ParsedMap<'cx> {
     map: Vec<ParseResultForGraph<'cx>>,
 }
