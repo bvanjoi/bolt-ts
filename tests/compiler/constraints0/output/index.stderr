@@ -1,0 +1,12 @@
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/constraints0/index.ts:16:11]
+ 16 │ B
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Property 'a' is defined here
+   ╭─[../../tests/compiler/constraints0/index.ts:3:11]
+ 3 │ A
+   · ─
+   ╰────

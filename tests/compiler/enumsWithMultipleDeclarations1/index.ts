@@ -6,10 +6,12 @@ enum E {
 
 enum E {
   B
+  //~^ ERROR: In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element.
 }
 
 enum E {
   C
+  //~^ ERROR: In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element.
 }
 
 let a = E.A;

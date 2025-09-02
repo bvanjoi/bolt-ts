@@ -1,0 +1,12 @@
+  × Property 'A' does not exist on type 'E'.
+    ╭─[../../tests/compiler/enumBasics1/index.ts:28:5]
+ 28 │ A
+    · ─
+    ╰────
+
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+    ╭─[../../tests/compiler/enumBasics1/index.ts:38:2]
+ 38 │ C
+    · ─
+    ╰────

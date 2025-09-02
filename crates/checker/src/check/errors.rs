@@ -774,3 +774,10 @@ pub(super) struct SuperPropertyAccessIsPermittedOnlyInAConstructorMemberFunction
     #[label(primary)]
     pub span: Span, 
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element.")]
+pub(super) struct InAnEnumWithMultipleDeclarationsOnlyOneDeclarationCanOmitAnInitializerForItsFirstEnumElement {
+    #[label(primary)]
+    pub span: Span, 
+}
