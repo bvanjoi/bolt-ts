@@ -285,6 +285,9 @@ impl<'cx> Node<'cx> {
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
             FnDecl(n) => Some(DeclarationName::Ident(n.name)),
+            EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
+            ClassDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
+            VarDecl(n) => super::DeclarationName::from_binding(&n.name),
             _ => None,
         }
     }
@@ -333,6 +336,7 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(ident),
                 crate::ModuleName::StringLit(_) => None,
             },
+            EnumDecl(n) => Some(n.name),
             _ => None,
         }
     }
