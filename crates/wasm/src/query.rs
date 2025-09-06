@@ -1,5 +1,4 @@
 use bolt_ts_optimize::IrOutput;
-use bolt_ts_span::ModuleID;
 use indexmap::IndexMap;
 use wasm_bindgen::prelude::*;
 

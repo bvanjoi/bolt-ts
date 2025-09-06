@@ -201,7 +201,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_modifiers_for_ctor_ty(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         if self.token.kind == TokenKind::Abstract {
             let pos = self.token.start();
-            let m = self.parse_modifier::<false>(false, None)?.unwrap();
+            let m = self.parse_modifier::<false, false>(false)?.unwrap();
             let m = self.alloc(ast::Modifiers {
                 span: self.new_span(pos),
                 flags: ast::ModifierKind::Abstract.into(),
@@ -1005,7 +1005,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let start = self.token.start();
-        let modifiers = self.parse_modifiers::<false>(false, None)?;
+        let modifiers = self.parse_modifiers::<false, false>(false)?;
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;

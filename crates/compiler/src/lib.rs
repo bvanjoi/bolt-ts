@@ -10,8 +10,6 @@ use self::cli::get_filenames;
 use self::wf::well_formed_check_parallel;
 
 use bolt_ts_ast::TokenKind;
-use bolt_ts_ast::keyword;
-use bolt_ts_ast::keyword_idx_to_token;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
@@ -79,8 +77,8 @@ pub fn output_files(
 
 pub fn init_atom() -> AtomIntern {
     #[cfg(debug_assertions)]
-    for idx in 0..keyword::KEYWORDS.len() {
-        let t = keyword_idx_to_token(idx);
+    for idx in 0..bolt_ts_ast::keyword::KEYWORDS.len() {
+        let t = bolt_ts_ast::keyword_idx_to_token(idx);
         if t == TokenKind::Var {
             assert_eq!(t as u8 + 1, TokenKind::Let as u8);
             assert_eq!(t as u8 + 2, TokenKind::Const as u8);

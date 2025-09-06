@@ -655,15 +655,18 @@ impl TokenKind {
         )
     }
 
+    #[inline(always)]
     pub const fn is_ident_or_keyword(self) -> bool {
         matches!(self, TokenKind::Ident) || self.is_keyword()
     }
 
-    pub fn is_lit_prop_name(self) -> bool {
+    #[inline(always)]
+    pub const fn is_lit_prop_name(self) -> bool {
         use TokenKind::*;
         self.is_ident_or_keyword() || matches!(self, String | Number)
     }
 
+    #[inline(always)]
     pub fn is_heritage_clause(&self) -> bool {
         matches!(self, TokenKind::Extends | TokenKind::Implements)
     }

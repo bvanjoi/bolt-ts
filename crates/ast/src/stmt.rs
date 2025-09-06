@@ -638,10 +638,10 @@ impl std::fmt::Display for ModifierKind {
             ModifierKind::Static => keyword::KW_STATIC_STR,
             ModifierKind::Ambient => keyword::KW_DECLARE_STR,
             ModifierKind::Default => keyword::KW_DEFAULT_STR,
+            ModifierKind::Const => keyword::KW_CONST_STR,
             ModifierKind::Decorator => todo!(),
             ModifierKind::Accessor => todo!(),
             ModifierKind::Async => todo!(),
-            ModifierKind::Const => todo!(),
             ModifierKind::In => todo!(),
             ModifierKind::Out => todo!(),
         };

@@ -287,7 +287,16 @@ impl<'cx> Node<'cx> {
             FnDecl(n) => Some(DeclarationName::Ident(n.name)),
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
             ClassDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
+            ClassExpr(n) => n.name.map(|name| DeclarationName::Ident(name)),
             VarDecl(n) => super::DeclarationName::from_binding(&n.name),
+            ParamDecl(n) => super::DeclarationName::from_binding(&n.name),
+            InterfaceDecl(n) => Some(DeclarationName::Ident(n.name)),
+            TypeAliasDecl(n) => Some(DeclarationName::Ident(n.name)),
+            TyParam(n) => Some(DeclarationName::Ident(n.name)),
+            ModuleDecl(n) => match n.name {
+                crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                crate::ModuleName::StringLit(_) => None,
+            },
             _ => None,
         }
     }

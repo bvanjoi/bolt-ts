@@ -297,7 +297,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
-
                 let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
@@ -365,7 +364,19 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             return self.parse_class_static_block_decl();
         }
 
-        let modifiers = self.parse_modifiers::<false>(true, None)?;
+        let modifiers = self.parse_modifiers::<false, true>(true)?;
+
+        if let Some(ms) = modifiers {
+            for m in ms.list {
+                if m.kind == ast::ModifierKind::Const {
+                    let error = errors::AClassMemberCannotHaveTheModifierKeyword {
+                        span: m.span,
+                        modifier: m.kind,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;

@@ -22,15 +22,17 @@ impl<'cx> ParserState<'cx, '_> {
             && self.try_parse(Lookahead::next_token_can_follow_modifier)
     }
 
-    pub(super) fn parse_modifier<const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool>(
+    pub(super) fn parse_modifier<
+        const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool,
+        const PERMIT_CONST_AS_MODIFIER: bool,
+    >(
         &mut self,
         has_seen_static_modifier: bool,
-        permit_const_as_modifier: Option<bool>,
     ) -> PResult<Option<&'cx ast::Modifier>> {
         let span = self.token.span;
         let t = self.token.kind;
-        if t == TokenKind::Const && permit_const_as_modifier.unwrap_or_default() {
-            if self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
+        if PERMIT_CONST_AS_MODIFIER && t == TokenKind::Const {
+            if !self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
                 return Ok(None);
             }
         } else if STOP_ON_START_OF_CLASS_STATIC_BLOCK && t == TokenKind::Static {
