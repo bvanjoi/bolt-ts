@@ -44,7 +44,7 @@ impl TyChecker<'_> {
 
     pub(super) fn is_context_sensitive(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
-        assert!(!node.is_class_method_ele(), "{node:#?}");
+        assert!(!node.is_class_method_elem(), "{node:#?}");
         if node.is_fn_expr()
             || node.is_arrow_fn_expr()
             || node.is_method_signature()

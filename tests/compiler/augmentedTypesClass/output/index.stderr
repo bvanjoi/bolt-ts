@@ -1,0 +1,21 @@
+  × Duplicate identifier 'c1'.
+   ╭─[../../tests/compiler/augmentedTypesClass/index.ts:5:5]
+ 4 │ c1 { public foo() { } }
+   · ─┬
+   ·  ╰── Previous definition here
+ 5 │ var c1
+   ·     ──
+   ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesClass/index.ts:11:6]
+ 11 │ c4
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'typeof c1'.
+   ╭─[../../tests/compiler/augmentedTypesClass/index.ts:5:5]
+ 5 │ c1
+   · ──
+   ╰────

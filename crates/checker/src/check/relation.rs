@@ -351,14 +351,13 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_reduced_apparent_ty(ty);
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
-            let symbol = self
+            if let Some(symbol) = self
                 .expect_ty_links(ty.id)
                 .expect_structured_members()
                 .members
                 .get(&name)
-                .copied();
-            if symbol.is_some() {
-                return symbol;
+            {
+                return Some(*symbol);
             }
 
             let fn_ty = if ty.id == self.any_fn_ty().id {
@@ -388,9 +387,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
-        } else if ty.kind.as_intersection().is_some() {
-            self.get_prop_of_union_or_intersection_ty(ty, name).map(|prop| prop)
-        } else if ty.kind.as_union().is_some() {
+        } else if ty.kind.is_intersection() || ty.kind.is_union() {
             self.get_prop_of_union_or_intersection_ty(ty, name)
         } else {
             None

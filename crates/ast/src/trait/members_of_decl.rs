@@ -32,7 +32,7 @@ impl MembersOfDecl for crate::ClassElem<'_> {
             Setter(n) => n.modifiers,
             Getter(n) => n.modifiers,
             Method(n) => n.modifiers,
-            Ctor(_) | StaticBlock(_) => return false,
+            Ctor(_) | StaticBlockDecl(_) => return false,
         };
         modifiers.is_some_and(|mods| mods.flags.contains(crate::ModifierKind::Static))
     }

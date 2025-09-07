@@ -1,5 +1,19 @@
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+   ╭─[../../tests/compiler/enumsWithMultipleDeclarations1/index.ts:8:3]
+ 8 │ B
+   · ─
+   ╰────
+
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+    ╭─[../../tests/compiler/enumsWithMultipleDeclarations1/index.ts:13:3]
+ 13 │ C
+    · ─
+    ╰────
+
   × Property 'D' does not exist on type '{ A: E; B: E; C: E; }'.
-    ╭─[../../tests/compiler/enumsWithMultipleDeclarations1/index.ts:18:11]
- 18 │ D
+    ╭─[../../tests/compiler/enumsWithMultipleDeclarations1/index.ts:20:11]
+ 20 │ D
     · ─
     ╰────

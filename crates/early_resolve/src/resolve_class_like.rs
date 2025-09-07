@@ -75,7 +75,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                         self.resolve_block_stmt(body);
                     }
                 }
-                StaticBlock(n) => {
+                StaticBlockDecl(n) => {
                     self.resolve_block_stmt(n.body);
                 }
             }

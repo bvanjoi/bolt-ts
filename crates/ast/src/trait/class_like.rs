@@ -6,9 +6,13 @@ pub trait ClassLike<'cx>: Copy + std::fmt::Debug {
     fn extends(&self) -> Option<&'cx crate::ClassExtendsClause<'cx>>;
     fn implements(&self) -> Option<&'cx crate::ClassImplementsClause<'cx>>;
     fn elems(&self) -> &'cx crate::ClassElems<'cx>;
+    fn span(&self) -> crate::Span;
 }
 
 impl<'cx> ClassLike<'cx> for crate::ClassDecl<'cx> {
+    fn span(&self) -> crate::Span {
+        self.span
+    }
     fn id(&self) -> crate::NodeID {
         self.id
     }
@@ -33,6 +37,9 @@ impl<'cx> ClassLike<'cx> for crate::ClassDecl<'cx> {
 }
 
 impl<'cx> ClassLike<'cx> for crate::ClassExpr<'cx> {
+    fn span(&self) -> crate::Span {
+        self.span
+    }
     fn id(&self) -> crate::NodeID {
         self.id
     }

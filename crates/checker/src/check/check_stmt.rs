@@ -12,18 +12,18 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {
         use bolt_ts_ast::StmtKind::*;
         match stmt.kind {
-            Var(var) => self.check_var_stmt(var),
-            Expr(expr) => {
-                self.check_expr(expr.expr);
+            Var(node) => self.check_var_stmt(node),
+            Expr(node) => {
+                self.check_expr(node.expr);
             }
-            Fn(f) => self.check_fn_decl(f),
-            If(i) => self.check_if_stmt(i),
-            Block(block) => self.check_block(block),
-            Ret(ret) => self.check_ret_stmt(ret),
-            Class(class) => self.check_class_decl(class),
-            Interface(interface) => self.check_interface_decl(interface),
-            Module(m) => self.check_module_decl(m),
-            TypeAlias(ty) => self.check_type_alias_decl(ty),
+            Fn(node) => self.check_fn_decl(node),
+            If(node) => self.check_if_stmt(node),
+            Block(node) => self.check_block(node),
+            Ret(node) => self.check_ret_stmt(node),
+            Class(node) => self.check_class_decl(node),
+            Interface(node) => self.check_interface_decl(node),
+            Module(node) => self.check_module_decl(node),
+            TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
             Import(node) => self.check_import_decl(node),
@@ -52,6 +52,45 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.compute_enum_member_values(node);
+
+        let enum_symbol = self.get_symbol_of_decl(node.id);
+        let s = self.binder.symbol(enum_symbol);
+        let Some(first_decl) = s.get_declaration_of_kind(|n| self.p.node(n).is_enum_decl()) else {
+            unreachable!()
+        };
+        if first_decl == node.id
+            && let Some(decls) = &s.decls
+        {
+            // if decls.len() > 1 {
+            //     todo!()
+            // }
+
+            let mut seen_enum_missing_init = false;
+            let mut error_span_list = vec![];
+            for decl in decls {
+                let Some(enum_decl) = self.p.node(*decl).as_enum_decl() else {
+                    continue;
+                };
+                if enum_decl.members.is_empty() {
+                    continue;
+                }
+                let first_enum_member = enum_decl.members[0];
+                if first_enum_member.init.is_none() {
+                    if seen_enum_missing_init {
+                        error_span_list.push(first_enum_member.name.span());
+                    } else {
+                        seen_enum_missing_init = true;
+                    }
+                }
+            }
+
+            for error_span in error_span_list {
+                let error = errors::InAnEnumWithMultipleDeclarationsOnlyOneDeclarationCanOmitAnInitializerForItsFirstEnumElement {
+                    span: error_span,
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {

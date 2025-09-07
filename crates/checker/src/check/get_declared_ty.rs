@@ -499,7 +499,7 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.parent(member.id).unwrap();
         let node = self.p.node(parent).expect_enum_decl();
         self.compute_enum_member_values(node);
-        
+
         self.get_node_links(member.id).expect_enum_member_value()
     }
 

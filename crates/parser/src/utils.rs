@@ -365,10 +365,12 @@ impl<'cx> ParserState<'cx, '_> {
         t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
-    pub(super) fn parse_modifiers<const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool>(
+    pub(super) fn parse_modifiers<
+        const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool,
+        const PERMIT_CONST_AS_MODIFIER: bool,
+    >(
         &mut self,
         allow_decorators: bool,
-        permit_const_as_modifier: Option<bool>,
     ) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
@@ -376,10 +378,11 @@ impl<'cx> ParserState<'cx, '_> {
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
         loop {
-            let Ok(Some(m)) = self.parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK>(
-                has_seen_static_modifier,
-                permit_const_as_modifier,
-            ) else {
+            let Ok(Some(m)) = self
+                .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
+                    has_seen_static_modifier,
+                )
+            else {
                 break;
             };
             list.push(m);
@@ -405,6 +408,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(self.create_ident(is_ident, None))
     }
 
+    #[inline(always)]
     pub(super) fn parse_semi_after_prop_name(&mut self) {
         self.parse_semi();
     }
@@ -516,7 +520,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
-        let modifiers = self.parse_modifiers::<false>(false, None)?;
+        let modifiers = self.parse_modifiers::<false, false>(false)?;
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
             enumflags2::make_bitflags!(ModifierKind::{Static | Export});
         if modifiers
@@ -606,7 +610,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers::<false>(false, None)?;
+                this.parse_modifiers::<false, false>(false)?;
             }
             if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();

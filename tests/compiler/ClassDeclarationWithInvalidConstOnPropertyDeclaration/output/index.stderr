@@ -1,0 +1,5 @@
+  × A class member cannot have the 'const' keyword.
+   ╭─[../../tests/compiler/ClassDeclarationWithInvalidConstOnPropertyDeclaration/index.ts:4:10]
+ 4 │ const
+   · ─────
+   ╰────

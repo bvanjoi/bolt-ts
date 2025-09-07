@@ -1001,7 +1001,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
         is_write: Option<bool>,
     ) -> enumflags2::BitFlags<bolt_ts_ast::ModifierKind> {
-        let is_write = is_write.unwrap_or(true);
+        let is_write = is_write.unwrap_or(false);
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
             this: &TyChecker<'cx>,
@@ -1027,8 +1027,14 @@ impl<'cx> TyChecker<'cx> {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
-            // TODO: if s.parent.flags & Class
-            return flags & ast::ModifierKind::ACCESSIBILITY;
+            return if let Some(p) = s.parent
+                && let p = self.symbol(p)
+                && p.flags.intersects(SymbolFlags::CLASS)
+            {
+                flags
+            } else {
+                flags & !ast::ModifierKind::ACCESSIBILITY
+            };
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
@@ -1748,7 +1754,7 @@ impl<'cx> TyChecker<'cx> {
 
                 let parent_id = self.parent(current_id)?;
                 let parent_node = self.p.node(parent_id);
-                let prop_decl = parent_node.as_class_prop_ele()?;
+                let prop_decl = parent_node.as_class_prop_elem()?;
 
                 let init_of_prop = prop_decl
                     .init
@@ -1757,9 +1763,9 @@ impl<'cx> TyChecker<'cx> {
                 if init_of_prop {
                     if parent_node.is_static() {
                         let n = self.p.node(decl);
-                        if n.is_class_method_ele() {
+                        if n.is_class_method_elem() {
                             return Some(true);
-                        } else if let Some(prop_decl) = n.as_class_prop_ele()
+                        } else if let Some(prop_decl) = n.as_class_prop_elem()
                             && let Some(usage_class) = self
                                 .node_query(used.id.module())
                                 .get_containing_class(used.id)
@@ -1772,7 +1778,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                     } else {
                         let n = self.p.node(decl);
-                        let is_decl_instance_prop = n.is_class_prop_ele() && !n.is_static();
+                        let is_decl_instance_prop = n.is_class_prop_elem() && !n.is_static();
                         if !is_decl_instance_prop {
                             return Some(true);
                         } else if let Some(usage_class) = self
@@ -1826,7 +1832,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
-        let Some(decl) = self.binder.symbol(id).opt_decl() else {
+        let s = self.binder.symbol(id);
+        let Some(decl) = s.opt_decl() else {
             return;
         };
 
@@ -1839,6 +1846,13 @@ impl<'cx> TyChecker<'cx> {
             let (decl_span, kind) = match self.p.node(decl) {
                 ast::Node::ClassDecl(class) => (class.name.unwrap().span, errors::DeclKind::Class),
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
+                ast::Node::EnumDecl(decl) => {
+                    if s.flags.contains(SymbolFlags::REGULAR_ENUM) {
+                        (decl.span, errors::DeclKind::Enum)
+                    } else {
+                        return;
+                    }
+                }
                 _ => unreachable!(),
             };
             let name = self.atoms.get(ident.name).to_string();
@@ -3757,7 +3771,7 @@ impl<'cx> TyChecker<'cx> {
         let count = ty_args.map_or(0, |t| t.list.len());
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         // TODO: is_javascript
-        sigs.into_iter().filter_map(move |sig| {
+        sigs.iter().filter_map(move |sig| {
             let min = self.get_min_ty_arg_count(sig.ty_params);
             if count >= min
                 && sig
@@ -3799,6 +3813,17 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         self.alloc(sigs)
+    }
+
+    fn get_target_symbol(&mut self, symbol: SymbolID) -> SymbolID {
+        if self
+            .get_check_flags(symbol)
+            .contains(CheckFlags::INSTANTIATED)
+        {
+            self.transient_symbol_links[symbol.index_as_usize()].expect_target()
+        } else {
+            symbol
+        }
     }
 }
 

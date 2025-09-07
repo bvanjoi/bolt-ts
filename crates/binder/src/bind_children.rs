@@ -246,27 +246,29 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             EnumDecl(_) => {
                 let loc = SymbolTableLocation::exports(container);
-                let parent = self.final_res.get(&container).copied();
-                debug_assert!(parent.is_some());
+                let parent = self.final_res[&container];
                 self.declare_symbol(
                     Some(name),
                     loc,
-                    parent,
+                    Some(parent),
                     current,
                     symbol_flags,
                     symbol_excludes,
                     DeclareSymbolProperty::empty(),
                 )
             }
-            ObjectLitTy(_) | ObjectLit(_) | InterfaceDecl(_) => self.declare_symbol(
-                Some(name),
-                SymbolTableLocation::members(container),
-                None,
-                current,
-                symbol_flags,
-                symbol_excludes,
-                DeclareSymbolProperty::empty(),
-            ),
+            ObjectLitTy(_) | ObjectLit(_) | InterfaceDecl(_) => {
+                let parent = self.final_res[&container];
+                self.declare_symbol(
+                    Some(name),
+                    SymbolTableLocation::members(container),
+                    Some(parent),
+                    current,
+                    symbol_flags,
+                    symbol_excludes,
+                    DeclareSymbolProperty::empty(),
+                )
+            }
             FnTy(_)
             | ClassCtor(_)
             | CallSigDecl(_)
@@ -283,17 +285,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
             | MappedTy(_)
-            | ClassStaticBlock(_) => {
-                assert!(
+            | ClassStaticBlockDecl(_) => {
+                debug_assert!(
                     c.has_locals(),
                     "container({:?}) should have locals, but it doesn't",
                     c.span()
                 );
                 let table = SymbolTableLocation::locals(container);
+                let container_symbol = self.final_res[&container];
                 self.declare_symbol(
                     Some(name),
                     table,
-                    None,
+                    Some(container_symbol),
                     current,
                     symbol_flags,
                     symbol_excludes,
@@ -312,6 +315,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         excludes: SymbolFlags,
     ) -> SymbolID {
         let container = self.container.unwrap();
+        let container_symbol = self.final_res[&container];
         let loc = if self.p.node(node).is_static() {
             SymbolTableLocation::exports(container)
         } else {
@@ -320,7 +324,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.declare_symbol(
             Some(name),
             loc,
-            None,
+            Some(container_symbol),
             node,
             include,
             excludes,
@@ -1211,7 +1215,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.closing_elem.id);
             }
-            ClassStaticBlock(n) => {
+            ClassStaticBlockDecl(n) => {
                 self.bind(n.body.id);
             }
             CaseClause(n) => {

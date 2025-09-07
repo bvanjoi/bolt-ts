@@ -1,0 +1,6 @@
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+    ╭─[../../tests/compiler/enumsWithMultipleDeclarations2/index.ts:12:3]
+ 12 │ C
+    · ─
+    ╰────

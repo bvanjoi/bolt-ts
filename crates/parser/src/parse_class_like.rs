@@ -282,19 +282,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let params = self.parse_params()?;
             let ty = self.parse_ret_ty(true)?;
             let body = self.parse_fn_block()?;
-            let id = self.next_node_id();
-            let method = self.alloc(ast::ClassMethodElem {
-                id,
-                span: self.new_span(start),
-                modifiers,
-                name,
-                ty_params,
-                params,
-                ty,
-                body,
-            });
-            self.node_flags_map.insert(id, self.context_flags);
-            self.nodes.insert(id, ast::Node::ClassMethodElem(method));
+            let method =
+                self.create_class_method_elem(start, modifiers, name, ty_params, params, ty, body);
             self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Method(method),
             })
@@ -308,7 +297,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
-
                 let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
@@ -376,7 +364,19 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             return self.parse_class_static_block_decl();
         }
 
-        let modifiers = self.parse_modifiers::<false>(true, None)?;
+        let modifiers = self.parse_modifiers::<false, true>(true)?;
+
+        if let Some(ms) = modifiers {
+            for m in ms.list {
+                if m.kind == ast::ModifierKind::Const {
+                    let error = errors::AClassMemberCannotHaveTheModifierKeyword {
+                        span: m.span,
+                        modifier: m.kind,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+        }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
@@ -409,7 +409,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block)?;
         let block = self.create_class_static_block_decl(start as u32, body);
         Ok(self.alloc(ast::ClassElem {
-            kind: ast::ClassElemKind::StaticBlock(block),
+            kind: ast::ClassElemKind::StaticBlockDecl(block),
         }))
     }
 

@@ -1,0 +1,20 @@
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/emitThisInSuperMethodCall/index.ts:27:13]
+ 27 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/emitThisInSuperMethodCall/index.ts:20:17]
+ 20 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/emitThisInSuperMethodCall/index.ts:12:17]
+ 12 │ super
+    · ─────
+    ╰────

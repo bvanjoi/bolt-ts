@@ -1,0 +1,12 @@
+  × Enum 'Color' used before its declaration.
+   ╭─[../../tests/compiler/enumUsedBeforeDeclaration/index.ts:3:18]
+ 3 │ Color
+   · ─────
+   ╰────
+
+Advice: 
+  ☞ Enum 'Color' is defined here
+   ╭─[../../tests/compiler/enumUsedBeforeDeclaration/index.ts:6:1]
+ 6 │ enum Color { Red, Green, Blue }
+   · ───────────────────────────────
+   ╰────

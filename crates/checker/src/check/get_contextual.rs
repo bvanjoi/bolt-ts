@@ -128,7 +128,7 @@ impl<'cx> TyChecker<'cx> {
         let decl = lhs_symbol.and_then(|s| self.binder.symbol(s).opt_decl());
         if let Some(decl) = decl {
             let n = self.p.node(decl);
-            if n.is_class_prop_ele() || n.is_prop_signature() {
+            if n.is_class_prop_elem() || n.is_prop_signature() {
                 // TODO: handle this;
                 return None;
             }
@@ -459,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
-        assert!(!self.p.node(id).is_class_method_ele());
+        assert!(!self.p.node(id).is_class_method_elem());
         if let Some(ty_tag_sig) = self.get_sig_of_ty_tag(id) {
             return Some(ty_tag_sig);
         }

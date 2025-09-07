@@ -27,7 +27,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
     }
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
         match self.callee().kind {
-            ast::ExprKind::Super(ref super_expr) => Some(super_expr),
+            ast::ExprKind::Super(super_expr) => Some(super_expr),
             _ => None,
         }
     }
@@ -48,7 +48,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
     }
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
         match self.tag.kind {
-            ast::ExprKind::Super(ref super_expr) => Some(super_expr),
+            ast::ExprKind::Super(super_expr) => Some(super_expr),
             _ => None,
         }
     }
@@ -594,7 +594,7 @@ impl<'cx> TyChecker<'cx> {
         mut argument_check_mode: CheckMode,
         candidates_for_arg_error: &mut nohash_hasher::IntSet<ty::SigID>,
     ) -> Option<&'cx Sig<'cx>> {
-        let ty_args = if !expr.as_super_call().is_some() {
+        let ty_args = if expr.as_super_call().is_none() {
             expr.ty_args()
         } else {
             None

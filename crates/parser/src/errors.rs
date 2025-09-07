@@ -369,3 +369,11 @@ pub(super) struct ModifierCannotBeUsedHere {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A class member cannot have the '{modifier}' keyword.")]
+pub(super) struct AClassMemberCannotHaveTheModifierKeyword {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: ModifierKind,
+}

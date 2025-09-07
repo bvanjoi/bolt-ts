@@ -66,7 +66,7 @@ decl_nodes!(
     class_ctor: ClassCtor,
     class_prop_elem: ClassPropElem,
     class_method_elem: ClassMethodElem,
-    class_static_block: ClassStaticBlock,
+    class_static_block_decl: ClassStaticBlockDecl,
     getter_decl: GetterDecl,
     setter_decl: SetterDecl,
     enum_decl: EnumDecl,
@@ -1099,13 +1099,17 @@ impl Nodes {
         &mut self,
         span: Span,
         body: BlockStmtID,
-    ) -> ClassStaticBlockID {
-        let idx = ClassStaticBlockID(usize_into_idx(self.class_static_block_nodes.0.len()));
-        let id = self.class_static_block_nodes.0.alloc(ClassStaticBlock {
-            id: idx,
-            span,
-            body,
-        });
+    ) -> ClassStaticBlockDeclID {
+        let idx =
+            ClassStaticBlockDeclID(usize_into_idx(self.class_static_block_decl_nodes.0.len()));
+        let id = self
+            .class_static_block_decl_nodes
+            .0
+            .alloc(ClassStaticBlockDecl {
+                id: idx,
+                span,
+                body,
+            });
         debug_assert_eq!(id, idx.0);
         idx
     }
@@ -3402,13 +3406,13 @@ impl GetterDecl {
 }
 
 #[derive(Debug)]
-pub struct ClassStaticBlock {
-    id: ClassStaticBlockID,
+pub struct ClassStaticBlockDecl {
+    id: ClassStaticBlockDeclID,
     span: Span,
     body: BlockStmtID,
 }
 
-impl ClassStaticBlock {
+impl ClassStaticBlockDecl {
     pub fn span(&self) -> Span {
         self.span
     }
@@ -3689,7 +3693,7 @@ impl ClassDecl {
 pub enum ClassElem {
     PropElem(ClassPropElemID),
     MethodElem(ClassMethodElemID),
-    StaticBlock(ClassStaticBlockID),
+    StaticBlock(ClassStaticBlockDeclID),
     Ctor(ClassCtorID),
     Getter(GetterDeclID),
     Setter(SetterDeclID),
@@ -4015,64 +4019,4 @@ impl Nodes {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Node {
-    IfStmt(IfStmtID),
-    ForStmt(ForStmtID),
-    ForOfStmt(ForOfStmtID),
-    ForInStmt(ForInStmtID),
-    BreakStmt(BreakStmtID),
-    ContinueStmt(ContinueStmtID),
-    RetStmt(RetStmtID),
-    BlockStmt(BlockStmtID),
-    ThrowStmt(ThrowStmtID),
-    ExprStmt(ExprStmtID),
-    LabeledStmt(LabeledStmtID),
-    TryStmt(TryStmtID),
-    DoStmt(DoStmtID),
-    WhileStmt(WhileStmtID),
-    EmptyStmt(EmptyStmtID),
-    FnDecl(FnDeclID),
-    ClassDecl(ClassDeclID),
-    ModuleDecl(ModuleDeclID),
-    EnumDecl(EnumDeclID),
-    ImportDecl(ImportDeclID),
-    ExportDecl(ExportDeclID),
-    ExportAssign(ExportAssignID),
-
-    AssignExpr(AssignExprID),
-    BinExpr(BinExprID),
-    OmitExpr(OmitExprID),
-    ParenExpr(ParenExprID),
-    ThisExpr(ThisExprID),
-    Ident(IdentID),
-    BoolLit(BoolLitID),
-    NullLit(NullLitID),
-    NumLit(NumLitID),
-    BigIntLit(BigIntLitID),
-    RegExpLit(RegExpLitID),
-    StringLit(StringLitID),
-    ArrayLit(ArrayLitID),
-    ObjectLit(ObjectLitID),
-    VoidExpr(VoidExprID),
-    TypeofExpr(TypeofExprID),
-    SuperExpr(SuperExprID),
-    EleAccessExpr(EleAccessExprID),
-    PropAccessExpr(PropAccessExprID),
-    PostfixUnaryExpr(PostfixUnaryExprID),
-    PrefixUnaryExpr(PrefixUnaryExprID),
-    TaggedTemplateExpr(TaggedTemplateExprID),
-    TemplateExpr(TemplateExprID),
-    SpreadElem(SpreadElementID),
-    ArrowFnExpr(ArrowFnExprID),
-    NewExpr(NewExprID),
-    ClassExpr(ClassExprID),
-    FnExpr(FnExprID),
-    CallExpr(CallExprID),
-    CondExpr(CondExprID),
-    JsxElem(JsxElemID),
-    JsxSelfClosingElem(JsxSelfClosingElemID),
-    JsxFrag(JsxFragID),
 }

@@ -683,7 +683,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers::<false>(false, None)?;
+        let mods = self.parse_modifiers::<false, false>(false)?;
 
         let invalid_modifiers = |this: &mut Self| {
             if let Some(ms) = &mods {

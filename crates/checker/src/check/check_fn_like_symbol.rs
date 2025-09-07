@@ -31,7 +31,7 @@ impl<'cx> TyChecker<'cx> {
 
             if node.is_fn_decl()
                 || node.is_method_signature()
-                || node.is_class_method_ele()
+                || node.is_class_method_elem()
                 || node.is_class_ctor()
             {
                 if let Some(body) = node.fn_body() {

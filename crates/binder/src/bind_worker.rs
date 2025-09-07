@@ -168,7 +168,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 } else {
                     false
                 }
-            } else if let Some(n) = p.as_class_prop_ele() {
+            } else if let Some(n) = p.as_class_prop_elem() {
                 n.name.id() == id
             } else if let Some(n) = p.as_object_prop_member() {
                 n.name.id() == id
@@ -178,7 +178,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 n.name.id() == id
             } else if let Some(n) = p.as_object_method_member() {
                 n.name.id() == id
-            } else if let Some(n) = p.as_class_method_ele() {
+            } else if let Some(n) = p.as_class_method_elem() {
                 n.name.id() == id
             } else if let Some(n) = p.as_getter_decl() {
                 n.name.id() == id

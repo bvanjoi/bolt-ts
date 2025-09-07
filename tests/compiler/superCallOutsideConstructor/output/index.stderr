@@ -1,0 +1,20 @@
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+   ╭─[../../tests/compiler/superCallOutsideConstructor/index.ts:8:9]
+ 8 │ super
+   · ─────
+   ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/superCallOutsideConstructor/index.ts:20:13]
+ 20 │ super
+    · ─────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/superCallOutsideConstructor/index.ts:15:13]
+ 15 │ super
+    · ─────
+    ╰────

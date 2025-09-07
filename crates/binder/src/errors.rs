@@ -26,3 +26,10 @@ pub struct IdentifierExpected0IsAReservedWordInStrictModeClassDefinitionsAreAuto
     pub span: Span,
     pub ident: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Enum declarations can only merge with namespace or other enum declarations.")]
+pub struct EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
+    #[label(primary)]
+    pub span: Span,
+}

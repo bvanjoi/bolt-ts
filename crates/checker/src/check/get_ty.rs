@@ -123,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             || node.is_num_lit()
             || node.is_class_decl()
             || node.is_fn_decl()
-            || node.is_class_method_ele()
+            || node.is_class_method_elem()
             || node.is_method_signature()
             || node.is_program()
         {
@@ -170,7 +170,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if let Some(n) = node.as_param_decl() {
             self.get_widened_ty_for_var_like_decl(n)
-        } else if let Some(n) = node.as_class_prop_ele() {
+        } else if let Some(n) = node.as_class_prop_elem() {
             self.get_widened_ty_for_var_like_decl(n)
         } else if let Some(n) = node.as_prop_signature() {
             self.get_widened_ty_for_var_like_decl(n)
@@ -628,7 +628,7 @@ impl<'cx> TyChecker<'cx> {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
                 && self.is_var_const(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
-        } else if n.is_class_prop_ele() || n.is_object_prop_member() {
+        } else if n.is_class_prop_elem() || n.is_object_prop_member() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
         } else if n.is_prop_signature() {
             n.has_effective_readonly_modifier() // TODO: || is_commonjs_export_property_assignment

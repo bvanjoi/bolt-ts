@@ -1968,7 +1968,7 @@ impl<'cx> InferenceState<'cx, '_> {
             let save_bivariant = self.bivariant;
             let n = self.c.p.node(target.def_id());
             self.bivariant = self.bivariant
-                || n.is_class_method_ele()
+                || n.is_class_method_elem()
                 || n.is_object_method_member()
                 || n.is_method_signature()
                 || n.is_class_ctor();

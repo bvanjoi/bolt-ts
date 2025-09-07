@@ -1292,8 +1292,8 @@ impl<'cx> TyChecker<'cx> {
             base_ty,
             constraint,
         });
-        let ty = self.new_ty(ty::TyKind::Substitution(ty), TypeFlags::SUBSTITUTION);
-        ty
+
+        self.new_ty(ty::TyKind::Substitution(ty), TypeFlags::SUBSTITUTION)
     }
 
     pub(super) fn get_substitution_intersection(

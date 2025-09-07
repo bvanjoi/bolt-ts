@@ -69,7 +69,7 @@ pub enum Node<'cx> {
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
-    ClassStaticBlock(&'cx super::ClassStaticBlock<'cx>),
+    ClassStaticBlockDecl(&'cx super::ClassStaticBlockDecl<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
     InterfaceDecl(&'cx super::InterfaceDecl<'cx>),
@@ -222,12 +222,6 @@ impl<'cx> Node<'cx> {
         false
     }
 
-    pub fn is_class_static_block_decl(&self) -> bool {
-        false
-        // use Node::*;
-        // matches!(self, _)
-    }
-
     pub fn is_fn_like_or_class_static_block_decl(&self) -> bool {
         self.is_fn_like() || self.is_class_static_block_decl()
     }
@@ -291,6 +285,18 @@ impl<'cx> Node<'cx> {
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
             FnDecl(n) => Some(DeclarationName::Ident(n.name)),
+            EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
+            ClassDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
+            ClassExpr(n) => n.name.map(|name| DeclarationName::Ident(name)),
+            VarDecl(n) => super::DeclarationName::from_binding(&n.name),
+            ParamDecl(n) => super::DeclarationName::from_binding(&n.name),
+            InterfaceDecl(n) => Some(DeclarationName::Ident(n.name)),
+            TypeAliasDecl(n) => Some(DeclarationName::Ident(n.name)),
+            TyParam(n) => Some(DeclarationName::Ident(n.name)),
+            ModuleDecl(n) => match n.name {
+                crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                crate::ModuleName::StringLit(_) => None,
+            },
             _ => None,
         }
     }
@@ -339,6 +345,7 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(ident),
                 crate::ModuleName::StringLit(_) => None,
             },
+            EnumDecl(n) => Some(n.name),
             _ => None,
         }
     }
@@ -369,6 +376,7 @@ impl<'cx> Node<'cx> {
             FnExpr,
             ArrowFnExpr,
             ClassDecl,
+            ClassExpr,
             ClassCtor,
             CtorSigDecl,
             ClassMethodElem,
@@ -548,7 +556,7 @@ impl<'cx> Node<'cx> {
             return FnFlags::INVALID;
         }
         let mut flags = FnFlags::NORMAL;
-        if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_ele() {
+        if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_elem() {
             // todo: check aster token
         } else if self.as_arrow_fn_expr().is_some()
             && self.has_syntactic_modifier(self::ModifierKind::Async.into())
@@ -582,8 +590,8 @@ impl<'cx> Node<'cx> {
 
     pub fn is_class_ele(&self) -> bool {
         self.is_class_ctor()
-            || self.is_class_prop_ele()
-            || self.is_class_method_ele()
+            || self.is_class_prop_elem()
+            || self.is_class_method_elem()
             || self.is_getter_decl()
             || self.is_setter_decl()
             || self.is_index_sig_decl()
@@ -648,11 +656,11 @@ impl<'cx> Node<'cx> {
             || self.is_for_in_stmt()
             || self.is_for_of_stmt()
             || self.is_class_ctor()
-            || self.is_class_method_ele()
+            || self.is_class_method_elem()
             || self.is_fn_decl()
             || self.is_fn_expr()
             || self.is_arrow_fn_expr()
-            || self.is_class_prop_ele()
+            || self.is_class_prop_elem()
         {
             true
         } else if self.is_block_stmt() {
@@ -753,7 +761,7 @@ impl<'cx> Node<'cx> {
                 | Program(_)
                 | SetterDecl(_)
                 | TypeAliasDecl(_)
-                | ClassStaticBlock(_)
+                | ClassStaticBlockDecl(_)
         )
     }
 
@@ -978,16 +986,16 @@ as_node!(
     (ObjectLitTy, super::ObjectLitTy<'cx>, object_lit_ty),
     (TyParam, super::TyParam<'cx>, ty_param),
     (Modifier, super::Modifier, modifier),
-    (ClassPropElem, super::ClassPropElem<'cx>, class_prop_ele),
+    (ClassPropElem, super::ClassPropElem<'cx>, class_prop_elem),
     (
-        ClassStaticBlock,
-        super::ClassStaticBlock<'cx>,
-        class_static_block
+        ClassStaticBlockDecl,
+        super::ClassStaticBlockDecl<'cx>,
+        class_static_block_decl
     ),
     (
         ClassMethodElem,
         super::ClassMethodElem<'cx>,
-        class_method_ele
+        class_method_elem
     ),
     (ArrowFnExpr, super::ArrowFnExpr<'cx>, arrow_fn_expr),
     (
@@ -1113,17 +1121,17 @@ as_node!(
     (JsxText, super::JsxText, jsx_text),
     (JsxOpeningFrag, super::JsxOpeningFrag, jsx_opening_frag),
     (JsxClosingFrag, super::JsxClosingFrag, jsx_closing_frag),
-    (JsxOpeningElem, super::JsxOpeningElem<'cx>, jsx_opening_ele),
-    (JsxClosingElem, super::JsxClosingElem<'cx>, jsx_closing_ele),
+    (JsxOpeningElem, super::JsxOpeningElem<'cx>, jsx_opening_elem),
+    (JsxClosingElem, super::JsxClosingElem<'cx>, jsx_closing_elem),
     (
         JsxSelfClosingElem,
         super::JsxSelfClosingElem<'cx>,
-        jsx_self_closing_ele
+        jsx_self_closing_elem
     ),
     (JsxSpreadAttr, super::JsxSpreadAttr<'cx>, jsx_spread_attr),
     (JsxNsName, super::JsxNsName<'cx>, jsx_ns_name),
     (JsxNamedAttr, super::JsxNamedAttr<'cx>, jsx_named_attr),
     (JsxExpr, super::JsxExpr<'cx>, jsx_expr),
     (JsxFrag, super::JsxFrag<'cx>, jsx_frag),
-    (JsxElem, super::JsxElem<'cx>, jsx_ele),
+    (JsxElem, super::JsxElem<'cx>, jsx_elem),
 );

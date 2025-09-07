@@ -9,5 +9,6 @@ enum E {
 }
 
 enum E {
-  C
+  C 
+  //~^ ERROR: In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element.
 }

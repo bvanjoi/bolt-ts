@@ -338,7 +338,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 .map(ir::ClassElem::MethodElem),
             ast::ClassElemKind::Getter(n) => self.lower_getter_decl(n).map(ir::ClassElem::Getter),
             ast::ClassElemKind::Setter(n) => self.lower_setter_decl(n).map(ir::ClassElem::Setter),
-            ast::ClassElemKind::StaticBlock(n) => {
+            ast::ClassElemKind::StaticBlockDecl(n) => {
                 Some(ir::ClassElem::StaticBlock(self.lower_class_static_block(n)))
             }
             ast::ClassElemKind::IndexSig(_) => None,
@@ -347,8 +347,8 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
     fn lower_class_static_block(
         &mut self,
-        n: &'cx ast::ClassStaticBlock<'cx>,
-    ) -> ir::ClassStaticBlockID {
+        n: &'cx ast::ClassStaticBlockDecl<'cx>,
+    ) -> ir::ClassStaticBlockDeclID {
         let body = self.lower_block_stmt(n.body);
         self.nodes.alloc_class_static_block(n.span, body)
     }

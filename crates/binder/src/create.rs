@@ -106,15 +106,26 @@ impl BinderState<'_, '_, '_> {
                     {
                         let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
                         let old_decl = self.p.node(old_decl_id);
-                        let error = errors::DuplicateIdentifier {
-                            span: self.p.node(node).ident_name().unwrap().span,
-                            name: self.atoms.get(name.expect_atom()).to_string(),
-                            original_span: old_decl
-                                .ident_name()
-                                .map(|name| name.span)
-                                .unwrap_or(old_decl.span()),
+
+                        let error: bolt_ts_middle::Diag = if old_symbol
+                            .flags
+                            .intersects(SymbolFlags::ENUM)
+                            || includes.intersects(SymbolFlags::ENUM)
+                        {
+                            Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
+                                    span: self.p.node(node).name().unwrap().span(),
+                                })
+                        } else {
+                            Box::new(errors::DuplicateIdentifier {
+                                span: self.p.node(node).name().unwrap().span(),
+                                name: self.atoms.get(name.expect_atom()).to_string(),
+                                original_span: old_decl
+                                    .name()
+                                    .map(|name| name.span())
+                                    .unwrap_or(old_decl.span()),
+                            })
                         };
-                        self.push_error(Box::new(error));
+                        self.push_error(error);
                     }
                 }
             } else {
@@ -137,11 +148,9 @@ impl BinderState<'_, '_, '_> {
         }
 
         self.add_declaration_to_symbol(symbol, node, includes);
-        // TODO: parent
-        if let Some(symbol_parent) = self.symbols.get(symbol).parent {
-            debug_assert!(symbol_parent == parent.unwrap())
-        } else {
-            self.symbols.get_mut(symbol).parent = parent;
+        match self.symbols.get(symbol).parent {
+            Some(symbol_parent) => debug_assert!(symbol_parent == parent.unwrap()),
+            None => self.symbols.get_mut(symbol).parent = parent,
         }
         symbol
     }
