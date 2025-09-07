@@ -148,11 +148,9 @@ impl BinderState<'_, '_, '_> {
         }
 
         self.add_declaration_to_symbol(symbol, node, includes);
-        // TODO: parent
-        if let Some(symbol_parent) = self.symbols.get(symbol).parent {
-            debug_assert!(symbol_parent == parent.unwrap())
-        } else {
-            self.symbols.get_mut(symbol).parent = parent;
+        match self.symbols.get(symbol).parent {
+            Some(symbol_parent) => debug_assert!(symbol_parent == parent.unwrap()),
+            None => self.symbols.get_mut(symbol).parent = parent,
         }
         symbol
     }

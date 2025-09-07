@@ -376,6 +376,7 @@ impl<'cx> Node<'cx> {
             FnExpr,
             ArrowFnExpr,
             ClassDecl,
+            ClassExpr,
             ClassCtor,
             CtorSigDecl,
             ClassMethodElem,

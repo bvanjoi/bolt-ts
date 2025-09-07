@@ -653,10 +653,13 @@ impl<'cx> TyChecker<'cx> {
         (self.new_sig(next)) as _
     }
 
-    fn get_default_construct_sigs(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [&'cx ty::Sig<'cx>] {
-        let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
+    fn get_default_construct_sigs(
+        &mut self,
+        class_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx [&'cx ty::Sig<'cx>] {
+        let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
         let base_sigs = self.get_signatures_of_type(base_ctor_ty, SigKind::Constructor);
-        let r = ty.kind.expect_object_reference();
+        let r = class_ty.kind.expect_object_reference();
         let i = r.target.kind.expect_object_interface();
         let decl = self.get_class_like_decl_of_symbol(i.symbol);
         let is_abstract = decl.is_some_and(|decl| {
@@ -684,10 +687,10 @@ impl<'cx> TyChecker<'cx> {
             });
             let prev = self
                 .sig_links
-                .insert(sig.id, SigLinks::default().with_resolved_ret_ty(ty));
+                .insert(sig.id, SigLinks::default().with_resolved_ret_ty(class_ty));
             assert!(prev.is_none());
             self.alloc([sig])
-        } else if let Some(base_ty_node) = self.get_base_type_node_of_class(ty) {
+        } else if let Some(base_ty_node) = self.get_base_type_node_of_class(class_ty) {
             let is_js = false;
             let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.expr_with_ty_args.ty_args);
             let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
@@ -709,9 +712,9 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let links = if let Some(old) = self.sig_links.get(&sig.id) {
                         assert!(old.get_resolved_ret_ty().is_none());
-                        old.with_resolved_ret_ty(ty)
+                        old.with_resolved_ret_ty(class_ty)
                     } else {
-                        SigLinks::default().with_resolved_ret_ty(ty)
+                        SigLinks::default().with_resolved_ret_ty(class_ty)
                     };
                     let sig = ty::Sig {
                         id: ty::SigID::dummy(),

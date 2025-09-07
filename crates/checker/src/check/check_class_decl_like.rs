@@ -6,7 +6,8 @@ use crate::ty::TypeFlags;
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_ident};
 use bolt_ts_atom::Atom;
-use bolt_ts_utils::no_hashmap_with_capacity;
+use bolt_ts_binder::SymbolID;
+use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -191,6 +192,89 @@ impl<'cx> TyChecker<'cx> {
                     class: pprint_ident(self.p.node(class_decl).ident_name().unwrap(), &self.atoms),
                 };
                 self.push_error(Box::new(error));
+            }
+
+            let base_tys = self.get_base_tys(ty);
+            if !base_tys.is_empty() {
+                let base_ty = base_tys[0];
+                // check_kinds_of_property_member_overrides
+                let base_properties = self.get_props_of_ty(base_ty);
+                struct MemberInfo<'cx> {
+                    missed_props: Vec<SymbolID>,
+                    base_ty: &'cx ty::Ty<'cx>,
+                    ty: &'cx ty::Ty<'cx>,
+                }
+                let mut not_implemented_info = fx_hashmap_with_capacity(0);
+                'base_prop_check: for base_prop in base_properties {
+                    let base = self.get_target_symbol(*base_prop);
+                    let base_s = self.symbol(base);
+                    if base_s
+                        .flags
+                        .contains(bolt_ts_binder::SymbolFlags::PROTOTYPE)
+                    {
+                        continue;
+                    }
+                    let base_s_name = base_s.name;
+                    let Some(base_s_in_type) = self.get_prop_of_object_ty(ty, base_s_name) else {
+                        continue;
+                    };
+                    let derived = self.get_target_symbol(base_s_in_type);
+                    let base_declaration_flags =
+                        self.get_declaration_modifier_flags_from_symbol(base, None);
+                    if derived == base {
+                        let derived_class_decl =
+                            self.get_class_like_decl_of_symbol(ty.symbol().unwrap());
+                        if base_declaration_flags.contains(ast::ModifierKind::Abstract)
+                            && derived_class_decl.is_none_or(|derived_class_decl| {
+                                !self
+                                    .p
+                                    .node(derived_class_decl)
+                                    .has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+                            })
+                        {
+                            for other_base_ty in self.get_base_tys(ty) {
+                                if base_ty.eq(other_base_ty) {
+                                    continue;
+                                }
+                                let base_s_in_type =
+                                    self.get_prop_of_object_ty(other_base_ty, base_s_name);
+                                let derived_elsewhere =
+                                    base_s_in_type.map(|s| self.get_target_symbol(s));
+                                if derived_elsewhere.is_some_and(|d| d != base) {
+                                    continue 'base_prop_check;
+                                }
+                            }
+                            not_implemented_info.insert(
+                                derived_class_decl,
+                                MemberInfo {
+                                    missed_props: vec![*base_prop],
+                                    base_ty,
+                                    ty,
+                                },
+                            );
+                        }
+                    } else {
+                        // TODO:
+                    }
+                }
+
+                for (error_node, member_info) in not_implemented_info {
+                    if member_info.missed_props.len() == 1 {
+                        if let Some(error_node) = error_node
+                            && let decl = self.p.node(error_node)
+                            && decl.is_class_expr()
+                        {
+                            let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
+                                span: class.span(),
+                                member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
+                                class: base_ty.to_string(self),
+                            };
+                            self.push_error(Box::new(error));
+                        } else {
+                        }
+                    }
+                }
+                // ====
             }
         }
 

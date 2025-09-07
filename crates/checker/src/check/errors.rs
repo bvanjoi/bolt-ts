@@ -781,3 +781,13 @@ pub(super) struct InAnEnumWithMultipleDeclarationsOnlyOneDeclarationCanOmitAnIni
     #[label(primary)]
     pub span: Span, 
 }
+
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Non-abstract class expression does not implement inherited abstract member '{member}' from class '{class}'.")]
+pub(super) struct NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
+    #[label(primary)]
+    pub span: Span, 
+    pub member: String,
+    pub class: String,
+}

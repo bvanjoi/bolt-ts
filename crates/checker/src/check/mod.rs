@@ -1001,7 +1001,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
         is_write: Option<bool>,
     ) -> enumflags2::BitFlags<bolt_ts_ast::ModifierKind> {
-        let is_write = is_write.unwrap_or(true);
+        let is_write = is_write.unwrap_or(false);
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
             this: &TyChecker<'cx>,
@@ -1027,8 +1027,14 @@ impl<'cx> TyChecker<'cx> {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
-            // TODO: if s.parent.flags & Class
-            return flags & ast::ModifierKind::ACCESSIBILITY;
+            return if let Some(p) = s.parent
+                && let p = self.symbol(p)
+                && p.flags.intersects(SymbolFlags::CLASS)
+            {
+                flags
+            } else {
+                flags & !ast::ModifierKind::ACCESSIBILITY
+            };
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
@@ -3807,6 +3813,17 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         self.alloc(sigs)
+    }
+
+    fn get_target_symbol(&mut self, symbol: SymbolID) -> SymbolID {
+        if self
+            .get_check_flags(symbol)
+            .contains(CheckFlags::INSTANTIATED)
+        {
+            self.transient_symbol_links[symbol.index_as_usize()].expect_target()
+        } else {
+            symbol
+        }
     }
 }
 
