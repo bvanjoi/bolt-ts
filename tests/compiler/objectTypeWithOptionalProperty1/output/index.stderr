@@ -1,0 +1,5 @@
+  × An object member cannot be declared optional.
+   ╭─[../../tests/compiler/objectTypeWithOptionalProperty1/index.ts:4:10]
+ 4 │ ?
+   · ─
+   ╰────

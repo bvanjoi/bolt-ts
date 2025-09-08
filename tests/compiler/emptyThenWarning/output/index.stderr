@@ -1,0 +1,11 @@
+  × The body of an 'if' statement cannot be the empty statement.
+   ╭─[../../tests/compiler/emptyThenWarning/index.ts:3:6]
+ 3 │ ;
+   · ─
+   ╰────
+
+  × The body of an 'if' statement cannot be the empty statement.
+   ╭─[../../tests/compiler/emptyThenWarning/index.ts:6:19]
+ 6 │ ;
+   · ─
+   ╰────

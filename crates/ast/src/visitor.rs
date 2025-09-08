@@ -17,10 +17,10 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         TypeAlias(node) => v.visit_type_alias_decl(node),
         Module(node) => v.visit_module_decl(node),
         While(node) => v.visit_while_stmt(node),
+        If(node) => v.visit_if_stmt(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
-        If(_) => (),
         Ret(_) => (),
         Fn(_) => (),
         Throw(_) => (),
@@ -287,6 +287,14 @@ pub fn visit_string_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::StringLit
 
 pub fn visit_while_stmt<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::WhileStmt<'cx>) {}
 
+pub fn visit_if_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::IfStmt<'cx>) {
+    v.visit_expr(n.expr);
+    v.visit_stmt(n.then);
+    if let Some(else_then) = n.else_then {
+        v.visit_stmt(else_then);
+    }
+}
+
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
@@ -344,6 +352,7 @@ make_visitor!(
     (visit_module_decl, super::ModuleDecl<'cx>),
     (visit_string_lit, super::StringLit),
     (visit_while_stmt, super::WhileStmt<'cx>),
+    (visit_if_stmt, super::IfStmt<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
