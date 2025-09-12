@@ -87,7 +87,7 @@ container_flags_for_node!(
     (FnTy, C_AND_L_AND_CF_AND_F),
     (CtorSigDecl, C_AND_L_AND_CF_AND_F),
     (CtorTy, C_AND_L_AND_CF_AND_F),
-    // TODO: class static block
+    (ClassStaticBlockDecl, C_AND_L_AND_CF_AND_F),
     // -----
     (FnExpr, C_AND_L_AND_CF_AND_F_AND_FE),
     (ArrowFnExpr, C_AND_L_AND_CF_AND_F_AND_FE),
@@ -203,6 +203,7 @@ pub(super) fn container_flags_for_node(
         FnTy(n) => n.get_container_flags(p, parent_map),
         CtorSigDecl(n) => n.get_container_flags(p, parent_map),
         CtorTy(n) => n.get_container_flags(p, parent_map),
+        ClassStaticBlockDecl(n) => n.get_container_flags(p, parent_map),
         FnExpr(n) => n.get_container_flags(p, parent_map),
         ArrowFnExpr(n) => n.get_container_flags(p, parent_map),
         ModuleBlock(n) => n.get_container_flags(p, parent_map),

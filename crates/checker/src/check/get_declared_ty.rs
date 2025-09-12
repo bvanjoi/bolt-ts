@@ -27,9 +27,8 @@ pub enum EnumMemberValue {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_declared_ty_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        (self
-            .try_get_declared_ty_of_symbol(symbol)
-            .unwrap_or(self.error_ty)) as _
+        self.try_get_declared_ty_of_symbol(symbol)
+            .unwrap_or(self.error_ty)
     }
 
     pub(super) fn try_get_declared_ty_of_symbol(
