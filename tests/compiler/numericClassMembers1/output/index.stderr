@@ -1,0 +1,11 @@
+  × Duplicate identifier '0'.
+   ╭─[../../tests/compiler/numericClassMembers1/index.ts:5:3]
+ 5 │ 0.0
+   · ───
+   ╰────
+
+  × Duplicate identifier '0'.
+    ╭─[../../tests/compiler/numericClassMembers1/index.ts:11:2]
+ 11 │ '0'
+    · ───
+    ╰────

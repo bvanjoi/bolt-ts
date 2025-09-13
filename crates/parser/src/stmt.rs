@@ -27,7 +27,24 @@ impl<'cx> ParserState<'cx, '_> {
         }
         let kind = match self.token.kind {
             Semi => ast::StmtKind::Empty(self.parse_empty_stmt()?),
-            Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(None)),
+            Var | Const => ast::StmtKind::Var(self.parse_var_stmt(None)),
+            Let => {
+                if self
+                    .lookahead(|l| l.next_token_is_binding_ident_or_start_of_destructuring())
+                    .unwrap_or_default()
+                {
+                    ast::StmtKind::Var(self.parse_var_stmt(None))
+                } else {
+                    if self.in_strict_mode {
+                        let error = errors::IdentifierExpected0IsAReservedWordInStrictMode {
+                            span: self.token.span,
+                            identifier: "let".to_string(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    self.parse_expr_or_labeled_stmt()?
+                }
+            }
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()?),

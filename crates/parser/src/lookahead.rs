@@ -347,6 +347,14 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         self.p.next_token();
         Ok(self.p.token.kind.is_ident_or_keyword() && !self.p.has_preceding_line_break())
     }
+
+    pub(super) fn next_token_is_binding_ident_or_start_of_destructuring(
+        &mut self,
+    ) -> PResult<bool> {
+        self.p.next_token();
+        Ok(self.p.token.kind.is_binding_ident()
+            || matches!(self.p.token.kind, TokenKind::LBrace | TokenKind::LBracket))
+    }
 }
 
 impl<'a, 'cx, 'p> ParserState<'cx, 'p> {

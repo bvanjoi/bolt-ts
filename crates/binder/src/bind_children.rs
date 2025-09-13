@@ -1438,7 +1438,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     pub(super) fn bind(&mut self, node: ast::NodeID) {
-        let save_in_strict_mode = self.in_strict_mode;
+        let saved_in_strict_mode = self.in_strict_mode;
         if let Some(parent) = self.parent {
             self.parent_map.insert(node, parent);
         }
@@ -1455,7 +1455,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         self.parent = save_parent;
 
-        self.in_strict_mode = save_in_strict_mode;
+        self.in_strict_mode = saved_in_strict_mode;
     }
 
     pub(super) fn bind_anonymous_decl(

@@ -1,0 +1,11 @@
+  × Cannot find name 'ttt'.
+    ╭─[../../tests/compiler/functionCall2/index.ts:23:3]
+ 23 │ ttt
+    · ───
+    ╰────
+
+  × Cannot find name 'ttt'.
+    ╭─[../../tests/compiler/functionCall2/index.ts:28:3]
+ 28 │ ttt
+    · ───
+    ╰────

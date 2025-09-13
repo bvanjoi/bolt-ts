@@ -377,3 +377,11 @@ pub(super) struct AClassMemberCannotHaveTheModifierKeyword {
     pub(super) span: Span,
     pub(super) modifier: ModifierKind,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Identifier expected. '{identifier}' is a reserved word in strict mode.")]
+pub(super) struct IdentifierExpected0IsAReservedWordInStrictMode {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) identifier: String,
+}

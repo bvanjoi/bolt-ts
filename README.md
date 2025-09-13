@@ -14,7 +14,7 @@ When testing a subset of `type-fest` functionality, bolt-ts demonstrates:
 
 Core functionalities are operational but require refinement. Key pending improvements include:
 
-- Parser: async function, with stmt.
+- Parser: with stmt.
 - Module Resolution: cache, `exports`/`imports` field support, `node_modules/@types` type definition resolution.
 - Type Checking: various edge-case bugs.
 - Output Generation: sourcemap generation, different module systems.

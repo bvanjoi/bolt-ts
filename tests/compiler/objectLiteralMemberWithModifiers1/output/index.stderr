@@ -1,0 +1,5 @@
+  × Modifier cannot be used here.
+   ╭─[../../tests/compiler/objectLiteralMemberWithModifiers1/index.ts:3:11]
+ 3 │ public
+   · ──────
+   ╰────

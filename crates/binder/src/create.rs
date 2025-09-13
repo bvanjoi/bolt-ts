@@ -240,7 +240,11 @@ impl BinderState<'_, '_, '_> {
             SymbolTableLocationKind::SymbolMember => inner(self, location.container, false),
             SymbolTableLocationKind::SymbolExports => inner(self, location.container, true),
             SymbolTableLocationKind::ContainerLocals => {
-                assert!(self.p.node(location.container).has_locals());
+                assert!(
+                    self.p.node(location.container).has_locals(),
+                    "{:#?}",
+                    self.p.node(location.container)
+                );
                 self.locals.get_mut(&location.container)
             }
         }

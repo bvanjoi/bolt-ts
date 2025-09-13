@@ -129,6 +129,7 @@ impl<'cx> CheckState<'cx> {
             }
         }
     }
+
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         for member in node.members {
@@ -294,7 +295,13 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
         if node_flags.intersects(ast::NodeFlags::AMBIENT) {
             self.check_ambient_initializer(node);
         }
-
         visitor::visit_var_decl(self, node);
+    }
+    fn visit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) {
+        if let ast::StmtKind::Empty(s) = node.then.kind {
+            let error = errors::TheBodyOfAnIfStatementCannotBeTheEmptyStatement { span: s.span };
+            self.push_error(Box::new(error));
+        }
+        visitor::visit_if_stmt(self, node);
     }
 }
