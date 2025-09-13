@@ -1,0 +1,11 @@
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/downlevelLetConst11/index.ts:4:1]
+ 4 │ let
+   · ───
+   ╰────
+
+  × Cannot find name 'let'.
+   ╭─[../../tests/compiler/downlevelLetConst11/index.ts:4:1]
+ 4 │ let
+   · ───
+   ╰────

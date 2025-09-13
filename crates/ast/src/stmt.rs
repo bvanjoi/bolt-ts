@@ -3,6 +3,19 @@ use crate::keyword;
 
 pub type Stmts<'cx> = &'cx [&'cx Stmt<'cx>];
 
+pub fn update_strict_mode_statement_list(stmts: Stmts<'_>, in_strict_mode: &mut bool) {
+    if *in_strict_mode {
+        return;
+    }
+
+    for stmt in stmts {
+        if stmt.is_use_strict_directive() {
+            *in_strict_mode = true;
+            return;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Stmt<'cx> {
     pub kind: StmtKind<'cx>,
@@ -71,6 +84,15 @@ impl Stmt<'_> {
             Labeled(n) => n.id,
             Switch(n) => n.id,
         }
+    }
+
+    pub fn is_use_strict_directive(&self) -> bool {
+        if let StmtKind::Expr(expr_stmt) = self.kind {
+            if let ExprKind::StringLit(lit) = expr_stmt.expr.kind {
+                return lit.val == keyword::DIRECTIVE_USE_STRICT;
+            }
+        }
+        false
     }
 }
 

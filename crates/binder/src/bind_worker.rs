@@ -9,6 +9,7 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
+use bolt_ts_ast::update_strict_mode_statement_list;
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
@@ -693,20 +694,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn update_strict_mode_statement_list(&mut self, stmts: ast::Stmts<'cx>) {
-        if self.in_strict_mode {
-            return;
-        }
-
-        for stmt in stmts {
-            if let ast::StmtKind::Expr(expr) = stmt.kind {
-                if let ast::ExprKind::StringLit(lit) = expr.expr.kind {
-                    if self.atoms.get(lit.val) == "use strict" {
-                        self.in_strict_mode = true;
-                        break;
-                    }
-                }
-            }
-        }
+        update_strict_mode_statement_list(stmts, &mut self.in_strict_mode);
     }
 
     fn bind_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) {

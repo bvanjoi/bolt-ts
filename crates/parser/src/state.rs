@@ -49,6 +49,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
+    pub(super) in_strict_mode: bool,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -103,6 +104,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             has_no_default_lib: false,
             variant,
             parsing_context: ParsingContext::default(),
+            // TODO: in_strict_mode: options.compiler_options().always_strict(),
+            in_strict_mode: false,
         }
     }
 
@@ -164,7 +167,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse_list<T>(
         &mut self,
         ctx: ParsingContext,
-        ele: impl Fn(&mut Self) -> PResult<T>,
+        mut ele: impl FnMut(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
         let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
@@ -362,7 +365,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse(&mut self) -> &'cx ast::Program<'cx> {
         let start = self.pos;
         self.next_token();
-        let stmts = self.parse_list(ParsingContext::SOURCE_ELEMENTS, Self::parse_stmt);
+        let mut is_first = true;
+        let stmts = self.parse_list(ParsingContext::SOURCE_ELEMENTS, |this| {
+            let stmt = this.parse_stmt()?;
+            if is_first {
+                if stmt.is_use_strict_directive() {
+                    this.in_strict_mode = true;
+                }
+                is_first = false;
+            }
+            Ok(stmt)
+        });
         let id = self.next_node_id();
         let program = self.alloc(ast::Program {
             id,
