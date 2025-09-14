@@ -9,12 +9,12 @@ fn build_and_resolve(
     base_dir: &str,
     target: &str,
 ) -> Result<String, ResolveError> {
-    let input = serde_json::from_value(map).unwrap();
     let mut atoms = bolt_ts_atom::AtomIntern::prefill(&[]);
     let base_dir = PathId::new(std::path::Path::new(base_dir), &mut atoms);
     let target = atoms.atom(target);
 
-    let fs = bolt_ts_fs::MemoryFS::new(input, &mut atoms).unwrap();
+    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(map).unwrap();
+    let fs = bolt_ts_fs::MemoryFS::new(inputs.into_iter(), &mut atoms).unwrap();
 
     let fs = Arc::new(Mutex::new(fs));
     let atoms = Arc::new(Mutex::new(atoms));

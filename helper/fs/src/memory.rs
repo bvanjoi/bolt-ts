@@ -1,6 +1,5 @@
 use super::CachedFileSystem;
 use bolt_ts_atom::{Atom, AtomIntern};
-use indexmap::IndexMap;
 
 use crate::errors::FsResult;
 use crate::tree::{FSNodeId, FSTree};
@@ -10,7 +9,10 @@ pub struct MemoryFS {
 }
 
 impl MemoryFS {
-    pub fn new(input: IndexMap<String, String>, atoms: &mut AtomIntern) -> FsResult<Self> {
+    pub fn new(
+        input: impl Iterator<Item = (String, String)>,
+        atoms: &mut AtomIntern,
+    ) -> FsResult<Self> {
         let mut tree = FSTree::new(atoms);
 
         for (path, content) in input {
@@ -139,7 +141,8 @@ fn test_mem_fs() {
     });
 
     let atoms = &mut AtomIntern::prefill(&[]);
-    let mut fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms).unwrap();
+    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
+    let mut fs = MemoryFS::new(inputs.into_iter(), atoms).unwrap();
 
     use super::FsError::*;
     use std::path::Path;
@@ -237,7 +240,8 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
     });
 
     let atoms = &mut AtomIntern::prefill(&[]);
-    let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
+    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
+    let fs = MemoryFS::new(inputs.into_iter(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, errors::FsError::FileExists(_))));
 
     let json = serde_json::json!({
@@ -246,6 +250,7 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
     });
 
     let atoms = &mut AtomIntern::prefill(&[]);
-    let fs = MemoryFS::new(serde_json::from_value(json).unwrap(), atoms);
+    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
+    let fs = MemoryFS::new(inputs.into_iter(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, errors::FsError::DirExists(_))));
 }

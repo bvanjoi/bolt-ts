@@ -22,7 +22,7 @@ pub fn _compile(
     let root = std::path::PathBuf::from(cwd);
     add_default_libs(&mut files, &default_lib_dir);
     let default_lib_dir = std::path::PathBuf::from(default_lib_dir);
-    let mut fs = bolt_ts_fs::MemoryFS::new(files, &mut atoms).unwrap();
+    let mut fs = bolt_ts_fs::MemoryFS::new(files.into_iter(), &mut atoms).unwrap();
     let tsconfig: bolt_ts_config::RawTsConfig = if let Ok(raw_tsconfig) =
         fs.read_file(std::path::Path::new("/tsconfig.json"), &mut atoms)
     {
