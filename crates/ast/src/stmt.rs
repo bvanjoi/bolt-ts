@@ -717,7 +717,8 @@ pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub name: &'cx Ident,
+    /// `None` when `export default function () {}`
+    pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx super::Ty<'cx>>,

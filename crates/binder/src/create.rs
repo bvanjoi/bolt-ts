@@ -67,10 +67,12 @@ impl BinderState<'_, '_, '_> {
         let symbol;
         let is_replaceable_by_method =
             prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
+        let is_default_export = prop.contains(DeclareSymbolProperty::IS_DEFAULT_EXPORT);
         let name = if prop.contains(DeclareSymbolProperty::IS_COMPUTED_NAME) {
             debug_assert!(name.is_none_or(|n| n == SymbolName::Computed));
             Some(SymbolName::Computed)
-        } else if prop.contains(DeclareSymbolProperty::IS_DEFAULT_EXPORT) {
+        } else if is_default_export && parent.is_some() {
+            // TODO: remove this
             debug_assert!(name.is_none_or(|n| n == SymbolName::ExportDefault));
             Some(SymbolName::ExportDefault)
         } else {
@@ -115,6 +117,16 @@ impl BinderState<'_, '_, '_> {
                             Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
                                     span: self.p.node(node).name().unwrap().span(),
                                 })
+                        } else if old_symbol
+                            .decls
+                            .as_ref()
+                            .is_some_and(|decls| !decls.is_empty())
+                            && is_default_export
+                        {
+                            let p = self.p.node(node);
+                            Box::new(errors::AModuleCannotHaveMultipleDefaultExports {
+                                span: p.name().map(|name| name.span()).unwrap_or(p.span()),
+                            })
                         } else {
                             Box::new(errors::DuplicateIdentifier {
                                 span: self.p.node(node).name().unwrap().span(),

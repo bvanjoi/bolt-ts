@@ -133,7 +133,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
-        let ele_name = SymbolName::Atom(f.name.name);
+        let ele_name = f
+            .name
+            .map(|name| SymbolName::Atom(name.name))
+            .unwrap_or_else(|| SymbolName::ExportDefault);
         if self.in_strict_mode {
             let symbol = self.bind_block_scoped_decl(
                 f.id,

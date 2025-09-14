@@ -406,7 +406,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn lower_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Option<ir::FnDeclID> {
         let body = n.body?;
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
-        let name = self.lower_ident(n.name);
+        let name = n.name.map(|name| self.lower_ident(name));
         let params = self.lower_param_decls(n.params);
 
         let saved = self.current;

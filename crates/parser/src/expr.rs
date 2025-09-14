@@ -1110,7 +1110,6 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
         if self.parse_optional(TokenKind::Question).is_some() {
             let start = cond.span().lo();
-            // self.parent_map.r#override(cond.id(), id);
             let when_true = self.parse_expr()?;
             self.expect(TokenKind::Colon);
             let when_false = self.parse_expr()?;

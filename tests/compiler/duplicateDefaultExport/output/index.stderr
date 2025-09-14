@@ -1,0 +1,5 @@
+  × A module cannot have multiple default exports.
+   ╭─[../../tests/compiler/duplicateDefaultExport/index.ts:4:16]
+ 4 │ function() {}
+   · ─────────────
+   ╰────

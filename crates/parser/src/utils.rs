@@ -222,7 +222,8 @@ impl<'cx> ParserState<'cx, '_> {
         if matches!(t, Export | Const) {
             self.is_start_of_decl()
         } else if t == Import {
-            self.is_start_of_decl() | self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
+            self.is_start_of_decl()
+                || self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
         } else if matches!(
             t,
             Semi | LBrace

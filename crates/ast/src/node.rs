@@ -284,7 +284,7 @@ impl<'cx> Node<'cx> {
             ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
-            FnDecl(n) => Some(DeclarationName::Ident(n.name)),
+            FnDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
             ClassDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
             ClassExpr(n) => n.name.map(|name| DeclarationName::Ident(name)),
@@ -305,7 +305,7 @@ impl<'cx> Node<'cx> {
         use Node::*;
         match self {
             Ident(n) => Some(n),
-            FnDecl(n) => Some(n.name),
+            FnDecl(n) => n.name,
             ClassDecl(n) => n.name,
             ClassExpr(n) => n.name,
             ParamDecl(n) => match n.name.kind {
