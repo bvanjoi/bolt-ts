@@ -459,10 +459,14 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params_worker(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+    pub(super) fn parse_params_worker(
+        &mut self,
+        allow_ambiguity_name: bool,
+    ) -> PResult<ast::ParamsDecl<'cx>> {
         let old_error = self.diags.len();
-        let params =
-            self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, Self::parse_param);
+        let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
+            Self::parse_param(this, allow_ambiguity_name)
+        });
         let has_error = self.diags.len() > old_error;
         if !has_error {
             let last_is_rest = params
@@ -494,7 +498,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.expect(LParen) {
             return Ok(self.alloc(vec![]));
         }
-        let params = self.parse_params_worker()?;
+        let params = self.parse_params_worker(true)?;
         self.expect(RParen);
         Ok(params)
     }
@@ -519,7 +523,10 @@ impl<'cx> ParserState<'cx, '_> {
         name
     }
 
-    pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
+    pub(super) fn parse_param(
+        &mut self,
+        allow_ambiguity_name: bool,
+    ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let modifiers = self.parse_modifiers::<false, false>(false)?;
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
@@ -562,6 +569,12 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+        if !allow_ambiguity_name
+            && !(self.token.kind.is_binding_ident()
+                || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
+        {
+            return Err(());
+        }
         let name = self.parse_name_of_param()?;
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
@@ -718,7 +731,7 @@ impl<'cx> ParserState<'cx, '_> {
         let params = self.parse_bracketed_list::<false, _>(
             ParsingContext::PARAMETERS,
             TokenKind::LBracket,
-            Self::parse_param,
+            |this| this.parse_param(true),
             TokenKind::RBracket,
         )?;
         let ty = match self.parse_ty_anno()? {

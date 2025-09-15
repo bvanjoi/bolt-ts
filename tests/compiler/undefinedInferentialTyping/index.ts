@@ -5,3 +5,7 @@ function f<T>(arr: T[], elemnt: T): T {
 }
 
 var a = f([], 3); // should be number
+var a1: string = a;
+//~^ ERROR: Type 'number' is not assignable to type 'string'.
+var b: number = f([], 3);
+var c: string = f([], '');

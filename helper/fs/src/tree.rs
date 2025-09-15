@@ -205,7 +205,11 @@ impl FSTree {
         }
     }
 
-    pub(super) fn read_file(&self, path: &std::path::Path, atoms: &mut AtomIntern) -> FsResult<Atom> {
+    pub(super) fn read_file(
+        &self,
+        path: &std::path::Path,
+        atoms: &mut AtomIntern,
+    ) -> FsResult<Atom> {
         if has_slash_suffix_and_not_root(path) {
             Err(errors::FsError::NotAFile(PathId::get(path, atoms)))
         } else {

@@ -58,6 +58,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         // let start = self.token.start();
+        // TODO: cache
 
         self.parse_paren_arrow_fn_expr(false)
     }
@@ -114,7 +115,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             params = self.alloc([]);
         } else {
-            params = self.parse_params_worker()?;
+            params = self.parse_params_worker(allow_ambiguity)?;
             if !self.expect(TokenKind::RParen) && !allow_ambiguity {
                 return Err(());
             }

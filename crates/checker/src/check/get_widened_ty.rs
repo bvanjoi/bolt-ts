@@ -23,7 +23,10 @@ impl<'cx> TyChecker<'cx> {
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
         {
             // TODO: cache
-            if ty.flags.intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE)) {
+            if ty
+                .flags
+                .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
+            {
                 self.any_ty
             } else if ty.is_object_literal() {
                 self.get_widened_type_of_object_lit(ty)

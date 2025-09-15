@@ -1,0 +1,12 @@
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateIdentifierDifferentSpelling/index.ts:10:21]
+ 10 │ 0b11: '', 3
+    · ────┬───  ─
+    ·     ╰── Previous definition here
+    ╰────
+
+  × Duplicate identifier '3'.
+   ╭─[../../tests/compiler/duplicateIdentifierDifferentSpelling/index.ts:6:3]
+ 6 │ 3
+   · ─
+   ╰────

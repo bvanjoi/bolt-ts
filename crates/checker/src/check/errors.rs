@@ -48,7 +48,7 @@ pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
         "type "
     } else {
         ""
-    } 
+    }
 })]
 pub(super) struct ExpectedXArgsButGotY {
     #[label(primary)]
@@ -738,7 +738,6 @@ pub(super) struct TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
     pub span: Span,
 }
 
-
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("'super' can only be referenced in a derived class.")]
 pub(super) struct SuperCanOnlyBeReferencedInADerivedClass {
@@ -753,41 +752,52 @@ pub(super) struct SuperCannotBeReferencedInAComputedPropertyName {
     pub span: Span,
 }
 
-
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("Super calls are not permitted outside constructors or in nested functions inside constructors.")]
-pub(super) struct SuperCallsAreNotPermittedOutsideConstructorsOrInNestedFunctionsInsideConstructors {
+#[error(
+    "Super calls are not permitted outside constructors or in nested functions inside constructors."
+)]
+pub(super) struct SuperCallsAreNotPermittedOutsideConstructorsOrInNestedFunctionsInsideConstructors
+{
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("'super' can only be referenced in members of derived classes or object literal expressions.")]
+#[error(
+    "'super' can only be referenced in members of derived classes or object literal expressions."
+)]
 pub(super) struct SuperCanOnlyBeReferencedInMembersOfDerivedClassesOrObjectLiteralExpressions {
     #[label(primary)]
-    pub span: Span, 
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("'super' property access is permitted only in a constructor, member function, or member accessor of a derived class.")]
-pub(super) struct SuperPropertyAccessIsPermittedOnlyInAConstructorMemberFunctionOrMemberAccessorOfADerivedClass {
+#[error(
+    "'super' property access is permitted only in a constructor, member function, or member accessor of a derived class."
+)]
+pub(super) struct SuperPropertyAccessIsPermittedOnlyInAConstructorMemberFunctionOrMemberAccessorOfADerivedClass
+{
     #[label(primary)]
-    pub span: Span, 
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element.")]
-pub(super) struct InAnEnumWithMultipleDeclarationsOnlyOneDeclarationCanOmitAnInitializerForItsFirstEnumElement {
+#[error(
+    "In an enum with multiple declarations, only one declaration can omit an initializer for its first enum element."
+)]
+pub(super) struct InAnEnumWithMultipleDeclarationsOnlyOneDeclarationCanOmitAnInitializerForItsFirstEnumElement
+{
     #[label(primary)]
-    pub span: Span, 
+    pub span: Span,
 }
 
-
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("Non-abstract class expression does not implement inherited abstract member '{member}' from class '{class}'.")]
+#[error(
+    "Non-abstract class expression does not implement inherited abstract member '{member}' from class '{class}'."
+)]
 pub(super) struct NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
     #[label(primary)]
-    pub span: Span, 
+    pub span: Span,
     pub member: String,
     pub class: String,
 }
