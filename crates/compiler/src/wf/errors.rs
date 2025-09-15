@@ -80,3 +80,10 @@ pub(super) struct XAreNotAllowedInAmbientContexts {
     pub span: Span,
     pub kind: AmbientContextKind,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The body of an 'if' statement cannot be the empty statement.")]
+pub(super) struct TheBodyOfAnIfStatementCannotBeTheEmptyStatement {
+    #[label(primary)]
+    pub span: Span,
+}

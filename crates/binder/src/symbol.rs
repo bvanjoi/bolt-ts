@@ -7,7 +7,11 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
-    Container,
+    ParamIdx(u32),
+    ESSymbol {
+        escaped_name: Atom,
+        symbol_id: SymbolID,
+    },
     Atom(Atom),
     EleNum(F64Represent),
     ClassExpr,
@@ -30,11 +34,7 @@ pub enum SymbolName {
     ExportEquals,
     ExportDefault,
     Computed,
-    ParamIdx(u32),
-    ESSymbol {
-        escaped_name: Atom,
-        symbol_id: SymbolID,
-    },
+    Container,
 }
 
 impl SymbolName {

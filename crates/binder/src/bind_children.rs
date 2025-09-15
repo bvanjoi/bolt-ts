@@ -412,9 +412,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             {
                 let table = SymbolTableLocation::exports(container);
                 return self.declare_symbol(
-                    None,
+                    Some(SymbolName::ExportDefault),
                     table,
-                    None,
+                    self.final_res.get(&container).copied(),
                     current,
                     symbol_flags,
                     symbol_excludes,
@@ -587,7 +587,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(mods) = n.modifiers {
                     self.bind_modifiers(mods);
                 }
-                self.bind(n.name.id);
+                if let Some(name) = n.name {
+                    self.bind(name.id);
+                }
                 if let Some(ty_params) = n.ty_params {
                     self.bind_ty_params(ty_params);
                 }
@@ -1438,7 +1440,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     pub(super) fn bind(&mut self, node: ast::NodeID) {
-        let save_in_strict_mode = self.in_strict_mode;
+        let saved_in_strict_mode = self.in_strict_mode;
         if let Some(parent) = self.parent {
             self.parent_map.insert(node, parent);
         }
@@ -1455,7 +1457,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         self.parent = save_parent;
 
-        self.in_strict_mode = save_in_strict_mode;
+        self.in_strict_mode = saved_in_strict_mode;
     }
 
     pub(super) fn bind_anonymous_decl(

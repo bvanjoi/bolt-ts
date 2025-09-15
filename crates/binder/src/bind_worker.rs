@@ -9,6 +9,7 @@ use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
+use bolt_ts_ast::update_strict_mode_statement_list;
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
@@ -132,17 +133,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
-        // if self.in_strict_mode {
-        // } else {
-        let ele_name = SymbolName::Atom(f.name.name);
-        let symbol = self.declare_symbol_and_add_to_symbol_table(
-            ele_name,
-            f.id,
-            SymbolFlags::FUNCTION,
-            SymbolFlags::FUNCTION_EXCLUDES,
-        );
-        self.create_final_res(f.id, symbol);
-        // }
+        let ele_name = f
+            .name
+            .map(|name| SymbolName::Atom(name.name))
+            .unwrap_or_else(|| SymbolName::ExportDefault);
+        if self.in_strict_mode {
+            let symbol = self.bind_block_scoped_decl(
+                f.id,
+                ele_name,
+                SymbolFlags::FUNCTION,
+                SymbolFlags::FUNCTION_EXCLUDES,
+            );
+            self.create_final_res(f.id, symbol);
+        } else {
+            let symbol = self.declare_symbol_and_add_to_symbol_table(
+                ele_name,
+                f.id,
+                SymbolFlags::FUNCTION,
+                SymbolFlags::FUNCTION_EXCLUDES,
+            );
+            self.create_final_res(f.id, symbol);
+        }
     }
 
     fn check_contextual_ident(&mut self, id: ast::NodeID, atom: Atom, span: Span) {
@@ -666,22 +677,27 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExportDecl(node) => self.bind_export_decl(node),
             ExportAssign(node) => self.bind_export_assign(node),
             Program(node) => {
-                // TODO: `update_strict_module_statement_list`
+                self.update_strict_mode_statement_list(node.stmts);
                 self.bind_source_file_if_external_module(node);
             }
-            BlockStmt(_)
+            BlockStmt(n)
                 if self
                     .p
                     .node(self.parent_map.parent(node).unwrap())
-                    .is_fn_like_or_class_static_block_decl() => {}
-            BlockStmt(_) | ModuleBlock(_) => {
-                // TODO: `update_strict_module_statement_list`
+                    .is_fn_like_or_class_static_block_decl() =>
+            {
+                self.update_strict_mode_statement_list(n.stmts)
             }
+            ModuleBlock(n) => self.update_strict_mode_statement_list(n.stmts),
             ThisTy(_) => {
                 self.seen_this_keyword = true;
             }
             _ => {}
         }
+    }
+
+    fn update_strict_mode_statement_list(&mut self, stmts: ast::Stmts<'cx>) {
+        update_strict_mode_statement_list(stmts, &mut self.in_strict_mode);
     }
 
     fn bind_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) {

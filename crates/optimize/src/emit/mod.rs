@@ -276,7 +276,9 @@ impl<'ir> Emitter<'_, 'ir> {
         let f = self.nodes.get_fn_decl(&f);
         self.content.p("function");
         self.content.p_whitespace();
-        self.emit_ident(f.name());
+        if let Some(name) = f.name() {
+            self.emit_ident(name);
+        }
         self.emit_params(f.params());
         self.content.p_whitespace();
 
@@ -702,11 +704,13 @@ impl<'ir> Emitter<'_, 'ir> {
                         .map(|name| self.nodes.get_ident(&name).name())
                         .unwrap(),
                 ]),
-                ir::Stmt::Fn(f) => Some(vec![
-                    self.nodes
-                        .get_ident(&self.nodes.get_fn_decl(f).name())
-                        .name(),
-                ]),
+                ir::Stmt::Fn(f) => {
+                    if let Some(name) = self.nodes.get_fn_decl(f).name() {
+                        Some(vec![self.nodes.get_ident(&name).name()])
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             })
             .flatten()
@@ -761,7 +765,10 @@ impl<'ir> Emitter<'_, 'ir> {
                     }
                     ir::Stmt::Fn(f) => {
                         let f = this.nodes.get_fn_decl(f);
-                        f.modifiers().map(|ms| (ms, f.name()))
+                        let Some(name) = f.name() else {
+                            continue;
+                        };
+                        f.modifiers().map(|ms| (ms, name))
                     }
                     ir::Stmt::Class(c) => {
                         let c = this.nodes.get_class_decl(c);

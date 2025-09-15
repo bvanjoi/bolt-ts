@@ -33,3 +33,10 @@ pub struct EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A module cannot have multiple default exports.")]
+pub struct AModuleCannotHaveMultipleDefaultExports {
+    #[label(primary)]
+    pub span: Span,
+}

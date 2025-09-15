@@ -521,6 +521,7 @@ impl TryFrom<TokenKind> for super::ModifierKind {
             TokenKind::Declare => Ok(Ambient),
             TokenKind::Default => Ok(Default),
             TokenKind::Const => Ok(Const),
+            TokenKind::Async => Ok(Async),
             _ => Err(()),
         }
     }

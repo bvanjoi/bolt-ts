@@ -158,5 +158,8 @@ prefilled_atom_map!(
             INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 99],
             INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 100]
         },
+        DIRECTIVES: {
+            DIRECTIVE_USE_STRICT:                   ["use strict", 101]
+        },
     }
 );

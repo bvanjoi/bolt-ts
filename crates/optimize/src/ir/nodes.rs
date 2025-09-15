@@ -1255,7 +1255,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
-        name: IdentID,
+        name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
     ) -> FnDeclID {
@@ -3761,7 +3761,7 @@ pub struct FnDecl {
     id: FnDeclID,
     span: Span,
     modifiers: Option<Modifiers>,
-    name: IdentID,
+    name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
 }
@@ -3775,7 +3775,7 @@ impl FnDecl {
         self.modifiers.as_ref()
     }
 
-    pub fn name(&self) -> IdentID {
+    pub fn name(&self) -> Option<IdentID> {
         self.name
     }
 

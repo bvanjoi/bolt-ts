@@ -6,7 +6,11 @@ use super::{PResult, ParserState};
 
 pub(super) trait FnLike<'cx, 'p> {
     type Node;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>>;
+    fn parse_name(
+        &self,
+        state: &mut ParserState<'cx, 'p>,
+        ms: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> PResult<Option<&'cx ast::Ident>>;
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -23,8 +27,16 @@ pub(super) trait FnLike<'cx, 'p> {
 pub(super) struct ParseFnDecl;
 impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     type Node = &'cx ast::FnDecl<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
-        Ok(Some(state.parse_binding_ident()))
+    fn parse_name(
+        &self,
+        state: &mut ParserState<'cx, 'p>,
+        ms: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> PResult<Option<&'cx ast::Ident>> {
+        if ms.contains(ast::ModifierKind::Default) {
+            state.parse_optional_binding_ident()
+        } else {
+            Ok(Some(state.parse_binding_ident()))
+        }
     }
     fn finish(
         self,
@@ -37,7 +49,10 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         ty: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
-        let name = name.unwrap();
+        debug_assert!(
+            name.is_some()
+                || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Default))
+        );
         let id = state.next_node_id();
         let decl = state.alloc(ast::FnDecl {
             id,
@@ -59,11 +74,13 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
 pub(super) struct ParseFnExpr;
 impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     type Node = &'cx ast::FnExpr<'cx>;
-    fn parse_name(&self, state: &mut ParserState<'cx, 'p>) -> PResult<Option<&'cx ast::Ident>> {
-        Ok(
-            (state.token.kind.is_binding_ident() && !state.is_implements_clause())
-                .then(|| state.parse_binding_ident()),
-        )
+    fn parse_name(
+        &self,
+        state: &mut ParserState<'cx, 'p>,
+        _: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> PResult<Option<&'cx ast::Ident>> {
+        // TODO: is_generator, is_async
+        state.parse_optional_binding_ident()
     }
     fn finish(
         self,
@@ -103,7 +120,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             |this| {
                 let start = this.token.start();
                 this.expect(TokenKind::Function);
-                let name = mode.parse_name(this)?;
+                let name =
+                    mode.parse_name(this, modifiers.map(|ms| ms.flags).unwrap_or_default())?;
                 let ty_params = this.parse_ty_params()?;
                 let params = this.parse_params()?;
                 this.check_params(params, false);

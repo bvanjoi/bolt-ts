@@ -6,6 +6,9 @@ pub mod path;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, rustc_hash::FxBuildHasher>;
 pub type FxIndexSet<V> = indexmap::IndexSet<V, rustc_hash::FxBuildHasher>;
 
+pub type NoHashIndexMap<K, V> = indexmap::IndexMap<K, V, nohash_hasher::BuildNoHashHasher<K>>;
+pub type NoHashIndexSet<V> = indexmap::IndexSet<V, nohash_hasher::BuildNoHashHasher<V>>;
+
 pub fn fx_hashmap_with_capacity<K, V>(capacity: usize) -> rustc_hash::FxHashMap<K, V> {
     let hasher = rustc_hash::FxBuildHasher;
     rustc_hash::FxHashMap::with_capacity_and_hasher(capacity, hasher)

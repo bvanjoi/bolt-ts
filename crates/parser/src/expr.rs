@@ -667,7 +667,6 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_object_lit_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let start = self.token.start();
-
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let expr = self.parse_assign_expr_or_higher(true)?;
             let id = self.next_node_id();
@@ -711,7 +710,6 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
-
         let name = self.parse_prop_name(true)?;
         if let Some(question_token) = self.parse_optional(TokenKind::Question) {
             let error = errors::AnObjectMemberCannotBeDeclaredOptional {
@@ -720,10 +718,10 @@ impl<'cx> ParserState<'cx, '_> {
             self.push_error(Box::new(error));
         }
         let excl_token = self.parse_optional(TokenKind::Excl);
-
         if asterisk_token.is_some()
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
+            invalid_modifiers(self);
             return self.parse_object_method_decl(start, name, asterisk_token);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
@@ -1112,7 +1110,6 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
         if self.parse_optional(TokenKind::Question).is_some() {
             let start = cond.span().lo();
-            // self.parent_map.r#override(cond.id(), id);
             let when_true = self.parse_expr()?;
             self.expect(TokenKind::Colon);
             let when_false = self.parse_expr()?;
