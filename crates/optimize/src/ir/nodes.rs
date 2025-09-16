@@ -926,7 +926,7 @@ impl Nodes {
     pub fn alloc_import_decl(
         &mut self,
         span: Span,
-        clause: ImportClauseID,
+        clause: Option<ImportClauseID>,
         module: StringLitID,
     ) -> ImportDeclID {
         let idx = ImportDeclID(usize_into_idx(self.import_decl_nodes.0.len()));
@@ -3084,7 +3084,7 @@ pub enum ExportClause {
 pub struct ImportDecl {
     id: ImportDeclID,
     span: Span,
-    clause: ImportClauseID,
+    clause: Option<ImportClauseID>,
     module: StringLitID,
 }
 
@@ -3093,7 +3093,7 @@ impl ImportDecl {
         self.span
     }
 
-    pub fn clause(&self) -> ImportClauseID {
+    pub fn clause(&self) -> Option<ImportClauseID> {
         self.clause
     }
 

@@ -149,6 +149,16 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Import(_) => {}
             Export(n) => self.resolve_export(n),
             For(n) => {
+                if let Some(init) = n.init {
+                    match init {
+                        ast::ForInitKind::Var(decls) => {
+                            for decl in decls {
+                                self.resolve_var_decl(decl)
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
                 }

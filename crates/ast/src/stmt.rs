@@ -850,7 +850,7 @@ pub struct ImportNamedSpec<'cx> {
 pub struct ImportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub clause: &'cx ImportClause<'cx>,
+    pub clause: Option<&'cx ImportClause<'cx>>,
     pub module: &'cx StringLit,
 }
 

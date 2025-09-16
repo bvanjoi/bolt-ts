@@ -774,7 +774,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ImportDecl(n) => {
-                self.bind(n.clause.id);
+                if let Some(clause) = n.clause {
+                    self.bind(clause.id);
+                }
                 self.bind(n.module.id);
             }
             ExportDecl(n) => {

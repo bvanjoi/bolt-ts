@@ -801,3 +801,10 @@ pub(super) struct NonAbstractClassExpressionDoesNotImplementInheritedAbstractMem
     pub member: String,
     pub class: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.")]
+pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
+    #[label(primary)]
+    pub span: Span,
+}

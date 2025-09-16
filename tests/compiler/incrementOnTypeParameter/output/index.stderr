@@ -1,0 +1,13 @@
+  × An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum
+  │ type.
+   ╭─[../../tests/compiler/incrementOnTypeParameter/index.ts:6:9]
+ 6 │ this.a++
+   · ────────
+   ╰────
+
+  × An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum
+  │ type.
+   ╭─[../../tests/compiler/incrementOnTypeParameter/index.ts:8:39]
+ 8 │ i++
+   · ───
+   ╰────

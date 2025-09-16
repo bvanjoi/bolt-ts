@@ -210,7 +210,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_import_decl(&mut self, n: &'cx ast::ImportDecl<'cx>) -> ir::ImportDeclID {
-        let clause = self.lower_import_clause(n.clause);
+        let clause = n.clause.map(|c| self.lower_import_clause(c));
         let module = self.lower_string_lit(n.module);
         self.nodes.alloc_import_decl(n.span, clause, module)
     }

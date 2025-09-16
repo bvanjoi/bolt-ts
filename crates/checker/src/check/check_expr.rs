@@ -1159,7 +1159,12 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PostfixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
-        let ok = self.check_arithmetic_op_ty(op_ty, false, |_| {});
+        let ok = self.check_arithmetic_op_ty(op_ty, false, |this| {
+            let error = errors::AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                span: expr.span,
+            };
+            this.push_error(Box::new(error));
+        });
         if ok {
             self.check_reference_expr(expr.expr, |this| {
                 let error =

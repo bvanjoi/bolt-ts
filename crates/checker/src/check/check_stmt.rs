@@ -125,7 +125,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
-        if let Some(clause) = node.clause.kind {
+        if let Some(clause) = node.clause.and_then(|c| c.kind) {
             use bolt_ts_ast::ImportClauseKind::*;
             match clause {
                 Ns(n) => {

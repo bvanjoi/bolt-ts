@@ -864,7 +864,9 @@ impl<'ir> Emitter<'_, 'ir> {
 
         self.content.p("import");
         self.content.p_whitespace();
-        self.emit_import_clause(n.clause());
+        if let Some(clause) = n.clause() {
+            self.emit_import_clause(clause);
+        }
         self.content.p_whitespace();
         self.content.p("from");
         self.content.p_whitespace();

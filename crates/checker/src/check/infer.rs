@@ -161,7 +161,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
-        &self.inferences[id.as_usize()]
+        let id = id.as_usize();
+        debug_assert!(id < self.inferences.len());
+        unsafe { self.inferences.get_unchecked(id) }
     }
 
     pub(super) fn inference_info(
@@ -230,10 +232,8 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         if ty == ty_param {
             true
-        } else if let Some(union) = ty.kind.as_union() {
-            union
-                .tys
-                .iter()
+        } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
+            tys.iter()
                 .any(|ty| self.is_ty_param_at_top_level(ty, ty_param, depth))
         } else if depth >= 3 {
             false
@@ -319,13 +319,25 @@ impl<'cx> TyChecker<'cx> {
             candidates
         };
 
-        if base_candidates.len() == 1 {
-            self.get_widened_ty(base_candidates[0])
+        let i = self.inference_info(inference, idx);
+
+        let base_candidates = self.alloc(base_candidates);
+        let unwidened_ty = if i
+            .priority
+            .is_some_and(|p| p.intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION))
+        {
+            self.get_union_ty(
+                &base_candidates,
+                ty::UnionReduction::Subtype,
+                false,
+                None,
+                None,
+            )
         } else {
-            let ty =
-                self.get_union_ty(&base_candidates, ty::UnionReduction::Lit, false, None, None);
-            self.get_widened_ty(ty)
-        }
+            self.get_common_super_ty(&base_candidates)
+        };
+
+        self.get_widened_ty(unwidened_ty)
     }
 
     fn get_contravariant_inference(
@@ -710,6 +722,7 @@ impl<'cx> TyChecker<'cx> {
         inference: InferenceContextId,
         priority: Option<InferencePriority>,
         contravariant: bool,
+        original_target: &'cx ty::Ty<'cx>,
     ) -> InferenceState<'cx, 'checker> {
         let priority = priority.unwrap_or(InferencePriority::empty());
         InferenceState {
@@ -724,6 +737,7 @@ impl<'cx> TyChecker<'cx> {
             source_stack: Vec::with_capacity(32),
             target_stack: Vec::with_capacity(32),
             visited: fx_hashmap_with_capacity(32),
+            original_target,
         }
     }
 
@@ -735,7 +749,7 @@ impl<'cx> TyChecker<'cx> {
         priority: Option<InferencePriority>,
         contravariant: bool,
     ) {
-        let mut state = self.infer_state(inference, priority, contravariant);
+        let mut state = self.infer_state(inference, priority, contravariant, original_target);
         state.infer_from_tys(original_source, original_target);
     }
 
@@ -972,6 +986,7 @@ pub(super) struct InferenceState<'cx, 'checker> {
     contravariant: bool,
     bivariant: bool,
     propagation_ty: Option<&'cx ty::Ty<'cx>>,
+    original_target: &'cx ty::Ty<'cx>,
 }
 
 impl<'cx> InferenceState<'cx, '_> {
@@ -1084,7 +1099,6 @@ impl<'cx> InferenceState<'cx, '_> {
         mut source: &'cx ty::Ty<'cx>,
         mut target: &'cx ty::Ty<'cx>,
     ) {
-        let original_target = target;
         if !self.c.could_contain_ty_var(target) || target.is_no_infer_ty() {
             return;
         }
@@ -1189,7 +1203,9 @@ impl<'cx> InferenceState<'cx, '_> {
                 if !self.priority.intersects(InferencePriority::RETURN_TYPE)
                     && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
                     && self.c.inference_info(self.inference, idx).top_level
-                    && !self.c.is_ty_param_at_top_level(original_target, target, 0)
+                    && !self
+                        .c
+                        .is_ty_param_at_top_level(self.original_target, target, 0)
                 {
                     self.set_info_toplevel_false(idx);
                     self.c.clear_cached_inferences(self.inference);
@@ -1924,7 +1940,8 @@ impl<'cx> InferenceState<'cx, '_> {
         )
     }
 
-    pub(super) fn apply_to_param_tys(
+    // TODO: remove duplicate
+    fn apply_to_param_tys(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,

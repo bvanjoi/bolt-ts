@@ -1,0 +1,12 @@
+  × Cannot find name 'foo'.
+   ╭─[../../tests/compiler/unqualifiedCallToClassStatic1/index.ts:6:3]
+ 6 │ foo
+   · ───
+   ╰────
+
+Advice: 
+  ☞ Did you mean the static member 'Vector.foo'?
+   ╭─[../../tests/compiler/unqualifiedCallToClassStatic1/index.ts:4:9]
+ 4 │ foo
+   · ───
+   ╰────
