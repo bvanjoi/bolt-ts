@@ -68,7 +68,7 @@ fn compile(input_dir: std::path::PathBuf) {
         let raw: bolt_ts_config::RawTsConfig = serde_json::from_str(&s).unwrap();
         raw.normalize()
     };
-    let output = bolt_ts_compiler::eval_from(input_dir, &tsconfig);
+    let output = bolt_ts_compiler::eval_from_real_path(input_dir, &tsconfig);
     assert!(output.diags.is_empty());
 }
 

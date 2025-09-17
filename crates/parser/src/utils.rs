@@ -728,12 +728,24 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        let params = self.parse_bracketed_list::<false, _>(
-            ParsingContext::PARAMETERS,
-            TokenKind::LBracket,
-            |this| this.parse_param(true),
-            TokenKind::RBracket,
-        )?;
+        self.expect(TokenKind::LBracket);
+        let mut params = Vec::with_capacity(1);
+        if self.is_list_element(ParsingContext::PARAMETERS, false) {
+            if let Ok(param) = self.parse_param(true) {
+                params.push(param);
+            };
+
+            if self.token.kind == TokenKind::Comma {
+                let error = errors::AnIndexSignatureCannotHaveATrailingComma {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+                self.next_token();
+            }
+        }
+        self.expect(TokenKind::RBracket);
+        let params = self.alloc(params);
+
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {

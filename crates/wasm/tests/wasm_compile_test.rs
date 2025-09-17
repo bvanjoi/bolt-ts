@@ -6,7 +6,7 @@ fn compile(input: serde_json::Value) -> bolt_ts_compiler::Output {
     let mut files: indexmap::IndexMap<String, String> = serde_json::from_value(input).unwrap();
     const DEFAULT_LIB_DIR: &str = "/node_modules/typescript/lib/";
     let cwd = "/".to_string();
-    bolt_ts_wasm::_compile(cwd, DEFAULT_LIB_DIR.to_string(), files)
+    bolt_ts_compiler::eval_from_memory_path(cwd, DEFAULT_LIB_DIR.to_string(), files)
 }
 
 fn success_compile(input: serde_json::Value) -> bolt_ts_compiler::Output {
