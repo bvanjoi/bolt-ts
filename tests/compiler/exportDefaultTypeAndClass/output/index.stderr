@@ -1,0 +1,5 @@
+  × A module cannot have multiple default exports.
+   ╭─[../../tests/compiler/exportDefaultTypeAndClass/index.ts:5:16]
+ 5 │ Bar
+   · ───
+   ╰────

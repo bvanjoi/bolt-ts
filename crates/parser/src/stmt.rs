@@ -746,7 +746,7 @@ impl<'cx> ParserState<'cx, '_> {
         let import = self.alloc(ast::ImportDecl {
             id,
             span: self.new_span(start),
-            clause: clause,
+            clause,
             module,
         });
         self.set_external_module_indicator(import.id);

@@ -414,11 +414,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 return self.declare_symbol(
                     Some(SymbolName::ExportDefault),
                     table,
-                    self.final_res.get(&container).copied(),
+                    Some(self.final_res[&container]),
                     current,
                     symbol_flags,
                     symbol_excludes,
-                    DeclareSymbolProperty::IS_DEFAULT_EXPORT,
+                    DeclareSymbolProperty::empty(),
                 );
             }
             let export_kind = if symbol_flags.intersects(SymbolFlags::VALUE) {
@@ -440,7 +440,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let export_symbol = self.declare_symbol(
                 Some(name),
                 table,
-                None,
+                Some(self.final_res[&container]),
                 current,
                 symbol_flags,
                 symbol_excludes,

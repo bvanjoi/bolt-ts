@@ -1,3 +1,5 @@
+use core::error;
+
 use bolt_ts_ast::{ModifierKind, NodeFlags};
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
@@ -744,13 +746,24 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         self.expect(TokenKind::RBracket);
+
+        if params.len() != 1 {
+            let span = if !params.is_empty() {
+                params[0].span
+            } else {
+                Span::new(start, self.token.span.hi(), self.module_id)
+            };
+            let error = errors::AnIndexSignatureMustHaveExactlyOneParameter { span };
+            self.push_error(Box::new(error));
+        }
+
         let params = self.alloc(params);
 
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
                 let lo = self.token.span.lo();
-                let span = Span::new(lo, lo, self.module_id);
+                let span = Span::new(lo, lo + 1, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
                 self.create_missing_ty()

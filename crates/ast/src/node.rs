@@ -284,12 +284,12 @@ impl<'cx> Node<'cx> {
             ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
-            FnDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
+            FnDecl(n) => n.name.map(DeclarationName::Ident),
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
-            ClassDecl(n) => n.name.map(|name| DeclarationName::Ident(name)),
-            ClassExpr(n) => n.name.map(|name| DeclarationName::Ident(name)),
-            VarDecl(n) => super::DeclarationName::from_binding(&n.name),
-            ParamDecl(n) => super::DeclarationName::from_binding(&n.name),
+            ClassDecl(n) => n.name.map(DeclarationName::Ident),
+            ClassExpr(n) => n.name.map(DeclarationName::Ident),
+            VarDecl(n) => super::DeclarationName::from_binding(n.name),
+            ParamDecl(n) => super::DeclarationName::from_binding(n.name),
             InterfaceDecl(n) => Some(DeclarationName::Ident(n.name)),
             TypeAliasDecl(n) => Some(DeclarationName::Ident(n.name)),
             TyParam(n) => Some(DeclarationName::Ident(n.name)),
@@ -642,6 +642,7 @@ impl<'cx> Node<'cx> {
             InterfaceDecl,
             ParamDecl,
             IndexSigDecl,
+            ExportAssign,
         )
     }
 

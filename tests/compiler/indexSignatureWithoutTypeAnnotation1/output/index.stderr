@@ -1,3 +1,5 @@
   × An index signature must have a type annotation.
    ╭─[../../tests/compiler/indexSignatureWithoutTypeAnnotation1/index.ts:4:14]
+ 4 │ ;
+   · ─
    ╰────

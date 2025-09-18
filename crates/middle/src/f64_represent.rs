@@ -17,12 +17,12 @@ pub struct F64Represent {
 
 impl PartialEq for F64Represent {
     fn eq(&self, other: &Self) -> bool {
-        let ret = self.inner == other.inner;
+        
         // debug_assert!(
         //     !ret || self.kind == other.kind,
         //     "F64Represent should be equal if inner is equal, but got {self:?} and {other:?}"
         // );
-        ret
+        self.inner == other.inner
     }
 }
 

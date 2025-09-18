@@ -270,8 +270,7 @@ impl<'cx> TyChecker<'cx> {
                                 class: base_ty.to_string(self),
                             };
                             self.push_error(Box::new(error));
-                        } else {
-                        }
+                        } 
                     }
                 }
                 // ====

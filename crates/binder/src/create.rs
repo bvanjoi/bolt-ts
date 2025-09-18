@@ -44,7 +44,6 @@ bitflags::bitflags! {
     pub(super) struct DeclareSymbolProperty: u8 {
         const IS_REPLACEABLE_BY_METHOD = 1 << 0;
         const IS_COMPUTED_NAME = 1 << 1;
-        const IS_DEFAULT_EXPORT = 1 << 2;
     }
 }
 
@@ -67,13 +66,15 @@ impl BinderState<'_, '_, '_> {
         let symbol;
         let is_replaceable_by_method =
             prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
-        let is_default_export = prop.contains(DeclareSymbolProperty::IS_DEFAULT_EXPORT);
+        let n = self.p.node(node);
+        let is_default_export = n.has_syntactic_modifier(ast::ModifierKind::Default.into());
+
         let name = if prop.contains(DeclareSymbolProperty::IS_COMPUTED_NAME) {
             debug_assert!(name.is_none_or(|n| n == SymbolName::Computed));
             Some(SymbolName::Computed)
         } else if is_default_export && parent.is_some() {
             // TODO: remove this
-            debug_assert!(name.is_none_or(|n| n == SymbolName::ExportDefault));
+            // debug_assert!(name.is_none_or(|n| n == SymbolName::ExportDefault));
             Some(SymbolName::ExportDefault)
         } else {
             // TODO: get_decl_name
@@ -121,12 +122,20 @@ impl BinderState<'_, '_, '_> {
                             .decls
                             .as_ref()
                             .is_some_and(|decls| !decls.is_empty())
-                            && is_default_export
+                            && (is_default_export
+                                || n.as_export_assign().is_some_and(|n| !n.is_export_equals))
                         {
-                            let p = self.p.node(node);
-                            Box::new(errors::AModuleCannotHaveMultipleDefaultExports {
-                                span: p.name().map(|name| name.span()).unwrap_or(p.span()),
-                            })
+                            let span = match n {
+                                ast::Node::ExportAssign(n) => n.expr.span(),
+                                _ => {
+                                    if let Some(name) = n.name() {
+                                        name.span()
+                                    } else {
+                                        n.span()
+                                    }
+                                }
+                            };
+                            Box::new(errors::AModuleCannotHaveMultipleDefaultExports { span })
                         } else {
                             Box::new(errors::DuplicateIdentifier {
                                 span: self.p.node(node).name().unwrap().span(),

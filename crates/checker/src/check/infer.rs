@@ -327,14 +327,14 @@ impl<'cx> TyChecker<'cx> {
             .is_some_and(|p| p.intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION))
         {
             self.get_union_ty(
-                &base_candidates,
+                base_candidates,
                 ty::UnionReduction::Subtype,
                 false,
                 None,
                 None,
             )
         } else {
-            self.get_common_super_ty(&base_candidates)
+            self.get_common_super_ty(base_candidates)
         };
 
         self.get_widened_ty(unwidened_ty)

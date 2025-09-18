@@ -1038,7 +1038,7 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_export_assign(&mut self, n: ir::ExportAssignID) {
         let n = self.nodes.get_export_assign(&n);
-        self.content.p("export default");
+        self.content.p("export default ");
         self.emit_expr(n.expr());
         self.content.p_semi();
     }
