@@ -37,7 +37,7 @@ fn eval_in_test(root: PathBuf, tsconfig: &NormalizedTsConfig) -> bolt_ts_compile
     // extra default lib
     let current_dir = std::env::current_dir().unwrap();
     default_libs.push(current_dir.join("tests/test.d.ts"));
-    bolt_ts_compiler::eval_from_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
+    bolt_ts_compiler::eval_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
 }
 
 fn run_test(entry: &std::path::Path, try_run_node: bool) {

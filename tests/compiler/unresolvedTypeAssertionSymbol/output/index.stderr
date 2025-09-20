@@ -1,0 +1,5 @@
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unresolvedTypeAssertionSymbol/index.ts:4:10]
+ 4 │ asdf
+   · ────
+   ╰────

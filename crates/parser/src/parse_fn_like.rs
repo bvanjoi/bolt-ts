@@ -126,10 +126,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let params = this.parse_params()?;
                 this.check_params(params, false);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
-                let body = this.do_outside_of_context(
-                    NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
-                    Self::parse_fn_block,
-                )?;
+                let body = this.parse_fn_block()?;
                 let span = this.new_span(start);
                 Ok(mode.finish(this, span, modifiers, name, ty_params, params, ret_ty, body))
             },

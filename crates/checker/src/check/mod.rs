@@ -1333,11 +1333,10 @@ impl<'cx> TyChecker<'cx> {
             contextual_sig
         };
 
-        self.infer_state(context, None, false).apply_to_param_tys(
-            source_sig,
-            sig,
-            |this, source, target| this.infer_from_tys(source, target),
-        );
+        self.apply_to_param_tys(source_sig, sig, |this, source, target| {
+            let mut infer = this.infer_state(context, None, false, target);
+            infer.infer_from_tys(source, target)
+        });
         if inference_context.is_none() {
             self.apply_to_ret_ty(contextual_sig, sig, |this, source, target| {
                 this.infer_tys(
@@ -3306,6 +3305,137 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
+    fn get_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>, flags: TypeFlags) -> &'cx ty::Ty<'cx> {
+        let missing = (flags & !ty.flags) & TypeFlags::UNDEFINED.union(TypeFlags::NULL);
+        if missing.is_empty() {
+            ty
+        } else if missing == TypeFlags::UNDEFINED {
+            self.get_union_ty(
+                &[ty, self.undefined_ty],
+                ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
+            )
+        } else if missing == TypeFlags::NULL {
+            self.get_union_ty(
+                &[ty, self.null_ty],
+                ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
+            )
+        } else {
+            self.get_union_ty(
+                &[ty, self.undefined_ty, self.null_ty],
+                ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
+            )
+        }
+    }
+
+    fn get_common_super_ty(&mut self, tys: &'cx [&'cx ty::Ty<'cx>]) -> &'cx ty::Ty<'cx> {
+        if tys.len() == 1 {
+            return tys[0];
+        }
+
+        let primary_tys = if self.config.strict_null_checks() {
+            self.same_map_tys(Some(tys), |this, t, _| {
+                this.filter_type(t, |_, u| !u.flags.intersects(TypeFlags::NULLABLE))
+            })
+            .unwrap()
+        } else {
+            tys
+        };
+
+        let literal_tys_with_same_base_ty =
+            |this: &mut TyChecker<'cx>, tys: &[&'cx ty::Ty<'cx>]| {
+                let mut common_base_ty = None;
+                for t in tys {
+                    if !t.flags.intersects(TypeFlags::NEVER) {
+                        let base_ty = this.get_base_ty_of_literal_ty(t);
+                        if common_base_ty.is_none() {
+                            common_base_ty = Some(base_ty);
+                        };
+                        if common_base_ty == Some(t) || base_ty != common_base_ty.unwrap() {
+                            return false;
+                        }
+                    }
+                }
+                true
+            };
+
+        let super_ty_or_union = if literal_tys_with_same_base_ty(self, primary_tys) {
+            self.get_union_ty(primary_tys, ty::UnionReduction::Lit, false, None, None)
+        } else {
+            let candidate = self
+                .reduced_left(
+                    primary_tys,
+                    |this, s, t, _| {
+                        if this.is_type_related_to(s, t, relation::RelationKind::StrictSubtype) {
+                            t
+                        } else {
+                            s
+                        }
+                    },
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap();
+            if primary_tys.iter().all(|&t| {
+                t == candidate
+                    || self.is_type_related_to(t, candidate, relation::RelationKind::StrictSubtype)
+            }) {
+                candidate
+            } else {
+                self.reduced_left(
+                    primary_tys,
+                    |this, s, t, _| {
+                        if this.is_type_related_to(s, t, relation::RelationKind::Subtype) {
+                            t
+                        } else {
+                            s
+                        }
+                    },
+                    None,
+                    None,
+                    None,
+                )
+                .unwrap()
+            }
+        };
+
+        if primary_tys == tys {
+            super_ty_or_union
+        } else {
+            let flags = self
+                .get_combined_ty_flags(tys)
+                .intersection(TypeFlags::NULLABLE);
+            self.get_nullable_ty(super_ty_or_union, flags)
+        }
+    }
+
+    fn get_combined_ty_flags(&mut self, tys: &[&'cx ty::Ty<'cx>]) -> TypeFlags {
+        self.reduced_left(
+            tys,
+            |this, flags, t, _| {
+                flags
+                    | (if let Some(u) = t.kind.as_union() {
+                        this.get_combined_ty_flags(u.tys)
+                    } else {
+                        t.flags
+                    })
+            },
+            Some(TypeFlags::empty()),
+            None,
+            None,
+        )
+        .unwrap()
+    }
+
     fn reduced_left<T: Copy + Into<U>, U>(
         &mut self,
         array: &[T],
@@ -3328,7 +3458,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut result;
                 if init.is_none() && start.is_none() && count.is_none() {
                     result = array[pos].into();
-                    pos += 2;
+                    pos += 1;
                 } else {
                     result = init.unwrap();
                 };
@@ -3823,6 +3953,39 @@ impl<'cx> TyChecker<'cx> {
             self.transient_symbol_links[symbol.index_as_usize()].expect_target()
         } else {
             symbol
+        }
+    }
+
+    fn apply_to_param_tys(
+        &mut self,
+        source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        callback: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
+    ) {
+        let source_count = source.get_param_count(self);
+        let target_count = target.get_param_count(self);
+        let source_rest_ty = source.get_rest_ty(self);
+        let target_rest_ty = target.get_rest_ty(self);
+        let target_non_rest_count = if target_rest_ty.is_some() {
+            target_count - 1
+        } else {
+            target_count
+        };
+        let param_count = if source_rest_ty.is_some() {
+            target_count
+        } else {
+            usize::min(source_count, target_non_rest_count)
+        };
+        // TODO: `source_this_ty`
+        for i in 0..param_count {
+            let source_ty = self.get_ty_at_pos(source, i);
+            let target_ty = self.get_ty_at_pos(target, i);
+            callback(self, source_ty, target_ty);
+        }
+        if let Some(target_rest_ty) = target_rest_ty {
+            let readonly = false;
+            let rest_ty = self.get_rest_ty_at_pos(source, param_count, readonly);
+            callback(self, rest_ty, target_rest_ty);
         }
     }
 }

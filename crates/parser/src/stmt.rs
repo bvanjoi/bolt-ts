@@ -208,12 +208,14 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let finally_block =
-            if catch_clause.is_none() || self.parse_optional(TokenKind::Finally).is_some() {
-                Some(self.parse_block()?)
-            } else {
-                None
-            };
+        let finally_block = if catch_clause.is_none() {
+            self.expect(TokenKind::Finally);
+            Some(self.parse_block()?)
+        } else if self.parse_optional(TokenKind::Finally).is_some() {
+            Some(self.parse_block()?)
+        } else {
+            None
+        };
         let id = self.next_node_id();
         let stmt = self.alloc(ast::TryStmt {
             id,
@@ -744,7 +746,7 @@ impl<'cx> ParserState<'cx, '_> {
         let import = self.alloc(ast::ImportDecl {
             id,
             span: self.new_span(start),
-            clause: clause.unwrap(),
+            clause,
             module,
         });
         self.set_external_module_indicator(import.id);

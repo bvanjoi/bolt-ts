@@ -1,4 +1,4 @@
-use bolt_ts_compiler::{current_exe_dir, eval_from_with_fs, init_atom};
+use bolt_ts_compiler::{current_exe_dir, eval_with_fs, init_atom};
 use bolt_ts_config::RawTsConfig;
 use bolt_ts_fs::CachedFileSystem;
 use std::env;
@@ -42,7 +42,7 @@ fn main() {
     };
     let cwd = env::current_dir().unwrap();
     let tsconfig = tsconfig.normalize();
-    let output = eval_from_with_fs(cwd, &tsconfig, exe_dir, libs, fs, atoms);
+    let output = eval_with_fs(cwd, &tsconfig, exe_dir, libs, fs, atoms);
     let duration = start.elapsed();
     output
         .diags

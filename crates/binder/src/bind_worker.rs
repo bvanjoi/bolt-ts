@@ -708,22 +708,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolFlags::PROPERTY
         };
         let loc = SymbolTableLocation::exports(container);
-        let (name, prop) = if node.is_export_equals {
-            (SymbolName::ExportEquals, DeclareSymbolProperty::empty())
+        let name = if node.is_export_equals {
+            SymbolName::ExportEquals
         } else {
-            (
-                SymbolName::ExportDefault,
-                DeclareSymbolProperty::IS_DEFAULT_EXPORT,
-            )
+            SymbolName::ExportDefault
         };
         let symbol = self.declare_symbol(
             Some(name),
             loc,
-            None,
+            // TODO: use `Some(self.final_res[&container])`
+            self.final_res.get(&container).copied(),
             node.id,
             flags,
             SymbolFlags::all(),
-            prop,
+            DeclareSymbolProperty::empty(),
         );
         self.create_final_res(node.id, symbol);
         if node.is_export_equals {

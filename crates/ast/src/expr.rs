@@ -178,6 +178,7 @@ impl<'cx> Expr<'cx> {
                 | Class(_)
                 | Fn(_)
                 | Ident(_)
+                | RegExpLit(_)
                 | NullLit(_)
                 | This(_)
                 | NumLit(_)

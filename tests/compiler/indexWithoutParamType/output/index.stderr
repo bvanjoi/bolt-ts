@@ -1,0 +1,11 @@
+  × An index signature must have exactly one parameter.
+   ╭─[../../tests/compiler/indexWithoutParamType/index.ts:3:10]
+ 3 │ [];
+   · ───
+   ╰────
+
+  × An index signature must have a type annotation.
+   ╭─[../../tests/compiler/indexWithoutParamType/index.ts:3:12]
+ 3 │ ;
+   · ─
+   ╰────

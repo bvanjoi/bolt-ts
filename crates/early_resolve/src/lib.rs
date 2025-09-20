@@ -149,6 +149,13 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Import(_) => {}
             Export(n) => self.resolve_export(n),
             For(n) => {
+                if let Some(init) = n.init {
+                    if let ast::ForInitKind::Var(decls) = init {
+                        for decl in decls {
+                            self.resolve_var_decl(decl)
+                        }
+                    }
+                }
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
                 }
@@ -179,9 +186,21 @@ impl<'cx> Resolver<'cx, '_, '_> {
             While(_) => {}
             Do(_) => {}
             Debugger(_) => {}
-            ExportAssign(n) => {
-                self.resolve_expr(n.expr);
-            }
+            ExportAssign(n) => match n.expr.kind {
+                bolt_ts_ast::ExprKind::Ident(ident) => {
+                    let res = self.resolve_symbol_by_ident(ident, SymbolFlags::all());
+                    if res.symbol == Symbol::ERR {
+                        let name = self.atoms.get(ident.name).to_string();
+                        let error = errors::CannotFindName {
+                            span: ident.span,
+                            name,
+                            errors: vec![],
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
+                _ => self.resolve_expr(n.expr),
+            },
             Labeled(n) => {
                 self.resolve_stmt(n.stmt);
             }

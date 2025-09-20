@@ -1,0 +1,5 @@
+  × Cannot find name 'xyzzy'.
+   ╭─[../../tests/compiler/exportDefaultMissingName/index.ts:3:16]
+ 3 │ xyzzy
+   · ─────
+   ╰────

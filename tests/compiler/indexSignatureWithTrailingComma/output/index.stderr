@@ -1,0 +1,17 @@
+  × An index signature cannot have a trailing comma.
+   ╭─[../../tests/compiler/indexSignatureWithTrailingComma/index.ts:4:17]
+ 4 │ ,
+   · ─
+   ╰────
+
+  × An index signature cannot have a trailing comma.
+   ╭─[../../tests/compiler/indexSignatureWithTrailingComma/index.ts:9:17]
+ 9 │ ,
+   · ─
+   ╰────
+
+  × An index signature cannot have a trailing comma.
+    ╭─[../../tests/compiler/indexSignatureWithTrailingComma/index.ts:14:17]
+ 14 │ ,
+    · ─
+    ╰────

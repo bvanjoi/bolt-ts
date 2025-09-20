@@ -113,7 +113,7 @@ const UNICODE_ES5_IDENTIFIER_PART: &[u32] = &[
 
 const fn lookup_in_unicode_map(code: u32, map: &[u32]) -> bool {
     // Bail out quickly if it couldn't possibly be in the map.
-    debug_assert!(code >= 255);
+    debug_assert!(code > 255);
 
     // Perform binary search in one of the Unicode range maps
     let mut lo = 0;

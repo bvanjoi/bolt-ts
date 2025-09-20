@@ -1,3 +1,5 @@
+use core::error;
+
 use bolt_ts_ast::{ModifierKind, NodeFlags};
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
@@ -31,8 +33,11 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_semi();
             return Ok(None);
         }
-        self.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block)
-            .map(Some)
+        self.do_outside_of_context(
+            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
+        )
+        .map(Some)
     }
 
     pub(super) fn parse_expected_matching_brackets(
@@ -459,10 +464,14 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params_worker(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+    pub(super) fn parse_params_worker(
+        &mut self,
+        allow_ambiguity_name: bool,
+    ) -> PResult<ast::ParamsDecl<'cx>> {
         let old_error = self.diags.len();
-        let params =
-            self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, Self::parse_param);
+        let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
+            Self::parse_param(this, allow_ambiguity_name)
+        });
         let has_error = self.diags.len() > old_error;
         if !has_error {
             let last_is_rest = params
@@ -494,7 +503,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.expect(LParen) {
             return Ok(self.alloc(vec![]));
         }
-        let params = self.parse_params_worker()?;
+        let params = self.parse_params_worker(true)?;
         self.expect(RParen);
         Ok(params)
     }
@@ -519,7 +528,10 @@ impl<'cx> ParserState<'cx, '_> {
         name
     }
 
-    pub(super) fn parse_param(&mut self) -> PResult<&'cx ast::ParamDecl<'cx>> {
+    pub(super) fn parse_param(
+        &mut self,
+        allow_ambiguity_name: bool,
+    ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let modifiers = self.parse_modifiers::<false, false>(false)?;
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
@@ -562,6 +574,12 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
+        if !allow_ambiguity_name
+            && !(self.token.kind.is_binding_ident()
+                || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
+        {
+            return Err(());
+        }
         let name = self.parse_name_of_param()?;
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
@@ -715,17 +733,40 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        let params = self.parse_bracketed_list::<false, _>(
-            ParsingContext::PARAMETERS,
-            TokenKind::LBracket,
-            Self::parse_param,
-            TokenKind::RBracket,
-        )?;
+        self.expect(TokenKind::LBracket);
+        let mut params = Vec::with_capacity(1);
+        if self.is_list_element(ParsingContext::PARAMETERS, false) {
+            if let Ok(param) = self.parse_param(true) {
+                params.push(param);
+            };
+
+            if self.token.kind == TokenKind::Comma {
+                let error = errors::AnIndexSignatureCannotHaveATrailingComma {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+                self.next_token();
+            }
+        }
+        self.expect(TokenKind::RBracket);
+
+        if params.len() != 1 {
+            let span = if !params.is_empty() {
+                params[0].span
+            } else {
+                Span::new(start, self.token.span.hi(), self.module_id)
+            };
+            let error = errors::AnIndexSignatureMustHaveExactlyOneParameter { span };
+            self.push_error(Box::new(error));
+        }
+
+        let params = self.alloc(params);
+
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
                 let lo = self.token.span.lo();
-                let span = Span::new(lo, lo, self.module_id);
+                let span = Span::new(lo, lo + 1, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
                 self.create_missing_ty()

@@ -385,3 +385,17 @@ pub(super) struct IdentifierExpected0IsAReservedWordInStrictMode {
     pub(super) span: Span,
     pub(super) identifier: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature cannot have a trailing comma.")]
+pub(super) struct AnIndexSignatureCannotHaveATrailingComma {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature must have exactly one parameter.")]
+pub(super) struct AnIndexSignatureMustHaveExactlyOneParameter {
+    #[label(primary)]
+    pub(super) span: Span,
+}

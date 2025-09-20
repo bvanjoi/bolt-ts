@@ -12,3 +12,5 @@ var re2 =
  ...
  */
  /w+/;
+
+var match = /reg/.exec('');

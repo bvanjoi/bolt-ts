@@ -4,3 +4,4 @@ var foo3 = 'a/'.replace(/.[/no sleep /till/]/, 'bugfix');
 var re0 = /w+/;
 var re1 = /w+/;
 var re2 = /w+/;
+var match = /reg/.exec('');

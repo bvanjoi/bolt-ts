@@ -87,11 +87,10 @@ impl Stmt<'_> {
     }
 
     pub fn is_use_strict_directive(&self) -> bool {
-        if let StmtKind::Expr(expr_stmt) = self.kind {
-            if let ExprKind::StringLit(lit) = expr_stmt.expr.kind {
+        if let StmtKind::Expr(expr_stmt) = self.kind
+            && let ExprKind::StringLit(lit) = expr_stmt.expr.kind {
                 return lit.val == keyword::DIRECTIVE_USE_STRICT;
             }
-        }
         false
     }
 }
@@ -850,7 +849,7 @@ pub struct ImportNamedSpec<'cx> {
 pub struct ImportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub clause: &'cx ImportClause<'cx>,
+    pub clause: Option<&'cx ImportClause<'cx>>,
     pub module: &'cx StringLit,
 }
 
@@ -871,6 +870,9 @@ impl<'cx> ExportDecl<'cx> {
     }
 }
 
+/// ```txt
+/// export default expr;
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct ExportAssign<'cx> {
     pub id: NodeID,
