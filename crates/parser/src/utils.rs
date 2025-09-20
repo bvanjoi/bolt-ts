@@ -33,8 +33,11 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_semi();
             return Ok(None);
         }
-        self.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block)
-            .map(Some)
+        self.do_outside_of_context(
+            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
+        )
+        .map(Some)
     }
 
     pub(super) fn parse_expected_matching_brackets(
