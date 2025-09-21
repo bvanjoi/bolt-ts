@@ -1,0 +1,11 @@
+  × The left-hand side of a 'for...in' statement cannot use a type annotation.
+   ╭─[../../tests/compiler/forInStatement4/index.ts:4:10]
+ 4 │ a
+   · ─
+   ╰────
+
+  × The left-hand side of a 'for...of' statement cannot use a type annotation.
+   ╭─[../../tests/compiler/forInStatement4/index.ts:8:10]
+ 8 │ b
+   · ─
+   ╰────

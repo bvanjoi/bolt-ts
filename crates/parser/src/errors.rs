@@ -399,3 +399,24 @@ pub(super) struct AnIndexSignatureMustHaveExactlyOneParameter {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Declarations must be initialized.")]
+pub(super) struct DeclarationsMustBeInitialized {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The left-hand side of a 'for...{}' statement cannot use a type annotation.", {
+    if self.is_for_in {
+        "in"
+    } else {
+        "of"
+    }
+})]
+pub(super) struct TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) is_for_in: bool,
+}

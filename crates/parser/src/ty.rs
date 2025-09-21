@@ -409,7 +409,7 @@ impl<'cx> ParserState<'cx, '_> {
             let matches_pattern =
                 self.lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line)?;
             if matches_pattern {
-                todo!()
+                return Ok(self.create_ident(self.is_ident(), None));
             }
         }
         if allow_identifier_name {
