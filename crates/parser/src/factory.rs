@@ -687,4 +687,21 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, self.context_flags);
         node
     }
+
+    #[inline(always)]
+    pub fn create_throw_stmt(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ThrowStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ThrowStmt {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::ThrowStmt(node));
+        self.node_flags_map.insert(id, self.context_flags);
+        node
+    }
 }

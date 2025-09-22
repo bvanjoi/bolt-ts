@@ -1,0 +1,6 @@
+  × Argument of type 'new () => number' is not assignable to parameter of type
+  │ 'number'.
+   ╭─[../../tests/compiler/elaborationForPossiblyCallableTypeStillReferencesArgumentAtTopLevel/index.ts:5:4]
+ 5 │ ohno
+   · ────
+   ╰────

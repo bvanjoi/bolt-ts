@@ -420,3 +420,10 @@ pub(super) struct TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
     pub(super) span: Span,
     pub(super) is_for_in: bool,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Line break not permitted here.")]
+pub(super) struct LineBreakNotPermittedHere {
+    #[label(primary)]
+    pub(super) span: Span,
+}

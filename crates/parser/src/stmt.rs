@@ -387,22 +387,24 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::Throw);
         let start = self.token.start();
         self.next_token(); // consume `throw`
-        if self.has_preceding_line_break() {
-            todo!("error handle")
+
+        let expr = if self.has_preceding_line_break() {
+            const THROW_LEN: u32 = "throw".len() as u32;
+            let lo = start + THROW_LEN;
+            let span = bolt_ts_span::Span::new(lo, lo + 1, self.module_id);
+            let error = errors::LineBreakNotPermittedHere { span: span };
+            self.push_error(Box::new(error));
+            let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
+            let kind = ast::ExprKind::Ident(ident);
+            self.alloc(ast::Expr { kind })
         } else {
-            let expr = self.parse_expr()?;
-            let id = self.next_node_id();
-            let t = self.alloc(ast::ThrowStmt {
-                id,
-                span: self.new_span(start),
-                expr,
-            });
-            self.nodes.insert(id, ast::Node::ThrowStmt(t));
-            if !self.try_parse_semi()? {
-                todo!()
-            }
-            Ok(t)
+            self.allow_in_and(Self::parse_expr)?
+        };
+        let node = self.create_throw_stmt(start, expr);
+        if !self.try_parse_semi()? {
+            todo!()
         }
+        Ok(node)
     }
 
     fn parse_module_decl(
