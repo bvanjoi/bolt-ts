@@ -1520,6 +1520,10 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         };
 
+        if self.get_node_links(node).get_resolved_symbol().is_none() {
+            self.get_mut_node_links(node).set_resolved_symbol(prop);
+        }
+
         self.check_prop_accessibility(node, false, false, apparent_left_ty, prop, true);
 
         if self.node_query(node.module()).access_kind(node) == AccessKind::Write {

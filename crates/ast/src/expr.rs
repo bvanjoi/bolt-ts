@@ -37,7 +37,7 @@ impl<'cx> Expr<'cx> {
             PostfixUnary(unary) => unary.span,
             PropAccess(a) => a.span,
             EleAccess(a) => a.span,
-            This(this) => this.span,
+            This(n) => n.span,
             Typeof(n) => n.span,
             Super(n) => n.span,
             Void(n) => n.span,
@@ -53,6 +53,7 @@ impl<'cx> Expr<'cx> {
             JsxElem(n) => n.span,
             JsxSelfClosingElem(n) => n.span,
             JsxFrag(n) => n.span,
+            Delete(n) => n.span,
         }
     }
 
@@ -98,6 +99,7 @@ impl<'cx> Expr<'cx> {
             JsxElem(n) => n.id,
             JsxSelfClosingElem(n) => n.id,
             JsxFrag(n) => n.id,
+            Delete(n) => n.id,
         }
     }
 
@@ -227,6 +229,7 @@ pub enum ExprKind<'cx> {
     NonNull(&'cx NonNullExpr<'cx>),
     Template(&'cx TemplateExpr<'cx>),
     TaggedTemplate(&'cx TaggedTemplateExpr<'cx>),
+    Delete(&'cx DeleteExpr<'cx>),
     TyAssertion(&'cx TyAssertion<'cx>),
     SpreadElement(&'cx SpreadElement<'cx>),
     JsxElem(&'cx JsxElem<'cx>),
@@ -771,4 +774,11 @@ pub struct TaggedTemplateExpr<'cx> {
     pub tag: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub tpl: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DeleteExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }

@@ -1226,16 +1226,17 @@ impl<'cx> ParserState<'cx, '_> {
                 stmt,
             });
             self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
-            return Ok(ast::StmtKind::Labeled(stmt));
+            Ok(ast::StmtKind::Labeled(stmt))
+        } else {
+            self.parse_semi();
+            let id = self.next_node_id();
+            let stmt = self.alloc(ast::ExprStmt {
+                id,
+                span: self.new_span(start),
+                expr,
+            });
+            self.nodes.insert(id, ast::Node::ExprStmt(stmt));
+            Ok(ast::StmtKind::Expr(stmt))
         }
-        self.parse_semi();
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::ExprStmt {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::ExprStmt(stmt));
-        Ok(ast::StmtKind::Expr(stmt))
     }
 }

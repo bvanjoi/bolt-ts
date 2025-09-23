@@ -704,4 +704,21 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, self.context_flags);
         node
     }
+
+    #[inline(always)]
+    pub fn create_delete_expr(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::DeleteExpr<'cx> {
+        let id = self.next_node_id();
+        let n = self.alloc(ast::DeleteExpr {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::DeleteExpr(n));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        n
+    }
 }

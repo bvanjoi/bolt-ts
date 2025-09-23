@@ -630,6 +630,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             JsxSelfClosingElem(n) => {
                 self.resolve_jsx_self_closing_ele(n);
             }
+            Delete(n) => {
+                self.resolve_expr(n.expr);
+            }
         }
     }
 

@@ -223,6 +223,7 @@ impl<'cx> TyChecker<'cx> {
             SpreadElement(n) => self.check_spread_element(n),
             RegExpLit(_) => self.global_regexp_ty(),
             TaggedTemplate(n) => self.check_tagged_template_expr(n),
+            Delete(n) => self.check_delete_expr(n),
             JsxElem(_) => {
                 // TODO:
                 self.undefined_ty
@@ -239,6 +240,25 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_delete_expr(&mut self, node: &'cx ast::DeleteExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        self.check_expr(node.expr);
+
+        let expr = ast::Expr::skip_parens(node.expr);
+        let links = self.get_node_links(expr.id());
+        let Some(symbol) = links.get_resolved_symbol() else {
+            return self.boolean_ty();
+        };
+
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        if self.is_readonly_symbol(symbol) {
+            let error =
+                errors::TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty { span: expr.span() };
+            self.push_error(Box::new(error));
+        }
+
+        self.boolean_ty()
     }
 
     pub(super) fn check_super_expr(&mut self, node: &'cx ast::SuperExpr) -> &'cx ty::Ty<'cx> {

@@ -1246,6 +1246,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.expr.id());
                 self.bind(n.case_block.id);
             }
+            DeleteExpr(n) => {
+                self.bind(n.expr.id());
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
