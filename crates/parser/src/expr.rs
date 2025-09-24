@@ -611,12 +611,6 @@ impl<'cx> ParserState<'cx, '_> {
                     ty_args = expr_with_ty_args.ty_args;
                     expr = expr_with_ty_args.expr;
                 }
-                if let Some(ty_args) = ty_args
-                    && ty_args.list.is_empty()
-                {
-                    let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-                    self.push_error(Box::new(error));
-                }
                 let args = self.parse_args()?;
                 if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
                     todo!("call chain")
@@ -1064,12 +1058,6 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
-        if let Some(ty_args) = ty_args
-            && ty_args.list.is_empty()
-        {
-            let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-            self.push_error(Box::new(error));
-        }
         let args = if self.token.kind == LParen {
             self.parse_args().map(Some)
         } else {
@@ -1336,6 +1324,11 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token();
         let list =
             self.parse_delimited_list::<false, _>(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
+        if list.is_empty() {
+            let span = self.new_span(start);
+            let error = errors::TypeArgumentListCannotBeEmpty { span };
+            self.push_error(Box::new(error));
+        }
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }

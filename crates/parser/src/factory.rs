@@ -721,4 +721,25 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         n
     }
+
+    #[inline(always)]
+    pub fn create_index_sig_decl(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::IndexSigDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::IndexSigDecl {
+            id,
+            span: self.new_span(start),
+            modifiers,
+            params,
+            ty,
+        });
+        self.nodes.insert(id, ast::Node::IndexSigDecl(node));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        node
+    }
 }

@@ -760,6 +760,14 @@ impl<'cx> ParserState<'cx, '_> {
             self.push_error(Box::new(error));
         }
 
+        if let Some(param) = params.first() {
+            if let Some(question) = param.question {
+                let error =
+                    errors::AnIndexSignatureParameterCannotHaveAQuestionMark { span: question };
+                self.push_error(Box::new(error));
+            }
+        }
+
         let params = self.alloc(params);
 
         let ty = match self.parse_ty_anno()? {
@@ -773,15 +781,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         self.parse_ty_member_semi();
-        let id = self.next_node_id();
-        let sig = self.alloc(ast::IndexSigDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            params,
-            ty,
-        });
-        self.nodes.insert(id, ast::Node::IndexSigDecl(sig));
+        let sig = self.create_index_sig_decl(start, modifiers, params, ty);
         Ok(sig)
     }
 

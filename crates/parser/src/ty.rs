@@ -462,10 +462,12 @@ impl<'cx> ParserState<'cx, '_> {
                     TokenKind::Great,
                 )
                 .unwrap();
-            let tys = self.alloc(ast::Tys {
-                span: self.new_span(start),
-                list,
-            });
+            let span = self.new_span(start);
+            if list.is_empty() {
+                let error = errors::TypeArgumentListCannotBeEmpty { span };
+                self.push_error(Box::new(error));
+            }
+            let tys = self.alloc(ast::Tys { span, list });
             Ok(Some(tys))
         } else {
             Ok(None)
@@ -509,10 +511,12 @@ impl<'cx> ParserState<'cx, '_> {
                 Self::parse_ty,
                 TokenKind::Great,
             )?;
-            let tys = self.alloc(ast::Tys {
-                span: self.new_span(start),
-                list: tys,
-            });
+            let span = self.new_span(start);
+            if tys.is_empty() {
+                let error = errors::TypeArgumentListCannotBeEmpty { span };
+                self.push_error(Box::new(error));
+            }
+            let tys = self.alloc(ast::Tys { span, list: tys });
             Ok(Some(tys))
         } else {
             Ok(None)

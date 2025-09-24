@@ -427,3 +427,10 @@ pub(super) struct LineBreakNotPermittedHere {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature parameter cannot have a question mark.")]
+pub(super) struct AnIndexSignatureParameterCannotHaveAQuestionMark {
+    #[label(primary)]
+    pub(super) span: Span,
+}

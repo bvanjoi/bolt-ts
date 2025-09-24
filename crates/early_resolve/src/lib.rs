@@ -87,17 +87,21 @@ pub struct Resolver<'cx, 'r, 'atoms> {
 
 impl<'cx> Resolver<'cx, '_, '_> {
     fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
-        self.states[id.module().as_usize()].locals.get(&id)
+        let idx = id.module().as_usize();
+        debug_assert!(idx < self.states.len());
+        unsafe { self.states.get_unchecked(idx).locals.get(&id) }
     }
 
     fn symbol(&self, symbol_id: SymbolID) -> &bolt_ts_binder::Symbol {
-        self.states[symbol_id.module().as_usize()]
-            .symbols
-            .get(symbol_id)
+        let idx = symbol_id.module().as_usize();
+        debug_assert!(idx < self.states.len());
+        unsafe { self.states.get_unchecked(idx).symbols.get(symbol_id) }
     }
 
     fn symbol_of_decl(&self, decl: ast::NodeID) -> SymbolID {
-        self.states[decl.module().as_usize()].final_res[&decl]
+        let idx = decl.module().as_usize();
+        debug_assert!(idx < self.states.len());
+        unsafe { self.states.get_unchecked(idx).final_res[&decl] }
     }
 
     fn push_error(&mut self, error: bolt_ts_middle::Diag) {
@@ -112,9 +116,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
 
     fn parent(&self, node: ast::NodeID) -> Option<ast::NodeID> {
         debug_assert!(node.module() == self.module_id);
-        self.states[self.module_id.as_usize()]
-            .parent_map
-            .parent(node)
+        let idx = self.module_id.as_usize();
+        debug_assert!(idx < self.states.len());
+        unsafe { self.states.get_unchecked(idx).parent_map.parent(node) }
     }
 
     fn node_query(&self) -> bolt_ts_binder::NodeQuery<'cx, '_> {
