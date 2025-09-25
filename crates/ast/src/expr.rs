@@ -294,6 +294,10 @@ impl<'cx> ExprKind<'cx> {
             _ => None,
         }
     }
+
+    pub fn is_access_expr(&self) -> bool {
+        matches!(self, ExprKind::PropAccess(_) | ExprKind::EleAccess(_))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

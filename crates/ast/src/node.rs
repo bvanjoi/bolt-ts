@@ -859,6 +859,14 @@ impl<'cx> Node<'cx> {
             _ => self.span(),
         }
     }
+
+    pub fn expr_of_access_expr(&self) -> Option<&'cx super::Expr<'cx>> {
+        match self {
+            Node::PropAccessExpr(n) => Some(n.expr),
+            Node::EleAccessExpr(n) => Some(n.expr),
+            _ => None,
+        }
+    }
 }
 
 macro_rules! as_node {
