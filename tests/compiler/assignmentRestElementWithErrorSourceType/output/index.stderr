@@ -1,0 +1,11 @@
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/assignmentRestElementWithErrorSourceType/index.ts:4:5]
+ 4 │ c
+   · ─
+   ╰────
+
+  × Cannot find name 'tupel'.
+   ╭─[../../tests/compiler/assignmentRestElementWithErrorSourceType/index.ts:4:10]
+ 4 │ tupel
+   · ─────
+   ╰────

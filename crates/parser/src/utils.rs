@@ -766,6 +766,12 @@ impl<'cx> ParserState<'cx, '_> {
                     errors::AnIndexSignatureParameterCannotHaveAQuestionMark { span: question };
                 self.push_error(Box::new(error));
             }
+
+            if let Some(init) = param.init {
+                let error =
+                    errors::AnIndexSignatureParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
         }
 
         let params = self.alloc(params);

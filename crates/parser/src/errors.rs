@@ -434,3 +434,10 @@ pub(super) struct AnIndexSignatureParameterCannotHaveAQuestionMark {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature parameter cannot have an initializer.")]
+pub(super) struct AnIndexSignatureParameterCannotHaveAnInitializer {
+    #[label(primary)]
+    pub(super) span: Span,
+}
