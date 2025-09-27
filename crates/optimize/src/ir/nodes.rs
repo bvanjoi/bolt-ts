@@ -94,6 +94,7 @@ decl_nodes!(
     super_expr: SuperExpr,
     template_expr: TemplateExpr,
     tagged_template_expr: TaggedTemplateExpr,
+    delete_expr: DeleteExpr,
     num_lit: NumLit,
     bigint_lit: BigIntLit,
     bool_lit: BoolLit,
@@ -1731,6 +1732,34 @@ impl Nodes {
         });
         debug_assert_eq!(id, idx.0);
         idx
+    }
+
+    #[inline]
+    pub fn alloc_delete_expr(&mut self, span: Span, expr: Expr) -> DeleteExprID {
+        let idx = DeleteExprID(usize_into_idx(self.delete_expr_nodes.0.len()));
+        let id = self.delete_expr_nodes.0.alloc(DeleteExpr {
+            id: idx,
+            span,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteExpr {
+    id: DeleteExprID,
+    span: Span,
+    expr: Expr,
+}
+impl DeleteExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn expr(&self) -> Expr {
+        self.expr
     }
 }
 
@@ -3975,6 +4004,7 @@ pub enum Expr {
     PrefixUnary(PrefixUnaryExprID),
     TaggedTemplate(TaggedTemplateExprID),
     Template(TemplateExprID),
+    Delete(DeleteExprID),
     SpreadElem(SpreadElementID),
     ArrowFn(ArrowFnExprID),
     New(NewExprID),

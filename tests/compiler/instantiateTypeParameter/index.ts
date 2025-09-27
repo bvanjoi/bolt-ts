@@ -3,4 +3,5 @@
 interface Foo<T> {
     var x: T<>;
     //~^ ERROR: Property or signature expected.
+    //~| ERROR: Type argument list cannot be empty.
 }

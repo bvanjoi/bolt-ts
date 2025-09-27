@@ -1,0 +1,11 @@
+  × Line break not permitted here.
+   ╭─[../../tests/compiler/throwWithoutNewLine2/index.ts:3:6]
+ 3 │ 
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/throwWithoutNewLine2/index.ts:5:1]
+ 5 │ a
+   · ─
+   ╰────

@@ -1,0 +1,11 @@
+  × An index signature parameter cannot have a question mark.
+   ╭─[../../tests/compiler/indexerAsOptional/index.ts:5:9]
+ 5 │ ?
+   · ─
+   ╰────
+
+  × An index signature parameter cannot have a question mark.
+    ╭─[../../tests/compiler/indexerAsOptional/index.ts:11:9]
+ 11 │ ?
+    · ─
+    ╰────

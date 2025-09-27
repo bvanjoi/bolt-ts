@@ -863,4 +863,34 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
         None
     }
+
+    pub fn is_in_prop_initializer_or_class_static_block(
+        &self,
+        node: ast::NodeID,
+        ignore_arrow_fn: bool,
+    ) -> bool {
+        use ast::Node::*;
+        self.find_ancestor(node, |n| match n {
+            ClassPropElem(_) | ClassStaticBlockDecl(_) => Some(true),
+            TypeofExpr(_) | JsxClosingElem(_) => Some(false),
+            ArrowFnExpr(_) => {
+                if ignore_arrow_fn {
+                    None
+                } else {
+                    Some(false)
+                }
+            }
+            BlockStmt(b) => {
+                let p = self.parent(b.id).unwrap();
+                let p = self.node(p);
+                if p.is_arrow_fn_expr() && p.is_fn_decl_like() {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .is_some()
+    }
 }

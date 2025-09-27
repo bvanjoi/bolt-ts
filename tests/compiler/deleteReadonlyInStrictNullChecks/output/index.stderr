@@ -1,0 +1,5 @@
+  × The operand of a 'delete' operator cannot be a read-only property.
+   ╭─[../../tests/compiler/deleteReadonlyInStrictNullChecks/index.ts:7:8]
+ 7 │ Foo.name
+   · ────────
+   ╰────

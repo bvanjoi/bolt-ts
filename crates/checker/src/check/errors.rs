@@ -808,3 +808,18 @@ pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("The operand of a 'delete' operator cannot be a read-only property.")]
+pub(super) struct TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Property '{name}' is used before its initialization.")]
+pub(super) struct Property0IsUsedBeforeItsInitialization {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

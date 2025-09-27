@@ -63,7 +63,8 @@ impl Binder {
     #[track_caller]
     pub fn get(&self, id: ModuleID) -> &ResolveResult {
         let index = id.as_usize();
-        &self.bind_results[index]
+        debug_assert!(index < self.bind_results.len());
+        unsafe { self.bind_results.get_unchecked(index) }
     }
 
     #[inline(always)]

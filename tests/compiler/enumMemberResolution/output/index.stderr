@@ -1,0 +1,11 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/enumMemberResolution/index.ts:8:1]
+ 8 │ var
+   · ───
+   ╰────
+
+  × Cannot find name 'IgnoreRulesSpecific'.
+   ╭─[../../tests/compiler/enumMemberResolution/index.ts:6:9]
+ 6 │ IgnoreRulesSpecific
+   · ───────────────────
+   ╰────

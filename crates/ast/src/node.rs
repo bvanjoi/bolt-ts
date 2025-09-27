@@ -122,6 +122,7 @@ pub enum Node<'cx> {
     NonNullExpr(&'cx super::NonNullExpr<'cx>),
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
     TaggedTemplateExpr(&'cx super::TaggedTemplateExpr<'cx>),
+    DeleteExpr(&'cx super::DeleteExpr<'cx>),
     NumLit(&'cx super::NumLit),
     BigIntLit(&'cx super::BigIntLit),
     BoolLit(&'cx super::BoolLit),
@@ -858,6 +859,14 @@ impl<'cx> Node<'cx> {
             _ => self.span(),
         }
     }
+
+    pub fn expr_of_access_expr(&self) -> Option<&'cx super::Expr<'cx>> {
+        match self {
+            Node::PropAccessExpr(n) => Some(n.expr),
+            Node::EleAccessExpr(n) => Some(n.expr),
+            _ => None,
+        }
+    }
 }
 
 macro_rules! as_node {
@@ -926,6 +935,7 @@ as_node!(
         super::TaggedTemplateExpr<'cx>,
         tagged_template_expr
     ),
+    (DeleteExpr, super::DeleteExpr<'cx>, delete_expr),
     (TemplateHead, super::TemplateHead, template_head),
     (TemplateSpan, super::TemplateSpan<'cx>, template_span),
     (CaseClause, super::CaseClause<'cx>, case_clause),

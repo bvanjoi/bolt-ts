@@ -15,6 +15,22 @@ use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
 use crate::parsing_ctx::ParsingContext;
 
+bitflags::bitflags! {
+    #[derive(Clone, Copy, Debug)]
+    struct VarDeclarationContext: u8 {
+        const FOR = 1 << 0;
+        const CONST = 1 << 1;
+        const AMBIENT = 1 << 2;
+    }
+}
+
+impl VarDeclarationContext {
+    const fn init_should_exit(&self) -> bool {
+        self.contains(VarDeclarationContext::CONST)
+            && !self.contains(VarDeclarationContext::AMBIENT)
+    }
+}
+
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
@@ -181,7 +197,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `catch`
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
-            let v = self.parse_var_decl()?;
+            let v = self.parse_var_decl(VarDeclarationContext::empty())?;
             self.expect(TokenKind::RParen);
             Some(v)
         } else {
@@ -200,8 +216,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_try_stmt(&mut self) -> PResult<&'cx ast::TryStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Try);
         let start = self.token.start();
-        self.expect(TokenKind::Try);
+        self.next_token(); // consume `try`
         let try_block = self.parse_block()?;
         let catch_clause = if self.token.kind == TokenKind::Catch {
             Some(self.parse_catch_clause()?)
@@ -229,15 +246,18 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::For);
         use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
-        self.expect(For);
+        self.next_token(); // consume `for`
         let await_token = self.parse_optional(Await);
         self.expect(LParen);
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                Some(ast::ForInitKind::Var(self.parse_var_decl_list(true)))
+                Some(ast::ForInitKind::Var(
+                    self.parse_var_decl_list(VarDeclarationContext::FOR),
+                ))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -255,17 +275,9 @@ impl<'cx> ParserState<'cx, '_> {
                 NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
                 Self::parse_stmt,
             )?;
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ForOfStmt {
-                id,
-                span: self.new_span(start),
-                r#await: await_token.map(|t| t.span),
-                init,
-                expr,
-                body,
-            });
-            self.nodes.insert(id, ast::Node::ForOfStmt(kind));
-            Ok(ast::StmtKind::ForOf(kind))
+            let node =
+                self.create_for_of_stmt(start, await_token.map(|t| t.span), init, expr, body);
+            Ok(ast::StmtKind::ForOf(node))
         } else if self.parse_optional(In).is_some() {
             let init = init.unwrap();
             let expr = self.allow_in_and(Self::parse_expr)?;
@@ -274,16 +286,8 @@ impl<'cx> ParserState<'cx, '_> {
                 NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
                 Self::parse_stmt,
             )?;
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ForInStmt {
-                id,
-                span: self.new_span(start),
-                init,
-                expr,
-                body,
-            });
-            self.nodes.insert(id, ast::Node::ForInStmt(kind));
-            Ok(ast::StmtKind::ForIn(kind))
+            let node = self.create_for_in_stmt(start, init, expr, body);
+            Ok(ast::StmtKind::ForIn(node))
         } else {
             self.expect(Semi);
             let cond = if !matches!(self.token.kind, Semi | RParen) {
@@ -321,8 +325,9 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::EnumDecl<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Enum);
         let start = self.token.start();
-        self.expect(TokenKind::Enum);
+        self.next_token(); // consume `enum`
         let name = self.create_ident(self.is_ident(), None);
         let members = if self.expect(TokenKind::LBrace) {
             let member = self.parse_delimited_list::<false, _>(
@@ -379,24 +384,27 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_throw_stmt(&mut self) -> PResult<&'cx ast::ThrowStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Throw);
         let start = self.token.start();
-        self.expect(TokenKind::Throw);
-        if self.has_preceding_line_break() {
-            todo!("error handle")
+        self.next_token(); // consume `throw`
+
+        let expr = if self.has_preceding_line_break() {
+            const THROW_LEN: u32 = "throw".len() as u32;
+            let lo = start + THROW_LEN;
+            let span = bolt_ts_span::Span::new(lo, lo + 1, self.module_id);
+            let error = errors::LineBreakNotPermittedHere { span: span };
+            self.push_error(Box::new(error));
+            let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
+            let kind = ast::ExprKind::Ident(ident);
+            self.alloc(ast::Expr { kind })
         } else {
-            let expr = self.parse_expr()?;
-            let id = self.next_node_id();
-            let t = self.alloc(ast::ThrowStmt {
-                id,
-                span: self.new_span(start),
-                expr,
-            });
-            self.nodes.insert(id, ast::Node::ThrowStmt(t));
-            if !self.try_parse_semi()? {
-                todo!()
-            }
-            Ok(t)
+            self.allow_in_and(Self::parse_expr)?
+        };
+        let node = self.create_throw_stmt(start, expr);
+        if !self.try_parse_semi()? {
+            todo!()
         }
+        Ok(node)
     }
 
     fn parse_module_decl(
@@ -521,8 +529,9 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::TypeAliasDecl<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Type);
         let start = self.token.start();
-        self.expect(TokenKind::Type);
+        self.next_token(); // consume `type`
         let name = self.parse_ident_name()?;
         let ty_params = self.parse_ty_params().unwrap();
         self.expect(TokenKind::Eq);
@@ -706,9 +715,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_import_decl(&mut self) -> PResult<&'cx ast::ImportDecl<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Import);
         let start = self.token.start();
-
-        self.expect(TokenKind::Import);
+        self.next_token(); // consume `import`
         let after_import_pos = self.token.start();
         let mut is_type_only = false;
         let mut name = self
@@ -801,9 +810,10 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ns_import(&mut self) -> PResult<&'cx ast::NsImport<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Asterisk);
         // `* as binding`
         let start = self.token.start();
-        self.expect(TokenKind::Asterisk);
+        self.next_token(); // consume `*`
         self.expect(TokenKind::As);
         let name = self.create_ident(true, None);
         let id = self.next_node_id();
@@ -859,8 +869,9 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::InterfaceDecl<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Interface);
         let start = self.token.start();
-        self.expect(TokenKind::Interface);
+        self.next_token(); // consume `interface`
         let name = self.parse_ident_name()?;
         let ty_params = self.parse_ty_params()?;
         let extends = self.parse_interface_extends_clause()?;
@@ -910,8 +921,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_empty_stmt(&mut self) -> PResult<&'cx ast::EmptyStmt> {
+        debug_assert!(self.token.kind == TokenKind::Semi);
         let start = self.token.start();
-        self.expect(TokenKind::Semi);
+        self.next_token(); // consume `;`
         let id = self.next_node_id();
         let stmt = self.alloc(ast::EmptyStmt {
             id,
@@ -926,13 +938,20 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> &'cx ast::VarStmt<'cx> {
         let start = self.token.start();
+        let mut ctx = VarDeclarationContext::empty();
         let flags = match self.token.kind {
-            TokenKind::Const => ast::NodeFlags::CONST,
+            TokenKind::Const => {
+                ctx.insert(VarDeclarationContext::CONST);
+                ast::NodeFlags::CONST
+            }
             TokenKind::Let => ast::NodeFlags::LET,
             TokenKind::Var => ast::NodeFlags::empty(),
             _ => unreachable!(),
         };
-        let list = self.parse_var_decl_list(false);
+        if self.context_flags.contains(ast::NodeFlags::AMBIENT) {
+            ctx.insert(VarDeclarationContext::AMBIENT);
+        }
+        let list = self.parse_var_decl_list(ctx);
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -1039,8 +1058,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_object_binding_pat(&mut self) -> PResult<&'cx ast::ObjectPat<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::LBrace);
         let start = self.token.start();
-        self.expect(TokenKind::LBrace);
+        self.next_token(); // consume `{`
         let elems = self.allow_in_and(|this| {
             this.parse_delimited_list::<false, _>(
                 ParsingContext::OBJECT_BINDING_ELEMENTS,
@@ -1059,8 +1079,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_array_binding_pat(&mut self) -> PResult<&'cx ast::ArrayPat<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::LBracket);
         let start = self.token.start();
-        self.expect(TokenKind::LBracket);
+        self.next_token(); // consume `[`
         // TODO: elements
         let elems = self.allow_in_and(|this| {
             this.parse_delimited_list::<false, _>(
@@ -1112,31 +1133,23 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_var_decl(&mut self) -> PResult<&'cx ast::VarDecl<'cx>> {
+    fn parse_var_decl(&mut self, ctx: VarDeclarationContext) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat()?;
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
-        let span = self.new_span(start);
-        let id = self.next_node_id();
-        let node = self.alloc(ast::VarDecl {
-            id,
-            span,
-            name,
-            ty,
-            init,
-        });
-        self.nodes.insert(id, ast::Node::VarDecl(node));
-        self.node_flags_map.insert(id, self.context_flags);
-        Ok(node)
+        if ctx.init_should_exit() && init.is_none() {
+            let span = name.span;
+            self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+        }
+        Ok(self.create_var_decl(start, name, ty, init))
     }
 
-    fn parse_var_decl_list(&mut self, in_for_stmt_initializer: bool) -> VarDecls<'cx> {
+    fn parse_var_decl_list(&mut self, ctx: VarDeclarationContext) -> VarDecls<'cx> {
         self.next_token();
-        self.parse_delimited_list::<false, _>(
-            ParsingContext::VARIABLE_DECLARATIONS,
-            Self::parse_var_decl,
-        )
+        self.parse_delimited_list::<false, _>(ParsingContext::VARIABLE_DECLARATIONS, |this| {
+            this.parse_var_decl(ctx)
+        })
     }
 
     fn parse_fn_decl(
@@ -1147,8 +1160,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::If);
         let start = self.token.start();
-        self.expect(TokenKind::If);
+        self.next_token(); // consume `if`
         self.expect(TokenKind::LParen);
         let expr = self.parse_expr()?;
         self.expect(TokenKind::RParen);
@@ -1171,8 +1185,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ret_stmt(&mut self) -> PResult<&'cx ast::RetStmt<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Return);
         let start = self.token.start();
-        self.expect(TokenKind::Return);
+        self.next_token(); // consume `return`
 
         if !self
             .context_flags
@@ -1211,16 +1226,17 @@ impl<'cx> ParserState<'cx, '_> {
                 stmt,
             });
             self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
-            return Ok(ast::StmtKind::Labeled(stmt));
+            Ok(ast::StmtKind::Labeled(stmt))
+        } else {
+            self.parse_semi();
+            let id = self.next_node_id();
+            let stmt = self.alloc(ast::ExprStmt {
+                id,
+                span: self.new_span(start),
+                expr,
+            });
+            self.nodes.insert(id, ast::Node::ExprStmt(stmt));
+            Ok(ast::StmtKind::Expr(stmt))
         }
-        self.parse_semi();
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::ExprStmt {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::ExprStmt(stmt));
-        Ok(ast::StmtKind::Expr(stmt))
     }
 }

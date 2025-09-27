@@ -1,0 +1,15 @@
+  × Expected '{'.
+   ╭─[../../tests/compiler/es6ClassTest9/index.ts:3:18]
+ 3 │ (
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/es6ClassTest9/index.ts:3:20]
+ 3 │ ;
+   · ─
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/es6ClassTest9/index.ts:7:25]
+   ╰────

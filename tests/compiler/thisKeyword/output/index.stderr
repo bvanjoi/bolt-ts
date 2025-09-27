@@ -1,0 +1,5 @@
+  × 'this' cannot be referenced in a module or namespace body.
+   ╭─[../../tests/compiler/thisKeyword/index.ts:4:5]
+ 4 │ this
+   · ────
+   ╰────
