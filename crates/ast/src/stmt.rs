@@ -333,13 +333,16 @@ pub struct InterfaceDecl<'cx> {
 
 pub type ObjectTyMembers<'cx> = &'cx [&'cx ObjectTyMember<'cx>];
 
+/// ```txt
+/// <modifiers> [key: key_ty]: ty;
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct IndexSigDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    // TODO: split `ParamsDecl` into [`name`: `ty`]
-    pub params: ParamsDecl<'cx>,
+    pub key: &'cx Binding<'cx>,
+    pub key_ty: &'cx self::Ty<'cx>,
     pub ty: &'cx self::Ty<'cx>,
 }
 

@@ -996,7 +996,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(modifiers) = n.modifiers {
                     self.bind_modifiers(modifiers);
                 }
-                self.bind_params(n.params);
+                self.bind(n.key.id);
+                self.bind(n.key_ty.id());
                 self.bind(n.ty.id());
             }
             CallSigDecl(n) => {

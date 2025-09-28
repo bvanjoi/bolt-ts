@@ -433,7 +433,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_index_sig(&mut self, sig: &'cx ast::IndexSigDecl<'cx>) {
-        self.resolve_params(sig.params);
+        self.resolve_ty(sig.key_ty);
         self.resolve_ty(sig.ty);
     }
 

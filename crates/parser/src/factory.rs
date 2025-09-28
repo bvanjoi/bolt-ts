@@ -727,7 +727,8 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        params: ast::ParamsDecl<'cx>,
+        name: &'cx ast::Binding<'cx>,
+        name_ty: &'cx ast::Ty<'cx>,
         ty: &'cx ast::Ty<'cx>,
     ) -> &'cx ast::IndexSigDecl<'cx> {
         let id = self.next_node_id();
@@ -735,7 +736,8 @@ impl<'cx> ParserState<'cx, '_> {
             id,
             span: self.new_span(start),
             modifiers,
-            params,
+            key: name,
+            key_ty: name_ty,
             ty,
         });
         self.nodes.insert(id, ast::Node::IndexSigDecl(node));

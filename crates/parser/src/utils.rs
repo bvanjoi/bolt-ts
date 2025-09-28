@@ -774,8 +774,13 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        let params = self.alloc(params);
-
+        let (name, name_ty) = if let Some(param) = params.first() {
+            (param.name, param.ty.unwrap())
+        } else {
+            let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
+            let name = self.parse_binding_with_ident(Some(missing_ident));
+            (name, self.create_missing_ty())
+        };
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
@@ -787,7 +792,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         self.parse_ty_member_semi();
-        let sig = self.create_index_sig_decl(start, modifiers, params, ty);
+        let sig = self.create_index_sig_decl(start, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 
