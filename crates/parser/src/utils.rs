@@ -760,8 +760,27 @@ impl<'cx> ParserState<'cx, '_> {
             self.push_error(Box::new(error));
         }
 
-        let params = self.alloc(params);
+        if let Some(param) = params.first() {
+            if let Some(question) = param.question {
+                let error =
+                    errors::AnIndexSignatureParameterCannotHaveAQuestionMark { span: question };
+                self.push_error(Box::new(error));
+            }
 
+            if let Some(init) = param.init {
+                let error =
+                    errors::AnIndexSignatureParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
+        }
+
+        let (name, name_ty) = if let Some(param) = params.first() {
+            (param.name, param.ty.unwrap())
+        } else {
+            let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
+            let name = self.parse_binding_with_ident(Some(missing_ident));
+            (name, self.create_missing_ty())
+        };
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
@@ -773,15 +792,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         self.parse_ty_member_semi();
-        let id = self.next_node_id();
-        let sig = self.alloc(ast::IndexSigDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            params,
-            ty,
-        });
-        self.nodes.insert(id, ast::Node::IndexSigDecl(sig));
+        let sig = self.create_index_sig_decl(start, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 

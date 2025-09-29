@@ -43,10 +43,9 @@ impl<'cx> TyChecker<'cx> {
             if n.is_index_sig_decl() {
                 let decl = n.expect_index_sig_decl();
                 let val_ty = self.get_ty_from_type_node(decl.ty);
-                index_infos.extend(decl.params.iter().map(|param| {
-                    let Some(ty) = param.ty else { unreachable!() };
-                    let key_ty = self.get_ty_from_type_node(ty);
-                    let is_readonly = param
+                index_infos.push({
+                    let key_ty = self.get_ty_from_type_node(decl.key_ty);
+                    let is_readonly = decl
                         .modifiers
                         .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
                     self.alloc(ty::IndexInfo {
@@ -55,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
                         symbol,
                         is_readonly,
                     })
-                }));
+                });
             } else if self.has_late_bindable_index_signature(decl) {
                 // TODO: is_binary_expression
                 let name = self

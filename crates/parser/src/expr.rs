@@ -356,13 +356,27 @@ impl<'cx> ParserState<'cx, '_> {
                 // TODO: is jsx
                 self.parse_ty_assertion()
             }
+            Delete => self.parse_delete_expr(),
             _ => self.parse_update_expr(),
         }
     }
 
-    fn parse_ty_assertion(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    fn parse_delete_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Delete);
         let start = self.token.start();
-        self.expect(TokenKind::Less);
+        self.next_token(); // consume `delete`
+        let expr = self.parse_simple_unary_expr()?;
+        let n = self.create_delete_expr(start, expr);
+        let n = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Delete(n),
+        });
+        Ok(n)
+    }
+
+    fn parse_ty_assertion(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Less);
+        let start = self.token.start();
+        self.next_token(); // consume `<`
         let ty = self.parse_ty()?;
         self.expect(TokenKind::Great);
         let expr = self.parse_simple_unary_expr()?;
@@ -596,12 +610,6 @@ impl<'cx> ParserState<'cx, '_> {
                 {
                     ty_args = expr_with_ty_args.ty_args;
                     expr = expr_with_ty_args.expr;
-                }
-                if let Some(ty_args) = ty_args
-                    && ty_args.list.is_empty()
-                {
-                    let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-                    self.push_error(Box::new(error));
                 }
                 let args = self.parse_args()?;
                 if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
@@ -1050,12 +1058,6 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
-        if let Some(ty_args) = ty_args
-            && ty_args.list.is_empty()
-        {
-            let error = errors::TypeArgumentListCannotBeEmpty { span: ty_args.span };
-            self.push_error(Box::new(error));
-        }
         let args = if self.token.kind == LParen {
             self.parse_args().map(Some)
         } else {
@@ -1322,6 +1324,11 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token();
         let list =
             self.parse_delimited_list::<false, _>(ParsingContext::TYPE_ARGUMENTS, Self::parse_ty);
+        if list.is_empty() {
+            let span = self.new_span(start);
+            let error = errors::TypeArgumentListCannotBeEmpty { span };
+            self.push_error(Box::new(error));
+        }
         if self.re_scan_greater() != TokenKind::Great {
             return Ok(None);
         }

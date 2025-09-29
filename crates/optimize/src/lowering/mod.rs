@@ -859,6 +859,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 ir::Expr::JsxSelfClosingElem(self.lower_jsx_self_closing_elem(n))
             }
             ExprKind::JsxFrag(n) => ir::Expr::JsxFrag(self.lower_jsx_frag(n)),
+            ExprKind::Delete(n) => {
+                let expr = self.lower_expr(n.expr);
+                ir::Expr::Delete(self.nodes.alloc_delete_expr(n.span, expr))
+            }
         }
     }
 

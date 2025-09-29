@@ -15,7 +15,8 @@ impl ParentMap {
 
     pub fn parent(&self, node_id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
         let id = node_id.index_as_usize();
-        let p = self.inner[id];
+        debug_assert!(id < self.inner.len());
+        let p = unsafe { *self.inner.get_unchecked(id) };
         if p == Self::PLACEHOLDER {
             assert_eq!(id, self.inner.len() - 1);
             None

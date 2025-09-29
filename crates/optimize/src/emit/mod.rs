@@ -1496,6 +1496,11 @@ impl<'ir> Emitter<'_, 'ir> {
             ir::Expr::JsxElem(id) => self.emit_jsx_elem(id),
             ir::Expr::JsxSelfClosingElem(id) => self.emit_jsx_self_closing_ele(id),
             ir::Expr::JsxFrag(id) => self.emit_jsx_frag(id),
+            ir::Expr::Delete(id) => {
+                self.content.p("delete");
+                self.content.p_whitespace();
+                self.emit_expr(self.nodes.get_delete_expr(&id).expr());
+            }
         }
     }
 

@@ -1,0 +1,24 @@
+  × Property '_a' is used before its initialization.
+   ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:5:15]
+ 5 │ _a
+   · ──
+   ╰────
+
+  × Property '_A' is used before its initialization.
+   ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:9:22]
+ 9 │ _A
+   · ──
+   ╰────
+
+  × Block-scoped variable 'b' used before its declaration.
+    ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:15:17]
+ 15 │ b
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'b' is defined here
+    ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:17:13]
+ 17 │ b = 3
+    · ─────
+    ╰────

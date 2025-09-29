@@ -1,0 +1,5 @@
+  × An index signature parameter cannot have an initializer.
+   ╭─[../../tests/compiler/indexSignatureWithInitializer1/index.ts:4:16]
+ 4 │ 1
+   · ─
+   ╰────

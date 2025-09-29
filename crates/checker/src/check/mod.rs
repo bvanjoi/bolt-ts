@@ -1489,7 +1489,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: ast::NodeID,
         left_ty: &'cx ty::Ty<'cx>,
-        prop: &'cx ast::Ident,
+        right: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
         let nq = self.node_query(node.module());
         let assignment_kind = nq.get_assignment_target_kind(node);
@@ -1508,17 +1508,23 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let name = SymbolName::Atom(prop.name);
+        let name = SymbolName::Atom(right.name);
 
         let Some(prop) = self.get_prop_of_ty(apparent_left_ty, name) else {
             if name
                 .as_atom()
                 .is_some_and(|atom| atom != keyword::IDENT_EMPTY)
             {
-                self.report_non_existent_prop(prop, left_ty);
+                self.report_non_existent_prop(right, left_ty);
             }
             return self.error_ty;
         };
+
+        self.check_prop_not_used_before_declaration(prop, node, right);
+
+        if self.get_node_links(node).get_resolved_symbol().is_none() {
+            self.get_mut_node_links(node).set_resolved_symbol(prop);
+        }
 
         self.check_prop_accessibility(node, false, false, apparent_left_ty, prop, true);
 
@@ -1526,6 +1532,80 @@ impl<'cx> TyChecker<'cx> {
             self.get_write_type_of_symbol(prop)
         } else {
             self.get_type_of_symbol(prop)
+        }
+    }
+
+    fn check_prop_not_used_before_declaration(
+        &mut self,
+        prop: SymbolID,
+        node: ast::NodeID,
+        right: &'cx ast::Ident,
+    ) {
+        if self.p.get(node.module()).is_declaration {
+            return;
+        };
+        let Some(value_decl) = self.symbol(prop).value_decl else {
+            return;
+        };
+        let is_prop_declared_in_ancestor_class = |this: &mut Self| -> bool {
+            let prop_symbol = this.binder.symbol(prop);
+            let parent = prop_symbol.parent.unwrap();
+            if !this
+                .binder
+                .symbol(parent)
+                .flags
+                .intersects(SymbolFlags::CLASS)
+            {
+                return false;
+            };
+            let mut class_ty = this.get_type_of_symbol(parent);
+            loop {
+                if class_ty.symbol().is_none() {
+                    return false;
+                };
+                // get_super_class
+                let x = this.get_base_tys(class_ty);
+                if x.is_empty() {
+                    return false;
+                }
+                class_ty = this.get_intersection_ty(x, IntersectionFlags::None, None, None);
+                // ===
+                let prop_symbol = this.binder.symbol(prop);
+                if let Some(super_prop) = this.get_prop_of_ty(class_ty, prop_symbol.name) {
+                    if this.symbol(super_prop).value_decl.is_some() {
+                        return true;
+                    }
+                }
+            }
+        };
+
+        if self
+            .node_query(node.module())
+            .is_in_prop_initializer_or_class_static_block(node, false)
+            && let value_decl_node = self.p.node(value_decl)
+            && !(value_decl_node.as_class_prop_elem().is_some_and(|n| {
+                n.question.is_some()
+                    && n.modifiers
+                        .is_none_or(|ms| ms.flags.contains(ast::ModifierKind::Accessor))
+            }))
+            && let n = self.p.node(node)
+            && !n
+                .expr_of_access_expr()
+                .is_some_and(|n| n.kind.is_access_expr())
+            && !self.is_block_scoped_name_declared_before_use(value_decl, right)
+            && !((value_decl_node.is_class_method_elem()
+                || value_decl_node.is_object_method_member())
+                && self
+                    .node_query(value_decl.module())
+                    .get_combined_modifier_flags(value_decl)
+                    .contains(ast::ModifierKind::Static))
+            && !is_prop_declared_in_ancestor_class(self)
+        {
+            let error = errors::Property0IsUsedBeforeItsInitialization {
+                span: right.span,
+                name: self.atoms.get(right.name).to_string(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -1751,8 +1831,7 @@ impl<'cx> TyChecker<'cx> {
                     return Some(self.p.node(decl).span().lo() < used.span.lo());
                 }
 
-                let parent_id = self.parent(current_id)?;
-                let parent_node = self.p.node(parent_id);
+                let parent_node = self.p.node(self.parent(current_id)?);
                 let prop_decl = parent_node.as_class_prop_elem()?;
 
                 let init_of_prop = prop_decl
@@ -1773,7 +1852,40 @@ impl<'cx> TyChecker<'cx> {
                             && usage_class == decl_class
                         {
                             let prop_name = prop_decl.name;
-                            todo!()
+                            if let ast::PropNameKind::Ident(_) = prop_name.kind {
+                                // TODO: is_private_name
+                                // let ty = {
+                                //     let s = self.get_symbol_of_decl(decl);
+                                //     self.get_type_of_symbol(s)
+                                // };
+                                // let p = self.p.node(self.parent(decl).unwrap());
+                                // let elems = match p {
+                                //     ast::Node::ClassDecl(c) => c.elems,
+                                //     ast::Node::ClassExpr(c) => c.elems,
+                                //     _ => unreachable!(),
+                                // };
+                                // let static_blocks = elems.list.iter().filter_map(|n| {
+                                //     if let ast::ClassElemKind::StaticBlockDecl(block) = n.kind {
+                                //         Some(block)
+                                //     } else {
+                                //         None
+                                //     }
+                                // });
+                                // let mut is_prop_initialized_in_static_block = false;
+                                // let p_span = p.span();
+                                // let current_span = current.span();
+                                // for static_block in static_blocks {
+                                //     if static_block.span.lo() > p_span.lo()
+                                //         && static_block.span.lo() <= current_span.lo()
+                                //     {
+                                //         // TODO:
+                                //     }
+                                // }
+
+                                // if is_prop_initialized_in_static_block {
+                                //     return Some(true);
+                                // }
+                            }
                         }
                     } else {
                         let n = self.p.node(decl);
@@ -1785,7 +1897,7 @@ impl<'cx> TyChecker<'cx> {
                             .get_containing_class(used.id)
                             && let Some(decl_class) =
                                 self.node_query(decl.module()).get_containing_class(decl)
-                            && usage_class == decl_class
+                            && usage_class != decl_class
                         {
                             return Some(true);
                         }

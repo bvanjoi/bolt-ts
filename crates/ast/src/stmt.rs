@@ -88,9 +88,10 @@ impl Stmt<'_> {
 
     pub fn is_use_strict_directive(&self) -> bool {
         if let StmtKind::Expr(expr_stmt) = self.kind
-            && let ExprKind::StringLit(lit) = expr_stmt.expr.kind {
-                return lit.val == keyword::DIRECTIVE_USE_STRICT;
-            }
+            && let ExprKind::StringLit(lit) = expr_stmt.expr.kind
+        {
+            return lit.val == keyword::DIRECTIVE_USE_STRICT;
+        }
         false
     }
 }
@@ -332,12 +333,16 @@ pub struct InterfaceDecl<'cx> {
 
 pub type ObjectTyMembers<'cx> = &'cx [&'cx ObjectTyMember<'cx>];
 
+/// ```txt
+/// <modifiers> [key: key_ty]: ty;
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct IndexSigDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub params: ParamsDecl<'cx>,
+    pub key: &'cx Binding<'cx>,
+    pub key_ty: &'cx self::Ty<'cx>,
     pub ty: &'cx self::Ty<'cx>,
 }
 

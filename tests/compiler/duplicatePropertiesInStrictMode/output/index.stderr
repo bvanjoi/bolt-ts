@@ -1,0 +1,8 @@
+  × An object literal cannot have multiple properties with the same name.
+   ╭─[../../tests/compiler/duplicatePropertiesInStrictMode/index.ts:6:3]
+ 5 │ x: 1,
+   · ──┬─
+   ·   ╰── Previous definition here
+ 6 │   x
+   ·   ─
+   ╰────

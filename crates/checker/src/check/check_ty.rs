@@ -112,11 +112,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
-        if n.params.len() != 1 {
-            // delay bug
-            return;
-        }
-        let ty = self.get_ty_from_type_node(n.params[0].ty.unwrap());
+        let ty = self.get_ty_from_type_node(n.key_ty);
         if !self.every_type(ty, |this, ty| this.is_valid_index_key_ty(ty)) {
             let error = errors::AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
                 span: n.span,

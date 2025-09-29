@@ -3,3 +3,9 @@
  4 │ var
    · ───
    ╰────
+
+  × Type argument list cannot be empty.
+   ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:13]
+ 4 │ <>
+   · ──
+   ╰────

@@ -9,3 +9,10 @@
  3 │ ;
    · ─
    ╰────
+
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+   ╭─[../../tests/compiler/indexWithoutParamType/index.ts:3:10]
+ 3 │ [];
+   · ───
+   ╰────

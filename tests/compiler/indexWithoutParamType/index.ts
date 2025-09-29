@@ -3,3 +3,4 @@
 var y: { []; } // Error
 //~^ ERROR: An index signature must have exactly one parameter.
 //~| ERROR: An index signature must have a type annotation.
+//~| ERROR: An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.
