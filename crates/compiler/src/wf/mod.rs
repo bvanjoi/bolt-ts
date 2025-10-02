@@ -304,4 +304,14 @@ impl<'cx> ast::Visitor<'cx> for CheckState<'cx> {
         }
         visitor::visit_if_stmt(self, node);
     }
+    fn visit_enum_decl(&mut self, node: &'cx bolt_ts_ast::EnumDecl<'cx>) {
+        self.check_type_name_is_reserved(node.name, |this| {
+            let error = errors::EnumNameCannotBeX {
+                span: node.name.span,
+                name: pprint_ident(node.name, this.atoms),
+            };
+            this.push_error(Box::new(error));
+        });
+        visitor::visit_enum_decl(self, node);
+    }
 }

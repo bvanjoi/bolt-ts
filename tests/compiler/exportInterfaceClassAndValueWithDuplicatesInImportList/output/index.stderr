@@ -1,0 +1,6 @@
+  × Duplicate identifier 'Foo'.
+   ╭─[../../tests/compiler/exportInterfaceClassAndValueWithDuplicatesInImportList/index.ts:7:19]
+ 7 │ Foo, Foo
+   · ─┬─  ───
+   ·  ╰── Previous definition here
+   ╰────

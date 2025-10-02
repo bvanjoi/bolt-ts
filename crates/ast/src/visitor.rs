@@ -18,13 +18,13 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Module(node) => v.visit_module_decl(node),
         While(node) => v.visit_while_stmt(node),
         If(node) => v.visit_if_stmt(node),
+        Enum(node) => v.visit_enum_decl(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
         Ret(_) => (),
         Fn(_) => (),
         Throw(_) => (),
-        Enum(_) => (),
         For(_) => (),
         ForOf(_) => (),
         ForIn(_) => (),
@@ -34,6 +34,20 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Debugger(_) => {}
         Labeled(_) => {}
         Switch(_) => {}
+    }
+}
+
+pub fn visit_enum_decl<'cx>(v: &mut impl Visitor<'cx>, enum_decl: &'cx super::EnumDecl<'cx>) {
+    v.visit_ident(enum_decl.name);
+    for member in enum_decl.members {
+        v.visit_enum_member(member);
+    }
+}
+
+pub fn visit_enum_member<'cx>(v: &mut impl Visitor<'cx>, member: &'cx super::EnumMember<'cx>) {
+    v.visit_prop_name(member.name);
+    if let Some(init) = member.init {
+        v.visit_expr(init);
     }
 }
 
@@ -243,6 +257,20 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
         v.visit_ty(span.ty);
     }
 }
+pub fn visit_prop_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PropName<'cx>) {
+    match n.kind {
+        super::PropNameKind::Ident(ident) => v.visit_ident(ident),
+        super::PropNameKind::StringLit { raw, .. } => v.visit_string_lit(raw),
+        super::PropNameKind::NumLit(_) => {}
+        super::PropNameKind::Computed(expr) => v.visit_computed_prop_name(expr),
+    }
+}
+pub fn visit_computed_prop_name<'cx>(
+    v: &mut impl Visitor<'cx>,
+    n: &'cx super::ComputedPropName<'cx>,
+) {
+    v.visit_expr(n.expr);
+}
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
 pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     use super::ExprKind::*;
@@ -353,6 +381,10 @@ make_visitor!(
     (visit_string_lit, super::StringLit),
     (visit_while_stmt, super::WhileStmt<'cx>),
     (visit_if_stmt, super::IfStmt<'cx>),
+    (visit_enum_decl, super::EnumDecl<'cx>),
+    (visit_enum_member, super::EnumMember<'cx>),
+    (visit_prop_name, super::PropName<'cx>),
+    (visit_computed_prop_name, super::ComputedPropName<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
