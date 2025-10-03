@@ -137,9 +137,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.expect(Class);
         let name = self.parse_name_of_class_decl_or_expr();
-        let ty_params = self.parse_ty_params()?;
+        let ty_params = self.parse_ty_params();
         let mut extends = self.parse_class_extends_clause()?;
-        let mut implements = self.parse_implements_clause()?;
+        let mut implements = self.parse_implements_clause();
         loop {
             if !matches!(self.token.kind, TokenKind::Implements | TokenKind::Extends) {
                 break;
@@ -178,7 +178,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     self.push_error(Box::new(error));
                 }
             }
-            let i = self.parse_implements_clause()?;
+            let i = self.parse_implements_clause();
             if implements.is_none() {
                 implements = i;
             }
@@ -275,13 +275,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.parse_prop_name(true)?;
+        let name = self.parse_prop_name(true);
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
-            let ty_params = self.parse_ty_params()?;
-            let params = self.parse_params()?;
+            let ty_params = self.parse_ty_params();
+            let params = self.parse_params();
             let ty = self.parse_ret_ty(true)?;
-            let body = self.parse_fn_block()?;
+            let body = self.parse_fn_block();
             let method =
                 self.create_class_method_elem(start, modifiers, name, ty_params, params, ty, body);
             self.alloc(ast::ClassElem {
@@ -334,11 +334,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
             if this.p().parse_ctor_name() {
-                let ty_params = this.p().parse_ty_params()?;
-                let params = this.p().parse_params()?;
+                let ty_params = this.p().parse_ty_params();
+                let params = this.p().parse_params();
                 this.p().check_params(params, true);
                 let ret = this.p().parse_ret_ty(true)?;
-                let body = this.p().parse_fn_block()?;
+                let body = this.p().parse_fn_block();
                 let ctor = this
                     .p()
                     .create_class_ctor(start, mods, ty_params, params, ret, body);
@@ -364,7 +364,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             return self.parse_class_static_block_decl();
         }
 
-        let modifiers = self.parse_modifiers::<false, true>(true)?;
+        let modifiers = self.parse_modifiers::<false, true>(true);
 
         if let Some(ms) = modifiers {
             for m in ms.list {
@@ -406,7 +406,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert!(self.token.kind == TokenKind::Static);
         let start = self.token.start() as usize;
         self.next_token(); // consume `static`
-        let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block)?;
+        let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block);
         let block = self.create_class_static_block_decl(start as u32, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),

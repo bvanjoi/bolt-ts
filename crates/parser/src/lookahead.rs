@@ -343,9 +343,9 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         Ok(self.p.token.kind.is_ident_or_keyword())
     }
 
-    pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> PResult<bool> {
+    pub(super) fn next_token_is_ident_or_keyword_on_same_line(&mut self) -> bool {
         self.p.next_token();
-        Ok(self.p.token.kind.is_ident_or_keyword() && !self.p.has_preceding_line_break())
+        self.p.token.kind.is_ident_or_keyword() && !self.p.has_preceding_line_break()
     }
 
     pub(super) fn next_token_is_binding_ident_or_start_of_destructuring(

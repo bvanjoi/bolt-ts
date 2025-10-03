@@ -154,13 +154,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
-    ) -> PResult<&'cx [T]> {
+    ) -> &'cx [T] {
         if self.expect(open) {
             let elems = self.parse_delimited_list::<CONSIDER_SEMICOLON_AS_DELIMITER, T>(ctx, ele);
             self.expect(close);
-            Ok(elems)
+            elems
         } else {
-            Ok(&[])
+            &[]
         }
     }
 
@@ -458,7 +458,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(
         &mut self,
-    ) -> PResult<&'cx bolt_ts_ast::Ident> {
+    ) -> &'cx bolt_ts_ast::Ident {
         if self
             .token_flags
             .intersects(TokenFlags::UNICODE_ESCAPE.union(TokenFlags::EXTENDED_UNICODE_ESCAPE))
