@@ -274,6 +274,12 @@ impl<'ir> Emitter<'_, 'ir> {
 
     fn emit_fn_decl(&mut self, f: ir::FnDeclID) {
         let f = self.nodes.get_fn_decl(&f);
+        if f.modifiers()
+            .is_some_and(|m| m.flags().contains(ast::ModifierKind::Async))
+        {
+            self.content.p("async");
+            self.content.p_whitespace();
+        }
         self.content.p("function");
         self.content.p_whitespace();
         if let Some(name) = f.name() {

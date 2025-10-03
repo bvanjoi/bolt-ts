@@ -36,7 +36,7 @@ impl<'cx> ParserState<'cx, '_> {
         use bolt_ts_ast::TokenKind::*;
         if matches!(
             self.token.kind,
-            Const | Enum | Abstract | Declare | Export | Import
+            Async | Const | Enum | Abstract | Declare | Export | Import
         ) && self.is_start_of_decl()
         {
             return self.parse_decl();
