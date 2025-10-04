@@ -2,6 +2,7 @@ use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
@@ -50,6 +51,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
     pub(super) in_strict_mode: bool,
+    pub(super) labels: FxIndexSet<Atom>,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -106,6 +108,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             parsing_context: ParsingContext::default(),
             // TODO: in_strict_mode: options.compiler_options().always_strict(),
             in_strict_mode: false,
+            labels: Default::default(),
         }
     }
 
@@ -154,13 +157,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         open: TokenKind,
         ele: impl Fn(&mut Self) -> PResult<T>,
         close: TokenKind,
-    ) -> PResult<&'cx [T]> {
+    ) -> &'cx [T] {
         if self.expect(open) {
             let elems = self.parse_delimited_list::<CONSIDER_SEMICOLON_AS_DELIMITER, T>(ctx, ele);
             self.expect(close);
-            Ok(elems)
+            elems
         } else {
-            Ok(&[])
+            &[]
         }
     }
 
@@ -458,7 +461,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(
         &mut self,
-    ) -> PResult<&'cx bolt_ts_ast::Ident> {
+    ) -> &'cx bolt_ts_ast::Ident {
         if self
             .token_flags
             .intersects(TokenFlags::UNICODE_ESCAPE.union(TokenFlags::EXTENDED_UNICODE_ESCAPE))

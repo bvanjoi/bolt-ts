@@ -47,7 +47,8 @@ with_option!(
     (no_unchecked_indexed_access, bool),
     (target, RawTarget),
     (always_strict, bool),
-    (exact_optional_property_types, bool)
+    (exact_optional_property_types, bool),
+    (allow_unused_labels, bool)
 );
 
 impl RawCompilerOptions {
@@ -86,10 +87,17 @@ impl RawCompilerOptions {
             flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
         }
 
+        let allow_unused_labels = match self.allow_unused_labels {
+            Some(true) => super::AllowUnusedLabels::Warning,
+            Some(false) => super::AllowUnusedLabels::Deny,
+            None => super::AllowUnusedLabels::Allow,
+        };
+
         super::NormalizedCompilerOptions {
             out_dir,
             target,
             flags,
+            allow_unused_labels,
         }
     }
 }

@@ -137,8 +137,11 @@ impl BinderState<'_, '_, '_> {
                             };
                             Box::new(errors::AModuleCannotHaveMultipleDefaultExports { span })
                         } else {
+                            let Some(span) = self.p.node(node).name().map(|n| n.span()) else {
+                                unreachable!("missing name: {:#?}", self.p.node(node));
+                            };
                             Box::new(errors::DuplicateIdentifier {
-                                span: self.p.node(node).name().unwrap().span(),
+                                span,
                                 name: self.atoms.get(name.expect_atom()).to_string(),
                                 original_span: old_decl
                                     .name()

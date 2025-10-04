@@ -298,6 +298,7 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
                 crate::ModuleName::StringLit(_) => None,
             },
+            ShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }

@@ -28,25 +28,25 @@ impl<'cx> ParserState<'cx, '_> {
     >(
         &mut self,
         has_seen_static_modifier: bool,
-    ) -> PResult<Option<&'cx ast::Modifier>> {
+    ) -> Option<&'cx ast::Modifier> {
         let span = self.token.span;
         let t = self.token.kind;
         if PERMIT_CONST_AS_MODIFIER && t == TokenKind::Const {
             if !self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
-                return Ok(None);
+                return None;
             }
         } else if STOP_ON_START_OF_CLASS_STATIC_BLOCK && t == TokenKind::Static {
-            return Ok(None);
+            return None;
         } else if has_seen_static_modifier && t == TokenKind::Static {
-            return Ok(None);
+            return None;
         } else if !self.parse_any_contextual_modifier() {
-            return Ok(None);
+            return None;
         }
 
         let id = self.next_node_id();
         let kind = t.try_into().unwrap();
         let m = self.alloc(ast::Modifier { id, span, kind });
         self.nodes.insert(id, ast::Node::Modifier(m));
-        Ok(Some(m))
+        Some(m)
     }
 }
