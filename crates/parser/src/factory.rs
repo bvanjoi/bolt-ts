@@ -744,4 +744,23 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
+
+    #[inline(always)]
+    pub fn create_labeled_stmt(
+        &mut self,
+        start: u32,
+        label: &'cx ast::Ident,
+        stmt: &'cx ast::Stmt<'cx>,
+    ) -> &'cx ast::LabeledStmt<'cx> {
+        let id = self.next_node_id();
+        let stmt = self.alloc(ast::LabeledStmt {
+            id,
+            span: self.new_span(start),
+            label,
+            stmt,
+        });
+        self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        stmt
+    }
 }

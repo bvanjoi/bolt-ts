@@ -1213,16 +1213,12 @@ impl<'cx> ParserState<'cx, '_> {
         if let ast::ExprKind::Ident(ident) = expr.kind
             && self.parse_optional(TokenKind::Colon).is_some()
         {
+            if !self.labels.insert(ident.name) {
+                todo!("error for duplicate label");
+            }
             let stmt =
                 self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
-            let id = self.next_node_id();
-            let stmt = self.alloc(ast::LabeledStmt {
-                id,
-                span: self.new_span(start),
-                label: ident,
-                stmt,
-            });
-            self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+            let stmt = self.create_labeled_stmt(start, ident, stmt);
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
             self.parse_semi();

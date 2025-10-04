@@ -2,6 +2,7 @@ use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
@@ -50,6 +51,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
     pub(super) in_strict_mode: bool,
+    pub(super) labels: FxIndexSet<Atom>,
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
@@ -106,6 +108,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             parsing_context: ParsingContext::default(),
             // TODO: in_strict_mode: options.compiler_options().always_strict(),
             in_strict_mode: false,
+            labels: Default::default(),
         }
     }
 

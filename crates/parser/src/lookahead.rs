@@ -58,6 +58,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         let old_line_map_len = self.p.line_map.len();
         let old_parse_diag_len = self.p.diags.len();
         let old_current_node_id = self.p.current_node_id();
+        let old_labels_len = self.p.labels.len();
 
         let r = f(self);
 
@@ -73,6 +74,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             // TODO: speculate_kind != SpeculationKind::Repair
             self.p.diags.truncate(old_parse_diag_len);
             self.p.reset_node_id(old_current_node_id);
+            self.p.labels.truncate(old_labels_len);
         }
 
         r

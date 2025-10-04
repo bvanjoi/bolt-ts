@@ -31,10 +31,12 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_semi();
             None
         } else {
+            let old_labels = std::mem::take(&mut self.labels);
             let ret = self.do_outside_of_context(
                 NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
                 |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
             );
+            self.labels = old_labels;
             Some(ret)
         }
     }
