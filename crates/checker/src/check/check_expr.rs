@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
                     self.false_ty
                 }
             }
-            NullLit(_) => self.null_ty,
+            NullLit(_) => self.null_widening_ty,
             Ident(ident) => self.check_ident(ident),
             ArrayLit(lit) => self.check_array_lit(lit, false),
             Omit(_) => self.undefined_ty,

@@ -373,6 +373,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             undefined_ty
         };
+
         let undefined_widening_ty = if config.strict_null_checks() {
             undefined_ty
         } else {

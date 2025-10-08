@@ -1,0 +1,8 @@
+  × Duplicate identifier 'total'.
+   ╭─[../../tests/compiler/functionWithSameNameAsField/index.ts:5:12]
+ 4 │ total: number;
+   · ──┬──
+   ·   ╰── Previous definition here
+ 5 │     public total
+   ·            ─────
+   ╰────

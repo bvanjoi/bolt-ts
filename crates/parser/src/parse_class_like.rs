@@ -333,6 +333,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Option<&'cx ast::ClassElem<'cx>>> {
         self.try_parse(|this| {
+            let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
                 let params = this.p().parse_params();
@@ -341,7 +342,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let body = this.p().parse_fn_block();
                 let ctor = this
                     .p()
-                    .create_class_ctor(start, mods, ty_params, params, ret, body);
+                    .create_class_ctor(start, mods, ty_params, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });

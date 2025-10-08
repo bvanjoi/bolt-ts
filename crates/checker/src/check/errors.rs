@@ -823,3 +823,10 @@ pub(super) struct Property0IsUsedBeforeItsInitialization {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Constructors for derived classes must contain a 'super' call.")]
+pub(super) struct ConstructorsForDerivedClassesMustContainASuperCall {
+    #[label(primary)]
+    pub span: Span,
+}

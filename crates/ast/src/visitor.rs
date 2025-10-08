@@ -306,10 +306,30 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
         ObjectLit(n) => v.visit_object_lit(n),
         ArrowFn(n) => v.visit_arrow_fn_expr(n),
         Bin(n) => v.visit_bin_expr(n),
+        Call(n) => v.visit_call_expr(n),
         _ => {}
     }
 }
-pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLit<'cx>) {}
+pub fn visit_call_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CallExpr<'cx>) {
+    v.visit_expr(n.expr);
+    for arg in n.args {
+        v.visit_expr(arg);
+    }
+}
+pub fn visit_object_lit<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {
+    for member in n.members {
+        use crate::ObjectMemberKind::*;
+        match member.kind {
+            PropAssignment(node) => {
+                v.visit_prop_name(node.name);
+                v.visit_expr(node.init);
+            }
+            _ => {
+                // TODO:
+            }
+        }
+    }
+}
 pub fn visit_try_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TryStmt<'cx>) {
     v.visit_block_stmt(n.try_block);
     if let Some(catch) = n.catch_clause {
@@ -410,6 +430,7 @@ make_visitor!(
     (visit_param_decl, super::ParamDecl<'cx>),
     (visit_fn_decl, super::FnDecl<'cx>),
     (visit_binding, super::Binding<'cx>),
+    (visit_call_expr, super::CallExpr<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
