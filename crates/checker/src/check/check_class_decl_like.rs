@@ -23,7 +23,7 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn class_decl_extends_null(&mut self, class: ast::NodeID) -> bool {
+    pub(super) fn class_decl_extends_null(&mut self, class: ast::NodeID) -> bool {
         let class_symbol = self.get_symbol_of_decl(class);
         let class_instance_ty = self.get_declared_ty_of_symbol(class_symbol);
         let base_ctor_ty = self.get_base_constructor_type_of_class(class_instance_ty);

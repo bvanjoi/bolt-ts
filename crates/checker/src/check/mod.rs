@@ -4011,15 +4011,15 @@ impl<'cx> TyChecker<'cx> {
         ty_args: Option<&'cx ast::Tys<'cx>>,
         loc: ast::NodeID,
     ) -> impl Iterator<Item = &'cx ty::Sig<'cx>> {
-        let count = ty_args.map_or(0, |t| t.list.len());
+        let ty_arg_count = ty_args.map_or(0, |t| t.list.len());
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         // TODO: is_javascript
         sigs.iter().filter_map(move |sig| {
             let min = self.get_min_ty_arg_count(sig.ty_params);
-            if count >= min
+            if ty_arg_count >= min
                 && sig
                     .ty_params
-                    .is_some_and(|ty_params| count <= ty_params.len())
+                    .is_none_or(|ty_params| ty_arg_count <= ty_params.len())
             {
                 Some(*sig)
             } else {

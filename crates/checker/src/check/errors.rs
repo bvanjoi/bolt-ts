@@ -830,3 +830,10 @@ pub(super) struct ConstructorsForDerivedClassesMustContainASuperCall {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'super' must be called before accessing 'this' in the constructor of a derived class.")]
+pub(super) struct SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
+    #[label(primary)]
+    pub span: Span,
+}
