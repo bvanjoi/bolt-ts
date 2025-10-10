@@ -329,6 +329,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `enum`
         let name = self.create_ident(self.is_ident(), None);
+        self.check_contextual_ident(name);
         let members = if self.expect(TokenKind::LBrace) {
             let member = self.parse_delimited_list::<false, _>(
                 ParsingContext::ENUM_MEMBERS,
@@ -870,6 +871,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `interface`
         let name = self.parse_ident_name();
+        self.check_contextual_ident(name);
         let ty_params = self.parse_ty_params();
         let extends = self.parse_interface_extends_clause();
         // let implements = self.parse_implements_clause()?;

@@ -472,4 +472,26 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
         self.parse_ident_name()
     }
+
+    pub(super) fn check_contextual_binding(&mut self, binding: &ast::Binding) {
+        let ast::BindingKind::Ident(ident) = binding.kind else {
+            return;
+        };
+        self.check_contextual_ident(ident);
+    }
+
+    pub(super) fn check_contextual_ident(&mut self, ident: &ast::Ident) {
+        let Some(token) = ast::atom_to_token(ident.name) else {
+            return;
+        };
+
+        if self.in_strict_mode && token.is_strict_mode_reserved_word() {
+            //  strict mode identifier message
+            let error = errors::IdentifierExpected0IsAReservedWordInStrictMode {
+                span: ident.span,
+                identifier: token.as_str().to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
 }

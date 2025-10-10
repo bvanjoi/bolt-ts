@@ -581,6 +581,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Err(());
         }
         let name = self.parse_name_of_param()?;
+        self.check_contextual_binding(name);
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
             && ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY)
