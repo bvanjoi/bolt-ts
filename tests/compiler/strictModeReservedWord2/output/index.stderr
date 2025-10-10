@@ -1,0 +1,35 @@
+  × Identifier expected. 'public' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:4:11]
+ 4 │ public
+   · ──────
+   ╰────
+
+  × Identifier expected. 'implements' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:6:11]
+ 6 │ implements
+   · ──────────
+   ╰────
+
+  × Identifier expected. 'package' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:8:9]
+ 8 │ package
+   · ───────
+   ╰────
+
+  × Identifier expected. 'protected' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:8:18]
+ 8 │ protected
+   · ─────────
+   ╰────
+
+  × Identifier expected. 'package' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:12:6]
+ 12 │ package
+    · ───────
+    ╰────
+
+  × Identifier expected. 'private' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:20:12]
+ 20 │ private
+    · ───────
+    ╰────

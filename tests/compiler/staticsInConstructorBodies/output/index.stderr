@@ -1,0 +1,23 @@
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:5:3]
+ 5 │ static
+   · ──────
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:8:3]
+ 8 │ static
+   · ──────
+   ╰────
+
+  × Cannot find name 'p1'.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:5:10]
+ 5 │ p1
+   · ──
+   ╰────
+
+  × Cannot find name 'm1'.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:8:10]
+ 8 │ m1
+   · ──
+   ╰────

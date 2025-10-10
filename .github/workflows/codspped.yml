@@ -32,10 +32,10 @@ jobs:
       - name: Build the benchmark target(s)
         run: |
           cargo codspeed build
-          rsync crates/libs/src/declared_file/* target/codspeed/instrumentation/bolt_ts_compiler
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         with:
           run: cargo codspeed run bench # `bench` is the name `crates/compiler/benches/bench`
           token: ${{ secrets.CODSPEED_TOKEN }}
+          mode: instrumentation

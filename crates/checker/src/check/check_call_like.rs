@@ -67,7 +67,11 @@ impl<'cx> TyChecker<'cx> {
             sig
         };
 
-        (self.get_ret_ty_of_sig(sig)) as _
+        if matches!(expr.callee().kind, ast::ExprKind::Super(_)) {
+            return self.void_ty;
+        }
+
+        self.get_ret_ty_of_sig(sig)
     }
 
     pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {

@@ -18,13 +18,13 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Module(node) => v.visit_module_decl(node),
         While(node) => v.visit_while_stmt(node),
         If(node) => v.visit_if_stmt(node),
+        Enum(node) => v.visit_enum_decl(node),
+        Fn(node) => v.visit_fn_decl(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
         Ret(_) => (),
-        Fn(_) => (),
         Throw(_) => (),
-        Enum(_) => (),
         For(_) => (),
         ForOf(_) => (),
         ForIn(_) => (),
@@ -34,6 +34,55 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::Stmt) {
         Debugger(_) => {}
         Labeled(_) => {}
         Switch(_) => {}
+    }
+}
+
+fn visit_binding<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::Binding<'cx>) {
+    use crate::BindingKind::*;
+    match node.kind {
+        Ident(n) => v.visit_ident(n),
+        ObjectPat(n) => {
+            // TODO:
+        }
+        ArrayPat(n) => {
+            // TODO:
+        }
+    }
+}
+
+fn visit_param_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::ParamDecl<'cx>) {
+    v.visit_binding(node.name);
+    if let Some(ty) = node.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(init) = node.init {
+        v.visit_expr(init);
+    }
+}
+
+pub fn visit_fn_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::FnDecl<'cx>) {
+    if let Some(name) = node.name {
+        v.visit_ident(name);
+    }
+    for param in node.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(body) = node.body {
+        v.visit_block_stmt(body);
+    }
+}
+
+pub fn visit_enum_decl<'cx>(v: &mut impl Visitor<'cx>, enum_decl: &'cx super::EnumDecl<'cx>) {
+    v.visit_ident(enum_decl.name);
+    for member in enum_decl.members {
+        v.visit_enum_member(member);
+    }
+}
+
+pub fn visit_enum_member<'cx>(v: &mut impl Visitor<'cx>, member: &'cx super::EnumMember<'cx>) {
+    v.visit_prop_name(member.name);
+    if let Some(init) = member.init {
+        v.visit_expr(init);
     }
 }
 
@@ -72,24 +121,19 @@ pub fn visit_var_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::VarDecl<
         v.visit_expr(init);
     }
 }
-
 pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::ClassDecl<'cx>) {
     for ele in class.elems.list {
         v.visit_class_elem(ele);
     }
 }
-
 pub fn visit_interface_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::InterfaceDecl<'cx>) {}
-
 pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
-
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassElemKind::*;
     if let Method(n) = elem.kind {
         v.visit_class_method_elem(n)
     }
 }
-
 pub fn visit_class_method_elem<'cx>(
     v: &mut impl Visitor<'cx>,
     method: &'cx super::ClassMethodElem<'cx>,
@@ -98,7 +142,6 @@ pub fn visit_class_method_elem<'cx>(
         v.visit_block_stmt(body);
     }
 }
-
 pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
     use crate::TyKind::*;
     match ty.kind {
@@ -127,7 +170,6 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
         This(_) => {}
     }
 }
-
 pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ReferTy<'cx>) {
     // TODO: name
     if let Some(ty_args) = n.ty_args {
@@ -243,6 +285,20 @@ pub fn visit_template_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Temp
         v.visit_ty(span.ty);
     }
 }
+pub fn visit_prop_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PropName<'cx>) {
+    match n.kind {
+        super::PropNameKind::Ident(ident) => v.visit_ident(ident),
+        super::PropNameKind::StringLit { raw, .. } => v.visit_string_lit(raw),
+        super::PropNameKind::NumLit(_) => {}
+        super::PropNameKind::Computed(expr) => v.visit_computed_prop_name(expr),
+    }
+}
+pub fn visit_computed_prop_name<'cx>(
+    v: &mut impl Visitor<'cx>,
+    n: &'cx super::ComputedPropName<'cx>,
+) {
+    v.visit_expr(n.expr);
+}
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
 pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     use super::ExprKind::*;
@@ -250,10 +306,30 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
         ObjectLit(n) => v.visit_object_lit(n),
         ArrowFn(n) => v.visit_arrow_fn_expr(n),
         Bin(n) => v.visit_bin_expr(n),
+        Call(n) => v.visit_call_expr(n),
         _ => {}
     }
 }
-pub fn visit_object_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLit<'cx>) {}
+pub fn visit_call_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CallExpr<'cx>) {
+    v.visit_expr(n.expr);
+    for arg in n.args {
+        v.visit_expr(arg);
+    }
+}
+pub fn visit_object_lit<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ObjectLit<'cx>) {
+    for member in n.members {
+        use crate::ObjectMemberKind::*;
+        match member.kind {
+            PropAssignment(node) => {
+                v.visit_prop_name(node.name);
+                v.visit_expr(node.init);
+            }
+            _ => {
+                // TODO:
+            }
+        }
+    }
+}
 pub fn visit_try_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TryStmt<'cx>) {
     v.visit_block_stmt(n.try_block);
     if let Some(catch) = n.catch_clause {
@@ -271,22 +347,16 @@ pub fn visit_block_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BlockStmt
         v.visit_stmt(stmt);
     }
 }
-
 pub fn visit_expr_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ExprStmt<'cx>) {
     v.visit_expr(n.expr);
 }
-
 pub fn visit_arrow_fn_expr<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ArrowFnExpr<'cx>) {}
-
 pub fn visit_bin_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::BinExpr<'cx>) {
     v.visit_expr(n.left);
     v.visit_expr(n.right);
 }
-
 pub fn visit_string_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::StringLit) {}
-
 pub fn visit_while_stmt<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::WhileStmt<'cx>) {}
-
 pub fn visit_if_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::IfStmt<'cx>) {
     v.visit_expr(n.expr);
     v.visit_stmt(n.then);
@@ -353,6 +423,14 @@ make_visitor!(
     (visit_string_lit, super::StringLit),
     (visit_while_stmt, super::WhileStmt<'cx>),
     (visit_if_stmt, super::IfStmt<'cx>),
+    (visit_enum_decl, super::EnumDecl<'cx>),
+    (visit_enum_member, super::EnumMember<'cx>),
+    (visit_prop_name, super::PropName<'cx>),
+    (visit_computed_prop_name, super::ComputedPropName<'cx>),
+    (visit_param_decl, super::ParamDecl<'cx>),
+    (visit_fn_decl, super::FnDecl<'cx>),
+    (visit_binding, super::Binding<'cx>),
+    (visit_call_expr, super::CallExpr<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

@@ -1,0 +1,11 @@
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/superCallInsideClassDeclaration/index.ts:10:5]
+ 10 │ constructor
+    · ───────────
+    ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/superCallInsideClassDeclaration/index.ts:24:5]
+ 24 │ constructor
+    · ───────────
+    ╰────

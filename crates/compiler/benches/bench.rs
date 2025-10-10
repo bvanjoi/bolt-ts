@@ -1,3 +1,5 @@
+use project_root::get_project_root;
+
 const BENCH_REPO: &str = "https://github.com/bvanjoi/typescript-compiler-bench";
 const BENCH_CASE_DIR_NAME: &str = "benchmarks";
 
@@ -39,16 +41,14 @@ impl Case {
 
 fn list_bench_case(root: &std::path::Path) -> Vec<Case> {
     let benchmarks = root.join(BENCH_CASE_DIR_NAME);
-    let mut cases = vec![];
-    for entry in std::fs::read_dir(benchmarks).unwrap() {
-        let entry = entry.unwrap();
-        let case = Case::new(
-            entry.file_name().to_string_lossy().to_string(),
-            entry.path(),
-        );
-        cases.push(case);
-    }
-    cases
+    let dir = std::fs::read_dir(benchmarks).unwrap();
+    dir.into_iter()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            Case::new(file_name, entry.path())
+        })
+        .collect()
 }
 
 fn setup() -> Vec<Case> {
@@ -68,7 +68,29 @@ fn compile(input_dir: std::path::PathBuf) {
         let raw: bolt_ts_config::RawTsConfig = serde_json::from_str(&s).unwrap();
         raw.normalize()
     };
-    let output = bolt_ts_compiler::eval_from_real_path(input_dir, &tsconfig);
+    // ==== atom init ====
+    let mut atoms = bolt_ts_compiler::init_atom();
+    // ==== fs init ====
+    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let default_lib_dir = {
+        let root = get_project_root().unwrap();
+        root.join("crates")
+            .join("libs")
+            .join("src")
+            .join("declared_file")
+    };
+    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+        .iter()
+        .map(|filename| default_lib_dir.join(filename))
+        .collect::<Vec<_>>();
+    let output = bolt_ts_compiler::eval_with_fs(
+        input_dir,
+        &tsconfig,
+        default_lib_dir,
+        default_libs,
+        fs,
+        atoms,
+    );
     assert!(output.diags.is_empty());
 }
 

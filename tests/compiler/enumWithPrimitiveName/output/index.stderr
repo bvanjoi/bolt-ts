@@ -1,0 +1,17 @@
+  × Enum name cannot be 'string'.
+   ╭─[../../tests/compiler/enumWithPrimitiveName/index.ts:3:6]
+ 3 │ string
+   · ──────
+   ╰────
+
+  × Enum name cannot be 'number'.
+   ╭─[../../tests/compiler/enumWithPrimitiveName/index.ts:5:6]
+ 5 │ number
+   · ──────
+   ╰────
+
+  × Enum name cannot be 'any'.
+   ╭─[../../tests/compiler/enumWithPrimitiveName/index.ts:7:6]
+ 7 │ any
+   · ───
+   ╰────

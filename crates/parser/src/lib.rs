@@ -23,9 +23,8 @@ mod ty;
 mod unicode;
 mod utils;
 
-use bolt_ts_ast::Visitor;
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
+use bolt_ts_ast::{Visitor, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;

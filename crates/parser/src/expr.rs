@@ -103,7 +103,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         // TODO: mods
         // TODO: isAsync
-        let ty_params = self.parse_ty_params()?;
+        let ty_params = self.parse_ty_params();
         if self.token.kind != TokenKind::LParen {
             return Ok(None);
         }
@@ -115,7 +115,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             params = self.alloc([]);
         } else {
-            params = self.parse_params_worker(allow_ambiguity)?;
+            params = self.parse_params_worker(allow_ambiguity);
             if !self.expect(TokenKind::RParen) && !allow_ambiguity {
                 return Err(());
             }
@@ -156,8 +156,8 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_arrow_fn_expr_body(&mut self) -> PResult<ast::ArrowFnExprBody<'cx>> {
         if self.token.kind == TokenKind::LBrace {
-            self.parse_fn_block()
-                .map(|block| ast::ArrowFnExprBody::Block(block.unwrap()))
+            let block = self.parse_fn_block().unwrap();
+            Ok(ast::ArrowFnExprBody::Block(block))
         } else {
             self.parse_assign_expr_or_higher(false)
                 .map(ast::ArrowFnExprBody::Expr)
@@ -503,7 +503,7 @@ impl<'cx> ParserState<'cx, '_> {
             Ok(expr)
         } else {
             self.expect(TokenKind::Dot);
-            let name = self.parse_right_side_of_dot(true)?;
+            let name = self.parse_right_side_of_dot(true);
             let id = self.next_node_id();
             let expr = self.alloc(ast::PropAccessExpr {
                 id,
@@ -611,7 +611,7 @@ impl<'cx> ParserState<'cx, '_> {
                     ty_args = expr_with_ty_args.ty_args;
                     expr = expr_with_ty_args.expr;
                 }
-                let args = self.parse_args()?;
+                let args = self.parse_args();
                 if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
                     todo!("call chain")
                 } else {
@@ -630,14 +630,14 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    fn parse_args(&mut self) -> PResult<ast::Exprs<'cx>> {
+    fn parse_args(&mut self) -> ast::Exprs<'cx> {
         self.expect(TokenKind::LParen);
         let args = self.parse_delimited_list::<false, _>(
             parsing_ctx::ParsingContext::ARGUMENT_EXPRESSIONS,
             Self::parse_arg,
         );
         self.expect(TokenKind::RParen);
-        Ok(args)
+        args
     }
 
     fn parse_arg(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
@@ -662,11 +662,11 @@ impl<'cx> ParserState<'cx, '_> {
         // } else {
 
         // };
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
+        let ty_params = self.parse_ty_params();
+        let params = self.parse_params();
         self.check_params(params, false);
         let ty = self.parse_ty_anno()?;
-        let body = self.parse_fn_block()?.unwrap();
+        let body = self.parse_fn_block().unwrap();
         let node = self.create_object_method_member(start, name, ty_params, params, ty, body);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
@@ -691,7 +691,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers::<false, false>(false)?;
+        let mods = self.parse_modifiers::<false, false>(false);
 
         let invalid_modifiers = |this: &mut Self| {
             if let Some(ms) = &mods {
@@ -719,7 +719,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
-        let name = self.parse_prop_name(true)?;
+        let name = self.parse_prop_name(true);
         if let Some(question_token) = self.parse_optional(TokenKind::Question) {
             let error = errors::AnObjectMemberCannotBeDeclaredOptional {
                 span: question_token.span,
@@ -792,8 +792,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::RBracket,
             open_bracket_parsed,
             start as usize,
-        )
-        .unwrap();
+        );
         let id = self.next_node_id();
         let lit = self.alloc(ast::ArrayLit {
             id,
@@ -925,7 +924,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             LBracket => Ok(self.parse_array_lit()),
             LParen => self.parse_paren_expr(),
-            LBrace => self.parse_object_lit(),
+            LBrace => Ok(self.parse_object_lit()),
             Function => self.parse_fn_expr(),
             New => self.parse_new_expr(),
             Class => self.parse_class_expr(),
@@ -1059,10 +1058,10 @@ impl<'cx> ParserState<'cx, '_> {
             expr = e.expr;
         }
         let args = if self.token.kind == LParen {
-            self.parse_args().map(Some)
+            Some(self.parse_args())
         } else {
-            Ok(None)
-        }?;
+            None
+        };
         let id = self.next_node_id();
         let new = self.alloc(ast::NewExpr {
             id,
@@ -1086,7 +1085,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    fn parse_object_lit(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    fn parse_object_lit(&mut self) -> &'cx ast::Expr<'cx> {
         use bolt_ts_ast::TokenKind::*;
         let start = self.token.start();
         let open = LBrace;
@@ -1096,7 +1095,7 @@ impl<'cx> ParserState<'cx, '_> {
             Self::parse_object_lit_member,
         );
         let close = RBrace;
-        self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize)?;
+        self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize);
         let id = self.next_node_id();
         let lit = self.alloc(ast::ObjectLit {
             id,
@@ -1107,7 +1106,7 @@ impl<'cx> ParserState<'cx, '_> {
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ObjectLit(lit),
         });
-        Ok(expr)
+        expr
     }
 
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
@@ -1146,7 +1145,7 @@ impl<'cx> ParserState<'cx, '_> {
         expr: &'cx ast::Expr<'cx>,
         question_dot: Option<bolt_ts_span::Span>,
     ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
-        let name = self.parse_right_side_of_dot(true)?;
+        let name = self.parse_right_side_of_dot(true);
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let prop = if is_optional_chain {
             self.create_prop_access_chain(start as u32, expr, question_dot, name)

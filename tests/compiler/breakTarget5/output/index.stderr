@@ -1,0 +1,5 @@
+  × Jump target cannot cross function boundary.
+   ╭─[../../tests/compiler/breakTarget5/index.ts:9:13]
+ 9 │ target
+   · ──────
+   ╰────

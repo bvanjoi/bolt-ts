@@ -441,3 +441,10 @@ pub(super) struct AnIndexSignatureParameterCannotHaveAnInitializer {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Jump target cannot cross function boundary.")]
+pub(super) struct JumpTargetCannotCrossFunctionBoundary {
+    #[label(primary)]
+    pub(super) span: Span,
+}

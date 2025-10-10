@@ -1,0 +1,29 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericInference2/index.ts:26:5]
+ 26 │ x_v1
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericInference2/index.ts:28:5]
+ 28 │ age_v1
+    · ──────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericInference2/index.ts:32:5]
+ 32 │ zz_v1
+    · ─────
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericInference2/index.ts:34:5]
+ 34 │ yy_v1
+    · ─────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericInference2/index.ts:36:5]
+ 36 │ rr_v1
+    · ─────
+    ╰────

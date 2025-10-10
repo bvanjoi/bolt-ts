@@ -241,7 +241,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         let mut expr = self.alloc(bolt_ts_ast::Expr { kind });
         while self.parse_optional(TokenKind::Dot).is_some() {
-            let name = self.parse_right_side_of_dot(true)?;
+            let name = self.parse_right_side_of_dot(true);
             let prop = self.create_prop_access_expr(start, expr, name);
             expr = self.alloc(bolt_ts_ast::Expr {
                 kind: ExprKind::PropAccess(prop),
@@ -260,10 +260,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.scan_jsx_ident();
         let is_this = self.token.kind == TokenKind::This;
-        let tag_name = self.parse_identifier_name_error_or_unicode_escape_sequence()?;
+        let tag_name = self.parse_identifier_name_error_or_unicode_escape_sequence();
         Ok(if self.parse_optional(TokenKind::Colon).is_some() {
             self.scan_jsx_ident();
-            let name = self.parse_identifier_name_error_or_unicode_escape_sequence()?;
+            let name = self.parse_identifier_name_error_or_unicode_escape_sequence();
             let span = self.new_span(start);
             JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
         } else if is_this {
@@ -361,10 +361,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
         let start = self.token.start();
         self.scan_jsx_ident();
-        let name = self.parse_identifier_name_error_or_unicode_escape_sequence()?;
+        let name = self.parse_identifier_name_error_or_unicode_escape_sequence();
         Ok(if self.parse_optional(TokenKind::Colon).is_some() {
             self.scan_jsx_ident();
-            let n = self.parse_identifier_name_error_or_unicode_escape_sequence()?;
+            let n = self.parse_identifier_name_error_or_unicode_escape_sequence();
             let span = self.new_span(start);
             bolt_ts_ast::JsxAttrName::Ns(self.create_jsx_ns_name(name, n, span))
         } else {

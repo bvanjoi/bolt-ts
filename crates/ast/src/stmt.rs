@@ -536,6 +536,7 @@ pub struct ClassCtor<'cx> {
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub ty_params: Option<TyParams<'cx>>,
+    pub name_span: Span,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,

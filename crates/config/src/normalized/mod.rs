@@ -29,10 +29,18 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Debug)]
+pub enum AllowUnusedLabels {
+    Allow,
+    Deny,
+    Warning,
+}
+
 normalized_option!(
     NormalizedCompilerOptions,
     (out_dir, OutDir),
     (target, Target),
+    (allow_unused_labels, AllowUnusedLabels),
     (flags, CompilerOptionFlags),
 );
 

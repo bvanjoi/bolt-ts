@@ -347,6 +347,7 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ty_params: Option<ast::TyParams<'cx>>,
+        name_span: Span,
         params: ast::ParamsDecl<'cx>,
         ret: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
@@ -358,6 +359,7 @@ impl<'cx> ParserState<'cx, '_> {
             span,
             modifiers,
             ty_params,
+            name_span,
             params,
             ret,
             body,
@@ -743,5 +745,24 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(id, ast::Node::IndexSigDecl(node));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
+    }
+
+    #[inline(always)]
+    pub fn create_labeled_stmt(
+        &mut self,
+        start: u32,
+        label: &'cx ast::Ident,
+        stmt: &'cx ast::Stmt<'cx>,
+    ) -> &'cx ast::LabeledStmt<'cx> {
+        let id = self.next_node_id();
+        let stmt = self.alloc(ast::LabeledStmt {
+            id,
+            span: self.new_span(start),
+            label,
+            stmt,
+        });
+        self.nodes.insert(id, ast::Node::LabeledStmt(stmt));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        stmt
     }
 }

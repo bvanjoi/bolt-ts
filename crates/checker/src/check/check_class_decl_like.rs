@@ -23,8 +23,71 @@ bitflags::bitflags! {
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn class_decl_extends_null(&mut self, class: ast::NodeID) -> bool {
+        let class_symbol = self.get_symbol_of_decl(class);
+        let class_instance_ty = self.get_declared_ty_of_symbol(class_symbol);
+        let base_ctor_ty = self.get_base_constructor_type_of_class(class_instance_ty);
+        base_ctor_ty == self.null_widening_ty
+    }
+
+    fn find_first_super_call_in_ctor_body(
+        &self,
+        ctor: &'cx ast::ClassCtor<'cx>,
+    ) -> Option<&'cx ast::CallExpr<'cx>> {
+        let body = ctor.body?;
+
+        struct FindFirstSuperCall<'cx> {
+            ret: Option<&'cx ast::CallExpr<'cx>>,
+        }
+
+        use ast::visitor::Visitor;
+        impl<'cx> Visitor<'cx> for FindFirstSuperCall<'cx> {
+            fn visit_fn_decl(&mut self, _: &'cx bolt_ts_ast::FnDecl<'cx>) {}
+            fn visit_class_decl(&mut self, _: &'cx bolt_ts_ast::ClassDecl<'cx>) {}
+            fn visit_call_expr(&mut self, node: &'cx bolt_ts_ast::CallExpr<'cx>) {
+                if let ast::ExprKind::Super(_) = node.expr.kind {
+                    debug_assert!(self.ret.is_none());
+                    self.ret = Some(node);
+                    return;
+                }
+                ast::visitor::visit_call_expr(self, node);
+            }
+            fn visit_block_stmt(&mut self, node: &'cx bolt_ts_ast::BlockStmt<'cx>) {
+                for stmt in node.stmts {
+                    self.visit_stmt(stmt);
+                    if self.ret.is_some() {
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut v = FindFirstSuperCall { ret: None };
+        v.visit_block_stmt(body);
+
+        v.ret
+    }
+
     fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
         self.check_fn_like_decl(ctor);
+
+        let containing_class_decl = self.parent(ctor.id).unwrap();
+        let extends = match self.p.node(containing_class_decl) {
+            ast::Node::ClassExpr(c) => c.extends,
+            ast::Node::ClassDecl(c) => c.extends,
+            _ => unreachable!(),
+        };
+        if let Some(extends) = extends {
+            let extends_null = self.class_decl_extends_null(containing_class_decl);
+            if let Some(first_super_call) = self.find_first_super_call_in_ctor_body(ctor) {
+                // TODO:
+            } else if !extends_null {
+                let error = errors::ConstructorsForDerivedClassesMustContainASuperCall {
+                    span: ctor.name_span,
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn check_class_method_elem(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
@@ -270,7 +333,7 @@ impl<'cx> TyChecker<'cx> {
                                 class: base_ty.to_string(self),
                             };
                             self.push_error(Box::new(error));
-                        } 
+                        }
                     }
                 }
                 // ====

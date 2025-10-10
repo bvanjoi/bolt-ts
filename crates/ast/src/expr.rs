@@ -148,6 +148,17 @@ impl<'cx> Expr<'cx> {
         Self::skip_outer_expr(expr)
     }
 
+    pub fn as_super_call(&self) -> Option<&'cx CallExpr<'cx>> {
+        let ExprKind::Call(c) = &self.kind else {
+            return None;
+        };
+        if let ExprKind::Super(_) = c.expr.kind {
+            Some(c)
+        } else {
+            None
+        }
+    }
+
     pub fn is_super_prop(&self) -> bool {
         match self.kind {
             ExprKind::PropAccess(p) => matches!(p.expr.kind, ExprKind::Super(_)),

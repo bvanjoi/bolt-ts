@@ -122,11 +122,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.expect(TokenKind::Function);
                 let name =
                     mode.parse_name(this, modifiers.map(|ms| ms.flags).unwrap_or_default())?;
-                let ty_params = this.parse_ty_params()?;
-                let params = this.parse_params()?;
+                let ty_params = this.parse_ty_params();
+                let params = this.parse_params();
                 this.check_params(params, false);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
-                let body = this.parse_fn_block()?;
+                let body = this.parse_fn_block();
                 let span = this.new_span(start);
                 Ok(mode.finish(this, span, modifiers, name, ty_params, params, ret_ty, body))
             },

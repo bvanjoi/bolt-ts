@@ -87,20 +87,6 @@ pub fn init_atom() -> AtomIntern {
     bolt_ts_ast::keyword::init_atom_map()
 }
 
-pub fn eval_from_real_path(root: PathBuf, tsconfig: &NormalizedTsConfig) -> Output {
-    // ==== atom init ====
-    let mut atoms = self::init_atom();
-
-    // ==== fs init ====
-    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
-    let exe_dir = current_exe_dir();
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
-        .iter()
-        .map(|filename| exe_dir.join(filename))
-        .collect::<Vec<_>>();
-    eval_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
-}
-
 pub fn eval_from_memory_path(
     cwd: String,
     default_lib_dir: String,

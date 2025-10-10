@@ -44,7 +44,7 @@ expect-test = "1.5.1"
 compile-test = { path = "../../tools/compile-test" }
 dir-test = "0.4.1"
 git2 = "0.20.2"
-divan = { package = "codspeed-divan-compat", version = "3.0.4" }
+divan = { package = "codspeed-divan-compat", version = "4.0.0" }
 
 [build-dependencies]
 project-root = "0.2.2"
