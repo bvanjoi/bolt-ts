@@ -837,3 +837,12 @@ pub(super) struct SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerived
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Only public and protected methods of the base class are accessible via the 'super' keyword."
+)]
+pub(super) struct OnlyPublicAndProtectedMethodsOfTheBaseClassAreAccessibleViaTheSuperKeyword {
+    #[label(primary)]
+    pub span: Span,
+}
