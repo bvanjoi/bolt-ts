@@ -1,5 +1,6 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::FlowFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::Target;
@@ -184,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
                     self.false_ty
                 }
             }
-            NullLit(_) => self.null_ty,
+            NullLit(_) => self.null_widening_ty,
             Ident(ident) => self.check_ident(ident),
             ArrayLit(lit) => self.check_array_lit(lit, false),
             Omit(_) => self.undefined_ty,
@@ -604,7 +605,82 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
         // TODO: check truthiness of ty
-        (self.check_expr(expr)) as _
+        self.check_expr(expr)
+    }
+
+    fn is_post_super_flow_node(
+        &self,
+        mut flow: bolt_ts_binder::FlowID,
+        mut no_cache_check: bool,
+    ) -> bool {
+        loop {
+            let flow_node = self.flow_node(flow);
+            let flags = flow_node.flags;
+            if flags.intersects(FlowFlags::SHARED) {
+                if !no_cache_check {
+                    // TODO:
+                }
+                no_cache_check = true;
+            }
+            if flags.intersects(
+                FlowFlags::ASSIGNMENT
+                    .union(FlowFlags::CONDITION)
+                    .union(FlowFlags::ARRAY_MUTATION)
+                    .union(FlowFlags::SWITCH_CLAUSE),
+            ) {
+                flow = match flow_node.kind {
+                    bolt_ts_binder::FlowNodeKind::Cond(n) => n.antecedent,
+                    bolt_ts_binder::FlowNodeKind::Assign(n) => n.antecedent,
+                    _ => unreachable!(),
+                };
+            } else if flags.intersects(FlowFlags::CALL) {
+                let bolt_ts_binder::FlowNodeKind::Call(n) = flow_node.kind else {
+                    unreachable!()
+                };
+                if matches!(n.node.expr.kind, ast::ExprKind::Super(_)) {
+                    return true;
+                }
+                flow = n.antecedent;
+            } else if flags.intersects(FlowFlags::BRANCH_LABEL) {
+                let bolt_ts_binder::FlowNodeKind::Label(n) = &flow_node.kind else {
+                    unreachable!()
+                };
+                return n.antecedent.as_ref().is_some_and(|list| {
+                    list.iter()
+                        .all(|item| self.is_post_super_flow_node(*item, false))
+                });
+            } else if flags.intersects(FlowFlags::LOOP_LABEL) {
+                let bolt_ts_binder::FlowNodeKind::Label(n) = &flow_node.kind else {
+                    unreachable!()
+                };
+                flow = n.antecedent.as_ref().unwrap()[0];
+            } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
+                todo!()
+            } else {
+                return flags.intersects(FlowFlags::UNREACHABLE);
+            }
+        }
+    }
+
+    fn check_this_before_super(
+        &mut self,
+        expr: &'cx ast::ThisExpr,
+        container: &'cx ast::ClassCtor,
+        push_error: impl FnOnce(&mut Self, bolt_ts_span::Span),
+    ) {
+        let containing_class_decl = self.parent(container.id).unwrap();
+        let has_base_ty_node = match self.p.node(containing_class_decl) {
+            ast::Node::ClassDecl(c) => c.extends.is_some(),
+            ast::Node::ClassExpr(c) => c.extends.is_some(),
+            _ => unreachable!(),
+        };
+        if has_base_ty_node
+            && !self.class_decl_extends_null(containing_class_decl)
+            && let Some(flow) = self.get_flow_node_of_node(expr.id)
+            && !self.is_post_super_flow_node(flow, false)
+        {
+            push_error(self, expr.span);
+        }
     }
 
     fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
@@ -617,8 +693,14 @@ impl<'cx> TyChecker<'cx> {
         let mut captured_by_arrow_fn = false;
         let this_in_computed_prop_name = false;
 
-        if container.is_class_ctor() {
-            // TODO: `check_this_before_super`
+        if let Some(ctor) = container.as_class_ctor() {
+            self.check_this_before_super(expr, ctor, |this, span| {
+                let error =
+                    errors::SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
+                        span,
+                    };
+                this.push_error(Box::new(error));
+            });
         }
 
         loop {

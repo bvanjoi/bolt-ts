@@ -1,0 +1,26 @@
+  × Property 'S1' does not exist on type 'MyBase<MyDerived>'.
+    ╭─[../../tests/compiler/superAccess/index.ts:11:24]
+ 11 │ S1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'MyBase<MyDerived>.S1' instead?
+    ╭─[../../tests/compiler/superAccess/index.ts:11:24]
+ 11 │ S1
+    · ──
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superAccess/index.ts:13:18]
+ 13 │ super.S2
+    · ────────
+    ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superAccess/index.ts:15:18]
+ 15 │ super.f
+    · ───────
+    ╰────

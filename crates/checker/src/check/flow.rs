@@ -29,7 +29,7 @@ impl<'cx> TyChecker<'cx> {
         self.flow_nodes[node.module().as_usize()].get_flow_node_of_node(node)
     }
 
-    fn flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
+    pub(super) fn flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
         self.flow_nodes[id.module().as_usize()].get_flow_node(id)
     }
 

@@ -373,6 +373,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             undefined_ty
         };
+
         let undefined_widening_ty = if config.strict_null_checks() {
             undefined_ty
         } else {
@@ -1488,6 +1489,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_prop_access_expr_or_qualified_name(
         &mut self,
         node: ast::NodeID,
+        left: ast::NodeID,
         left_ty: &'cx ty::Ty<'cx>,
         right: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
@@ -1526,7 +1528,14 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_node_links(node).set_resolved_symbol(prop);
         }
 
-        self.check_prop_accessibility(node, false, false, apparent_left_ty, prop, true);
+        self.check_prop_accessibility(
+            node,
+            self.p.node(left).is_super_expr(),
+            false,
+            apparent_left_ty,
+            prop,
+            true,
+        );
 
         if self.node_query(node.module()).access_kind(node) == AccessKind::Write {
             self.get_write_type_of_symbol(prop)
@@ -1622,6 +1631,26 @@ impl<'cx> TyChecker<'cx> {
         self.check_prop_accessibility_at_loc(node, is_super, writing, ty, prop, error_node);
     }
 
+    fn symbol_hash_non_method_decl(&mut self, symbol: SymbolID) -> bool {
+        self.for_each_prop(symbol, |this, s| {
+            let s = this.symbol(s);
+            !s.flags.contains(SymbolFlags::METHOD)
+        })
+        .unwrap()
+    }
+
+    fn for_each_prop<T>(
+        &mut self,
+        prop: SymbolID,
+        f: impl FnOnce(&mut Self, SymbolID) -> T,
+    ) -> Option<T> {
+        if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
+            todo!()
+        } else {
+            Some(f(self, prop))
+        }
+    }
+
     fn check_prop_accessibility_at_loc(
         &mut self,
         loc: ast::NodeID,
@@ -1633,7 +1662,17 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         let flags = self.get_declaration_modifier_flags_from_symbol(prop, Some(writing));
         if is_super {
-            todo!()
+            if *self.config.target() < bolt_ts_config::Target::ES2015 {
+                if self.symbol_hash_non_method_decl(prop) {
+                    if let Some(error_node) = error_node {
+                        let error = errors::OnlyPublicAndProtectedMethodsOfTheBaseClassAreAccessibleViaTheSuperKeyword {
+                            span: self.p.node(error_node).span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    return false;
+                }
+            }
         }
 
         if flags.intersects(ast::ModifierKind::Private) {
@@ -1661,7 +1700,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let left_ty = self.check_non_null_expr(node.expr);
-        self.check_prop_access_expr_or_qualified_name(node.id, left_ty, node.name)
+        self.check_prop_access_expr_or_qualified_name(node.id, node.expr.id(), left_ty, node.name)
     }
 
     /// `param.constraint`
@@ -4010,15 +4049,15 @@ impl<'cx> TyChecker<'cx> {
         ty_args: Option<&'cx ast::Tys<'cx>>,
         loc: ast::NodeID,
     ) -> impl Iterator<Item = &'cx ty::Sig<'cx>> {
-        let count = ty_args.map_or(0, |t| t.list.len());
+        let ty_arg_count = ty_args.map_or(0, |t| t.list.len());
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         // TODO: is_javascript
         sigs.iter().filter_map(move |sig| {
             let min = self.get_min_ty_arg_count(sig.ty_params);
-            if count >= min
+            if ty_arg_count >= min
                 && sig
                     .ty_params
-                    .is_some_and(|ty_params| count <= ty_params.len())
+                    .is_none_or(|ty_params| ty_arg_count <= ty_params.len())
             {
                 Some(*sig)
             } else {

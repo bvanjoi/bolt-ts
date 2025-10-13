@@ -1,0 +1,6 @@
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesClass2/index.ts:24:6]
+ 24 │ c33
+    · ───
+    ╰────

@@ -1,21 +1,21 @@
 use bolt_ts_utils::FxIndexSet;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct Atom(u32);
 
 impl Atom {
+    #[inline]
     pub const fn new(id: u32) -> Self {
         Atom(id)
+    }
+
+    #[inline]
+    pub const fn as_u32(&self) -> u32 {
+        self.0
     }
 }
 
 impl nohash_hasher::IsEnabled for Atom {}
-
-impl std::hash::Hash for Atom {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.hash(state);
-    }
-}
 
 #[derive(Debug)]
 pub struct AtomIntern {

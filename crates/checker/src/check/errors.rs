@@ -823,3 +823,35 @@ pub(super) struct Property0IsUsedBeforeItsInitialization {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Constructors for derived classes must contain a 'super' call.")]
+pub(super) struct ConstructorsForDerivedClassesMustContainASuperCall {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'super' must be called before accessing 'this' in the constructor of a derived class.")]
+pub(super) struct SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Only public and protected methods of the base class are accessible via the 'super' keyword."
+)]
+pub(super) struct OnlyPublicAndProtectedMethodsOfTheBaseClassAreAccessibleViaTheSuperKeyword {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A namespace declaration cannot be located prior to a class or function with which it is merged."
+)]
+pub(super) struct ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+    #[label(primary)]
+    pub span: Span,
+}

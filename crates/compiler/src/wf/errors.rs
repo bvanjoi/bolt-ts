@@ -87,3 +87,11 @@ pub(super) struct TheBodyOfAnIfStatementCannotBeTheEmptyStatement {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Enum name cannot be '{name}'.")]
+pub(super) struct EnumNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

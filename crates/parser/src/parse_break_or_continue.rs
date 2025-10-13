@@ -71,7 +71,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let label = if self.can_parse_semi() {
             None
         } else {
-            Some(self.create_ident(true, None))
+            let label = self.create_ident(true, None);
+            if !self.labels.contains(&label.name) {
+                self.push_error(Box::new(errors::JumpTargetCannotCrossFunctionBoundary {
+                    span: label.span,
+                }));
+            }
+            Some(label)
         };
 
         self.parse_semi();

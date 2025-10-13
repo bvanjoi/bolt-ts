@@ -250,7 +250,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     pub(super) fn parse_named_imports_or_exports<Spec>(
         &mut self,
         kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
-    ) -> PResult<&'cx [Spec]> {
+    ) -> &'cx [Spec] {
         // `{ ... }`
         self.parse_bracketed_list::<false, _>(
             ParsingContext::IMPORT_OR_EXPORT_SPECIFIERS,

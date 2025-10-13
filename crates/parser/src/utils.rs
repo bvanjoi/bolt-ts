@@ -1,5 +1,3 @@
-use core::error;
-
 use bolt_ts_ast::{ModifierKind, NodeFlags};
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
@@ -28,16 +26,19 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
 }
 
 impl<'cx> ParserState<'cx, '_> {
-    pub(super) fn parse_fn_block(&mut self) -> PResult<Option<&'cx ast::BlockStmt<'cx>>> {
+    pub(super) fn parse_fn_block(&mut self) -> Option<&'cx ast::BlockStmt<'cx>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
-            return Ok(None);
+            None
+        } else {
+            let old_labels = std::mem::take(&mut self.labels);
+            let ret = self.do_outside_of_context(
+                NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+                |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
+            );
+            self.labels = old_labels;
+            Some(ret)
         }
-        self.do_outside_of_context(
-            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
-            |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
-        )
-        .map(Some)
     }
 
     pub(super) fn parse_expected_matching_brackets(
@@ -46,10 +47,10 @@ impl<'cx> ParserState<'cx, '_> {
         close: TokenKind,
         open_parsed: bool,
         open_pos: usize,
-    ) -> PResult<()> {
+    ) {
         if self.token.kind == close {
             self.next_token();
-            return Ok(());
+            return;
         }
 
         let mut expected_error = errors::KindExpected {
@@ -66,10 +67,9 @@ impl<'cx> ParserState<'cx, '_> {
             });
         }
         self.push_error(Box::new(expected_error));
-        Ok(())
     }
 
-    pub(super) fn parse_block(&mut self) -> PResult<&'cx ast::BlockStmt<'cx>> {
+    pub(super) fn parse_block(&mut self) -> &'cx ast::BlockStmt<'cx> {
         let start = self.token.start();
         use bolt_ts_ast::TokenKind::*;
         let open = LBrace;
@@ -77,7 +77,7 @@ impl<'cx> ParserState<'cx, '_> {
         let saved_external_module_indicator = self.external_module_indicator;
         let stmts = self.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
         self.external_module_indicator = saved_external_module_indicator;
-        self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize)?;
+        self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
         let id = self.next_node_id();
         let stmt = self.alloc(ast::BlockStmt {
             id,
@@ -85,10 +85,10 @@ impl<'cx> ParserState<'cx, '_> {
             stmts,
         });
         self.nodes.insert(id, ast::Node::BlockStmt(stmt));
-        Ok(stmt)
+        stmt
     }
 
-    pub(super) fn parse_ty_params(&mut self) -> PResult<Option<ast::TyParams<'cx>>> {
+    pub(super) fn parse_ty_params(&mut self) -> Option<ast::TyParams<'cx>> {
         if self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list::<false, _>(
@@ -96,18 +96,18 @@ impl<'cx> ParserState<'cx, '_> {
                 TokenKind::Less,
                 Self::parse_ty_param,
                 TokenKind::Great,
-            )?;
+            );
             if ty_params.is_empty() {
                 let error = errors::TypeParameterListCannotBeEmpty {
                     span: less_token_span,
                 };
                 self.push_error(Box::new(error));
-                Ok(None)
+                None
             } else {
-                Ok(Some(ty_params))
+                Some(ty_params)
             }
         } else {
-            Ok(None)
+            None
         }
     }
 
@@ -260,9 +260,7 @@ impl<'cx> ParserState<'cx, '_> {
             true
         } else if matches!(t, Public | Private | Protected | Static | Readonly) {
             self.is_start_of_decl()
-                || !self
-                    .lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line)
-                    .unwrap_or_default()
+                || !self.lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line)
         } else {
             self.is_start_of_expr()
         }
@@ -321,7 +319,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_prop_name(
         &mut self,
         allow_computed_prop_names: bool,
-    ) -> PResult<&'cx ast::PropName<'cx>> {
+    ) -> &'cx ast::PropName<'cx> {
         let kind = match self.token.kind {
             TokenKind::String => {
                 let raw = self.parse_string_lit();
@@ -341,23 +339,25 @@ impl<'cx> ParserState<'cx, '_> {
         };
         if let Some(kind) = kind {
             let prop_name = self.alloc(ast::PropName { kind });
-            Ok(prop_name)
+            prop_name
         } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
-            let expr = self.allow_in_and(Self::parse_expr)?;
+            let Ok(expr) = self.allow_in_and(Self::parse_expr) else {
+                todo!("remove error result")
+            };
             self.expect(TokenKind::RBracket);
             let kind = self.create_computed_prop_name(start, expr);
             let prop_name = self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
             });
-            Ok(prop_name)
+            prop_name
         } else {
             // TODO: Private
-            let ident = self.parse_ident_name()?;
+            let ident = self.parse_ident_name();
             let kind = ast::PropNameKind::Ident(ident);
             let prop_name = self.alloc(ast::PropName { kind });
-            Ok(prop_name)
+            prop_name
         }
     }
 
@@ -377,14 +377,14 @@ impl<'cx> ParserState<'cx, '_> {
     >(
         &mut self,
         allow_decorators: bool,
-    ) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
+    ) -> Option<&'cx ast::Modifiers<'cx>> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let has_seen_static_modifier = false;
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
         loop {
-            let Ok(Some(m)) = self
+            let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
                     has_seen_static_modifier,
                 )
@@ -394,7 +394,7 @@ impl<'cx> ParserState<'cx, '_> {
             list.push(m);
         }
         if list.is_empty() {
-            Ok(None)
+            None
         } else {
             let span = self.new_span(start);
             let flags = list
@@ -405,13 +405,13 @@ impl<'cx> ParserState<'cx, '_> {
                 flags,
                 list: self.alloc(list),
             });
-            Ok(Some(ms))
+            Some(ms)
         }
     }
 
-    pub(super) fn parse_ident_name(&mut self) -> PResult<&'cx ast::Ident> {
+    pub(super) fn parse_ident_name(&mut self) -> &'cx ast::Ident {
         let is_ident = self.token.kind.is_ident_or_keyword();
-        Ok(self.create_ident(is_ident, None))
+        self.create_ident(is_ident, None)
     }
 
     #[inline(always)]
@@ -467,7 +467,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_params_worker(
         &mut self,
         allow_ambiguity_name: bool,
-    ) -> PResult<ast::ParamsDecl<'cx>> {
+    ) -> ast::ParamsDecl<'cx> {
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
             Self::parse_param(this, allow_ambiguity_name)
@@ -495,17 +495,17 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
         }
-        Ok(params)
+        params
     }
 
-    pub(super) fn parse_params(&mut self) -> PResult<ast::ParamsDecl<'cx>> {
+    pub(super) fn parse_params(&mut self) -> ast::ParamsDecl<'cx> {
         use bolt_ts_ast::TokenKind::*;
         if !self.expect(LParen) {
-            return Ok(self.alloc(vec![]));
+            return &[];
         }
-        let params = self.parse_params_worker(true)?;
+        let params = self.parse_params_worker(true);
         self.expect(RParen);
-        Ok(params)
+        params
     }
 
     pub(super) fn parse_binding_with_ident(
@@ -533,7 +533,7 @@ impl<'cx> ParserState<'cx, '_> {
         allow_ambiguity_name: bool,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
-        let modifiers = self.parse_modifiers::<false, false>(false)?;
+        let modifiers = self.parse_modifiers::<false, false>(false);
         const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
             enumflags2::make_bitflags!(ModifierKind::{Static | Export});
         if modifiers
@@ -581,6 +581,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Err(());
         }
         let name = self.parse_name_of_param()?;
+        self.check_contextual_binding(name);
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
             && ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY)
@@ -629,7 +630,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers::<false, false>(false)?;
+                this.parse_modifiers::<false, false>(false);
             }
             if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();
@@ -802,12 +803,12 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name(false)?;
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
+        let name = self.parse_prop_name(false);
+        let ty_params = self.parse_ty_params();
+        let params = self.parse_params();
         // TODO: assert params.is_none
         let ty = self.parse_ret_ty(true)?;
-        let mut body = self.parse_fn_block()?;
+        let mut body = self.parse_fn_block();
         if ambient {
             if let Some(body) = body {
                 let error =
@@ -835,11 +836,11 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name(false)?;
-        let ty_params = self.parse_ty_params()?;
-        let params = self.parse_params()?;
+        let name = self.parse_prop_name(false);
+        let ty_params = self.parse_ty_params();
+        let params = self.parse_params();
         let ty = self.parse_ret_ty(true)?;
-        let mut body = self.parse_fn_block()?;
+        let mut body = self.parse_fn_block();
         if ambient {
             if let Some(body) = body {
                 let error =

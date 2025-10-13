@@ -1,0 +1,6 @@
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+   ╭─[../../tests/compiler/thisInSuperCall1/index.ts:9:15]
+ 9 │ this
+   · ────
+   ╰────
