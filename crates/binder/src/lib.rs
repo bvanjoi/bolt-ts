@@ -38,7 +38,7 @@ pub use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols, Symbo
 pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
-pub use crate::node_query::{AssignmentKind, NodeQuery};
+pub use crate::node_query::{AssignmentKind, ModuleInstanceState, NodeQuery};
 
 pub struct ResolveResult {
     pub symbols: Symbols,

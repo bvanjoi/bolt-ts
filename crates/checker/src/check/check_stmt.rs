@@ -1,4 +1,6 @@
 use bolt_ts_ast::NodeFlags;
+use bolt_ts_binder::ModuleInstanceState;
+use bolt_ts_binder::SymbolFlags;
 
 use crate::ty::TypeFlags;
 
@@ -231,12 +233,38 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
+        let state = self
+            .node_query(node.id.module())
+            .get_module_instance_state(node, None);
+        state == ModuleInstanceState::Instantiated
+    }
+
+    fn get_first_non_ambient_class_or_fn_decl(
+        &self,
+        s: &bolt_ts_binder::Symbol,
+    ) -> Option<ast::NodeID> {
+        let decls = s.decls.as_ref()?;
+        for decl in decls {
+            let n = self.p.node(*decl);
+            if (n.is_class_decl() || n.as_fn_decl().is_some_and(|f| f.body.is_some()))
+                && !self.p.node_flags(*decl).intersects(NodeFlags::AMBIENT)
+            {
+                return Some(*decl);
+            }
+        }
+
+        None
+    }
+
     fn check_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
         if let Some(block) = ns.block {
             for item in block.stmts {
                 self.check_stmt(item);
             }
         }
+
+        let in_ambient_context = self.p.node_flags(ns.id).contains(NodeFlags::AMBIENT);
 
         let is_global_augmentation = ns.is_global_scope_argument();
         let is_ambient_external_module = ns.is_ambient();
@@ -255,6 +283,26 @@ impl<'cx> TyChecker<'cx> {
                             errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
                                 span: lit.span,
                             };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
+        }
+
+        let symbol = self.get_symbol_of_decl(ns.id);
+        let s = self.symbol(symbol);
+        if s.flags.intersects(SymbolFlags::VALUE_MODULE)
+            && !in_ambient_context
+            && self.is_instantiate_module(ns)
+        {
+            if s.decls.as_ref().is_some_and(|decls| decls.len() > 1) {
+                if let Some(first_none_ambient_class_or_fn) =
+                    self.get_first_non_ambient_class_or_fn_decl(s)
+                {
+                    if ns.span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo() {
+                        let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+                            span: ns.name.span(),
+                        };
                         self.push_error(Box::new(error));
                     }
                 }

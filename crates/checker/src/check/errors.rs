@@ -846,3 +846,12 @@ pub(super) struct OnlyPublicAndProtectedMethodsOfTheBaseClassAreAccessibleViaThe
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A namespace declaration cannot be located prior to a class or function with which it is merged."
+)]
+pub(super) struct ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -1,0 +1,6 @@
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+   ╭─[../../tests/compiler/augmentedTypesModules3/index.ts:7:11]
+ 7 │ m3a
+   · ───
+   ╰────
