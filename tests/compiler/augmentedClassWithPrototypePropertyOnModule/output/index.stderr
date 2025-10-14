@@ -1,0 +1,10 @@
+  × Duplicate identifier 'prototype'.
+   ╭─[../../tests/compiler/augmentedClassWithPrototypePropertyOnModule/index.ts:5:9]
+ 5 │ prototype; // This should be error since prototype would be static property on class m
+   · ─────────
+ 6 │     //~^ ERROR: Duplicate identifier 'prototype'.
+ 7 │ }
+ 8 │ declare class m
+   ·               ┬
+   ·               ╰── Previous definition here
+   ╰────

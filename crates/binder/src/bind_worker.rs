@@ -632,11 +632,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             CallExpr(_) => {}
             ClassExpr(node) => {
                 self.in_strict_mode = true;
-                self.bind_class_like_decl(node, true);
+                self.bind_class_like_decl::<true>(node);
             }
             ClassDecl(node) => {
                 self.in_strict_mode = true;
-                self.bind_class_like_decl(node, false);
+                self.bind_class_like_decl::<false>(node);
             }
             InterfaceDecl(node) => self.bind_interface_decl(node),
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
