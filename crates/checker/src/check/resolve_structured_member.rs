@@ -589,9 +589,9 @@ impl<'cx> TyChecker<'cx> {
         }
         let true_constraint = self.get_inferred_true_ty_from_cond_ty(ty, cond_ty);
         let false_constraint = self.get_false_ty_from_cond_ty(ty, cond_ty);
-        let res = if self.is_type_any(Some(true_constraint)) {
+        let res = if self.is_type_any(true_constraint) {
             false_constraint
-        } else if self.is_type_any(Some(false_constraint)) {
+        } else if self.is_type_any(false_constraint) {
             true_constraint
         } else {
             self.get_union_ty(

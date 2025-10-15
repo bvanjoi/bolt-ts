@@ -1442,7 +1442,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         None
                     };
                     if let Some(constraint) = constraint
-                        && !self.c.is_type_any(Some(constraint))
+                        && !self.c.is_type_any(constraint)
                     {
                         let constraint_tys = if let Some(u) = constraint.kind.as_union() {
                             u.tys

@@ -93,7 +93,7 @@ impl<'cx> TyChecker<'cx> {
         mut parent_ty: &'cx ty::Ty<'cx>,
         no_tuple_bounds_check: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_any(Some(parent_ty)) {
+        if self.is_type_any(parent_ty) {
             return parent_ty;
         }
 

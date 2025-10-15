@@ -413,7 +413,7 @@ impl<'cx> TyChecker<'cx> {
         send_ty: &'cx ty::Ty<'cx>,
         error_node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_any(Some(input_ty)) {
+        if self.is_type_any(input_ty) {
             return input_ty;
         }
         self.get_iterated_ty_or_elem_ty(mode, input_ty, send_ty, error_node, true)
@@ -426,7 +426,7 @@ impl<'cx> TyChecker<'cx> {
         mode: IterationUse,
         error_node: Option<ast::NodeID>,
     ) -> ty::IterationTys<'cx> {
-        if self.is_type_any(Some(ty)) {
+        if self.is_type_any(ty) {
             return self.any_iteration_tys();
         }
 

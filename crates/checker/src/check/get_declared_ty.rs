@@ -148,7 +148,7 @@ impl<'cx> TyChecker<'cx> {
             let sig = sigs[0];
             if sig.ty_params.is_none() && sig.params.len() == 1 && sig.has_rest_param() {
                 let param_ty = self.get_type_of_param(sig.params[0]);
-                return self.is_type_any(Some(param_ty))
+                return self.is_type_any(param_ty)
                     || self
                         .get_element_ty_of_array_ty(param_ty)
                         .is_some_and(|t| t == self.any_ty);

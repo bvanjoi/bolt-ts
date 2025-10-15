@@ -2238,7 +2238,7 @@ impl<'cx> TyChecker<'cx> {
             || self.is_type_assignable_to_kind(right_ty, TypeFlags::STRING_LIKE, true)
         {
             Some(self.string_ty)
-        } else if self.is_type_any(Some(left_ty)) || self.is_type_any(Some(right_ty)) {
+        } else if self.is_type_any(left_ty) || self.is_type_any(right_ty) {
             Some(self.any_ty)
         } else {
             None
@@ -2399,7 +2399,7 @@ impl<'cx> TyChecker<'cx> {
                         self.get_base_ty_of_literal_ty_for_comparison(t)
                     };
                     self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
-                        if this.is_type_any(Some(l)) || this.is_type_any(Some(r)) {
+                        if this.is_type_any(l) || this.is_type_any(r) {
                             true
                         } else {
                             let left_assignable_to_number =
@@ -2843,8 +2843,8 @@ impl<'cx> TyChecker<'cx> {
         ty::ArrayTyMapper { mapper }
     }
 
-    pub(super) fn is_type_any(&self, ty: Option<&'cx ty::Ty<'cx>>) -> bool {
-        ty.is_some_and(|ty| ty.flags.intersects(TypeFlags::ANY))
+    pub(super) fn is_type_any(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags.intersects(TypeFlags::ANY)
     }
 
     fn get_non_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

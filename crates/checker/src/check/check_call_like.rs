@@ -205,8 +205,9 @@ impl<'cx> TyChecker<'cx> {
         pos: usize,
     ) -> &'cx ty::Ty<'cx> {
         let rest_ty = self.get_rest_ty_at_pos(source, pos, false);
-        let element_ty = self.get_element_ty_of_array_ty(rest_ty);
-        if self.is_type_any(element_ty) {
+        if let Some(element_ty) = self.get_element_ty_of_array_ty(rest_ty)
+            && self.is_type_any(element_ty)
+        {
             self.any_ty
         } else {
             rest_ty
@@ -214,10 +215,21 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn resolve_new_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
-        let mut ty = self.check_expr(expr.callee());
+        let mut expr_ty = self.check_expr(expr.callee());
+        if expr_ty == self.silent_never_ty {
+            todo!()
+        }
 
-        ty = self.get_apparent_ty(ty);
-        let ctor_sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
+        expr_ty = self.get_apparent_ty(expr_ty);
+
+        if self.is_error(expr_ty) {
+            // TODO: resolve_error_call
+            return self.unknown_sig();
+        } else if self.is_type_any(expr_ty) {
+            return self.any_sig();
+        }
+
+        let ctor_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Constructor);
         if !ctor_sigs.is_empty() {
             let abstract_sigs = ctor_sigs
                 .iter()
@@ -267,15 +279,13 @@ impl<'cx> TyChecker<'cx> {
             return self.resolve_call(expr, ctor_sigs);
         }
 
-        let call_sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
+        let call_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Call);
         if !call_sigs.is_empty() {
             let sig = self.resolve_call(expr, call_sigs);
             return sig;
         }
 
-        if ty != self.error_ty {
-            self.invocation_error(expr, ty, ty::SigKind::Constructor);
-        }
+        self.invocation_error(expr, expr_ty, ty::SigKind::Constructor);
         self.unknown_sig()
     }
 
@@ -296,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         if let Some(callee) = expr.as_super_call() {
             let super_ty = self.check_super_expr(callee);
-            if self.is_type_any(Some(super_ty)) {
+            if self.is_type_any(super_ty) {
                 for arg in expr.args() {
                     self.check_expr(arg);
                 }
