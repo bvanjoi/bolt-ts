@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:17:5]
+ 17 │ test2
+    · ─────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:22:5]
+ 22 │ test3
+    · ─────
+    ╰────

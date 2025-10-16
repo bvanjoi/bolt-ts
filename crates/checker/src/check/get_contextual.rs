@@ -289,7 +289,7 @@ impl<'cx> TyChecker<'cx> {
         let index_infos = self.get_index_infos_of_structured_ty(ty);
         let key_ty = name_ty.unwrap_or_else(|| {
             if let Some(atom) = name.as_atom() {
-                self.get_string_literal_type(atom)
+                self.get_string_literal_type_from_string(atom)
             } else if let Some(n) = name.as_numeric() {
                 self.get_number_literal_type_from_number(n)
             } else {
@@ -363,7 +363,7 @@ impl<'cx> TyChecker<'cx> {
         let m = ty.kind.expect_object_mapped();
         let property_name_ty = name_ty.unwrap_or_else(|| {
             if let Some(atom) = name.as_atom() {
-                self.get_string_literal_type(atom)
+                self.get_string_literal_type_from_string(atom)
             } else if let Some(n) = name.as_numeric() {
                 self.get_number_literal_type_from_number(n)
             } else {

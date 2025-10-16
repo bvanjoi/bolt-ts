@@ -209,6 +209,11 @@ as_ty_kind!(StringMapping, &StringMappingTy<'cx>, string_mapping_ty);
 as_ty_kind!(TemplateLit, &TemplateLitTy<'cx>, template_lit_ty);
 
 impl<'cx> Ty<'cx> {
+    fn print_enum_symbol(&'cx self, checker: &mut TyChecker<'cx>, symbol: SymbolID) -> String {
+        let name = checker.binder.symbol(symbol).name;
+        checker.atoms.get(name.expect_atom()).to_string()
+    }
+
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
         if self.kind.is_array(checker) {
             let ele = checker.get_ty_arguments(self)[0];
@@ -220,7 +225,10 @@ impl<'cx> Ty<'cx> {
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
             TyKind::NumberLit(lit) => {
-                if lit.is(f64::INFINITY) {
+                if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
+                    let symbol = lit.symbol.unwrap();
+                    self.print_enum_symbol(checker, symbol)
+                } else if lit.is(f64::INFINITY) {
                     "Infinity".to_string()
                 } else if lit.is(f64::NEG_INFINITY) {
                     "-Infinity".to_string()
@@ -229,7 +237,14 @@ impl<'cx> Ty<'cx> {
                 }
             }
             TyKind::BigIntLit(lit) => format!("{}n", checker.atoms.get(lit.val)),
-            TyKind::StringLit(lit) => format!("\"{}\"", checker.atoms.get(lit.val)),
+            TyKind::StringLit(lit) => {
+                if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
+                    let symbol = lit.symbol.unwrap();
+                    self.print_enum_symbol(checker, symbol)
+                } else {
+                    format!("\"{}\"", checker.atoms.get(lit.val))
+                }
+            }
             TyKind::Union(union) => union
                 .tys
                 .iter()
@@ -280,10 +295,7 @@ impl<'cx> Ty<'cx> {
                 s
             }
             TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
-            TyKind::Enum(n) => {
-                let name = checker.binder.symbol(n.symbol).name;
-                checker.atoms.get(name.expect_atom()).to_string()
-            }
+            TyKind::Enum(n) => self.print_enum_symbol(checker, n.symbol),
         }
     }
 
@@ -548,6 +560,7 @@ pub struct IntersectionTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct StringLitTy<'cx> {
     pub val: Atom,
+    pub symbol: Option<SymbolID>,
     pub links: FreshTyLinksID<'cx>,
 }
 

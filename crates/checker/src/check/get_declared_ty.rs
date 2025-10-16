@@ -1,4 +1,5 @@
 use bolt_ts_atom::Atom;
+use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
 
 use super::TyChecker;
@@ -39,13 +40,19 @@ impl<'cx> TyChecker<'cx> {
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             let ty = self.get_declared_ty_of_class_or_interface(id);
             Some(ty)
-        } else if flags.intersects(SymbolFlags::TYPE_ALIAS) {
+        } else if flags.contains(SymbolFlags::TYPE_ALIAS) {
             let ty = self.get_declared_ty_of_type_alias(id);
             Some(ty)
-        } else if flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+        } else if flags.contains(SymbolFlags::TYPE_PARAMETER) {
             let ty = self.get_declared_ty_of_ty_param(id);
             Some(ty)
-        } else if flags.intersects(SymbolFlags::ALIAS) {
+        } else if flags.intersects(SymbolFlags::ENUM) {
+            let ty = self.get_declared_ty_of_enum(id);
+            Some(ty)
+        } else if flags.contains(SymbolFlags::ENUM_MEMBER) {
+            let ty = self.get_declared_ty_of_enum_member(id);
+            Some(ty)
+        } else if flags.contains(SymbolFlags::ALIAS) {
             let ty = self.get_declared_ty_of_alias(id);
             Some(ty)
         } else {
@@ -502,6 +509,22 @@ impl<'cx> TyChecker<'cx> {
         self.get_node_links(member.id).expect_enum_member_value()
     }
 
+    fn get_enum_literal_ty(
+        &mut self,
+        value: EnumMemberValue,
+        symbol: SymbolID,
+        member_symbol: SymbolID,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: enum_literal_cache
+        match value {
+            EnumMemberValue::Number(n) => {
+                self.get_number_literal_type::<true>(F64Represent::new(n), Some(symbol))
+            }
+            EnumMemberValue::Str(atom) => self.get_string_literal_type::<true>(atom, Some(symbol)),
+            EnumMemberValue::Err => unreachable!(),
+        }
+    }
+
     fn get_declared_ty_of_enum(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         if let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return declared_ty;
@@ -525,14 +548,21 @@ impl<'cx> TyChecker<'cx> {
             for member in decl.members.iter() {
                 // TODO: has_bindable_name
                 let member_symbol = self.get_symbol_of_decl(member.id);
+                let _ = self.get_symbol_links(member_symbol);
                 let value = self.get_enum_member_value(member);
-                let member_ty = self.create_computed_enum_ty(member_symbol);
-                let member_ty = self.get_fresh_ty_of_literal_ty(member_ty);
-                member_ty_list.push(member_ty);
+                let member_ty = match value {
+                    EnumMemberValue::Str(_) | EnumMemberValue::Number(_) => {
+                        self.get_enum_literal_ty(value, symbol, member_symbol)
+                    }
+                    EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
+                };
+                self.get_mut_symbol_links(member_symbol)
+                    .set_declared_ty(member_ty);
+                member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty));
             }
         }
 
-        let declared_ty = if member_ty_list.is_empty() {
+        let enum_ty = if !member_ty_list.is_empty() {
             self.get_union_ty(
                 &member_ty_list,
                 ty::UnionReduction::Lit,
@@ -544,9 +574,8 @@ impl<'cx> TyChecker<'cx> {
             self.create_computed_enum_ty(symbol)
         };
 
-        self.get_mut_symbol_links(symbol)
-            .set_declared_ty(declared_ty);
-        declared_ty
+        self.get_mut_symbol_links(symbol).set_declared_ty(enum_ty);
+        enum_ty
     }
 
     pub(super) fn get_declared_ty_of_enum_member(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -554,9 +583,10 @@ impl<'cx> TyChecker<'cx> {
             return declared_ty;
         }
         let parent = self.symbol(symbol).parent.unwrap();
-        let declared_ty = self.get_declared_ty_of_enum(parent);
-        self.get_mut_symbol_links(symbol)
-            .set_declared_ty(declared_ty);
+        self.get_declared_ty_of_enum(parent);
+        let Some(declared_ty) = self.get_symbol_links(symbol).get_declared_ty() else {
+            unreachable!()
+        };
         declared_ty
     }
 }

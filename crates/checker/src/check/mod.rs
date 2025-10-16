@@ -233,6 +233,7 @@ pub struct TyChecker<'cx> {
     undefined_symbol: SymbolID,
     empty_symbols: &'cx SymbolTable,
 
+    enum_number_index_info: std::cell::OnceCell<&'cx ty::IndexInfo<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -532,6 +533,8 @@ impl<'cx> TyChecker<'cx> {
             restrictive_mapper,
             permissive_mapper,
 
+            enum_number_index_info: Default::default(),
+
             number_or_bigint_ty: Default::default(),
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
@@ -634,7 +637,7 @@ impl<'cx> TyChecker<'cx> {
             (global_readonly_array_ty,      this.get_global_type(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
-                                            let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type(*key)).collect::<Vec<_>>();
+                                            let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
                                             this.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
                                         }),
             (any_fn_ty,                     this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
@@ -657,7 +660,8 @@ impl<'cx> TyChecker<'cx> {
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
-            (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty))
+            (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
+            (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
         });
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
@@ -984,12 +988,14 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_lit_ty_from_prop_name(&mut self, prop_name: &ast::PropName<'cx>) -> &'cx ty::Ty<'cx> {
         match prop_name.kind {
-            ast::PropNameKind::Ident(ident) => self.get_string_literal_type(ident.name),
+            ast::PropNameKind::Ident(ident) => self.get_string_literal_type_from_string(ident.name),
             ast::PropNameKind::NumLit(num) => {
                 let ty = self.get_number_literal_type_from_number(num.val);
                 self.get_regular_ty_of_literal_ty(ty)
             }
-            ast::PropNameKind::StringLit { key, .. } => self.get_string_literal_type(key),
+            ast::PropNameKind::StringLit { key, .. } => {
+                self.get_string_literal_type_from_string(key)
+            }
             ast::PropNameKind::Computed(name) => {
                 let ty = self.check_computed_prop_name(name);
                 self.get_regular_ty_of_literal_ty(ty)
@@ -1079,7 +1085,7 @@ impl<'cx> TyChecker<'cx> {
                 None => {
                     let symbol_name = self.symbol(prop).name;
                     if symbol_name == SymbolName::ExportDefault {
-                        Some(self.get_string_literal_type(keyword::KW_DEFAULT))
+                        Some(self.get_string_literal_type_from_string(keyword::KW_DEFAULT))
                     } else {
                         self.symbol(prop)
                             .value_decl
@@ -1108,9 +1114,9 @@ impl<'cx> TyChecker<'cx> {
                             .or_else(|| {
                                 if let Some(num) = symbol_name.as_numeric() {
                                     let atom = self.atoms.atom(num.to_string().as_str());
-                                    Some(self.get_string_literal_type(atom))
+                                    Some(self.get_string_literal_type_from_string(atom))
                                 } else if let Some(atom) = symbol_name.as_atom() {
-                                    Some(self.get_string_literal_type(atom))
+                                    Some(self.get_string_literal_type_from_string(atom))
                                 } else {
                                     None
                                 }
@@ -1542,6 +1548,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_type_of_symbol(prop)
         }
+        // TODO: get_flow_type
     }
 
     fn check_prop_not_used_before_declaration(
@@ -3163,7 +3170,7 @@ impl<'cx> TyChecker<'cx> {
         let mut v = Vec::with_capacity(ty.element_flags.len() + 1);
         v.extend((0..ty.fixed_length).map(|i| {
             let atom = self.atoms.atom(i.to_string().as_str());
-            self.get_string_literal_type(atom)
+            self.get_string_literal_type_from_string(atom)
         }));
         let t = if ty.readonly {
             self.global_readonly_array_ty()
@@ -4003,6 +4010,10 @@ impl<'cx> TyChecker<'cx> {
         self.node_links
             .get(node)
             .is_some_and(|links| links.get_skip_direct_inference().unwrap_or_default())
+    }
+
+    fn enum_number_index_info(&self) -> &'cx ty::IndexInfo<'cx> {
+        self.enum_number_index_info.get().unwrap()
     }
 
     fn is_from_inference_block_source(&self, ty: &'cx ty::Ty<'cx>) -> bool {

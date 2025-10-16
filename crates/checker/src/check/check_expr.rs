@@ -117,6 +117,7 @@ impl<'cx> TyChecker<'cx> {
                     ty::TyKind::NumberLit(lit) => {
                         let t = self.alloc(ty::NumberLitTy {
                             val: lit.val,
+                            symbol: lit.symbol,
                             links,
                         });
                         self.new_ty(ty::TyKind::NumberLit(t), ty.flags)
@@ -124,6 +125,7 @@ impl<'cx> TyChecker<'cx> {
                     ty::TyKind::StringLit(lit) => {
                         let t = self.alloc(ty::StringLitTy {
                             val: lit.val,
+                            symbol: lit.symbol,
                             links,
                         });
                         self.new_ty(ty::TyKind::StringLit(t), ty.flags)
@@ -157,7 +159,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
-        let t = self.get_string_literal_type(val);
+        let t = self.get_string_literal_type_from_string(val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
@@ -1164,7 +1166,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::PrefixUnaryOp::Minus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    self.get_number_literal_type(n.val.neg())
+                    self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
                 }
