@@ -26,7 +26,7 @@ class C {
 var e = E; // shouldn't error
 */
 E.A.A; // should error
-//~^ ERROR: Property 'A' does not exist on type 'E'.
+//~^ ERROR: Property 'A' does not exist on type 'E.A'.
 
 
 enum E2 {

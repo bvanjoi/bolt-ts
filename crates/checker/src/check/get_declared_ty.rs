@@ -518,9 +518,11 @@ impl<'cx> TyChecker<'cx> {
         // TODO: enum_literal_cache
         match value {
             EnumMemberValue::Number(n) => {
-                self.get_number_literal_type::<true>(F64Represent::new(n), Some(symbol))
+                self.get_number_literal_type::<true>(F64Represent::new(n), Some(member_symbol))
             }
-            EnumMemberValue::Str(atom) => self.get_string_literal_type::<true>(atom, Some(symbol)),
+            EnumMemberValue::Str(atom) => {
+                self.get_string_literal_type::<true>(atom, Some(member_symbol))
+            }
             EnumMemberValue::Err => unreachable!(),
         }
     }

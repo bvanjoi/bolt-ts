@@ -214,6 +214,15 @@ impl<'cx> Ty<'cx> {
         checker.atoms.get(name.expect_atom()).to_string()
     }
 
+    fn print_enum_lit_symbol(&'cx self, checker: &mut TyChecker<'cx>, symbol: SymbolID) -> String {
+        let s = checker.binder.symbol(symbol);
+        let prop = checker.atoms.get(s.name.expect_atom());
+        let p = s.parent.unwrap();
+        let p = checker.binder.symbol(p);
+        let object = checker.atoms.get(p.name.expect_atom());
+        format!("{object}.{prop}")
+    }
+
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
         if self.kind.is_array(checker) {
             let ele = checker.get_ty_arguments(self)[0];
@@ -227,7 +236,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NumberLit(lit) => {
                 if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
                     let symbol = lit.symbol.unwrap();
-                    self.print_enum_symbol(checker, symbol)
+                    self.print_enum_lit_symbol(checker, symbol)
                 } else if lit.is(f64::INFINITY) {
                     "Infinity".to_string()
                 } else if lit.is(f64::NEG_INFINITY) {
@@ -240,7 +249,7 @@ impl<'cx> Ty<'cx> {
             TyKind::StringLit(lit) => {
                 if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
                     let symbol = lit.symbol.unwrap();
-                    self.print_enum_symbol(checker, symbol)
+                    self.print_enum_lit_symbol(checker, symbol)
                 } else {
                     format!("\"{}\"", checker.atoms.get(lit.val))
                 }

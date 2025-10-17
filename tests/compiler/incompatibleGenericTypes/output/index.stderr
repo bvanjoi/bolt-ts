@@ -1,0 +1,5 @@
+  × Type 'I1<boolean>' is not assignable to type 'I1<number>'.
+    ╭─[../../tests/compiler/incompatibleGenericTypes/index.ts:11:5]
+ 11 │ v2
+    · ──
+    ╰────

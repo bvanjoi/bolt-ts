@@ -12,7 +12,7 @@
     · ─
     ╰────
 
-  × Property 'D' does not exist on type '{ A: E; B: E; C: E; }'.
+  × Property 'D' does not exist on type '{ A: E.A; B: E.B; C: E.C; }'.
     ╭─[../../tests/compiler/enumsWithMultipleDeclarations1/index.ts:20:11]
  20 │ D
     · ─
