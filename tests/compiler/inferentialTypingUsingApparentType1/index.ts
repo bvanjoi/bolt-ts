@@ -8,7 +8,7 @@ foo(x => x.length);
 foo(x => {
   let y: number = x;
   //~^ ERROR: Type 'string' is not assignable to type 'number'.
-  return x;
+  return 0;
 });
 
 function bar<T>(a: {a: T}): T {

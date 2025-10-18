@@ -691,21 +691,33 @@ impl<'cx> TyChecker<'cx> {
 
                 if !argument_check_mode.is_empty() {
                     argument_check_mode = CheckMode::empty();
-                    if let Some(infer) = infer_ctx {
+                    if let Some(infer_ctx) = infer_ctx {
                         let ty_arg_tys = {
                             let tys = self.infer_ty_args(
                                 expr,
                                 candidate,
                                 expr.args(),
                                 argument_check_mode,
-                                infer,
+                                infer_ctx,
                             );
-                            let mapper = self.inference(infer).mapper;
+                            let mapper = self.inference(infer_ctx).mapper;
                             self.instantiate_tys(tys, mapper)
                         };
                         check_candidate =
                             self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
                     };
+
+                    if self.get_signature_applicability_error(
+                        expr,
+                        check_candidate,
+                        relation,
+                        argument_check_mode,
+                        false,
+                        infer_ctx,
+                    ) {
+                        candidates_for_arg_error.insert(check_candidate.id);
+                        continue;
+                    }
                 }
 
                 return Some(check_candidate);
