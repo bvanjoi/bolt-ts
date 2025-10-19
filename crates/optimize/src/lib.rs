@@ -7,8 +7,9 @@ mod pipeline;
 use bolt_ts_checker::check::TyChecker;
 use bolt_ts_span::ModuleID;
 
-pub use crate::lowering::LoweringResult;
-use crate::lowering::lowering;
+pub use self::emit::Emitter;
+pub use self::lowering::LoweringResult;
+use self::lowering::lowering;
 
 pub struct IrOutput {
     pub lowered: LoweringResult,
@@ -19,7 +20,7 @@ pub struct OptimizeAndEmitOutput {
     pub ir: Vec<(ModuleID, IrOutput)>,
 }
 
-pub fn optimize_and_emit<'cx>(
+pub fn optimize_and_js_emit<'cx>(
     entries: Vec<ModuleID>,
     mut checker: TyChecker<'cx>,
 ) -> OptimizeAndEmitOutput {
@@ -32,7 +33,7 @@ pub fn optimize_and_emit<'cx>(
             } else {
                 let mut ir = lowering(item, &mut checker);
                 pipeline::reducer::ReduceGraph::new(&mut ir.nodes, &mut ir.graph_arena);
-                let files_output = emit::emit(&checker.atoms, &ir);
+                let files_output = emit::emit_js(&checker.atoms, &ir);
                 let ir_output = IrOutput { lowered: ir };
                 Some((item, (files_output, ir_output)))
             }
