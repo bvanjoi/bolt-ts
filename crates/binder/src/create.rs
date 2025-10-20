@@ -63,7 +63,7 @@ impl BinderState<'_, '_, '_> {
         excludes: SymbolFlags,
         prop: DeclareSymbolProperty,
     ) -> SymbolID {
-        let symbol;
+        let mut symbol;
         let is_replaceable_by_method =
             prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
         let n = self.p.node(node);
@@ -88,19 +88,16 @@ impl BinderState<'_, '_, '_> {
             if includes.intersects(SymbolFlags::CLASSIFIABLE) {
                 // todo!()
             }
+
             if let Some(old) = old {
+                let old_symbol = self.symbols.get(old);
                 if is_replaceable_by_method
-                    && self
-                        .symbols
-                        .get(old)
-                        .is_replaceable_by_method
-                        .is_none_or(|r| !r)
+                    && old_symbol.is_replaceable_by_method.is_none_or(|r| !r)
                 {
                     return old;
                 }
-
                 symbol = old;
-                let old_symbol = self.symbols.get(old);
+
                 if old_symbol.flags.intersects(excludes) {
                     if old_symbol.is_replaceable_by_method.is_some_and(|r| r) {
                         todo!()
@@ -150,6 +147,7 @@ impl BinderState<'_, '_, '_> {
                             })
                         };
                         self.push_error(error);
+                        symbol = self.create_symbol(name, includes);
                     }
                 }
             } else {

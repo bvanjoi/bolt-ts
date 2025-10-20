@@ -1864,7 +1864,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && sig.has_rest_param()
                 && (sig.this_param.is_none_or(|this_param| {
                     let t = this.c.get_type_of_param(this_param);
-                    this.c.is_type_any(Some(t))
+                    this.c.is_type_any(t)
                 }))
             {
                 let param_ty = this.c.get_type_of_param(sig.params[0]);

@@ -1,7 +1,7 @@
 use crate::check::TyChecker;
 
 use bolt_ts_ast::{self as ast, pprint_binding};
-use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::FxIndexMap;
 
 use super::flags::ObjectFlags;
@@ -287,6 +287,7 @@ impl<'cx> ObjectTyKind<'cx> {
                     .expect_structured_members()
                     .index_infos
                     .first()
+                    && index_info.symbol != Symbol::ERR
                 {
                     let decl = checker.binder.symbol(index_info.symbol).opt_decl().unwrap();
                     let key_name = checker.p.node(decl).expect_index_sig_decl().key;

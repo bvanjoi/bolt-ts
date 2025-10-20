@@ -117,6 +117,7 @@ impl<'cx> TyChecker<'cx> {
                     ty::TyKind::NumberLit(lit) => {
                         let t = self.alloc(ty::NumberLitTy {
                             val: lit.val,
+                            symbol: lit.symbol,
                             links,
                         });
                         self.new_ty(ty::TyKind::NumberLit(t), ty.flags)
@@ -124,6 +125,7 @@ impl<'cx> TyChecker<'cx> {
                     ty::TyKind::StringLit(lit) => {
                         let t = self.alloc(ty::StringLitTy {
                             val: lit.val,
+                            symbol: lit.symbol,
                             links,
                         });
                         self.new_ty(ty::TyKind::StringLit(t), ty.flags)
@@ -157,7 +159,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
-        let t = self.get_string_literal_type(val);
+        let t = self.get_string_literal_type_from_string(val);
         self.get_fresh_ty_of_literal_ty(t)
     }
 
@@ -413,7 +415,7 @@ impl<'cx> TyChecker<'cx> {
         send_ty: &'cx ty::Ty<'cx>,
         error_node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_any(Some(input_ty)) {
+        if self.is_type_any(input_ty) {
             return input_ty;
         }
         self.get_iterated_ty_or_elem_ty(mode, input_ty, send_ty, error_node, true)
@@ -426,7 +428,7 @@ impl<'cx> TyChecker<'cx> {
         mode: IterationUse,
         error_node: Option<ast::NodeID>,
     ) -> ty::IterationTys<'cx> {
-        if self.is_type_any(Some(ty)) {
+        if self.is_type_any(ty) {
             return self.any_iteration_tys();
         }
 
@@ -1164,7 +1166,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::PrefixUnaryOp::Minus => {
                 if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    self.get_number_literal_type(n.val.neg())
+                    self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
                 }

@@ -4,7 +4,6 @@
 class c1 { public foo() { } }
 var c1 = 1; // error
 //~^ ERROR: Duplicate identifier 'c1'.
-//~| ERROR: Type 'number' is not assignable to type 'typeof c1'.
 
 //// class then enum
 class c4 { public foo() { } }

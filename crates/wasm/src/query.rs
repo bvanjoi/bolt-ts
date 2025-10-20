@@ -75,21 +75,6 @@ impl JsQuery {
         }) as _
     }
 
-    #[wasm_bindgen(js_name = "queryOutputFiles")]
-    pub fn query_output_files(&self) -> *const OutputFiles {
-        self.output_files.get_or_init(|| {
-            self.db
-                .output
-                .iter()
-                .map(|(m, value)| {
-                    let path = self.db.module_arena.get_path(*m);
-                    let file_path = path.with_extension("js");
-                    (file_path.to_string_lossy().to_string(), value.clone())
-                })
-                .collect::<OutputFiles>()
-        }) as _
-    }
-
     #[wasm_bindgen(js_name = "queryCFG")]
     pub fn query_cfg(&self) -> *const Vec<(bolt_ts_span::ModuleID, IrOutput)> {
         &self.db.ir as *const _

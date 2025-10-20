@@ -152,14 +152,15 @@ prefilled_atom_map!(
             IDENT_ARGUMENTS:                        ["arguments", 93],
             IDENT_IARGUMENTS_CLASS:                 ["IArguments", 94],
             IDENT_REGEXP_CLASS:                     ["RegExp", 95],
-            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 96],
-            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 97],
-            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 98],
-            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 99],
-            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 100]
+            IDENT_PROTOTYPE:                        ["prototype", 96],
+            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 97],
+            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 98],
+            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 99],
+            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 100],
+            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 101]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 101]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 102]
         },
     }
 );

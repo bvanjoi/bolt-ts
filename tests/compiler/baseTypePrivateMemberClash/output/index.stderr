@@ -1,0 +1,5 @@
+  × Interface 'Z' cannot simultaneously extend types 'X' and 'Y'.
+    ╭─[../../tests/compiler/baseTypePrivateMemberClash/index.ts:10:11]
+ 10 │ Z
+    · ─
+    ╰────

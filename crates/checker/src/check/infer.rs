@@ -842,7 +842,7 @@ impl<'cx> TyChecker<'cx> {
                     source_texts,
                 )[*pos..p];
                 let atom = this.atoms.atom(sub);
-                let match_type = this.get_string_literal_type(atom);
+                let match_type = this.get_string_literal_type_from_string(atom);
                 matches.push(match_type);
             } else {
                 let mut parts = Vec::with_capacity(source_texts.len());
@@ -1442,7 +1442,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         None
                     };
                     if let Some(constraint) = constraint
-                        && !self.c.is_type_any(Some(constraint))
+                        && !self.c.is_type_any(constraint)
                     {
                         let constraint_tys = if let Some(u) = constraint.kind.as_union() {
                             u.tys

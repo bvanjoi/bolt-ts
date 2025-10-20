@@ -1757,29 +1757,56 @@ impl<'cx> TyChecker<'cx> {
     #[inline]
     pub(super) fn get_number_literal_type_from_number(&mut self, val: f64) -> &'cx Ty<'cx> {
         let key = F64Represent::new(val);
-        self.get_number_literal_type(key)
+        self.get_number_literal_type::<false>(key, None)
     }
 
-    pub(super) fn get_number_literal_type(&mut self, val: F64Represent) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.num_lit_tys.get(&val) {
+    pub(super) fn get_number_literal_type<const IS_ENUM_LITERAL: bool>(
+        &mut self,
+        val: F64Represent,
+        symbol: Option<SymbolID>,
+    ) -> &'cx Ty<'cx> {
+        if !IS_ENUM_LITERAL && let Some(ty) = self.num_lit_tys.get(&val) {
             ty
         } else {
             let links = self.fresh_ty_links_arena.alloc(Default::default());
-            let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val, links }));
-            let ty = self.new_ty(kind, TypeFlags::NUMBER_LITERAL);
+            let kind = TyKind::NumberLit(self.alloc(ty::NumberLitTy { val, links, symbol }));
+            let flags = if IS_ENUM_LITERAL {
+                debug_assert!(symbol.is_some());
+                TypeFlags::ENUM_LITERAL.union(TypeFlags::NUMBER_LITERAL)
+            } else {
+                debug_assert!(symbol.is_none());
+                TypeFlags::NUMBER_LITERAL
+            };
+            let ty = self.new_ty(kind, flags);
             self.fresh_ty_links_arena[links].set_regular_ty(ty);
             self.num_lit_tys.insert(val, ty);
             ty
         }
     }
 
-    pub(super) fn get_string_literal_type(&mut self, val: Atom) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.string_lit_tys.get(&val) {
+    #[inline]
+    pub(super) fn get_string_literal_type_from_string(&mut self, val: Atom) -> &'cx Ty<'cx> {
+        self.get_string_literal_type::<false>(val, None)
+    }
+
+    pub(super) fn get_string_literal_type<const IS_ENUM_LITERAL: bool>(
+        &mut self,
+        val: Atom,
+        symbol: Option<SymbolID>,
+    ) -> &'cx Ty<'cx> {
+        if !IS_ENUM_LITERAL && let Some(ty) = self.string_lit_tys.get(&val) {
             ty
         } else {
+            let flags = if IS_ENUM_LITERAL {
+                debug_assert!(symbol.is_some());
+                TypeFlags::ENUM_LITERAL.union(TypeFlags::STRING_LITERAL)
+            } else {
+                debug_assert!(symbol.is_none());
+                TypeFlags::STRING_LITERAL
+            };
             let links = self.fresh_ty_links_arena.alloc(Default::default());
-            let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val, links }));
-            let ty = self.new_ty(kind, TypeFlags::STRING_LITERAL);
+            let kind = TyKind::StringLit(self.alloc(ty::StringLitTy { val, links, symbol }));
+            let ty = self.new_ty(kind, flags);
             self.fresh_ty_links_arena[links].set_regular_ty(ty);
             self.string_lit_tys.insert(val, ty);
             ty

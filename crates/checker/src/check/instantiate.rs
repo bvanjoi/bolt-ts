@@ -969,7 +969,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap()
         } else if let Some(s) = ty.kind.as_string_lit() {
             let atom = self.apply_string_mapping(symbol, s.val);
-            self.get_string_literal_type(atom)
+            self.get_string_literal_type_from_string(atom)
         } else if let Some(t) = ty.kind.as_template_lit_ty() {
             let symbol_name = self.symbol(symbol).name.expect_atom();
             match symbol_name {

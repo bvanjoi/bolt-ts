@@ -1,10 +1,13 @@
 mod cli;
 mod diag;
+mod emit_declaration;
 mod r#trait;
 mod wf;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+use crate::emit_declaration::emit_declaration_parallel;
 
 use self::cli::get_filenames;
 use self::wf::well_formed_check_parallel;
@@ -14,11 +17,11 @@ use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
 use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
-use bolt_ts_config::NormalizedTsConfig;
+use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig};
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
 use bolt_ts_middle::Diag;
-use bolt_ts_optimize::{IrOutput, optimize_and_emit};
+use bolt_ts_optimize::{IrOutput, optimize_and_js_emit};
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::path::NormalizePath;
@@ -28,6 +31,12 @@ use rustc_hash::FxHashMap;
 
 pub const DEFAULT_TSCONFIG: &str = "tsconfig.json";
 
+#[derive(Debug, Clone)]
+pub struct OutputFile {
+    js_code: String,
+    dts_code: String,
+}
+
 pub struct Output {
     pub root: PathBuf,
     pub module_arena: ModuleArena,
@@ -35,7 +44,7 @@ pub struct Output {
     pub types_len: usize,
 
     pub ir: Vec<(ModuleID, IrOutput)>,
-    pub output: Vec<(ModuleID, String)>,
+    pub files: Vec<(ModuleID, OutputFile)>,
 }
 
 pub fn current_exe_dir() -> std::path::PathBuf {
@@ -50,25 +59,36 @@ pub fn output_files(
     root: &std::path::Path,
     tsconfig: &NormalizedTsConfig,
     module_arena: &ModuleArena,
-    output: &[(ModuleID, String)],
+    files: Vec<(ModuleID, OutputFile)>,
 ) -> FxHashMap<PathBuf, String> {
     let p = |m: ModuleID| module_arena.get_path(m);
     match tsconfig.compiler_options().out_dir() {
-        bolt_ts_config::OutDir::OwnRoot => output
-            .iter()
-            .map(|(m, content)| (p(*m).with_extension("js"), content.to_string()))
+        bolt_ts_config::OutDir::OwnRoot => files
+            .into_iter()
+            .flat_map(|(m, file)| {
+                let p = p(m);
+                let js_output_path = p.with_extension("js");
+                let dts_output_path = p.with_extension("d.ts");
+                vec![
+                    (js_output_path, file.js_code),
+                    (dts_output_path, file.dts_code),
+                ]
+            })
             .collect(),
         bolt_ts_config::OutDir::Custom(dir) => {
             let dir = root.join(dir);
-            output
-                .iter()
-                .map(|(m, content)| {
-                    let file_path = p(*m);
+            files
+                .into_iter()
+                .flat_map(|(m, file)| {
+                    let file_path = p(m);
                     let file_name = file_path.file_name().unwrap();
-                    (
-                        dir.join(file_name).with_extension("js"),
-                        content.to_string(),
-                    )
+                    let p = dir.join(file_name);
+                    let js_output_path = p.with_extension("js");
+                    let dts_output_path = p.with_extension("d.ts");
+                    vec![
+                        (js_output_path, file.js_code),
+                        (dts_output_path, file.dts_code),
+                    ]
                 })
                 .collect()
         }
@@ -438,7 +458,37 @@ pub fn eval_with_fs(
 
     let types_len = checker.ty_len();
 
-    let output = optimize_and_emit(entries, checker);
+    let dts_output = if tsconfig
+        .compiler_options()
+        .flags()
+        .contains(CompilerOptionFlags::DECLARATION)
+    {
+        emit_declaration_parallel(&entries, &checker)
+    } else {
+        entries
+            .iter()
+            .filter_map(|&item| {
+                let is_default_lib = module_arena.get_module(item).is_default_lib();
+                if is_default_lib {
+                    None
+                } else {
+                    Some((item, "".to_string()))
+                }
+            })
+            .collect()
+    };
+    let js_output = optimize_and_js_emit(entries, checker);
+
+    let ir = js_output.ir;
+    let mut files = vec![];
+    for ((item, js_code), (item2, dts_code)) in js_output.files.into_iter().zip(dts_output) {
+        debug_assert!(
+            item == item2,
+            "id in js output: {item:#?}, id in dts output: {item2:#?}"
+        );
+        let output_file = OutputFile { js_code, dts_code };
+        files.push((item, output_file));
+    }
 
     debug_assert!({
         // each module should be created at most once
@@ -455,8 +505,8 @@ pub fn eval_with_fs(
         root,
         module_arena,
         diags,
-        output: output.files,
-        ir: output.ir,
+        files,
+        ir,
         types_len,
     }
 }

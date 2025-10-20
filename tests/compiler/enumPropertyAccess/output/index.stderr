@@ -1,0 +1,11 @@
+  × Property 'Green' does not exist on type 'Colors.Red'.
+   ╭─[../../tests/compiler/enumPropertyAccess/index.ts:9:11]
+ 9 │ Green
+   · ─────
+   ╰────
+
+  × Property 'Green' does not exist on type 'B'.
+    ╭─[../../tests/compiler/enumPropertyAccess/index.ts:15:7]
+ 15 │ Green
+    · ─────
+    ╰────

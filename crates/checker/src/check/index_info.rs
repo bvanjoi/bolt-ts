@@ -319,7 +319,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
         // TODO: is late name
         let key_ty = if let Some(name) = name.as_atom() {
-            self.get_string_literal_type(name)
+            self.get_string_literal_type_from_string(name)
         } else if let Some(v) = name.as_numeric() {
             self.get_number_literal_type_from_number(v)
         } else {

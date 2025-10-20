@@ -1,0 +1,5 @@
+  × Property 'length' does not exist on type 'number'.
+   ╭─[../../tests/compiler/functionOverloadAmbiguity1/index.ts:6:18]
+ 6 │ length
+   · ──────
+   ╰────

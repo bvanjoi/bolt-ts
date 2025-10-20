@@ -66,19 +66,15 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
         if !output_dir.exists() {
             std::fs::create_dir(&output_dir).unwrap();
         }
-        let output_files = output_files(
-            &output.root,
-            &tsconfig,
-            &output.module_arena,
-            &output.output,
-        );
+        let output_files =
+            output_files(&output.root, &tsconfig, &output.module_arena, output.files);
         let output_err_path = output_dir.join(file_name).with_extension("stderr");
         if output.diags.is_empty() {
             let _ = std::fs::remove_file(output_err_path);
 
             let mut index_file_path = None;
-            for (p, contents) in &output_files {
-                if contents.trim().is_empty() {
+            for (p, content) in &output_files {
+                if content.trim().is_empty() {
                     continue;
                 }
 
@@ -90,11 +86,11 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                     if !temp_node_file.exists() {
                         std::fs::create_dir_all(temp_node_file.parent().unwrap()).unwrap();
                     }
-                    std::fs::write(temp_node_file.as_path(), contents).unwrap();
+                    std::fs::write(temp_node_file.as_path(), content).unwrap();
                     index_file_path = Some(temp_node_file);
                 }
 
-                expect_test::expect_file![p].assert_eq(contents);
+                expect_test::expect_file![p].assert_eq(content);
             }
 
             if let Some(index_file_path) = index_file_path {

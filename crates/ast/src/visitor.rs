@@ -145,28 +145,28 @@ pub fn visit_class_method_elem<'cx>(
 pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
     use crate::TyKind::*;
     match ty.kind {
-        Refer(n) => visit_refer_ty(v, n),
-        Array(n) => visit_array_ty(v, n),
-        IndexedAccess(n) => visit_indexed_access_ty(v, n),
-        Fn(n) => visit_fn_ty(v, n),
-        Ctor(n) => visit_ctor_ty(v, n),
-        ObjectLit(n) => visit_object_lit_ty(v, n),
-        Lit(n) => visit_lit_ty(v, n),
-        NamedTuple(n) => visit_named_tuple_ty(v, n),
-        Tuple(n) => visit_tuple_ty(v, n),
-        Rest(n) => visit_rest_ty(v, n),
-        Cond(n) => visit_cond_ty(v, n),
-        Union(n) => visit_union_ty(v, n),
-        Intersection(n) => visit_intersection_ty(v, n),
-        Typeof(n) => visit_typeof_ty(v, n),
-        Mapped(n) => visit_mapped_ty(v, n),
-        TyOp(n) => visit_ty_op_ty(v, n),
-        Pred(n) => visit_pred_ty(v, n),
-        Paren(n) => visit_paren_ty(v, n),
-        Infer(n) => visit_infer_ty(v, n),
-        Intrinsic(n) => visit_intrinsic_ty(v, n),
-        Nullable(n) => visit_nullable_ty(v, n),
-        TemplateLit(n) => visit_template_lit_ty(v, n),
+        Refer(n) => v.visit_refer_ty(n),
+        Array(n) => v.visit_array_ty(n),
+        IndexedAccess(n) => v.visit_indexed_access_ty(n),
+        Fn(n) => v.visit_fn_ty(n),
+        Ctor(n) => v.visit_ctor_ty(n),
+        ObjectLit(n) => v.visit_object_lit_ty(n),
+        Lit(n) => v.visit_lit_ty(n),
+        NamedTuple(n) => v.visit_named_tuple_ty(n),
+        Tuple(n) => v.visit_tuple_ty(n),
+        Rest(n) => v.visit_rest_ty(n),
+        Cond(n) => v.visit_cond_ty(n),
+        Union(n) => v.visit_union_ty(n),
+        Intersection(n) => v.visit_intersection_ty(n),
+        Typeof(n) => v.visit_typeof_ty(n),
+        Mapped(n) => v.visit_mapped_ty(n),
+        TyOp(n) => v.visit_ty_op_ty(n),
+        Pred(n) => v.visit_pred_ty(n),
+        Paren(n) => v.visit_paren_ty(n),
+        Infer(n) => v.visit_infer_ty(n),
+        Intrinsic(n) => v.visit_intrinsic_ty(n),
+        Nullable(n) => v.visit_nullable_ty(n),
+        TemplateLit(n) => v.visit_template_lit_ty(n),
         This(_) => {}
     }
 }
@@ -300,6 +300,14 @@ pub fn visit_computed_prop_name<'cx>(
     v.visit_expr(n.expr);
 }
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
+pub fn visit_entity_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::EntityName) {
+    match n.kind {
+        super::EntityNameKind::Ident(node) => v.visit_ident(node),
+        super::EntityNameKind::Qualified(node) => {
+            // TODO:
+        }
+    }
+}
 pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::Expr<'cx>) {
     use super::ExprKind::*;
     match n.kind {
@@ -385,6 +393,7 @@ make_visitor!(
     (visit_class_decl, super::ClassDecl<'cx>),
     (visit_class_elem, super::ClassElem<'cx>),
     (visit_class_method_elem, super::ClassMethodElem<'cx>),
+    (visit_entity_name, super::EntityName<'cx>),
     (visit_ident, super::Ident),
     (visit_ty, super::Ty<'cx>),
     (visit_refer_ty, super::ReferTy<'cx>),

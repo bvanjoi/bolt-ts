@@ -652,7 +652,7 @@ impl<'cx> TyChecker<'cx> {
         {
             flags |= TypeFlags::BOOLEAN;
         } else if is_enum {
-            flags |= TypeFlags::ENUM;
+            flags |= TypeFlags::ENUM_LITERAL;
         }
         let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
         let union = self.alloc(ty::UnionTy {
@@ -1470,7 +1470,7 @@ impl<'cx> TyChecker<'cx> {
 
         let text = self.atoms.atom(&text);
         if new_tys.is_empty() {
-            return self.get_string_literal_type(text);
+            return self.get_string_literal_type_from_string(text);
         };
         new_texts.push(text);
         if new_texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {

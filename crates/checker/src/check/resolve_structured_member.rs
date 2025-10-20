@@ -589,9 +589,9 @@ impl<'cx> TyChecker<'cx> {
         }
         let true_constraint = self.get_inferred_true_ty_from_cond_ty(ty, cond_ty);
         let false_constraint = self.get_false_ty_from_cond_ty(ty, cond_ty);
-        let res = if self.is_type_any(Some(true_constraint)) {
+        let res = if self.is_type_any(true_constraint) {
             false_constraint
-        } else if self.is_type_any(Some(false_constraint)) {
+        } else if self.is_type_any(false_constraint) {
             true_constraint
         } else {
             self.get_union_ty(
@@ -1004,8 +1004,8 @@ impl<'cx> TyChecker<'cx> {
         let call_sigs: ty::Sigs<'cx>;
         let mut ctor_sigs: ty::Sigs<'cx>;
 
-        let symbol = self.symbol(symbol_id);
-        let symbol_flags = symbol.flags;
+        let symbol_flags = self.symbol(symbol_id).flags;
+        let props = self.get_props_from_members(&members);
 
         if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
             call_sigs = self.get_sigs_of_symbol(symbol_id);
@@ -1014,7 +1014,8 @@ impl<'cx> TyChecker<'cx> {
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
             call_sigs = &[];
-            if let Some(symbol) = symbol
+            if let Some(symbol) = self
+                .symbol(symbol_id)
                 .members()
                 .and_then(|m| m.0.get(&SymbolName::Constructor))
             {
@@ -1032,8 +1033,6 @@ impl<'cx> TyChecker<'cx> {
             ) {
                 let props = self.get_props_of_ty(base_ctor_ty);
                 self.add_inherited_members(&mut members, props);
-            } else if base_ctor_ty == self.any_ty {
-                // base_ctor_index_info = Some(self.any_base);
             }
 
             if let Some(index_symbol) = members.get(&SymbolName::Index) {
@@ -1045,12 +1044,25 @@ impl<'cx> TyChecker<'cx> {
             if ctor_sigs.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(class_ty);
             };
+        } else if symbol_flags.intersects(SymbolFlags::ENUM)
+            && (self
+                .get_declared_ty_of_symbol(symbol_id)
+                .flags
+                .contains(TypeFlags::ENUM)
+                || props.iter().any(|prop| {
+                    self.get_type_of_symbol(*prop)
+                        .flags
+                        .intersects(TypeFlags::NUMBER_LIKE)
+                }))
+        {
+            call_sigs = &[];
+            ctor_sigs = &[];
+            index_infos = self.alloc(vec![self.enum_number_index_info()]);
         } else {
             call_sigs = &[];
             ctor_sigs = &[];
             index_infos = &[]
         };
-        let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
             call_sigs,
