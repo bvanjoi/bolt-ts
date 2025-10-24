@@ -462,3 +462,12 @@ pub(super) struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'await' expressions are only allowed within async functions and at the top levels of modules."
+)]
+pub(super) struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+    #[label(primary)]
+    pub(super) span: Span,
+}

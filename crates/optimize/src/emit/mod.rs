@@ -1548,6 +1548,11 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 self.emitter.print().p_whitespace();
                 self.emit_expr(self.nodes.get_delete_expr(&id).expr());
             }
+            ir::Expr::Await(id) => {
+                self.emitter.print().p("await");
+                self.emitter.print().p_whitespace();
+                self.emit_expr(self.nodes.get_await_expr(&id).expr());
+            }
         }
     }
 

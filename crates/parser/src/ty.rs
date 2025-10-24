@@ -1,3 +1,4 @@
+use crate::SignatureFlags;
 use crate::parsing_ctx::ParsingContext;
 
 use super::lookahead::Lookahead;
@@ -1006,12 +1007,14 @@ impl<'cx> ParserState<'cx, '_> {
         let modifiers = self.parse_modifiers::<false, false>(false);
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;
+            let decl =
+                self.parse_getter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(start, modifiers, true)?;
+            let decl =
+                self.parse_setter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))

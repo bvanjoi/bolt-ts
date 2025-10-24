@@ -642,6 +642,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Delete(n) => {
                 self.resolve_expr(n.expr);
             }
+            Await(n) => {
+                self.resolve_expr(n.expr);
+            }
         }
     }
 

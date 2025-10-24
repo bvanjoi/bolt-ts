@@ -239,6 +239,10 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 self.undefined_ty
             }
+            Await(_) => {
+                // TODO:
+                self.undefined_ty
+            }
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;

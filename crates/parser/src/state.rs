@@ -403,6 +403,25 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.do_outside_of_parse_context(ParseContext::DISALLOW_IN, f)
     }
 
+    pub(super) fn in_await_context(&self) -> bool {
+        let res = self.parse_context.contains(ParseContext::AWAIT);
+        debug_assert_eq!(
+            res,
+            self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
+        );
+        res
+    }
+
+    pub(super) fn set_await_context(&mut self, val: bool) {
+        if val {
+            self.parse_context.insert(ParseContext::AWAIT);
+            self.node_context_flags.insert(NodeFlags::AWAIT_CONTEXT);
+        } else {
+            self.parse_context.remove(ParseContext::AWAIT);
+            self.node_context_flags.remove(NodeFlags::AWAIT_CONTEXT);
+        }
+    }
+
     pub(super) fn do_outside_of_parse_context<T>(
         &mut self,
         context: ParseContext,
