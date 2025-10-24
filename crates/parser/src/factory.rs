@@ -763,4 +763,21 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         stmt
     }
+
+    #[inline(always)]
+    pub fn create_await_expr(
+        &mut self,
+        start: u32,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::AwaitExpr<'cx> {
+        let id = self.next_node_id();
+        let stmt = self.alloc(ast::AwaitExpr {
+            id,
+            span: self.new_span(start),
+            expr,
+        });
+        self.nodes.insert(id, ast::Node::AwaitExpr(stmt));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        stmt
+    }
 }

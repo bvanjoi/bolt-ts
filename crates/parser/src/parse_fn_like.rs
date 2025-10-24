@@ -1,7 +1,8 @@
 use bolt_ts_ast::TokenKind;
-use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
 
+use crate::SignatureFlags;
 use crate::parsing_ctx::ParseContext;
 
 use super::{PResult, ParserState};
@@ -128,7 +129,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let params = this.parse_params();
                 this.check_params(params, false);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
-                let body = this.parse_fn_block();
+                let modifier_flags = modifiers.map(|ms| ms.flags);
+                let is_async = modifier_flags.is_some_and(|m| m.contains(ast::ModifierKind::Async));
+                let flags = if is_async {
+                    SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+                } else {
+                    SignatureFlags::empty()
+                };
+                let body = this.parse_fn_block_or_semi(flags);
                 let span = this.new_span(start);
                 Ok(mode.finish(this, span, modifiers, name, ty_params, params, ret_ty, body))
             },

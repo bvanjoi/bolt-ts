@@ -1,11 +1,11 @@
+use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
-use bolt_ts_ast::{NodeFlags, TokenKind};
 use bolt_ts_span::Span;
 
 use super::errors;
 use super::{PResult, ParserState};
-use crate::keyword;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
+use crate::{SignatureFlags, keyword};
 
 pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
@@ -281,7 +281,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
             let ty = self.parse_ret_ty(true)?;
-            let body = self.parse_fn_block();
+            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+                SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            } else {
+                SignatureFlags::empty()
+            };
+            let body = self.parse_fn_block_or_semi(flags);
             let method =
                 self.create_class_method_elem(start, modifiers, name, ty_params, params, ty, body);
             self.alloc(ast::ClassElem {
@@ -339,7 +344,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let params = this.p().parse_params();
                 this.p().check_params(params, true);
                 let ret = this.p().parse_ret_ty(true)?;
-                let body = this.p().parse_fn_block();
+                let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+                    SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+                } else {
+                    SignatureFlags::empty()
+                };
+                let body = this.p().parse_fn_block_or_semi(flags);
                 let ctor = this
                     .p()
                     .create_class_ctor(start, mods, ty_params, name_span, params, ret, body);
@@ -380,12 +390,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(start, modifiers, false)?;
+            let decl =
+                self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(start, modifiers, false)?;
+            let decl =
+                self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Setter(decl),
             }))

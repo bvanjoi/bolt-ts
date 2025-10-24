@@ -447,3 +447,15 @@ fn process_lib_reference_directive(
     debug_assert!(lib_filepath.is_normalized());
     Some(lib_filepath)
 }
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    struct SignatureFlags: u8 {
+        const YIELD = 1 << 0;
+        const AWAIT = 1 << 1;
+        const TYPE  = 1 << 2;
+        const IGNORE_MISSING_OPEN_BRACE = 1 << 4;
+        const JSDOC = 1 << 5;
+        const ASYNC = 1 << 6;
+    }
+}
