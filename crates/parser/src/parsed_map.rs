@@ -9,20 +9,24 @@ pub struct ParsedMap<'cx> {
 }
 
 impl<'cx> ParsedMap<'cx> {
+    #[inline(always)]
     pub fn new() -> Self {
         Self {
             map: Vec::with_capacity(512),
         }
     }
 
+    #[inline(always)]
     pub fn from_map(map: Vec<ParseResultForGraph<'cx>>) -> Self {
         Self { map }
     }
 
+    #[inline(always)]
     pub fn into_map(self) -> Vec<ParseResultForGraph<'cx>> {
         self.map
     }
 
+    #[inline(always)]
     pub fn get_map(&self) -> &Vec<ParseResultForGraph<'cx>> {
         &self.map
     }

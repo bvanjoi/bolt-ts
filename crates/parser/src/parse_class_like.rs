@@ -5,7 +5,7 @@ use bolt_ts_span::Span;
 use super::errors;
 use super::{PResult, ParserState};
 use crate::keyword;
-use crate::parsing_ctx::ParsingContext;
+use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
@@ -289,7 +289,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             // prop
-            self.do_inside_of_context(NodeFlags::CLASS_FIELD_DEFINITION, |this| {
+            self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
                 let excl = if !this.has_preceding_line_break() {
                     this.parse_optional(TokenKind::Excl)
                 } else {
@@ -407,7 +407,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert!(self.token.kind == TokenKind::Static);
         let start = self.token.start() as usize;
         self.next_token(); // consume `static`
-        let body = self.do_inside_of_context(NodeFlags::CLASS_STATIC_BLOCK, Self::parse_block);
+        let body =
+            self.do_inside_of_parse_context(ParseContext::CLASS_STATIC_BLOCK, Self::parse_block);
         let block = self.create_class_static_block_decl(start as u32, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),

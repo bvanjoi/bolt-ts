@@ -365,7 +365,7 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ClassCtor(ctor));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         ctor
     }
 
@@ -425,8 +425,6 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ClassStaticBlockDecl(node));
-        self.node_flags_map
-            .insert(id, ast::NodeFlags::CLASS_STATIC_BLOCK);
         node
     }
 
@@ -451,7 +449,7 @@ impl<'cx> ParserState<'cx, '_> {
             ty,
         });
         self.nodes.insert(id, ast::Node::MethodSignature(sig));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         sig
     }
 
@@ -476,7 +474,7 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ObjectMethodMember(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -503,7 +501,7 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ClassMethodElem(node));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         node
     }
 
@@ -520,7 +518,7 @@ impl<'cx> ParserState<'cx, '_> {
             expr,
         });
         self.nodes.insert(id, ast::Node::RetStmt(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -539,7 +537,7 @@ impl<'cx> ParserState<'cx, '_> {
             case_block,
         });
         self.nodes.insert(id, ast::Node::SwitchStmt(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -558,7 +556,7 @@ impl<'cx> ParserState<'cx, '_> {
             stmts,
         });
         self.nodes.insert(id, ast::Node::CaseClause(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -575,7 +573,7 @@ impl<'cx> ParserState<'cx, '_> {
             stmts,
         });
         self.nodes.insert(id, ast::Node::DefaultClause(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -592,7 +590,7 @@ impl<'cx> ParserState<'cx, '_> {
             clauses,
         });
         self.nodes.insert(id, ast::Node::CaseBlock(node));
-        self.node_flags_map.insert(id, Default::default());
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         node
     }
 
@@ -614,7 +612,7 @@ impl<'cx> ParserState<'cx, '_> {
             init,
         });
         self.nodes.insert(id, ast::Node::VarDecl(node));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         node
     }
 
@@ -663,7 +661,7 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ForOfStmt(node));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         node
     }
 
@@ -686,7 +684,7 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ForInStmt(node));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         node
     }
 
@@ -703,7 +701,7 @@ impl<'cx> ParserState<'cx, '_> {
             expr,
         });
         self.nodes.insert(id, ast::Node::ThrowStmt(node));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         node
     }
 

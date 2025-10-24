@@ -4,7 +4,7 @@ use bolt_ts_span::Span;
 
 use crate::keyword;
 use crate::lookahead::Lookahead;
-use crate::parsing_ctx::ParsingContext;
+use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 use super::{PResult, ParserState};
 use super::{ast, errors};
@@ -32,9 +32,11 @@ impl<'cx> ParserState<'cx, '_> {
             None
         } else {
             let old_labels = std::mem::take(&mut self.labels);
-            let ret = self.do_outside_of_context(
-                NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
-                |this| this.do_inside_of_context(NodeFlags::FN_BLOCK, Self::parse_block),
+            let ret = self.do_outside_of_parse_context(
+                ParseContext::ALLOW_BREAK
+                    .union(ParseContext::ALLOW_CONTINUE)
+                    .union(ParseContext::MODULE_BLOCK),
+                |this| this.do_inside_of_parse_context(ParseContext::FN_BLOCK, Self::parse_block),
             );
             self.labels = old_labels;
             Some(ret)
@@ -75,7 +77,9 @@ impl<'cx> ParserState<'cx, '_> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
-        let stmts = self.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
+        let stmts = self.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
+            this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+        });
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
         let id = self.next_node_id();
@@ -302,9 +306,9 @@ impl<'cx> ParserState<'cx, '_> {
         let ident = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
 
         if ident.name == keyword::IDENT_ARGUMENTS
-            && self
-                .context_flags
-                .intersects(NodeFlags::CLASS_FIELD_DEFINITION.union(NodeFlags::CLASS_STATIC_BLOCK))
+            && self.parse_context.intersects(
+                ParseContext::CLASS_FIELD_DEFINITION.union(ParseContext::CLASS_STATIC_BLOCK),
+            )
         {
             let error =
                 errors::ArgumentsCannotBeReferenced::new_in_property_initializer(ident.span);

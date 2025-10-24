@@ -13,7 +13,7 @@ use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
 use crate::keyword::{self, IDENT_GLOBAL};
 use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
-use crate::parsing_ctx::ParsingContext;
+use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
@@ -137,8 +137,8 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::Do);
         let start = self.token.start();
         self.next_token(); // consume `do`
-        let stmt = self.do_inside_of_context(
-            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+        let stmt = self.do_inside_of_parse_context(
+            ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
             Self::parse_stmt,
         )?;
         self.expect(TokenKind::While);
@@ -175,8 +175,8 @@ impl<'cx> ParserState<'cx, '_> {
             open_parsed,
             start as usize,
         );
-        let stmt = self.do_inside_of_context(
-            NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+        let stmt = self.do_inside_of_parse_context(
+            ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
             Self::parse_stmt,
         )?;
         let id = self.next_node_id();
@@ -187,8 +187,22 @@ impl<'cx> ParserState<'cx, '_> {
             stmt,
         });
         self.nodes.insert(id, ast::Node::WhileStmt(stmt));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         Ok(stmt)
+    }
+
+    fn check_export_default_error(&mut self, span: bolt_ts_span::Span) {
+        if self.parse_context.is_empty() {
+            return;
+        }
+        if self.parse_context.contains(ParseContext::MODULE_BLOCK) {
+            let error = errors::ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule { span };
+            self.push_error(Box::new(error));
+        } else {
+            let error =
+                errors::ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration { span };
+            self.push_error(Box::new(error));
+        }
     }
 
     fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
@@ -271,8 +285,8 @@ impl<'cx> ParserState<'cx, '_> {
             let init = init.unwrap();
             let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher(true))?;
             self.expect(RParen);
-            let body = self.do_inside_of_context(
-                NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            let body = self.do_inside_of_parse_context(
+                ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
             let node =
@@ -282,8 +296,8 @@ impl<'cx> ParserState<'cx, '_> {
             let init = init.unwrap();
             let expr = self.allow_in_and(Self::parse_expr)?;
             self.expect(RParen);
-            let body = self.do_inside_of_context(
-                NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            let body = self.do_inside_of_parse_context(
+                ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
             let node = self.create_for_in_stmt(start, init, expr, body);
@@ -303,8 +317,8 @@ impl<'cx> ParserState<'cx, '_> {
             };
             self.expect(RParen);
 
-            let body = self.do_inside_of_context(
-                NodeFlags::ALLOW_BREAK_CONTEXT.union(NodeFlags::ALLOW_CONTINUE_CONTEXT),
+            let body = self.do_inside_of_parse_context(
+                ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
             let id = self.next_node_id();
@@ -442,27 +456,31 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_module_block(&mut self) -> PResult<&'cx ast::ModuleBlock<'cx>> {
-        let start = self.token.start();
-        self.expect(TokenKind::LBrace);
+        self.do_inside_of_parse_context(ParseContext::MODULE_BLOCK, |this| {
+            let start = this.token.start();
+            this.expect(TokenKind::LBrace);
 
-        let save_external_module_indicator = self.external_module_indicator;
-        let save_has_export_decl = self.has_export_decl;
-        self.has_export_decl = false;
+            let save_external_module_indicator = this.external_module_indicator;
+            let save_has_export_decl = this.has_export_decl;
+            this.has_export_decl = false;
 
-        let stmts = self.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt);
+            let stmts = this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
+                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+            });
 
-        self.has_export_decl = save_has_export_decl;
-        self.external_module_indicator = save_external_module_indicator;
+            this.has_export_decl = save_has_export_decl;
+            this.external_module_indicator = save_external_module_indicator;
 
-        self.expect(TokenKind::RBrace);
-        let id = self.next_node_id();
-        let block = self.alloc(ast::ModuleBlock {
-            id,
-            span: self.new_span(start),
-            stmts,
-        });
-        self.nodes.insert(id, ast::Node::ModuleBlock(block));
-        Ok(block)
+            this.expect(TokenKind::RBrace);
+            let id = this.next_node_id();
+            let block = this.alloc(ast::ModuleBlock {
+                id,
+                span: this.new_span(start),
+                stmts,
+            });
+            this.nodes.insert(id, ast::Node::ModuleBlock(block));
+            Ok(block)
+        })
     }
 
     fn parse_ambient_external_module_decl(
@@ -471,7 +489,7 @@ impl<'cx> ParserState<'cx, '_> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
         let name;
-        let mut flags = NodeFlags::default();
+        let mut flags = ast::NodeFlags::empty();
         let mut is_global_argument = false;
         if self.is_ident_name(IDENT_GLOBAL) {
             name = ast::ModuleName::Ident(self.create_ident(true, None));
@@ -492,13 +510,13 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn set_export_context_flags(&self, block_exist: bool) -> NodeFlags {
-        if self.context_flags.intersects(ast::NodeFlags::AMBIENT)
+        if self.node_context_flags.intersects(ast::NodeFlags::AMBIENT)
             && block_exist
             && !self.has_export_decl
         {
-            self.context_flags | NodeFlags::EXPORT_CONTEXT
+            self.node_context_flags | NodeFlags::EXPORT_CONTEXT
         } else {
-            self.context_flags & !NodeFlags::EXPORT_CONTEXT
+            self.node_context_flags & !NodeFlags::EXPORT_CONTEXT
         }
     }
 
@@ -593,10 +611,20 @@ impl<'cx> ParserState<'cx, '_> {
             Import => ast::StmtKind::Import(self.parse_import_decl()?),
             Export => {
                 let start = self.token.start();
-                self.next_token();
+                self.check_export_default_error(self.token.span);
+                self.next_token(); // consume `export`
                 match self.token.kind {
-                    Default | Eq => {
-                        ast::StmtKind::ExportAssign(self.parse_export_assignment(start, mods)?)
+                    Default => {
+                        self.next_token(); // consume `export`
+                        ast::StmtKind::ExportAssign(
+                            self.parse_export_assignment::<false>(start, mods)?,
+                        )
+                    }
+                    Eq => {
+                        self.next_token(); // consume `eq`
+                        ast::StmtKind::ExportAssign(
+                            self.parse_export_assignment::<true>(start, mods)?,
+                        )
                     }
                     As => todo!(),
                     _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
@@ -610,16 +638,12 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
-    fn parse_export_assignment(
+    fn parse_export_assignment<const IS_EXPORT_EQUALS: bool>(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ExportAssign<'cx>> {
         self.has_export_decl = true;
-        let is_export_equals = self.parse_optional(TokenKind::Eq).is_some();
-        if !is_export_equals {
-            self.expect(TokenKind::Default);
-        }
         let expr = self.parse_assign_expr_or_higher(true)?;
         self.parse_semi();
         let id = self.next_node_id();
@@ -628,7 +652,7 @@ impl<'cx> ParserState<'cx, '_> {
             span: self.new_span(start),
             expr,
             modifiers,
-            is_export_equals,
+            is_export_equals: IS_EXPORT_EQUALS,
         });
         self.nodes.insert(id, ast::Node::ExportAssign(node));
         Ok(node)
@@ -837,8 +861,14 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         let mods = self.parse_modifiers::<false, false>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
+        if mods.is_some_and(|ms| {
+            ms.flags.contains(ast::ModifierKind::Export)
+                && ms.flags.contains(ast::ModifierKind::Default)
+        }) {
+            self.check_export_default_error(self.token.span);
+        }
         if is_ambient {
-            self.do_inside_of_context(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
+            self.do_inside_of_node_flags(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
         } else {
             self._parse_decl(mods)
         }
@@ -947,7 +977,7 @@ impl<'cx> ParserState<'cx, '_> {
             TokenKind::Var => ast::NodeFlags::empty(),
             _ => unreachable!(),
         };
-        if self.context_flags.contains(ast::NodeFlags::AMBIENT) {
+        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
             ctx.insert(VarDeclarationContext::AMBIENT);
         }
         let list = self.parse_var_decl_list(ctx);
@@ -1188,10 +1218,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `return`
 
-        if !self
-            .context_flags
-            .intersects(NodeFlags::ALLOW_RETURN_CONTEXT)
-        {
+        if !self.parse_context.intersects(ParseContext::ALLOW_RETURN) {
             self.push_error(Box::new(
                 errors::AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
                     span: self.new_span(start),
@@ -1219,7 +1246,7 @@ impl<'cx> ParserState<'cx, '_> {
                 todo!("error for duplicate label");
             }
             let stmt =
-                self.do_inside_of_context(NodeFlags::ALLOW_BREAK_CONTEXT, Self::parse_stmt)?;
+                self.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)?;
             let stmt = self.create_labeled_stmt(start, ident, stmt);
             Ok(ast::StmtKind::Labeled(stmt))
         } else {

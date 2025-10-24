@@ -7,6 +7,8 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
+use crate::parsing_ctx::ParseContext;
+
 use super::PResult;
 use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
@@ -33,7 +35,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) nodes: Nodes<'cx>,
     pub(super) node_flags_map: NodeFlagsMap,
     pub(super) arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
-    pub(super) context_flags: NodeFlags,
+    pub(super) node_context_flags: NodeFlags,
     pub(super) external_module_indicator: Option<ast::NodeID>,
     pub(super) commonjs_module_indicator: Option<ast::NodeID>,
     pub(super) lib_reference_directives: Vec<FileReference>,
@@ -50,6 +52,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
+    pub(super) parse_context: ParseContext,
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
 }
@@ -68,10 +71,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
         let p = file_path.to_string_lossy();
         let atom = atoms.lock().unwrap().atom(p.as_ref());
-        let mut context_flags = NodeFlags::default();
         let is_declaration = is_declaration_filename(p.as_bytes());
+        let mut node_context_flags = ast::NodeFlags::empty();
         if is_declaration {
-            context_flags |= NodeFlags::AMBIENT;
+            node_context_flags |= ast::NodeFlags::AMBIENT;
         }
         Self {
             input,
@@ -86,7 +89,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             token_flags: TokenFlags::empty(),
             arena,
             nodes,
-            context_flags,
+            node_context_flags,
             node_flags_map: NodeFlagsMap::new(),
             external_module_indicator: None,
             commonjs_module_indicator: None,
@@ -106,6 +109,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             has_no_default_lib: false,
             variant,
             parsing_context: ParsingContext::default(),
+            parse_context: ParseContext::empty(),
             // TODO: in_strict_mode: options.compiler_options().always_strict(),
             in_strict_mode: false,
             labels: Default::default(),
@@ -141,14 +145,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn can_parse_semi(&self) -> bool {
-        if self.token.kind == TokenKind::Semi {
-            true
-        } else {
-            matches!(self.token.kind, TokenKind::RBrace | TokenKind::EOF)
-                || self
-                    .token_flags
-                    .intersects(TokenFlags::PRECEDING_LINE_BREAK)
-        }
+        matches!(
+            self.token.kind,
+            TokenKind::Semi | TokenKind::RBrace | TokenKind::EOF
+        ) || self
+            .token_flags
+            .intersects(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     pub(super) fn parse_bracketed_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
@@ -283,7 +285,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let id = self.next_node_id();
         let ident = self.alloc(ast::Ident { id, name, span });
         self.nodes.insert(id, Node::Ident(ident));
-        self.node_flags_map.insert(id, self.context_flags);
+        self.node_flags_map.insert(id, self.node_context_flags);
         ident
     }
 
@@ -394,43 +396,61 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn disallow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+        self.do_inside_of_parse_context(ParseContext::DISALLOW_IN, f)
     }
 
     pub(super) fn allow_in_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::DISALLOW_IN_CONTEXT, f)
+        self.do_outside_of_parse_context(ParseContext::DISALLOW_IN, f)
     }
 
-    pub(super) fn do_outside_of_context<T>(
+    pub(super) fn do_outside_of_parse_context<T>(
         &mut self,
-        context: NodeFlags,
+        context: ParseContext,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let removed = self.context_flags.intersection(context);
+        let removed = self.parse_context.intersection(context);
         if !removed.is_empty() {
-            debug_assert!(self.context_flags.contains(removed));
-            self.context_flags.remove(removed);
+            debug_assert!(self.parse_context.contains(removed));
+            self.parse_context.remove(removed);
             let res = f(self);
-            debug_assert!(!self.context_flags.contains(removed));
-            self.context_flags.insert(removed);
+            debug_assert!(!self.parse_context.contains(removed));
+            self.parse_context.insert(removed);
             res
         } else {
             f(self)
         }
     }
 
-    pub(super) fn do_inside_of_context<T>(
+    pub(super) fn do_inside_of_node_flags<T>(
         &mut self,
-        context: NodeFlags,
+        flags: NodeFlags,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let inserted = self.context_flags.complement().intersection(context);
+        let inserted = self.node_context_flags.complement().intersection(flags);
         if !inserted.is_empty() {
-            debug_assert!(!self.context_flags.contains(inserted));
-            self.context_flags.insert(inserted);
+            debug_assert!(!self.node_context_flags.contains(inserted));
+            self.node_context_flags.insert(inserted);
             let res = f(self);
-            debug_assert!(self.context_flags.contains(inserted));
-            self.context_flags.remove(inserted);
+            debug_assert!(self.node_context_flags.contains(inserted));
+            self.node_context_flags.remove(inserted);
+            res
+        } else {
+            f(self)
+        }
+    }
+
+    pub(super) fn do_inside_of_parse_context<T>(
+        &mut self,
+        context: ParseContext,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let inserted = self.parse_context.complement().intersection(context);
+        if !inserted.is_empty() {
+            debug_assert!(!self.parse_context.contains(inserted));
+            self.parse_context.insert(inserted);
+            let res = f(self);
+            debug_assert!(self.parse_context.contains(inserted));
+            self.parse_context.remove(inserted);
             res
         } else {
             f(self)
@@ -438,25 +458,25 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     #[inline]
-    pub(super) fn in_context(&self, flags: NodeFlags) -> bool {
-        self.context_flags.intersects(flags)
+    pub(super) fn in_parse_context(&self, flags: ParseContext) -> bool {
+        self.parse_context.intersects(flags)
     }
 
     #[inline]
     pub(super) fn in_disallow_in_context(&self) -> bool {
-        self.in_context(NodeFlags::DISALLOW_IN_CONTEXT)
+        self.in_parse_context(ParseContext::DISALLOW_IN)
     }
 
     pub(super) fn allow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_outside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+        self.do_outside_of_parse_context(ParseContext::DISALLOW_CONDITIONAL_TYPES, f)
     }
 
     pub(super) fn disallow_conditional_tys_and<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        self.do_inside_of_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT, f)
+        self.do_inside_of_parse_context(ParseContext::DISALLOW_CONDITIONAL_TYPES, f)
     }
 
     pub(super) fn in_disallow_conditional_tys_context(&self) -> bool {
-        self.in_context(NodeFlags::DISALLOW_CONDITIONAL_TYPES_CONTEXT)
+        self.in_parse_context(ParseContext::DISALLOW_CONDITIONAL_TYPES)
     }
 
     pub(super) fn parse_identifier_name_error_or_unicode_escape_sequence(

@@ -2,6 +2,8 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_span::Span;
 
+use crate::parsing_ctx::ParseContext;
+
 use super::{PResult, ParserState};
 
 pub(super) trait FnLike<'cx, 'p> {
@@ -64,7 +66,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             ty,
             body,
         });
-        state.node_flags_map.insert(id, state.context_flags);
+        state.node_flags_map.insert(id, state.node_context_flags);
         state.set_external_module_indicator_if_has_export_mod(modifiers, id);
         state.nodes.insert(decl.id, ast::Node::FnDecl(decl));
         decl
@@ -115,8 +117,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mode: impl FnLike<'cx, 'p, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
-        self.do_outside_of_context(
-            NodeFlags::CLASS_FIELD_DEFINITION.union(NodeFlags::CLASS_STATIC_BLOCK),
+        self.do_outside_of_parse_context(
+            ParseContext::CLASS_FIELD_DEFINITION.union(ParseContext::CLASS_STATIC_BLOCK),
             |this| {
                 let start = this.token.start();
                 this.expect(TokenKind::Function);

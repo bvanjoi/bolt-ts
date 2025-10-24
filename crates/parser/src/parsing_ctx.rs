@@ -34,6 +34,30 @@ bitflags::bitflags! {
         const JSDOC_COMMENT = 1 << 25;
         const COUNT = 1 << 26;
     }
+
+    #[derive(Clone, Copy, Debug)]
+    pub(super) struct ParseContext: u32 {
+        const ALLOW_CONTINUE                      = 1 << 0;
+        const ALLOW_BREAK                         = 1 << 1;
+        const CLASS_STATIC_BLOCK                  = 1 << 2;
+        const CLASS_FIELD_DEFINITION              = 1 << 3;
+        const FN_BLOCK                            = 1 << 4;
+        const YIELD                               = 1 << 6;
+        const AWAIT                               = 1 << 7;
+        const DISALLOW_IN                         = 1 << 8;
+        const DECORATOR                           = 1 << 9;
+        const DISALLOW_CONDITIONAL_TYPES          = 1 << 10;
+        const MODULE_BLOCK                        = 1 << 11;
+        const BLOCK                               = 1 << 12;
+
+        const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
+                                                            | Self::FN_BLOCK.bits();
+
+        const TYPE_EXCLUDES_FLAGS                       = Self::YIELD.bits()
+                                                            | Self::AWAIT.bits();
+        const DISALLOW_IN_AND_DECORATOR                 = Self::DISALLOW_IN.bits()
+                                                            | Self::DECORATOR.bits();
+    }
 }
 
 impl ParsingContext {

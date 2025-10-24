@@ -1,0 +1,18 @@
+  × Property 'bar' does not exist on type 'C'.
+    ╭─[../../tests/compiler/classImplementsClass6/index.ts:22:3]
+ 22 │ bar
+    · ───
+    ╰────
+
+  × Property 'bar' does not exist on type 'C2'.
+    ╭─[../../tests/compiler/classImplementsClass6/index.ts:24:4]
+ 24 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'C2.bar' instead?
+    ╭─[../../tests/compiler/classImplementsClass6/index.ts:24:4]
+ 24 │ bar
+    · ───
+    ╰────

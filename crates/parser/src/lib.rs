@@ -387,7 +387,10 @@ impl NodeFlagsMap {
 
     pub fn get(&self, node_id: NodeID) -> bolt_ts_ast::NodeFlags {
         let key = node_id.index_as_u32();
-        self.0.get(&key).copied().unwrap_or_default()
+        self.0
+            .get(&key)
+            .copied()
+            .unwrap_or(bolt_ts_ast::NodeFlags::empty())
     }
 
     pub fn update(&mut self, node_id: NodeID, f: impl FnOnce(&mut bolt_ts_ast::NodeFlags)) {

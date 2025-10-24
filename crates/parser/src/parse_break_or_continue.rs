@@ -1,8 +1,9 @@
 use bolt_ts_ast::TokenKind;
-use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
 
 use super::{PResult, ParserState, errors};
+use crate::parsing_ctx::ParseContext;
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseBreak;
@@ -85,17 +86,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let span = self.new_span(start);
 
         match P::IS_CONTINUE {
-            true if !self
-                .context_flags
-                .contains(NodeFlags::ALLOW_CONTINUE_CONTEXT) =>
-            {
+            true if !self.parse_context.contains(ParseContext::ALLOW_CONTINUE) => {
                 self.push_error(Box::new(
                     errors::AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
                         span,
                     },
                 ));
             }
-            false if !self.context_flags.contains(NodeFlags::ALLOW_BREAK_CONTEXT) => {
+            false if !self.parse_context.contains(ParseContext::ALLOW_BREAK) => {
                 self.push_error(Box::new(
                 errors::ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
                     span,

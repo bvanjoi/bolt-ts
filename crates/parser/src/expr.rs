@@ -1,4 +1,4 @@
-use crate::parsing_ctx::ParsingContext;
+use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 use super::lookahead::Lookahead;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
@@ -641,8 +641,8 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.do_outside_of_context(
-            NodeFlags::DISALLOW_IN_AND_DECORATOR_CONTEXT,
+        self.do_outside_of_parse_context(
+            ParseContext::DISALLOW_IN_AND_DECORATOR,
             Self::parse_arg_or_array_lit_elem,
         )
     }

@@ -448,3 +448,17 @@ pub(super) struct JumpTargetCannotCrossFunctionBoundary {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A default export can only be used in an ECMAScript-style module.")]
+pub(super) struct ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A default export must be at the top level of a file or module declaration.")]
+pub(super) struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
+    #[label(primary)]
+    pub(super) span: Span,
+}
