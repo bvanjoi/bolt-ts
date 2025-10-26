@@ -855,3 +855,15 @@ pub(super) struct ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWit
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Cannot access '{name}.{prop_name}' because '{name}' is a type, but not a namespace. Did you mean to retrieve the type of the property '{prop_name}' in '{name}' with '{name}[\"{prop_name}\"]'?"
+)]
+pub(super) struct CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanToRetrieveTheTypeOfThePropertyInX
+{
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    pub prop_name: String,
+}
