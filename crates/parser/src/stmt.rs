@@ -905,7 +905,10 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         let extends = self.parse_interface_extends_clause();
         // let implements = self.parse_implements_clause()?;
-        let members = self.parse_object_ty_members();
+        let members = self.do_inside_of_parse_context(
+            ParseContext::INTERFACE_MEMBERS,
+            Self::parse_object_ty_members,
+        );
         let id = self.next_node_id();
         let decl = self.alloc(ast::InterfaceDecl {
             id,

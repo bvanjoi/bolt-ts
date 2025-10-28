@@ -219,10 +219,17 @@ pub(super) struct ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitch
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An interface property cannot have an initializer.")]
-pub(super) struct AnInterfacePropertyCannotHaveAnInitializer {
+#[error("{} property cannot have an initializer.", {
+    if self.interface {
+        "An interface"
+    } else {
+        "A type literal"
+    }
+})]
+pub(super) struct AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
     #[label(primary)]
     pub(super) span: Span,
+    pub(super) interface: bool,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]

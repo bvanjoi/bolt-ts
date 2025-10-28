@@ -1,0 +1,11 @@
+  × Expected 3 arguments, but got 2.
+   ╭─[../../tests/compiler/arityErrorRelatedSpanBindingPattern/index.ts:7:1]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Expected 3 arguments, but got 2.
+   ╭─[../../tests/compiler/arityErrorRelatedSpanBindingPattern/index.ts:9:1]
+ 9 │ bar
+   · ───
+   ╰────

@@ -50,6 +50,8 @@ bitflags::bitflags! {
         const DISALLOW_CONDITIONAL_TYPES          = 1 << 11;
         const MODULE_BLOCK                        = 1 << 12;
         const BLOCK                               = 1 << 13;
+        const INTERFACE_MEMBERS                   = 1 << 14;
+        const TYPE_LITERAL_MEMBERS                = 1 << 15;
 
         const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
                                                             | Self::FN_BLOCK.bits();

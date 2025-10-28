@@ -1,0 +1,11 @@
+  × A type literal property cannot have an initializer.
+   ╭─[../../tests/compiler/errorOnInitializerInObjectTypeLiteralProperty/index.ts:4:19]
+ 4 │ 5
+   · ─
+   ╰────
+
+  × A type literal property cannot have an initializer.
+   ╭─[../../tests/compiler/errorOnInitializerInObjectTypeLiteralProperty/index.ts:9:19]
+ 9 │ 5
+   · ─
+   ╰────
