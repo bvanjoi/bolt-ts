@@ -153,17 +153,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Import(_) => {}
             Export(n) => self.resolve_export(n),
             For(n) => {
-                if let Some(init) = n.init {
-                    match init {
-                        ast::ForInitKind::Var(decls) => {
-                            for decl in decls {
-                                self.resolve_var_decl(decl)
-                            }
-                        }
-                        ast::ForInitKind::Expr(expr) => {
-                            self.resolve_expr(expr);
-                        }
-                    }
+                if let Some(init) = &n.init {
+                    self.resolve_for_init_kind(init);
                 }
                 if let Some(cond) = n.cond {
                     self.resolve_expr(cond);
@@ -174,10 +165,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_stmt(n.body);
             }
             ForOf(n) => {
+                self.resolve_for_init_kind(&n.init);
                 self.resolve_expr(n.expr);
                 self.resolve_stmt(n.body);
             }
             ForIn(n) => {
+                self.resolve_for_init_kind(&n.init);
                 self.resolve_expr(n.expr);
                 self.resolve_stmt(n.body);
             }
@@ -215,6 +208,19 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Switch(_) => {}
         };
+    }
+
+    fn resolve_for_init_kind(&mut self, init: &'cx ast::ForInitKind<'cx>) {
+        match init {
+            ast::ForInitKind::Var(decls) => {
+                for decl in decls.iter() {
+                    self.resolve_var_decl(decl)
+                }
+            }
+            ast::ForInitKind::Expr(expr) => {
+                self.resolve_expr(expr);
+            }
+        }
     }
 
     fn resolve_enum_member(&mut self, n: &'cx ast::EnumMember<'cx>) {

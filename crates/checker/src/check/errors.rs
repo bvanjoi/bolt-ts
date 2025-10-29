@@ -437,6 +437,13 @@ pub(super) struct CannotAssignTo0BecauseItIsAReadOnlyProperty {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The left-hand side of a 'for...in' statement must be of type 'string' or 'any'.")]
+pub(super) struct TheLeftHandSideOfAForInStatementMustBeOfTypeStringOrAny {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
 )]
