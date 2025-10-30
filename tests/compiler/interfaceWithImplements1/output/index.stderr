@@ -1,0 +1,5 @@
+  × Interface declaration cannot have 'implements' clause.
+   ╭─[../../tests/compiler/interfaceWithImplements1/index.ts:5:16]
+ 5 │ implements
+   · ──────────
+   ╰────

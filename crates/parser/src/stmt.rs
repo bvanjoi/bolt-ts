@@ -874,8 +874,19 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    #[inline(always)]
     fn parse_interface_extends_clause(&mut self) -> Option<&'cx ast::InterfaceExtendsClause<'cx>> {
-        if self.token.kind == TokenKind::Extends {
+        if self.token.kind == TokenKind::Extends || {
+            if self.token.kind == TokenKind::Implements {
+                let error = errors::InterfaceDeclarationCannotHaveImplementsClause {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+                true
+            } else {
+                false
+            }
+        } {
             let start = self.token.start();
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(

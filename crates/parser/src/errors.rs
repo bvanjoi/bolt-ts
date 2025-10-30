@@ -478,3 +478,10 @@ pub(super) struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopL
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Interface declaration cannot have 'implements' clause.")]
+pub(super) struct InterfaceDeclarationCannotHaveImplementsClause {
+    #[label(primary)]
+    pub(super) span: Span,
+}
