@@ -61,6 +61,16 @@ impl<'cx> Emitter<'cx> {
         let name = self.atom(atom);
         self.print().p(name);
     }
+
+    #[inline(always)]
+    pub fn increment_indent(&mut self) {
+        self.print().indent += self.options.indent;
+    }
+
+    #[inline(always)]
+    pub fn decrement_indent(&mut self) {
+        self.print().indent -= self.options.indent;
+    }
 }
 
 struct JSEmitter<'cx, 'ir> {
@@ -1732,20 +1742,18 @@ impl<'ir> JSEmitter<'_, 'ir> {
         }
         self.emitter.print().p_l_brace();
         if !n.elems().is_empty() {
-            self.emitter.print().indent += self.emitter.options.indent;
+            self.emitter.increment_indent();
             self.emitter.print().p_newline();
-        }
-        self.emit_list(
-            n.elems(),
-            |this, elem| {
-                this.emit_class_elem(*elem);
-            },
-            |this, _| {
-                this.emitter.content.p_newline();
-            },
-        );
-        if !n.elems().is_empty() {
-            self.emitter.print().indent -= self.emitter.options.indent;
+            self.emit_list(
+                n.elems(),
+                |this, elem| {
+                    this.emit_class_elem(*elem);
+                },
+                |this, _| {
+                    this.emitter.content.p_newline();
+                },
+            );
+            self.emitter.decrement_indent();
             self.emitter.print().p_newline();
         }
         self.emitter.print().p_r_brace();
