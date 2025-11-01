@@ -1250,6 +1250,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             DeleteExpr(n) => {
                 self.bind(n.expr.id());
             }
+            AwaitExpr(n) => {
+                self.bind(n.expr.id());
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

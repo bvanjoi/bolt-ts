@@ -14,6 +14,7 @@ bitflags::bitflags! {
         const HAS_EXPLICIT_RETURN                         = 1 << 10;
         const GLOBAL_AUGMENTATION                         = 1 << 11;
         const HAS_ASYNC_FUNCTIONS                         = 1 << 12;
+        const AWAIT_CONTEXT                               = 1 << 16;
         const THIS_NODE_HAS_ERROR                         = 1 << 18;
         const JAVASCRIPT_FILE                             = 1 << 19;
         const THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR        = 1 << 20;

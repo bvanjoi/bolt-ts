@@ -1,3 +1,4 @@
+use crate::SignatureFlags;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 use super::lookahead::Lookahead;
@@ -7,7 +8,7 @@ use super::state::LanguageVariant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
-use bolt_ts_ast::{self as ast, ModifierKind, NodeFlags, keyword};
+use bolt_ts_ast::{self as ast, ModifierKind, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use enumflags2::BitFlag;
 
@@ -134,7 +135,9 @@ impl<'cx> ParserState<'cx, '_> {
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat);
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            self.parse_arrow_fn_expr_body()?
+            // TODO:
+            let is_async = false;
+            self.parse_arrow_fn_expr_body(is_async)?
         } else {
             todo!()
         };
@@ -154,9 +157,14 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(Some(expr))
     }
 
-    fn parse_arrow_fn_expr_body(&mut self) -> PResult<ast::ArrowFnExprBody<'cx>> {
+    fn parse_arrow_fn_expr_body(&mut self, is_async: bool) -> PResult<ast::ArrowFnExprBody<'cx>> {
         if self.token.kind == TokenKind::LBrace {
-            let block = self.parse_fn_block().unwrap();
+            let flags = if is_async {
+                SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            } else {
+                SignatureFlags::empty()
+            };
+            let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
         } else {
             self.parse_assign_expr_or_higher(false)
@@ -184,7 +192,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(param_id, ast::Node::ParamDecl(param));
         let params = self.alloc([param]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body()?;
+        let body = self.parse_arrow_fn_expr_body(false)?;
         let expr_id = self.next_node_id();
         let f = self.alloc(ast::ArrowFnExpr {
             id: expr_id,
@@ -357,6 +365,30 @@ impl<'cx> ParserState<'cx, '_> {
                 self.parse_ty_assertion()
             }
             Delete => self.parse_delete_expr(),
+            Await => {
+                if self.in_await_context()
+                    || self.lookahead(
+                        Lookahead::next_token_is_ident_or_keyword_or_literal_on_same_line,
+                    )
+                {
+                    let start = self.token.start();
+                    self.next_token(); // consume `await`
+                    let expr = self.parse_simple_unary_expr()?;
+                    let expr = self.create_await_expr(start, expr);
+                    let expr = self.alloc(ast::Expr {
+                        kind: ast::ExprKind::Await(expr),
+                    });
+                    if !self.parse_context.contains(ParseContext::ASYNC) {
+                        let error = errors::AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+                            span: bolt_ts_span::Span::new(start, start + "await".len() as u32, self.module_id)
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                    Ok(expr)
+                } else {
+                    self.parse_update_expr()
+                }
+            }
             _ => self.parse_update_expr(),
         }
     }
@@ -666,7 +698,9 @@ impl<'cx> ParserState<'cx, '_> {
         let params = self.parse_params();
         self.check_params(params, false);
         let ty = self.parse_ty_anno()?;
-        let body = self.parse_fn_block().unwrap();
+        let body = self
+            .parse_fn_block_or_semi(SignatureFlags::empty())
+            .unwrap();
         let node = self.create_object_method_member(start, name, ty_params, params, ty, body);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
@@ -706,13 +740,15 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             invalid_modifiers(self);
-            let decl = self.parse_getter_accessor_decl(start, mods, false)?;
+            let decl =
+                self.parse_getter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
             invalid_modifiers(self);
-            let decl = self.parse_setter_accessor_decl(start, mods, false)?;
+            let decl =
+                self.parse_setter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Setter(decl),
             }));

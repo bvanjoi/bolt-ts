@@ -44,6 +44,29 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
 
 impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>) -> &'cx Sig<'cx> {
+        let tag_ty = checker.check_expr(self.tag);
+        let apparent_ty = checker.get_apparent_ty(tag_ty);
+        if checker.is_error(apparent_ty) {
+            // TODO: resolve_error_call
+            return checker.unknown_sig();
+        }
+        let call_sigs = checker.get_signatures_of_type(apparent_ty, ty::SigKind::Call);
+        let num_ctor_sigs = checker
+            .get_signatures_of_type(apparent_ty, ty::SigKind::Constructor)
+            .len();
+        if call_sigs.is_empty() {
+            let p = checker.parent(self.id).unwrap();
+            if checker.p.node(p).is_array_lit() {
+                let error = errors::ItIsLikelyThatYouAreMissingACommaToSeparateTheseTwoTemplateExpressionsTheyFormATaggedTemplateExpressionWhichCannotBeInvoked {
+                    span: self.tag.span()
+                };
+                checker.push_error(Box::new(error));
+                // TODO: resolve_error_call
+                return checker.unknown_sig();
+            }
+            // TODO: resolve_error_call
+            return checker.unknown_sig();
+        }
         checker.resolve_call_expr(self)
     }
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {

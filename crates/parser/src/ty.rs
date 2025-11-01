@@ -1,4 +1,5 @@
-use crate::parsing_ctx::ParsingContext;
+use crate::SignatureFlags;
+use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 use super::lookahead::Lookahead;
 use super::{PResult, ParserState};
@@ -886,7 +887,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_lit(&mut self) -> &'cx ast::Ty<'cx> {
         let start = self.token.start();
-        let members = self.parse_object_ty_members();
+        let members = self.do_inside_of_parse_context(
+            ParseContext::TYPE_LITERAL_MEMBERS,
+            Self::parse_object_ty_members,
+        );
         let id = self.next_node_id();
         let kind = self.alloc(ast::ObjectLitTy {
             id,
@@ -945,8 +949,11 @@ impl<'cx> ParserState<'cx, '_> {
             });
             self.nodes.insert(id, ast::Node::PropSignature(sig));
             if let Some(init) = self.parse_init()? {
-                let error =
-                    errors::AnInterfacePropertyCannotHaveAnInitializer { span: init.span() };
+                let interface = self.parse_context.contains(ParseContext::INTERFACE_MEMBERS);
+                let error = errors::AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
+                    span: init.span(),
+                    interface,
+                };
                 self.push_error(Box::new(error));
             }
             ast::ObjectTyMemberKind::Prop(sig)
@@ -1006,12 +1013,14 @@ impl<'cx> ParserState<'cx, '_> {
         let modifiers = self.parse_modifiers::<false, false>(false);
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl = self.parse_getter_accessor_decl(start, modifiers, true)?;
+            let decl =
+                self.parse_getter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl = self.parse_setter_accessor_decl(start, modifiers, true)?;
+            let decl =
+                self.parse_setter_accessor_decl(start, modifiers, true, SignatureFlags::TYPE)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))

@@ -14,7 +14,7 @@ use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::{AssignmentKind, MergeSymbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
@@ -1824,6 +1824,40 @@ impl<'cx> TyChecker<'cx> {
             self.fresh_ty_links_arena[links].set_regular_ty(ty);
             self.bigint_lit_tys.insert(key, ty);
             ty
+        }
+    }
+
+    pub(super) fn get_global_ty_alias_symbol(
+        &mut self,
+        name: SymbolName,
+        arity: usize,
+        report_errors: bool,
+    ) -> Option<SymbolID> {
+        let Some(symbol) = self.get_global_symbol(name, SymbolFlags::TYPE) else {
+            if report_errors {
+                todo!()
+            }
+            return None;
+        };
+        self.get_declared_ty_of_symbol(symbol);
+        let ty_params_len = self
+            .get_symbol_links(symbol)
+            .get_ty_params()
+            .map_or(0, |ty_params| ty_params.len());
+        if ty_params_len != arity {
+            // TODO: error
+            None
+        } else {
+            Some(symbol)
+        }
+    }
+
+    fn get_global_symbol(&self, name: SymbolName, meaning: SymbolFlags) -> Option<SymbolID> {
+        let symbol = self.global_symbols.0.get(&name).copied()?;
+        if self.symbol(symbol).flags.intersects(meaning) {
+            Some(symbol)
+        } else {
+            None
         }
     }
 

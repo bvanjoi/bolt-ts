@@ -126,7 +126,28 @@ pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::Class
         v.visit_class_elem(ele);
     }
 }
-pub fn visit_interface_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::InterfaceDecl<'cx>) {}
+pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::InterfaceDecl<'cx>) {
+    v.visit_ident(node.name);
+    // TODO: node.extends
+    for member in node.members {
+        use super::ObjectTyMemberKind::*;
+        match member.kind {
+            IndexSig(n) => {}
+            Prop(n) => v.visit_prop_signature(n),
+            Method(n) => {}
+            CallSig(n) => {}
+            CtorSig(n) => {}
+            Setter(n) => {}
+            Getter(n) => {}
+        }
+    }
+}
+pub fn visit_prop_signature<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::PropSignature<'cx>) {
+    v.visit_prop_name(node.name);
+    if let Some(ty) = node.ty {
+        v.visit_ty(ty);
+    }
+}
 pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassElemKind::*;
@@ -440,6 +461,7 @@ make_visitor!(
     (visit_fn_decl, super::FnDecl<'cx>),
     (visit_binding, super::Binding<'cx>),
     (visit_call_expr, super::CallExpr<'cx>),
+    (visit_prop_signature, super::PropSignature<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

@@ -1,6 +1,9 @@
 use bolt_ts_ast::NodeFlags;
+use bolt_ts_ast::keyword;
 use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolID;
+use bolt_ts_binder::SymbolName;
 
 use crate::ty::TypeFlags;
 
@@ -153,16 +156,57 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
+        if let Some(symbol) = self.deferred_global_extract_symbol.get() {
+            return *symbol;
+        }
+        let symbol =
+            self.get_global_ty_alias_symbol(SymbolName::Atom(keyword::IDENT_EXTRACT), 2, true);
+        let res = self.deferred_global_extract_symbol.set(symbol);
+        debug_assert!(res.is_ok());
+        symbol
+    }
+
+    fn get_extract_string_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let extract_ty_alias = self.get_global_extract_symbol();
+        if let Some(extract_ty_alias) = extract_ty_alias {
+            let ty_args = self.alloc(vec![ty, self.string_ty]);
+            self.get_type_alias_instantiation(extract_ty_alias, ty_args, None, None)
+        } else {
+            self.string_ty
+        }
+    }
+
+    fn get_index_ty_or_string(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let index_ty = self.get_index_ty(ty, ty::IndexFlags::empty());
+        let index_ty = self.get_extract_string_ty(index_ty);
+        if index_ty.flags.contains(TypeFlags::NEVER) {
+            self.string_ty
+        } else {
+            index_ty
+        }
+    }
+
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
             let ty = self.check_expr(node.expr);
             self.get_non_nullable_ty(ty)
         };
-        let left_ty = match node.init {
-            ast::ForInitKind::Expr(expr) => self.check_expr(expr),
+        match node.init {
             ast::ForInitKind::Var(_) => {
                 // TODO:
-                self.any_ty
+            }
+            ast::ForInitKind::Expr(init) => {
+                let left_ty = self.check_expr(init);
+                let valid_ty = self.get_index_ty_or_string(right_ty);
+
+                if !self.is_type_assignable_to(valid_ty, left_ty) {
+                    self.push_error(Box::new(
+                        errors::TheLeftHandSideOfAForInStatementMustBeOfTypeStringOrAny {
+                            span: init.span(),
+                        },
+                    ));
+                }
             }
         };
 

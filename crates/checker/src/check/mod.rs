@@ -270,6 +270,9 @@ pub struct TyChecker<'cx> {
     array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+
+    deferred_global_extract_symbol: std::cell::OnceCell<Option<SymbolID>>,
+
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
     never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
@@ -568,6 +571,8 @@ impl<'cx> TyChecker<'cx> {
             mark_other_ty: Default::default(),
             template_constraint_ty: Default::default(),
             any_iteration_tys: Default::default(),
+
+            deferred_global_extract_symbol: Default::default(),
 
             no_ty_pred: Default::default(),
 

@@ -1126,26 +1126,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     return Ternary::TRUE;
                 }
             }
-        } else if let Some(t_indexed_access_ty) = target.kind.as_indexed_access()
-            && let Some(s_indexed_access_ty) = source.kind.as_indexed_access()
-        {
-            result = self.is_related_to(
-                s_indexed_access_ty.object_ty,
-                t_indexed_access_ty.object_ty,
-                RecursionFlags::BOTH,
-                report_error,
-                IntersectionState::empty(),
-            );
-            if result != Ternary::FALSE {
-                result &= self.is_related_to(
-                    s_indexed_access_ty.index_ty,
-                    t_indexed_access_ty.index_ty,
+        } else if let Some(t_indexed_access_ty) = target.kind.as_indexed_access() {
+            if let Some(s_indexed_access_ty) = source.kind.as_indexed_access() {
+                result = self.is_related_to(
+                    s_indexed_access_ty.object_ty,
+                    t_indexed_access_ty.object_ty,
                     RecursionFlags::BOTH,
                     report_error,
                     IntersectionState::empty(),
                 );
                 if result != Ternary::FALSE {
-                    return result;
+                    result &= self.is_related_to(
+                        s_indexed_access_ty.index_ty,
+                        t_indexed_access_ty.index_ty,
+                        RecursionFlags::BOTH,
+                        report_error,
+                        IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
                 }
             }
             if matches!(

@@ -43,12 +43,15 @@ bitflags::bitflags! {
         const CLASS_FIELD_DEFINITION              = 1 << 3;
         const FN_BLOCK                            = 1 << 4;
         const YIELD                               = 1 << 6;
-        const AWAIT                               = 1 << 7;
-        const DISALLOW_IN                         = 1 << 8;
-        const DECORATOR                           = 1 << 9;
-        const DISALLOW_CONDITIONAL_TYPES          = 1 << 10;
-        const MODULE_BLOCK                        = 1 << 11;
-        const BLOCK                               = 1 << 12;
+        const ASYNC                               = 1 << 7;
+        const AWAIT                               = 1 << 8;
+        const DISALLOW_IN                         = 1 << 9;
+        const DECORATOR                           = 1 << 10;
+        const DISALLOW_CONDITIONAL_TYPES          = 1 << 11;
+        const MODULE_BLOCK                        = 1 << 12;
+        const BLOCK                               = 1 << 13;
+        const INTERFACE_MEMBERS                   = 1 << 14;
+        const TYPE_LITERAL_MEMBERS                = 1 << 15;
 
         const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
                                                             | Self::FN_BLOCK.bits();
