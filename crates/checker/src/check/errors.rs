@@ -874,3 +874,13 @@ pub(super) struct CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanT
     pub name: String,
     pub prop_name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "It is likely that you are missing a comma to separate these two template expressions. They form a tagged template expression which cannot be invoked."
+)]
+pub(super) struct ItIsLikelyThatYouAreMissingACommaToSeparateTheseTwoTemplateExpressionsTheyFormATaggedTemplateExpressionWhichCannotBeInvoked
+{
+    #[label(primary)]
+    pub span: Span,
+}
