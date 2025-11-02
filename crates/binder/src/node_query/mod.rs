@@ -5,7 +5,10 @@ use bolt_ts_ast::{
 };
 use bolt_ts_parser::AccessKind;
 
-use crate::ParentMap;
+use crate::{
+    ParentMap,
+    container_flags::{ContainerFlags, container_flags_for_node},
+};
 
 pub struct NodeQuery<'cx, 'a> {
     parent_map: &'a ParentMap,
@@ -670,6 +673,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.find_ancestor(parent, |node| node.is_fn_decl_like().then_some(true))
     }
 
+    pub fn get_enclosing_container(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        let Some(parent_id) = self.parent(id) else {
+            unreachable!()
+        };
+        self.find_ancestor(parent_id, |current| {
+            let flags = container_flags_for_node(self.parse_result, self.parent_map, current.id());
+            flags.contains(ContainerFlags::IS_CONTAINER).then_some(true)
+        })
+    }
+
     pub fn get_enclosing_blockscope_container(&self, id: ast::NodeID) -> ast::NodeID {
         let Some(parent_id) = self.parent(id) else {
             unreachable!()
@@ -892,5 +905,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             _ => None,
         })
         .is_some()
+    }
+
+    pub fn get_source_file_of_node(&self) -> &'cx ast::Program<'cx> {
+        self.parse_result.root()
     }
 }

@@ -1,10 +1,10 @@
-use bolt_ts_ast::{ModifierKind, NodeFlags};
+use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
 
-use crate::keyword;
 use crate::lookahead::Lookahead;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
+use crate::{SignatureFlags, keyword};
 
 use super::{PResult, ParserState};
 use super::{ast, errors};
@@ -26,21 +26,42 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
 }
 
 impl<'cx> ParserState<'cx, '_> {
-    pub(super) fn parse_fn_block(&mut self) -> Option<&'cx ast::BlockStmt<'cx>> {
+    pub(super) fn parse_fn_block_or_semi(
+        &mut self,
+        flags: SignatureFlags,
+    ) -> Option<&'cx ast::BlockStmt<'cx>> {
         if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
             self.parse_semi();
             None
         } else {
-            let old_labels = std::mem::take(&mut self.labels);
-            let ret = self.do_outside_of_parse_context(
-                ParseContext::ALLOW_BREAK
-                    .union(ParseContext::ALLOW_CONTINUE)
-                    .union(ParseContext::MODULE_BLOCK),
-                |this| this.do_inside_of_parse_context(ParseContext::FN_BLOCK, Self::parse_block),
-            );
-            self.labels = old_labels;
-            Some(ret)
+            Some(self.parse_fn_block(flags))
         }
+    }
+
+    pub(super) fn parse_fn_block(&mut self, flags: SignatureFlags) -> &'cx ast::BlockStmt<'cx> {
+        let saved_await_context = self.in_await_context();
+        let saved_labels = std::mem::take(&mut self.labels);
+
+        self.set_await_context(flags.contains(SignatureFlags::AWAIT));
+
+        let ret = self.do_outside_of_parse_context(
+            ParseContext::ALLOW_BREAK
+                .union(ParseContext::ALLOW_CONTINUE)
+                .union(ParseContext::MODULE_BLOCK),
+            |this| {
+                let context = if flags.contains(SignatureFlags::ASYNC) {
+                    ParseContext::FN_BLOCK.union(ParseContext::ASYNC)
+                } else {
+                    ParseContext::FN_BLOCK
+                };
+                this.do_inside_of_parse_context(context, Self::parse_block)
+            },
+        );
+
+        self.labels = saved_labels;
+        self.set_await_context(saved_await_context);
+
+        ret
     }
 
     pub(super) fn parse_expected_matching_brackets(
@@ -806,13 +827,14 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
+        flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         // TODO: assert params.is_none
         let ty = self.parse_ret_ty(true)?;
-        let mut body = self.parse_fn_block();
+        let mut body = self.parse_fn_block_or_semi(flags);
         if ambient {
             if let Some(body) = body {
                 let error =
@@ -839,12 +861,13 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         ambient: bool,
+        flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         let ty = self.parse_ret_ty(true)?;
-        let mut body = self.parse_fn_block();
+        let mut body = self.parse_fn_block_or_semi(flags);
         if ambient {
             if let Some(body) = body {
                 let error =

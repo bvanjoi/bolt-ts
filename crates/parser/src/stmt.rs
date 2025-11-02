@@ -874,8 +874,19 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    #[inline(always)]
     fn parse_interface_extends_clause(&mut self) -> Option<&'cx ast::InterfaceExtendsClause<'cx>> {
-        if self.token.kind == TokenKind::Extends {
+        if self.token.kind == TokenKind::Extends || {
+            if self.token.kind == TokenKind::Implements {
+                let error = errors::InterfaceDeclarationCannotHaveImplementsClause {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+                true
+            } else {
+                false
+            }
+        } {
             let start = self.token.start();
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(
@@ -905,7 +916,10 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         let extends = self.parse_interface_extends_clause();
         // let implements = self.parse_implements_clause()?;
-        let members = self.parse_object_ty_members();
+        let members = self.do_inside_of_parse_context(
+            ParseContext::INTERFACE_MEMBERS,
+            Self::parse_object_ty_members,
+        );
         let id = self.next_node_id();
         let decl = self.alloc(ast::InterfaceDecl {
             id,

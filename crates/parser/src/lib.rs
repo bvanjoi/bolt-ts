@@ -13,7 +13,6 @@ mod parse_modifiers;
 mod parsed_map;
 mod parsing_ctx;
 mod pragmas;
-mod query;
 mod scan;
 mod scan_integer;
 mod scan_pragma;
@@ -36,7 +35,6 @@ use std::sync::{Arc, Mutex};
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
-pub use self::query::AccessKind;
 use self::state::LanguageVariant;
 use self::state::ParserState;
 
@@ -45,6 +43,13 @@ use rayon::prelude::*;
 type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
 type PResult<T> = Result<T, ()>;
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum AccessKind {
+    Read,
+    Write,
+    ReadWrite,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Tristate {
@@ -446,4 +451,16 @@ fn process_lib_reference_directive(
     let lib_filepath = default_lib_dir.join(lib_filename);
     debug_assert!(lib_filepath.is_normalized());
     Some(lib_filepath)
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    struct SignatureFlags: u8 {
+        const YIELD = 1 << 0;
+        const AWAIT = 1 << 1;
+        const TYPE  = 1 << 2;
+        const IGNORE_MISSING_OPEN_BRACE = 1 << 4;
+        const JSDOC = 1 << 5;
+        const ASYNC = 1 << 6;
+    }
 }

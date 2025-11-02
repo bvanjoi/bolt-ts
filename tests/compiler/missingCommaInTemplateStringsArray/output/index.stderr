@@ -1,0 +1,7 @@
+  × It is likely that you are missing a comma to separate these two template
+  │ expressions. They form a tagged template expression which cannot be
+  │ invoked.
+   ╭─[../../tests/compiler/missingCommaInTemplateStringsArray/index.ts:4:5]
+ 4 │ `template string 1`
+   · ───────────────────
+   ╰────

@@ -1,5 +1,7 @@
+use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
+use bolt_ts_atom::Atom;
 use bolt_ts_binder::{
     MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
     SymbolTable, Symbols,
@@ -235,11 +237,7 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_symbol(
-        &mut self,
-        symbol: SymbolID,
-        dont_resolve_alias: bool,
-    ) -> SymbolID {
+    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {
@@ -544,6 +542,35 @@ impl<'cx> super::TyChecker<'cx> {
             })
     }
 
+    fn check_and_report_error_for_using_type_as_namespace(
+        &mut self,
+        error_location: &'cx ast::Ident,
+        name: Atom,
+        meaning: SymbolFlags,
+    ) {
+        if meaning == SymbolFlags::NAMESPACE {
+            let symbol = self.resolve_symbol_by_ident(error_location);
+            if symbol == Symbol::ERR {
+                // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
+                todo!()
+            }
+            let parent = self.parent(error_location.id).unwrap();
+            if let Some(q) = self.p.node(parent).as_qualified_name()
+                && let ty = self.get_declared_ty_of_symbol(symbol)
+                && let Some(prop_ty) = self.get_prop_of_ty(ty, SymbolName::Atom(q.right.name))
+            {
+                assert!(q.left.id() == error_location.id);
+                let error = errors::CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanToRetrieveTheTypeOfThePropertyInX {
+                    span: q.span,
+                    name: self.atom(name).to_string(),
+                    prop_name: self.atom(q.right.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+            // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
+        }
+    }
+
     pub(super) fn resolve_entity_name(
         &mut self,
         name: &'cx bolt_ts_ast::EntityName<'cx>,
@@ -577,6 +604,9 @@ impl<'cx> super::TyChecker<'cx> {
         } else if flags.intersects(SymbolFlags::ALIAS) {
             self.resolve_alias(symbol)
         } else {
+            if let Ident(n) = name.kind {
+                self.check_and_report_error_for_using_type_as_namespace(n, n.name, meaning);
+            }
             Symbol::ERR
         }
     }

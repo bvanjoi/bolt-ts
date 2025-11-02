@@ -219,10 +219,17 @@ pub(super) struct ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitch
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An interface property cannot have an initializer.")]
-pub(super) struct AnInterfacePropertyCannotHaveAnInitializer {
+#[error("{} property cannot have an initializer.", {
+    if self.interface {
+        "An interface"
+    } else {
+        "A type literal"
+    }
+})]
+pub(super) struct AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
     #[label(primary)]
     pub(super) span: Span,
+    pub(super) interface: bool,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
@@ -459,6 +466,22 @@ pub(super) struct ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A default export must be at the top level of a file or module declaration.")]
 pub(super) struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'await' expressions are only allowed within async functions and at the top levels of modules."
+)]
+pub(super) struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Interface declaration cannot have 'implements' clause.")]
+pub(super) struct InterfaceDeclarationCannotHaveImplementsClause {
     #[label(primary)]
     pub(super) span: Span,
 }

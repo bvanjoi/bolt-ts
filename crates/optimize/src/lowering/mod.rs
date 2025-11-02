@@ -863,6 +863,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 let expr = self.lower_expr(n.expr);
                 ir::Expr::Delete(self.nodes.alloc_delete_expr(n.span, expr))
             }
+            ExprKind::Await(n) => {
+                let expr = self.lower_expr(n.expr);
+                ir::Expr::Await(self.nodes.alloc_await_expr(n.span, expr))
+            }
         }
     }
 

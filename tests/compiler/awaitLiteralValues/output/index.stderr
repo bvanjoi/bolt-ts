@@ -1,0 +1,41 @@
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+   ╭─[../../tests/compiler/awaitLiteralValues/index.ts:4:5]
+ 4 │ await
+   · ─────
+   ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+   ╭─[../../tests/compiler/awaitLiteralValues/index.ts:9:5]
+ 9 │ await
+   · ─────
+   ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitLiteralValues/index.ts:14:5]
+ 14 │ await
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitLiteralValues/index.ts:19:5]
+ 19 │ await
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitLiteralValues/index.ts:24:5]
+ 24 │ await
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitLiteralValues/index.ts:29:5]
+ 29 │ await
+    · ─────
+    ╰────

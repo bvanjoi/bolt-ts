@@ -125,4 +125,43 @@ impl<'cx> TyChecker<'cx> {
     ) -> ast::Exprs<'cx> {
         expr.args()
     }
+
+    pub(super) fn get_effective_declaration_flags(
+        &self,
+        n: ast::NodeID,
+        flags_to_check: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        let Some(mut modifier_flags) = self.p.node(n).modifiers().map(|ms| ms.flags) else {
+            return Default::default();
+        };
+        let Some(p) = self.parent(n) else {
+            return Default::default();
+        };
+        let parent_node = self.p.node(p);
+        if !parent_node.is_interface_decl()
+            && !parent_node.is_class_decl()
+            && !parent_node.is_class_expr()
+            && self.p.node_flags(n).contains(ast::NodeFlags::AMBIENT)
+        {
+            if let Some(container) = self.node_query(n.module()).get_enclosing_container(n)
+                && let container_flags = self.p.node_flags(container)
+                && container_flags.contains(ast::NodeFlags::EXPORT_CONTEXT)
+                && !modifier_flags.contains(ast::ModifierKind::Ambient)
+                && !(parent_node.is_module_block()
+                    && self.parent(p).is_some_and(|pp| {
+                        self.p.node(pp).is_module_decl()
+                            && self
+                                .p
+                                .node_flags(pp)
+                                .contains(ast::NodeFlags::GLOBAL_AUGMENTATION)
+                    }))
+            {
+                modifier_flags |= ast::ModifierKind::Export;
+            }
+
+            modifier_flags |= ast::ModifierKind::Ambient;
+        }
+
+        modifier_flags & flags_to_check
+    }
 }

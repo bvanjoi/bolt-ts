@@ -95,6 +95,7 @@ decl_nodes!(
     template_expr: TemplateExpr,
     tagged_template_expr: TaggedTemplateExpr,
     delete_expr: DeleteExpr,
+    await_expr: AwaitExpr,
     num_lit: NumLit,
     bigint_lit: BigIntLit,
     bool_lit: BoolLit,
@@ -1745,6 +1746,18 @@ impl Nodes {
         debug_assert_eq!(id, idx.0);
         idx
     }
+
+    #[inline]
+    pub fn alloc_await_expr(&mut self, span: Span, expr: Expr) -> AwaitExprID {
+        let idx = AwaitExprID(usize_into_idx(self.await_expr_nodes.0.len()));
+        let id = self.await_expr_nodes.0.alloc(AwaitExpr {
+            id: idx,
+            span,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
 }
 
 #[derive(Debug)]
@@ -1758,6 +1771,21 @@ impl DeleteExpr {
         self.span
     }
 
+    pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
+#[derive(Debug)]
+pub struct AwaitExpr {
+    id: AwaitExprID,
+    span: Span,
+    expr: Expr,
+}
+impl AwaitExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
     pub fn expr(&self) -> Expr {
         self.expr
     }
@@ -4004,6 +4032,7 @@ pub enum Expr {
     PrefixUnary(PrefixUnaryExprID),
     TaggedTemplate(TaggedTemplateExprID),
     Template(TemplateExprID),
+    Await(AwaitExprID),
     Delete(DeleteExprID),
     SpreadElem(SpreadElementID),
     ArrowFn(ArrowFnExprID),

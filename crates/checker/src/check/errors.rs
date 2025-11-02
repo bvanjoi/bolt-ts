@@ -437,6 +437,13 @@ pub(super) struct CannotAssignTo0BecauseItIsAReadOnlyProperty {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The left-hand side of a 'for...in' statement must be of type 'string' or 'any'.")]
+pub(super) struct TheLeftHandSideOfAForInStatementMustBeOfTypeStringOrAny {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
 )]
@@ -852,6 +859,35 @@ pub(super) struct OnlyPublicAndProtectedMethodsOfTheBaseClassAreAccessibleViaThe
     "A namespace declaration cannot be located prior to a class or function with which it is merged."
 )]
 pub(super) struct ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Cannot access '{name}.{prop_name}' because '{name}' is a type, but not a namespace. Did you mean to retrieve the type of the property '{prop_name}' in '{name}' with '{name}[\"{prop_name}\"]'?"
+)]
+pub(super) struct CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanToRetrieveTheTypeOfThePropertyInX
+{
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    pub prop_name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "It is likely that you are missing a comma to separate these two template expressions. They form a tagged template expression which cannot be invoked."
+)]
+pub(super) struct ItIsLikelyThatYouAreMissingACommaToSeparateTheseTwoTemplateExpressionsTheyFormATaggedTemplateExpressionWhichCannotBeInvoked
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Overload signatures must all be ambient or non-ambient.")]
+pub(super) struct OverloadSignaturesMustAllBeAmbientOrNonAmbient {
     #[label(primary)]
     pub span: Span,
 }

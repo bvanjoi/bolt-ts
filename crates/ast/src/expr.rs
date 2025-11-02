@@ -41,6 +41,7 @@ impl<'cx> Expr<'cx> {
             Typeof(n) => n.span,
             Super(n) => n.span,
             Void(n) => n.span,
+            Await(n) => n.span,
             As(n) => n.span,
             Satisfies(n) => n.span,
             NonNull(n) => n.span,
@@ -100,6 +101,7 @@ impl<'cx> Expr<'cx> {
             JsxSelfClosingElem(n) => n.id,
             JsxFrag(n) => n.id,
             Delete(n) => n.id,
+            Await(n) => n.id,
         }
     }
 
@@ -235,6 +237,7 @@ pub enum ExprKind<'cx> {
     Super(&'cx SuperExpr),
     Typeof(&'cx TypeofExpr<'cx>),
     Void(&'cx VoidExpr<'cx>),
+    Await(&'cx AwaitExpr<'cx>),
     As(&'cx AsExpr<'cx>),
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
@@ -371,6 +374,13 @@ pub struct AsExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub ty: &'cx Ty<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AwaitExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub expr: &'cx Expr<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]
