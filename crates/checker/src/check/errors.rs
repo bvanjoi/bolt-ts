@@ -884,3 +884,10 @@ pub(super) struct ItIsLikelyThatYouAreMissingACommaToSeparateTheseTwoTemplateExp
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Overload signatures must all be ambient or non-ambient.")]
+pub(super) struct OverloadSignaturesMustAllBeAmbientOrNonAmbient {
+    #[label(primary)]
+    pub span: Span,
+}
