@@ -418,7 +418,13 @@ impl<'cx> TyChecker<'cx> {
             Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(node) => self.get_ty_from_intersection_ty_node(node),
             TyOp(node) => self.get_ty_from_ty_op(node),
-            Pred(_) => self.boolean_ty(),
+            Pred(node) => {
+                if node.asserts.is_some() {
+                    self.void_ty
+                } else {
+                    self.boolean_ty()
+                }
+            }
             This(node) => self.get_ty_from_this_ty_node(node),
             Lit(node) => {
                 use bolt_ts_ast::LitTyKind::*;

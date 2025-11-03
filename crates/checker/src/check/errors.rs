@@ -891,3 +891,12 @@ pub(super) struct OverloadSignaturesMustAllBeAmbientOrNonAmbient {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value."
+)]
+pub(super) struct AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue {
+    #[label(primary)]
+    pub span: Span,
+}
