@@ -1,3 +1,6 @@
+use crate::check::errors;
+use crate::check::symbol_info::SymbolInfo;
+
 use super::TyChecker;
 
 use bolt_ts_ast as ast;
@@ -42,6 +45,19 @@ impl<'cx> TyChecker<'cx> {
             ArrayPat(_) | ObjectPat(_) | Computed(_) => {
                 // todo
             }
+        }
+
+        if decl.init().is_some()
+            && decl.is_param()
+            && let id = decl.id()
+            && let Some(f) = self.node_query(id.module()).get_containing_fn(id)
+            && self.p.node(f).fn_body().is_none()
+        {
+            let error =
+                errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+                    span: self.p.node(id).span(),
+                };
+            self.push_error(Box::new(error));
         }
     }
 }
