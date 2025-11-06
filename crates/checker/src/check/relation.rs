@@ -156,11 +156,7 @@ impl<'cx> TyChecker<'cx> {
         target_prop: SymbolID,
     ) -> bool {
         self.compare_props(source_prop, target_prop, |this, s, t, _| {
-            if this.is_type_related_to(s, t, RelationKind::Identity) {
-                Ternary::TRUE
-            } else {
-                Ternary::FALSE
-            }
+            this.compare_types_identical(s, t)
         }) != Ternary::FALSE
     }
 

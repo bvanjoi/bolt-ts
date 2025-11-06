@@ -1713,6 +1713,46 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         Ternary::TRUE
     }
 
+    fn sigs_identical_to(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+        kind: SigKind,
+        relation: RelationKind,
+        error_node: Option<ast::NodeID>,
+    ) -> Ternary {
+        let source_sigs = self.c.get_signatures_of_type(source, kind);
+        let target_sigs = self.c.get_signatures_of_type(target, kind);
+        if source_sigs.len() != target_sigs.len() {
+            return Ternary::FALSE;
+        }
+        let mut result = Ternary::TRUE;
+        for i in 0..source_sigs.len() {
+            let related = self.c.compare_sigs_identical(
+                source_sigs[i],
+                target_sigs[i],
+                false,
+                false,
+                false,
+                |this, s, t| {
+                    let mut c = TypeRelatedChecker::new(this, relation, error_node);
+                    c.is_related_to(
+                        s,
+                        t,
+                        RecursionFlags::BOTH,
+                        false,
+                        IntersectionState::empty(),
+                    )
+                },
+            );
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related
+        }
+        result
+    }
+
     fn sigs_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -1723,7 +1763,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let mut result = Ternary::TRUE;
         if self.relation == RelationKind::Identity {
-            return self.index_sigs_identical_to(source, target);
+            return self.sigs_identical_to(source, target, kind, self.relation, self.error_node);
         };
 
         if source == self.c.any_fn_ty() || target == self.c.any_fn_ty() {
