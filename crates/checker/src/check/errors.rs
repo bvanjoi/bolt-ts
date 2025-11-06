@@ -907,3 +907,10 @@ pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImpl
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("The operand of a 'delete' operator must be a property reference.")]
+pub(super) struct TheOperandOfADeleteOperatorMustBeAPropertyReference {
+    #[label(primary)]
+    pub span: Span,
+}

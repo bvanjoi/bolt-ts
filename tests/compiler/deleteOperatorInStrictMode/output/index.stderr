@@ -1,0 +1,11 @@
+  × 'delete' cannot be called on an identifier in strict mode.
+   ╭─[../../tests/compiler/deleteOperatorInStrictMode/index.ts:5:1]
+ 5 │ delete a
+   · ────────
+   ╰────
+
+  × The operand of a 'delete' operator must be a property reference.
+   ╭─[../../tests/compiler/deleteOperatorInStrictMode/index.ts:5:8]
+ 5 │ a
+   · ─
+   ╰────

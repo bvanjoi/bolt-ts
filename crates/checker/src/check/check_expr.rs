@@ -253,6 +253,13 @@ impl<'cx> TyChecker<'cx> {
         self.check_expr(node.expr);
 
         let expr = ast::Expr::skip_parens(node.expr);
+        if !expr.kind.is_access_expr() {
+            let error =
+                errors::TheOperandOfADeleteOperatorMustBeAPropertyReference { span: expr.span() };
+            self.push_error(Box::new(error));
+            return self.boolean_ty();
+        }
+
         let links = self.get_node_links(expr.id());
         let Some(symbol) = links.get_resolved_symbol() else {
             return self.boolean_ty();

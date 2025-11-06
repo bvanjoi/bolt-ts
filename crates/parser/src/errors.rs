@@ -485,3 +485,10 @@ pub(super) struct InterfaceDeclarationCannotHaveImplementsClause {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'delete' cannot be called on an identifier in strict mode.")]
+pub(super) struct DeleteCannotBeCalledOnAnIdentifierInStrictMode {
+    #[label(primary)]
+    pub(super) span: Span,
+}
