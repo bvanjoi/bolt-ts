@@ -1055,13 +1055,7 @@ impl<'cx> ParserState<'cx, '_> {
             LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
             _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        let id = self.next_node_id();
-        let binding = self.alloc(ast::Binding {
-            id,
-            span: kind.span(),
-            kind,
-        });
-        self.nodes.insert(id, ast::Node::Binding(binding));
+        let binding = self.create_binding(kind);
         Ok(binding)
     }
 
@@ -1176,9 +1170,25 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
+        debug_assert!(self.in_strict_mode);
+        if n.name == keyword::IDENT_ARGUMENTS || n.name == keyword::IDENT_EVAL {
+            let error = errors::InvalidUseOf0InStrictMode {
+                name: self.atoms.lock().unwrap().get(n.name).to_string(),
+                span: n.span,
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
     fn parse_var_decl(&mut self, ctx: VarDeclarationContext) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat()?;
+        if self.in_strict_mode
+            && let ast::BindingKind::Ident(name) = name.kind
+        {
+            self.check_strict_mode_eval_or_arguments(name);
+        }
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         if ctx.init_should_exit() && init.is_none() {

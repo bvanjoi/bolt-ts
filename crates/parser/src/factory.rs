@@ -780,4 +780,17 @@ impl<'cx> ParserState<'cx, '_> {
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         stmt
     }
+
+    #[inline(always)]
+    pub(super) fn create_binding(&mut self, kind: ast::BindingKind<'cx>) -> &'cx ast::Binding<'cx> {
+        let id = self.next_node_id();
+        let binding = self.alloc(ast::Binding {
+            id,
+            span: kind.span(),
+            kind,
+        });
+        self.nodes.insert(id, ast::Node::Binding(binding));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        binding
+    }
 }

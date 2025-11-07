@@ -492,3 +492,11 @@ pub(super) struct DeleteCannotBeCalledOnAnIdentifierInStrictMode {
     #[label(primary)]
     pub(super) span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Invalid use of '{name}' in strict mode.")]
+pub(super) struct InvalidUseOf0InStrictMode {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) name: String,
+}

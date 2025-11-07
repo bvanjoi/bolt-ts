@@ -63,6 +63,27 @@ impl From<RawTarget> for Target {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum RawModule {
+    #[default]
+    #[serde(alias = "commonjs")]
+    CommonJS,
+}
+
+impl From<RawModule> for Module {
+    fn from(val: RawModule) -> Self {
+        match val {
+            RawModule::CommonJS => Module::CommonJS,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
+pub enum Module {
+    #[default]
+    CommonJS,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Extension {
     Ts,

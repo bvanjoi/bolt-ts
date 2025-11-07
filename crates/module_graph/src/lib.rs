@@ -60,6 +60,7 @@ pub fn build_graph<'cx>(
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parsed: &mut ParsedMap<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
+    always_strict: bool,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
     let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone());
@@ -82,6 +83,7 @@ pub fn build_graph<'cx>(
             resolving.as_slice(),
             module_arena,
             default_lib_dir,
+            always_strict,
         )
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);
