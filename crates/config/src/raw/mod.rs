@@ -1,4 +1,4 @@
-use crate::RawTarget;
+use crate::{RawModule, RawTarget};
 
 use super::OutDir;
 
@@ -46,6 +46,7 @@ with_option!(
     (no_implicit_any, bool),
     (no_unchecked_indexed_access, bool),
     (target, RawTarget),
+    (module, RawModule),
     (always_strict, bool),
     (exact_optional_property_types, bool),
     (allow_unused_labels, bool)

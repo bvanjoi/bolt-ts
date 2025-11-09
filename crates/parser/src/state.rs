@@ -66,6 +66,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         module_id: ModuleID,
         file_path: &std::path::Path,
         variant: LanguageVariant,
+        always_strict: bool,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
         let token = Token::new(TokenKind::EOF, Span::new(u32::MAX, u32::MAX, module_id));
@@ -110,8 +111,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             variant,
             parsing_context: ParsingContext::default(),
             parse_context: ParseContext::empty(),
-            // TODO: in_strict_mode: options.compiler_options().always_strict(),
-            in_strict_mode: false,
+            in_strict_mode: always_strict,
             labels: Default::default(),
         }
     }

@@ -398,6 +398,12 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `delete`
         let expr = self.parse_simple_unary_expr()?;
+        if self.in_strict_mode && matches!(expr.kind, ast::ExprKind::Ident(_)) {
+            let error = errors::DeleteCannotBeCalledOnAnIdentifierInStrictMode {
+                span: self.new_span(start),
+            };
+            self.push_error(Box::new(error));
+        }
         let n = self.create_delete_expr(start, expr);
         let n = self.alloc(ast::Expr {
             kind: ast::ExprKind::Delete(n),

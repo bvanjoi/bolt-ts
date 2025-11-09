@@ -15,7 +15,7 @@ pub use binary_like::{BinaryLike, BinaryLikeOp};
 pub use binding_name::node_id_of_binding;
 pub use call_like::CallLike;
 pub use class_like::ClassLike;
-pub use fn_like::{FnDeclLike, FnExprLike};
+pub use fn_like::{FnDeclLike, FnExprLike, FnLike};
 pub use has_expr_init::HasExprInit;
 pub use members_of_decl::MembersOfDecl;
 pub use rest_ty_like::RestTyLike;

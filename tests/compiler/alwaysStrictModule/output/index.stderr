@@ -1,0 +1,5 @@
+  × Invalid use of 'arguments' in strict mode.
+   ╭─[../../tests/compiler/alwaysStrictModule/index.ts:8:13]
+ 8 │ arguments
+   · ─────────
+   ╰────

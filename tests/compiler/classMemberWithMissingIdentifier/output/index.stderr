@@ -1,0 +1,11 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:4:12]
+ 4 │ {
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:6:1]
+ 6 │ }
+   · ─
+   ╰────

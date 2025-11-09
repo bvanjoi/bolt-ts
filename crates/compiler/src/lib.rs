@@ -322,6 +322,10 @@ pub fn eval_with_fs(
         &herd,
         &mut p,
         fs,
+        tsconfig
+            .compiler_options()
+            .flags()
+            .contains(CompilerOptionFlags::ALWAYS_STRICT),
     );
 
     // ==== bind ====

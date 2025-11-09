@@ -1,0 +1,23 @@
+  × Cannot find name 'task'.
+    ╭─[../../tests/compiler/crashIntypeCheckInvocationExpression/index.ts:10:28]
+ 10 │ task
+    · ────
+    ╰────
+
+  × Cannot find name 'path'.
+    ╭─[../../tests/compiler/crashIntypeCheckInvocationExpression/index.ts:13:18]
+ 13 │ path
+    · ────
+    ╰────
+
+  × Cannot find name 'moduleType'.
+    ╭─[../../tests/compiler/crashIntypeCheckInvocationExpression/index.ts:17:50]
+ 17 │ moduleType
+    · ──────────
+    ╰────
+
+  × Untyped function calls may not accept type arguments.
+    ╭─[../../tests/compiler/crashIntypeCheckInvocationExpression/index.ts:15:35]
+ 15 │ <number, number, any>
+    · ─────────────────────
+    ╰────

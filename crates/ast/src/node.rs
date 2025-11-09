@@ -869,6 +869,19 @@ impl<'cx> Node<'cx> {
             _ => None,
         }
     }
+
+    pub fn has_only_expr_init(&self) -> bool {
+        matches!(
+            self,
+            Node::VarDecl(_)
+                | Node::ParamDecl(_)
+                | Node::Binding(_)
+                | Node::ClassPropElem(_)
+                | Node::PropSignature(_)
+                | Node::ObjectPropAssignment(_)
+                | Node::EnumMember(_)
+        )
+    }
 }
 
 macro_rules! as_node {

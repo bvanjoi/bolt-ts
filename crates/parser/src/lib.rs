@@ -166,6 +166,7 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
+    always_strict: bool,
 ) -> impl ParallelIterator<Item = (ModuleID, ParseResultForGraph<'cx>)> {
     // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
 
@@ -195,6 +196,7 @@ pub fn parse_parallel<'cx, 'p>(
                 input.as_bytes(),
                 *module_id,
                 module_arena,
+                always_strict,
             );
             assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
             let p = ParseResultForGraph {
@@ -239,6 +241,7 @@ pub fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
+    always_strict: bool,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
@@ -250,7 +253,16 @@ pub fn parse<'cx, 'p>(
     } else {
         LanguageVariant::Standard
     };
-    let mut s = ParserState::new(atoms, arena, nodes, input, module_id, file_path, variant);
+    let mut s = ParserState::new(
+        atoms,
+        arena,
+        nodes,
+        input,
+        module_id,
+        file_path,
+        variant,
+        always_strict,
+    );
 
     s.parse();
 

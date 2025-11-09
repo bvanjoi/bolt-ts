@@ -51,9 +51,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
             return checker.unknown_sig();
         }
         let call_sigs = checker.get_signatures_of_type(apparent_ty, ty::SigKind::Call);
-        let num_ctor_sigs = checker
-            .get_signatures_of_type(apparent_ty, ty::SigKind::Constructor)
-            .len();
+
         if call_sigs.is_empty() {
             let p = checker.parent(self.id).unwrap();
             if checker.p.node(p).is_array_lit() {
@@ -78,6 +76,26 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
+    fn is_untyped_fn_call(
+        &mut self,
+        func_ty: &'cx ty::Ty<'cx>,
+        apparent_func_ty: &'cx ty::Ty<'cx>,
+        num_call_sigs: usize,
+        num_ctor_sigs: usize,
+    ) -> bool {
+        self.is_type_any(func_ty)
+            || self.is_type_any(apparent_func_ty)
+                && (func_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+                    && num_ctor_sigs == 0
+                    && num_call_sigs == 0
+                    && !apparent_func_ty.flags.contains(TypeFlags::UNION)
+                    && !self
+                        .get_reduced_ty(apparent_func_ty)
+                        .flags
+                        .contains(TypeFlags::NEVER)
+                    && self.is_type_assignable_to(func_ty, self.global_fn_ty()))
+    }
+
     pub(super) fn check_call_like_expr(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
@@ -326,6 +344,18 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
+    fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
+        for arg in node.args() {
+            self.check_expr(arg);
+        }
+        self.any_sig()
+    }
+
+    fn resolve_error_call(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
+        self.resolve_untyped_call(expr);
+        self.unknown_sig()
+    }
+
     fn resolve_call_expr(&mut self, expr: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         if let Some(callee) = expr.as_super_call() {
             let super_ty = self.check_super_expr(callee);
@@ -353,13 +383,29 @@ impl<'cx> TyChecker<'cx> {
             return self.any_sig();
         }
 
-        let ty = self.check_expr(expr.callee());
-        let apparent_ty = self.get_apparent_ty(ty);
+        let func_ty = self.check_expr(expr.callee());
+        let apparent_ty = self.get_apparent_ty(func_ty);
         if self.is_error(apparent_ty) {
-            return self.unknown_sig();
+            return self.resolve_error_call(expr);
         }
 
         let call_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Call);
+        let num_ctor_sigs = self
+            .get_signatures_of_type(apparent_ty, ty::SigKind::Constructor)
+            .len();
+
+        let num_call_sigs = call_sigs.len();
+        if self.is_untyped_fn_call(func_ty, apparent_ty, num_call_sigs, num_ctor_sigs) {
+            if !self.is_error(func_ty)
+                && let Some(ty_args) = expr.ty_args()
+            {
+                let error =
+                    errors::UntypedFunctionCallsMayNotAcceptTypeArguments { span: ty_args.span };
+                self.push_error(Box::new(error));
+            }
+            // TODO: self.resolve_untyped_call
+            return self.unknown_sig();
+        }
 
         if call_sigs.is_empty() {
             let ctor_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Constructor);

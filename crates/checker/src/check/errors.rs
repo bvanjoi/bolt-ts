@@ -891,3 +891,33 @@ pub(super) struct OverloadSignaturesMustAllBeAmbientOrNonAmbient {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value."
+)]
+pub(super) struct AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A parameter initializer is only allowed in a function or constructor implementation.")]
+pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("The operand of a 'delete' operator must be a property reference.")]
+pub(super) struct TheOperandOfADeleteOperatorMustBeAPropertyReference {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Untyped function calls may not accept type arguments.")]
+pub(super) struct UntypedFunctionCallsMayNotAcceptTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -50,9 +50,12 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx Ty<'cx>> {
         // TODO: for in stmt
         // TODO: for of stmt
+
+        let decl_node = self.p.node(decl.id());
+        let is_property = decl_node.is_prop_signature();
+        let is_optional = include_optionality && decl_node.is_optional_decl();
+
         if let Some(decl_ty) = decl.decl_ty() {
-            let is_property = self.p.node(decl.id()).is_prop_signature();
-            let is_optional = include_optionality && self.p.node(decl.id()).is_optional_decl();
             let ty = self.get_ty_from_type_node(decl_ty);
             return Some(self.add_optionality(ty, is_property, is_optional));
         }
