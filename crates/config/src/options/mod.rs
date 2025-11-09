@@ -68,12 +68,15 @@ pub enum RawModule {
     #[default]
     #[serde(alias = "commonjs")]
     CommonJS,
+    #[serde(alias = "esnext")]
+    ESNext,
 }
 
 impl From<RawModule> for Module {
     fn from(val: RawModule) -> Self {
         match val {
             RawModule::CommonJS => Module::CommonJS,
+            RawModule::ESNext => Module::ESNext,
         }
     }
 }
@@ -82,6 +85,7 @@ impl From<RawModule> for Module {
 pub enum Module {
     #[default]
     CommonJS,
+    ESNext,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -104,7 +104,7 @@ use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts
 use crate::ty::{TyMapper, has_type_facts};
 
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait;
+use bolt_ts_ast::r#trait::{self, VarLike};
 use bolt_ts_binder::{AssignmentKind, NodeQuery};
 use bolt_ts_binder::{
     FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
@@ -1515,10 +1515,16 @@ impl<'cx> TyChecker<'cx> {
             };
             self.get_apparent_ty(t)
         };
-        let is_any_like = apparent_left_ty.flags.intersects(TypeFlags::ANY);
+        let is_any_like = self.is_type_any(apparent_left_ty); // TODO: apparent_left_ty == self.silent_never_ty;
+        // TODO: is_private_identifier
 
         if is_any_like {
-            return self.error_ty;
+            // TODO: if self.p.node(left).is_ident() && parent_symbol
+            return if self.is_error(apparent_left_ty) {
+                self.error_ty
+            } else {
+                apparent_left_ty
+            };
         }
 
         let name = SymbolName::Atom(right.name);
@@ -3943,19 +3949,18 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_decl_init(
         &mut self,
-        decl: &impl r#trait::HasExprInit<'cx>,
+        decl: &impl VarLike<'cx>,
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let init = decl.init().unwrap();
         // TODO: get_quick_ty_of_expr
 
-        (if let Some(contextual_ty) = contextual_ty {
+        if let Some(contextual_ty) = contextual_ty {
             let check_mode = self.check_mode.unwrap_or(CheckMode::empty());
-
             self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode)
         } else {
             self.check_expr_with_cache(init)
-        }) as _
+        }
     }
 
     pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {

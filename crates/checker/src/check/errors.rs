@@ -914,3 +914,10 @@ pub(super) struct TheOperandOfADeleteOperatorMustBeAPropertyReference {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Untyped function calls may not accept type arguments.")]
+pub(super) struct UntypedFunctionCallsMayNotAcceptTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+}
