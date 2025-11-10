@@ -4160,6 +4160,37 @@ impl<'cx> TyChecker<'cx> {
             callback(self, rest_ty, target_rest_ty);
         }
     }
+
+    fn get_ty_without_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_object() {
+            self.resolve_structured_type_members(ty);
+            let resolved = self.get_ty_links(ty.id).expect_structured_members();
+            if !resolved.ctor_sigs.is_empty() || !resolved.call_sigs.is_empty() {
+                let a = self.create_anonymous_ty(ty.symbol(), ObjectFlags::empty());
+                let s = self.alloc(ty::StructuredMembers {
+                    members: resolved.members,
+                    call_sigs: self.empty_array(),
+                    ctor_sigs: self.empty_array(),
+                    index_infos: self.empty_array(),
+                    props: resolved.props,
+                });
+                let prev = self
+                    .ty_links
+                    .insert(a.id, TyLinks::default().with_structured_members(s));
+                debug_assert!(prev.is_none());
+                return a;
+            }
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let tys = i
+                .tys
+                .iter()
+                .map(|ty| self.get_ty_without_sig(ty))
+                .collect::<Vec<_>>();
+            let tys = self.alloc(tys);
+            return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
+        }
+        ty
+    }
 }
 
 macro_rules! global_ty {
