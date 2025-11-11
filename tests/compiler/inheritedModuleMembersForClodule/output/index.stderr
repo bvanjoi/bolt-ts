@@ -1,0 +1,6 @@
+  × Class static side 'typeof D' incorrectly extends base class static side
+  │ 'typeof C'.
+   ╭─[../../tests/compiler/inheritedModuleMembersForClodule/index.ts:9:7]
+ 9 │ D
+   · ─
+   ╰────

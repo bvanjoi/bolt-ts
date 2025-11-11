@@ -2129,6 +2129,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::FALSE;
         }
 
+        if !source_prop_access.is_empty()
+            && self.c.get_target_symbol(source) != self.c.get_target_symbol(target)
+        {
+            return Ternary::FALSE;
+        }
+
         if self.c.is_readonly_symbol(source) != self.c.is_readonly_symbol(target) {
             return Ternary::FALSE;
         }

@@ -3688,8 +3688,16 @@ impl<'cx> TyChecker<'cx> {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
-            // TODO: handle symbol parent
-            return flags & !ast::ModifierKind::ACCESSIBILITY;
+
+            return if self
+                .symbol(symbol)
+                .parent
+                .is_some_and(|p| self.binder.symbol(p).flags.contains(SymbolFlags::CLASS))
+            {
+                flags
+            } else {
+                flags & !ast::ModifierKind::ACCESSIBILITY
+            };
         };
 
         if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
