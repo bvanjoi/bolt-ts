@@ -3688,8 +3688,16 @@ impl<'cx> TyChecker<'cx> {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
-            // TODO: handle symbol parent
-            return flags & !ast::ModifierKind::ACCESSIBILITY;
+
+            return if self
+                .symbol(symbol)
+                .parent
+                .is_some_and(|p| self.binder.symbol(p).flags.contains(SymbolFlags::CLASS))
+            {
+                flags
+            } else {
+                flags & !ast::ModifierKind::ACCESSIBILITY
+            };
         };
 
         if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
@@ -4159,6 +4167,37 @@ impl<'cx> TyChecker<'cx> {
             let rest_ty = self.get_rest_ty_at_pos(source, param_count, readonly);
             callback(self, rest_ty, target_rest_ty);
         }
+    }
+
+    fn get_ty_without_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_object() {
+            self.resolve_structured_type_members(ty);
+            let resolved = self.get_ty_links(ty.id).expect_structured_members();
+            if !resolved.ctor_sigs.is_empty() || !resolved.call_sigs.is_empty() {
+                let a = self.create_anonymous_ty(ty.symbol(), ObjectFlags::empty());
+                let s = self.alloc(ty::StructuredMembers {
+                    members: resolved.members,
+                    call_sigs: self.empty_array(),
+                    ctor_sigs: self.empty_array(),
+                    index_infos: self.empty_array(),
+                    props: resolved.props,
+                });
+                let prev = self
+                    .ty_links
+                    .insert(a.id, TyLinks::default().with_structured_members(s));
+                debug_assert!(prev.is_none());
+                return a;
+            }
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let tys = i
+                .tys
+                .iter()
+                .map(|ty| self.get_ty_without_sig(ty))
+                .collect::<Vec<_>>();
+            let tys = self.alloc(tys);
+            return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
+        }
+        ty
     }
 }
 

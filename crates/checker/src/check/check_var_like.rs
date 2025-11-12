@@ -5,6 +5,7 @@ use super::TyChecker;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_binder::SymbolFlags;
 
 impl<'cx> TyChecker<'cx> {
     fn check_non_pat_var_like_decl(
@@ -21,18 +22,39 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.get_symbol_of_decl(decl_id);
         let ty = self.get_type_of_symbol(symbol);
-        if let Some(init) = decl.init() {
-            let init_ty = self.check_expr_with_cache(init);
-            assert!(
-                decl.decl_ty().is_none() || self.node_links[&init.id()].get_resolved_ty().is_some(),
-            );
-            if ty != init_ty {
-                self.check_type_assignable_to_and_optionally_elaborate(
-                    init_ty,
-                    ty,
-                    Some(name_id),
-                    Some(init.id()),
+        let s = self.binder.symbol(symbol);
+        if decl_id == s.value_decl.unwrap() {
+            if let Some(init) = decl.init() {
+                let init_ty = self.check_expr_with_cache(init);
+                assert!(
+                    decl.decl_ty().is_none()
+                        || self.node_links[&init.id()].get_resolved_ty().is_some(),
                 );
+                if ty != init_ty {
+                    self.check_type_assignable_to_and_optionally_elaborate(
+                        init_ty,
+                        ty,
+                        Some(name_id),
+                        Some(init.id()),
+                    );
+                }
+            }
+        } else {
+            let is_assignment = s.flags.intersects(SymbolFlags::ASSIGNMENT);
+            let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
+            if !self.is_error(ty)
+                && !self.is_error(decl_ty)
+                && !self.is_type_identical_to(ty, decl_ty)
+                && !is_assignment
+            {
+                let name = self.p.node(name_id).ident_name().unwrap();
+                let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
+                    span: self.p.node(name_id).span(),
+                    var: self.atoms.get(name.name).to_string(),
+                    ty1: ty.to_string(self),
+                    ty2: decl_ty.to_string(self),
+                };
+                self.push_error(Box::new(error));
             }
         }
     }

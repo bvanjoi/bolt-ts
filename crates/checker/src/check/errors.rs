@@ -921,3 +921,25 @@ pub(super) struct UntypedFunctionCallsMayNotAcceptTypeArguments {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class static side '{class}' incorrectly extends base class static side '{base}'.")]
+pub(super) struct ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub base: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Subsequent variable declarations must have the same type. Variable '{var}' must be of type '{ty1}', but here has type '{ty2}'."
+)]
+pub(super) struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY
+{
+    #[label(primary)]
+    pub span: Span,
+    pub var: String,
+    pub ty1: String,
+    pub ty2: String,
+}

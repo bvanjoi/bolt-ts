@@ -112,10 +112,10 @@ impl<'cx> TyChecker<'cx> {
             mapper,
         };
 
-        (self.create_object_ty(
+        self.create_object_ty(
             ty::ObjectTyKind::Reference(self.alloc(ty)),
             ObjectFlags::REFERENCE,
-        )) as _
+        )
     }
 
     pub(super) fn create_normalized_tuple_ty(
@@ -308,10 +308,10 @@ impl<'cx> TyChecker<'cx> {
             fresh_ty_links: links,
         });
 
-        (self.create_object_ty(
+        self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
-        )) as _
+        )
     }
 
     pub(super) fn create_anonymous_ty_with_resolved(

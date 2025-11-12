@@ -1,0 +1,6 @@
+  × Subsequent variable declarations must have the same type. Variable 'z'
+  │ must be of type 'number', but here has type 'string'.
+    ╭─[../../tests/compiler/duplicateLocalVariable3/index.ts:13:9]
+ 13 │ z
+    · ─
+    ╰────
