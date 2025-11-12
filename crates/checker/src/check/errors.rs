@@ -930,3 +930,16 @@ pub(super) struct ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
     pub class: String,
     pub base: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Subsequent variable declarations must have the same type. Variable '{var}' must be of type '{ty1}', but here has type '{ty2}'."
+)]
+pub(super) struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY
+{
+    #[label(primary)]
+    pub span: Span,
+    pub var: String,
+    pub ty1: String,
+    pub ty2: String,
+}

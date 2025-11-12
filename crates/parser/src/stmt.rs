@@ -17,10 +17,11 @@ use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
-    struct VarDeclarationContext: u8 {
+    pub(super) struct VarDeclarationContext: u8 {
         const FOR = 1 << 0;
         const CONST = 1 << 1;
         const AMBIENT = 1 << 2;
+        const LET = 1 << 3;
     }
 }
 
@@ -28,6 +29,7 @@ impl VarDeclarationContext {
     const fn init_should_exit(&self) -> bool {
         self.contains(VarDeclarationContext::CONST)
             && !self.contains(VarDeclarationContext::AMBIENT)
+            && !self.contains(VarDeclarationContext::FOR)
     }
 }
 
@@ -269,9 +271,14 @@ impl<'cx> ParserState<'cx, '_> {
         let t = self.token.kind;
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                Some(ast::ForInitKind::Var(
-                    self.parse_var_decl_list(VarDeclarationContext::FOR),
-                ))
+                let ctx = match t {
+                    Var => VarDeclarationContext::empty(),
+                    Let => VarDeclarationContext::LET,
+                    Const => VarDeclarationContext::CONST,
+                    _ => unreachable!(),
+                }
+                .union(VarDeclarationContext::FOR);
+                Some(ast::ForInitKind::Var(self.parse_var_decl_list(ctx)))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -1195,7 +1202,7 @@ impl<'cx> ParserState<'cx, '_> {
             let span = name.span;
             self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
         }
-        Ok(self.create_var_decl(start, name, ty, init))
+        Ok(self.create_var_decl(start, name, ty, init, ctx))
     }
 
     fn parse_var_decl_list(&mut self, ctx: VarDeclarationContext) -> VarDecls<'cx> {

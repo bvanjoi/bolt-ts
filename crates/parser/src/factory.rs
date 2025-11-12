@@ -1,6 +1,9 @@
+use bolt_ts_ast::VarDecl;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
+
+use crate::stmt::VarDeclarationContext;
 
 use super::ParserState;
 use super::errors;
@@ -601,6 +604,7 @@ impl<'cx> ParserState<'cx, '_> {
         name: &'cx ast::Binding<'cx>,
         ty: Option<&'cx ast::Ty<'cx>>,
         init: Option<&'cx ast::Expr<'cx>>,
+        ctx: VarDeclarationContext,
     ) -> &'cx ast::VarDecl<'cx> {
         let span = self.new_span(start);
         let id = self.next_node_id();
@@ -612,7 +616,12 @@ impl<'cx> ParserState<'cx, '_> {
             init,
         });
         self.nodes.insert(id, ast::Node::VarDecl(node));
-        self.node_flags_map.insert(id, self.node_context_flags);
+        let flags = match ctx {
+            c if c.contains(VarDeclarationContext::CONST) => ast::NodeFlags::CONST,
+            c if c.contains(VarDeclarationContext::LET) => ast::NodeFlags::LET,
+            _ => ast::NodeFlags::empty(),
+        } | self.node_context_flags;
+        self.node_flags_map.insert(id, flags);
         node
     }
 
