@@ -147,6 +147,10 @@ impl<'cx> TyChecker<'cx> {
             && self.get_target_symbol(source) != self.get_target_symbol(target)
         {
             return Ternary::FALSE;
+        } else if self.symbol(source).flags.contains(SymbolFlags::OPTIONAL)
+            != self.symbol(target).flags.contains(SymbolFlags::OPTIONAL)
+        {
+            return Ternary::FALSE;
         }
 
         if self.is_readonly_symbol(source) != self.is_readonly_symbol(target) {

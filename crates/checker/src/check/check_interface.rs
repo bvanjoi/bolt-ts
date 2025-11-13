@@ -41,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
                         Some(first_interface_decl),
                     );
                     if !res {
-                        let error = errors::Interface0IncorrectlyExtendsInterface1 {
+                        let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
                             span: interface.name.span,
                             base: base_ty.to_string(self),
                             derived: ty.to_string(self),

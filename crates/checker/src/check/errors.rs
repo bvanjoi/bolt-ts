@@ -463,7 +463,7 @@ pub(super) struct TypeProducesATupleTypeThatIsTooLargeToRepresent {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Interface '{derived}' incorrectly extends interface '{base}'.")]
-pub(super) struct Interface0IncorrectlyExtendsInterface1 {
+pub(super) struct InterfaceDerivedIncorrectlyExtendsInterfaceBase {
     #[label(primary)]
     pub span: Span,
     pub base: String,

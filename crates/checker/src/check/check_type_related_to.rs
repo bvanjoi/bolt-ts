@@ -2133,6 +2133,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && self.c.get_target_symbol(source) != self.c.get_target_symbol(target)
         {
             return Ternary::FALSE;
+        } else if self.c.symbol(source).flags.contains(SymbolFlags::OPTIONAL)
+            != self.c.symbol(target).flags.contains(SymbolFlags::OPTIONAL)
+        {
+            return Ternary::FALSE;
         }
 
         if self.c.is_readonly_symbol(source) != self.c.is_readonly_symbol(target) {
