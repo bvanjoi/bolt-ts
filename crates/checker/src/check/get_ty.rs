@@ -97,12 +97,24 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn get_ty_of_prototype_property(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        self.any_ty
+        // let parent = self.symbol(symbol).parent.unwrap();
+        // let class_ty = self.get_declared_ty_of_symbol(parent);
+        // let i = class_ty.kind.as_object_interface().unwrap();
+        // if i.ty_params.is_some() {
+        //     // TODO: widen param into any
+        //     class_ty
+        // } else {
+        //     class_ty
+        // }
+    }
+
     fn get_ty_of_var_or_param_or_prop_worker(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let s = self.symbol(symbol);
         let flags = s.flags;
         if flags.intersects(SymbolFlags::PROTOTYPE) {
-            // TODO: prototype type
-            return self.any_ty;
+            return self.get_ty_of_prototype_property(symbol);
         }
         let decl = s.value_decl.unwrap();
         let node = self.p.node(decl);

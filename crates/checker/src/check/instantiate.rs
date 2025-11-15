@@ -408,7 +408,7 @@ impl<'cx> TyChecker<'cx> {
         if self.is_error(element_ty) {
             self.error_ty
         } else {
-            let is_readonly = array_ty.kind.is_readonly_array(self);
+            let is_readonly = array_ty.is_readonly_array(self);
             let modifiers = m.decl.get_modifiers();
             let readonly = ast::MappedTy::get_modified_readonly_state(is_readonly, modifiers);
             self.create_array_ty(element_ty, readonly)

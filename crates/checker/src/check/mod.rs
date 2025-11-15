@@ -104,7 +104,7 @@ use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts
 use crate::ty::{TyMapper, has_type_facts};
 
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait::{self, VarLike};
+use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::{AssignmentKind, NodeQuery};
 use bolt_ts_binder::{
     FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
@@ -668,6 +668,8 @@ impl<'cx> TyChecker<'cx> {
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
         });
+
+        debug_assert!(this.global_readonly_array_ty().is_readonly_array(&this));
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
 
@@ -2396,7 +2398,7 @@ impl<'cx> TyChecker<'cx> {
                     right_ty
                 }
             }
-            PipePipe => {
+            LogicalOr => {
                 if has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
                     right_ty
                 } else {
@@ -3025,11 +3027,11 @@ impl<'cx> TyChecker<'cx> {
         } else if self.is_empty_anonymous_object_ty(target) {
             source
                 .flags
-                .intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE)
+                .intersects(TypeFlags::OBJECT.union(TypeFlags::NON_PRIMITIVE))
         } else if target == self.global_object_ty() {
             source
                 .flags
-                .intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE)
+                .intersects(TypeFlags::OBJECT.union(TypeFlags::NON_PRIMITIVE))
                 && !self.is_empty_anonymous_object_ty(source)
         } else if target == self.global_fn_ty() {
             source.flags.intersects(TypeFlags::OBJECT) && self.is_fn_object_ty(source)
@@ -3042,7 +3044,7 @@ impl<'cx> TyChecker<'cx> {
                     target
                 },
             ) || (target.kind.is_array(self)
-                && !target.kind.is_readonly_array(self)
+                && !target.is_readonly_array(self)
                 && self.is_ty_derived_from(source, self.global_readonly_array_ty()))
         }
     }

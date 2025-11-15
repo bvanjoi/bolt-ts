@@ -522,6 +522,8 @@ pub enum AssignOp {
     BitAndEq,
     BitXorEq,
     BitOrEq,
+    LogicalAndEq,
+    LogicalOrEq,
 }
 
 impl AssignOp {
@@ -540,12 +542,14 @@ impl AssignOp {
             BitAndEq => "&=",
             BitXorEq => "^=",
             BitOrEq => "|=",
+            LogicalAndEq => "&&=",
+            LogicalOrEq => "||=",
         }
     }
 
-    pub fn is_logical_or_coalescing_assign_op(self) -> bool {
-        // ||=, ??=
-        false
+    pub fn is_logical_or_coalescing_assign_op(&self) -> bool {
+        //  ??=
+        matches!(self, Self::LogicalAndEq)
     }
 }
 
@@ -625,7 +629,7 @@ pub enum BinOpKind {
     Mul,
     Div,
     Mod,
-    PipePipe,
+    LogicalOr,
     Less,
     LessEq,
     Shl,
@@ -658,7 +662,7 @@ impl BinOpKind {
             Div => "/",
             Mod => "%",
             BitOr => "|",
-            PipePipe => "||",
+            LogicalOr => "||",
             Less => "<",
             LessEq => "<=",
             Shl => "<<",
@@ -682,8 +686,7 @@ impl BinOpKind {
     }
 
     fn is_logical_op(self) -> bool {
-        // TODO:  AmpersandAmpersand
-        matches!(self, Self::PipePipe)
+        matches!(self, Self::LogicalOr | Self::LogicalAnd)
     }
 
     pub fn is_logical_or_coalescing_op(self) -> bool {

@@ -1420,7 +1420,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
 
-            if if target.kind.is_readonly_array(self.c) {
+            if if target.is_readonly_array(self.c) {
                 self.c
                     .every_type(source, |this, t| this.is_array_or_tuple(t))
             } else if target.kind.is_array(self.c) {

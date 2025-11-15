@@ -60,7 +60,8 @@ impl TyChecker<'_> {
             self.is_context_sensitive(c.when_true.id())
                 || self.is_context_sensitive(c.when_false.id())
         } else if let Some(b) = node.as_bin_expr() {
-            matches!(b.op.kind, ast::BinOpKind::PipePipe) || self.is_context_sensitive(b.right.id())
+            matches!(b.op.kind, ast::BinOpKind::LogicalOr)
+                || self.is_context_sensitive(b.right.id())
         } else if let Some(p) = node.as_paren_expr() {
             self.is_context_sensitive(p.expr.id())
         } else {

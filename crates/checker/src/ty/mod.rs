@@ -403,6 +403,13 @@ impl<'cx> Ty<'cx> {
     pub const fn is_unit(&self) -> bool {
         self.flags.intersects(TypeFlags::UNIT)
     }
+
+    pub fn is_readonly_array(&self, checker: &TyChecker<'cx>) -> bool {
+        self.kind.as_object_reference().is_some_and(|ty| {
+            let t = checker.global_readonly_array_ty();
+            ty.target == t || self == t
+        })
+    }
 }
 
 impl<'cx> TyKind<'cx> {
@@ -473,11 +480,6 @@ impl<'cx> TyKind<'cx> {
             ty.target == checker.global_array_ty()
                 || ty.target == checker.global_readonly_array_ty()
         })
-    }
-
-    pub fn is_readonly_array(&self, checker: &TyChecker<'cx>) -> bool {
-        self.as_object_reference()
-            .is_some_and(|ty| ty.target == checker.global_readonly_array_ty())
     }
 }
 
