@@ -3039,7 +3039,11 @@ impl<'cx> TyChecker<'cx> {
             self.has_base_ty(
                 source,
                 if let Some(r) = target.kind.as_object_reference() {
-                    r.target
+                    if r.target.kind.is_object_interface() {
+                        target
+                    } else {
+                        r.target
+                    }
                 } else {
                     target
                 },
