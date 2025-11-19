@@ -275,7 +275,7 @@ impl<'cx> TyChecker<'cx> {
 
                 let base_with_this = self.get_ty_with_this_arg(base_ty, this_arg, false);
                 if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
-                    todo!()
+                    self.issue_member_spec_error(class, ty_with_this, base_with_this);
                 } else {
                     let target = self.get_ty_without_sig(static_base_ty);
                     if !self.check_type_assignable_to(static_ty, target, None) {

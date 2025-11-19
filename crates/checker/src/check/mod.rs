@@ -2447,7 +2447,7 @@ impl<'cx> TyChecker<'cx> {
             Shr => self.number_ty,
             UShr => self.number_ty,
             BitAnd => self.number_ty,
-            Instanceof => self.boolean_ty(),
+            Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
             NEq => self.boolean_ty(),
@@ -2456,6 +2456,28 @@ impl<'cx> TyChecker<'cx> {
             BitXor => self.number_ty,
             Exp => self.number_ty,
         }
+    }
+
+    fn check_instanceof_expr(
+        &mut self,
+        left: &'cx ast::Expr,
+        left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr,
+        right_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
+            return self.silent_never_ty;
+        }
+        if !self.is_type_any(left_ty)
+            && self.all_types_assignable_to_kind(left_ty, ty::TypeFlags::PRIMITIVE, false)
+        {
+            let error = errors::TheLeftHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObjectTypeOrATypeParameter {
+                span: left.span(),
+            };
+            self.push_error(Box::new(error));
+        }
+
+        self.boolean_ty()
     }
 
     fn check_in_expr(

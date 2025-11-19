@@ -1,0 +1,6 @@
+  × Interface name cannot be 'string'.
+   ╭─[../../tests/compiler/InterfaceDeclaration8/index.ts:3:11]
+ 3 │ string
+   · ──────
+   ╰────
+  help: Reserved type names are not permitted.

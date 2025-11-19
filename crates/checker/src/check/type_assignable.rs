@@ -3,6 +3,22 @@ use crate::ty::{Ty, TypeFlags};
 use super::TyChecker;
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn all_types_assignable_to_kind(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        kind: TypeFlags,
+        strict: bool,
+    ) -> bool {
+        if let Some(s) = source.kind.as_union() {
+            return s
+                .tys
+                .iter()
+                .all(|sub_ty| self.all_types_assignable_to_kind(sub_ty, kind, strict));
+        } else {
+            self.is_type_assignable_to_kind(source, kind, strict)
+        }
+    }
+
     pub(super) fn is_type_assignable_to_kind(
         &mut self,
         source: &'cx Ty<'cx>,

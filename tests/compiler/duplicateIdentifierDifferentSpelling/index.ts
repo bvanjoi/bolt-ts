@@ -9,3 +9,7 @@ class A {
 
 var X = { 0b11: '', 3: '' };
 //~^ ERROR: An object literal cannot have multiple properties with the same name.
+
+
+const B = 1;
+type B = string;

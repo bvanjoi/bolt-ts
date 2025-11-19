@@ -1,0 +1,13 @@
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+   ╭─[../../tests/compiler/instanceofWithPrimitiveUnion/index.ts:6:9]
+ 6 │ x
+   · ─
+   ╰────
+
+  × The left-hand side of an 'instanceof' expression must be of type 'any', an
+  │ object type or a type parameter.
+    ╭─[../../tests/compiler/instanceofWithPrimitiveUnion/index.ts:13:9]
+ 13 │ x
+    · ─
+    ╰────

@@ -445,6 +445,16 @@ pub(super) struct TheLeftHandSideOfAForInStatementMustBeOfTypeStringOrAny {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
+    "The left-hand side of an 'instanceof' expression must be of type 'any', an object type or a type parameter."
+)]
+pub(super) struct TheLeftHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObjectTypeOrATypeParameter
+{
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
     "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
 )]
 pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0
