@@ -7,24 +7,21 @@ use super::{ast, errors};
 use bolt_ts_ast::{Token, TokenKind};
 
 impl<'cx> ParserState<'cx, '_> {
-    fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> PResult<bool> {
+    fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> bool {
         if !is_colon {
             self.expect(TokenKind::EqGreat);
-            Ok(true)
+            true
         } else if self.parse_optional(TokenKind::Colon).is_some() {
-            Ok(true)
+            true
         } else if is_ty && self.token.kind == TokenKind::EqGreat {
             todo!()
         } else {
-            Ok(false)
+            false
         }
     }
 
     pub fn parse_ret_ty(&mut self, is_colon: bool) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self
-            .should_parse_ret_ty(is_colon, false)
-            .unwrap_or_default()
-        {
+        if self.should_parse_ret_ty(is_colon, false) {
             self.parse_ty_or_ty_pred().map(Some)
         } else {
             Ok(None)
@@ -423,13 +420,13 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_entity_name(
         &mut self,
         allow_reserved_word: bool,
-    ) -> PResult<&'cx ast::EntityName<'cx>> {
+    ) -> &'cx ast::EntityName<'cx> {
         let start = self.token.start();
         let name = self.parse_ident_name();
         let kind = ast::EntityNameKind::Ident(name);
         let mut entity = self.alloc(ast::EntityName { kind });
         if self.token.kind != TokenKind::Dot {
-            return Ok(entity);
+            return entity;
         }
         // self.parent_map.r#override(name.id, id);
         while self.parse_optional(TokenKind::Dot).is_some() {
@@ -449,10 +446,10 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::EntityNameKind::Qualified(qualified),
             });
         }
-        Ok(entity)
+        entity
     }
 
-    fn parse_ty_args_of_ty_reference(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+    fn parse_ty_args_of_ty_reference(&mut self) -> Option<&'cx ast::Tys<'cx>> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
             let start = self.token.start();
             let list = self.parse_bracketed_list::<false, _>(
@@ -467,16 +464,16 @@ impl<'cx> ParserState<'cx, '_> {
                 self.push_error(Box::new(error));
             }
             let tys = self.alloc(ast::Tys { span, list });
-            Ok(Some(tys))
+            Some(tys)
         } else {
-            Ok(None)
+            None
         }
     }
 
-    pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> PResult<&'cx ast::ReferTy<'cx>> {
+    pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> &'cx ast::ReferTy<'cx> {
         let start = self.token.start();
-        let name = self.parse_entity_name(true)?;
-        let ty_args = self.parse_ty_args_of_ty_reference()?;
+        let name = self.parse_entity_name(true);
+        let ty_args = self.parse_ty_args_of_ty_reference();
         let id = self.next_node_id();
         let ty = self.alloc(ast::ReferTy {
             id,
@@ -485,20 +482,20 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args,
         });
         self.nodes.insert(id, ast::Node::ReferTy(ty));
-        Ok(ty)
+        ty
     }
 
-    fn parse_ty_reference(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        let refer = self.parse_entity_name_of_ty_reference()?;
+    fn parse_ty_reference(&mut self) -> &'cx ast::Ty<'cx> {
+        let refer = self.parse_entity_name_of_ty_reference();
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Refer(refer),
         });
-        Ok(ty)
+        ty
     }
 
-    fn parse_keyword_and_not_dot(&mut self) -> PResult<Option<Token>> {
+    fn parse_keyword_and_not_dot(&mut self) -> Option<Token> {
         let token = self.parse_token_node();
-        Ok((self.token.kind != TokenKind::Dot).then_some(token))
+        (self.token.kind != TokenKind::Dot).then_some(token)
     }
 
     pub(super) fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
@@ -523,9 +520,10 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_ty_query(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Typeof);
         let start = self.token.start();
-        self.expect(TokenKind::Typeof);
-        let name = self.parse_entity_name(true)?;
+        self.next_token(); // consume `typeof`
+        let name = self.parse_entity_name(true);
         let ty_args = if self.has_preceding_line_break() {
             self.try_parse_ty_args()?
         } else {
@@ -581,7 +579,7 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(ty)
             }
-            Number | String | BigInt | NoSubstitutionTemplate => self.parse_literal_ty(false),
+            Number | String | BigInt | NoSubstitutionTemplate => Ok(self.parse_literal_ty(false)),
             Typeof => {
                 if self.lookahead(Lookahead::is_start_of_ty_of_import_ty) {
                     todo!()
@@ -603,7 +601,7 @@ impl<'cx> ParserState<'cx, '_> {
             LBracket => self.parse_tuple_ty(),
             Minus => {
                 if self.lookahead(Lookahead::next_token_is_numeric_or_big_int_literal) {
-                    self.parse_literal_ty(true)
+                    Ok(self.parse_literal_ty(true))
                 } else {
                     todo!()
                 }
@@ -624,7 +622,7 @@ impl<'cx> ParserState<'cx, '_> {
             Asserts if self.lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line) => {
                 self.parse_asserts_ty_pred()
             }
-            _ => self.parse_ty_reference(),
+            _ => Ok(self.parse_ty_reference()),
         }
     }
 
@@ -662,13 +660,16 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_literal_ty(&mut self, neg: bool) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_literal_ty(&mut self, neg: bool) -> &'cx ast::Ty<'cx> {
         if neg {
             self.expect(TokenKind::Minus);
         }
         use bolt_ts_ast::TokenKind::*;
         let token_val = self.token_value.unwrap();
-        if let Some(node) = self.try_parse(|l| l.p().parse_keyword_and_not_dot())? {
+        if let Ok(Some(node)) = self.try_parse(|l| -> PResult<Option<Token>> {
+            let ret = l.p().parse_keyword_and_not_dot();
+            Ok(ret)
+        }) {
             let ty = match node.kind {
                 Number => {
                     let val = token_val.number();
@@ -701,7 +702,7 @@ impl<'cx> ParserState<'cx, '_> {
 
                 _ => unreachable!(),
             };
-            Ok(ty)
+            ty
         } else {
             self.parse_ty_reference()
         }

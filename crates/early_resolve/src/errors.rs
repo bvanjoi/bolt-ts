@@ -125,3 +125,12 @@ pub(super) struct StaticMembersCannotReferenceClassTypeParameters {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter '{parameter}' cannot reference identifier '{identifier}' declared after it.")]
+pub(super) struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+    pub identifier: String,
+}

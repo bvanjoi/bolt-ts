@@ -877,6 +877,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 ident,
                 res.symbol,
                 res.associated_declaration_for_containing_initializer_or_binding_name,
+                res.within_deferred_context,
             );
         }
     }
@@ -947,11 +948,77 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
         false
     }
+
+    fn get_is_deferred_context(
+        &self,
+        location: ast::NodeID,
+        last_location: Option<ast::NodeID>,
+    ) -> bool {
+        let last_location_is_fn_name =
+            |name: ast::NodeID| last_location.is_some_and(|last_location| last_location == name);
+        let l = self.p.node(location);
+        match l {
+            ast::Node::FnExpr(f) => {
+                if f.name.is_some_and(|name| last_location_is_fn_name(name.id)) {
+                    return false;
+                }
+                return self
+                    .node_query()
+                    .get_immediately_invoked_fn_expr(location)
+                    .is_none();
+            }
+            ast::Node::ArrowFnExpr(f) => {
+                // TODO: name
+                return self
+                    .node_query()
+                    .get_immediately_invoked_fn_expr(location)
+                    .is_none();
+            }
+            _ => {
+                // TODO: is_type_query_node
+                if (l.is_fn_decl_like()
+                    || ((l.is_class_prop_elem() || l.is_object_prop_member()) && !l.is_static()))
+                    && (last_location.is_none_or(|last_location| {
+                        self.p
+                            .node(location)
+                            .ident_name()
+                            .is_some_and(|name| name.id != last_location)
+                    }))
+                {
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
 }
 
 pub struct ResolvedResult {
     symbol: SymbolID,
     associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+    within_deferred_context: bool,
+}
+
+fn get_symbol(
+    resolver: &Resolver,
+    symbols: &SymbolTable,
+    name: SymbolName,
+    meaning: SymbolFlags,
+) -> Option<SymbolID> {
+    if !meaning.is_empty()
+        && let Some(symbol) = symbols.0.get(&name)
+    {
+        let symbols = &resolver.states[symbol.module().as_usize()].symbols;
+        let symbol = resolver.merged.get_merged_symbol(*symbol, symbols);
+        let flags = resolver.symbol(symbol).flags;
+        if flags.intersects(meaning) {
+            return Some(symbol);
+        } else if flags.intersects(SymbolFlags::ALIAS) {
+            // bound of parallel, handle this case in late_resolve
+            return Some(symbol);
+        }
+    }
+    None
 }
 
 pub fn resolve_symbol_by_ident<'a, 'cx>(
@@ -962,30 +1029,9 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     use ast::Node::*;
     let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
+    let mut within_deferred_context = false;
     let mut last_location = Some(ident.id);
     let mut location = resolver.parent(ident.id);
-
-    fn get_symbol(
-        resolver: &Resolver,
-        symbols: &SymbolTable,
-        name: SymbolName,
-        meaning: SymbolFlags,
-    ) -> Option<SymbolID> {
-        if !meaning.is_empty()
-            && let Some(symbol) = symbols.0.get(&name)
-        {
-            let symbols = &resolver.states[symbol.module().as_usize()].symbols;
-            let symbol = resolver.merged.get_merged_symbol(*symbol, symbols);
-            let flags = resolver.symbol(symbol).flags;
-            if flags.intersects(meaning) {
-                return Some(symbol);
-            } else if flags.intersects(SymbolFlags::ALIAS) {
-                // bound of parallel, handle this case in late_resolve
-                return Some(symbol);
-            }
-        }
-        None
-    }
 
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id)
@@ -998,6 +1044,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 return ResolvedResult {
                     symbol,
                     associated_declaration_for_containing_initializer_or_binding_name,
+                    within_deferred_context,
                 };
             }
 
@@ -1026,9 +1073,12 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 return ResolvedResult {
                     symbol,
                     associated_declaration_for_containing_initializer_or_binding_name,
+                    within_deferred_context,
                 };
             }
         }
+
+        within_deferred_context |= resolver.get_is_deferred_context(id, last_location);
 
         let n = resolver.p.node(id);
         match n {
@@ -1065,6 +1115,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: module_export,
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
             }
@@ -1076,6 +1127,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: res,
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
             }
@@ -1097,6 +1149,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: res,
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
                 if let Some(c) = n.as_class_expr()
@@ -1106,6 +1159,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: resolver.symbol_of_decl(id),
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
             }
@@ -1129,6 +1183,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         return ResolvedResult {
                             symbol: Symbol::ERR,
                             associated_declaration_for_containing_initializer_or_binding_name,
+                            within_deferred_context,
                         };
                     }
                 }
@@ -1141,6 +1196,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: Symbol::ARGUMENTS,
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
             }
@@ -1151,6 +1207,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: Symbol::ARGUMENTS,
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
                 if meaning.intersects(SymbolFlags::FUNCTION)
@@ -1159,6 +1216,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     return ResolvedResult {
                         symbol: resolver.symbol_of_decl(id),
                         associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
                     };
                 }
             }
@@ -1181,16 +1239,19 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         return ResolvedResult {
             symbol,
             associated_declaration_for_containing_initializer_or_binding_name,
+            within_deferred_context,
         };
     } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
         return ResolvedResult {
             symbol: Symbol::GLOBAL_THIS,
             associated_declaration_for_containing_initializer_or_binding_name,
+            within_deferred_context,
         };
     }
 
     ResolvedResult {
         symbol: Symbol::ERR,
         associated_declaration_for_containing_initializer_or_binding_name,
+        within_deferred_context,
     }
 }

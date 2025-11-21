@@ -898,7 +898,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(
                 ParsingContext::HERITAGE_CLAUSE_ELEMENT,
-                Self::parse_entity_name_of_ty_reference,
+                |this| Ok(this.parse_entity_name_of_ty_reference()),
             );
             let span = self.new_span(start);
             let id = self.next_node_id();
@@ -957,7 +957,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(
                 ParsingContext::HERITAGE_CLAUSE_ELEMENT,
-                Self::parse_entity_name_of_ty_reference,
+                |this| Ok(this.parse_entity_name_of_ty_reference()),
             );
             let span = self.new_span(start);
             let id = self.next_node_id();
