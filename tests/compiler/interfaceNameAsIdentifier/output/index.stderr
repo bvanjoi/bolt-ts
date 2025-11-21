@@ -1,0 +1,30 @@
+  × Cannot find name 'C'.
+   ╭─[../../tests/compiler/interfaceNameAsIdentifier/index.ts:6:1]
+ 6 │ C
+   · ─
+   ╰────
+
+Advice: 
+  ☞ 'C' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/interfaceNameAsIdentifier/index.ts:3:11]
+ 3 │ C
+   · ┬
+   · ╰── 'C' is defined here.
+   ╰────
+   ╭─[../../tests/compiler/interfaceNameAsIdentifier/index.ts:6:1]
+ 6 │ C
+   · ─
+   ╰────
+
+  × Cannot find name 'm2'.
+    ╭─[../../tests/compiler/interfaceNameAsIdentifier/index.ts:15:1]
+ 15 │ m2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/interfaceNameAsIdentifier/index.ts:9:11]
+ 9 │ m2
+   · ──
+   ╰────

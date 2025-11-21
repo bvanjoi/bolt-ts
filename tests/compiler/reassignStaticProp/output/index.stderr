@@ -3,3 +3,10 @@
  7 │ bar
    · ───
    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'bar'
+  │ must be of type 'number', but here has type 'string'.
+   ╭─[../../tests/compiler/reassignStaticProp/index.ts:7:12]
+ 7 │ bar
+   · ───
+   ╰────

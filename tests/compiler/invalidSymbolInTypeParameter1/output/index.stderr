@@ -1,0 +1,5 @@
+  × Cannot find name 'WAWA'.
+   ╭─[../../tests/compiler/invalidSymbolInTypeParameter1/index.ts:4:26]
+ 4 │ WAWA
+   · ────
+   ╰────

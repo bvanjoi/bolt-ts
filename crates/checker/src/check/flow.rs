@@ -1,9 +1,10 @@
 use super::TyChecker;
 use super::type_predicate::TyPred;
 use crate::check::create_ty::IntersectionFlags;
+use crate::check::symbol_info::SymbolInfo;
 use crate::check::type_predicate::TyPredKind;
 use crate::ty::{self, ObjectFlags, TypeFlags};
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 
 #[derive(Debug, Clone, Copy)]
@@ -300,8 +301,100 @@ impl<'cx> TyChecker<'cx> {
             PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
                 self.narrow_ty(ty, refer, node.expr, !assume_true)
             }
+            Bin(node) => self.narrow_ty_by_bin_expr(ty, refer, node, assume_true),
             _ => ty,
         }
+    }
+
+    fn narrow_ty_by_bin_expr(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        expr: &'cx ast::BinExpr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        use ast::BinOpKind::*;
+        match expr.op.kind {
+            Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, expr, assume_true),
+            _ => ty,
+        }
+    }
+
+    fn get_reference_candidate(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
+        let n = ast::Expr::skip_parens(expr);
+        match n.kind {
+            ast::ExprKind::Assign(node) => {
+                match node.op {
+                    ast::AssignOp::Eq
+                    | ast::AssignOp::LogicalOrEq
+                    | ast::AssignOp::LogicalAndEq => {
+                        // TODO: `??=`
+                        self.get_reference_candidate(node.left)
+                    }
+                    _ => n,
+                }
+            }
+            _ => n,
+        }
+    }
+
+    fn narrow_ty_by_instanceof_expr(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        expr: &'cx ast::BinExpr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let left = self.get_reference_candidate(expr.left);
+        if !self.is_matching_reference(refer, left.id()) {
+            // if assume_true && self.config.strict_null_checks() && self.contain
+
+            return ty;
+        }
+        let right = expr.right;
+        let right_ty = self.get_ty_of_expr(right);
+        let global_object_ty = self.global_object_ty();
+        if !self.is_ty_derived_from(right_ty, global_object_ty) {
+            return ty;
+        }
+        // TODO: get_effects_sigs
+        let global_fn_ty = self.global_fn_ty();
+        if !self.is_ty_derived_from(right_ty, global_fn_ty) {
+            return ty;
+        }
+        let instance_ty = self
+            .map_ty(
+                right_ty,
+                |this, t| {
+                    // get_instance_ty
+                    if let Some(prototype_property_ty) = this.get_ty_of_prop_of_ty(
+                        t,
+                        bolt_ts_binder::SymbolName::Atom(keyword::IDENT_PROTOTYPE),
+                    ) && !this.is_type_any(prototype_property_ty)
+                    {
+                        return Some(prototype_property_ty);
+                    }
+
+                    let ctor_sigs = this.get_signatures_of_type(t, ty::SigKind::Constructor);
+                    Some(if ctor_sigs.is_empty() {
+                        this.empty_object_ty()
+                    } else {
+                        let tys = ctor_sigs
+                            .iter()
+                            .map(|sig| {
+                                let s = this.get_erased_sig(sig);
+                                this.get_ret_ty_of_sig(s)
+                            })
+                            .collect::<Vec<_>>();
+                        let tys = this.alloc(tys);
+                        this.get_union_ty(tys, ty::UnionReduction::Lit, false, None, None)
+                    })
+                },
+                false,
+            )
+            .unwrap();
+        // TODO: don't narrow any
+        self.get_narrowed_ty(ty, instance_ty, assume_true, true)
     }
 
     fn narrow_ty_by_assertion(
@@ -317,7 +410,7 @@ impl<'cx> TyChecker<'cx> {
                 if n.op.kind == ast::BinOpKind::LogicalAnd {
                     let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
                     self.narrow_ty_by_assertion(left_ty, refer, n.right)
-                } else if n.op.kind == ast::BinOpKind::PipePipe {
+                } else if n.op.kind == ast::BinOpKind::LogicalOr {
                     let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
                     let right_ty = self.narrow_ty_by_assertion(ty, refer, n.right);
                     self.get_union_ty(

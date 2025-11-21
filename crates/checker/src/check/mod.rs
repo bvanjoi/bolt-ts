@@ -104,7 +104,7 @@ use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts
 use crate::ty::{TyMapper, has_type_facts};
 
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait::{self, VarLike};
+use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::{AssignmentKind, NodeQuery};
 use bolt_ts_binder::{
     FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
@@ -668,6 +668,8 @@ impl<'cx> TyChecker<'cx> {
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
         });
+
+        debug_assert!(this.global_readonly_array_ty().is_readonly_array(&this));
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
 
@@ -2396,7 +2398,7 @@ impl<'cx> TyChecker<'cx> {
                     right_ty
                 }
             }
-            PipePipe => {
+            LogicalOr => {
                 if has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
                     right_ty
                 } else {
@@ -2445,7 +2447,7 @@ impl<'cx> TyChecker<'cx> {
             Shr => self.number_ty,
             UShr => self.number_ty,
             BitAnd => self.number_ty,
-            Instanceof => self.boolean_ty(),
+            Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
             NEq => self.boolean_ty(),
@@ -2454,6 +2456,28 @@ impl<'cx> TyChecker<'cx> {
             BitXor => self.number_ty,
             Exp => self.number_ty,
         }
+    }
+
+    fn check_instanceof_expr(
+        &mut self,
+        left: &'cx ast::Expr,
+        left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr,
+        right_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
+            return self.silent_never_ty;
+        }
+        if !self.is_type_any(left_ty)
+            && self.all_types_assignable_to_kind(left_ty, ty::TypeFlags::PRIMITIVE, false)
+        {
+            let error = errors::TheLeftHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObjectTypeOrATypeParameter {
+                span: left.span(),
+            };
+            self.push_error(Box::new(error));
+        }
+
+        self.boolean_ty()
     }
 
     fn check_in_expr(
@@ -3025,11 +3049,11 @@ impl<'cx> TyChecker<'cx> {
         } else if self.is_empty_anonymous_object_ty(target) {
             source
                 .flags
-                .intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE)
+                .intersects(TypeFlags::OBJECT.union(TypeFlags::NON_PRIMITIVE))
         } else if target == self.global_object_ty() {
             source
                 .flags
-                .intersects(TypeFlags::OBJECT | TypeFlags::NON_PRIMITIVE)
+                .intersects(TypeFlags::OBJECT.union(TypeFlags::NON_PRIMITIVE))
                 && !self.is_empty_anonymous_object_ty(source)
         } else if target == self.global_fn_ty() {
             source.flags.intersects(TypeFlags::OBJECT) && self.is_fn_object_ty(source)
@@ -3037,12 +3061,16 @@ impl<'cx> TyChecker<'cx> {
             self.has_base_ty(
                 source,
                 if let Some(r) = target.kind.as_object_reference() {
-                    r.target
+                    if r.target.kind.is_object_interface() {
+                        target
+                    } else {
+                        r.target
+                    }
                 } else {
                     target
                 },
             ) || (target.kind.is_array(self)
-                && !target.kind.is_readonly_array(self)
+                && !target.is_readonly_array(self)
                 && self.is_ty_derived_from(source, self.global_readonly_array_ty()))
         }
     }
@@ -3688,8 +3716,16 @@ impl<'cx> TyChecker<'cx> {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
-            // TODO: handle symbol parent
-            return flags & !ast::ModifierKind::ACCESSIBILITY;
+
+            return if self
+                .symbol(symbol)
+                .parent
+                .is_some_and(|p| self.binder.symbol(p).flags.contains(SymbolFlags::CLASS))
+            {
+                flags
+            } else {
+                flags & !ast::ModifierKind::ACCESSIBILITY
+            };
         };
 
         if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
@@ -4159,6 +4195,37 @@ impl<'cx> TyChecker<'cx> {
             let rest_ty = self.get_rest_ty_at_pos(source, param_count, readonly);
             callback(self, rest_ty, target_rest_ty);
         }
+    }
+
+    fn get_ty_without_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_object() {
+            self.resolve_structured_type_members(ty);
+            let resolved = self.get_ty_links(ty.id).expect_structured_members();
+            if !resolved.ctor_sigs.is_empty() || !resolved.call_sigs.is_empty() {
+                let a = self.create_anonymous_ty(ty.symbol(), ObjectFlags::empty());
+                let s = self.alloc(ty::StructuredMembers {
+                    members: resolved.members,
+                    call_sigs: self.empty_array(),
+                    ctor_sigs: self.empty_array(),
+                    index_infos: self.empty_array(),
+                    props: resolved.props,
+                });
+                let prev = self
+                    .ty_links
+                    .insert(a.id, TyLinks::default().with_structured_members(s));
+                debug_assert!(prev.is_none());
+                return a;
+            }
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let tys = i
+                .tys
+                .iter()
+                .map(|ty| self.get_ty_without_sig(ty))
+                .collect::<Vec<_>>();
+            let tys = self.alloc(tys);
+            return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
+        }
+        ty
     }
 }
 

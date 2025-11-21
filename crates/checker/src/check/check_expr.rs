@@ -1106,7 +1106,7 @@ impl<'cx> TyChecker<'cx> {
         //     self.push_error(assign.span.module, Box::new(error));
         // }
         use bolt_ts_ast::AssignOp::*;
-        (match assign.op {
+        match assign.op {
             Eq => unreachable!(),
             AddEq => self
                 .check_binary_like_expr_for_add(l, r)
@@ -1126,7 +1126,9 @@ impl<'cx> TyChecker<'cx> {
                 assign.right.span(),
                 assign.op.as_str(),
             ),
-        }) as _
+            LogicalAndEq => todo!(),
+            LogicalOrEq => todo!(),
+        }
     }
 
     fn check_prefix_unary_expr(

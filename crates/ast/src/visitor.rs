@@ -148,6 +148,15 @@ pub fn visit_prop_signature<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::Pr
         v.visit_ty(ty);
     }
 }
+pub fn visit_method_signature<'cx>(
+    v: &mut impl Visitor<'cx>,
+    node: &'cx super::MethodSignature<'cx>,
+) {
+    v.visit_prop_name(node.name);
+    if let Some(ty) = node.ty {
+        v.visit_ty(ty);
+    }
+}
 pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassElemKind::*;
@@ -461,7 +470,8 @@ make_visitor!(
     (visit_fn_decl, super::FnDecl<'cx>),
     (visit_binding, super::Binding<'cx>),
     (visit_call_expr, super::CallExpr<'cx>),
-    (visit_prop_signature, super::PropSignature<'cx>)
+    (visit_prop_signature, super::PropSignature<'cx>),
+    (visit_method_signature, super::MethodSignature<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {

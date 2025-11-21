@@ -20,6 +20,10 @@ impl PPrint {
     pub fn p_asterisk(&mut self) {
         self.p("*");
     }
+    /// `=>`
+    pub fn p_arrow_right(&mut self) {
+        self.p("=>");
+    }
     pub fn p_whitespace(&mut self) {
         self.p(" ");
     }

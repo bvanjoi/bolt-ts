@@ -1,0 +1,5 @@
+  × Parameter 'a' cannot reference identifier 'b' declared after it.
+   ╭─[../../tests/compiler/optionalParamReferencingOtherParams3/index.ts:3:20]
+ 3 │ b
+   · ─
+   ╰────

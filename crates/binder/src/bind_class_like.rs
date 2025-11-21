@@ -44,7 +44,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
 
         let name = SymbolName::Atom(ast::keyword::IDENT_PROTOTYPE);
         let prototype_symbol =
-            self.create_symbol(name, SymbolFlags::PROTOTYPE.union(SymbolFlags::PROTOTYPE));
+            self.create_symbol(name, SymbolFlags::PROPERTY.union(SymbolFlags::PROTOTYPE));
         let s = self.symbols.get(symbol);
         let Some(exports) = s.exports.as_ref() else {
             unreachable!()

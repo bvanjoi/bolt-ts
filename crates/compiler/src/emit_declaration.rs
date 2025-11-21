@@ -53,6 +53,13 @@ impl<'cx> DeclarationEmitter<'cx> {
             }
         }
     }
+
+    fn emit_ret_ty(&mut self, ty: Option<&'cx ast::Ty<'cx>>) {
+        match ty {
+            Some(ty) => self.visit_ty(ty),
+            None => self.emitter.print().p("any"),
+        }
+    }
 }
 
 impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
@@ -79,7 +86,7 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
                     match elem.kind {
                         IndexSig(n) => todo!(),
                         Prop(n) => this.visit_prop_signature(n),
-                        Method(n) => todo!(),
+                        Method(n) => this.visit_method_signature(n),
                         CallSig(n) => todo!(),
                         CtorSig(n) => todo!(),
                         Setter(n) => todo!(),
@@ -94,6 +101,71 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
             self.emitter.print().p_newline();
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_fn_ty(&mut self, node: &'cx bolt_ts_ast::FnTy<'cx>) {
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_arrow_right();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
+    }
+
+    fn visit_lit_ty(&mut self, node: &'cx bolt_ts_ast::LitTy) {
+        use bolt_ts_ast::LitTyKind::*;
+        match &node.kind {
+            Void => self.emitter.print().p("void"),
+            Null => todo!(),
+            True => todo!(),
+            False => todo!(),
+            Undefined => todo!(),
+            Num(_) => todo!(),
+            String(atom) => todo!(),
+            BigInt { neg, val } => todo!(),
+        }
+    }
+
+    fn visit_param_decl(&mut self, node: &'cx bolt_ts_ast::ParamDecl<'cx>) {
+        self.visit_binding(node.name);
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        if let Some(ty) = node.ty {
+            self.visit_ty(ty);
+        } else {
+            self.emitter.print().p("any");
+        }
+    }
+
+    fn visit_method_signature(&mut self, node: &'cx bolt_ts_ast::MethodSignature<'cx>) {
+        self.visit_prop_name(node.name);
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.emit_ret_ty(node.ty);
+        self.emitter.print().p_semi();
     }
 
     // TODO: merge this and `JsEmitter::visit_prop_name`

@@ -124,6 +124,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    // TODO: merge `TyRelationChecker::compare_props`
     pub(super) fn compare_props(
         &mut self,
         source: SymbolID,
@@ -139,6 +140,16 @@ impl<'cx> TyChecker<'cx> {
             & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
+            return Ternary::FALSE;
+        }
+
+        if !source_prop_access.is_empty()
+            && self.get_target_symbol(source) != self.get_target_symbol(target)
+        {
+            return Ternary::FALSE;
+        } else if self.symbol(source).flags.contains(SymbolFlags::OPTIONAL)
+            != self.symbol(target).flags.contains(SymbolFlags::OPTIONAL)
+        {
             return Ternary::FALSE;
         }
 

@@ -974,7 +974,7 @@ as_node!(
     ),
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
-    (Binding, super::Binding, binding),
+    (Binding, super::Binding<'cx>, binding),
     (OmitExpr, super::OmitExpr, omit_expr),
     (ParenExpr, super::ParenExpr<'cx>, paren_expr),
     (CondExpr, super::CondExpr<'cx>, cond_expr),

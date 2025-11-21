@@ -1420,7 +1420,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
 
-            if if target.kind.is_readonly_array(self.c) {
+            if if target.is_readonly_array(self.c) {
                 self.c
                     .every_type(source, |this, t| this.is_array_or_tuple(t))
             } else if target.kind.is_array(self.c) {
@@ -2126,6 +2126,16 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
+            return Ternary::FALSE;
+        }
+
+        if !source_prop_access.is_empty()
+            && self.c.get_target_symbol(source) != self.c.get_target_symbol(target)
+        {
+            return Ternary::FALSE;
+        } else if self.c.symbol(source).flags.contains(SymbolFlags::OPTIONAL)
+            != self.c.symbol(target).flags.contains(SymbolFlags::OPTIONAL)
+        {
             return Ternary::FALSE;
         }
 

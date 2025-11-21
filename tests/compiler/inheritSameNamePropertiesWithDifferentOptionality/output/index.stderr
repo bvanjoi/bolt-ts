@@ -1,0 +1,5 @@
+  × Interface 'A' cannot simultaneously extend types 'C' and 'C2'.
+    ╭─[../../tests/compiler/inheritSameNamePropertiesWithDifferentOptionality/index.ts:11:11]
+ 11 │ A
+    · ─
+    ╰────

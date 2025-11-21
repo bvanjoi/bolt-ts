@@ -4,6 +4,8 @@ use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
+use crate::get_symbol;
+
 use super::Resolver;
 use super::errors;
 
@@ -11,24 +13,19 @@ impl<'cx> Resolver<'cx, '_, '_> {
     fn check_param_refer_itself(
         &self,
         ident: &'cx ast::Ident,
-        symbol: SymbolID,
-        associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+        result: SymbolID,
+        associated_declaration_for_containing_initializer_or_binding_name: ast::Node<'cx>,
     ) -> Option<errors::ParameterXCannotReferenceItself> {
-        if let Some(associated_declaration_for_containing_initializer_or_binding_name) =
-            associated_declaration_for_containing_initializer_or_binding_name
+        if let Some(param_decl) =
+            associated_declaration_for_containing_initializer_or_binding_name.as_param_decl()
         {
-            let node = self
-                .p
-                .node(associated_declaration_for_containing_initializer_or_binding_name);
-            if let Some(param_decl) = node.as_param_decl() {
-                let id = node_id_of_binding(param_decl);
-                if symbol == self.symbol_of_decl(id) {
-                    let error = errors::ParameterXCannotReferenceItself {
-                        span: ident.span,
-                        name: self.atoms.get(ident.name).to_string(),
-                    };
-                    return Some(error);
-                }
+            let id = node_id_of_binding(param_decl);
+            if result == self.symbol_of_decl(id) {
+                let error = errors::ParameterXCannotReferenceItself {
+                    span: ident.span,
+                    name: self.atoms.get(ident.name).to_string(),
+                };
+                return Some(error);
             }
         }
         None
@@ -80,15 +77,38 @@ impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_success_resolved_value_symbol(
         &mut self,
         ident: &'cx ast::Ident,
-        symbol: SymbolID,
+        result: SymbolID,
         associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+        within_deferred_context: bool,
     ) {
-        if let Some(error) = self.check_param_refer_itself(
-            ident,
-            symbol,
-            associated_declaration_for_containing_initializer_or_binding_name,
-        ) {
-            self.push_error(Box::new(error));
+        if !within_deferred_context
+            && let Some(associated_declaration_for_containing_initializer_or_binding_name) =
+                associated_declaration_for_containing_initializer_or_binding_name
+        {
+            let node = self
+                .p
+                .node(associated_declaration_for_containing_initializer_or_binding_name);
+            if let Some(error) = self.check_param_refer_itself(ident, result, node) {
+                self.push_error(Box::new(error));
+            } else if let s = self.symbol(result)
+                && let Some(value_decl) = s.value_decl
+                && self.p.node(value_decl).span().hi() > node.span().hi()
+                && let nq = self.node_query()
+                && let root = nq.get_root_decl(
+                    associated_declaration_for_containing_initializer_or_binding_name,
+                )
+                && let root_parent = self.parent(root).unwrap()
+                && let Some(locals) = self.locals(root_parent)
+                && get_symbol(self, locals, s.name, SymbolFlags::VALUE)
+                    .is_some_and(|res| res == result)
+            {
+                let error = errors::ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
+                    span: ident.span,
+                    parameter: self.atoms.get(node.ident_name().unwrap().name).to_string(),
+                    identifier: self.atoms.get(ident.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
         }
     }
 
