@@ -206,8 +206,28 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Labeled(n) => {
                 self.resolve_stmt(n.stmt);
             }
-            Switch(_) => {}
+            Switch(n) => self.resolve_switch_stmt(n),
         };
+    }
+
+    fn resolve_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) {
+        self.resolve_expr(n.expr);
+        for clause in n.case_block.clauses {
+            use ast::CaseOrDefaultClause::*;
+            match clause {
+                Case(n) => {
+                    self.resolve_expr(n.expr);
+                    for stmt in n.stmts {
+                        self.resolve_stmt(stmt);
+                    }
+                }
+                Default(n) => {
+                    for stmt in n.stmts {
+                        self.resolve_stmt(stmt);
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_for_init_kind(&mut self, init: &'cx ast::ForInitKind<'cx>) {
@@ -307,7 +327,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Ident(ident) => {
                 if meaning.contains(SymbolFlags::TYPE) {
                     let report = meaning == SymbolFlags::TYPE;
-                    let res = self.resolve_ty_by_ident(ident, report);
+                    let res = self.resolve_type_by_ident(ident, report);
                     if res != Symbol::ERR || report {
                         let prev = self.final_res.insert(ident.id, res);
                         assert!(prev.is_none());
@@ -882,7 +902,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_ty_by_ident(&mut self, ident: &'cx ast::Ident, report: bool) -> SymbolID {
+    fn resolve_type_by_ident(&mut self, ident: &'cx ast::Ident, report: bool) -> SymbolID {
         if ident.name == keyword::IDENT_EMPTY {
             // delay bug
             return Symbol::ERR;
@@ -902,11 +922,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 name,
                 errors: vec![],
             };
+            let error = self.on_failed_to_resolve_type_symbol(ident, error);
             self.push_error(Box::new(error));
         } else if res != Symbol::ERR {
             self.on_success_resolved_type_symbol(ident, &mut res);
         };
-
         res
     }
 

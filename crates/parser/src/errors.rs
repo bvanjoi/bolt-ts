@@ -205,17 +205,23 @@ pub(super) struct AnObjectMemberCannotBeDeclaredOptional {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A 'continue' statement can only be used within an enclosing iteration statement.")]
-pub(super) struct AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
+#[error("A '{}' statement can only be used within an enclosing iteration{} statement.", {
+    if self.is_continue {
+        "continue"
+    } else {
+        "break"
+    }
+}, {
+    if self.is_continue {
+        ""
+    } else {
+        " or switch"
+    }
+})]
+pub(super) struct AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
     #[label(primary)]
     pub(super) span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A 'break' statement can only be used within an enclosing iteration or switch statement.")]
-pub(super) struct ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
-    #[label(primary)]
-    pub(super) span: Span,
+    pub(super) is_continue: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -277,6 +283,13 @@ pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Unterminated string literal.")]
 pub(super) struct UnterminatedStringLiteral {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Unterminated template literal.")]
+pub(super) struct UnterminatedTemplateLiteral {
     #[label(primary)]
     pub span: Span,
 }

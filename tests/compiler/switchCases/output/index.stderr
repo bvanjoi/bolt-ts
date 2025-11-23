@@ -1,0 +1,5 @@
+  × Type '1' is not comparable to type '0'.
+   ╭─[../../tests/compiler/switchCases/index.ts:4:7]
+ 4 │ 1
+   · ─
+   ╰────

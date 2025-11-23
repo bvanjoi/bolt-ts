@@ -4,6 +4,10 @@
    · ─
    ╰────
 
+  × Unterminated template literal.
+   ╭─[../../tests/compiler/invalidTemplate/index.ts:4:42]
+   ╰────
+
   × Cannot find name 'test'.
    ╭─[../../tests/compiler/invalidTemplate/index.ts:1:13]
  1 │ test

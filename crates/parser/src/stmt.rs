@@ -102,16 +102,18 @@ impl<'cx> ParserState<'cx, '_> {
                     this.next_token(); // consume `case`
                     let expr = this.allow_in_and(Self::parse_expr)?;
                     this.expect(TokenKind::Colon);
-                    let stmts =
-                        this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, Self::parse_stmt);
+                    let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
+                        this.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)
+                    });
                     ast::CaseOrDefaultClause::Case(this.create_case_clause(start, expr, stmts))
                 } else {
                     // parse default clause
                     let start = this.token.start();
                     this.expect(TokenKind::Default);
                     this.expect(TokenKind::Colon);
-                    let stmts =
-                        this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, Self::parse_stmt);
+                    let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
+                        this.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)
+                    });
                     ast::CaseOrDefaultClause::Default(this.create_default_clause(start, stmts))
                 })
             });

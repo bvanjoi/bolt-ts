@@ -111,7 +111,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && original_target.flags.intersects(TypeFlags::PRIMITIVE)
         {
             if self.relation == RelationKind::Comparable
-                && !original_target.flags.intersects(TypeFlags::NEVER)
+                && !original_target.flags.contains(TypeFlags::NEVER)
                 && (self.c.is_simple_type_related_to(
                     original_target,
                     original_source,

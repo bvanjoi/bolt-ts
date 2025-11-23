@@ -1,0 +1,5 @@
+  × Type 'Y' is not generic.
+    ╭─[../../tests/compiler/moduleAndInterfaceSharingName2/index.ts:10:9]
+ 10 │ X.Y<string>
+    · ───────────
+    ╰────

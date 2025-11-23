@@ -965,6 +965,10 @@ impl ParserState<'_, '_> {
         let mut contents = Vec::with_capacity(32);
         let kind = loop {
             if self.pos == self.end() {
+                let error = errors::UnterminatedTemplateLiteral {
+                    span: Span::new(self.pos as u32, self.pos as u32, self.module_id),
+                };
+                self.push_error(Box::new(error));
                 return Token::new(
                     TokenKind::EOF,
                     Span::new(start as u32, start as u32, self.module_id),

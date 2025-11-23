@@ -1,0 +1,38 @@
+  × Cannot find name 'M'.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:4:17]
+ 4 │ M
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:3:11]
+ 3 │ M
+   · ─
+   ╰────
+
+  × Cannot find name 'M'.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:6:21]
+ 6 │ M
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a type.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:3:11]
+ 3 │ M
+   · ─
+   ╰────
+
+  × Cannot find name 'M'.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:8:21]
+ 8 │ M
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a type.
+   ╭─[../../tests/compiler/moduleAsBaseType/index.ts:3:11]
+ 3 │ M
+   · ─
+   ╰────

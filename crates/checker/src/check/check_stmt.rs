@@ -44,11 +44,56 @@ impl<'cx> TyChecker<'cx> {
             While(_) => {}
             Do(_) => {}
             Debugger(_) => {}
-            Switch(_) => {}
-            Labeled(n) => {
-                self.check_stmt(n.stmt);
-            }
+            Switch(n) => self.check_switch_stmt(n),
+            Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn is_type_equality_comparable_to(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        target.flags.contains(TypeFlags::NULLABLE)
+            || self.is_type_related_to(source, target, super::relation::RelationKind::Comparable)
+    }
+
+    fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
+        use ast::CaseOrDefaultClause::*;
+        let expr_ty = self.check_expr(node.expr);
+        let mut first_default_clause = None;
+        let mut has_duplicate_default_clause = false;
+
+        for clause in node.case_block.clauses {
+            match clause {
+                Case(n) => {
+                    let case_ty = self.check_expr(n.expr);
+                    if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
+                        if !self.check_type_comparable_to(case_ty, expr_ty, Some(n.expr.id())) {
+                            let error = errors::TypeXIsNotComparableToTypeY {
+                                span: n.expr.span(),
+                                ty1: case_ty.to_string(self),
+                                ty2: expr_ty.to_string(self),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+                Default(n) => {
+                    if !has_duplicate_default_clause {
+                        match first_default_clause {
+                            Some(first_default_clause) => {
+                                has_duplicate_default_clause = true;
+                                todo!("error handler")
+                            }
+                            None => {
+                                first_default_clause = Some(n);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn check_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {

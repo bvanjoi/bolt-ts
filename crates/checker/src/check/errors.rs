@@ -953,3 +953,20 @@ pub(super) struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustB
     pub ty1: String,
     pub ty2: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty1}' is not comparable to type '{ty2}'.")]
+pub(super) struct TypeXIsNotComparableToTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not generic.")]
+pub(super) struct TypeXIsNotGeneric {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
