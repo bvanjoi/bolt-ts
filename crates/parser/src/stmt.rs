@@ -1082,6 +1082,10 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 self.expect(TokenKind::Colon);
                 let name = self.parse_ident_or_pat()?;
+                if dotdotdot.is_some() {
+                    let error = errors::ARestElementCannotHaveAPropertyName { span: name.span };
+                    self.push_error(Box::new(error));
+                }
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {

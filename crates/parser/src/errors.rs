@@ -500,6 +500,13 @@ pub(super) struct InterfaceDeclarationCannotHaveImplementsClause {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A rest element cannot have a property name.")]
+pub(super) struct ARestElementCannotHaveAPropertyName {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'delete' cannot be called on an identifier in strict mode.")]
 pub(super) struct DeleteCannotBeCalledOnAnIdentifierInStrictMode {
     #[label(primary)]
