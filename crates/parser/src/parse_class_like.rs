@@ -201,7 +201,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let mut last_expr_span = None;
             loop {
                 if self.is_list_element(ParsingContext::HERITAGE_CLAUSE_ELEMENT, false) {
-                    let start = self.token.start();
+                    let start_pos = self.token.start();
                     let expr = self.parse_left_hand_side_expr_or_higher()?;
                     let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
                         expr
@@ -210,7 +210,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         let id = self.next_node_id();
                         let expr = self.alloc(ast::ExprWithTyArgs {
                             id,
-                            span: self.new_span(start),
+                            span: self.new_span(start_pos),
                             expr,
                             ty_args: ty_arguments,
                         });
@@ -233,9 +233,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         is_first = false;
                         continue;
                     }
-                    unreachable!()
+
+                    if start_pos == self.token.start() {
+                        self.next_token();
+                    }
+
+                    continue;
                 }
-                if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSE_ELEMENT) {
+                if self.is_list_terminator(ParsingContext::HERITAGE_CLAUSE_ELEMENT)
+                    || self.abort_parsing_list_or_move_to_next_token(
+                        ParsingContext::HERITAGE_CLAUSE_ELEMENT,
+                    )
+                {
                     break;
                 }
             }

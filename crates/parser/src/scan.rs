@@ -24,7 +24,7 @@ fn is_ascii_identifier_start(ch: u8) -> bool {
 
 #[inline(always)]
 fn is_non_ascii_identifier_start(ch: u32, is_es5_target: bool) -> bool {
-    debug_assert!(ch > 255);
+    debug_assert!(ch > 127);
     if is_es5_target {
         unicode::is_unicode_es5_identifier_start(ch)
     } else {
@@ -34,7 +34,7 @@ fn is_non_ascii_identifier_start(ch: u32, is_es5_target: bool) -> bool {
 
 #[inline(always)]
 fn is_identifier_start(ch: u32, is_es5_target: bool) -> bool {
-    if ch <= 255 {
+    if ch <= 127 {
         is_ascii_identifier_start(ch as u8)
     } else {
         is_non_ascii_identifier_start(ch, is_es5_target)
@@ -48,7 +48,7 @@ fn is_ascii_identifier_part(ch: u8) -> bool {
 
 #[inline(always)]
 fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
-    if ch <= 255 {
+    if ch <= 127 {
         is_ascii_identifier_part(ch as u8)
     } else if is_es5_target {
         unicode::is_unicode_es5_identifier_part(ch)
@@ -67,7 +67,7 @@ fn is_octal_digit(ch: u8) -> bool {
     (b'0'..=b'7').contains(&ch)
 }
 
-const UTF8_CHAR_LEN_MAX: u32 = 6;
+const UTF8_CHAR_LEN_MAX: u8 = 6;
 
 bitflags::bitflags! {
     pub struct EscapeSequenceScanningFlags: u32 {
@@ -297,7 +297,7 @@ impl ParserState<'_, '_> {
 
     // From `quickjs/cutils.c/unicode_from_utf8`
     #[cold]
-    fn scan_unicode_from_utf8(&mut self, max_len: u32) -> Option<u32> {
+    fn scan_unicode_from_utf8<const MAX_LEN: u8>(&mut self) -> Option<u32> {
         const UTF8_MIN_CODE: [u32; 5] = [0x80, 0x800, 0x10000, 0x00200000, 0x04000000];
         const UTF8_FIRST_CODE_MASK: [u32; 5] = [0x1f, 0xf, 0x7, 0x3, 0x1];
 
@@ -312,7 +312,7 @@ impl ParserState<'_, '_> {
             0xfc | 0xfd => 5,
             _ => return None,
         };
-        if l > (max_len - 1) {
+        if l > (MAX_LEN - 1) {
             return None;
         }
         let idx = (l - 1) as usize;
@@ -342,7 +342,7 @@ impl ParserState<'_, '_> {
                 } else if ch < 128 {
                     break;
                 } else {
-                    let ch = self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                    let ch = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
                     if !is_non_ascii_identifier_start(ch, false) {
                         return None;
                     }
@@ -357,7 +357,7 @@ impl ParserState<'_, '_> {
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
-                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
             }
         }
         Some(self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32))
@@ -376,7 +376,7 @@ impl ParserState<'_, '_> {
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
-                self.scan_unicode_from_utf8(UTF8_CHAR_LEN_MAX)?;
+                self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
             }
         }
         Some(self.get_ident_token(Cow::Owned(result), start as u32))

@@ -113,7 +113,7 @@ const UNICODE_ES5_IDENTIFIER_PART: &[u32] = &[
 
 const fn lookup_in_unicode_map(code: u32, map: &[u32]) -> bool {
     // Bail out quickly if it couldn't possibly be in the map.
-    debug_assert!(code > 255);
+    debug_assert!(code > 127);
 
     // Perform binary search in one of the Unicode range maps
     let mut lo = 0;
@@ -139,21 +139,21 @@ const fn lookup_in_unicode_map(code: u32, map: &[u32]) -> bool {
 }
 
 pub fn is_unicode_es5_identifier_start(ch: u32) -> bool {
-    debug_assert!(ch > 255);
+    debug_assert!(ch > 127);
     lookup_in_unicode_map(ch, UNICODE_ES5_IDENTIFIER_START)
 }
 
 pub fn is_unicode_es5_identifier_part(ch: u32) -> bool {
-    debug_assert!(ch > 255);
+    debug_assert!(ch > 127);
     lookup_in_unicode_map(ch, UNICODE_ES5_IDENTIFIER_PART)
 }
 
 pub fn is_unicode_esnext_identifier_start(ch: u32) -> bool {
-    debug_assert!(ch > 255);
+    debug_assert!(ch > 127);
     unicode_id_start::is_id_start_unicode(unsafe { char::from_u32_unchecked(ch) })
 }
 
 pub fn is_unicode_esnext_identifier_part(ch: u32) -> bool {
-    debug_assert!(ch > 255);
+    debug_assert!(ch > 127);
     unicode_id_start::is_id_continue_unicode(unsafe { char::from_u32_unchecked(ch) })
 }

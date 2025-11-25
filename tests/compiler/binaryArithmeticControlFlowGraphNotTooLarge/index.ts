@@ -1304,6 +1304,8 @@ function foo1() {
   assertEqual(1 - - 1, 2);
   assertEqual(-1 - -1, 0);
   assertEqual(+1, 1);
+  assertEqual(+-1, -1);
+  assertEqual(-+1, -1);
 
   assertEqual(1 + 1, 2);
   assertEqual(1 - 1, 0);
