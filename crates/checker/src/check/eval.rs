@@ -75,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let value = self.get_enum_member_value(self.p.node(decl).expect_enum_member());
         if self.parent(decl) != self.parent(location) {
-            todo!("error handle")
+            // TODO: external mark
         }
         match value {
             EnumMemberValue::Number(v) => EvalResult::Number(v),

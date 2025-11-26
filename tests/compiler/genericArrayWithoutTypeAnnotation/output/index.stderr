@@ -1,0 +1,5 @@
+  × Generic type 'IFoo<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/genericArrayWithoutTypeAnnotation/index.ts:6:24]
+ 6 │ IFoo
+   · ────
+   ╰────

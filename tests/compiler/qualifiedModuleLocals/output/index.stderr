@@ -1,0 +1,5 @@
+  × Property 'b' does not exist on type 'typeof A'.
+   ╭─[../../tests/compiler/qualifiedModuleLocals/index.ts:7:27]
+ 7 │ b
+   · ─
+   ╰────
