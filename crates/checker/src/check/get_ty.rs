@@ -2210,4 +2210,13 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_resolved_ty_args(ty_args);
         ty_args
     }
+
+    pub(super) fn is_unit_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let t = self.get_base_constraint_or_ty(ty);
+        if let Some(i) = t.kind.as_intersection() {
+            i.tys.iter().any(|ty| ty.is_unit())
+        } else {
+            t.is_unit()
+        }
+    }
 }

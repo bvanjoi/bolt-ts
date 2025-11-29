@@ -1335,6 +1335,7 @@ function foo1() {
   assertEqual(3.14 << 2.71,     12);
   assertEqual(3.14 >> 2.71,     0);
   assertEqual(3.14 >>> 2.71,    0);
+  assertEqual(3.14 + 3.86,     7);
 
   assertEqual(!true,    false);
   assertEqual(!!true,   true);

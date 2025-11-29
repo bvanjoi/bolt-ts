@@ -306,6 +306,41 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn narrow_ty_by_equality(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        op: ast::BinOpKind,
+        value: &'cx ast::Expr<'cx>,
+        mut assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.flags.contains(TypeFlags::ANY) {
+            return ty;
+        }
+
+        if matches!(op, ast::BinOpKind::NEqEq | ast::BinOpKind::NEq) {
+            assume_true = !assume_true;
+        }
+        let value_ty = self.get_ty_of_expr(value);
+        let double_equal = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
+        if value_ty.flags.contains(TypeFlags::NULLABLE) {
+            if !self.config.strict_null_checks() {
+                return ty;
+            }
+        }
+
+        if assume_true {
+            // TODO
+        }
+
+        if value_ty.is_unit() {
+            self.filter_type(ty, |this, t| {
+                !(this.is_unit_like_ty(t) && this.are_types_compareable(t, value_ty))
+            })
+        } else {
+            ty
+        }
+    }
+
     fn narrow_ty_by_bin_expr(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -316,6 +351,25 @@ impl<'cx> TyChecker<'cx> {
         use ast::BinOpKind::*;
         match expr.op.kind {
             Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, expr, assume_true),
+            EqEqEq | NEqEq | EqEq | NEq => {
+                let left = self.get_reference_candidate(expr.left);
+                let right = self.get_reference_candidate(expr.right);
+                if matches!(left.kind, ast::ExprKind::Typeof(_)) && right.is_string_lit_like() {
+                    // TODO: narrow_ty_by_typeof
+                    return ty;
+                } else if matches!(right.kind, ast::ExprKind::Typeof(_))
+                    && left.is_string_lit_like()
+                {
+                    // TODO: narrow_ty_by_typeof
+                    return ty;
+                } else if self.is_matching_reference(refer, left.id()) {
+                    return self.narrow_ty_by_equality(ty, expr.op.kind, right, assume_true);
+                } else if self.is_matching_reference(refer, right.id()) {
+                    return self.narrow_ty_by_equality(ty, expr.op.kind, left, assume_true);
+                }
+
+                ty
+            }
             _ => ty,
         }
     }

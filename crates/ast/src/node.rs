@@ -87,7 +87,7 @@ pub enum Node<'cx> {
     ForInStmt(&'cx super::ForInStmt<'cx>),
     ForOfStmt(&'cx super::ForOfStmt<'cx>),
     WhileStmt(&'cx super::WhileStmt<'cx>),
-    DoStmt(&'cx super::DoStmt<'cx>),
+    DoWhileStmt(&'cx super::DoWhileStmt<'cx>),
     BreakStmt(&'cx super::BreakStmt<'cx>),
     ContinueStmt(&'cx super::ContinueStmt<'cx>),
     TryStmt(&'cx super::TryStmt<'cx>),
@@ -513,7 +513,7 @@ impl<'cx> Node<'cx> {
             self,
             BreakStmt(_)
                 | ContinueStmt(_)
-                | DoStmt(_)
+                | DoWhileStmt(_)
                 | EmptyStmt(_)
                 | ForStmt(_)
                 | ForInStmt(_)
@@ -718,7 +718,7 @@ impl<'cx> Node<'cx> {
             self,
             VarStmt(_)
                 | IfStmt(_)
-                | DoStmt(_)
+                | DoWhileStmt(_)
                 | WhileStmt(_)
                 | ExprStmt(_)
                 | ForStmt(_)
@@ -1122,7 +1122,7 @@ as_node!(
     (TyOp, super::TyOp<'cx>, ty_op),
     (TryStmt, super::TryStmt<'cx>, try_stmt),
     (CatchClause, super::CatchClause<'cx>, catch_clause),
-    (DoStmt, super::DoStmt<'cx>, do_stmt),
+    (DoWhileStmt, super::DoWhileStmt<'cx>, do_stmt),
     (WhileStmt, super::WhileStmt<'cx>, while_stmt),
     (ExprStmt, super::ExprStmt<'cx>, expr_stmt),
     (SwitchStmt, super::SwitchStmt<'cx>, switch_stmt),

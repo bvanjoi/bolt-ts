@@ -142,7 +142,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_labeled_stmt(n.span, label, stmt)
     }
 
-    fn lower_do_stmt(&mut self, n: &'cx ast::DoStmt<'cx>) -> ir::DoStmtID {
+    fn lower_do_stmt(&mut self, n: &'cx ast::DoWhileStmt<'cx>) -> ir::DoStmtID {
         let stmt = self.lower_stmt(n.stmt).unwrap();
         let expr = self.lower_expr(n.expr);
         self.nodes.alloc_do_stmt(n.span, stmt, expr)

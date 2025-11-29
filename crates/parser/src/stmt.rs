@@ -137,7 +137,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
-    fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoStmt<'cx>> {
+    fn parse_do_stmt(&mut self) -> PResult<&'cx ast::DoWhileStmt<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Do);
         let start = self.token.start();
         self.next_token(); // consume `do`
@@ -157,13 +157,13 @@ impl<'cx> ParserState<'cx, '_> {
         );
         self.parse_optional(TokenKind::Semi);
         let id = self.next_node_id();
-        let stmt = self.alloc(ast::DoStmt {
+        let stmt = self.alloc(ast::DoWhileStmt {
             id,
             span: self.new_span(start),
             stmt,
             expr,
         });
-        self.nodes.insert(id, ast::Node::DoStmt(stmt));
+        self.nodes.insert(id, ast::Node::DoWhileStmt(stmt));
         Ok(stmt)
     }
 

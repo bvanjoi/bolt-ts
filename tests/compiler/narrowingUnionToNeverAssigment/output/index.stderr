@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/narrowingUnionToNeverAssigment/index.ts:11:15]
+ 11 │ y
+    · ─
+    ╰────

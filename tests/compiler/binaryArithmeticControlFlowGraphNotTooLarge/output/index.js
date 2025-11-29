@@ -1295,6 +1295,7 @@ function foo1() {
   assertEqual(12, 12);
   assertEqual(0, 0);
   assertEqual(0, 0);
+  assertEqual(7, 7);
   assertEqual(false, false);
   assertEqual(true, true);
   assertEqual(false, false);
