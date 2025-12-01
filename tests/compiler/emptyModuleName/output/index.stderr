@@ -1,0 +1,5 @@
+  × Cannot find module '' or its corresponding type declarations.
+   ╭─[../../tests/compiler/emptyModuleName/index.ts:5:20]
+ 5 │ ""
+   · ──
+   ╰────
