@@ -36,14 +36,19 @@ impl VarDeclarationContext {
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
-        if matches!(
-            self.token.kind,
-            Async | Const | Enum | Abstract | Declare | Export | Import
-        ) && self.is_start_of_decl()
-        {
-            return self.parse_decl();
+        let kind = self.token.kind;
+        match kind {
+            Const | Enum => {
+                debug_assert!(self.is_start_of_decl());
+                return self.parse_decl();
+            }
+            Async | Export | Import | Abstract | Declare if self.is_start_of_decl() => {
+                return self.parse_decl();
+            }
+            _ => {}
         }
-        let kind = match self.token.kind {
+
+        let kind = match kind {
             Semi => ast::StmtKind::Empty(self.parse_empty_stmt()),
             Var | Const => ast::StmtKind::Var(self.parse_var_stmt(None)),
             Let => {
@@ -640,7 +645,6 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),
-
             _ => unreachable!("{:#?}", self.token.kind),
         };
         let stmt = self.alloc(ast::Stmt { kind });
@@ -915,7 +919,6 @@ impl<'cx> ParserState<'cx, '_> {
         self.check_contextual_ident(name);
         let ty_params = self.parse_ty_params();
         let extends = self.parse_interface_extends_clause();
-        // let implements = self.parse_implements_clause()?;
         let members = self.do_inside_of_parse_context(
             ParseContext::INTERFACE_MEMBERS,
             Self::parse_object_ty_members,

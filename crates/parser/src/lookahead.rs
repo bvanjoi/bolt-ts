@@ -155,7 +155,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
                             this.p.token.kind
                         });
                     }
-                    if matches!(current, Eq | Asterisk | LBrace | Default | As | At) {
+                    if matches!(current, Asterisk | LBrace | Default | As | At | Eq) {
                         return true;
                     }
                 }

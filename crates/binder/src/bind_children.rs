@@ -447,7 +447,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 DeclareSymbolProperty::empty(),
             );
             self.symbols.get_mut(local).export_symbol = Some(export_symbol);
-            // TODO: node.local_symbol = local;
+            let prev = self.local_symbols.insert(current.index_as_u32(), local);
+            debug_assert!(prev.is_none());
             // TODO: return local
             export_symbol
         } else {

@@ -339,15 +339,15 @@ impl Default for Symbols {
     fn default() -> Self {
         Self {
             module_id: ModuleID::DEFAULT,
-            data: Vec::with_capacity(1024),
+            data: Vec::with_capacity(128),
         }
     }
 }
 
 impl Symbols {
     pub fn new(module_id: ModuleID) -> Self {
-        assert_ne!(module_id, ModuleID::TRANSIENT);
-        assert_ne!(module_id, ModuleID::DEFAULT);
+        debug_assert_ne!(module_id, ModuleID::TRANSIENT);
+        debug_assert_ne!(module_id, ModuleID::DEFAULT);
         Self {
             module_id,
             data: Vec::with_capacity(512),

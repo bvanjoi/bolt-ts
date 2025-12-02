@@ -1,1 +1,1 @@
-function makeThing(name, children = []) {}
+export function makeThing(name, children = []) {}

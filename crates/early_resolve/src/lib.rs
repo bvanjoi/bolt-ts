@@ -14,7 +14,7 @@ use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
 use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_binder::{
     BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
-    SymbolTable,
+    SymbolTable, Symbols,
 };
 use bolt_ts_span::Module;
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -1041,6 +1041,21 @@ fn get_symbol(
     None
 }
 
+fn get_local_symbol_for_export_default(
+    symbols: &Symbols,
+    local_symbols: &FxHashMap<u32, SymbolID>,
+    symbol: SymbolID,
+) -> Option<SymbolID> {
+    let s = symbols.get(symbol);
+    let decls = s.decls.as_ref()?;
+    for decl in decls {
+        if let Some(local_symbol) = local_symbols.get(&decl.index_as_u32()) {
+            return Some(*local_symbol);
+        }
+    }
+    None
+}
+
 pub fn resolve_symbol_by_ident<'a, 'cx>(
     resolver: &'a Resolver<'cx, 'a, '_>,
     ident: &'cx ast::Ident,
@@ -1115,8 +1130,30 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         .is_some_and(|n| !n.is_global_scope_argument())
                         && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
                 {
+                    if let Some(result) = module_exports
+                        .and_then(|table| table.0.get(&SymbolName::ExportDefault))
+                        .copied()
+                    {
+                        if let r = resolver.symbol(result)
+                            && r.flags.intersects(meaning)
+                            && let Some(local_symbol) = get_local_symbol_for_export_default(
+                                &resolver.states[id.module().as_usize()].symbols,
+                                &resolver.states[id.module().as_usize()].local_symbols,
+                                result,
+                            )
+                            && let l = resolver.symbol(local_symbol)
+                            && l.name.as_atom().is_some_and(|name| name == ident.name)
+                        {
+                            return ResolvedResult {
+                                symbol: result,
+                                associated_declaration_for_containing_initializer_or_binding_name,
+                                within_deferred_context,
+                            };
+                        }
+                    }
                     // TODO: default
-                    if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied())
+                    if let Some(module_export) =
+                        module_exports.and_then(|table| table.0.get(&key).copied())
                         && resolver
                             .symbol(module_export)
                             .flags

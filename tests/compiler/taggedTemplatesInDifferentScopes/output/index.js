@@ -1,4 +1,4 @@
-function tag(parts, ...values) {
+export function tag(parts, ...values) {
   return parts[0]
 }
 function foo() {
