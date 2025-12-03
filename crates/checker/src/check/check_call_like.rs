@@ -414,7 +414,7 @@ impl<'cx> TyChecker<'cx> {
                 let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
                     unreachable!()
                 };
-                let error = errors::ValueOfType0IsNotCallable {
+                let error = errors::ValueOfTypeIsNotCallable {
                     span: expr.callee().span(),
                     ty: format!("typeof {}", self.atoms.get(decl.name.unwrap().name)),
                 };

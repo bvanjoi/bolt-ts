@@ -673,6 +673,24 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.find_ancestor(parent, |node| node.is_fn_decl_like().then_some(true))
     }
 
+    pub fn get_declaration_container(&self, id: ast::NodeID) -> ast::NodeID {
+        let root = self.get_root_decl(id);
+        let Some(n) = self.find_ancestor(root, |n| {
+            // TODO: VariableDeclarationList | ImportSpecifier | NamedImports
+            if matches!(
+                n,
+                ast::Node::VarDecl(_) | ast::Node::ImportClause(_) | ast::Node::NsImport(_)
+            ) {
+                return None;
+            } else {
+                Some(true)
+            }
+        }) else {
+            unreachable!()
+        };
+        self.parent(n).unwrap()
+    }
+
     pub fn get_enclosing_container(&self, id: ast::NodeID) -> Option<ast::NodeID> {
         let Some(parent_id) = self.parent(id) else {
             unreachable!()

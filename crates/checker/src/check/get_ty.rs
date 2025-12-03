@@ -877,7 +877,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_assignment_target_kind(access_expr)
                 && self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
             {
-                let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
+                let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
                     span: self.p.node(access_expr).span(),
                     prop: self.symbol(prop).name.to_string(&self.atoms),
                 };

@@ -625,11 +625,11 @@ impl<'cx> ParserState<'cx, '_> {
             Import => ast::StmtKind::Import(self.parse_import_decl()),
             Export => {
                 let start = self.token.start();
-                self.check_export_default_error(self.token.span);
                 self.next_token(); // consume `export`
                 match self.token.kind {
                     Default => {
-                        self.next_token(); // consume `export`
+                        self.check_export_default_error(self.token.span);
+                        self.next_token(); // consume `default`
                         ast::StmtKind::ExportAssign(
                             self.parse_export_assignment::<false>(start, mods)?,
                         )
