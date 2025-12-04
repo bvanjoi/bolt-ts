@@ -1,0 +1,12 @@
+  × Type '() => void' is not assignable to type '() => boolean'.
+   ╭─[../../tests/compiler/errorOnContextuallyTypedReturnType/index.ts:3:5]
+ 3 │ n1
+   · ──
+   ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/errorOnContextuallyTypedReturnType/index.ts:5:37]
+ 5 │ boolean
+   · ───────
+   ╰────

@@ -17,15 +17,16 @@ macro_rules! normalized_option {
 bitflags::bitflags! {
     #[derive(Debug)]
     pub struct CompilerOptionFlags: u16 {
-        const NO_EMIT = 1 << 0;
-        const DECLARATION = 1 << 1;
-        const STRICT = 1 << 2;
-        const STRICT_NULL_CHECKS = 1 << 3;
-        const STRICT_FUNCTION_TYPES = 1 << 4;
-        const NO_IMPLICIT_ANY = 1 << 5;
-        const NO_UNCHECKED_INDEXED_ACCESS = 1 << 6;
-        const ALWAYS_STRICT = 1 << 7;
-        const EXACT_OPTIONAL_PROPERTY_TYPES = 1 << 8;
+        const NO_EMIT                                   = 1 << 0;
+        const DECLARATION                               = 1 << 1;
+        const STRICT                                    = 1 << 2;
+        const STRICT_NULL_CHECKS                        = 1 << 3;
+        const STRICT_FUNCTION_TYPES                     = 1 << 4;
+        const NO_IMPLICIT_ANY                           = 1 << 5;
+        const NO_UNCHECKED_INDEXED_ACCESS               = 1 << 6;
+        const ALWAYS_STRICT                             = 1 << 7;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 8;
+        const NO_IMPLICIT_RETURNS                       = 1 << 9;
     }
 }
 

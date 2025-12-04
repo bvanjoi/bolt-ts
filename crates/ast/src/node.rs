@@ -286,6 +286,7 @@ impl<'cx> Node<'cx> {
             ClassMethodElem(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectMethodMember(prop) => Some(DeclarationName::from_prop_name(prop.name)),
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
+            FnExpr(n) => n.name.map(DeclarationName::Ident),
             FnDecl(n) => n.name.map(DeclarationName::Ident),
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
             ClassDecl(n) => n.name.map(DeclarationName::Ident),
