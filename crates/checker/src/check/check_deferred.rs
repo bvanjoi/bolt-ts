@@ -57,7 +57,7 @@ impl<'cx> TyChecker<'cx> {
             ArrowFnExpr(expr) => self.check_fn_like_expr_deferred(expr),
             ObjectMethodMember(expr) => {
                 let body = ast::ArrowFnExprBody::Block(expr.body);
-                self.check_fn_like_expr_or_object_method_member_deferred(expr.id, body)
+                self.check_fn_like_expr_or_object_method_member_deferred(expr, body)
             }
             TyAssertionExpr(expr) => {
                 self.check_assertion_deferred(expr);

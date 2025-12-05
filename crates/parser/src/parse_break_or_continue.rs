@@ -88,16 +88,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         match P::IS_CONTINUE {
             true if !self.parse_context.contains(ParseContext::ALLOW_CONTINUE) => {
                 self.push_error(Box::new(
-                    errors::AContinueStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
+                    errors::AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
                         span,
+                        is_continue: true
                     },
                 ));
             }
             false if !self.parse_context.contains(ParseContext::ALLOW_BREAK) => {
                 self.push_error(Box::new(
-                errors::ABreakStatementCanOnlyBeUsedWithinAnEnclosingIterationOrSwitchStatement {
-                    span,
-                },
+                    errors::AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
+                        span,
+                        is_continue: false
+                    },
             ));
             }
             _ => {}

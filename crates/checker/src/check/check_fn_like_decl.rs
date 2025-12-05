@@ -61,21 +61,25 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_all_code_paths_in_non_void_fn_ret_or_throw(
+    pub(super) fn check_all_code_paths_in_non_void_fn_ret_or_throw(
         &mut self,
-        func: &impl r#trait::FnDeclLike<'cx>,
+        func: &impl r#trait::FnLike<'cx>,
         ret_ty: Option<&'cx ty::Ty<'cx>>,
     ) {
-        if ret_ty.is_some_and(|ret_ty| {
-            ret_ty.maybe_type_of_kind(ty::TypeFlags::VOID)
-                || ret_ty
+        // TODO: unwrap_return_ty
+        let ty = ret_ty;
+        if ty.is_some_and(|ty| {
+            ty.maybe_type_of_kind(ty::TypeFlags::VOID)
+                || ty
                     .flags
                     .intersects(ty::TypeFlags::ANY.union(ty::TypeFlags::UNDEFINED))
         }) {
             return;
         }
 
-        let Some(body) = r#trait::FnDeclLike::body(func) else {
+        if r#trait::FnLike::body(func)
+            .is_none_or(|body| matches!(body, ast::ArrowFnExprBody::Expr(_)))
+        {
             return;
         };
 
@@ -90,11 +94,13 @@ impl<'cx> TyChecker<'cx> {
             .p
             .node_flags(fn_id)
             .contains(ast::NodeFlags::HAS_EXPLICIT_RETURN);
-        if let Some(ret_ty) = ret_ty
+        if let Some(ty) = ty
             && !has_explicit_return
         {
-            let name_span = n.name().unwrap().span();
-            let error = super::errors::AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue { span: name_span };
+            let span = n
+                .name()
+                .map_or_else(|| n.ret_ty().unwrap().span(), |name| name.span());
+            let error = super::errors::AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue { span };
             self.push_error(Box::new(error));
         }
     }

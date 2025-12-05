@@ -111,7 +111,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && original_target.flags.intersects(TypeFlags::PRIMITIVE)
         {
             if self.relation == RelationKind::Comparable
-                && !original_target.flags.intersects(TypeFlags::NEVER)
+                && !original_target.flags.contains(TypeFlags::NEVER)
                 && (self.c.is_simple_type_related_to(
                     original_target,
                     original_source,
@@ -496,7 +496,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let len = unmatched.len() - 2;
                     let span = self.c.p.node(self.error_node.unwrap()).span();
                     let error =
-                        errors::Type0IsMissingTheFollowingPropertiesFromType1Colon2And3More {
+                        errors::TypeIsMissingTheFollowingPropertiesFromType1Colon2And3More {
                             span,
                             ty1: self.c.print_ty(source).to_string(),
                             ty2: self.c.print_ty(target).to_string(),

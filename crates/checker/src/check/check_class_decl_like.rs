@@ -175,7 +175,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersection(meaning)
                             .intersects(DeclarationMeaning::PRIVATE_STATIC.complement())
                         {
-                            let error = errors::DuplicateIdentifierX {
+                            let error = errors::DuplicateIdentifier {
                                 span: prop_name.span(),
                                 ident: this.atoms.get(prop_name_atom).to_string(),
                             };

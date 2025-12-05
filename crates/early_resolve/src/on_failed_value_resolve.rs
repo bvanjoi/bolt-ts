@@ -102,6 +102,35 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
+    pub(super) fn on_failed_to_resolve_type_symbol(
+        &mut self,
+        ident: &'cx ast::Ident,
+        mut error: errors::CannotFindName,
+    ) -> errors::CannotFindName {
+        if let Some(e) = self.check_using_namespace_as_type(ident) {
+            error.errors.push(e);
+        }
+
+        error
+    }
+
+    fn check_using_namespace_as_type(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::CannotFindNameHelperKind> {
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol;
+        if symbol == Symbol::ERR {
+            None
+        } else {
+            let ns = self.symbol(symbol).decls.as_ref().unwrap()[0];
+            let span = self.p.node(ns).expect_module_decl().name.span();
+            let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
+                errors::CannotUseNamespaceAsTyOrValue { span, is_ty: true },
+            );
+            Some(error)
+        }
+    }
+
     pub(super) fn check_using_type_as_value(
         &mut self,
         ident: &'cx ast::Ident,

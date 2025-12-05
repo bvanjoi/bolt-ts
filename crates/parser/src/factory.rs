@@ -1,4 +1,3 @@
-use bolt_ts_ast::VarDecl;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
@@ -791,7 +790,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     #[inline(always)]
-    pub(super) fn create_binding(&mut self, kind: ast::BindingKind<'cx>) -> &'cx ast::Binding<'cx> {
+    pub fn create_binding(&mut self, kind: ast::BindingKind<'cx>) -> &'cx ast::Binding<'cx> {
         let id = self.next_node_id();
         let binding = self.alloc(ast::Binding {
             id,
@@ -801,5 +800,25 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(id, ast::Node::Binding(binding));
         self.node_flags_map.insert(id, ast::NodeFlags::empty());
         binding
+    }
+
+    #[inline(always)]
+    pub fn create_import_decl(
+        &mut self,
+        start: u32,
+        clause: Option<&'cx ast::ImportClause<'cx>>,
+        module: &'cx ast::StringLit,
+    ) -> &'cx ast::ImportDecl<'cx> {
+        let id = self.next_node_id();
+        let import = self.alloc(ast::ImportDecl {
+            id,
+            span: self.new_span(start),
+            clause,
+            module,
+        });
+        self.set_external_module_indicator(import.id);
+        self.nodes.insert(id, ast::Node::ImportDecl(import));
+        self.node_flags_map.insert(id, ast::NodeFlags::empty());
+        import
     }
 }

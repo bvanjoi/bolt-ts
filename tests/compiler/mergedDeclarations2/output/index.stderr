@@ -1,0 +1,5 @@
+  × Cannot find name 'b'.
+    ╭─[../../tests/compiler/mergedDeclarations2/index.ts:11:20]
+ 11 │ b
+    · ─
+    ╰────

@@ -1297,6 +1297,16 @@ const foo = function (this: any) {
 
 
 function foo1() {
+  assertEqual(3, 3);
+  assertEqual(1 + 2, 3);
+  assertEqual(1 - 2, -1);
+  assertEqual(1 - -1, 2);
+  assertEqual(1 - - 1, 2);
+  assertEqual(-1 - -1, 0);
+  assertEqual(+1, 1);
+  assertEqual(+-1, -1);
+  assertEqual(-+1, -1);
+
   assertEqual(1 + 1, 2);
   assertEqual(1 - 1, 0);
   assertEqual(1 * 1, 1);
@@ -1325,6 +1335,7 @@ function foo1() {
   assertEqual(3.14 << 2.71,     12);
   assertEqual(3.14 >> 2.71,     0);
   assertEqual(3.14 >>> 2.71,    0);
+  assertEqual(3.14 + 3.86,     7);
 
   assertEqual(!true,    false);
   assertEqual(!!true,   true);

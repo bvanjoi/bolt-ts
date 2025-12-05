@@ -29,6 +29,18 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
     }
 }
 
+fn print_entity_name(name: &ast::EntityName, atoms: &bolt_ts_atom::AtomIntern) -> String {
+    use ast::EntityNameKind::*;
+    match name.kind {
+        Ident(name) => atoms.get(name.name).to_string(),
+        Qualified(qname) => format!(
+            "{}.{}",
+            print_entity_name(qname.left, atoms),
+            atoms.get(qname.right.name).to_string()
+        ),
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn resolve_ty_refer_name(
         &mut self,
@@ -123,16 +135,30 @@ impl<'cx> TyChecker<'cx> {
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
             self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
-        } else if self.check_no_ty_args(node) {
+        } else if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
             ty
         } else {
             self.error_ty
         }
     }
 
-    fn check_no_ty_args(&mut self, node: &impl GetTypeFromTyReferLike<'cx>) -> bool {
-        if node.ty_args().is_some() {
-            // TODO: report error
+    fn check_no_ty_args(
+        &mut self,
+        span: bolt_ts_span::Span,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        name: Option<&'cx ast::EntityName<'cx>>,
+        symbol: Option<SymbolID>,
+    ) -> bool {
+        if ty_args.is_some() {
+            let ty = if let Some(symbol) = symbol {
+                self.symbol(symbol).name.to_string(&self.atoms).to_string()
+            } else if let Some(name) = name {
+                print_entity_name(name, &self.atoms)
+            } else {
+                "(anonymous)".to_string()
+            };
+            let error = errors::TypeXIsNotGeneric { span, ty };
+            self.push_error(Box::new(error));
             false
         } else {
             true
@@ -155,10 +181,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_from_class_or_interface_refer(
+    pub(super) fn get_ty_from_class_or_interface_reference(
         &mut self,
         node_span: bolt_ts_span::Span,
         ty_args: Option<&'cx ast::Tys<'cx>>,
+        name: Option<&'cx ast::EntityName<'cx>>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
@@ -198,8 +225,10 @@ impl<'cx> TyChecker<'cx> {
                 self.concatenate(i.outer_ty_params, self_ty_args)
             };
             self.create_reference_ty(ty, Some(resolved_ty_args), ty.get_object_flags())
-        } else {
+        } else if self.check_no_ty_args(node_span, ty_args, name, Some(symbol)) {
             ty
+        } else {
+            self.error_ty
         }
     }
 
@@ -213,13 +242,18 @@ impl<'cx> TyChecker<'cx> {
         }
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
-            return self.get_ty_from_class_or_interface_refer(node.span(), node.ty_args(), symbol);
+            return self.get_ty_from_class_or_interface_reference(
+                node.span(),
+                node.ty_args(),
+                Some(node.name()),
+                symbol,
+            );
         } else if flags.contains(SymbolFlags::TYPE_ALIAS) {
             return self.get_ty_from_ty_alias_refer(node, symbol);
         }
 
         if let Some(res) = self.try_get_declared_ty_of_symbol(symbol) {
-            if self.check_no_ty_args(node) {
+            if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
                 self.get_regular_ty_of_literal_ty(res)
             } else {
                 self.error_ty

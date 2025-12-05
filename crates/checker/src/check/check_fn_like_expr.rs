@@ -92,21 +92,19 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl r#trait::FnExprLike<'cx>) {
-        let id = expr.id();
         self.check_fn_like_expr_or_object_method_member_deferred(
-            id,
+            expr,
             r#trait::FnExprLike::body(expr),
         );
     }
 
     pub(super) fn check_fn_like_expr_or_object_method_member_deferred(
         &mut self,
-        id: ast::NodeID,
+        func: &impl r#trait::FnLike<'cx>,
         body: ast::ArrowFnExprBody<'cx>,
     ) {
-        let n = self.p.node(id);
-        let flags = n.fn_flags();
-        let ret_ty = self.get_ret_ty_from_anno(id);
+        let ret_ty = self.get_ret_ty_from_anno(func.id());
+        self.check_all_code_paths_in_non_void_fn_ret_or_throw(func, ret_ty);
 
         use bolt_ts_ast::ArrowFnExprBody::*;
         match body {

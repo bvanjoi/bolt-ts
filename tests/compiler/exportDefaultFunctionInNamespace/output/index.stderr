@@ -11,21 +11,21 @@
    ╰────
 
   × A default export must be at the top level of a file or module declaration.
-    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:14:5]
- 14 │ export
-    · ──────
+    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:14:12]
+ 14 │ default
+    · ───────
     ╰────
 
   × A default export must be at the top level of a file or module declaration.
-    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:20:13]
- 20 │ export
-    · ──────
+    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:20:20]
+ 20 │ default
+    · ───────
     ╰────
 
   × A default export must be at the top level of a file or module declaration.
-    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:26:5]
- 26 │ export
-    · ──────
+    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:26:12]
+ 26 │ default
+    · ───────
     ╰────
 
   × A default export must be at the top level of a file or module declaration.
@@ -35,7 +35,7 @@
     ╰────
 
   × A default export can only be used in an ECMAScript-style module.
-    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:37:5]
- 37 │ export
-    · ──────
+    ╭─[../../tests/compiler/exportDefaultFunctionInNamespace/index.ts:37:12]
+ 37 │ default
+    · ───────
     ╰────

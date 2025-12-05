@@ -1,6 +1,7 @@
 use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::keyword;
 use bolt_ts_binder::ModuleInstanceState;
+use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
@@ -44,11 +45,56 @@ impl<'cx> TyChecker<'cx> {
             While(_) => {}
             Do(_) => {}
             Debugger(_) => {}
-            Switch(_) => {}
-            Labeled(n) => {
-                self.check_stmt(n.stmt);
-            }
+            Switch(n) => self.check_switch_stmt(n),
+            Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn is_type_equality_comparable_to(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        target.flags.contains(TypeFlags::NULLABLE)
+            || self.is_type_related_to(source, target, super::relation::RelationKind::Comparable)
+    }
+
+    fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
+        use ast::CaseOrDefaultClause::*;
+        let expr_ty = self.check_expr(node.expr);
+        let mut first_default_clause = None;
+        let mut has_duplicate_default_clause = false;
+
+        for clause in node.case_block.clauses {
+            match clause {
+                Case(n) => {
+                    let case_ty = self.check_expr(n.expr);
+                    if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
+                        if !self.check_type_comparable_to(case_ty, expr_ty, Some(n.expr.id())) {
+                            let error = errors::TypeXIsNotComparableToTypeY {
+                                span: n.expr.span(),
+                                ty1: case_ty.to_string(self),
+                                ty2: expr_ty.to_string(self),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+                Default(n) => {
+                    if !has_duplicate_default_clause {
+                        match first_default_clause {
+                            Some(first_default_clause) => {
+                                has_duplicate_default_clause = true;
+                                todo!("error handler")
+                            }
+                            None => {
+                                first_default_clause = Some(n);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn check_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
@@ -105,20 +151,58 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
-        if (node.module_spec().is_none() || self.check_external_module_name(node.id))
+        let has_module_spec = node.module_spec().is_some();
+        if (!has_module_spec || self.check_external_module_name(node.id))
             && let ast::ExportClauseKind::Specs(specs) = node.clause.kind
         {
             // export { a, b as c } from 'xxxx'
             // export { a, b as c }
             for spec in specs.list {
-                self.check_export_spec(spec);
+                self.check_export_spec(spec, has_module_spec);
             }
         }
     }
 
-    fn check_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>) {
+    fn check_export_spec(&mut self, spec: &'cx ast::ExportSpec<'cx>, has_module_spec: bool) {
         let id = spec.id();
         self.check_alias_symbol(id);
+
+        if !has_module_spec {
+            // export { a }
+            // export { b as c }
+            let name = match spec.kind {
+                ast::ExportSpecKind::Shorthand(spec) => spec.name,
+                ast::ExportSpecKind::Named(spec) => match spec.prop_name.kind {
+                    ast::ModuleExportNameKind::Ident(name) => name,
+                    ast::ModuleExportNameKind::StringLit(_) => {
+                        return;
+                    }
+                },
+            };
+            let symbol = self.final_res(name.id);
+
+            if symbol == Symbol::UNDEFINED
+                || symbol == Symbol::GLOBAL_THIS
+                || self
+                    .binder
+                    .symbol(symbol)
+                    .decls
+                    .as_ref()
+                    .is_some_and(|decls| {
+                        let decl = decls[0];
+                        let module = decl.module();
+                        let c = self.node_query(module).get_declaration_container(decl);
+                        debug_assert!(c.module() == module);
+                        self.p.get(module).is_global_source_file(c)
+                    })
+            {
+                let error = errors::CannotExportXOnlyLocalDeclarationsCanBeExportedFromAModule {
+                    span: name.span,
+                    spec: self.atoms.get(name.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
@@ -217,7 +301,7 @@ impl<'cx> TyChecker<'cx> {
                 false,
             )
         {
-            let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0 {
+            let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType {
                 span: node.expr.span(),
                 ty: self.print_ty(right_ty).to_string(),
             };

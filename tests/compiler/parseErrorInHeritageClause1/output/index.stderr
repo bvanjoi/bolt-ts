@@ -1,0 +1,11 @@
+  × Invalid character.
+   ╭─[../../tests/compiler/parseErrorInHeritageClause1/index.ts:3:19]
+ 3 │ ¬
+   · ─
+   ╰────
+
+  × Cannot find name 'A'.
+   ╭─[../../tests/compiler/parseErrorInHeritageClause1/index.ts:3:17]
+ 3 │ A
+   · ─
+   ╰────

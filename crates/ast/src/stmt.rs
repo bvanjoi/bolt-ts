@@ -46,7 +46,7 @@ pub enum StmtKind<'cx> {
     ExportAssign(&'cx ExportAssign<'cx>),
     Try(&'cx TryStmt<'cx>),
     While(&'cx WhileStmt<'cx>),
-    Do(&'cx DoStmt<'cx>),
+    Do(&'cx DoWhileStmt<'cx>),
     Debugger(&'cx DebuggerStmt),
     Labeled(&'cx LabeledStmt<'cx>),
     Switch(&'cx SwitchStmt<'cx>),
@@ -154,7 +154,7 @@ pub struct DebuggerStmt {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct DoStmt<'cx> {
+pub struct DoWhileStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub stmt: &'cx Stmt<'cx>,

@@ -447,7 +447,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 DeclareSymbolProperty::empty(),
             );
             self.symbols.get_mut(local).export_symbol = Some(export_symbol);
-            // TODO: node.local_symbol = local;
+            let prev = self.local_symbols.insert(current.index_as_u32(), local);
+            debug_assert!(prev.is_none());
             // TODO: return local
             export_symbol
         } else {
@@ -523,7 +524,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         match n {
             WhileStmt(n) => self.bind_while_stmt(n),
-            DoStmt(n) => self.bind_do_stmt(n),
+            DoWhileStmt(n) => self.bind_do_stmt(n),
             ForStmt(n) => self.bind_for_stmt(n),
             ForInStmt(n) => self.bind_for_in_or_for_of_stmt(n),
             ForOfStmt(n) => self.bind_for_in_or_for_of_stmt(n),
@@ -1372,8 +1373,113 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_bin_expr_flow(&mut self, n: &ast::BinExpr<'cx>) {
-        let op_is_comma = n.op.kind == BinOpKind::Comma;
+    fn is_top_level_logical_expr(&self, mut n: ast::NodeID) -> bool {
+        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| bin.op.kind
+            == BinOpKind::LogicalAnd
+            || bin.op.kind == BinOpKind::LogicalOr));
+        let mut parent = self.parent_map.parent(n).unwrap();
+        let mut parent_node = self.p.node(parent);
+        while parent_node.is_paren_expr()
+            || parent_node
+                .as_prefix_unary_expr()
+                .is_some_and(|n| n.op == ast::PrefixUnaryOp::Excl)
+        {
+            n = parent;
+            parent = self.parent_map.parent(n).unwrap();
+            parent_node = self.p.node(parent);
+        }
+
+        debug_assert!(parent == self.parent_map.parent(n).unwrap());
+        // if it's statement condition, then return false
+        match parent_node {
+            ast::Node::IfStmt(node) if node.expr.id() == n => return false,
+            ast::Node::WhileStmt(node) if node.expr.id() == n => return false,
+            ast::Node::DoWhileStmt(node) if node.expr.id() == n => return false,
+            ast::Node::ForStmt(node) if node.cond.is_some_and(|cond| cond.id() == n) => {
+                return false;
+            }
+            ast::Node::CondExpr(node) if node.cond.id() == n => return false,
+            _ => {}
+        }
+
+        if parent_node
+            .as_bin_expr()
+            .is_some_and(|expr| expr.op.kind.is_logical_or_coalescing_op())
+        {
+            return false;
+        }
+
+        // TODO: check optional chain
+        true
+    }
+
+    fn bind_bin_expr_flow(&mut self, n: &'cx ast::BinExpr<'cx>) {
+        fn bind_logical_expr<'cx, const IS_LOGICAL_AND: bool>(
+            this: &mut crate::BinderState<'cx, '_, '_>,
+            node: &'cx ast::BinExpr<'cx>,
+            true_target: FlowID,
+            false_target: FlowID,
+        ) {
+            let pre_right_label = this.flow_nodes.create_branch_label();
+            if IS_LOGICAL_AND {
+                this.bind_cond(Some(node.left), pre_right_label, false_target);
+            } else {
+                this.bind_cond(Some(node.left), true_target, pre_right_label);
+            }
+            this.current_flow = Some(this.finish_flow_label(pre_right_label));
+            this.bind_cond(Some(node.right), true_target, false_target);
+        }
+
+        fn bind_top_level_logical_expr<'cx, const IS_LOGICAL_AND: bool>(
+            this: &mut crate::BinderState<'cx, '_, '_>,
+            node: &'cx ast::BinExpr<'cx>,
+        ) {
+            let post_expr_label = this.flow_nodes.create_branch_label();
+            let saved_current_flow = this.current_flow;
+            let save_has_flow_effects = this.has_flow_effects;
+            this.has_flow_effects = false;
+            bind_logical_expr::<IS_LOGICAL_AND>(this, node, post_expr_label, post_expr_label);
+            this.current_flow = if this.has_flow_effects {
+                Some(this.finish_flow_label(post_expr_label))
+            } else {
+                saved_current_flow
+            };
+            this.has_flow_effects |= save_has_flow_effects;
+        }
+
+        let op_is_comma = match n.op.kind {
+            BinOpKind::LogicalAnd => {
+                if self.is_top_level_logical_expr(n.id) {
+                    bind_top_level_logical_expr::<true>(self, n);
+                } else {
+                    bind_logical_expr::<true>(
+                        self,
+                        n,
+                        self.current_true_target.unwrap(),
+                        self.current_false_target.unwrap(),
+                    );
+                }
+                return;
+            }
+            BinOpKind::LogicalOr => {
+                if self.is_top_level_logical_expr(n.id) {
+                    bind_top_level_logical_expr::<false>(self, n);
+                } else {
+                    bind_logical_expr::<false>(
+                        self,
+                        n,
+                        self.current_true_target.unwrap(),
+                        self.current_false_target.unwrap(),
+                    );
+                }
+
+                return;
+            }
+            // TODO: question question
+            BinOpKind::Comma => true,
+            _ => false,
+        };
+
         let maybe_bind = |this: &mut Self, node: &'cx ast::Expr<'cx>| {
             // if node.is_bin_expr() && !node.is_destructing_assignment() {
             //     return;
@@ -1417,7 +1523,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_while_stmt(&mut self, _n: &ast::WhileStmt<'cx>) {
         // TODO:
     }
-    fn bind_do_stmt(&mut self, _n: &ast::DoStmt<'cx>) {
+    fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
         // TODO:
     }
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {

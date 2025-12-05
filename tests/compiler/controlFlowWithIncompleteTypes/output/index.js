@@ -1,4 +1,4 @@
-var cond;
+
 function foo1() {
   var x = 0;
   while (cond) {

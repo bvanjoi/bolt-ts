@@ -19,11 +19,13 @@ bolt_ts_utils::index! {
 
 pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult) -> String {
     let emitter = Emitter::new(atoms);
+    let scope = ScopeID::root();
+    let max_scope = ScopeID::root().next();
     let mut js_emitter = JSEmitter {
         emitter,
         ns_names: FxHashSet::default(),
-        scope: ScopeID::root(),
-        max_scope: ScopeID::root(),
+        scope,
+        max_scope,
         graph_arena: &ir.graph_arena,
         current_graph: ir.entry_graph,
         nodes: &ir.nodes,
@@ -158,9 +160,16 @@ impl<'ir> JSEmitter<'_, 'ir> {
     }
 
     fn emit_var_stmt(&mut self, var: ir::VarStmtID) {
+        let var = self.nodes.get_var_stmt(&var);
+        if var
+            .modifiers()
+            .is_some_and(|ms| ms.flags().contains(ast::ModifierKind::Ambient))
+        {
+            return;
+        }
         self.emitter.print().p("var");
         self.emitter.print().p_whitespace();
-        let decls = self.nodes.get_var_stmt(&var).decls();
+        let decls = var.decls();
         self.emit_var_decls(decls);
         self.emitter.print().p_semi();
     }
@@ -316,12 +325,21 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_fn_decl(&mut self, f: ir::FnDeclID) {
         let f = self.nodes.get_fn_decl(&f);
-        if f.modifiers()
-            .is_some_and(|m| m.flags().contains(ast::ModifierKind::Async))
-        {
-            self.emitter.print().p("async");
-            self.emitter.print().p_whitespace();
+        if let Some(ms) = f.modifiers() {
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierKind::Export) {
+                self.emitter.print().p("export");
+                self.emitter.print().p_whitespace();
+            }
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierKind::Default) {
+                self.emitter.print().p("default");
+                self.emitter.print().p_whitespace();
+            }
+            if ms.flags().contains(ast::ModifierKind::Async) {
+                self.emitter.print().p("async");
+                self.emitter.print().p_whitespace();
+            }
         }
+
         self.emitter.print().p("function");
         self.emitter.print().p_whitespace();
         if let Some(name) = f.name() {

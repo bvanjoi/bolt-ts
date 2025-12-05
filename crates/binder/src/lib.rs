@@ -92,6 +92,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     atoms: &'atoms AtomIntern,
     diags: Vec<bolt_ts_errors::Diag>,
     symbols: Symbols,
+    local_symbols: FxHashMap<u32, SymbolID>,
     // TODO: use `NodeId::index` is enough
     locals: FxHashMap<ast::NodeID, SymbolTable>,
 
@@ -188,6 +189,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             container_chain: fx_hashmap_with_capacity(128),
             locals: fx_hashmap_with_capacity(128),
             symbols,
+            local_symbols: fx_hashmap_with_capacity(4),
             diags: Vec::new(),
 
             flow_nodes,
@@ -233,6 +235,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 pub struct BinderResult<'cx> {
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub symbols: Symbols,
+    pub local_symbols: FxHashMap<u32, SymbolID>,
     // TODO: use `NodeId::index` is enough
     pub locals: FxHashMap<ast::NodeID, SymbolTable>,
     // TODO: use `NodeId::index` is enough
@@ -247,6 +250,7 @@ impl<'cx> BinderResult<'cx> {
         Self {
             diags: state.diags,
             symbols: state.symbols,
+            local_symbols: state.local_symbols,
             locals: state.locals,
             final_res: state.final_res,
             flow_nodes: state.flow_nodes,

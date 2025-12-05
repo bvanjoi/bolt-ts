@@ -9,3 +9,9 @@
  4 │ <>
    · ──
    ╰────
+
+  × Type 'T' is not generic.
+   ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:12]
+ 4 │ T<>
+   · ───
+   ╰────

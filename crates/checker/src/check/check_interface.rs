@@ -134,7 +134,7 @@ impl<'cx> TyChecker<'cx> {
                     let is_inherited_prop = existing.1 != ty;
                     if is_inherited_prop && !self.is_prop_identical_to(existing.0, *prop) {
                         ok = false;
-                        let error = errors::Interface0CannotSimultaneouslyExtendTypes1And2 {
+                        let error = errors::InterfaceCannotSimultaneouslyExtendTypes1And2 {
                             span: ty_node.span,
                             interface: ty.to_string(self),
                             ty1: existing.1.to_string(self),

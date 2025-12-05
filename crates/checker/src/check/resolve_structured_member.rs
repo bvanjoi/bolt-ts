@@ -333,7 +333,7 @@ impl<'cx> TyChecker<'cx> {
             let base_ty_node = base_ty_node.unwrap();
             let span = base_ty_node.span;
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
-            base_ty = self.get_ty_from_class_or_interface_refer(span, ty_args, symbol);
+            base_ty = self.get_ty_from_class_or_interface_reference(span, ty_args, None, symbol);
         } else if base_ctor_ty.flags.intersects(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {

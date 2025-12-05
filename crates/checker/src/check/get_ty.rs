@@ -877,7 +877,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_assignment_target_kind(access_expr)
                 && self.is_assignment_to_readonly_entity(access_expr, prop, assignment_target_kind)
             {
-                let error = errors::CannotAssignTo0BecauseItIsAReadOnlyProperty {
+                let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
                     span: self.p.node(access_expr).span(),
                     prop: self.symbol(prop).name.to_string(&self.atoms),
                 };
@@ -2209,5 +2209,14 @@ impl<'cx> TyChecker<'cx> {
         };
         self.get_mut_ty_links(ty.id).set_resolved_ty_args(ty_args);
         ty_args
+    }
+
+    pub(super) fn is_unit_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let t = self.get_base_constraint_or_ty(ty);
+        if let Some(i) = t.kind.as_intersection() {
+            i.tys.iter().any(|ty| ty.is_unit())
+        } else {
+            t.is_unit()
+        }
     }
 }

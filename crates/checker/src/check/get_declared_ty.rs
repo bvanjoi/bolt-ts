@@ -1,3 +1,5 @@
+use std::ptr;
+
 use bolt_ts_atom::Atom;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
@@ -468,12 +470,11 @@ impl<'cx> TyChecker<'cx> {
     fn compute_constant_enum_member_value(
         &mut self,
         member: &'cx ast::EnumMember<'cx>,
+        member_init: &'cx ast::Expr<'cx>,
     ) -> EnumMemberValue {
-        let Some(init) = member.init else {
-            unreachable!()
-        };
+        debug_assert!(member.init.is_some_and(|init| ptr::eq(init, member_init)));
 
-        match self.eval_expr(init, Some(member.id)) {
+        match self.eval_expr(member_init, Some(member.id)) {
             EvalResult::Number(i) => EnumMemberValue::Number(i),
             EvalResult::Str(s) => EnumMemberValue::Str(s),
             EvalResult::Err => EnumMemberValue::Err,
@@ -486,8 +487,8 @@ impl<'cx> TyChecker<'cx> {
         auto_value: Option<f64>,
         previous: Option<&ast::EnumMember>,
     ) -> EnumMemberValue {
-        if member.init.is_some() {
-            return self.compute_constant_enum_member_value(member);
+        if let Some(init) = member.init {
+            return self.compute_constant_enum_member_value(member, init);
         }
         match auto_value {
             Some(i) => EnumMemberValue::Number(i),

@@ -382,7 +382,6 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
             _ => return,
         };
         if let Some(module_name) = module_name
-            && module_name.val != keyword::IDENT_EMPTY
             && (!self.in_ambient_module
                 || !bolt_ts_path::is_external_module_relative(
                     self.atoms.lock().unwrap().get(module_name.val),

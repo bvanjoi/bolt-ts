@@ -140,7 +140,7 @@ pub(super) struct PropertyXIsMissing {
         props.join(", ")
     }
 )]
-pub(super) struct Type0IsMissingTheFollowingPropertiesFromType1Colon2And3More {
+pub(super) struct TypeIsMissingTheFollowingPropertiesFromType1Colon2And3More {
     #[label(primary)]
     pub span: Span,
     pub ty1: String,
@@ -239,7 +239,7 @@ pub(super) struct FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDec
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Value of type '{ty}' is not callable.")]
 #[diagnostic(help("Did you mean to include 'new'?"))]
-pub(super) struct ValueOfType0IsNotCallable {
+pub(super) struct ValueOfTypeIsNotCallable {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
@@ -430,7 +430,7 @@ pub(super) struct TypeParameterXHasACircularConstraint {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot assign to '{prop}' because it is a read-only property.")]
-pub(super) struct CannotAssignTo0BecauseItIsAReadOnlyProperty {
+pub(super) struct CannotAssignToXBecauseItIsAReadOnlyProperty {
     #[label(primary)]
     pub span: Span,
     pub prop: String,
@@ -457,7 +457,7 @@ pub(super) struct TheLeftHandSideOfAnInstanceofExpressionMustBeOfTypeAnyAnObject
 #[error(
     "The right-hand side of a 'for...in' statement must be of type 'any', an object type or a type parameter, but here has type '{ty}'."
 )]
-pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType0
+pub(super) struct TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType
 {
     #[label(primary)]
     pub span: Span,
@@ -661,7 +661,7 @@ pub(super) struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Interface '{interface}' cannot simultaneously extend types '{ty1}' and '{ty2}'.")]
-pub(super) struct Interface0CannotSimultaneouslyExtendTypes1And2 {
+pub(super) struct InterfaceCannotSimultaneouslyExtendTypes1And2 {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) interface: String,
@@ -671,7 +671,7 @@ pub(super) struct Interface0CannotSimultaneouslyExtendTypes1And2 {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Duplicate identifier '{ident}'.")]
-pub(super) struct DuplicateIdentifierX {
+pub(super) struct DuplicateIdentifier {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) ident: String,
@@ -952,4 +952,29 @@ pub(super) struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustB
     pub var: String,
     pub ty1: String,
     pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty1}' is not comparable to type '{ty2}'.")]
+pub(super) struct TypeXIsNotComparableToTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not generic.")]
+pub(super) struct TypeXIsNotGeneric {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot export '{spec}'. Only local declarations can be exported from a module.")]
+pub(super) struct CannotExportXOnlyLocalDeclarationsCanBeExportedFromAModule {
+    #[label(primary)]
+    pub span: Span,
+    pub spec: String,
 }

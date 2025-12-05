@@ -1,0 +1,5 @@
+  × The value 'undefined' cannot be used here.
+   ╭─[../../tests/compiler/propertyAccess5/index.ts:5:1]
+ 5 │ undefined
+   · ─────────
+   ╰────
