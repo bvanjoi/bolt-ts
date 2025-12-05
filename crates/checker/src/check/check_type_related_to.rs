@@ -777,8 +777,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 )
             }
         } else if let Some(target_union) = target.kind.as_union() {
+            let source = self.c.get_regular_ty_of_object_literal(source);
             self.ty_related_to_some_ty(
-                source, // TODO: get_regular_ty_of_object_literal
+                source,
                 target,
                 target_union.tys,
                 report_error,

@@ -1785,7 +1785,7 @@ impl<'cx> TyChecker<'cx> {
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
         let is_const_context = self.node_query(lit.id.module()).is_const_context(lit.id);
         let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
-            self.is_tuple_like(contextual_ty)
+            self.some_type(contextual_ty, |this, ty| this.is_tuple_like(ty))
         } else {
             false
         };
