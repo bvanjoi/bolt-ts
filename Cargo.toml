@@ -9,6 +9,7 @@ members = [
   "crates/early_resolve",
   "crates/ecma_logical",
   "crates/ecma_rules",
+  "crates/language_server",
   "crates/libs",
   "crates/middle",
   "crates/module_graph",

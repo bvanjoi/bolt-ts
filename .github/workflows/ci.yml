@@ -16,7 +16,7 @@ defaults:
     shell: bash
 
 jobs:
-  cargo-check:
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,7 +26,10 @@ jobs:
     - name: Set up Node
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
 
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
@@ -67,3 +70,10 @@ jobs:
     - name: Run wasm tests
       working-directory: crates/wasm
       run: wasm-pack test --node
+
+    - name: Install and Build Packages
+      run: pnpm i && pnpm build
+
+    - name: Test for Packages
+      run: pnpm test
+      

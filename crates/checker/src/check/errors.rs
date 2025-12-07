@@ -978,3 +978,10 @@ pub(super) struct CannotExportXOnlyLocalDeclarationsCanBeExportedFromAModule {
     pub span: Span,
     pub spec: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Multiple constructor implementations are not allowed.")]
+pub(super) struct MultipleConstructorImplementationsAreNotAllowed {
+    #[label(primary)]
+    pub span: Span,
+}

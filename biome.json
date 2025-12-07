@@ -1,0 +1,52 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"files": {
+		"includes": [
+			"packages/**/*",
+			"!**/.vscode-test/**/*",
+			"!**/node_modules/**/*",
+			"!**/dist/**/*",
+			"!**/out/**/*",
+			"!**/lib/**/*",
+			"!crates/**/*",
+			"!target/**/*",
+			"!tests/**/*",
+			"!tools/**/*"
+		]
+	},
+	"javascript": {
+		"formatter": {
+			"semicolons": "asNeeded",
+			"arrowParentheses": "asNeeded",
+			"quoteStyle": "single"
+		},
+		"jsxRuntime": "reactClassic"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"style": {
+				"useExportType": "error",
+				"useImportType": "error",
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
+			},
+			"correctness": {
+				"noUnusedVariables": "error"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "warn"
+			}
+		}
+	}
+}
