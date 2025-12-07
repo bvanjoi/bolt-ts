@@ -1,18 +1,10 @@
 {
-	"name": "@bolt-ts/vscode-extension",
+	"name": "bolt-ts-vscode-extension",
 	"displayName": "bolt-ts",
 	"version": "0.0.1",
 	"main": "./dist/extension.js",
 	"engines": {
 		"vscode": "^1.106.1"
-	},
-	"contributes": {
-		"commands": [
-			{
-				"command": "bolt-ts.helloWorld",
-				"title": "Hello World"
-			}
-		]
 	},
 	"scripts": {
 		"vscode:prepublish": "pnpm run build",
@@ -29,6 +21,7 @@
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.106.1",
+		"@types/mocha": "^10.0.10",
 		"@types/node": "^24.10.1",
 		"esbuild": "^0.27.1",
 		"npm-run-all": "^4.1.5",
@@ -36,5 +29,13 @@
 		"@vscode/test-cli": "^0.0.12",
 		"@vscode/test-electron": "^2.5.2",
 		"undici-types": "^7.16.0"
+	},
+	"contributes": {
+		"commands": [
+			{
+				"command": "bolt-ts.helloWorld",
+				"title": "Hello World"
+			}
+		]
 	}
 }

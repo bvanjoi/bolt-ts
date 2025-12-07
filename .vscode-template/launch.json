@@ -18,7 +18,9 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-extension"
+				"--extensionDevelopmentPath=${workspaceFolder}/packages/vscode-extension",
+        // only enable the bolt-ts extension
+        "--disable-extensions"
 			],
 			"outFiles": [
 				"${workspaceFolder}/packages/vscode-extension/dist/**/*.js"

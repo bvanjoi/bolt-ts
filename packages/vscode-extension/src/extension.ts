@@ -7,6 +7,7 @@ export function activate(context: vscode.ExtensionContext) {
 		'bolt-ts.helloWorld',
 		() => {
 			vscode.window.showInformationMessage('Hello World from bolt-ts!')
+			return 42
 		},
 	)
 
