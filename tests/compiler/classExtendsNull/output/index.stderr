@@ -1,0 +1,5 @@
+  × A constructor cannot contain a 'super' call when its class extends 'null'.
+   ╭─[../../tests/compiler/classExtendsNull/index.ts:5:9]
+ 5 │ super()
+   · ───────
+   ╰────

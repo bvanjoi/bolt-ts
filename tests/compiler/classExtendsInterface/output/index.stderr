@@ -1,0 +1,31 @@
+  × Cannot find name 'Comparable'.
+   ╭─[../../tests/compiler/classExtendsInterface/index.ts:4:17]
+ 4 │ Comparable
+   · ──────────
+   ╰────
+
+Advice: 
+  ☞ 'Comparable' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/classExtendsInterface/index.ts:4:17]
+ 3 │ Comparable {}
+   · ─────┬────
+   ·      ╰── 'Comparable' is defined here.
+ 4 │ class A extends Comparable
+   ·                 ──────────
+   ╰────
+
+  × Cannot find name 'Comparable2'.
+   ╭─[../../tests/compiler/classExtendsInterface/index.ts:9:21]
+ 9 │ Comparable2
+   · ───────────
+   ╰────
+
+Advice: 
+  ☞ 'Comparable2' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/classExtendsInterface/index.ts:9:21]
+ 8 │ Comparable2<T> {}
+   · ─────┬─────
+   ·      ╰── 'Comparable2' is defined here.
+ 9 │ class A2<T> extends Comparable2
+   ·                     ───────────
+   ╰────

@@ -520,3 +520,10 @@ pub(super) struct InvalidUseOf0InStrictMode {
     pub(super) span: Span,
     pub(super) name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Unterminated regular expression literal.")]
+pub(super) struct UnterminatedRegularExpressionLiteral {
+    #[label(primary)]
+    pub span: Span,
+}

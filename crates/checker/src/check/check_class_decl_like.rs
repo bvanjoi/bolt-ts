@@ -68,7 +68,7 @@ impl<'cx> TyChecker<'cx> {
         v.ret
     }
 
-    fn check_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
+    fn check_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
         self.check_fn_like_decl(ctor);
 
         let containing_class_decl = self.parent(ctor.id).unwrap();
@@ -80,7 +80,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(extends) = extends {
             let extends_null = self.class_decl_extends_null(containing_class_decl);
             if let Some(first_super_call) = self.find_first_super_call_in_ctor_body(ctor) {
-                // TODO:
+                if extends_null {
+                    let error =
+                        errors::AConstructorCannotContainASuperCallWhenItsClassExtendsNull {
+                            span: first_super_call.span,
+                        };
+                    self.push_error(Box::new(error));
+                }
             } else if !extends_null {
                 let error = errors::ConstructorsForDerivedClassesMustContainASuperCall {
                     span: ctor.name_span,
@@ -410,7 +416,7 @@ impl<'cx> TyChecker<'cx> {
             match ele.kind {
                 Prop(n) => self.check_class_prop_ele(n),
                 Method(n) => self.check_class_method_elem(n),
-                Ctor(n) => self.check_ctor(n),
+                Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_getter_decl(n),
                 Setter(n) => self.check_accessor_decl(n),

@@ -74,6 +74,7 @@ jobs:
     - name: Install and Build Packages
       run: pnpm i && pnpm build
 
-    - name: Test for Packages
-      run: pnpm test
-      
+    - name: Test For Packages Under Headless
+      uses: coactions/setup-xvfb@v1
+      with:
+        run: pnpm test

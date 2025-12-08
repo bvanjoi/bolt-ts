@@ -849,6 +849,13 @@ pub(super) struct ConstructorsForDerivedClassesMustContainASuperCall {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A constructor cannot contain a 'super' call when its class extends 'null'.")]
+pub(super) struct AConstructorCannotContainASuperCallWhenItsClassExtendsNull {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("'super' must be called before accessing 'this' in the constructor of a derived class.")]
 pub(super) struct SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
     #[label(primary)]

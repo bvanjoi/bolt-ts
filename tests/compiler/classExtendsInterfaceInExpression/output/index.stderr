@@ -1,0 +1,17 @@
+  × Cannot find name 'A'.
+   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:9:25]
+ 9 │ A
+   · ─
+   ╰────
+
+Advice: 
+  ☞ 'A' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:3:11]
+ 3 │ A
+   · ┬
+   · ╰── 'A' is defined here.
+   ╰────
+   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:9:25]
+ 9 │ A
+   · ─
+   ╰────

@@ -49,7 +49,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         match self.is_paren_arrow_fn_expr() {
-            Tristate::True => self.parse_paren_arrow_fn_expr(false),
+            Tristate::True => self.parse_paren_arrow_fn_expr::<true>(),
             Tristate::False => Ok(None),
             Tristate::Unknown => {
                 self.try_parse(|this| this.p().parse_possible_paren_arrow_fn_expr())
@@ -61,7 +61,7 @@ impl<'cx> ParserState<'cx, '_> {
         // let start = self.token.start();
         // TODO: cache
 
-        self.parse_paren_arrow_fn_expr(false)
+        self.parse_paren_arrow_fn_expr::<false>()
     }
 
     // TODO: put it into `parse_params`
@@ -97,27 +97,24 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_paren_arrow_fn_expr(
+    fn parse_paren_arrow_fn_expr<const ALLOW_AMBIGUITY: bool>(
         &mut self,
-        allow_ambiguity: bool,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         let start = self.token.start();
         // TODO: mods
         // TODO: isAsync
         let ty_params = self.parse_ty_params();
-        if self.token.kind != TokenKind::LParen {
-            return Ok(None);
-        }
+
         let params: ast::ParamsDecl<'cx>;
 
         if !self.expect(TokenKind::LParen) {
-            if !allow_ambiguity {
+            if !ALLOW_AMBIGUITY {
                 return Err(());
             }
             params = self.alloc([]);
         } else {
-            params = self.parse_params_worker(allow_ambiguity);
-            if !self.expect(TokenKind::RParen) && !allow_ambiguity {
+            params = self.parse_params_worker(ALLOW_AMBIGUITY);
+            if !self.expect(TokenKind::RParen) && !ALLOW_AMBIGUITY {
                 return Err(());
             }
         }
@@ -126,7 +123,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
-        if !allow_ambiguity
+        if !ALLOW_AMBIGUITY
             && self.token.kind != TokenKind::EqGreat
             && self.token.kind != TokenKind::LBrace
         {
@@ -139,7 +136,7 @@ impl<'cx> ParserState<'cx, '_> {
             let is_async = false;
             self.parse_arrow_fn_expr_body(is_async)?
         } else {
-            todo!()
+            ast::ArrowFnExprBody::Expr(self.parse_ident(None))
         };
         let id = self.next_node_id();
         let kind = self.alloc(ast::ArrowFnExpr {
