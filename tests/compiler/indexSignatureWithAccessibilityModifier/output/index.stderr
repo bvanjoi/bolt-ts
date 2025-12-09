@@ -1,0 +1,11 @@
+  × An index signature parameter cannot have an accessibility modifier.
+   ╭─[../../tests/compiler/indexSignatureWithAccessibilityModifier/index.ts:4:6]
+ 4 │ public x: string
+   · ────────────────
+   ╰────
+
+  × An index signature parameter cannot have an accessibility modifier.
+   ╭─[../../tests/compiler/indexSignatureWithAccessibilityModifier/index.ts:9:6]
+ 9 │ public x: string
+   · ────────────────
+   ╰────

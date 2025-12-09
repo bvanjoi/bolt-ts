@@ -759,7 +759,8 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        self.expect(TokenKind::LBracket);
+        debug_assert!(self.token.kind == TokenKind::LBracket);
+        self.next_token(); // consume '['
         let mut params = Vec::with_capacity(1);
         if self.is_list_element(ParsingContext::PARAMETERS, false) {
             if let Ok(param) = self.parse_param(true) {
@@ -787,6 +788,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         if let Some(param) = params.first() {
+            if param.modifiers.is_some() {
+                let error = errors::AnIndexSignatureParameterCannotHaveAnAccessibilityModifier {
+                    span: param.span,
+                };
+                self.push_error(Box::new(error));
+            }
+
             if let Some(question) = param.question {
                 let error =
                     errors::AnIndexSignatureParameterCannotHaveAQuestionMark { span: question };
