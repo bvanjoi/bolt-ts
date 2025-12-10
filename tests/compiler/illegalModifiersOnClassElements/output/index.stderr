@@ -1,0 +1,53 @@
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:4:19]
+ 4 │ 1
+   · ─
+   ╰────
+
+  × 'export' modifier cannot appear on class elements of this kind.
+   ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:6:5]
+ 6 │ export
+   · ──────
+   ╰────
+
+  × 'export' modifier cannot appear on class elements of this kind.
+   ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:8:5]
+ 8 │ export
+   · ──────
+   ╰────
+
+  × 'export' modifier cannot appear on class elements of this kind.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:10:5]
+ 10 │ export
+    · ──────
+    ╰────
+
+  × 'export' modifier cannot appear on class elements of this kind.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:12:5]
+ 12 │ export
+    · ──────
+    ╰────
+
+  × A 'set' accessor must have exactly one parameter.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:12:16]
+ 12 │ taz
+    · ───
+    ╰────
+
+  × A 'set' accessor must have exactly one parameter.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:16:9]
+ 16 │ baz
+    · ───
+    ╰────
+
+  × A 'set' accessor must have exactly one parameter.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:20:9]
+ 20 │ tcc
+    · ───
+    ╰────
+
+  × A 'get' accessor cannot have parameters.
+    ╭─[../../tests/compiler/illegalModifiersOnClassElements/index.ts:23:9]
+ 23 │ taa
+    · ───
+    ╰────

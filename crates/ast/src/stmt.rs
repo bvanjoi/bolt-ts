@@ -517,6 +517,7 @@ impl<'cx> SetterDecl<'cx> {
     }
 
     pub fn get_value_param(&self) -> Option<&'cx self::ParamDecl<'cx>> {
+        debug_assert!(self.params.len() <= 2);
         (!self.params.is_empty()).then(|| {
             if self.params.len() == 2
                 && let self::BindingKind::Ident(i) = self.params[0].name.kind

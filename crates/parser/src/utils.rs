@@ -839,7 +839,11 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        if !self.parse_params().is_empty() {
+            self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
+                span: name.span(),
+            }));
+        }
         // TODO: assert params.is_none
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
@@ -874,6 +878,19 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
+        let params = if params.is_empty() {
+            self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
+                span: name.span(),
+            }));
+            params
+        } else if params.len() > 2 {
+            self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
+                span: name.span(),
+            }));
+            params.split_at(2).0
+        } else {
+            params
+        };
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
         if ambient {
@@ -885,6 +902,7 @@ impl<'cx> ParserState<'cx, '_> {
             body = None;
         }
         let id = self.next_node_id();
+        debug_assert!(params.len() <= 2);
         let decl = self.alloc(ast::SetterDecl {
             id,
             span: self.new_span(start),

@@ -311,6 +311,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
+                if let Some(init) = init
+                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                {
+                    let error =
+                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
+                    this.push_error(Box::new(error));
+                }
                 let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
@@ -388,13 +395,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if let Some(ms) = modifiers {
             for m in ms.list {
-                if m.kind == ast::ModifierKind::Const {
-                    let error = errors::AClassMemberCannotHaveTheModifierKeyword {
-                        span: m.span,
-                        modifier: m.kind,
-                    };
-                    self.push_error(Box::new(error));
-                }
+                let error = match m.kind {
+                    ast::ModifierKind::Const => {
+                        Box::new(errors::AClassMemberCannotHaveTheModifierKeyword {
+                            span: m.span,
+                            modifier: m.kind,
+                        }) as Box<_>
+                    }
+                    ast::ModifierKind::Export => {
+                        Box::new(errors::ModifierCannotAppearOnClassElementsOfThisKind {
+                            span: m.span,
+                            modifier: m.kind,
+                        }) as Box<_>
+                    }
+                    _ => continue,
+                };
+                self.push_error(error);
             }
         }
 
