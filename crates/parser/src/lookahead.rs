@@ -13,6 +13,12 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         self.p
     }
 
+    pub(super) fn next_token_is_lparen_or_less(&mut self) -> bool {
+        use bolt_ts_ast::TokenKind::*;
+        self.p.next_token();
+        matches!(self.p.token.kind, LParen | Less)
+    }
+
     pub(super) fn next_token_is_ident_or_keyword_or_open_bracket_or_template(
         &mut self,
     ) -> PResult<bool> {

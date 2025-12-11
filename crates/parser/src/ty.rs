@@ -964,10 +964,10 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(node)
     }
 
-    fn parse_sig_member(&mut self, is_call: bool) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
+    fn parse_sig_member<const IS_CALL: bool>(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         let start = self.token.start();
 
-        if !is_call {
+        if !IS_CALL {
             self.expect(TokenKind::New);
         }
 
@@ -977,7 +977,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = self.parse_ret_ty(true)?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);
-        let kind = if is_call {
+        let kind = if IS_CALL {
             let id = self.next_node_id();
             let decl = self.alloc(ast::CallSigDecl {
                 id,
@@ -1005,9 +1005,11 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_member(&mut self) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
         if self.token.kind == TokenKind::LParen || self.token.kind == TokenKind::Less {
-            return self.parse_sig_member(true);
-        } else if self.token.kind == TokenKind::New {
-            return self.parse_sig_member(false);
+            return self.parse_sig_member::<true>();
+        } else if self.token.kind == TokenKind::New
+            && self.lookahead(Lookahead::next_token_is_lparen_or_less)
+        {
+            return self.parse_sig_member::<false>();
         }
 
         let start = self.token.start();

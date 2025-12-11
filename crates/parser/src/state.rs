@@ -520,13 +520,21 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn check_contextual_ident(&mut self, ident: &ast::Ident) {
+        if !self.in_strict_mode
+            || self
+                .node_context_flags
+                .intersects(NodeFlags::JSDOC.union(NodeFlags::AMBIENT))
+        {
+            return;
+        }
+
         let Some(token) = ast::atom_to_token(ident.name) else {
             return;
         };
 
-        if self.in_strict_mode && token.is_strict_mode_reserved_word() {
+        if token.is_strict_mode_reserved_word() {
             //  strict mode identifier message
-            let error = errors::IdentifierExpected0IsAReservedWordInStrictMode {
+            let error = errors::IdentifierExpectedXIsAReservedWordInStrictMode {
                 span: ident.span,
                 identifier: token.as_str().to_string(),
             };

@@ -5,5 +5,4 @@
 class test {
     constructor (static) { }
     //~^ ERROR: Identifier expected. 'static' is a reserved word in strict mode.
-    //~| ERROR: Identifier expected. 'static' is a reserved word in strict mode. Class definitions are automatically in strict mode.
 }

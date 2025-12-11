@@ -399,7 +399,7 @@ pub(super) struct AClassMemberCannotHaveTheModifierKeyword {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Identifier expected. '{identifier}' is a reserved word in strict mode.")]
-pub(super) struct IdentifierExpected0IsAReservedWordInStrictMode {
+pub(super) struct IdentifierExpectedXIsAReservedWordInStrictMode {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) identifier: String,
@@ -559,6 +559,13 @@ pub(super) struct AGetAccessorCannotHaveParameters {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A 'set' accessor must have exactly one parameter.")]
 pub(super) struct ASetAccessorMustHaveExactlyOneParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Classes may not have a field named 'constructor'.")]
+pub(super) struct ClassesMayNotHaveAFieldNamedConstructor {
     #[label(primary)]
     pub span: Span,
 }
