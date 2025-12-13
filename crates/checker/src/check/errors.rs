@@ -992,3 +992,30 @@ pub(super) struct MultipleConstructorImplementationsAreNotAllowed {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'{item}' refers to a value, but is being used as a type here. Did you mean 'typeof {item}'?"
+)]
+pub(super) struct XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
+    #[label(primary)]
+    pub span: Span,
+    pub item: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'this' implicitly has type 'any' because it does not have a type annotation.")]
+pub(super) struct ThisImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    #[related]
+    pub related: Option<AnOuterValueOfThisIsShadowedByThisContainer>,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An outer value of 'this' is shadowed by this container.")]
+#[diagnostic(severity(Warning))]
+pub(super) struct AnOuterValueOfThisIsShadowedByThisContainer {
+    #[label(primary)]
+    pub span: Span,
+}

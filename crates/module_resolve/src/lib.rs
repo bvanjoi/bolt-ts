@@ -197,10 +197,10 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         }
 
         if ext.intersects(Extensions::Declaration) {
-            let node_modules_at_types = node_modules_folder.join("@types");
-            let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
-            let s = unsafe { std::str::from_utf8_unchecked(bytes) };
-            let node_modules_at_types_id = self.atoms.lock().unwrap().atom(s);
+            // let node_modules_at_types = node_modules_folder.join("@types");
+            // let bytes = node_modules_at_types.as_os_str().as_encoded_bytes();
+            // let s = unsafe { std::str::from_utf8_unchecked(bytes) };
+            // let node_modules_at_types_id = self.atoms.lock().unwrap().atom(s);
             // let mut node_modules_at_types_exists = node_module_folder_exists;
             // if node_modules_at_types_exists
             //     && !self.fs.lock().unwrap().dir_exists(&node_modules_at_types)

@@ -1,0 +1,8 @@
+  × Duplicate identifier 'artist'.
+   ╭─[../../tests/compiler/duplicateStringNamedProperty1/index.ts:7:5]
+ 6 │ "artist": string;
+   · ────────┬───────
+   ·         ╰── Previous definition here
+ 7 │     artist: string
+   ·     ──────────────
+   ╰────

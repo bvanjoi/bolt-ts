@@ -1,5 +1,6 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
+use bolt_ts_ast::pprint_entity_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{
@@ -571,11 +572,10 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_entity_name(
+    pub(super) fn resolve_entity_name<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         name: &'cx bolt_ts_ast::EntityName<'cx>,
         meaning: SymbolFlags,
-        dont_resolve_alias: bool,
     ) -> SymbolID {
         use bolt_ts_ast::EntityNameKind::*;
         let symbol;
@@ -583,19 +583,36 @@ impl<'cx> super::TyChecker<'cx> {
             Ident(n) => {
                 let id = self.resolve_symbol_by_ident(n);
                 symbol = self.get_merged_symbol(id);
-                if symbol == Symbol::ERR || dont_resolve_alias {
+                if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
                     return symbol;
                 }
             }
             Qualified(n) => {
-                let ns = self.resolve_entity_name(n.left, SymbolFlags::NAMESPACE, false);
+                let ns =
+                    self.resolve_entity_name::<IGNORE_ERROR, false>(n.left, SymbolFlags::NAMESPACE);
                 if ns == Symbol::ERR {
                     return Symbol::ERR;
                 }
                 let exports = self.get_exports_of_symbol(ns);
-                symbol = self
-                    .get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
-                    .unwrap_or(Symbol::ERR);
+                let Some(s) = self.get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
+                else {
+                    if !IGNORE_ERROR {
+                        let can_suggest_typeof = self
+                            .get_symbol(exports, SymbolName::Atom(n.right.name), SymbolFlags::VALUE)
+                            .is_some();
+                        if can_suggest_typeof {
+                            let error =
+                                errors::XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
+                                    span: n.right.span,
+                                    item: pprint_entity_name(name, self.atoms()),
+                                };
+                            self.push_error(Box::new(error));
+                            return Symbol::ERR;
+                        }
+                    }
+                    return Symbol::ERR;
+                };
+                symbol = s;
             }
         }
         let flags = self.symbol(symbol).flags;

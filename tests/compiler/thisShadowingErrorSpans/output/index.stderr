@@ -1,0 +1,13 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/thisShadowingErrorSpans/index.ts:9:13]
+ 9 │ this
+   · ────
+   ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+   ╭─[../../tests/compiler/thisShadowingErrorSpans/index.ts:9:13]
+ 9 │ this
+   · ────
+   ╰────

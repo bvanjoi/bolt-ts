@@ -23,13 +23,13 @@ pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomIntern) -> Strin
     }
 }
 
-#[cfg(debug_assertions)]
 pub fn pprint_entity_name(name: &super::EntityName, atoms: &AtomIntern) -> String {
     match name.kind {
         super::EntityNameKind::Ident(ident) => pprint_ident(ident, atoms),
         super::EntityNameKind::Qualified(q) => {
             let mut name = pprint_entity_name(q.left, atoms);
             name.push('.');
+            name.push_str(&pprint_ident(q.right, atoms));
             name
         }
     }

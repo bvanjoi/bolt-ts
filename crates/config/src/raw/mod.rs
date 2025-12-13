@@ -44,6 +44,7 @@ with_option!(
     (strict_null_checks, bool),
     (strict_function_types, bool),
     (no_implicit_any, bool),
+    (no_implicit_this, bool),
     (no_unchecked_indexed_access, bool),
     (target, RawTarget),
     (module, RawModule),
@@ -74,6 +75,9 @@ impl RawCompilerOptions {
         }
         if get_strict_option_value(self.no_implicit_any) {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_ANY);
+        }
+        if get_strict_option_value(self.no_implicit_this) {
+            flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_THIS);
         }
         if self.no_unchecked_indexed_access.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);

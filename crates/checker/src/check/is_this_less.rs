@@ -73,7 +73,8 @@ impl<'cx> TyChecker<'cx> {
                 continue;
             };
             for node in base_ty_nodes {
-                let base_symbol = self.resolve_entity_name(node.name, SymbolFlags::TYPE, false);
+                let base_symbol =
+                    self.resolve_entity_name::<true, false>(node.name, SymbolFlags::TYPE);
                 if base_symbol == Symbol::ERR
                     || !self
                         .symbol(base_symbol)

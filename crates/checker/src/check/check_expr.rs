@@ -736,7 +736,34 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
         }
 
-        let ty = self.try_get_this_ty_at(expr, true, Some(container_id));
+        let ty = self.try_get_this_ty_at(expr.id, true, Some(container_id));
+
+        if self.config.no_implicit_this() {
+            let global_this_ty = self.get_type_of_symbol(self.global_this_symbol);
+            match ty {
+                Some(ty) if ty == global_this_ty && captured_by_arrow_fn => {
+                    todo!("error")
+                }
+                None => {
+                    let mut error =
+                        errors::ThisImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotation {
+                            span: expr.span,
+                            related: None,
+                        };
+                    if !container.is_program()
+                        && let Some(outside_this) =
+                            self.try_get_this_ty_at(container_id, true, None)
+                        && outside_this != global_this_ty
+                    {
+                        error.related = Some(errors::AnOuterValueOfThisIsShadowedByThisContainer {
+                            span: expr.span,
+                        });
+                    }
+                    self.push_error(Box::new(error));
+                }
+                _ => {}
+            }
+        }
 
         ty.unwrap_or(self.any_ty)
     }

@@ -1,0 +1,13 @@
+  × Type '(item: any) => boolean' is not assignable to type '(item: any) =>
+  │ T'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence3/index.ts:6:5]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Type '(item: any) => T' is not assignable to type '(item: any) =>
+  │ boolean'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence3/index.ts:8:5]
+ 8 │ y
+   · ─
+   ╰────

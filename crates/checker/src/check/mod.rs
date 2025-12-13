@@ -1379,13 +1379,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn try_get_this_ty_at(
         &mut self,
-        expr: &'cx ast::ThisExpr,
+        node: ast::NodeID,
         include_global_this: bool,
         container_id: Option<ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let container_id = container_id.unwrap_or_else(|| {
-            self.node_query(expr.id.module())
-                .get_this_container(expr.id, false, false)
+            self.node_query(node.module())
+                .get_this_container(node, false, false)
         });
         let container = self.p.node(container_id);
         if container.is_fn_like() {
