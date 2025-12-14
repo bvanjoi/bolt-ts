@@ -1,0 +1,29 @@
+  × Duplicate function implementation.
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:5:16]
+ 5 │ function() { return 1; }
+   · ────────────────────────
+   ╰────
+
+  × Duplicate function implementation.
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:8:16]
+ 8 │ function() { return 2; }
+   · ────────────────────────
+   ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:3:26]
+ 3 │ A
+   · ─
+   ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:5:16]
+ 5 │ function() { return 1; }
+   · ────────────────────────
+   ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/exportDefaultInterfaceAndTwoFunctions/index.ts:8:16]
+ 8 │ function() { return 2; }
+   · ────────────────────────
+   ╰────

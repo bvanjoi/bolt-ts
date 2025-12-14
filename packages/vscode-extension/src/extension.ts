@@ -1,17 +1,65 @@
+import path from 'node:path'
 import * as vscode from 'vscode'
+import {
+	type Executable,
+	LanguageClient,
+	type LanguageClientOptions,
+	type ServerOptions
+} from 'vscode-languageclient/node'
 
-export function activate(context: vscode.ExtensionContext) {
-	console.log('Congratulations, your extension "bolt-ts" is now active!')
-
-	const disposable = vscode.commands.registerCommand(
-		'bolt-ts.helloWorld',
-		() => {
-			vscode.window.showInformationMessage('Hello World from bolt-ts!')
-			return 42
-		},
-	)
-
-	context.subscriptions.push(disposable)
+interface ClientOptions {
+	logger: vscode.OutputChannel
+}
+interface Client {
+	start(): Promise<void>
+	stop(): Promise<void>
 }
 
-export function deactivate() {}
+function createClient(options: ClientOptions): Client {
+	const defaultCommand = path.resolve(
+		__dirname,
+		'../../../target/debug/bolt_ts_language_server'
+	)
+	const run: Executable = {
+		command: defaultCommand
+	}
+	const server: ServerOptions = {
+		run,
+		debug: run
+	}
+	const clientOptions: LanguageClientOptions = {
+		documentSelector: [{ language: 'typescript' }],
+		outputChannel: options.logger
+	}
+	const client = new LanguageClient(
+		'bolt-ts-language-server',
+		server,
+		clientOptions
+	)
+	return {
+		start() {
+			return client.start()
+		},
+		stop() {
+			return client.stop()
+		}
+	}
+}
+
+let client: Client | undefined
+
+export function activate() {
+	const logger = vscode.window.createOutputChannel('bolt-ts Extension', {
+		log: true
+	})
+
+	client = createClient({ logger })
+
+	return client.start()
+}
+
+export function deactivate() {
+	if (client) {
+		return client.stop()
+	}
+}

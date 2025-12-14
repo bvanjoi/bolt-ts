@@ -1,5 +1,6 @@
 {
 	"name": "bolt-ts-vscode-extension",
+	"publisher": "bohan",
 	"displayName": "bolt-ts",
 	"version": "0.0.1",
 	"main": "./dist/extension.js",
@@ -19,6 +20,9 @@
 		"lint": "biome lint",
 		"test": "vscode-test"
 	},
+	"dependencies": {
+		"vscode-languageclient": "^9.0.1"
+	},
 	"devDependencies": {
 		"@types/vscode": "^1.106.1",
 		"@types/mocha": "^10.0.10",
@@ -33,8 +37,9 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "bolt-ts.helloWorld",
-				"title": "Hello World"
+				"command": "bolt-ts.restartLanguageServer",
+				"title": "Restart Language Server",
+				"category": "bolt-ts"
 			}
 		]
 	}

@@ -678,6 +678,13 @@ pub(super) struct DuplicateIdentifier {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Duplicate function implementation.")]
+pub(super) struct DuplicateFunctionImplementation {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Type '{x}' has no matching index signature for type '{y}'.")]
 pub(super) struct TypeXHasNoMatchingIndexSignatureForTypeY {
     #[label(primary)]
@@ -1018,4 +1025,12 @@ pub(super) struct ThisImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotation {
 pub(super) struct AnOuterValueOfThisIsShadowedByThisContainer {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot redeclare exported variable '{name}'.")]
+pub(super) struct CannotRedeclareExportedVariableX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
 }

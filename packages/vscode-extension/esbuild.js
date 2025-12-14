@@ -17,12 +17,12 @@ const esbuildProblemMatcherPlugin = {
 			result.errors.forEach(({ text, location }) => {
 				console.error(`✘ [ERROR] ${text}`)
 				console.error(
-					`    ${location.file}:${location.line}:${location.column}:`,
+					`    ${location.file}:${location.line}:${location.column}:`
 				)
 			})
 			console.log('[watch] build finished')
 		})
-	},
+	}
 }
 
 async function main() {
@@ -39,8 +39,8 @@ async function main() {
 		logLevel: 'silent',
 		plugins: [
 			/* add to the end of plugins array */
-			esbuildProblemMatcherPlugin,
-		],
+			esbuildProblemMatcherPlugin
+		]
 	})
 	if (watch) {
 		await ctx.watch()

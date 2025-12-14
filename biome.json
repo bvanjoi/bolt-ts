@@ -19,7 +19,8 @@
 		"formatter": {
 			"semicolons": "asNeeded",
 			"arrowParentheses": "asNeeded",
-			"quoteStyle": "single"
+			"quoteStyle": "single",
+			"trailingCommas": "none"
 		},
 		"jsxRuntime": "reactClassic"
 	},

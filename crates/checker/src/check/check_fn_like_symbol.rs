@@ -30,6 +30,7 @@ impl<'cx> TyChecker<'cx> {
         let mut last_seen_non_ambient_decl = None;
         let mut multiple_constructor_implement = false;
         let mut duplicate_function_declaration = false;
+        let mut fn_decls = vec![];
 
         for decl in decls {
             let node = self.p.node(*decl);
@@ -44,6 +45,7 @@ impl<'cx> TyChecker<'cx> {
                 || node.is_class_method_elem()
                 || node.is_class_ctor()
             {
+                fn_decls.push(*decl);
                 let current_node_flags =
                     self.get_effective_declaration_flags(*decl, FLAGS_TO_CHECK);
                 some_node_flags |= current_node_flags;
@@ -68,10 +70,25 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if multiple_constructor_implement {
-            let errors = decls
+            let errors = fn_decls
                 .iter()
                 .map(|&d| self.p.node(d).as_class_ctor().unwrap().name_span)
                 .map(|span| errors::MultipleConstructorImplementationsAreNotAllowed { span })
+                .collect::<Vec<_>>();
+            for error in errors {
+                self.diags.push(bolt_ts_errors::Diag {
+                    inner: Box::new(error),
+                });
+            }
+        }
+
+        if duplicate_function_declaration {
+            let errors = fn_decls
+                .iter()
+                .map(|&d| {
+                    let decl = self.p.node(d);
+                    errors::DuplicateFunctionImplementation { span: decl.span() }
+                })
                 .collect::<Vec<_>>();
             for error in errors {
                 self.diags.push(bolt_ts_errors::Diag {

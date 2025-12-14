@@ -30,7 +30,9 @@ pub enum SymbolName {
     Type,
     Missing,
     Resolving,
+    /// `__export`
     ExportStar,
+    /// `export=`
     ExportEquals,
     ExportDefault,
     Computed,

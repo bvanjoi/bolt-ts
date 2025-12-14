@@ -2,7 +2,7 @@ import * as assert from 'node:assert'
 
 import * as vscode from 'vscode'
 
-test('Commands of bolt-ts', async () => {
-	const ret = await vscode.commands.executeCommand('bolt-ts.helloWorld')
-	assert.strictEqual(ret, 42)
+test('bolt-ts extension exist', async () => {
+	const ext = vscode.extensions.getExtension('bohan.bolt-ts-vscode-extension')
+	assert.ok(ext)
 })
