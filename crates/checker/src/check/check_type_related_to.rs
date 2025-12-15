@@ -2168,6 +2168,21 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if !TyChecker::is_excess_property_check_target(target_ty) {
             return false;
         }
+        let is_comparing_jsx_attrs = source
+            .get_object_flags()
+            .contains(ObjectFlags::JSX_ATTRIBUTES);
+
+        if matches!(
+            self.relation,
+            RelationKind::Assignable | RelationKind::Comparable
+        ) && (self
+            .c
+            .is_ty_sub_type_of(self.c.global_object_ty(), target_ty)
+            || (!is_comparing_jsx_attrs && self.c.is_empty_object_ty(target_ty)))
+        {
+            return false;
+        }
+
         for prop in self.c.get_props_of_ty(source) {
             if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
                 let name = self.c.symbol(*prop).name;
