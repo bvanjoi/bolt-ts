@@ -59,7 +59,7 @@ impl<'cx> ParserState<'cx, '_> {
                     ast::StmtKind::Var(self.parse_var_stmt(None))
                 } else {
                     if self.in_strict_mode {
-                        let error = errors::IdentifierExpected0IsAReservedWordInStrictMode {
+                        let error = errors::IdentifierExpectedXIsAReservedWordInStrictMode {
                             span: self.token.span,
                             identifier: "let".to_string(),
                         };

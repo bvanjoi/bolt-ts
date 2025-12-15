@@ -31,7 +31,7 @@ declare module A {
   interface B<T = number> {
     b1: T
   }
-  function f(b: B) {
+  function g(b: B) {
     let s0: string = b.b0;
     //~^ ERROR: Type 'number' is not assignable to type 'string'.
     let s1: string = b.b1;

@@ -1,2 +1,6 @@
 < key="nope"></>
-//~^ ERROR: Expression expected.
+//~^ ERROR: Expected '('.
+//~| ERROR: Expected '=>'.
+//~| ERROR: Identifier expected.
+//~| ERROR: Expression expected.
+//~| ERROR: Unterminated regular expression literal.

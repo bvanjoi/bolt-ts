@@ -21,7 +21,6 @@ fn compile_single_input(code: &str) -> db::DB {
 }
 
 mod db {
-    use crate::db;
 
     pub fn parse_file_content(filename: &str, content: &str) -> self::File {
         #[derive(Debug, PartialEq, Clone, Copy)]

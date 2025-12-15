@@ -23,15 +23,15 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {
         let id = decl.id();
+        let fn_decl = self.p.node(id);
         let symbol = self.get_symbol_of_decl(id);
         // TODO: check_sig_decl
-        if self
-            .binder
-            .symbol(symbol)
-            .decls
-            .as_ref()
-            .is_some_and(|decls| decls[0] == id)
-        {
+        let first_fn_decl = self.binder.symbol(symbol).decls.as_ref().and_then(|decls| {
+            decls
+                .iter()
+                .find(|&&d| self.p.node(d).is_same_kind(&fn_decl))
+        });
+        if first_fn_decl.is_some_and(|&decl| decl == id) {
             self.check_fn_like_symbol(symbol);
         }
 

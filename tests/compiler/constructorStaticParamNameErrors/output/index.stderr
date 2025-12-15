@@ -3,10 +3,3 @@
  6 │ static
    · ──────
    ╰────
-
-  × Identifier expected. 'static' is a reserved word in strict mode. Class
-  │ definitions are automatically in strict mode.
-   ╭─[../../tests/compiler/constructorStaticParamNameErrors/index.ts:6:18]
- 6 │ static
-   · ──────
-   ╰────

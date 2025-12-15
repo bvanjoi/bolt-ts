@@ -1,0 +1,38 @@
+name: Biome Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Install Dependencies
+      run: pnpm i 
+
+    - name: Run Biome Format Check
+      run: npx biome format && npx biome lint

@@ -25,8 +25,13 @@ impl<'cx> TyChecker<'cx> {
         let mut body_declaration = None;
         let mut some_node_flags = enumflags2::BitFlags::empty();
         let mut all_node_flags = FLAGS_TO_CHECK;
+        let is_ctor = s.flags.intersects(SymbolFlags::CONSTRUCTOR);
 
         let mut last_seen_non_ambient_decl = None;
+        let mut multiple_constructor_implement = false;
+        let mut duplicate_function_declaration = false;
+        let mut fn_decls = vec![];
+
         for decl in decls {
             let node = self.p.node(*decl);
             let is_ambient_context = self.p.node_flags(*decl).intersects(ast::NodeFlags::AMBIENT);
@@ -40,14 +45,19 @@ impl<'cx> TyChecker<'cx> {
                 || node.is_class_method_elem()
                 || node.is_class_ctor()
             {
+                fn_decls.push(*decl);
                 let current_node_flags =
                     self.get_effective_declaration_flags(*decl, FLAGS_TO_CHECK);
                 some_node_flags |= current_node_flags;
                 all_node_flags &= current_node_flags;
                 if let Some(body) = node.fn_body() {
-                    assert!(matches!(body, ArrowFnExprBody::Block(_)));
+                    debug_assert!(matches!(body, ArrowFnExprBody::Block(_)));
                     if body_declaration.is_none() {
                         body_declaration = Some(*decl);
+                    } else if is_ctor {
+                        multiple_constructor_implement = true;
+                    } else {
+                        duplicate_function_declaration = true;
                     }
                 } else {
                     has_overloads = true;
@@ -56,6 +66,34 @@ impl<'cx> TyChecker<'cx> {
                 if !is_ambient_context_or_interface {
                     last_seen_non_ambient_decl = Some(*decl);
                 }
+            }
+        }
+
+        if multiple_constructor_implement {
+            let errors = fn_decls
+                .iter()
+                .map(|&d| self.p.node(d).as_class_ctor().unwrap().name_span)
+                .map(|span| errors::MultipleConstructorImplementationsAreNotAllowed { span })
+                .collect::<Vec<_>>();
+            for error in errors {
+                self.diags.push(bolt_ts_errors::Diag {
+                    inner: Box::new(error),
+                });
+            }
+        }
+
+        if duplicate_function_declaration {
+            let errors = fn_decls
+                .iter()
+                .map(|&d| {
+                    let decl = self.p.node(d);
+                    errors::DuplicateFunctionImplementation { span: decl.span() }
+                })
+                .collect::<Vec<_>>();
+            for error in errors {
+                self.diags.push(bolt_ts_errors::Diag {
+                    inner: Box::new(error),
+                });
             }
         }
 
@@ -79,7 +117,7 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
                 self.diags.push(bolt_ts_errors::Diag {
                     inner: Box::new(error),
-                })
+                });
             }
         }
 

@@ -1379,13 +1379,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn try_get_this_ty_at(
         &mut self,
-        expr: &'cx ast::ThisExpr,
+        node: ast::NodeID,
         include_global_this: bool,
         container_id: Option<ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let container_id = container_id.unwrap_or_else(|| {
-            self.node_query(expr.id.module())
-                .get_this_container(expr.id, false, false)
+            self.node_query(node.module())
+                .get_this_container(node, false, false)
         });
         let container = self.p.node(container_id);
         if container.is_fn_like() {
@@ -1785,7 +1785,7 @@ impl<'cx> TyChecker<'cx> {
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
         let is_const_context = self.node_query(lit.id.module()).is_const_context(lit.id);
         let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
-            self.is_tuple_like(contextual_ty)
+            self.some_type(contextual_ty, |this, ty| this.is_tuple_like(ty))
         } else {
             false
         };
@@ -4001,12 +4001,70 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
         let module_symbol = self.get_symbol_of_decl(node.id);
-        if let Some(checked) = self.get_symbol_links(module_symbol).get_exports_checked()
-            && checked
+        if self
+            .get_symbol_links(module_symbol)
+            .get_exports_checked()
+            .is_some_and(|checked| checked)
         {
             return;
         }
-        // if let Some(exports) = self.get_exports_of_symbol(module_symbol) {}
+        let exports = self.get_exports_of_symbol(module_symbol);
+        let redeclared_exports = exports
+            .0
+            .iter()
+            .filter_map(|(id, symbol)| {
+                if matches!(id, SymbolName::ExportStar) {
+                    return None;
+                }
+                let s = self.symbol(*symbol);
+                if s.flags
+                    .intersects(SymbolFlags::ALIAS.union(SymbolFlags::ENUM))
+                {
+                    return None;
+                }
+                let Some(decls) = s.decls.as_ref() else {
+                    return None;
+                };
+                let exported_declarations_count = decls
+                    .iter()
+                    .filter(|decl| {
+                        let d = self.p.node(**decl);
+                        d.is_not_overload() && d.is_not_accessor() && !d.is_interface_decl()
+                    })
+                    .count();
+                if exported_declarations_count <= 1 {
+                    return None;
+                }
+                // TODO: !is_duplicated_common_js_expxort
+                Some(
+                    decls
+                        .iter()
+                        .filter_map(|decl| {
+                            let d = self.p.node(*decl);
+                            if d.is_not_overload() {
+                                Some(*decl)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+        for decl in redeclared_exports {
+            let decl = self.p.node(decl);
+            let span = if let Some(name) = decl.ident_name() {
+                name.span
+            } else {
+                decl.span()
+            };
+            let error = errors::CannotRedeclareExportedVariableX {
+                span,
+                name: "default".to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
 
         self.get_mut_symbol_links(module_symbol)
             .set_exports_checked(true);

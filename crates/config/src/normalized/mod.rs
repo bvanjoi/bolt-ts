@@ -23,10 +23,11 @@ bitflags::bitflags! {
         const STRICT_NULL_CHECKS                        = 1 << 3;
         const STRICT_FUNCTION_TYPES                     = 1 << 4;
         const NO_IMPLICIT_ANY                           = 1 << 5;
-        const NO_UNCHECKED_INDEXED_ACCESS               = 1 << 6;
-        const ALWAYS_STRICT                             = 1 << 7;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 8;
-        const NO_IMPLICIT_RETURNS                       = 1 << 9;
+        const NO_IMPLICIT_THIS                          = 1 << 6;
+        const NO_UNCHECKED_INDEXED_ACCESS               = 1 << 7;
+        const ALWAYS_STRICT                             = 1 << 8;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 9;
+        const NO_IMPLICIT_RETURNS                       = 1 << 10;
     }
 }
 
@@ -71,6 +72,11 @@ impl NormalizedCompilerOptions {
     pub const fn no_unchecked_indexed_access(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS)
+    }
+
+    #[inline(always)]
+    pub const fn no_implicit_this(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_IMPLICIT_THIS)
     }
 
     #[inline(always)]

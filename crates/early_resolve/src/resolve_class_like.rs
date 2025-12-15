@@ -69,7 +69,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     }
                 }
                 Setter(n) => {
-                    assert!(n.params.len() == 1);
                     self.resolve_params(n.params);
                     if let Some(body) = n.body {
                         self.resolve_block_stmt(body);

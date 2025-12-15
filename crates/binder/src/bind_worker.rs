@@ -1,17 +1,13 @@
 use super::BinderState;
-use super::errors;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
-use bolt_ts_ast::atom_to_token;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
-use bolt_ts_atom::Atom;
-use bolt_ts_span::Span;
 
 use crate::create::DeclareSymbolProperty;
 use crate::node_query::ModuleInstanceState;
@@ -153,80 +149,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::FUNCTION_EXCLUDES,
             );
             self.create_final_res(f.id, symbol);
-        }
-    }
-
-    fn check_contextual_ident(&mut self, id: ast::NodeID, atom: Atom, span: Span) {
-        fn is_identifier_name(b: &BinderState, id: ast::NodeID) -> bool {
-            let Some(p_id) = b.parent_map.parent(id) else {
-                return false;
-            };
-            let p = b.p.node(p_id);
-            if p.is_export_named_spec()
-                || (p.is_shorthand_spec()
-                    && b.p
-                        .node(b.parent_map.parent(p_id).unwrap())
-                        .is_specs_export())
-            {
-                true
-            } else if let Some(n) = p.as_qualified_name() {
-                n.right.id == id
-            } else if let Some(n) = p.as_import_named_spec() {
-                n.prop_name.id() == id
-            } else if let Some(n) = p.as_object_binding_elem() {
-                if let ast::ObjectBindingName::Prop { prop_name, .. } = n.name {
-                    prop_name.id() == id
-                } else {
-                    false
-                }
-            } else if let Some(n) = p.as_class_prop_elem() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_object_prop_member() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_prop_signature() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_method_signature() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_object_method_member() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_class_method_elem() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_getter_decl() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_setter_decl() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_enum_member() {
-                n.name.id() == id
-            } else if let Some(n) = p.as_prop_access_expr() {
-                n.name.id == id
-                // TODO: prop assign
-            } else {
-                false
-            }
-        }
-
-        if !self
-            .p
-            .node_flags(id)
-            .intersects(NodeFlags::AMBIENT.union(NodeFlags::JSDOC))
-        {
-            let Some(tok) = atom_to_token(atom) else {
-                return;
-            };
-
-            if is_identifier_name(self, id) {
-                return;
-            }
-            if self.in_strict_mode
-                && tok.is_strict_mode_reserved_word()
-                && self.node_query().get_containing_class(id).is_some()
-            {
-                let error = errors::IdentifierExpected0IsAReservedWordInStrictModeClassDefinitionsAreAutomaticallyInStrictMode {
-                    span,
-                    ident: self.atoms.get(atom).to_string(),
-                };
-                self.push_error(Box::new(error));
-            }
         }
     }
 
@@ -405,18 +327,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let n = self.p.node(node);
         use ast::Node::*;
         match n {
-            Ident(ident) => {
+            Ident(_) => {
                 // TODO: identifier with NodeFlags.IdentifierIsInJSDocNamespace
                 if let Some(flow) = self.current_flow {
                     self.flow_nodes.insert_container_map(node, flow);
                 }
-                self.check_contextual_ident(node, ident.name, ident.span);
             }
-            ThisExpr(this) => {
+            ThisExpr(_) => {
                 if let Some(flow) = self.current_flow {
                     self.flow_nodes.insert_container_map(node, flow);
                 }
-                self.check_contextual_ident(node, keyword::KW_THIS, this.span);
             }
             QualifiedName(_) => {
                 if let Some(flow) = self.current_flow

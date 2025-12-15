@@ -3,8 +3,8 @@ use super::{TyChecker, errors};
 use crate::ty;
 use crate::ty::CheckFlags;
 
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{keyword, pprint_entity_name};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 pub(super) trait GetTypeFromTyReferLike<'cx> {
@@ -30,15 +30,7 @@ impl<'cx> GetTypeFromTyReferLike<'cx> for ast::ReferTy<'cx> {
 }
 
 fn print_entity_name(name: &ast::EntityName, atoms: &bolt_ts_atom::AtomIntern) -> String {
-    use ast::EntityNameKind::*;
-    match name.kind {
-        Ident(name) => atoms.get(name.name).to_string(),
-        Qualified(qname) => format!(
-            "{}.{}",
-            print_entity_name(qname.left, atoms),
-            atoms.get(qname.right.name).to_string()
-        ),
-    }
+    pprint_entity_name(name, atoms)
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -47,7 +39,7 @@ impl<'cx> TyChecker<'cx> {
         name: &'cx ast::EntityName<'cx>,
         meaning: SymbolFlags,
     ) -> SymbolID {
-        self.resolve_entity_name(name, meaning, false)
+        self.resolve_entity_name::<false, false>(name, meaning)
     }
 
     pub(super) fn ty_args_from_ty_refer_node(

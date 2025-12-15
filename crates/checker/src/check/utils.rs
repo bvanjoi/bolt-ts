@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,
     ) -> bool {
         if let Some(union) = ty.kind.as_union() {
-            union.tys.iter().all(|ty| f(self, ty))
+            union.tys.iter().any(|ty| f(self, ty))
         } else {
             f(self, ty)
         }

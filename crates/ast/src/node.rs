@@ -883,6 +883,26 @@ impl<'cx> Node<'cx> {
                 | Node::EnumMember(_)
         )
     }
+
+    #[inline(always)]
+    pub fn is_accessor(&self) -> bool {
+        use Node::*;
+        matches!(self, GetterDecl(_) | SetterDecl(_))
+    }
+
+    #[inline(always)]
+    pub fn is_not_accessor(&self) -> bool {
+        !self.is_accessor()
+    }
+
+    pub fn is_not_overload(&self) -> bool {
+        use Node::*;
+        if !matches!(self, FnDecl(_) | ClassMethodElem(_) | ObjectMethodMember(_)) {
+            true
+        } else {
+            self.fn_body().is_some()
+        }
+    }
 }
 
 macro_rules! as_node {

@@ -1,4 +1,3 @@
-use bolt_ts_ast::ModifierKind;
 use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
@@ -88,7 +87,7 @@ pub(super) struct TypeArgumentListCannotBeEmpty {
 pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
     #[label(primary)]
     pub span: Span,
-    pub kinds: Vec<ModifierKind>,
+    pub kinds: Vec<bolt_ts_ast::ModifierKind>,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -173,7 +172,7 @@ pub(super) struct AnIndexSignatureMustHaveATypeAnnotation {
 pub(super) struct ModifierCannotAppearOnAParameter {
     #[label(primary)]
     pub span: Span,
-    pub kind: ModifierKind,
+    pub kind: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -238,42 +237,42 @@ pub(super) struct AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
     pub(super) interface: bool,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("An enum member cannot have a numeric name.")]
 pub(super) struct AnEnumMemberCannotHaveANumericName {
     #[label(primary)]
     pub(super) span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Accessibility modifier already seen.")]
 pub(super) struct AccessibilityModifierAlreadySeen {
     #[label(primary)]
     pub(super) span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected token. Did you mean `{{'}}'}}` or `&rbrace;`?")]
 pub(super) struct UnexpectedTokenDidYouMeanOrRBrace {
     #[label(primary)]
     pub(super) span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected token. Did you mean `{{'>'}}` or `&gt;`?")]
 pub(super) struct UnexpectedTokenDidYouMeanOrGt {
     #[label(primary)]
     pub(super) span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Tagged template expressions are not permitted in an optional chain.")]
 pub(super) struct TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
     #[label(primary)]
     pub(super) span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Expected corresponding closing tag for JSX fragment.")]
 pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
     #[label(primary)]
@@ -395,12 +394,12 @@ pub(super) struct ModifierCannotBeUsedHere {
 pub(super) struct AClassMemberCannotHaveTheModifierKeyword {
     #[label(primary)]
     pub(super) span: Span,
-    pub(super) modifier: ModifierKind,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Identifier expected. '{identifier}' is a reserved word in strict mode.")]
-pub(super) struct IdentifierExpected0IsAReservedWordInStrictMode {
+pub(super) struct IdentifierExpectedXIsAReservedWordInStrictMode {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) identifier: String,
@@ -444,6 +443,13 @@ pub(super) struct TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Line break not permitted here.")]
 pub(super) struct LineBreakNotPermittedHere {
+    #[label(primary)]
+    pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An index signature parameter cannot have an accessibility modifier.")]
+pub(super) struct AnIndexSignatureParameterCannotHaveAnAccessibilityModifier {
     #[label(primary)]
     pub(super) span: Span,
 }
@@ -519,4 +525,47 @@ pub(super) struct InvalidUseOf0InStrictMode {
     #[label(primary)]
     pub(super) span: Span,
     pub(super) name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Unterminated regular expression literal.")]
+pub(super) struct UnterminatedRegularExpressionLiteral {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Initializers are not allowed in ambient contexts.")]
+pub(super) struct InitializersAreNotAllowedInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{modifier}' modifier cannot appear on class elements of this kind.")]
+pub(super) struct ModifierCannotAppearOnClassElementsOfThisKind {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'get' accessor cannot have parameters.")]
+pub(super) struct AGetAccessorCannotHaveParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'set' accessor must have exactly one parameter.")]
+pub(super) struct ASetAccessorMustHaveExactlyOneParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Classes may not have a field named 'constructor'.")]
+pub(super) struct ClassesMayNotHaveAFieldNamedConstructor {
+    #[label(primary)]
+    pub span: Span,
 }

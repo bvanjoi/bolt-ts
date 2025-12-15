@@ -759,7 +759,8 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::IndexSigDecl<'cx>> {
-        self.expect(TokenKind::LBracket);
+        debug_assert!(self.token.kind == TokenKind::LBracket);
+        self.next_token(); // consume '['
         let mut params = Vec::with_capacity(1);
         if self.is_list_element(ParsingContext::PARAMETERS, false) {
             if let Ok(param) = self.parse_param(true) {
@@ -787,6 +788,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         if let Some(param) = params.first() {
+            if param.modifiers.is_some() {
+                let error = errors::AnIndexSignatureParameterCannotHaveAnAccessibilityModifier {
+                    span: param.span,
+                };
+                self.push_error(Box::new(error));
+            }
+
             if let Some(question) = param.question {
                 let error =
                     errors::AnIndexSignatureParameterCannotHaveAQuestionMark { span: question };
@@ -831,7 +839,11 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        if !self.parse_params().is_empty() {
+            self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
+                span: name.span(),
+            }));
+        }
         // TODO: assert params.is_none
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
@@ -866,6 +878,19 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name(false);
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
+        let params = if params.is_empty() {
+            self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
+                span: name.span(),
+            }));
+            params
+        } else if params.len() > 2 {
+            self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
+                span: name.span(),
+            }));
+            params.split_at(2).0
+        } else {
+            params
+        };
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
         if ambient {
@@ -877,6 +902,7 @@ impl<'cx> ParserState<'cx, '_> {
             body = None;
         }
         let id = self.next_node_id();
+        debug_assert!(params.len() <= 2);
         let decl = self.alloc(ast::SetterDecl {
             id,
             span: self.new_span(start),

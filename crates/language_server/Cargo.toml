@@ -1,0 +1,19 @@
+[package]
+name = "bolt_ts_language_server"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_config = { path = "../config" }
+bolt_ts_compiler = { path = "../compiler" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_fs = { path = "../../helper/fs" }
+bolt_ts_libs = { path = "../libs" }
+bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_optimize = { path = "../optimize" }
+tower-lsp = { version = "0.20.0" }
+tokio = { version = "1.48.0", features = ["full"] }

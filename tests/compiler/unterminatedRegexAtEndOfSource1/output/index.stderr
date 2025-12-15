@@ -1,0 +1,5 @@
+  × Unterminated regular expression literal.
+   ╭─[../../tests/compiler/unterminatedRegexAtEndOfSource1/index.ts:3:9]
+ 3 │ /
+   · ─
+   ╰────

@@ -133,10 +133,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         mode: impl ClassLike<'cx, 'p, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
-        use bolt_ts_ast::TokenKind::*;
+        debug_assert!(self.token.kind == TokenKind::Class);
         let start = self.token.start();
-        self.expect(Class);
+        let old_in_strict_mode = self.in_strict_mode;
+        self.in_strict_mode = true;
+        self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
+        if let Some(name) = name {
+            self.check_contextual_ident(name);
+        }
         let ty_params = self.parse_ty_params();
         let mut extends = self.parse_class_extends_clause()?;
         let mut implements = self.parse_implements_clause();
@@ -185,6 +190,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         let elems = self.parse_class_members()?;
+        self.in_strict_mode = old_in_strict_mode;
         let span = self.new_span(start);
         Ok(mode.finish(
             self, span, modifiers, name, ty_params, extends, implements, elems,
@@ -303,6 +309,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             // prop
+            if let ast::PropNameKind::StringLit { raw, .. } = name.kind
+                && raw.val == keyword::KW_CONSTRUCTOR
+            {
+                let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
+                self.push_error(Box::new(error));
+            }
             self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
                 let excl = if !this.has_preceding_line_break() {
                     this.parse_optional(TokenKind::Excl)
@@ -311,6 +323,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
+                if let Some(init) = init
+                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                {
+                    let error =
+                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
+                    this.push_error(Box::new(error));
+                }
                 let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
@@ -388,13 +407,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if let Some(ms) = modifiers {
             for m in ms.list {
-                if m.kind == ast::ModifierKind::Const {
-                    let error = errors::AClassMemberCannotHaveTheModifierKeyword {
-                        span: m.span,
-                        modifier: m.kind,
-                    };
-                    self.push_error(Box::new(error));
-                }
+                let error = match m.kind {
+                    ast::ModifierKind::Const => {
+                        Box::new(errors::AClassMemberCannotHaveTheModifierKeyword {
+                            span: m.span,
+                            modifier: m.kind,
+                        }) as Box<_>
+                    }
+                    ast::ModifierKind::Export => {
+                        Box::new(errors::ModifierCannotAppearOnClassElementsOfThisKind {
+                            span: m.span,
+                            modifier: m.kind,
+                        }) as Box<_>
+                    }
+                    _ => continue,
+                };
+                self.push_error(error);
             }
         }
 

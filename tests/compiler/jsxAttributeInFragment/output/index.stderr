@@ -1,5 +1,29 @@
+  × Expected '('.
+   ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:14]
+ 1 │ <
+   · ─
+   ╰────
+
+  × Expected '=>'.
+   ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:14]
+ 1 │ <
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:14]
+ 1 │ <
+   · ─
+   ╰────
+
   × Expression expected.
    ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:14]
  1 │ <
    · ─
+   ╰────
+
+  × Unterminated regular expression literal.
+   ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:15]
+ 1 │ />
+   · ──
    ╰────

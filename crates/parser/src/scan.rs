@@ -1388,6 +1388,7 @@ impl ParserState<'_, '_> {
                 }
                 self.pos += 1;
             }
+
             while let Some(prev) = self.input.get(self.pos - 1).copied() {
                 if prev == b';' || prev.is_ascii_whitespace() {
                     self.pos -= 1;
@@ -1397,7 +1398,11 @@ impl ParserState<'_, '_> {
                     break;
                 }
             }
-            // TODO: unterminated_regexp_expr;
+
+            let error = errors::UnterminatedRegularExpressionLiteral {
+                span: Span::new(start as u32, self.pos as u32, self.module_id),
+            };
+            self.push_error(Box::new(error));
         } else {
             self.pos += 1;
             let mut regexp_flags = RegularExpressionFlags::empty();
