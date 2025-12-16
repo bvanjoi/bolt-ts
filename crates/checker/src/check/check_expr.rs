@@ -21,7 +21,7 @@ use super::ty;
 use super::ty::AccessFlags;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
-fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
+pub(super) fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
     match op {
         "^" | "^=" => Some("!=="),
         "&" | "&=" => Some("&&"),
@@ -1283,7 +1283,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_arithmetic_op_ty(
+    pub(super) fn check_arithmetic_op_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         is_await_valid: bool,

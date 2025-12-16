@@ -7,16 +7,6 @@ use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Operator '{op}' cannot be applied to types '{ty1}' and '{ty2}'.")]
-pub(super) struct OperatorCannotBeAppliedToTy1AndTy2 {
-    #[label(primary)]
-    pub span: Span,
-    pub op: String,
-    pub ty1: String,
-    pub ty2: String,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The value '{value}' cannot be used here.")]
 pub(super) struct TheValueCannotBeUsedHere {
     #[label(primary)]

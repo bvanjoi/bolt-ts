@@ -98,6 +98,7 @@ use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
+use crate::check::check_expr::get_suggestion_boolean_op;
 use crate::ty;
 use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
@@ -2371,7 +2372,7 @@ impl<'cx> TyChecker<'cx> {
                 (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
                     Some(ty) => ty,
                     None => {
-                        let error = errors::OperatorCannotBeAppliedToTy1AndTy2 {
+                        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
                             op: op.kind.to_string(),
                             ty1: left_ty.to_string(self),
                             ty2: right_ty.to_string(self),
@@ -2382,10 +2383,41 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }) as _
             }
-            Sub => self.number_ty,
-            Mul => self.undefined_ty,
-            Div => self.number_ty,
-            Mod => self.number_ty,
+            Sub | Mul | Div | Mod => {
+                if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
+                    return self.silent_never_ty;
+                }
+                let left_ty = self.check_non_null_type(left_ty, left);
+                let right_ty = self.check_non_null_type(left_ty, left);
+                if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+                    && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+                    && let Some(suggest) = get_suggestion_boolean_op(op.kind.as_str())
+                {
+                    let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                        span: op.span,
+                        op1: op.kind.to_string(),
+                        op2: suggest.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                    self.number_ty
+                } else {
+                    let left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
+                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                            span: left.span(),
+                            left_or_right: errors::LeftOrRight::Left
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                    let right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
+                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                            span: right.span(),
+                            left_or_right: errors::LeftOrRight::Right
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                    self.number_ty
+                }
+            }
             BitOr => {
                 let left = self.check_non_null_type(left_ty, left);
                 let right = self.check_non_null_type(right_ty, right);
