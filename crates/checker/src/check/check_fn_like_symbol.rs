@@ -131,14 +131,15 @@ impl<'cx> TyChecker<'cx> {
             if let Some(body_declaration) = body_declaration {
                 let sigs = self.get_sigs_of_symbol(symbol);
                 let body_sig = self.get_sig_from_decl(body_declaration);
-                for sig in sigs {
-                    if !self.is_implementation_compatible_with_overload(body_sig, sig) {
-                        let error_node = sig.def_id();
-                        let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
+                if let Some(first_error_sig) = sigs
+                    .iter()
+                    .find(|&sig| !self.is_implementation_compatible_with_overload(body_sig, sig))
+                {
+                    let error_node = first_error_sig.def_id();
+                    let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
                             span: self.p.node(error_node).ident_name().unwrap().span,
                         };
-                        self.push_error(Box::new(error));
-                    }
+                    self.push_error(Box::new(error));
                 }
             }
         }

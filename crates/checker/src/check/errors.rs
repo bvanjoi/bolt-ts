@@ -1024,3 +1024,10 @@ pub(super) struct CannotRedeclareExportedVariableX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Mapped object type implicitly has an 'any' template type.")]
+pub(super) struct MappedObjectTypeImplicitlyHasAnAnyTemplateType {
+    #[label(primary)]
+    pub span: Span,
+}
