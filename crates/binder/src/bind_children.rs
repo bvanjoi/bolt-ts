@@ -501,12 +501,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::BindingKind::*;
         match n.kind {
             Ident(n) => self.bind(n.id),
-            ObjectPat(n) => {
-                self.bind(n.id);
-            }
-            ArrayPat(n) => {
-                self.bind(n.id);
-            }
+            ObjectPat(n) => self.bind(n.id),
+            ArrayPat(n) => self.bind(n.id),
         }
     }
 
@@ -830,6 +826,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.name.id);
             }
             ObjectPropAssignment(n) => {
+                self.in_assignment_pattern = save_in_assignment_pattern;
                 self.bind_prop_name(n.name);
                 self.bind(n.init.id());
             }
@@ -845,6 +842,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.body.id);
             }
             SpreadAssignment(n) => {
+                self.in_assignment_pattern = save_in_assignment_pattern;
                 self.bind(n.expr.id());
             }
             FnExpr(n) => {

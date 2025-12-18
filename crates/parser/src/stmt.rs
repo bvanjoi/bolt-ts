@@ -1127,7 +1127,6 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::LBracket);
         let start = self.token.start();
         self.next_token(); // consume `[`
-        // TODO: elements
         let elems = self.allow_in_and(|this| {
             this.parse_delimited_list::<false, _>(
                 ParsingContext::ARRAY_BINDING_ELEMENTS,
@@ -1280,6 +1279,8 @@ impl<'cx> ParserState<'cx, '_> {
             let stmt =
                 self.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)?;
             let stmt = self.create_labeled_stmt(start, ident, stmt);
+            let prev = self.labels.pop();
+            debug_assert!(prev.is_some());
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
             self.parse_semi();

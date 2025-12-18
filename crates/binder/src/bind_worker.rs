@@ -159,18 +159,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(id, symbol);
     }
 
-    fn bind_object_lit(&mut self, n: &ast::ObjectLit<'cx>) -> SymbolID {
-        let s = self.bind_anonymous_decl(n.id, SymbolFlags::OBJECT_LITERAL, SymbolName::Object);
-        self.create_final_res(n.id, s);
-        s
-    }
-
-    fn bind_anonymous_ty(&mut self, id: ast::NodeID) -> SymbolID {
-        let s = self.bind_anonymous_decl(id, SymbolFlags::TYPE_LITERAL, SymbolName::Type);
-        self.create_final_res(id, s);
-        s
-    }
-
     fn bind_fn_or_ctor_ty(&mut self, id: ast::NodeID, symbol_name: SymbolName) {
         let symbol = self.create_symbol(symbol_name, SymbolFlags::SIGNATURE);
         self.add_declaration_to_symbol(symbol, id, SymbolFlags::SIGNATURE);
@@ -190,20 +178,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             // TODO:
         }
 
-        let name = match n.name.kind {
-            ast::BindingKind::Ident(name) => name,
-            ast::BindingKind::ObjectPat(_) => {
-                // TODO: handle this case
-                return;
+        match n.name.kind {
+            ast::BindingKind::Ident(name) => {
+                let symbol = self.bind_var(n.id, name.name);
+                self.create_final_res(n.id, symbol);
             }
-            ast::BindingKind::ArrayPat(_) => {
-                // TODO: handle this case
-                return;
-            }
+            ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_) => return,
         };
-
-        let symbol = self.bind_var(n.id, name.name);
-        self.create_final_res(n.id, symbol);
     }
 
     fn bind_object_binding_ele(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -212,13 +193,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
 
         use ast::ObjectBindingName::*;
-        let name = match n.name {
-            Shorthand(name) => name,
-            Prop { .. } => return,
+        match n.name {
+            Shorthand(name) => {
+                let symbol = self.bind_var(n.id, name.name);
+                // TODO: use binding.id
+                self.create_final_res(name.id, symbol);
+            }
+            Prop { name, .. } => {
+                if let ast::BindingKind::Ident(name) = name.kind {
+                    let symbol = self.bind_var(n.id, name.name);
+                    self.create_final_res(n.id, symbol);
+                } else {
+                    return;
+                }
+            }
         };
-        let symbol = self.bind_var(n.id, name.name);
-        // TODO: use binding.id
-        self.create_final_res(name.id, symbol);
     }
 
     fn bind_array_binding(&mut self, n: &ast::ArrayBinding<'cx>) {
@@ -232,8 +221,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.bind_var(n.id, ident.name);
                 self.create_final_res(n.name.id, symbol);
             }
-            ObjectPat(_) => {}
-            ArrayPat(_) => {}
+            _ => {}
         };
     }
 
@@ -392,9 +380,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_ty_param(n);
             }
             ParamDecl(n) => self.bind_param_decl(n),
-            VarDecl(n) => {
-                self.bind_var_decl(n);
-            }
+            VarDecl(n) => self.bind_var_decl(n),
             ObjectBindingElem(n) => {
                 // self.flow_nodes
                 //     .insert_container_map(node, self.current_flow.unwrap());
@@ -538,10 +524,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_fn_or_ctor_ty(node, SymbolName::New);
             }
             ObjectLitTy(_) | MappedTy(_) => {
-                self.bind_anonymous_ty(node);
+                let s = self.bind_anonymous_decl(node, SymbolFlags::TYPE_LITERAL, SymbolName::Type);
+                self.create_final_res(node, s);
             }
             ObjectLit(n) => {
-                self.bind_object_lit(n);
+                let s =
+                    self.bind_anonymous_decl(n.id, SymbolFlags::OBJECT_LITERAL, SymbolName::Object);
+                self.create_final_res(n.id, s);
             }
             FnExpr(n) => {
                 self.bind_fn_expr(n);

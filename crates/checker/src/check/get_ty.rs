@@ -190,9 +190,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_widened_ty_for_var_like_decl(n)
         } else if let Some(n) = node.as_array_binding() {
             self.get_widened_ty_for_var_like_decl(n)
-        } else if node.as_binding().is_some() {
-            todo!()
-            // self.get_widened_ty_for_var_like_decl(n)
+        } else if let Some(n) = node.as_object_binding_elem() {
+            self.get_widened_ty_for_var_like_decl(n)
         } else if node.is_enum_decl() {
             self.get_ty_of_func_class_enum_module(symbol)
         } else if node.is_enum_member() {
