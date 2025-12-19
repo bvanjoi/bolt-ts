@@ -1,0 +1,5 @@
+  × Interface 'i3' incorrectly extends interface 'i1'.
+   ╭─[../../tests/compiler/interfaceDeclaration6/index.ts:5:11]
+ 5 │ i3
+   · ──
+   ╰────

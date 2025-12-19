@@ -11,7 +11,7 @@ use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::{PResult, ParserState};
-use crate::keyword::{self, IDENT_GLOBAL};
+use crate::keyword;
 use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
 use crate::parsing_ctx::{ParseContext, ParsingContext};
 
@@ -443,25 +443,27 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
-            return self.parse_ambient_external_module_decl(start, mods);
+            let name = ast::ModuleName::Ident(self.create_ident(true, None));
+            return self.parse_ambient_external_module_decl::<true>(start, mods, name);
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
-                return self.parse_ambient_external_module_decl(start, mods);
+                if mods.is_none_or(|mods| !mods.flags.contains(ast::ModifierKind::Ambient)) {
+                    let error = errors::OnlyAmbientModulesCanUseQuotedNames {
+                        span: self.token.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+                let name = ast::ModuleName::StringLit(self.parse_string_lit());
+                return self.parse_ambient_external_module_decl::<false>(start, mods, name);
             }
         }
         let name = self.parse_ident_name();
         let block = self.parse_module_block()?;
         let span = self.new_span(start);
         let id = self.next_node_id();
-        let decl = self.create_ns_decl(
-            id,
-            span,
-            mods,
-            ast::ModuleName::Ident(name),
-            Some(block),
-            false,
-        );
+        let decl =
+            self.create_ns_decl::<false>(id, span, mods, ast::ModuleName::Ident(name), Some(block));
         Ok(decl)
     }
 
@@ -497,21 +499,17 @@ impl<'cx> ParserState<'cx, '_> {
         })
     }
 
-    fn parse_ambient_external_module_decl(
+    fn parse_ambient_external_module_decl<const IS_GLOBAL_ARGUMENT: bool>(
         &mut self,
         start: u32,
         mods: Option<&'cx ast::Modifiers<'cx>>,
+        name: ast::ModuleName<'cx>,
     ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
-        let name;
-        let mut flags = ast::NodeFlags::empty();
-        let mut is_global_argument = false;
-        if self.is_ident_name(IDENT_GLOBAL) {
-            name = ast::ModuleName::Ident(self.create_ident(true, None));
-            flags |= NodeFlags::GLOBAL_AUGMENTATION;
-            is_global_argument = true;
+        let flags = if IS_GLOBAL_ARGUMENT {
+            NodeFlags::GLOBAL_AUGMENTATION
         } else {
-            name = ast::ModuleName::StringLit(self.parse_string_lit());
-        }
+            ast::NodeFlags::empty()
+        };
         let block = if self.token.kind == TokenKind::LBrace {
             Some(self.parse_module_block()?)
         } else {
@@ -520,7 +518,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let span = self.new_span(start);
         let id = self.next_node_id();
-        Ok(self.create_ns_decl(id, span, mods, name, block, is_global_argument))
+        Ok(self.create_ns_decl::<IS_GLOBAL_ARGUMENT>(id, span, mods, name, block))
     }
 
     fn set_export_context_flags(&self, block_exist: bool) -> NodeFlags {
@@ -534,14 +532,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn create_ns_decl(
+    fn create_ns_decl<const IS_GLOBAL_ARGUMENT: bool>(
         &mut self,
         id: ast::NodeID,
         span: bolt_ts_span::Span,
         modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
         name: bolt_ts_ast::ModuleName<'cx>,
         block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
-        is_global_argument: bool,
     ) -> &'cx ast::ModuleDecl<'cx> {
         let flags = self.set_export_context_flags(block.is_some());
         let decl = self.alloc(ast::ModuleDecl {
@@ -550,7 +547,7 @@ impl<'cx> ParserState<'cx, '_> {
             modifiers,
             name,
             block,
-            is_global_argument,
+            is_global_argument: IS_GLOBAL_ARGUMENT,
         });
         self.node_flags_map.insert(id, flags);
         self.set_external_module_indicator_if_has_export_mod(modifiers, id);

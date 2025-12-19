@@ -569,3 +569,10 @@ pub(super) struct ClassesMayNotHaveAFieldNamedConstructor {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Only ambient modules can use quoted names.")]
+pub(super) struct OnlyAmbientModulesCanUseQuotedNames {
+    #[label(primary)]
+    pub span: Span,
+}
