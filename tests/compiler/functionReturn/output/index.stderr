@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type '1'.
+    ╭─[../../tests/compiler/functionReturn/index.ts:29:7]
+ 29 │ v0
+    · ──
+    ╰────

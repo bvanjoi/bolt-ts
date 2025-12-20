@@ -2646,46 +2646,69 @@ impl<'cx> TyChecker<'cx> {
                 has_ret_of_ty_never: &mut bool,
             ) {
                 let node = checker.p.node(id);
-                if let Some(ret) = node.as_ret_stmt() {
-                    if let Some(ret_expr) = ret.expr {
-                        let expr = ast::Expr::skip_parens(ret_expr);
-                        // TODO: async function and await call;
-                        // TODO: const reference
-                    } else {
-                        *has_ret_with_no_expr = true;
+                match node {
+                    ast::Node::RetStmt(n) => {
+                        if let Some(ret_expr) = n.expr {
+                            let expr = ast::Expr::skip_parens(ret_expr);
+                            // TODO: async function and await call;
+                            // TODO: const reference
+                        } else {
+                            *has_ret_with_no_expr = true;
+                        }
+                        let ty = f(checker, n);
+                        v.push(ty)
                     }
-                    let ty = f(checker, ret);
-                    v.push(ty)
-                } else if let Some(b) = node.as_block_stmt() {
-                    for stmt in b.stmts {
+                    ast::Node::BlockStmt(n) => {
+                        for stmt in n.stmts {
+                            t(
+                                stmt.id(),
+                                checker,
+                                f,
+                                v,
+                                has_ret_with_no_expr,
+                                has_ret_of_ty_never,
+                            );
+                        }
+                    }
+                    ast::Node::IfStmt(n) => {
                         t(
-                            stmt.id(),
+                            n.then.id(),
                             checker,
                             f,
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
                         );
+                        if let Some(else_then) = n.else_then {
+                            t(
+                                else_then.id(),
+                                checker,
+                                f,
+                                v,
+                                has_ret_with_no_expr,
+                                has_ret_of_ty_never,
+                            );
+                        }
                     }
-                } else if let Some(node) = node.as_if_stmt() {
-                    t(
-                        node.then.id(),
-                        checker,
-                        f,
-                        v,
-                        has_ret_with_no_expr,
-                        has_ret_of_ty_never,
-                    );
-                    if let Some(else_then) = node.else_then {
-                        t(
-                            else_then.id(),
-                            checker,
-                            f,
-                            v,
-                            has_ret_with_no_expr,
-                            has_ret_of_ty_never,
-                        );
+                    ast::Node::SwitchStmt(n) => {
+                        for case in n.case_block.clauses {
+                            let stmts = match case {
+                                ast::CaseOrDefaultClause::Case(clause) => clause.stmts,
+                                ast::CaseOrDefaultClause::Default(clause) => clause.stmts,
+                            };
+                            for stmt in stmts {
+                                t(
+                                    stmt.id(),
+                                    checker,
+                                    f,
+                                    v,
+                                    has_ret_with_no_expr,
+                                    has_ret_of_ty_never,
+                                );
+                            }
+                        }
                     }
+                    _ => {}
                 }
             }
 
