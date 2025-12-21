@@ -2630,36 +2630,66 @@ impl<'cx> TyChecker<'cx> {
         let mut has_ret_with_no_expr = self.fn_has_implicit_return(f);
         let mut has_ret_of_ty_never = false;
 
-        fn for_each_ret_stmt<'cx, T: Copy + Debug>(
+        fn t<'cx, T: Copy + Debug>(
             id: ast::NodeID,
             checker: &mut TyChecker<'cx>,
             f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
+            v: &mut Vec<T>,
             has_ret_with_no_expr: &mut bool,
             has_ret_of_ty_never: &mut bool,
-        ) -> Vec<T> {
-            fn t<'cx, T: Copy + Debug>(
-                id: ast::NodeID,
-                checker: &mut TyChecker<'cx>,
-                f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
-                v: &mut Vec<T>,
-                has_ret_with_no_expr: &mut bool,
-                has_ret_of_ty_never: &mut bool,
-            ) {
-                let node = checker.p.node(id);
-                match node {
-                    ast::Node::RetStmt(n) => {
-                        if let Some(ret_expr) = n.expr {
-                            let expr = ast::Expr::skip_parens(ret_expr);
-                            // TODO: async function and await call;
-                            // TODO: const reference
-                        } else {
-                            *has_ret_with_no_expr = true;
-                        }
-                        let ty = f(checker, n);
-                        v.push(ty)
+        ) {
+            let node = checker.p.node(id);
+            match node {
+                ast::Node::RetStmt(n) => {
+                    if let Some(ret_expr) = n.expr {
+                        let expr = ast::Expr::skip_parens(ret_expr);
+                        // TODO: async function and await call;
+                        // TODO: const reference
+                    } else {
+                        *has_ret_with_no_expr = true;
                     }
-                    ast::Node::BlockStmt(n) => {
-                        for stmt in n.stmts {
+                    let ty = f(checker, n);
+                    v.push(ty)
+                }
+                ast::Node::BlockStmt(n) => {
+                    for stmt in n.stmts {
+                        t(
+                            stmt.id(),
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
+                    }
+                }
+                ast::Node::IfStmt(n) => {
+                    t(
+                        n.then.id(),
+                        checker,
+                        f,
+                        v,
+                        has_ret_with_no_expr,
+                        has_ret_of_ty_never,
+                    );
+                    if let Some(else_then) = n.else_then {
+                        t(
+                            else_then.id(),
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
+                    }
+                }
+                ast::Node::SwitchStmt(n) => {
+                    for case in n.case_block.clauses {
+                        let stmts = match case {
+                            ast::CaseOrDefaultClause::Case(clause) => clause.stmts,
+                            ast::CaseOrDefaultClause::Default(clause) => clause.stmts,
+                        };
+                        for stmt in stmts {
                             t(
                                 stmt.id(),
                                 checker,
@@ -2670,61 +2700,13 @@ impl<'cx> TyChecker<'cx> {
                             );
                         }
                     }
-                    ast::Node::IfStmt(n) => {
-                        t(
-                            n.then.id(),
-                            checker,
-                            f,
-                            v,
-                            has_ret_with_no_expr,
-                            has_ret_of_ty_never,
-                        );
-                        if let Some(else_then) = n.else_then {
-                            t(
-                                else_then.id(),
-                                checker,
-                                f,
-                                v,
-                                has_ret_with_no_expr,
-                                has_ret_of_ty_never,
-                            );
-                        }
-                    }
-                    ast::Node::SwitchStmt(n) => {
-                        for case in n.case_block.clauses {
-                            let stmts = match case {
-                                ast::CaseOrDefaultClause::Case(clause) => clause.stmts,
-                                ast::CaseOrDefaultClause::Default(clause) => clause.stmts,
-                            };
-                            for stmt in stmts {
-                                t(
-                                    stmt.id(),
-                                    checker,
-                                    f,
-                                    v,
-                                    has_ret_with_no_expr,
-                                    has_ret_of_ty_never,
-                                );
-                            }
-                        }
-                    }
-                    _ => {}
                 }
+                _ => {}
             }
-
-            let mut v = Vec::with_capacity(8);
-            t(
-                id,
-                checker,
-                f,
-                &mut v,
-                has_ret_with_no_expr,
-                has_ret_of_ty_never,
-            );
-            v
         }
 
-        let tys = for_each_ret_stmt(
+        let mut aggregated_tys = Vec::with_capacity(8);
+        t(
             body.id,
             self,
             |this, ret| {
@@ -2743,6 +2725,7 @@ impl<'cx> TyChecker<'cx> {
                 this.check_mode = old;
                 ty
             },
+            &mut aggregated_tys,
             &mut has_ret_with_no_expr,
             &mut has_ret_of_ty_never,
         );
@@ -2752,11 +2735,17 @@ impl<'cx> TyChecker<'cx> {
             func.is_fn_expr() || func.is_arrow_fn_expr() || func.is_object_method_member()
         };
 
-        if tys.is_empty() && !has_ret_with_no_expr && (has_ret_of_ty_never || may_return_never()) {
-            None
-        } else {
-            Some(tys)
+        if aggregated_tys.is_empty()
+            && !has_ret_with_no_expr
+            && (has_ret_of_ty_never || may_return_never())
+        {
+            return None;
         }
+        if self.config.strict_null_checks() && !aggregated_tys.is_empty() && has_ret_with_no_expr {
+            // TODO: !(isJSConstructor(func) && aggregatedTypes.some(t => t.symbol === func.symbol))
+            aggregated_tys.push(self.undefined_ty);
+        }
+        Some(aggregated_tys)
     }
 
     fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {

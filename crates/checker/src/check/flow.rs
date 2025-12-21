@@ -27,15 +27,25 @@ impl FlowTy<'_> {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
-        self.flow_nodes[node.module().as_usize()].get_flow_node_of_node(node)
+        let module = node.module().as_usize();
+        debug_assert!(module < self.flow_in_nodes.len());
+        unsafe {
+            self.flow_nodes
+                .get_unchecked(module)
+                .get_flow_node_of_node(node)
+        }
     }
 
     pub(super) fn flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
-        self.flow_nodes[id.module().as_usize()].get_flow_node(id)
+        let module = id.module().as_usize();
+        debug_assert!(module < self.flow_in_nodes.len());
+        unsafe { self.flow_nodes.get_unchecked(module).get_flow_node(id) }
     }
 
     pub(super) fn get_flow_in_node_of_node(&self, node: ast::NodeID) -> FlowInNode {
-        self.flow_in_nodes[node.module().as_usize()].get(node)
+        let module = node.module().as_usize();
+        debug_assert!(module < self.flow_in_nodes.len());
+        unsafe { self.flow_in_nodes.get_unchecked(module).get(node) }
     }
 
     pub(super) fn get_flow_ty_of_reference(

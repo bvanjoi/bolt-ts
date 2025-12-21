@@ -3,3 +3,9 @@
  29 │ v0
     · ──
     ╰────
+
+  × Type 'string' is not assignable to type '1 | 2'.
+    ╭─[../../tests/compiler/functionReturn/index.ts:42:7]
+ 42 │ v3
+    · ──
+    ╰────

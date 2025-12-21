@@ -1242,10 +1242,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     }
                 }
             }
-            SwitchStmt(n) => {
-                self.bind(n.expr.id());
-                self.bind(n.case_block.id);
-            }
+            SwitchStmt(n) => self.bind_switch_stmt(n),
             DeleteExpr(n) => {
                 self.bind(n.expr.id());
             }
@@ -1255,6 +1252,33 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn bind_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) {
+        let post_switch_label = self.flow_nodes.create_branch_label();
+        self.bind(n.expr.id());
+        let save_break_target = self.current_break_target;
+        let save_pre_switch_case_flow = self.pre_switch_case_flow;
+        self.current_break_target = Some(post_switch_label);
+        self.pre_switch_case_flow = self.current_flow;
+        self.bind(n.case_block.id);
+        self.flow_nodes
+            .add_antecedent(post_switch_label, self.current_flow.unwrap());
+        let has_default = n
+            .case_block
+            .clauses
+            .iter()
+            .any(|clause| matches!(clause, ast::CaseOrDefaultClause::Default(_)));
+        // TODO: possibly exhaustive
+        if !has_default {
+            let antecedent =
+                self.create_flow_switch_clause(self.pre_switch_case_flow.unwrap(), n, 0, 0);
+            self.flow_nodes
+                .add_antecedent(post_switch_label, antecedent);
+        }
+        self.current_break_target = save_break_target;
+        self.pre_switch_case_flow = save_pre_switch_case_flow;
+        self.current_flow = Some(self.finish_flow_label(post_switch_label));
     }
 
     fn bind_param_flow(&mut self, n: &ast::ParamDecl) {

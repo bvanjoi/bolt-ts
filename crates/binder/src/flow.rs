@@ -38,12 +38,21 @@ pub enum FlowNodeKind<'cx> {
     Unreachable(FlowUnreachable),
     Assign(FlowAssign),
     Call(FlowCall<'cx>),
+    Switch(FlowSwitchClause<'cx>),
+}
+
+#[derive(Clone, Copy)]
+pub struct FlowSwitchClause<'cx> {
+    pub node: &'cx ast::SwitchStmt<'cx>,
+    pub clause_start: u8,
+    pub clause_end: u8,
+    pub antecedent: FlowID,
 }
 
 #[derive(Clone, Copy)]
 pub struct FlowCall<'cx> {
-    pub antecedent: FlowID,
     pub node: &'cx ast::CallExpr<'cx>,
+    pub antecedent: FlowID,
 }
 
 #[derive(Clone, Copy)]
@@ -88,12 +97,16 @@ impl<'cx> FlowNodes<'cx> {
 
     #[inline]
     pub fn get_flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
-        &self.data[id.index as usize]
+        let index = id.index as usize;
+        debug_assert!(index < self.data.len());
+        unsafe { self.data.get_unchecked(index) }
     }
 
     #[inline]
     pub fn get_mut_flow_node(&mut self, id: FlowID) -> &mut FlowNode<'cx> {
-        &mut self.data[id.index as usize]
+        let index = id.index as usize;
+        debug_assert!(index < self.data.len());
+        unsafe { self.data.get_unchecked_mut(index) }
     }
 
     pub(super) fn insert_flow_node(&mut self, node: FlowNode<'cx>) -> FlowID {
@@ -189,18 +202,30 @@ impl<'cx> FlowNodes<'cx> {
                 index,
             })
     }
-
-    pub(crate) fn create_loop_label(&mut self) -> FlowID {
-        let node = FlowNode {
-            flags: FlowFlags::LOOP_LABEL,
-            kind: FlowNodeKind::Label(FlowLabel { antecedent: None }),
-        };
-        self.insert_flow_node(node)
-    }
 }
 
 impl<'cx> super::BinderState<'cx, '_, '_> {
-    pub fn create_flow_condition(
+    pub(super) fn create_flow_switch_clause(
+        &mut self,
+        antecedent: FlowID,
+        node: &'cx ast::SwitchStmt<'cx>,
+        clause_start: u8,
+        clause_end: u8,
+    ) -> FlowID {
+        self.flow_nodes.set_flow_node_referenced(antecedent);
+        let node = FlowNode {
+            flags: FlowFlags::ASSIGNMENT,
+            kind: FlowNodeKind::Switch(FlowSwitchClause {
+                node,
+                clause_start,
+                clause_end,
+                antecedent,
+            }),
+        };
+        self.flow_nodes.insert_flow_node(node)
+    }
+
+    pub(super) fn create_flow_condition(
         &mut self,
         flags: FlowFlags,
         antecedent: FlowID,
@@ -245,7 +270,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         self.flow_nodes.insert_flow_node(node)
     }
 
-    pub fn create_flow_assign(&mut self, antecedent: FlowID, node: ast::NodeID) -> FlowID {
+    pub(super) fn create_flow_assign(&mut self, antecedent: FlowID, node: ast::NodeID) -> FlowID {
         self.has_flow_effects = true;
         let node = FlowAssign { node, antecedent };
         let result = FlowNode {
@@ -259,7 +284,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         id
     }
 
-    pub fn create_flow_call(
+    pub(super) fn create_flow_call(
         &mut self,
         antecedent: FlowID,
         node: &'cx ast::CallExpr<'cx>,

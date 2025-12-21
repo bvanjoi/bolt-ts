@@ -1,20 +1,19 @@
+use std::ops::Not;
+
 use super::create_ty::IntersectionFlags;
 use super::get_simplified_ty::SimplifiedKind;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::symbol_info::SymbolInfo;
-use super::ty::{self, Ty, TyKind};
+use super::ty::{self, Ty, TyKind, TypeFlags};
+use super::ty::{AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper};
 use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
-
-use crate::ty::{
-    AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper, TypeFlags,
-};
 
 use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::{AssignmentKind, MergeSymbol};
+use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
@@ -1926,7 +1925,7 @@ impl<'cx> TyChecker<'cx> {
         if let ast::ArrowFnExprBody::Expr(expr) = body {
             let old = if let Some(check_mode) = self.check_mode {
                 let old = self.check_mode;
-                self.check_mode = Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS);
+                self.check_mode = Some(check_mode & CheckMode::SKIP_GENERIC_FUNCTIONS.not());
                 old
             } else {
                 None

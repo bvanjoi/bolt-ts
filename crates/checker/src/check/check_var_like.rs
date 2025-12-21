@@ -26,9 +26,9 @@ impl<'cx> TyChecker<'cx> {
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
                 let init_ty = self.check_expr_with_cache(init);
-                assert!(
-                    decl.decl_ty().is_none()
-                        || self.node_links[&init.id()].get_resolved_ty().is_some(),
+                debug_assert!(
+                    decl.decl_ty()
+                        .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
                 );
                 if ty != init_ty {
                     self.check_type_assignable_to_and_optionally_elaborate(

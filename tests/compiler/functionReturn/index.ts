@@ -29,3 +29,15 @@ function f6(value: number) {
 const v0: 1 = f6(2);
 //~^ ERROR: Type 'number' is not assignable to type '1'.
 const v2: 0 | 1 | 2 = f6(3);
+
+
+function f7(value: number) {
+    switch (value) {
+        case 1:
+            return '1';
+    }
+    return '2';
+}
+
+const v3: 1 | 2 = f7(2);
+//~^ ERROR: Type 'string' is not assignable to type '1 | 2'.
