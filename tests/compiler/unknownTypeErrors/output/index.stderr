@@ -1,0 +1,5 @@
+  × Cannot find name 'Unknown'.
+   ╭─[../../tests/compiler/unknownTypeErrors/index.ts:3:10]
+ 3 │ Unknown
+   · ───────
+   ╰────

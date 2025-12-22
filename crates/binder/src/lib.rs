@@ -117,6 +117,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     current_break_target: Option<FlowID>,
     current_continue_target: Option<FlowID>,
     current_return_target: Option<FlowID>,
+    pre_switch_case_flow: Option<FlowID>,
     unreachable_flow_node: FlowID,
     report_unreachable_flow_node: FlowID,
 
@@ -219,6 +220,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             block_scope_container: None,
             last_container: None,
             parent_map,
+            pre_switch_case_flow: None,
         }
     }
 

@@ -38,9 +38,6 @@ bitflags::bitflags! {
 
         const REACHABILITY_CHECK_FLAGS                    = Self::HAS_IMPLICIT_RETURN.bits()
                                                             | Self::HAS_EXPLICIT_RETURN.bits();
-        const REACHABILITY_AND_EMIT_FLAGS                 = Self::REACHABILITY_CHECK_FLAGS.bits()
-                                                            | Self::HAS_ASYNC_FUNCTIONS.bits();
-
         const IDENTIFIER_IS_IN_JS_DOC_NAMESPACE           = Self::HAS_ASYNC_FUNCTIONS.bits();
         const IDENTIFIER_HAS_EXTENDED_UNICODE_ESCAPE      = Self::CONTAINS_THIS.bits();
         const PERMANENTLY_SET_INCREMENTAL_FLAGS           = Self::POSSIBLY_CONTAINS_DYNAMIC_IMPORT.bits()

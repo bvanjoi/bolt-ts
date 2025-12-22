@@ -1,0 +1,5 @@
+  × Untyped function calls may not accept type arguments.
+   ╭─[../../tests/compiler/invokingNonGenericMethodWithTypeArguments2/index.ts:7:17]
+ 7 │ <string>
+   · ────────
+   ╰────

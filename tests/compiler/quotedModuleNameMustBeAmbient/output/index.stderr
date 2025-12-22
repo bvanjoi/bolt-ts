@@ -1,0 +1,5 @@
+  × Only ambient modules can use quoted names.
+   ╭─[../../tests/compiler/quotedModuleNameMustBeAmbient/index.ts:3:8]
+ 3 │ 'M'
+   · ───
+   ╰────

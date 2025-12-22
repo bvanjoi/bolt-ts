@@ -71,7 +71,7 @@ impl<'cx> Ty<'cx> {
         }
     }
 
-    pub fn skip_ty_parens(&self) -> &Ty {
+    pub fn skip_ty_parens(&'cx self) -> &'cx Ty<'cx> {
         self
     }
 

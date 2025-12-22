@@ -77,7 +77,10 @@ impl BinderState<'_, '_, '_> {
                 || self.p.node(node).is_class_static_block_decl();
 
             if !is_immediately_invoked {
-                let flow_node = container_flags.intersects(ContainerFlags::IS_FUNCTION_EXPRESSION | ContainerFlags::IS_OBJECT_LITERAL_OR_CLASS_EXPRESSION_METHOD_OR_ACCESSOR).then_some(node);
+                const FLAGS: ContainerFlags = ContainerFlags::IS_FUNCTION_EXPRESSION.union(
+                    ContainerFlags::IS_OBJECT_LITERAL_OR_CLASS_EXPRESSION_METHOD_OR_ACCESSOR,
+                );
+                let flow_node = container_flags.intersects(FLAGS).then_some(node);
                 self.current_flow = Some(self.flow_nodes.create_start(flow_node));
             }
             self.current_return_target = if is_immediately_invoked || n.is_class_ctor() {
@@ -93,7 +96,9 @@ impl BinderState<'_, '_, '_> {
             self.bind_children(node);
 
             self.p.node_flags_map.update(node, |flags| {
-                *flags &= ast::NodeFlags::REACHABILITY_AND_EMIT_FLAGS.complement();
+                const FLAGS: ast::NodeFlags =
+                    ast::NodeFlags::REACHABILITY_CHECK_FLAGS.union(ast::NodeFlags::CONTAINS_THIS);
+                *flags &= FLAGS.complement();
             });
 
             if !self

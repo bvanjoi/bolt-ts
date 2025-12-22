@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:10:5]
+ 10 │ z
+    · ─
+    ╰────

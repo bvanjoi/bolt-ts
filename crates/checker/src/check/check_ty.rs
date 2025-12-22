@@ -30,9 +30,31 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(n.ty);
             }
             Pred(n) => self.check_pred_ty(n),
-            _ => (),
+            Mapped(n) => self.check_mapped_ty(n),
+            Array(n) => (),
+            Ctor(n) => (),
+            Lit(n) => (),
+            NamedTuple(n) => (),
+            Rest(n) => (),
+            Union(n) => (),
+            Intersection(n) => (),
+            Typeof(n) => (),
+            Paren(n) => (),
+            Infer(n) => (),
+            Intrinsic(n) => (),
+            Nullable(n) => (),
+            TemplateLit(n) => (),
+            This(n) => (),
         };
         self.current_node = saved_current_node;
+    }
+
+    fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {
+        if n.ty.is_none() && self.config.no_implicit_any() {
+            // TODO: skip when check js file
+            let error = errors::MappedObjectTypeImplicitlyHasAnAnyTemplateType { span: n.span };
+            self.push_error(Box::new(error));
+        }
     }
 
     fn check_pred_ty(&mut self, n: &'cx ast::PredTy<'cx>) {

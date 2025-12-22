@@ -767,6 +767,7 @@ impl<'cx> Node<'cx> {
                 | SetterDecl(_)
                 | TypeAliasDecl(_)
                 | ClassStaticBlockDecl(_)
+                | CaseBlock(_)
         )
     }
 

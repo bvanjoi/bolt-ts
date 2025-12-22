@@ -138,10 +138,35 @@ impl<'cx> VarLike<'cx> for crate::ArrayBinding<'cx> {
     }
 
     fn name(&self) -> VarLikeName<'cx> {
-        match self.name.kind {
-            crate::BindingKind::Ident(n) => VarLikeName::Ident(n),
-            crate::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
-            crate::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
+        binding_kind_to_var_like_name(self.name.kind)
+    }
+
+    fn decl_ty(&self) -> Option<&'cx crate::Ty<'cx>> {
+        None
+    }
+
+    fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
+        self.init
+    }
+}
+
+fn binding_kind_to_var_like_name<'cx>(kind: crate::BindingKind<'cx>) -> VarLikeName<'cx> {
+    match kind {
+        crate::BindingKind::Ident(n) => VarLikeName::Ident(n),
+        crate::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
+        crate::BindingKind::ArrayPat(n) => VarLikeName::ArrayPat(n),
+    }
+}
+
+impl<'cx> VarLike<'cx> for crate::ObjectBindingElem<'cx> {
+    fn id(&self) -> crate::NodeID {
+        self.id
+    }
+
+    fn name(&self) -> VarLikeName<'cx> {
+        match self.name {
+            crate::ObjectBindingName::Shorthand(ident) => VarLikeName::Ident(&ident),
+            crate::ObjectBindingName::Prop { name, .. } => binding_kind_to_var_like_name(name.kind),
         }
     }
 

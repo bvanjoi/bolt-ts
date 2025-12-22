@@ -30,7 +30,7 @@ impl ParentMap {
         debug_assert_eq!(
             self.inner[id],
             Self::PLACEHOLDER,
-            "node({id}) already has a parent"
+            "node({node:#?}) already has a parent"
         );
         self.inner[id] = parent.index_as_u32();
     }

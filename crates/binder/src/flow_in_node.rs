@@ -41,6 +41,8 @@ impl FlowInNodes {
     }
 
     pub fn get(&self, node: bolt_ts_ast::NodeID) -> FlowInNode {
-        self.data[node.index_as_usize()]
+        let index = node.index_as_usize();
+        debug_assert!(index < self.data.len());
+        unsafe { *self.data.get_unchecked(index) }
     }
 }

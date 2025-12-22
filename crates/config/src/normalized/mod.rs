@@ -75,6 +75,11 @@ impl NormalizedCompilerOptions {
     }
 
     #[inline(always)]
+    pub const fn no_implicit_any(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_IMPLICIT_ANY)
+    }
+
+    #[inline(always)]
     pub const fn no_implicit_this(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::NO_IMPLICIT_THIS)
     }

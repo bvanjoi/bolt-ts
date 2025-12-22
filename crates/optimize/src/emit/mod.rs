@@ -786,7 +786,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
         let ident = match ns.name() {
             ir::ModuleName::Ident(ident) => ident,
-            ir::ModuleName::StringLit(_) => unreachable!(),
+            ir::ModuleName::StringLit(_) => return,
         };
         let mut param_name =
             Cow::Borrowed(self.emitter.atoms.get(self.nodes.get_ident(&ident).name()));
