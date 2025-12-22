@@ -22,18 +22,6 @@ trait GetContainerFlags {
     ) -> ContainerFlags;
 }
 
-macro_rules! container_flags_for_node {
-  ($(($node_kind:ident, $flags: expr)),* $(,)?) => {
-      $(
-          impl GetContainerFlags for bolt_ts_ast::$node_kind<'_> {
-              fn get_container_flags(&self, _: &bolt_ts_parser::ParseResultForGraph, _: &super::ParentMap) -> ContainerFlags {
-                  $flags
-              }
-          }
-      )*
-  };
-}
-
 /// `IS_CONTAINER | HAS_LOCALS`
 const C_AND_L: ContainerFlags = ContainerFlags::IS_CONTAINER.union(ContainerFlags::HAS_LOCALS);
 
@@ -54,52 +42,6 @@ const C_AND_L_AND_CF_AND_F_AND_FE: ContainerFlags =
 /// `IS_BLOCK_SCOPED_CONTAINER | HAS_LOCALS`
 const BS_AND_L: ContainerFlags =
     ContainerFlags::IS_BLOCK_SCOPED_CONTAINER.union(ContainerFlags::HAS_LOCALS);
-
-container_flags_for_node!(
-    (ClassExpr, ContainerFlags::IS_CONTAINER),
-    (ClassDecl, ContainerFlags::IS_CONTAINER),
-    (EnumDecl, ContainerFlags::IS_CONTAINER),
-    (ObjectLit, ContainerFlags::IS_CONTAINER),
-    (ObjectLitTy, ContainerFlags::IS_CONTAINER),
-    // TODO: JsDocTypeLiteral
-    // TODO: JSX
-    // ------
-    (
-        InterfaceDecl,
-        ContainerFlags::IS_CONTAINER | ContainerFlags::IS_INTERFACE
-    ),
-    // ------
-    (ModuleDecl, C_AND_L),
-    (TypeAliasDecl, C_AND_L),
-    (MappedTy, C_AND_L),
-    (IndexSigDecl, C_AND_L),
-    // ------
-    (Program, C_AND_L_AND_CF),
-    // ------
-    (ObjectMethodMember, C_AND_L_AND_CF_AND_F_AND_O),
-    // ------
-    (ClassCtor, C_AND_L_AND_CF_AND_F),
-    (FnDecl, C_AND_L_AND_CF_AND_F),
-    (MethodSignature, C_AND_L_AND_CF_AND_F),
-    (CallSigDecl, C_AND_L_AND_CF_AND_F),
-    // TODO: js doc sig
-    // TODO: js doc fn
-    (FnTy, C_AND_L_AND_CF_AND_F),
-    (CtorSigDecl, C_AND_L_AND_CF_AND_F),
-    (CtorTy, C_AND_L_AND_CF_AND_F),
-    (ClassStaticBlockDecl, C_AND_L_AND_CF_AND_F),
-    // -----
-    (FnExpr, C_AND_L_AND_CF_AND_F_AND_FE),
-    (ArrowFnExpr, C_AND_L_AND_CF_AND_F_AND_FE),
-    // ----
-    (ModuleBlock, ContainerFlags::IS_CONTROL_FLOW_CONTAINER),
-    // ----
-    (CatchClause, BS_AND_L),
-    (ForStmt, BS_AND_L),
-    (ForInStmt, BS_AND_L),
-    (ForOfStmt, BS_AND_L),
-    // TODO: case
-);
 
 impl GetContainerFlags for bolt_ts_ast::GetterDecl<'_> {
     fn get_container_flags(
@@ -184,33 +126,22 @@ pub(super) fn container_flags_for_node(
     let n = p.node(node);
     use bolt_ts_ast::Node::*;
     match n {
-        ClassExpr(n) => n.get_container_flags(p, parent_map),
-        ClassDecl(n) => n.get_container_flags(p, parent_map),
-        EnumDecl(n) => n.get_container_flags(p, parent_map),
-        ObjectLit(n) => n.get_container_flags(p, parent_map),
-        ObjectLitTy(n) => n.get_container_flags(p, parent_map),
-        InterfaceDecl(n) => n.get_container_flags(p, parent_map),
-        ModuleDecl(n) => n.get_container_flags(p, parent_map),
-        TypeAliasDecl(n) => n.get_container_flags(p, parent_map),
-        MappedTy(n) => n.get_container_flags(p, parent_map),
-        IndexSigDecl(n) => n.get_container_flags(p, parent_map),
-        Program(n) => n.get_container_flags(p, parent_map),
-        ObjectMethodMember(n) => n.get_container_flags(p, parent_map),
-        ClassCtor(n) => n.get_container_flags(p, parent_map),
-        FnDecl(n) => n.get_container_flags(p, parent_map),
-        MethodSignature(n) => n.get_container_flags(p, parent_map),
-        CallSigDecl(n) => n.get_container_flags(p, parent_map),
-        FnTy(n) => n.get_container_flags(p, parent_map),
-        CtorSigDecl(n) => n.get_container_flags(p, parent_map),
-        CtorTy(n) => n.get_container_flags(p, parent_map),
-        ClassStaticBlockDecl(n) => n.get_container_flags(p, parent_map),
-        FnExpr(n) => n.get_container_flags(p, parent_map),
-        ArrowFnExpr(n) => n.get_container_flags(p, parent_map),
-        ModuleBlock(n) => n.get_container_flags(p, parent_map),
-        CatchClause(n) => n.get_container_flags(p, parent_map),
-        ForStmt(n) => n.get_container_flags(p, parent_map),
-        ForInStmt(n) => n.get_container_flags(p, parent_map),
-        ForOfStmt(n) => n.get_container_flags(p, parent_map),
+        ClassExpr(_) | ClassDecl(_) | EnumDecl(_) | ObjectLit(_) | ObjectLitTy(_) => {
+            ContainerFlags::IS_CONTAINER
+        }
+        // TODO: JsDocTypeLiteral
+        // TODO: JSX
+        InterfaceDecl(_) => ContainerFlags::IS_CONTAINER.union(ContainerFlags::IS_INTERFACE),
+        ModuleDecl(_) | TypeAliasDecl(_) | MappedTy(_) | IndexSigDecl(_) => C_AND_L,
+        Program(_) => C_AND_L_AND_CF,
+        ObjectMethodMember(_) => C_AND_L_AND_CF_AND_F_AND_O,
+        ClassCtor(_) | FnDecl(_) | MethodSignature(_) | CallSigDecl(_) => C_AND_L_AND_CF_AND_F,
+        // TODO: js doc sig
+        // TODO: js doc fn
+        FnTy(_) | CtorSigDecl(_) | CtorTy(_) | ClassStaticBlockDecl(_) => C_AND_L_AND_CF_AND_F,
+        FnExpr(_) | ArrowFnExpr(_) => C_AND_L_AND_CF_AND_F_AND_FE,
+        ModuleBlock(_) => ContainerFlags::IS_CONTROL_FLOW_CONTAINER,
+        CatchClause(_) | ForStmt(_) | ForInStmt(_) | ForOfStmt(_) | CaseBlock(_) => BS_AND_L,
         GetterDecl(n) => n.get_container_flags(p, parent_map),
         SetterDecl(n) => n.get_container_flags(p, parent_map),
         ClassMethodElem(n) => n.get_container_flags(p, parent_map),

@@ -1,0 +1,11 @@
+  × Cannot find name 'B'.
+    ╭─[../../tests/compiler/extBaseClass2/index.ts:10:29]
+ 10 │ B
+    · ─
+    ╰────
+
+  × Property 'B' does not exist on type 'typeof M'.
+   ╭─[../../tests/compiler/extBaseClass2/index.ts:4:31]
+ 4 │ B
+   · ─
+   ╰────

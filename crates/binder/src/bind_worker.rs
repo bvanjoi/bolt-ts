@@ -5,7 +5,6 @@ use super::symbol::{SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
