@@ -344,7 +344,7 @@ impl<'cx> TyChecker<'cx> {
 
         if value_ty.is_unit() {
             self.filter_type(ty, |this, t| {
-                !(this.is_unit_like_ty(t) && this.are_types_compareable(t, value_ty))
+                !(this.is_unit_like_ty(t) && this.are_types_comparable(t, value_ty))
             })
         } else {
             ty

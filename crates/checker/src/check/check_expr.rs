@@ -205,6 +205,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_class_like_decl(class);
                 self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
             }
+            EleAccess(node) => self.check_ele_access_expr(node),
             PropAccess(node) => self.check_prop_access_expr(node),
             Typeof(n) => {
                 self.check_expr(n.expr);
@@ -214,7 +215,6 @@ impl<'cx> TyChecker<'cx> {
                 self.check_expr(n.expr);
                 self.undefined_ty
             }
-            EleAccess(node) => self.check_ele_access(node),
             This(n) => self.check_this_expr(n),
             Super(n) => self.check_super_expr(n),
             As(n) => self.check_assertion(n.id, n.expr, n.ty),
@@ -1373,7 +1373,7 @@ impl<'cx> TyChecker<'cx> {
         self.number_ty
     }
 
-    fn check_ele_access(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
+    fn check_ele_access_expr(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let expr_ty = self.check_expr(node.expr);
         let assign_kind = self
             .node_query(node.id.module())

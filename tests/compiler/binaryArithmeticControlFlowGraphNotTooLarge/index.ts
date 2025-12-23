@@ -1321,6 +1321,7 @@ function foo1() {
   assertEqual(-Infinity | 0,            0);
   assertEqual(3.14 | 0,                 3);
   assertEqual(-3.14 | 0,                -3);
+  assertEqual(0 | 3.14,                 3);
   assertEqual(2147483647 | 0,           2147483647);
   assertEqual(2147483647.0 | 0,         2147483647);
   assertEqual(2147483648 | 0,           -2147483648);
