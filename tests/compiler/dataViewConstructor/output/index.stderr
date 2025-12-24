@@ -1,0 +1,6 @@
+  × Argument of type 'Uint8Array<ArrayBuffer>' is not assignable to parameter
+  │ of type 'ArrayBuffer & { BYTES_PER_ELEMENT: never; }'.
+   ╭─[../../tests/compiler/dataViewConstructor/index.ts:3:14]
+ 3 │ new Uint8Array(32)
+   · ──────────────────
+   ╰────

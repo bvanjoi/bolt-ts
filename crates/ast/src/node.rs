@@ -684,6 +684,24 @@ impl<'cx> Node<'cx> {
             .is_some_and(|expr| matches!(expr.expr.kind, ExprKind::Super(_)))
     }
 
+    pub fn has_question(&self) -> bool {
+        match self {
+            Node::ParamDecl(n) => n.question.is_some(),
+            Node::MethodSignature(n) => n.question.is_some(),
+            Node::ObjectShorthandMember(_) => {
+                // TODO: n.question
+                false
+            }
+            Node::ObjectPropAssignment(_) => {
+                // TODO: n.question
+                false
+            }
+            Node::ClassPropElem(n) => n.question.is_some(),
+            Node::PropSignature(n) => n.question.is_some(),
+            _ => false,
+        }
+    }
+
     pub fn is_optional_decl(&self) -> bool {
         match self {
             Node::PropSignature(n) => n.question.is_some(),
@@ -903,6 +921,21 @@ impl<'cx> Node<'cx> {
         } else {
             self.fn_body().is_some()
         }
+    }
+
+    pub fn is_variable_like(&self) -> bool {
+        use Node::*;
+        matches!(
+            self,
+            Binding(_)
+                | EnumMember(_)
+                | ParamDecl(_)
+                | ObjectPropAssignment(_)
+                | ClassPropElem(_)
+                | PropSignature(_)
+                | ObjectShorthandMember(_)
+                | VarDecl(_)
+        )
     }
 }
 

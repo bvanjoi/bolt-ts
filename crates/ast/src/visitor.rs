@@ -160,15 +160,22 @@ pub fn visit_method_signature<'cx>(
 pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ImportDecl<'cx>) {}
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx super::ClassElem<'cx>) {
     use super::ClassElemKind::*;
-    if let Method(n) = elem.kind {
-        v.visit_class_method_elem(n)
+    match elem.kind {
+        Ctor(n) => {}
+        Prop(n) => {}
+        Method(n) => v.visit_class_method_elem(n),
+        IndexSig(n) => v.visit_index_sig_decl(n),
+        Getter(n) => {}
+        Setter(n) => {}
+        StaticBlockDecl(n) => {}
     }
 }
+pub fn visit_index_sig_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::IndexSigDecl<'cx>) {}
 pub fn visit_class_method_elem<'cx>(
     v: &mut impl Visitor<'cx>,
-    method: &'cx super::ClassMethodElem<'cx>,
+    node: &'cx super::ClassMethodElem<'cx>,
 ) {
-    if let Some(body) = method.body {
+    if let Some(body) = node.body {
         v.visit_block_stmt(body);
     }
 }
@@ -423,6 +430,7 @@ make_visitor!(
     (visit_class_decl, super::ClassDecl<'cx>),
     (visit_class_elem, super::ClassElem<'cx>),
     (visit_class_method_elem, super::ClassMethodElem<'cx>),
+    (visit_index_sig_decl, super::IndexSigDecl<'cx>),
     (visit_entity_name, super::EntityName<'cx>),
     (visit_ident, super::Ident),
     (visit_ty, super::Ty<'cx>),

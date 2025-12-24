@@ -40,6 +40,7 @@ impl PPrint {
     pub fn p_eq(&mut self) {
         self.p("=");
     }
+    /// `;`
     pub fn p_semi(&mut self) {
         self.p(";");
     }

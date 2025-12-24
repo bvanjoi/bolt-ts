@@ -1,0 +1,11 @@
+  × All declarations of 'x' must have identical modifiers.
+   ╭─[../../tests/compiler/duplicateIdentifierDifferentModifiers/index.ts:4:15]
+ 4 │ x
+   · ─
+   ╰────
+
+  × All declarations of 'y' must have identical modifiers.
+    ╭─[../../tests/compiler/duplicateIdentifierDifferentModifiers/index.ts:19:11]
+ 19 │ y
+    · ─
+    ╰────
