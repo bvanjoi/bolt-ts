@@ -18,3 +18,7 @@ Core functionalities are operational but require refinement. Key pending improve
 - Type Checking: various edge-case bugs.
 - Output Generation: sourcemap generation, different module systems.
 - And others: js file processing, language service..
+
+## Community
+
+For any questions about this project, connect on [Discord](https://discord.gg/nbqjXBBT).
