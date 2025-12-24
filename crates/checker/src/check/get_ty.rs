@@ -836,16 +836,14 @@ impl<'cx> TyChecker<'cx> {
             // TODO: more case
             return true;
         } else if n.is_access_expr() {
-            let expr = if let Some(e) = n.as_ele_access_expr() {
-                e.expr
-            } else if let Some(e) = n.as_prop_access_expr() {
-                e.expr
-            } else {
-                unreachable!()
+            let expr = match n {
+                ast::Node::EleAccessExpr(n) => n.expr,
+                ast::Node::PropAccessExpr(n) => n.expr,
+                _ => unreachable!(),
             };
             let n = bolt_ts_ast::Expr::skip_parens(expr);
             if let ast::ExprKind::Ident(n) = n.kind
-                && let symbol = self.node_links[&n.id].expect_resolved_symbol()
+                && let symbol = self.final_res(n.id)
                 && self.symbol(symbol).flags.intersects(SymbolFlags::ALIAS)
             {
                 return self

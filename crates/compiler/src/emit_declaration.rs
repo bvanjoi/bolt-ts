@@ -63,6 +63,55 @@ impl<'cx> DeclarationEmitter<'cx> {
 }
 
 impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
+    fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
+        self.emitter.print().p("declare");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("class");
+        self.emitter.print().p_whitespace();
+        if let Some(name) = node.name.map(|name| name.name) {
+            self.emitter.emit_atom(name);
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_l_brace();
+        if !node.elems.list.is_empty() {
+            self.emitter.increment_indent();
+            self.emitter.print().p_newline();
+            self.emit_list(
+                node.elems.list,
+                |this, elem| {
+                    use ast::ClassElemKind::*;
+                    match elem.kind {
+                        Ctor(n) => todo!(),
+                        Prop(n) => todo!(),
+                        Method(n) => todo!(),
+                        IndexSig(n) => this.visit_index_sig_decl(n),
+                        Getter(n) => todo!(),
+                        Setter(n) => todo!(),
+                        StaticBlockDecl(n) => todo!(),
+                    }
+                },
+                |this, _| {
+                    this.emitter.print().p_newline();
+                },
+            );
+            self.emitter.decrement_indent();
+            self.emitter.print().p_newline();
+        }
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_index_sig_decl(&mut self, node: &'cx ast::IndexSigDecl<'cx>) {
+        self.emitter.print().p("[");
+        self.visit_binding(node.key);
+        self.emitter.print().p_colon();
+        self.visit_ty(node.key_ty);
+        self.emitter.print().p("]");
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
+        self.emitter.print().p_semi();
+    }
+
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
         self.emitter.print().p("interface");
         self.emitter.print().p_whitespace();

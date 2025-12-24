@@ -8,6 +8,29 @@ use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 
 impl<'cx> TyChecker<'cx> {
+    fn are_declaration_flags_identical(&self, left: ast::NodeID, right: ast::NodeID) -> bool {
+        let l = self.p.node(left);
+        let r = self.p.node(right);
+        if l.is_param_decl() && r.is_var_decl() {
+            true
+        } else if l.is_var_decl() && r.is_param_decl() {
+            true
+        } else if l.has_question() != r.has_question() {
+            false
+        } else {
+            use ast::ModifierKind;
+            const FLAGS: enumflags2::BitFlags<ast::ModifierKind> = enumflags2::make_bitflags!(
+                ModifierKind::{Private | Protected | Async | Abstract | Readonly | Static}
+            );
+            match (l.modifiers(), r.modifiers()) {
+                (None, None) => true,
+                (None, Some(r)) => !r.flags.intersects(FLAGS),
+                (Some(l), None) => !l.flags.intersects(FLAGS),
+                (Some(l), Some(r)) => l.flags.intersects(FLAGS) == r.flags.intersects(FLAGS),
+            }
+        }
+    }
+
     fn check_non_pat_var_like_decl(
         &mut self,
         name_id: ast::NodeID,
@@ -39,6 +62,22 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
             }
+
+            // TODO: ensure check once for the symbol
+            if let Some(decls) = self.binder.symbol(symbol).decls.as_ref()
+                && decls.len() > 1
+                && decls.iter().any(|&d| {
+                    d != decl_id
+                        && self.p.node(d).is_variable_like()
+                        && !self.are_declaration_flags_identical(d, decl_id)
+                })
+            {
+                let error = errors::AllDeclarationsOfXMustHaveIdenticalModifiers {
+                    span: self.p.node(name_id).span(),
+                    symbol: self.binder.symbol(symbol).name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
         } else {
             let is_assignment = s.flags.intersects(SymbolFlags::ASSIGNMENT);
             let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
@@ -58,6 +97,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
+
     pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
         use bolt_ts_ast::r#trait::VarLikeName::*;
         match decl.name() {

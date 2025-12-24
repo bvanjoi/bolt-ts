@@ -1321,6 +1321,15 @@ function foo1() {
   assertEqual(-Infinity | 0,            0);
   assertEqual(3.14 | 0,                 3);
   assertEqual(-3.14 | 0,                -3);
+  assertEqual(0 | 3.14,                 3);
+  assertEqual(3 & 2.71,                 2);
+  assertEqual(3.14 & 2,                 2);
+  assertEqual(3.14 & 2.71,              2);
+  assertEqual(3.14 ^ 2.71,              1);
+  assertEqual(3.14 << 2.71,             12);
+  assertEqual(3.14 >> 2.71,             0);
+  assertEqual(3.14 >>> 2.71,            0);
+  assertEqual(3.14 + 3.86,              7);
   assertEqual(2147483647 | 0,           2147483647);
   assertEqual(2147483647.0 | 0,         2147483647);
   assertEqual(2147483648 | 0,           -2147483648);
@@ -1329,13 +1338,6 @@ function foo1() {
   assertEqual(9007199254740992 | 0,     0);
   assertEqual(-9007199254740991 | 0,    1);
   assertEqual(-9007199254740992 | 0,    0);
-
-  assertEqual(3.14 & 2.71,      2);
-  assertEqual(3.14 ^ 2.71,      1);
-  assertEqual(3.14 << 2.71,     12);
-  assertEqual(3.14 >> 2.71,     0);
-  assertEqual(3.14 >>> 2.71,    0);
-  assertEqual(3.14 + 3.86,     7);
 
   assertEqual(!true,    false);
   assertEqual(!!true,   true);

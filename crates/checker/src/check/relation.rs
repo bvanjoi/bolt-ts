@@ -1,5 +1,6 @@
 use bolt_ts_ast::{self as ast, ModifierKind};
 use bolt_ts_atom::Atom;
+use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
 use rustc_hash::FxHashSet;
@@ -9,7 +10,7 @@ use super::symbol_info::SymbolInfo;
 use super::{SymbolLinks, errors};
 use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use crate::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
 
 use super::{Ternary, TyChecker};
 
@@ -299,7 +300,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_type_related_to(source, target, RelationKind::Comparable, error_node)
     }
 
-    pub(super) fn are_types_compareable(
+    pub(super) fn are_types_comparable(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -367,11 +368,19 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_reduced_apparent_ty(ty);
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
-            if let Some(symbol) = self
-                .expect_ty_links(ty.id)
-                .expect_structured_members()
-                .members
-                .get(&name)
+            let s = self.expect_ty_links(ty.id).expect_structured_members();
+            if let Some(symbol) = s.members.get(&name) {
+                return Some(*symbol);
+            } else if let Some(name) = name.as_atom()
+                && let name = self.atom(name)
+                && let Ok(num) = name.parse()
+                && let Some(symbol) = s.members.get(&SymbolName::EleNum(F64Represent::new(num)))
+            {
+                return Some(*symbol);
+            } else if let Some(num) = name.as_numeric()
+             // TODO: remove `.to_string()`
+                && let name = self.atoms.atom(&num.to_string())
+                && let Some(symbol) = s.members.get(&SymbolName::Atom(name))
             {
                 return Some(*symbol);
             }

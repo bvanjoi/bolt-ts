@@ -1031,3 +1031,11 @@ pub(super) struct MappedObjectTypeImplicitlyHasAnAnyTemplateType {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("All declarations of '{symbol}' must have identical modifiers.")]
+pub(super) struct AllDeclarationsOfXMustHaveIdenticalModifiers {
+    #[label(primary)]
+    pub span: Span,
+    pub symbol: String,
+}
