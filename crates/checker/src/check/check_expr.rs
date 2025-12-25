@@ -157,6 +157,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_fresh_ty_of_literal_ty(t)
     }
 
+    #[inline]
     pub(super) fn check_string_lit(&mut self, val: Atom) -> &'cx ty::Ty<'cx> {
         // TODO: hasSkipDirectInferenceFlag
         let t = self.get_string_literal_type_from_string(val);
@@ -510,7 +511,7 @@ impl<'cx> TyChecker<'cx> {
                 tys.push(self.string_ty);
             }
         }
-        if self.node_query(node.id.module()).is_const_context(node.id) || {
+        if self.is_const_context(node.id) || {
             let t = self
                 .get_contextual_ty(node.id, None)
                 .unwrap_or(self.unknown_ty);
@@ -817,13 +818,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> &'cx ty::Ty<'cx> {
-        let id = ident.id;
         let ty = self.check_ident(ident);
-        if self.node_query(id.module()).is_const_context(id) {
+        if self.is_const_context(ident.id) {
             self.get_regular_ty_of_literal_ty(ty)
         } else {
-            let contextual_ty = self.get_contextual_ty(id, None);
-            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            let contextual_ty = self.get_contextual_ty(ident.id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, ident.id, None);
             self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
         }
     }
@@ -834,7 +834,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let id = expr.id();
         let ty = self.check_expr(expr);
-        if self.node_query(id.module()).is_const_context(id) {
+        if self.is_const_context(id) {
             self.get_regular_ty_of_literal_ty(ty)
         } else if expr.kind.is_type_assertion() {
             ty
@@ -860,7 +860,7 @@ impl<'cx> TyChecker<'cx> {
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
         // let mut properties_array = Vec::with_capacity(node.members.len());
-        let is_const_context = self.node_query(node.id.module()).is_const_context(node.id);
+        let is_const_context = self.is_const_context(node.id);
         let mut has_computed_string_property = false;
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
@@ -868,84 +868,93 @@ impl<'cx> TyChecker<'cx> {
         let symbol = std::cell::OnceCell::new();
         for member in node.members {
             use bolt_ts_ast::ObjectMemberKind::*;
-            if matches!(member.kind, Shorthand(_) | PropAssignment(_) | Method(_)) {
-                let member_symbol = self.get_symbol_of_decl(member.id());
-                let ty = match member.kind {
-                    Shorthand(n) => self.check_ident(n.name),
-                    PropAssignment(n) => self.check_object_prop_member(n),
-                    Method(n) => self.check_object_method_member(n),
-                    _ => unreachable!(),
-                };
-                let name = match member.kind {
-                    Shorthand(n) => SymbolName::Atom(n.name.name),
-                    PropAssignment(n) => bolt_ts_binder::prop_name(n.name),
-                    Method(n) => bolt_ts_binder::prop_name(n.name),
-                    _ => unreachable!(),
-                };
-                object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
-                let member_s = self.binder.symbol(member_symbol);
-                let declarations = member_s.decls.clone();
-                let value_declaration = member_s.value_decl;
-                let prop = self.create_transient_symbol(
-                    name,
-                    SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
-                        | self.binder.symbol(member_symbol).flags,
-                    SymbolLinks::default()
-                        .with_target(member_symbol)
-                        .with_ty(ty),
-                    declarations,
-                    value_declaration,
-                );
-                properties_table.insert(name, prop);
-                properties_array.push(member_symbol);
-            } else if let SpreadAssignment(s) = member.kind {
-                if !properties_array.is_empty() {
-                    let props = self.alloc(std::mem::take(&mut properties_table));
-                    let right = create_object_lit_ty(self, node, object_flags, props);
-                    let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
-                    spread =
-                        self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
-                    properties_array.clear();
-                    has_computed_string_property = false;
-                    has_computed_number_property = false;
-                    has_computed_symbol_property = false;
-                }
-                let ty = {
-                    let old = self.check_mode;
-                    self.check_mode = self
-                        .check_mode
-                        .map(|mode| mode.intersection(CheckMode::INFERENTIAL));
-                    let ty = self.check_expr(s.expr);
-                    self.check_mode = old;
-                    self.get_reduced_ty(ty)
-                };
-                if self.is_valid_spread_ty(ty) {
-                    let merged_ty =
-                        self.try_merge_union_of_object_ty_and_empty_object(ty, is_const_context);
-                    let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
-                    spread = self.get_spread_ty(
-                        spread,
-                        merged_ty,
-                        Some(s),
-                        object_flags,
-                        is_const_context,
+            match member.kind {
+                Shorthand(_) | PropAssignment(_) | Method(_) => {
+                    let member_symbol = self.get_symbol_of_decl(member.id());
+                    let ty = match member.kind {
+                        Shorthand(n) => self.check_ident(n.name),
+                        PropAssignment(n) => self.check_object_prop_member(n),
+                        Method(n) => self.check_object_method_member(n),
+                        _ => unreachable!(),
+                    };
+                    let name = match member.kind {
+                        Shorthand(n) => SymbolName::Atom(n.name.name),
+                        PropAssignment(n) => bolt_ts_binder::prop_name(n.name),
+                        Method(n) => bolt_ts_binder::prop_name(n.name),
+                        _ => unreachable!(),
+                    };
+                    object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
+                    let member_s = self.binder.symbol(member_symbol);
+                    let declarations = member_s.decls.clone();
+                    let value_declaration = member_s.value_decl;
+                    let prop = self.create_transient_symbol(
+                        name,
+                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+                            | self.binder.symbol(member_symbol).flags,
+                        SymbolLinks::default()
+                            .with_target(member_symbol)
+                            .with_ty(ty),
+                        declarations,
+                        value_declaration,
                     );
-                } else {
-                    // TODO: error
-                    spread = self.error_ty;
+                    properties_table.insert(name, prop);
+                    properties_array.push(member_symbol);
                 }
-            } else {
-                debug_assert!(matches!(member.kind, Setter(_) | Getter(_)));
-                // TODO: deferred check
+                SpreadAssignment(s) => {
+                    if !properties_array.is_empty() {
+                        let props = self.alloc(std::mem::take(&mut properties_table));
+                        let right = create_object_lit_ty(self, node, object_flags, props);
+                        let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                        spread = self.get_spread_ty(
+                            spread,
+                            right,
+                            Some(s),
+                            object_flags,
+                            is_const_context,
+                        );
+                        properties_array.clear();
+                        has_computed_string_property = false;
+                        has_computed_number_property = false;
+                        has_computed_symbol_property = false;
+                    }
+                    let ty = {
+                        let old = self.check_mode;
+                        self.check_mode = self
+                            .check_mode
+                            .map(|mode| mode.intersection(CheckMode::INFERENTIAL));
+                        let ty = self.check_expr(s.expr);
+                        self.check_mode = old;
+                        self.get_reduced_ty(ty)
+                    };
+                    if self.is_valid_spread_ty(ty) {
+                        let merged_ty = self
+                            .try_merge_union_of_object_ty_and_empty_object(ty, is_const_context);
+                        let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
+                        spread = self.get_spread_ty(
+                            spread,
+                            merged_ty,
+                            Some(s),
+                            object_flags,
+                            is_const_context,
+                        );
+                    } else {
+                        // TODO: error
+                        spread = self.error_ty;
+                    }
+                }
+                _ => {
+                    debug_assert!(matches!(member.kind, Setter(_) | Getter(_)));
+                    // TODO: deferred check
 
-                let name = match member.kind {
-                    Setter(n) => bolt_ts_binder::prop_name(n.name),
-                    Getter(n) => bolt_ts_binder::prop_name(n.name),
-                    _ => unreachable!(),
-                };
-                let member_symbol = self.get_symbol_of_decl(member.id());
-                properties_table.insert(name, member_symbol);
-                properties_array.push(member_symbol);
+                    let name = match member.kind {
+                        Setter(n) => bolt_ts_binder::prop_name(n.name),
+                        Getter(n) => bolt_ts_binder::prop_name(n.name),
+                        _ => unreachable!(),
+                    };
+                    let member_symbol = self.get_symbol_of_decl(member.id());
+                    properties_table.insert(name, member_symbol);
+                    properties_array.push(member_symbol);
+                }
             }
         }
         self.pop_type_context();

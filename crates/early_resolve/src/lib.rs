@@ -997,7 +997,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
             _ => {
                 // TODO: is_type_query_node
                 if (l.is_fn_decl_like()
-                    || ((l.is_class_prop_elem() || l.is_object_prop_member()) && !l.is_static()))
+                    || ((l.is_class_prop_elem() || l.is_object_prop_assignment())
+                        && !l.is_static()))
                     && (last_location.is_none_or(|last_location| {
                         self.p
                             .node(location)

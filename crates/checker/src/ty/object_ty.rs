@@ -26,6 +26,19 @@ pub enum ObjectTyKind<'cx> {
     ReversedMapped(&'cx ReverseMappedTy<'cx>),
 }
 
+impl<'cx> ObjectTyKind<'cx> {
+    pub fn as_generic_tuple_type(&self) -> Option<&'cx TupleTy<'cx>> {
+        let ObjectTyKind::Reference(refer) = self else {
+            return None;
+        };
+        refer
+            .target
+            .kind
+            .as_object_tuple()
+            .filter(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
+    }
+}
+
 macro_rules! ty_kind_as_object_ty_kind {
     ($ty:ty, $name: ident) => {
         paste::paste! {

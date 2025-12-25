@@ -1042,7 +1042,7 @@ as_node!(
     (
         ObjectPropAssignment,
         super::ObjectPropAssignment<'cx>,
-        object_prop_member
+        object_prop_assignment
     ),
     (
         ObjectMethodMember,

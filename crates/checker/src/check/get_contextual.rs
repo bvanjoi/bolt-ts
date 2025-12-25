@@ -43,12 +43,17 @@ impl<'cx> TyChecker<'cx> {
             ArrayLit(node) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(node.id, flags);
                 let element_idx = self.p.index_of_node(node.elems, id);
-                let spread_indices = {
+                let (first, last) = {
                     // TODO: cache
-                    let first = None;
-                    let last = None;
+                    let mut first = None;
+                    let mut last = None;
                     for i in 0..node.elems.len() {
-                        // TODO: spread
+                        if matches!(node.elems[i].kind, ast::ExprKind::SpreadElement(_)) {
+                            if first.is_none() {
+                                first = Some(i);
+                            }
+                            last = Some(i);
+                        }
                     }
                     (first, last)
                 };
@@ -56,15 +61,17 @@ impl<'cx> TyChecker<'cx> {
                     ty,
                     element_idx,
                     Some(node.elems.len()),
-                    spread_indices.0,
-                    spread_indices.1,
+                    first,
+                    last,
                 )
             }
-            // ObjectShorthandMember(node) => {
-            //     self.get_contextual_ty_for_object_literal_ele(node.id, flags)
-            // }
-            ObjectPropAssignment(node) => {
-                self.get_contextual_ty_for_object_literal_ele(node.id, flags)
+            SpreadAssignment(_) => {
+                let parent_parent = self.parent(parent_id).unwrap();
+                self.get_contextual_ty(parent_parent, flags)
+            }
+            ObjectPropAssignment(ast::ObjectPropAssignment { id, .. })
+            | ObjectShorthandMember(ast::ObjectShorthandMember { id, .. }) => {
+                self.get_contextual_ty_for_object_literal_ele(*id, flags)
             }
             _ => None,
         }
@@ -80,11 +87,6 @@ impl<'cx> TyChecker<'cx> {
             self.p.node(p).expect_object_lit()
         };
         let ty = self.get_apparent_ty_of_contextual_ty(object_literal.id, context_flags)?;
-        let id = if let Some(m) = self.p.node(id).as_object_prop_member() {
-            Some(m.id)
-        } else {
-            self.p.node(id).as_object_method_member().map(|m| m.id)
-        }?;
         // TODO: has_bindable_name
         let symbol = self.get_symbol_of_decl(id);
         let name = self.symbol(symbol).name;
@@ -133,7 +135,8 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
         }
-        Some(self.get_ty_of_expr(assign.left))
+        let ret = self.get_ty_of_expr(assign.left);
+        Some(ret)
     }
 
     fn get_contextual_ty_for_var_like_decl(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {

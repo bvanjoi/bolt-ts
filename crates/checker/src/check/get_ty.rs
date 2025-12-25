@@ -156,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.any_ty
             }
-        } else if let Some(n) = node.as_object_prop_member() {
+        } else if let Some(n) = node.as_object_prop_assignment() {
             if let Some(ty) = node.ty_anno() {
                 self.get_ty_from_type_node(ty)
             } else {
@@ -644,7 +644,7 @@ impl<'cx> TyChecker<'cx> {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
                 && self.is_var_const(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
-        } else if n.is_class_prop_elem() || n.is_object_prop_member() {
+        } else if n.is_class_prop_elem() || n.is_object_prop_assignment() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
         } else if n.is_prop_signature() {
             n.has_effective_readonly_modifier() // TODO: || is_commonjs_export_property_assignment

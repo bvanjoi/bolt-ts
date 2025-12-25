@@ -1784,7 +1784,7 @@ impl<'cx> TyChecker<'cx> {
         let mut element_flags = Vec::with_capacity(lit.elems.len());
         self.push_cached_contextual_type(lit.id);
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
-        let is_const_context = self.node_query(lit.id.module()).is_const_context(lit.id);
+        let is_const_context = self.is_const_context(lit.id);
         let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
             self.some_type(contextual_ty, |this, ty| this.is_tuple_like(ty))
         } else {
@@ -4328,6 +4328,123 @@ impl<'cx> TyChecker<'cx> {
             return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
         }
         ty
+    }
+
+    fn is_const_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>, depth: u8) -> bool {
+        debug_assert!(ty.kind.is_object_mapped());
+        self.get_homomorphic_ty_var(ty)
+            .is_some_and(|ty_var| self._is_const_ty_variable(ty_var, depth))
+    }
+
+    fn _is_const_ty_variable(&mut self, ty: &'cx ty::Ty<'cx>, depth: u8) -> bool {
+        if depth >= 5 {
+            return false;
+        }
+        use ty::TyKind::*;
+        match ty.kind {
+            Param(t) => self.symbol(t.symbol).decls.as_ref().is_some_and(|decls| {
+                decls.iter().any(|decl| {
+                    self.p
+                        .node(*decl)
+                        .modifiers()
+                        .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Const))
+                })
+            }),
+            Union(ty::UnionTy { tys, .. }) | Intersection(ty::IntersectionTy { tys, .. }) => {
+                tys.iter().any(|ty| self._is_const_ty_variable(ty, depth))
+            }
+            IndexedAccess(ty) => self._is_const_ty_variable(ty.object_ty, depth + 1),
+            Cond(_) => self
+                .get_constraint_of_cond_ty(ty)
+                .is_some_and(|ty| self._is_const_ty_variable(ty, depth + 1)),
+            Substitution(ty) => self._is_const_ty_variable(ty.base_ty, depth),
+            Object(object_ty) => {
+                if let ty::ObjectTyKind::Mapped(_) = object_ty.kind {
+                    self.is_const_mapped_ty(ty, depth)
+                } else if let Some(tup) = object_ty.kind.as_generic_tuple_type() {
+                    let tys = self.get_element_tys(ty);
+                    tys.iter().enumerate().any(|(i, t)| {
+                        tup.element_flags[i].contains(ElementFlags::VARIADIC)
+                            && self._is_const_ty_variable(t, depth)
+                    })
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_const_ty_variable(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self._is_const_ty_variable(ty, 0)
+    }
+
+    fn is_valid_const_assertion_argument(&self, node: ast::NodeID) -> bool {
+        let n = self.p.node(node);
+        use ast::Node::*;
+        match n {
+            StringLit(_)
+            | NoSubstitutionTemplateLit(_)
+            | NumLit(_)
+            | BigIntLit(_)
+            | BoolLit(_)
+            | ArrayLit(_)
+            | ObjectLit(_)
+            | TemplateExpr(_) => true,
+            ParenExpr(n) => self.is_valid_const_assertion_argument(n.expr.id()),
+            PrefixUnaryExpr(n) => {
+                use ast::ExprKind::*;
+                use ast::PrefixUnaryOp::*;
+                match n.op {
+                    Minus if matches!(n.expr.kind, NumLit(_) | BigIntLit(_)) => true,
+                    Plus if matches!(n.expr.kind, NumLit(_)) => true,
+                    _ => false,
+                }
+            }
+            PropAccessExpr(ast::PropAccessExpr { expr, .. })
+            | EleAccessExpr(ast::EleAccessExpr { expr, .. }) => {
+                let expr = ast::Expr::skip_parens(expr);
+                let Some(symbol) = expr
+                    .is_entity_name_expr()
+                    .then(|| self.final_res(expr.id()))
+                else {
+                    return false;
+                };
+                self.symbol(symbol).flags.contains(SymbolFlags::ENUM)
+            }
+            _ => false,
+        }
+    }
+
+    fn is_const_context(&mut self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        let p = self.p.node(parent);
+        if p.is_assertion_expr() {
+            let ty = match p {
+                ast::Node::AsExpr(n) => n.ty,
+                _ => unreachable!(),
+            };
+            ty.is_const_ty_refer()
+            // TODO: is_js_doc_type_assertion
+        }
+        // TODO: is_valid_const_assertion_argument
+        // else if self.is_valid_const_assertion_argument(node) {
+        //     let ty = self.get_contextual_ty(node, Some(ContextFlags::empty()));
+        //     ty.is_some_and(|ty| self.is_const_ty_variable(ty))
+        // }
+        else if p.is_array_lit() || p.is_paren_expr() || p.is_spread_element() {
+            self.is_const_context(parent)
+        } else if p.is_object_prop_assignment()
+            || p.is_object_shorthand_member()
+            || p.is_template_span()
+        {
+            let parent_parent = self.parent(parent).unwrap();
+            self.is_const_context(parent_parent)
+        } else {
+            false
+        }
     }
 }
 
