@@ -158,8 +158,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     origin: origin.span,
                 };
                 self.push_error(Box::new(error));
-            }
-            if self.token.kind == TokenKind::Implements
+            } else if self.token.kind == TokenKind::Implements
                 && let Some(origin) = implements
             {
                 let error = errors::ClauseAlreadySeen {
@@ -427,14 +426,26 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let decl =
-                self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
+            let ambient =
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+            let decl = self.parse_getter_accessor_decl(
+                start,
+                modifiers,
+                ambient,
+                SignatureFlags::empty(),
+            )?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let decl =
-                self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
+            let ambient =
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+            let decl = self.parse_setter_accessor_decl(
+                start,
+                modifiers,
+                ambient,
+                SignatureFlags::empty(),
+            )?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Setter(decl),
             }))

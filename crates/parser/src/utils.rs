@@ -30,12 +30,16 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         flags: SignatureFlags,
     ) -> Option<&'cx ast::BlockStmt<'cx>> {
-        if self.token.kind != TokenKind::LBrace && self.can_parse_semi() {
-            self.parse_semi();
-            None
-        } else {
-            Some(self.parse_fn_block(flags))
+        if self.token.kind != TokenKind::LBrace {
+            if flags.contains(SignatureFlags::TYPE) {
+                self.parse_ty_member_semi();
+                return None;
+            } else if self.can_parse_semi() {
+                self.parse_semi();
+                return None;
+            }
         }
+        Some(self.parse_fn_block(flags))
     }
 
     pub(super) fn parse_fn_block(&mut self, flags: SignatureFlags) -> &'cx ast::BlockStmt<'cx> {
@@ -830,6 +834,27 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(sig)
     }
 
+    fn check_body_during_parse_accessor(
+        &mut self,
+        ambient: bool,
+        body: &mut Option<&'cx ast::BlockStmt<'cx>>,
+    ) {
+        if ambient {
+            if let Some(body) = body {
+                let error =
+                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                self.push_error(Box::new(error));
+            }
+            *body = None;
+        } else if body.is_none() {
+            let error = errors::ExpectX {
+                span: self.token.span,
+                x: '{'.to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
     pub(super) fn parse_getter_accessor_decl(
         &mut self,
         start: u32,
@@ -847,14 +872,7 @@ impl<'cx> ParserState<'cx, '_> {
         // TODO: assert params.is_none
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        if ambient {
-            if let Some(body) = body {
-                let error =
-                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
-                self.push_error(Box::new(error));
-            }
-            body = None;
-        }
+        self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
         let decl = self.alloc(ast::GetterDecl {
             id,
@@ -893,14 +911,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let ty = self.parse_ret_ty(true)?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        if ambient {
-            if let Some(body) = body {
-                let error =
-                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
-                self.push_error(Box::new(error));
-            }
-            body = None;
-        }
+        self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
         debug_assert!(params.len() <= 2);
         let decl = self.alloc(ast::SetterDecl {

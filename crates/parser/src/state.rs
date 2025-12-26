@@ -148,9 +148,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         matches!(
             self.token.kind,
             TokenKind::Semi | TokenKind::RBrace | TokenKind::EOF
-        ) || self
-            .token_flags
-            .intersects(TokenFlags::PRECEDING_LINE_BREAK)
+        ) || self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     pub(super) fn parse_bracketed_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
