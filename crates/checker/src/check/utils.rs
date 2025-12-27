@@ -127,6 +127,17 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn same_map_sigs(
+        &mut self,
+        input: Option<ty::Sigs<'cx>>,
+        f: impl Fn(&mut Self, &'cx ty::Sig<'cx>, usize) -> &'cx ty::Sig<'cx>,
+    ) -> Option<ty::Sigs<'cx>> {
+        match self.same_map(input, |this, t, i| f(this, t, i)) {
+            SameMapperResult::Old => input,
+            SameMapperResult::New(tys) => Some(tys),
+        }
+    }
+
     pub(super) fn same_map_index_infos(
         &mut self,
         input: Option<ty::IndexInfos<'cx>>,
@@ -135,6 +146,51 @@ impl<'cx> TyChecker<'cx> {
         match self.same_map(input, |this, t, i| f(this, t, i)) {
             SameMapperResult::Old => input,
             SameMapperResult::New(tys) => Some(tys),
+        }
+    }
+
+    pub(super) fn map_union_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        union: &'cx ty::UnionTy<'cx>,
+        mapper: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> + Copy,
+        no_reduction: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(std::ptr::eq(ty.kind.expect_union(), union));
+        // TODO: union.origin
+        let tys = union.tys;
+        let mut mapped_tys: Option<Vec<_>> = None;
+        let mut changed = false;
+        for t in tys {
+            let mapped = if t.kind.is_union() {
+                self.map_ty(t, mapper, no_reduction)
+            } else {
+                mapper(self, t)
+            };
+            if let Some(mapped) = mapped {
+                changed |= !mapped.eq(ty);
+                if let Some(mapped_tys) = &mut mapped_tys {
+                    mapped_tys.push(mapped);
+                } else {
+                    let mut v = Vec::with_capacity(tys.len());
+                    v.push(mapped);
+                    mapped_tys = Some(v);
+                };
+            }
+        }
+        if changed {
+            if let Some(mapped_tys) = mapped_tys {
+                let reduction = if no_reduction {
+                    ty::UnionReduction::None
+                } else {
+                    ty::UnionReduction::Lit
+                };
+                Some(self.get_union_ty(&mapped_tys, reduction, false, None, None))
+            } else {
+                None
+            }
+        } else {
+            Some(ty)
         }
     }
 
@@ -147,41 +203,7 @@ impl<'cx> TyChecker<'cx> {
         if ty.flags.intersects(ty::TypeFlags::NEVER) {
             Some(self.never_ty)
         } else if let Some(u) = ty.kind.as_union() {
-            // TODO: union.origin
-            let tys = u.tys;
-            let mut mapped_tys: Option<Vec<_>> = None;
-            let mut changed = false;
-            for t in tys {
-                let mapped = if t.kind.is_union() {
-                    self.map_ty(t, mapper, no_reduction)
-                } else {
-                    mapper(self, t)
-                };
-                if let Some(mapped) = mapped {
-                    changed |= !mapped.eq(ty);
-                    if let Some(mapped_tys) = &mut mapped_tys {
-                        mapped_tys.push(mapped);
-                    } else {
-                        let mut v = Vec::with_capacity(tys.len());
-                        v.push(mapped);
-                        mapped_tys = Some(v);
-                    };
-                }
-            }
-            if changed {
-                if let Some(mapped_tys) = mapped_tys {
-                    let reduction = if no_reduction {
-                        ty::UnionReduction::None
-                    } else {
-                        ty::UnionReduction::Lit
-                    };
-                    Some(self.get_union_ty(&mapped_tys, reduction, false, None, None))
-                } else {
-                    None
-                }
-            } else {
-                Some(ty)
-            }
+            self.map_union_ty(ty, u, mapper, no_reduction)
         } else {
             mapper(self, ty)
         }
@@ -243,6 +265,32 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         true
+    }
+
+    pub(super) fn filter<T: Copy>(
+        &mut self,
+        array: &'cx [&'cx T],
+        f: impl Fn(&mut Self, &'cx T) -> bool,
+    ) -> &'cx [&'cx T] {
+        let len = array.len();
+        let mut i = 0;
+        while i < len && f(self, array[i]) {
+            i += 1;
+        }
+        if i < len {
+            let mut result = array[0..i].to_vec();
+            i += 1;
+            while i < len {
+                let item = array[i];
+                if f(self, item) {
+                    result.push(item);
+                }
+                i += 1;
+            }
+            self.alloc(result)
+        } else {
+            array
+        }
     }
 }
 

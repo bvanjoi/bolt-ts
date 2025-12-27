@@ -538,7 +538,7 @@ impl<'cx> ParserState<'cx, '_> {
             Ok(expr)
         } else {
             self.expect(TokenKind::Dot);
-            let name = self.parse_right_side_of_dot(true);
+            let name = self.parse_right_side_of_dot::<true>();
             let id = self.next_node_id();
             let expr = self.alloc(ast::PropAccessExpr {
                 id,
@@ -1184,7 +1184,7 @@ impl<'cx> ParserState<'cx, '_> {
         expr: &'cx ast::Expr<'cx>,
         question_dot: Option<bolt_ts_span::Span>,
     ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
-        let name = self.parse_right_side_of_dot(true);
+        let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let prop = if is_optional_chain {
             self.create_prop_access_chain(start as u32, expr, question_dot, name)

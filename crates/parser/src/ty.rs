@@ -91,26 +91,26 @@ impl<'cx> ParserState<'cx, '_> {
 
             let tys = self.alloc(tys);
             let ty = if expect == TokenKind::Amp {
-                let parent = self.next_node_id();
+                let id = self.next_node_id();
                 let ty = self.alloc(ast::IntersectionTy {
-                    id: parent,
+                    id,
                     span: self.new_span(ty.span().lo()),
                     tys,
                 });
-                self.nodes.insert(parent, ast::Node::IntersectionTy(ty));
+                self.nodes.insert(id, ast::Node::IntersectionTy(ty));
                 self.alloc(ast::Ty {
                     kind: ast::TyKind::Intersection(ty),
                 })
             } else {
                 // union
                 assert_eq!(expect, TokenKind::Pipe);
-                let parent = self.next_node_id();
+                let id = self.next_node_id();
                 let ty = self.alloc(ast::UnionTy {
-                    id: parent,
+                    id,
                     span: self.new_span(ty.span().lo()),
                     tys,
                 });
-                self.nodes.insert(parent, ast::Node::UnionTy(ty));
+                self.nodes.insert(id, ast::Node::UnionTy(ty));
                 self.alloc(ast::Ty {
                     kind: ast::TyKind::Union(ty),
                 })
@@ -399,9 +399,8 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn parse_right_side_of_dot(
+    pub(super) fn parse_right_side_of_dot<const ALLOW_RESERVED_WORD: bool>(
         &mut self,
-        allow_identifier_name: bool,
     ) -> &'cx ast::Ident {
         if self.has_preceding_line_break() && self.token.kind.is_ident_or_keyword() {
             let matches_pattern =
@@ -410,16 +409,15 @@ impl<'cx> ParserState<'cx, '_> {
                 return self.create_ident(self.is_ident(), None);
             }
         }
-        if allow_identifier_name {
+        if ALLOW_RESERVED_WORD {
             self.parse_ident_name()
         } else {
             self.create_ident(self.is_ident(), None)
         }
     }
 
-    pub(super) fn parse_entity_name(
+    pub(super) fn parse_entity_name<const ALLOW_RESERVED_WORD: bool>(
         &mut self,
-        allow_reserved_word: bool,
     ) -> &'cx ast::EntityName<'cx> {
         let start = self.token.start();
         let name = self.parse_ident_name();
@@ -433,7 +431,7 @@ impl<'cx> ParserState<'cx, '_> {
             if self.token.kind == TokenKind::Less {
                 break;
             }
-            let right = self.parse_right_side_of_dot(allow_reserved_word);
+            let right = self.parse_right_side_of_dot::<ALLOW_RESERVED_WORD>();
             let id = self.next_node_id();
             let qualified = self.alloc(ast::QualifiedName {
                 id,
@@ -472,7 +470,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> &'cx ast::ReferTy<'cx> {
         let start = self.token.start();
-        let name = self.parse_entity_name(true);
+        let name = self.parse_entity_name::<true>();
         let ty_args = self.parse_ty_args_of_ty_reference();
         let id = self.next_node_id();
         let ty = self.alloc(ast::ReferTy {
@@ -523,8 +521,8 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::Typeof);
         let start = self.token.start();
         self.next_token(); // consume `typeof`
-        let name = self.parse_entity_name(true);
-        let ty_args = if self.has_preceding_line_break() {
+        let name = self.parse_entity_name::<true>();
+        let ty_args = if !self.has_preceding_line_break() {
             self.try_parse_ty_args()?
         } else {
             None
@@ -543,19 +541,25 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_this_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_this_ty_kind(&mut self) -> &'cx ast::ThisTy {
+        debug_assert!(self.token.kind == TokenKind::This);
         let start = self.token.start();
-        self.expect(TokenKind::This);
+        self.next_token(); // consume `this`
         let id = self.next_node_id();
-        let kind = self.alloc(ast::ThisTy {
+        self.alloc(ast::ThisTy {
             id,
             span: self.new_span(start),
-        });
-        self.nodes.insert(id, ast::Node::ThisTy(kind));
+        })
+    }
+
+    fn parse_this_ty(&mut self) -> &'cx ast::Ty<'cx> {
+        debug_assert!(self.token.kind == TokenKind::This);
+        let kind = self.parse_this_ty_kind();
+        self.nodes.insert(kind.id, ast::Node::ThisTy(kind));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::This(kind),
         });
-        Ok(ty)
+        ty
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -608,7 +612,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             TemplateHead => self.parse_template_ty(),
             This => {
-                let this_ty = self.parse_this_ty()?;
+                let this_ty = self.parse_this_ty();
                 if self.token.kind == TokenKind::Is && !self.has_preceding_line_break() {
                     if let ast::TyKind::This(this_ty) = this_ty.kind {
                         self.parse_this_ty_pred(this_ty)
@@ -627,15 +631,13 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_asserts_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Asserts);
         let pos = self.token.start();
         let assert_modifier = self.token.span;
-        self.expect(TokenKind::Asserts);
+        self.next_token(); // consume `asserts`
         let name = if self.token.kind == TokenKind::This {
-            if let ast::TyKind::This(this_ty) = self.parse_this_ty()?.kind {
-                ast::PredTyName::This(this_ty)
-            } else {
-                unreachable!()
-            }
+            let this_ty = self.parse_this_ty_kind();
+            ast::PredTyName::This(this_ty)
         } else {
             let is_ident = self.token.kind == TokenKind::Ident;
             ast::PredTyName::Ident(self.create_ident(is_ident, None))
@@ -744,8 +746,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        debug_assert_eq!(self.token.kind, TokenKind::LBrace);
         let start = self.token.start();
-        self.expect(TokenKind::LBrace);
+        self.next_token(); // consume `LBrace`
         let mut readonly_token = None;
         if matches!(
             self.token.kind,
@@ -906,8 +909,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        debug_assert_eq!(self.token.kind, TokenKind::LParen);
         let start = self.token.start();
-        self.expect(TokenKind::LParen);
+        self.next_token(); // consume `TokenKind:LParen`
         let ty = self.parse_ty()?;
         self.expect(TokenKind::RParen);
         let id = self.next_node_id();

@@ -566,6 +566,7 @@ impl<'cx> TyChecker<'cx> {
             resolved.call_sigs,
             resolved.ctor_sigs,
             resolved.index_infos,
+            None,
         );
         self.fresh_ty_links_arena[fresh_ty_links].set_regular_ty(regular);
         regular
@@ -1005,6 +1006,7 @@ impl<'cx> TyChecker<'cx> {
                 object_flags
                     | (ObjectFlags::OBJECT_LITERAL
                         .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)),
+                None,
             );
 
             let props = this.get_props_from_members(properties_table);
@@ -1122,6 +1124,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array(),
             self.empty_array(),
             index_infos,
+            None,
         )
     }
 

@@ -164,5 +164,8 @@ prefilled_atom_map!(
         DIRECTIVES: {
             DIRECTIVE_USE_STRICT:                   ["use strict", 104]
         },
+        SPECIAL_IDENTIFIER: {
+            SPECIAL_IDENT_ERROR:                    ["<error>", 105]
+        },
     }
 );

@@ -1,5 +1,5 @@
   × No overload matches this call.
-    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:13:11]
- 13 │ a(false)
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:14:11]
+ 14 │ a(false)
     · ────────
     ╰────

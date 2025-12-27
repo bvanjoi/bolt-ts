@@ -618,7 +618,7 @@ impl<'cx> super::TyChecker<'cx> {
         let flags = self.symbol(symbol).flags;
         if flags.intersects(meaning) {
             symbol
-        } else if flags.intersects(SymbolFlags::ALIAS) {
+        } else if flags.contains(SymbolFlags::ALIAS) {
             self.resolve_alias(symbol)
         } else {
             if let Ident(n) = name.kind {

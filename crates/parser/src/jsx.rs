@@ -241,7 +241,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         };
         let mut expr = self.alloc(bolt_ts_ast::Expr { kind });
         while self.parse_optional(TokenKind::Dot).is_some() {
-            let name = self.parse_right_side_of_dot(true);
+            let name = self.parse_right_side_of_dot::<true>();
             let prop = self.create_prop_access_expr(start, expr, name);
             expr = self.alloc(bolt_ts_ast::Expr {
                 kind: ExprKind::PropAccess(prop),

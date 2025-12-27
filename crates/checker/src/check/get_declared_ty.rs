@@ -342,7 +342,7 @@ impl<'cx> TyChecker<'cx> {
                 })
                 .unwrap()
         };
-        let ty_params = self.get_outer_ty_params(decl, false);
+        let ty_params = self.get_outer_ty_params::<false>(decl);
         if let Some(ty_params) = ty_params {
             Some(self.alloc(ty_params))
         } else {
@@ -350,17 +350,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_outer_ty_params(
+    pub(super) fn get_outer_ty_params<const INCLUDE_THIS: bool>(
         &mut self,
         mut id: ast::NodeID,
-        include_this: bool,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
         loop {
-            if let Some(next) = self.parent(id) {
-                id = next;
-            } else {
-                return None;
-            }
+            id = self.parent(id)?;
             let node = self.p.node(id);
             use bolt_ts_ast::Node::*;
             match node {
@@ -368,7 +363,7 @@ impl<'cx> TyChecker<'cx> {
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
                 | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) | MappedTy(_)
                 | CondTy(_) => {
-                    let outer_ty_params = self.get_outer_ty_params(id, include_this);
+                    let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
                     if (node.is_fn_expr()
                         || node.is_arrow_fn_expr()
                         || self.p.is_object_lit_method(id))
@@ -423,7 +418,7 @@ impl<'cx> TyChecker<'cx> {
                         &mut outer_ty_params,
                         self.get_effective_ty_param_decls(id),
                     );
-                    if include_this
+                    if INCLUDE_THIS
                         && (node.is_class_decl()
                             || node.is_class_expr()
                             || node.is_interface_decl())

@@ -299,13 +299,18 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
+        node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
         let links = self.fresh_ty_links_arena.alloc(Default::default());
+        debug_assert!(
+            node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        );
         let ty = self.alloc(ty::AnonymousTy {
             symbol,
             target: None,
             mapper: None,
             fresh_ty_links: links,
+            node,
         });
 
         self.create_object_ty(
@@ -322,8 +327,9 @@ impl<'cx> TyChecker<'cx> {
         call_sigs: ty::Sigs<'cx>,
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
+        node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_anonymous_ty(symbol, object_flags);
+        let ty = self.create_anonymous_ty(symbol, object_flags, node);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
             ty.id,
@@ -345,27 +351,32 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
         object_flags: ObjectFlags,
+        node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
+        debug_assert!(
+            node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        );
         let links = self.fresh_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::AnonymousTy {
             symbol: Some(symbol),
             target: Some(target),
             mapper: Some(mapper),
             fresh_ty_links: links,
+            node,
         });
 
-        (self.create_object_ty(
+        self.create_object_ty(
             ty::ObjectTyKind::Anonymous(ty),
             object_flags | ObjectFlags::ANONYMOUS,
-        )) as _
+        )
     }
 
     pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
-        (self.create_object_ty(
+        self.create_object_ty(
             ty::ObjectTyKind::SingleSigTy(self.alloc(ty)),
             ObjectFlags::empty(),
-        )) as _
+        )
     }
 
     pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1663,7 +1674,7 @@ impl<'cx> TyChecker<'cx> {
             })
             .unwrap();
 
-        (self.create_anonymous_ty_with_resolved(
+        self.create_anonymous_ty_with_resolved(
             symbol,
             ObjectFlags::OBJECT_LITERAL
                 | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL
@@ -1673,7 +1684,8 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array(),
             self.empty_array(),
             index_infos,
-        )) as _
+            None,
+        )
     }
 
     pub fn create_iteration_tys(

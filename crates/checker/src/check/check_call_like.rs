@@ -485,7 +485,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn has_correct_ty_arg_arity(
+    pub(super) fn has_correct_ty_arg_arity(
         &mut self,
         candidate: &'cx Sig<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
@@ -626,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
         has_error
     }
 
-    fn check_ty_args(
+    pub(super) fn check_ty_args(
         &mut self,
         sig: &'cx Sig<'cx>,
         ty_args: &'cx ast::Tys<'cx>,

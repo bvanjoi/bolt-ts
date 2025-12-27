@@ -423,6 +423,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Typeof(n) => {
                 self.resolve_entity_name(n.name, SymbolFlags::VALUE);
+                if let Some(ty_args) = n.ty_args {
+                    self.resolve_tys(ty_args.list);
+                }
             }
             Mapped(n) => {
                 self.resolve_ty_param(n.ty_param);
@@ -1135,8 +1138,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         .and_then(|table| table.0.get(&SymbolName::ExportDefault))
                         .copied()
                     {
-                        if let r = resolver.symbol(result)
-                            && r.flags.intersects(meaning)
+                        let r = resolver.symbol(result);
+                        if r.flags.intersects(meaning)
                             && let Some(local_symbol) = get_local_symbol_for_export_default(
                                 &resolver.states[id.module().as_usize()].symbols,
                                 &resolver.states[id.module().as_usize()].local_symbols,

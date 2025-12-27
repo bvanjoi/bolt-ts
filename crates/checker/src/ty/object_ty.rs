@@ -1,4 +1,4 @@
-use crate::check::TyChecker;
+use crate::check::{SymbolInfo, TyChecker};
 
 use bolt_ts_ast::{self as ast, pprint_binding};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
@@ -227,7 +227,7 @@ impl<'cx> ObjectTyKind<'cx> {
         match self {
             ObjectTyKind::Anonymous(a) => {
                 let symbol = a.symbol.unwrap();
-                let symbol = checker.binder.symbol(symbol);
+                let symbol = checker.symbol(symbol);
                 let print_fn_like_str =
                     |checker: &mut TyChecker<'cx>, sig: &'cx super::Sig<'cx>| -> String {
                         let params = sig
@@ -362,6 +362,8 @@ pub struct AnonymousTy<'cx> {
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     // TODO: use `Option` for this links because only fresh object literal contain this.
     pub fresh_ty_links: super::FreshTyLinksID<'cx>,
+    /// exist for InstantiationExpressionType
+    pub node: Option<ast::NodeID>,
 }
 
 #[derive(Debug, Clone, Copy)]

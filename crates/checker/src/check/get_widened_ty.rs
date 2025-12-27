@@ -94,9 +94,10 @@ impl<'cx> TyChecker<'cx> {
             ty.symbol(),
             object_flags,
             self.alloc(members),
-            &[],
-            &[],
-            &[],
+            self.empty_array(),
+            self.empty_array(),
+            self.empty_array(),
+            None,
         )
     }
 

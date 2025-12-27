@@ -93,7 +93,7 @@ use self::links::{SigLinks, TyLinks};
 pub use self::merge::merge_module_augmentation_list_for_global;
 use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
-use self::symbol_info::SymbolInfo;
+pub(crate) use self::symbol_info::SymbolInfo;
 use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
 use self::utils::contains_ty;
@@ -429,7 +429,8 @@ impl<'cx> TyChecker<'cx> {
         }
         let global_this_symbol_name = SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
         make_builtin_symbol!({
-            (error_symbol,              SymbolName::Atom(keyword::IDENT_EMPTY),         SymbolFlags::empty(),       Some(SymbolLinks::default().with_ty(error_ty)),     ERR               ),
+            (error_symbol,              SymbolName::Atom(keyword::SPECIAL_IDENT_ERROR), SymbolFlags::empty(),       Some(SymbolLinks::default()
+                                                                                                                            .with_ty(error_ty)),                        ERR               ),
             (global_this_symbol,        global_this_symbol_name,                        SymbolFlags::MODULE,        Some(SymbolLinks::default()
                                                                                                                             .with_check_flags(CheckFlags::READONLY)),   GLOBAL_THIS       ),
             (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      Some(SymbolLinks::default()),                       ARGUMENTS         ),
@@ -646,13 +647,13 @@ impl<'cx> TyChecker<'cx> {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
                                             this.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
                                         }),
-            (any_fn_ty,                     this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (no_constraint_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (circular_constraint_ty,        this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (resolving_default_type,        this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (empty_generic_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
-            (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default())),
+            (any_fn_ty,                     this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (no_constraint_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (circular_constraint_ty,        this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (resolving_default_type,        this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (empty_generic_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (global_object_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
             (global_fn_ty,                  this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
             (global_callable_fn_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
@@ -687,6 +688,7 @@ impl<'cx> TyChecker<'cx> {
                 Default::default(),
                 Default::default(),
                 Default::default(),
+                None,
             );
         }
         this.auto_array_ty.set(auto_array_ty).unwrap();
@@ -1261,7 +1263,7 @@ impl<'cx> TyChecker<'cx> {
         let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
             Some(outer_ty_params)
         } else if let Some(id) = sig.node_id
-            && let Some(ty_params) = self.get_outer_ty_params(id, true)
+            && let Some(ty_params) = self.get_outer_ty_params::<true>(id)
         {
             Some(self.alloc(ty_params))
         } else {
@@ -4304,7 +4306,7 @@ impl<'cx> TyChecker<'cx> {
             self.resolve_structured_type_members(ty);
             let resolved = self.get_ty_links(ty.id).expect_structured_members();
             if !resolved.ctor_sigs.is_empty() || !resolved.call_sigs.is_empty() {
-                let a = self.create_anonymous_ty(ty.symbol(), ObjectFlags::empty());
+                let a = self.create_anonymous_ty(ty.symbol(), ObjectFlags::empty(), None);
                 let s = self.alloc(ty::StructuredMembers {
                     members: resolved.members,
                     call_sigs: self.empty_array(),

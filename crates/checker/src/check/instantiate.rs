@@ -288,7 +288,13 @@ impl<'cx> TyChecker<'cx> {
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_anonymous();
-        self.create_instantiating_anonymous_ty(target.symbol.unwrap(), ty, mapper, object_flags)
+        self.create_instantiating_anonymous_ty(
+            target.symbol.unwrap(),
+            ty,
+            mapper,
+            object_flags,
+            target.node,
+        )
     }
 
     pub(crate) fn get_homomorphic_ty_var(
@@ -599,7 +605,8 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if !ty.get_object_flags().intersects(
+        let object_flags = ty.get_object_flags();
+        if !object_flags.intersects(
             ObjectFlags::REFERENCE
                 .union(ObjectFlags::ANONYMOUS)
                 .union(ObjectFlags::MAPPED),
@@ -622,6 +629,9 @@ impl<'cx> TyChecker<'cx> {
 
         let decl = if let Some(refer) = ty.kind.as_object_reference() {
             refer.node.unwrap()
+        } else if object_flags.contains(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
+            let t = ty.kind.expect_object_anonymous();
+            t.node.unwrap()
         } else if let Some(s) = ty.symbol() {
             if let Some(decl) = self.symbol(s).opt_decl() {
                 decl
@@ -666,72 +676,17 @@ impl<'cx> TyChecker<'cx> {
         let ty_params = if let Some(ty_params) = self.get_node_links(decl).get_outer_ty_params() {
             ty_params
         } else {
-            let outer_params = if let Some(outer_params) = self.get_outer_ty_params(decl, true) {
+            let outer_params = if let Some(outer_params) = self.get_outer_ty_params::<true>(decl) {
                 self.alloc(outer_params)
             } else {
                 self.empty_array()
             };
             self.get_mut_node_links(decl)
                 .set_outer_ty_params(outer_params);
+            // TODO: filter
             outer_params
-            // let is_reference_or_instantiation_expr_ty = ty
-            //     .get_object_flags()
-            //     .intersects(ObjectFlags::REFERENCE.union(ObjectFlags::INSTANTIATED));
-            // if is_reference_or_instantiation_expr_ty
-            //     || self
-            //         .symbol(target.symbol().unwrap())
-            //         .flags()
-            //         .intersects(SymbolFlags::METHOD.union(SymbolFlags::TYPE_LITERAL))
-            // // TODO: `& !target.alias_ty_arguments`
-            // {
-            //     let outer_params = if is_reference_or_instantiation_expr_ty {
-            //         let outer_params = outer_params
-            //             .into_iter()
-            //             .filter(|tp| self.is_ty_param_possibly_referenced(tp, decl))
-            //             .copied()
-            //             .collect::<Vec<_>>();
-            //         self.alloc(outer_params)
-            //     } else {
-            //         use super::transient_symbol::BorrowedDeclarations::*;
-            //         match self.symbol(ty.symbol().unwrap()).declarations() {
-            //             FromTransient(node_ids) => {
-            //                 if let Some(decls) = node_ids {
-            //                     let outer_params = outer_params
-            //                         .into_iter()
-            //                         .filter(|tp| {
-            //                             decls.iter().any(|decl| {
-            //                                 self.is_ty_param_possibly_referenced(tp, *decl)
-            //                             })
-            //                         })
-            //                         .copied()
-            //                         .collect::<Vec<_>>();
-            //                     self.alloc(outer_params)
-            //                 } else {
-            //                     self.empty_array()
-            //                 }
-            //             }
-            //             FromNormal(node_ids) => {
-            //                 let node_ids = node_ids.to_vec();
-            //                 let outer_params = outer_params
-            //                     .into_iter()
-            //                     .filter(|tp| {
-            //                         node_ids
-            //                             .iter()
-            //                             .any(|decl| self.is_ty_param_possibly_referenced(tp, *decl))
-            //                     })
-            //                     .copied()
-            //                     .collect::<Vec<_>>();
-            //                 self.alloc(outer_params)
-            //             }
-            //         }
-            //     };
-            //     self.get_mut_node_links(decl)
-            //         .override_outer_ty_params(outer_params);
-            //     outer_params
-            // } else {
-            //     outer_params
-            // }
         };
+
         if !ty_params.is_empty() {
             // TODO: alias_symbol
             let target_ty_params_id = InstantiationTyMap::create_id(target.id, ty_params);

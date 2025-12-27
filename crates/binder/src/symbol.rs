@@ -37,6 +37,7 @@ pub enum SymbolName {
     ExportDefault,
     Computed,
     Container,
+    InstantiationExpression,
 }
 
 impl SymbolName {

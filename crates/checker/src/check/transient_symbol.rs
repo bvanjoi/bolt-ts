@@ -24,6 +24,7 @@ impl<'cx> TyChecker<'cx> {
         decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
+        debug_assert!(flags.contains(SymbolFlags::TRANSIENT));
         let symbol = Symbol {
             name,
             flags,
