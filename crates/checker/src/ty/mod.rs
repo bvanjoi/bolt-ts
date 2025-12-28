@@ -16,7 +16,7 @@ use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
 pub use self::check_flags::CheckFlags;
-pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, get_type_facts, has_type_facts};
+pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts};
 pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};

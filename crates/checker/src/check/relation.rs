@@ -74,19 +74,20 @@ impl<'cx> TyChecker<'cx> {
                 && target.kind.as_union().is_some_and(|u| {
                     // TODO: cache
                     u.tys.len() >= 3
-                        && u.tys[0].flags.intersects(TypeFlags::UNDEFINED)
-                        && u.tys[1].flags.intersects(TypeFlags::NULL)
+                        && u.tys[0].flags.contains(TypeFlags::UNDEFINED)
+                        && u.tys[1].flags.contains(TypeFlags::NULL)
                         && u.tys.iter().any(|ty| this.is_empty_anonymous_object_ty(ty))
                 })
         };
-        if t.intersects(TypeFlags::ANY)
-            || s.intersects(TypeFlags::NEVER)
+
+        if t.contains(TypeFlags::ANY)
+            || s.contains(TypeFlags::NEVER)
             || source == self.wildcard_ty
-            || (t.intersects(TypeFlags::UNKNOWN)
-                && !(relation != StrictSubtype && s.intersects(TypeFlags::ANY)))
+            || (t.contains(TypeFlags::UNKNOWN)
+                && !(relation == StrictSubtype && s.contains(TypeFlags::ANY)))
         {
             true
-        } else if t.intersects(TypeFlags::NEVER) {
+        } else if t.contains(TypeFlags::NEVER) {
             false
         } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER))
             || (s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING))
@@ -189,7 +190,7 @@ impl<'cx> TyChecker<'cx> {
         }
         if relation != RelationKind::Identity {
             if (relation == RelationKind::Comparable
-                && !target.flags.intersects(TypeFlags::NEVER)
+                && !target.flags.contains(TypeFlags::NEVER)
                 && self.is_simple_type_related_to(target, source, relation))
                 || self.is_simple_type_related_to(source, target, relation)
             {

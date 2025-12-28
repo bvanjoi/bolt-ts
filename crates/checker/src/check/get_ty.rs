@@ -1885,6 +1885,27 @@ impl<'cx> TyChecker<'cx> {
         self.get_declared_ty_of_symbol(s)
     }
 
+    pub(super) fn get_global_non_nullable_ty_instantiation(
+        &mut self,
+        t: &'cx ty::Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let symbol = self
+            .deferred_global_non_nullable_type_alias
+            .get_or_init(|| {
+                self.get_global_symbol(
+                    SymbolName::Atom(keyword::IDENT_NON_NULLABLE),
+                    SymbolFlags::TYPE_ALIAS,
+                )
+            });
+        if let Some(symbol) = symbol {
+            let tys = self.alloc([t]);
+            self.get_type_alias_instantiation(*symbol, tys, None, None)
+        } else {
+            let tys = &[t, self.empty_object_ty()];
+            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+        }
+    }
+
     fn get_ret_ty_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
         self.get_sig_of_ty_tag(id).map(|_| unreachable!())
     }

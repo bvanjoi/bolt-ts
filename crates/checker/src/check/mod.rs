@@ -100,9 +100,9 @@ use self::utils::contains_ty;
 
 use crate::check::check_expr::get_suggestion_boolean_op;
 use crate::ty;
-use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS, get_type_facts};
+use crate::ty::TyMapper;
+use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
 use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
-use crate::ty::{TyMapper, has_type_facts};
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::VarLike;
@@ -235,6 +235,7 @@ pub struct TyChecker<'cx> {
     empty_symbols: &'cx SymbolTable,
 
     enum_number_index_info: std::cell::OnceCell<&'cx ty::IndexInfo<'cx>>,
+    unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -271,7 +272,9 @@ pub struct TyChecker<'cx> {
     array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
 
+    deferred_global_non_nullable_type_alias: std::cell::OnceCell<Option<SymbolID>>,
     deferred_global_extract_symbol: std::cell::OnceCell<Option<SymbolID>>,
 
     any_iteration_tys: std::cell::OnceCell<IterationTys<'cx>>,
@@ -548,6 +551,7 @@ impl<'cx> TyChecker<'cx> {
             empty_generic_ty: Default::default(),
             empty_object_ty: Default::default(),
             boolean_ty: Default::default(),
+            unknown_union_ty: Default::default(),
             typeof_ty: Default::default(),
             string_or_number_ty: Default::default(),
             string_number_symbol_ty: Default::default(),
@@ -573,8 +577,10 @@ impl<'cx> TyChecker<'cx> {
             mark_other_ty: Default::default(),
             template_constraint_ty: Default::default(),
             any_iteration_tys: Default::default(),
+            unknown_empty_object_ty: Default::default(),
 
             deferred_global_extract_symbol: Default::default(),
+            deferred_global_non_nullable_type_alias: Default::default(),
 
             no_ty_pred: Default::default(),
 
@@ -654,6 +660,7 @@ impl<'cx> TyChecker<'cx> {
             (empty_generic_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
+            (unknown_empty_object_ty,       this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (global_object_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
             (global_fn_ty,                  this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
             (global_callable_fn_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
@@ -670,6 +677,19 @@ impl<'cx> TyChecker<'cx> {
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
         });
+
+        let unknown_union_ty = if this.config.strict_null_checks() {
+            this.get_union_ty(
+                &[this.undefined_ty, this.null_ty, unknown_empty_object_ty],
+                ty::UnionReduction::Lit,
+                false,
+                None,
+                None,
+            )
+        } else {
+            unknown_ty
+        };
+        this.unknown_union_ty.set(unknown_union_ty).unwrap();
 
         debug_assert!(this.global_readonly_array_ty().is_readonly_array(&this));
 
@@ -2183,6 +2203,12 @@ impl<'cx> TyChecker<'cx> {
         self.check_non_null_type(ty, expr)
     }
 
+    fn check_non_null_assertion(&mut self, n: &'cx ast::NonNullExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        // TODO: NonNullChain
+        let ty = self.check_expr(n.expr);
+        self.get_non_nullable_ty(ty)
+    }
+
     fn check_non_null_type(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -2205,13 +2231,13 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let facts = get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL);
+        let facts = self.get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL);
         if facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL) {
             self.report_object_possibly_null_or_undefined_error(expr, facts);
             let t = self.get_non_nullable_ty(ty);
             return if t
                 .flags
-                .intersects(TypeFlags::NULLABLE.union(TypeFlags::UNDEFINED))
+                .intersects(TypeFlags::NULLABLE.union(TypeFlags::NEVER))
             {
                 self.error_ty
             } else {
@@ -2426,14 +2452,14 @@ impl<'cx> TyChecker<'cx> {
                 self.number_ty
             }
             LogicalAnd => {
-                if has_type_facts(left_ty, TypeFacts::TRUTHY) {
+                if self.has_type_facts(left_ty, TypeFacts::TRUTHY) {
                     left_ty
                 } else {
                     right_ty
                 }
             }
             LogicalOr => {
-                if has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
+                if self.has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
                     right_ty
                 } else {
                     left_ty
@@ -2931,14 +2957,124 @@ impl<'cx> TyChecker<'cx> {
         ty::ArrayTyMapper { mapper }
     }
 
-    pub(super) fn is_type_any(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_type_any(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags.intersects(TypeFlags::ANY)
+    }
+
+    fn recombine_unknown_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty == self.unknown_union_ty() {
+            self.unknown_ty
+        } else {
+            ty
+        }
+    }
+
+    fn get_ty_facts(&mut self, ty: &'cx ty::Ty<'cx>, mask: TypeFacts) -> TypeFacts {
+        let facts = self.get_type_facts_worker(ty, mask);
+        facts & mask
+    }
+
+    fn remove_nullable_by_intersection(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        target_facts: TypeFacts,
+        other_facts: TypeFacts,
+        other_includes_facts: TypeFacts,
+        other_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let facts = self.get_ty_facts(
+            ty,
+            TypeFacts::EQ_UNDEFINED
+                .union(TypeFacts::EQ_NULL)
+                .union(TypeFacts::IS_UNDEFINED.union(TypeFacts::IS_NULL)),
+        );
+        if !facts.intersects(target_facts) {
+            return ty;
+        };
+        self.map_ty(
+            ty,
+            |this, t| {
+                Some(if this.has_type_facts(t, target_facts) {
+                    let b = if !facts.intersects(other_includes_facts)
+                        && this.has_type_facts(t, other_facts)
+                    {
+                        let empty_and_other_union = this.get_union_ty(
+                            &[this.empty_object_ty(), other_ty],
+                            ty::UnionReduction::Lit,
+                            false,
+                            None,
+                            None,
+                        );
+                        empty_and_other_union
+                    } else {
+                        this.empty_object_ty()
+                    };
+                    this.get_intersection_ty(&[t, b], IntersectionFlags::None, None, None)
+                } else {
+                    t
+                })
+            },
+            false,
+        )
+        .unwrap()
+    }
+
+    fn get_adjusted_ty_with_facts<const STRICT_NULL_CHECKS: bool>(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        facts: TypeFacts,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.get_ty_with_facts(
+            if STRICT_NULL_CHECKS && ty.flags.contains(TypeFlags::UNKNOWN) {
+                debug_assert!(self.unknown_union_ty().kind.is_union());
+                self.unknown_union_ty()
+            } else {
+                ty
+            },
+            facts,
+        );
+        let reduced = self.recombine_unknown_ty(ty);
+        if STRICT_NULL_CHECKS {
+            if facts == ty::TypeFacts::NE_UNDEFINED {
+                return self.remove_nullable_by_intersection(
+                    reduced,
+                    TypeFacts::EQ_UNDEFINED,
+                    TypeFacts::EQ_NULL,
+                    TypeFacts::IS_NULL,
+                    self.null_ty,
+                );
+            } else if facts == ty::TypeFacts::NE_NULL {
+                return self.remove_nullable_by_intersection(
+                    reduced,
+                    TypeFacts::EQ_NULL,
+                    TypeFacts::EQ_UNDEFINED,
+                    TypeFacts::IS_UNDEFINED,
+                    self.undefined_ty,
+                );
+            } else if facts == ty::TypeFacts::NE_UNDEFINED_OR_NULL || facts == ty::TypeFacts::TRUTHY
+            {
+                return self
+                    .map_ty(
+                        reduced,
+                        |this, t| {
+                            if this.has_type_facts(t, TypeFacts::EQ_UNDEFINED_OR_NULL) {
+                                Some(this.get_global_non_nullable_ty_instantiation(t))
+                            } else {
+                                Some(t)
+                            }
+                        },
+                        false,
+                    )
+                    .unwrap();
+            }
+        }
+
+        reduced
     }
 
     fn get_non_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if self.config.strict_null_checks() {
-            // TODO:
-            ty
+            self.get_adjusted_ty_with_facts::<true>(ty, ty::TypeFacts::NE_UNDEFINED_OR_NULL)
         } else {
             ty
         }
@@ -3956,7 +4092,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn remove_definitely_falsy_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        self.filter_type(ty, |_, t| has_type_facts(t, TypeFacts::TRUTHY))
+        self.filter_type(ty, |this, t| this.has_type_facts(t, TypeFacts::TRUTHY))
     }
 
     fn get_union_index_infos(&mut self, tys: &[&'cx ty::Ty<'cx>]) -> ty::IndexInfos<'cx> {
@@ -4145,7 +4281,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ty_with_facts(&mut self, ty: &'cx ty::Ty<'cx>, include: TypeFacts) -> &'cx ty::Ty<'cx> {
-        self.filter_type(ty, |_, t| has_type_facts(t, include))
+        self.filter_type(ty, |this, t| this.has_type_facts(t, include))
     }
 
     fn remove_missing_or_undefined_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -4448,6 +4584,41 @@ impl<'cx> TyChecker<'cx> {
             false
         }
     }
+
+    fn has_type_facts(&mut self, ty: &'cx ty::Ty<'cx>, mark: TypeFacts) -> bool {
+        !self.get_type_facts(ty, mark).is_empty()
+    }
+
+    fn get_type_facts(&mut self, ty: &'cx ty::Ty<'cx>, mark: TypeFacts) -> TypeFacts {
+        self.get_type_facts_worker(ty, mark) & mark
+    }
+
+    fn get_type_facts_worker(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        caller_only_needs: TypeFacts,
+    ) -> TypeFacts {
+        let flags = ty.flags;
+
+        if let ty::TyKind::NumberLit(lit) = ty.kind {
+            let is_zero = lit.is(0.);
+            if is_zero {
+                TypeFacts::ZERO_NUMBER_FACTS
+            } else {
+                TypeFacts::NON_ZERO_NUMBER_FACTS
+            }
+        } else if flags.contains(TypeFlags::VOID) {
+            TypeFacts::VOID_FACTS
+        } else if flags.contains(TypeFlags::UNDEFINED) {
+            TypeFacts::UNDEFINED_FACTS
+        } else if flags.contains(TypeFlags::NULL) {
+            TypeFacts::NULL_FACTS
+        } else if flags.contains(TypeFlags::NEVER) {
+            TypeFacts::empty()
+        } else {
+            TypeFacts::UNKNOWN_FACTS
+        }
+    }
 }
 
 macro_rules! global_ty {
@@ -4465,6 +4636,8 @@ macro_rules! global_ty {
 
 global_ty!(
     boolean_ty,
+    unknown_union_ty,
+    unknown_empty_object_ty,
     string_or_number_ty,
     string_number_symbol_ty,
     number_or_bigint_ty,

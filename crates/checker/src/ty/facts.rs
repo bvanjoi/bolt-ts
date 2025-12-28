@@ -4,7 +4,7 @@ use bolt_ts_atom::Atom;
 use super::{Ty, TyKind, TypeFlags};
 
 bitflags::bitflags! {
-  #[derive(Debug, Clone, Copy)]
+  #[derive(Debug, Clone, Copy, PartialEq)]
   pub struct TypeFacts: u32 {
     /// `typeof x === "string"`
     const TYPEOF_EQ_STRING = 1 << 0;
@@ -307,29 +307,6 @@ bitflags::bitflags! {
     const OR_FACTS_MASK = Self::TYPEOF_EQ_FUNCTION.bits() | Self::TYPEOF_NE_OBJECT.bits();
     const AND_FACTS_MASK = Self::ALL.bits() & !Self::OR_FACTS_MASK.bits();
   }
-}
-
-pub fn has_type_facts(ty: &Ty, mark: TypeFacts) -> bool {
-    !get_type_facts(ty, mark).is_empty()
-}
-
-pub fn get_type_facts(ty: &Ty, mark: TypeFacts) -> TypeFacts {
-    _get_type_facts(ty, mark) & mark
-}
-
-fn _get_type_facts(ty: &Ty, caller_only_needs: TypeFacts) -> TypeFacts {
-    if let TyKind::NumberLit(lit) = ty.kind {
-        let is_zero = lit.is(0.);
-        if is_zero {
-            TypeFacts::ZERO_NUMBER_FACTS
-        } else {
-            TypeFacts::NON_ZERO_NUMBER_FACTS
-        }
-    } else if ty.flags.intersects(TypeFlags::UNDEFINED) {
-        TypeFacts::UNDEFINED_FACTS
-    } else {
-        TypeFacts::empty()
-    }
 }
 
 pub const TYPEOF_NE_FACTS: [(Atom, TypeFacts); 8] = [

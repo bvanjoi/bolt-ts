@@ -221,7 +221,7 @@ impl<'cx> TyChecker<'cx> {
             As(n) => self.check_assertion(n.id, n.expr, n.ty),
             TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty),
             Satisfies(n) => self.check_expr(n.expr),
-            NonNull(n) => self.check_expr(n.expr),
+            NonNull(n) => self.check_non_null_assertion(n),
             Template(n) => self.check_template_expr(n),
             ExprWithTyArgs(n) => self.check_expr_with_ty_args(n),
             SpreadElement(n) => self.check_spread_element(n),

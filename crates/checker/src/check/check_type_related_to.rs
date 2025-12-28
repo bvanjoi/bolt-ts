@@ -183,11 +183,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        if (self.relation == RelationKind::Comparable
+        if self.relation == RelationKind::Comparable
             && !target.flags.intersects(TypeFlags::NEVER)
             && self
                 .c
-                .is_simple_type_related_to(target, source, self.relation))
+                .is_simple_type_related_to(target, source, self.relation)
             || self
                 .c
                 .is_simple_type_related_to(source, target, self.relation)

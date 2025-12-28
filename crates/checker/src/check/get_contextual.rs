@@ -65,6 +65,15 @@ impl<'cx> TyChecker<'cx> {
                     last,
                 )
             }
+            // TODO: type assertion
+            AsExpr(n) => {
+                debug_assert!(n.id == parent_id);
+                if n.ty.is_const_ty_refer() {
+                    self.get_contextual_ty(n.id, flags)
+                } else {
+                    Some(self.get_ty_from_type_node(n.ty))
+                }
+            }
             SpreadAssignment(_) => {
                 let parent_parent = self.parent(parent_id).unwrap();
                 self.get_contextual_ty(parent_parent, flags)
