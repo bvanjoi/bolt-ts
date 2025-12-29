@@ -522,6 +522,11 @@ pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_param: &'cx self::TyParam<'cx>,
+    /// - Plus token means `+readonly`,
+    /// - Minus token means `-readonly`,
+    /// - Readonly token means `readonly`.
+    /// - Other token is unreachable.
+    /// - No token means no modifier.
     pub readonly_token: Option<Token>,
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Token>,
@@ -541,7 +546,7 @@ bitflags::bitflags! {
 
 impl MappedTy<'_> {
     pub fn get_modifiers(&self) -> MappedTyModifiers {
-        (if let Some(r) = self.readonly_token {
+        let readonly = if let Some(r) = self.readonly_token {
             if r.kind == TokenKind::Minus {
                 MappedTyModifiers::EXCLUDE_READONLY
             } else {
@@ -549,7 +554,8 @@ impl MappedTy<'_> {
             }
         } else {
             MappedTyModifiers::empty()
-        }) | (if let Some(q) = self.question_token {
+        };
+        let question = if let Some(q) = self.question_token {
             if q.kind == TokenKind::Minus {
                 MappedTyModifiers::EXCLUDE_OPTIONAL
             } else {
@@ -557,7 +563,8 @@ impl MappedTy<'_> {
             }
         } else {
             MappedTyModifiers::empty()
-        })
+        };
+        readonly.union(question)
     }
 
     pub fn get_modified_readonly_state(state: bool, modifiers: MappedTyModifiers) -> bool {

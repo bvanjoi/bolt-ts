@@ -1347,10 +1347,10 @@ function foo1() {
   assertEqual(!+0,      true);
   assertEqual(!-0,      true);
   assertEqual(!null,    true);
-  assertEqual(!'',      true);
   assertEqual(~123,     -124);
   assertEqual(2**3,     8);
   assertEqual(2**3.14,  8.815240927012887);
+  assertEqual(!'',      true);
 }
 
 foo1()

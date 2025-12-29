@@ -822,7 +822,7 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn is_assignment_to_readonly_entity(
+    pub(super) fn is_assignment_to_readonly_entity(
         &mut self,
         expr: ast::NodeID,
         symbol: SymbolID,

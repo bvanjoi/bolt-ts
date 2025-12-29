@@ -1553,36 +1553,44 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let name = SymbolName::Atom(right.name);
+        let prop = self.get_prop_of_ty(apparent_left_ty, name);
+        if let Some(prop) = prop {
+            self.check_prop_not_used_before_declaration(prop, node, right);
 
-        let Some(prop) = self.get_prop_of_ty(apparent_left_ty, name) else {
+            if self.get_node_links(node).get_resolved_symbol().is_none() {
+                self.get_mut_node_links(node).set_resolved_symbol(prop);
+            }
+            self.check_prop_accessibility(
+                node,
+                self.p.node(left).is_super_expr(),
+                false,
+                apparent_left_ty,
+                prop,
+                true,
+            );
+
+            if self.is_assignment_to_readonly_entity(node, prop, assignment_kind) {
+                let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
+                    span: right.span,
+                    prop: self.atoms.get(right.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+                return self.error_ty;
+            }
+
+            if self.node_query(node.module()).access_kind(node) == AccessKind::Write {
+                self.get_write_type_of_symbol(prop)
+            } else {
+                self.get_type_of_symbol(prop)
+            }
+        } else {
             if name
                 .as_atom()
                 .is_some_and(|atom| atom != keyword::IDENT_EMPTY)
             {
                 self.report_non_existent_prop(right, left_ty);
             }
-            return self.error_ty;
-        };
-
-        self.check_prop_not_used_before_declaration(prop, node, right);
-
-        if self.get_node_links(node).get_resolved_symbol().is_none() {
-            self.get_mut_node_links(node).set_resolved_symbol(prop);
-        }
-
-        self.check_prop_accessibility(
-            node,
-            self.p.node(left).is_super_expr(),
-            false,
-            apparent_left_ty,
-            prop,
-            true,
-        );
-
-        if self.node_query(node.module()).access_kind(node) == AccessKind::Write {
-            self.get_write_type_of_symbol(prop)
-        } else {
-            self.get_type_of_symbol(prop)
+            self.error_ty
         }
         // TODO: get_flow_type
     }
@@ -3894,7 +3902,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         symbol: SymbolID,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
-        if let Some(decl) = self.get_symbol_decl(symbol) {
+        if let Some(decl) = self.symbol(symbol).value_decl {
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
@@ -3908,7 +3916,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 flags & !ast::ModifierKind::ACCESSIBILITY
             };
-        };
+        }
 
         if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
             return ast::ModifierKind::Public | ast::ModifierKind::Static;

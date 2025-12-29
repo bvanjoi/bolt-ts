@@ -750,16 +750,17 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `LBrace`
         let mut readonly_token = None;
-        if matches!(
-            self.token.kind,
-            TokenKind::Readonly | TokenKind::Plus | TokenKind::Minus
-        ) {
-            let t = self.parse_token_node();
-            readonly_token = Some(t);
-            if matches!(t.kind, TokenKind::Plus | TokenKind::Minus) {
+        match self.token.kind {
+            TokenKind::Readonly => {
                 readonly_token = Some(self.token);
+                self.next_token(); // consume `readonly`
+            }
+            TokenKind::Plus | TokenKind::Minus => {
+                readonly_token = Some(self.token);
+                self.next_token(); // consume `+` or `-`
                 self.expect(TokenKind::Readonly);
             }
+            _ => {}
         }
         self.expect(TokenKind::LBracket);
         let ty_param = self.parse_mapped_ty_param()?;
@@ -771,15 +772,17 @@ impl<'cx> ParserState<'cx, '_> {
         };
         self.expect(TokenKind::RBracket);
         let mut question_token = None;
-        if matches!(
-            self.token.kind,
-            TokenKind::Question | TokenKind::Plus | TokenKind::Minus
-        ) {
-            let t = self.parse_token_node();
-            question_token = Some(t);
-            if t.kind != TokenKind::Question {
+        match self.token.kind {
+            TokenKind::Question => {
+                question_token = Some(self.token);
+                self.next_token(); // consume `?`
+            }
+            TokenKind::Plus | TokenKind::Minus => {
+                question_token = Some(self.token);
+                self.next_token(); // consume `+` or `-`
                 self.expect(TokenKind::Question);
-            };
+            }
+            _ => {}
         }
 
         let ty = self.parse_ty_anno()?;
