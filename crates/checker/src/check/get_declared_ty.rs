@@ -196,6 +196,12 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let base_ctor_ty = self.check_expr(extends.expr_with_ty_args.expr);
+        if base_ctor_ty
+            .flags
+            .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
+        {
+            self.resolve_structured_type_members(base_ctor_ty);
+        }
         if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
             let name = if let ast::Node::ClassDecl(c) = decl {

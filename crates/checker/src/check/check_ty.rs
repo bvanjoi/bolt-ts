@@ -1,9 +1,8 @@
-use crate::ty::ElementFlags;
-
 use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::symbol_info::SymbolInfo;
+use super::ty::ElementFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {

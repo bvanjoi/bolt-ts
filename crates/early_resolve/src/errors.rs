@@ -37,6 +37,11 @@ pub(super) enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     OnlyReferToATypeButIsBeingUsedAsValueHere(OnlyReferToATypeButIsBeingUsedAsValueHere),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    BaseClassExpressionsCannotReferenceClassTypeParameters(
+        BaseClassExpressionsCannotReferenceClassTypeParameters,
+    ),
 }
 
 impl CannotFindNameHelperKind {
@@ -46,12 +51,14 @@ impl CannotFindNameHelperKind {
         match self {
             CannotFindNameHelperKind::DidYouMeanTheStaticMember(diag) => Box::new(diag),
             CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(diag) => Box::new(diag),
-            // CannotFindNameHelperKind::AClassCannotImplementAPrimTy(diag) => Box::new(diag),
             CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
             CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
             CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(diag) => {
                 Box::new(diag)
             }
+            CannotFindNameHelperKind::BaseClassExpressionsCannotReferenceClassTypeParameters(
+                diag,
+            ) => Box::new(diag),
         }
     }
 }

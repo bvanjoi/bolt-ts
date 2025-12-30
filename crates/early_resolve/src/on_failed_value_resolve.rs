@@ -2,6 +2,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_binder::{Symbol, SymbolFlags};
 
+use super::ResolvedResult;
 use super::Resolver;
 use super::{errors, resolve_symbol_by_ident};
 
@@ -105,10 +106,15 @@ impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_failed_to_resolve_type_symbol(
         &mut self,
         ident: &'cx ast::Ident,
+        res: &ResolvedResult,
         mut error: errors::CannotFindName,
     ) -> errors::CannotFindName {
         if let Some(e) = self.check_using_namespace_as_type(ident) {
             error.errors.push(e);
+        } else if res.base_class_expression_cannot_reference_class_type_parameters {
+            let e =
+                errors::BaseClassExpressionsCannotReferenceClassTypeParameters { span: ident.span };
+            error.errors.push(errors::CannotFindNameHelperKind::BaseClassExpressionsCannotReferenceClassTypeParameters(e));
         }
 
         error

@@ -1,7 +1,6 @@
-use crate::check::errors;
-use crate::check::symbol_info::SymbolInfo;
-
 use super::TyChecker;
+use super::errors;
+use super::symbol_info::SymbolInfo;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;

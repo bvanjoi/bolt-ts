@@ -1302,15 +1302,15 @@ impl<'cx> TyChecker<'cx> {
                 call_sigs: if !is_constructor {
                     self.alloc([sig])
                 } else {
-                    &[]
+                    self.empty_array()
                 },
                 ctor_sigs: if is_constructor {
                     self.alloc([sig])
                 } else {
-                    &[]
+                    self.empty_array()
                 },
-                index_infos: &[],
-                props: &[],
+                index_infos: self.empty_array(),
+                props: self.empty_array(),
             })),
         );
         assert!(prev.is_none());

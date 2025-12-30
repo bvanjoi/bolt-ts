@@ -24,8 +24,7 @@ impl<'cx> TyChecker<'cx> {
         members: &mut FxIndexMap<SymbolName, SymbolID>,
         base_symbols: &'cx [SymbolID],
     ) {
-        for base_id in base_symbols {
-            let base_id = *base_id;
+        for &base_id in base_symbols {
             let base_name = self.symbol(base_id).name;
             members.entry(base_name).or_insert(base_id);
         }
@@ -1005,15 +1004,14 @@ impl<'cx> TyChecker<'cx> {
         let mut ctor_sigs: ty::Sigs<'cx>;
 
         let symbol_flags = self.symbol(symbol_id).flags;
-        let props = self.get_props_from_members(&members);
 
         if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
             call_sigs = self.get_sigs_of_symbol(symbol_id);
-            ctor_sigs = &[];
-            index_infos = &[];
+            ctor_sigs = self.empty_array();
+            index_infos = self.empty_array();
             // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.intersects(SymbolFlags::CLASS) {
-            call_sigs = &[];
+            call_sigs = self.empty_array();
             if let Some(symbol) = self
                 .symbol(symbol_id)
                 .members()
@@ -1021,7 +1019,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 ctor_sigs = self.get_sigs_of_symbol(*symbol)
             } else {
-                ctor_sigs = &[];
+                ctor_sigs = self.empty_array();
             }
             // let mut base_ctor_index_info = None;
             let class_ty = self.get_declared_ty_of_symbol(symbol_id);
@@ -1038,7 +1036,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(index_symbol) = members.get(&SymbolName::Index) {
                 index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
             } else {
-                index_infos = &[];
+                index_infos = self.empty_array();
             }
 
             if ctor_sigs.is_empty() {
@@ -1049,20 +1047,22 @@ impl<'cx> TyChecker<'cx> {
                 .get_declared_ty_of_symbol(symbol_id)
                 .flags
                 .contains(TypeFlags::ENUM)
-                || props.iter().any(|prop| {
+                || members.values().any(|prop| {
                     self.get_type_of_symbol(*prop)
                         .flags
                         .intersects(TypeFlags::NUMBER_LIKE)
                 }))
         {
-            call_sigs = &[];
-            ctor_sigs = &[];
+            call_sigs = self.empty_array();
+            ctor_sigs = self.empty_array();
             index_infos = self.alloc(vec![self.enum_number_index_info()]);
         } else {
-            call_sigs = &[];
-            ctor_sigs = &[];
-            index_infos = &[]
+            call_sigs = self.empty_array();
+            ctor_sigs = self.empty_array();
+            index_infos = self.empty_array()
         };
+
+        let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
             call_sigs,

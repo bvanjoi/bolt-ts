@@ -1107,10 +1107,10 @@ impl<'cx> TyChecker<'cx> {
         min_ty_argument_count: usize,
     ) -> Option<ty::Tys<'cx>> {
         let Some(ty_params) = ty_params else {
-            return Some(&[]);
+            return Some(self.empty_array());
         };
         if ty_params.is_empty() {
-            return Some(&[]);
+            return Some(self.empty_array());
         }
         let args_len = ty_args.map_or(0, |args| args.len());
         let params_len = ty_params.len();
