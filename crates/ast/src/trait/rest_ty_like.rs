@@ -1,4 +1,4 @@
-pub trait RestTyLike<'cx>: Copy {
+pub trait RestTyLike<'cx> {
     fn ty(&self) -> Option<&'cx crate::Ty<'cx>>;
 }
 

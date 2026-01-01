@@ -3,12 +3,12 @@ use crate::keyword;
 
 use bolt_ts_atom::{Atom, AtomIntern};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Ty<'cx> {
     pub kind: TyKind<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Tys<'cx> {
     pub span: Span,
     pub list: &'cx [&'cx Ty<'cx>],
@@ -130,7 +130,7 @@ impl<'cx> Ty<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum TyKind<'cx> {
     Refer(&'cx ReferTy<'cx>),
     Array(&'cx ArrayTy<'cx>),
@@ -163,13 +163,13 @@ impl TyKind<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ThisTy {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TemplateLitTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -177,7 +177,7 @@ pub struct TemplateLitTy<'cx> {
     pub spans: &'cx [&'cx TemplateSpanTy<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TemplateSpanTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -186,32 +186,32 @@ pub struct TemplateSpanTy<'cx> {
     pub is_tail: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NullableTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct IntrinsicTy {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ParenTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PredTyName<'cx> {
     Ident(&'cx Ident),
     This(&'cx ThisTy),
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PredTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -220,7 +220,7 @@ pub struct PredTy<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TypeofTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -228,14 +228,14 @@ pub struct TypeofTy<'cx> {
     pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct LitTy {
     pub id: NodeID,
     pub span: Span,
     pub kind: LitTyKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum LitTyKind {
     Null,
     True,
@@ -247,21 +247,21 @@ pub enum LitTyKind {
     BigInt { neg: bool, val: Atom },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct UnionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tys: &'cx [&'cx Ty<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct IntersectionTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tys: &'cx [&'cx Ty<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ReferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -269,7 +269,7 @@ pub struct ReferTy<'cx> {
     pub ty_args: Option<&'cx Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CondTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -279,14 +279,14 @@ pub struct CondTy<'cx> {
     pub false_ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RestTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NamedTupleTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -296,14 +296,14 @@ pub struct NamedTupleTy<'cx> {
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TupleTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tys: &'cx [&'cx Ty<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CtorSigDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -312,7 +312,7 @@ pub struct CtorSigDecl<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CallSigDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -321,7 +321,7 @@ pub struct CallSigDecl<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectLitTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -332,7 +332,7 @@ pub struct ObjectLitTy<'cx> {
 /// type A = (value: number) => string;
 ///          ~~~~~~~~~~~~~~~~~~~~~~~~~
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FnTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -345,7 +345,7 @@ pub struct FnTy<'cx> {
 /// type A = new (value: number) => string;
 ///          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CtorTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -355,7 +355,7 @@ pub struct CtorTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct IndexedAccessTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -363,14 +363,14 @@ pub struct IndexedAccessTy<'cx> {
     pub index_ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrayTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ele: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PropName<'cx> {
     pub kind: PropNameKind<'cx>,
 }
@@ -395,7 +395,7 @@ impl PropName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
     StringLit { raw: &'cx StringLit, key: Atom },
@@ -425,14 +425,14 @@ impl PropNameKind<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ComputedPropName<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectMember<'cx> {
     pub kind: ObjectMemberKind<'cx>,
 }
@@ -461,7 +461,7 @@ impl ObjectMember<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ObjectMemberKind<'cx> {
     Shorthand(&'cx ObjectShorthandMember<'cx>),
     PropAssignment(&'cx ObjectPropAssignment<'cx>),
@@ -471,14 +471,14 @@ pub enum ObjectMemberKind<'cx> {
     Setter(&'cx SetterDecl<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SpreadAssignment<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectMethodMember<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -489,7 +489,7 @@ pub struct ObjectMethodMember<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectShorthandMember<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -502,7 +502,7 @@ pub struct ObjectShorthandMember<'cx> {
 /// //  ~~~~~
 /// }
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectPropAssignment<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -510,14 +510,14 @@ pub struct ObjectPropAssignment<'cx> {
     pub init: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectLit<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub members: &'cx [&'cx ObjectMember<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -585,7 +585,7 @@ pub enum TyOpKind {
     Unique,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TyOp<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -593,14 +593,14 @@ pub struct TyOp<'cx> {
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct InferTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub ty_param: &'cx TyParam<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EntityName<'cx> {
     pub kind: EntityNameKind<'cx>,
 }
@@ -623,7 +623,7 @@ impl EntityName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum EntityNameKind<'cx> {
     Ident(&'cx Ident),
     Qualified(&'cx QualifiedName<'cx>),
@@ -633,7 +633,7 @@ pub enum EntityNameKind<'cx> {
 /// type A = B.C;
 /// //       ~~~
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct QualifiedName<'cx> {
     pub id: NodeID,
     pub span: Span,

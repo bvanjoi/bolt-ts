@@ -1,4 +1,4 @@
-pub trait HasExprInit<'cx>: Copy {
+pub trait HasExprInit<'cx> {
     fn id(&self) -> crate::NodeID;
     fn init(&self) -> Option<&'cx crate::Expr<'cx>>;
 }

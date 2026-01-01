@@ -643,13 +643,13 @@ impl<'cx> TyChecker<'cx> {
                     .union(FlowFlags::ARRAY_MUTATION)
                     .union(FlowFlags::SWITCH_CLAUSE),
             ) {
-                flow = match flow_node.kind {
+                flow = match &flow_node.kind {
                     bolt_ts_binder::FlowNodeKind::Cond(n) => n.antecedent,
                     bolt_ts_binder::FlowNodeKind::Assign(n) => n.antecedent,
                     _ => unreachable!(),
                 };
             } else if flags.intersects(FlowFlags::CALL) {
-                let bolt_ts_binder::FlowNodeKind::Call(n) = flow_node.kind else {
+                let bolt_ts_binder::FlowNodeKind::Call(n) = &flow_node.kind else {
                     unreachable!()
                 };
                 if matches!(n.node.expr.kind, ast::ExprKind::Super(_)) {

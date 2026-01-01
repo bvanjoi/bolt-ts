@@ -1,4 +1,4 @@
-pub trait ClassLike<'cx>: Copy + std::fmt::Debug {
+pub trait ClassLike<'cx>: std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
     fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>>;
     fn name(&self) -> Option<&'cx crate::Ident>;

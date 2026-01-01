@@ -314,14 +314,14 @@ impl<'cx> ExprKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SpreadElement<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExprWithTyArgs<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -329,7 +329,7 @@ pub struct ExprWithTyArgs<'cx> {
     pub ty_args: Option<&'cx self::Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TemplateExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -337,14 +337,14 @@ pub struct TemplateExpr<'cx> {
     pub spans: &'cx [&'cx TemplateSpan<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TemplateHead {
     pub id: NodeID,
     pub span: Span,
     pub text: Atom,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TemplateSpan<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -353,14 +353,14 @@ pub struct TemplateSpan<'cx> {
     pub is_tail: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NonNullExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SatisfiesExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -368,7 +368,7 @@ pub struct SatisfiesExpr<'cx> {
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AsExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -376,34 +376,34 @@ pub struct AsExpr<'cx> {
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AwaitExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct VoidExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SuperExpr {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TypeofExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ThisExpr {
     pub id: NodeID,
     pub span: Span,
@@ -412,7 +412,7 @@ pub struct ThisExpr {
 /// ```txt
 /// a[b]
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EleAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -423,7 +423,7 @@ pub struct EleAccessExpr<'cx> {
 /// ```txt
 /// a.b
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PropAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -456,7 +456,7 @@ impl PrefixUnaryOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PrefixUnaryExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -480,7 +480,7 @@ impl PostfixUnaryOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PostfixUnaryExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -494,7 +494,7 @@ pub enum ArrowFnExprBody<'cx> {
     Expr(&'cx Expr<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -553,7 +553,7 @@ impl AssignOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct AssignExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -562,7 +562,7 @@ pub struct AssignExpr<'cx> {
     pub right: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NewExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -571,7 +571,7 @@ pub struct NewExpr<'cx> {
     pub args: Option<Exprs<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -582,7 +582,7 @@ pub struct ClassExpr<'cx> {
     pub elems: &'cx ClassElems<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -593,7 +593,7 @@ pub struct FnExpr<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CondExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -602,14 +602,14 @@ pub struct CondExpr<'cx> {
     pub when_false: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ParenExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -701,7 +701,7 @@ impl std::fmt::Display for BinOpKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BinExpr<'cx> {
     pub id: NodeID,
     pub left: &'cx Expr<'cx>,
@@ -710,7 +710,7 @@ pub struct BinExpr<'cx> {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Lit<T> {
     pub id: NodeID,
     pub val: T,
@@ -725,7 +725,7 @@ pub type StringLit = Lit<Atom>;
 pub type RegExpLit = Lit<Atom>;
 pub type NoSubstitutionTemplateLit = Lit<Atom>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -734,20 +734,20 @@ pub struct VarDecl<'cx> {
     pub init: Option<&'cx Expr<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Ident {
     pub id: NodeID,
     pub span: Span,
     pub name: Atom,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct OmitExpr {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CallExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -760,7 +760,7 @@ pub struct CallExpr<'cx> {
 /// let a = <string>'hello';
 ///         ^^^^^^^^^^^^^^^
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TyAssertion<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -795,7 +795,7 @@ bitflags::bitflags! {
 /// ```txt
 /// tagExpr`something`
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TaggedTemplateExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -804,7 +804,7 @@ pub struct TaggedTemplateExpr<'cx> {
     pub tpl: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DeleteExpr<'cx> {
     pub id: NodeID,
     pub span: Span,

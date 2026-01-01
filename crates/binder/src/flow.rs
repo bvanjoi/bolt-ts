@@ -41,7 +41,7 @@ pub enum FlowNodeKind<'cx> {
     Switch(FlowSwitchClause<'cx>),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct FlowSwitchClause<'cx> {
     pub node: &'cx ast::SwitchStmt<'cx>,
     pub clause_start: u8,
@@ -49,19 +49,19 @@ pub struct FlowSwitchClause<'cx> {
     pub antecedent: FlowID,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct FlowCall<'cx> {
     pub node: &'cx ast::CallExpr<'cx>,
     pub antecedent: FlowID,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct FlowAssign {
     pub node: ast::NodeID,
     pub antecedent: FlowID,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct FlowCond<'cx> {
     pub node: &'cx ast::Expr<'cx>,
     pub antecedent: FlowID,

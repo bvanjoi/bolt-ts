@@ -3,7 +3,7 @@ use bolt_ts_span::Span;
 
 use crate::NodeID;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxText {
     pub id: NodeID,
     pub span: Span,
@@ -11,20 +11,20 @@ pub struct JsxText {
     pub contains_only_trivia_whitespace: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxClosingFrag {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxSpreadAttr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx super::Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum JsxAttrName<'cx> {
     Ident(&'cx super::Ident),
     Ns(&'cx JsxNsName<'cx>),
@@ -39,7 +39,7 @@ impl JsxAttrName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxNsName<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -68,7 +68,7 @@ impl JsxAttrValue<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum JsxAttr<'cx> {
     Spread(&'cx JsxSpreadAttr<'cx>),
     Named(&'cx JsxNamedAttr<'cx>),
@@ -83,7 +83,7 @@ impl JsxAttr<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxNamedAttr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -119,7 +119,7 @@ impl JsxTagName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -129,7 +129,7 @@ pub struct JsxExpr<'cx> {
 
 pub type JsxAttrs<'cx> = &'cx [JsxAttr<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxOpeningElem<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -138,20 +138,20 @@ pub struct JsxOpeningElem<'cx> {
     pub attrs: JsxAttrs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxClosingElem<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tag_name: JsxTagName<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxOpeningFrag {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxElem<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -191,7 +191,7 @@ impl<'cx> JsxChild<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxFrag<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -200,7 +200,7 @@ pub struct JsxFrag<'cx> {
     pub closing_frag: &'cx JsxClosingFrag,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct JsxSelfClosingElem<'cx> {
     pub id: NodeID,
     pub span: Span,

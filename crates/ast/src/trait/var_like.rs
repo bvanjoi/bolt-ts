@@ -21,7 +21,7 @@ impl<'cx> From<&crate::PropName<'cx>> for VarLikeName<'cx> {
     }
 }
 
-pub trait VarLike<'cx>: Copy + std::fmt::Debug {
+pub trait VarLike<'cx>: std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
     fn name(&self) -> VarLikeName<'cx>;
     fn decl_ty(&self) -> Option<&'cx crate::Ty<'cx>>;
@@ -138,7 +138,7 @@ impl<'cx> VarLike<'cx> for crate::ArrayBinding<'cx> {
     }
 
     fn name(&self) -> VarLikeName<'cx> {
-        binding_kind_to_var_like_name(self.name.kind)
+        binding_kind_to_var_like_name(&self.name.kind)
     }
 
     fn decl_ty(&self) -> Option<&'cx crate::Ty<'cx>> {
@@ -150,7 +150,7 @@ impl<'cx> VarLike<'cx> for crate::ArrayBinding<'cx> {
     }
 }
 
-fn binding_kind_to_var_like_name<'cx>(kind: crate::BindingKind<'cx>) -> VarLikeName<'cx> {
+fn binding_kind_to_var_like_name<'cx>(kind: &crate::BindingKind<'cx>) -> VarLikeName<'cx> {
     match kind {
         crate::BindingKind::Ident(n) => VarLikeName::Ident(n),
         crate::BindingKind::ObjectPat(n) => VarLikeName::ObjectPat(n),
@@ -166,7 +166,9 @@ impl<'cx> VarLike<'cx> for crate::ObjectBindingElem<'cx> {
     fn name(&self) -> VarLikeName<'cx> {
         match self.name {
             crate::ObjectBindingName::Shorthand(ident) => VarLikeName::Ident(&ident),
-            crate::ObjectBindingName::Prop { name, .. } => binding_kind_to_var_like_name(name.kind),
+            crate::ObjectBindingName::Prop { name, .. } => {
+                binding_kind_to_var_like_name(&name.kind)
+            }
         }
     }
 

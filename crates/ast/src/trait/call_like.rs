@@ -1,6 +1,6 @@
 use bolt_ts_span::Span;
 
-pub trait CallLike<'cx>: Copy + std::fmt::Debug {
+pub trait CallLike<'cx>: std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
     fn callee(&self) -> &'cx crate::Expr<'cx>;
     fn ty_args(&self) -> Option<&'cx crate::Tys<'cx>>;

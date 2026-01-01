@@ -117,7 +117,7 @@ impl<'cx> TyChecker<'cx> {
                     declared_ty,
                     init_ty,
                 ) else {
-                    let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+                    let FlowNodeKind::Assign(n) = &self.flow_node(flow).kind else {
                         unreachable!()
                     };
                     flow = n.antecedent;
@@ -130,7 +130,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     ty = t;
                 } else {
-                    let FlowNodeKind::Call(n) = self.flow_node(flow).kind else {
+                    let FlowNodeKind::Call(n) = &self.flow_node(flow).kind else {
                         unreachable!()
                     };
                     flow = n.antecedent;
@@ -156,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_init_or_assign_ty(&mut self, flow: FlowID, refer: ast::NodeID) -> &'cx ty::Ty<'cx> {
-        let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+        let FlowNodeKind::Assign(n) = &self.flow_node(flow).kind else {
             unreachable!()
         };
         let ty = match self.p.node(n.node) {
@@ -174,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
     ) -> Option<FlowTy<'cx>> {
-        let FlowNodeKind::Assign(n) = self.flow_node(flow).kind else {
+        let FlowNodeKind::Assign(n) = &self.flow_node(flow).kind else {
             unreachable!()
         };
         if self.is_matching_reference(refer, n.node) {
@@ -198,10 +198,12 @@ impl<'cx> TyChecker<'cx> {
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
     ) -> Option<FlowTy<'cx>> {
-        let FlowNodeKind::Call(n) = self.flow_node(flow).kind else {
+        let FlowNodeKind::Call(n) = &self.flow_node(flow).kind else {
             unreachable!()
         };
-        let sig = self.get_effects_sig(n.node.id)?;
+        let n_antecedent = n.antecedent;
+        let n_node = n.node;
+        let sig = self.get_effects_sig(n_node.id)?;
         let pred = self.get_ty_predicate_of_sig(sig);
         if let Some(pred) = pred
             && matches!(
@@ -210,7 +212,7 @@ impl<'cx> TyChecker<'cx> {
             )
         {
             let flow_ty = self.get_ty_at_flow_node(
-                n.antecedent,
+                n_antecedent,
                 refer,
                 shared_flow_start,
                 declared_ty,
@@ -218,10 +220,10 @@ impl<'cx> TyChecker<'cx> {
             );
             let ty = self.finalize_evolving_array_ty(self.get_ty_from_flow_ty(flow_ty));
             let narrowed_ty = if pred.ty().is_some() {
-                self.narrow_ty_by_ty_pred(ty, refer, pred, n.node, true)
+                self.narrow_ty_by_ty_pred(ty, refer, pred, n_node, true)
             } else if let TyPredKind::AssertsIdent(i) = pred.kind {
-                if (i.param_index as usize) < n.node.args.len() {
-                    let expr = n.node.args[i.param_index as usize];
+                if (i.param_index as usize) < n_node.args.len() {
+                    let expr = n_node.args[i.param_index as usize];
                     self.narrow_ty_by_assertion(ty, refer, expr)
                 } else {
                     ty
@@ -257,10 +259,11 @@ impl<'cx> TyChecker<'cx> {
         let FlowNodeKind::Cond(cond) = &n.kind else {
             unreachable!()
         };
-        let cond = *cond;
+        let cond_antecedent = cond.antecedent;
+        let cond_node = cond.node;
         let assume_true = n.flags.intersects(FlowFlags::TRUE_CONDITION);
         let flow_ty = self.get_ty_at_flow_node(
-            cond.antecedent,
+            cond_antecedent,
             refer,
             shared_flow_start,
             declared_ty,
@@ -271,7 +274,7 @@ impl<'cx> TyChecker<'cx> {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
-        let narrowed_ty = self.narrow_ty(non_evolving_ty, refer, cond.node, assume_true);
+        let narrowed_ty = self.narrow_ty(non_evolving_ty, refer, cond_node, assume_true);
         if narrowed_ty == non_evolving_ty {
             flow_ty
         } else {
@@ -728,7 +731,7 @@ impl<'cx> TyChecker<'cx> {
                 no_cache_check = true;
             }
 
-            match f.kind {
+            match &f.kind {
                 FlowNodeKind::Assign(n) => flow = n.antecedent,
                 FlowNodeKind::Cond(n) => flow = n.antecedent,
                 // TODO: handle other kinds

@@ -26,13 +26,13 @@ pub struct ArrayTyMapper<'cx> {
     pub mapper: &'cx [(&'cx Ty<'cx>, &'cx Ty<'cx>)],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CompositeTyMapper<'cx> {
     pub mapper1: &'cx dyn TyMap<'cx>,
     pub mapper2: &'cx dyn TyMap<'cx>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct MergedTyMapper<'cx> {
     pub mapper1: &'cx dyn TyMap<'cx>,
     pub mapper2: &'cx dyn TyMap<'cx>,

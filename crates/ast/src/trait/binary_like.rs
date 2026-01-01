@@ -36,7 +36,7 @@ pub enum BinaryLikeOp {
     Satisfies,
 }
 
-pub trait BinaryLike<'cx>: Copy + std::fmt::Debug {
+pub trait BinaryLike<'cx>: std::fmt::Debug {
     fn left(&self) -> &'cx crate::Expr<'cx>;
     fn op(&self) -> BinaryLikeOp;
     fn right(&self) -> &'cx crate::Expr<'cx>;
