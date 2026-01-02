@@ -935,7 +935,7 @@ impl<'cx> TyChecker<'cx> {
             let index_node = self.get_index_node_for_access_expr(access_node);
             let index_node = self.p.node(index_node);
             let span = index_node.span();
-            let error: bolt_ts_middle::Diag = if !index_node.is_big_int_lit()
+            let error: bolt_ts_errors::BoxedDiag = if !index_node.is_big_int_lit()
                 && index_ty
                     .flags
                     .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))

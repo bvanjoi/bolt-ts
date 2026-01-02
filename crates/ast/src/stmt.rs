@@ -789,14 +789,14 @@ pub struct ImportSpec<'cx> {
 
 #[derive(Debug, Clone)]
 pub enum ImportSpecKind<'cx> {
-    Shorthand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
     Named(&'cx ImportNamedSpec<'cx>),
 }
 
 pub type ImportSpecs<'cx> = &'cx [&'cx ImportSpec<'cx>];
 
 #[derive(Debug, Clone)]
-pub struct ShorthandSpec<'cx> {
+pub struct ImportExportShorthandSpec<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
@@ -960,7 +960,7 @@ impl ExportSpec<'_> {
 
 #[derive(Debug, Clone)]
 pub enum ExportSpecKind<'cx> {
-    Shorthand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 

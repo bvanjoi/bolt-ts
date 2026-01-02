@@ -389,7 +389,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         program
     }
 
-    pub(super) fn push_error(&mut self, error: crate::Diag) {
+    pub(super) fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 

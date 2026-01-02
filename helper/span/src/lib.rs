@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use bolt_ts_atom::Atom;
-use bolt_ts_fs::CachedFileSystem;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct ModuleID(u32);
@@ -107,14 +106,14 @@ impl ModuleArena {
         &mut self,
         p: ModulePath,
         is_default_lib: bool,
-        fs: &mut impl CachedFileSystem,
+        read_file: impl FnOnce(&std::path::Path, &mut bolt_ts_atom::AtomIntern) -> Option<Atom>,
         atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> ModuleID {
         let id = ModuleID(self.modules.len() as u32);
         let m = Module { id, is_default_lib };
         self.modules.push(m);
         assert_eq!(id.as_usize(), self.content_map.len());
-        let Ok(atom) = fs.read_file(p.as_ref(), atoms) else {
+        let Some(atom) = read_file(p.as_path(), atoms) else {
             panic!("File not found: {p:?}");
         };
         // TODO: remove this clone

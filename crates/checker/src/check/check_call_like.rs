@@ -918,7 +918,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
         } else if args.len() < min_required_params {
             let span = expr.span();
-            let error: bolt_ts_middle::Diag = if max_required_params == usize::MAX {
+            let error: bolt_ts_errors::BoxedDiag = if max_required_params == usize::MAX {
                 Box::new(errors::ExpectedAtLeastXArgsButGotY {
                     span,
                     x: min_required_params,

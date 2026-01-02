@@ -3,10 +3,9 @@ use bolt_ts_ast::{
     self as ast,
     keyword::{self, is_prim_ty_name},
 };
-use bolt_ts_parser::AccessKind;
 
 use crate::{
-    ParentMap,
+    AccessKind, ParentMap,
     container_flags::{ContainerFlags, container_flags_for_node},
 };
 
@@ -835,7 +834,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 let p = self.node(p).expect_import_decl();
                 Some(p.module)
             }
-            ShorthandSpec(_) => {
+            ImportExportShorthandSpec(_) => {
                 // export {a}
                 // export {a} from 'xxx'
                 let p = self.parent(id).unwrap();

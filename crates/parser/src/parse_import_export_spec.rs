@@ -73,12 +73,14 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
                 unreachable!()
             };
             let id = state.next_node_id();
-            let spec = state.alloc(ast::ShorthandSpec {
+            let spec = state.alloc(ast::ImportExportShorthandSpec {
                 id,
                 span,
                 name: ident,
             });
-            state.nodes.insert(id, ast::Node::ShorthandSpec(spec));
+            state
+                .nodes
+                .insert(id, ast::Node::ImportExportShorthandSpec(spec));
             ast::ImportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ImportSpec { kind })
@@ -123,12 +125,14 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
                 unreachable!()
             };
             let id = state.next_node_id();
-            let spec = state.alloc(ast::ShorthandSpec {
+            let spec = state.alloc(ast::ImportExportShorthandSpec {
                 id,
                 span,
                 name: ident,
             });
-            state.nodes.insert(id, ast::Node::ShorthandSpec(spec));
+            state
+                .nodes
+                .insert(id, ast::Node::ImportExportShorthandSpec(spec));
             ast::ExportSpecKind::Shorthand(spec)
         };
         state.alloc(ast::ExportSpec { kind })

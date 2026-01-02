@@ -104,7 +104,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         unsafe { self.states.get_unchecked(idx).final_res[&decl] }
     }
 
-    fn push_error(&mut self, error: bolt_ts_middle::Diag) {
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 

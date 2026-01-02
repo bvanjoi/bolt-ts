@@ -84,6 +84,7 @@ use bolt_ts_utils::path::{BACKSLASH, SLASH};
 //     }
 // }
 
+#[inline]
 pub fn is_external_module_relative(module_name: &str) -> bool {
     path_is_relative(module_name) || is_rooted_disk_path(module_name)
 }

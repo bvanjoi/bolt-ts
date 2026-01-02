@@ -106,14 +106,14 @@ use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::VarLike;
-use bolt_ts_binder::{AssignmentKind, NodeQuery};
+use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
 use bolt_ts_binder::{
     FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
     SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
 };
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
-use bolt_ts_parser::{AccessKind, ParsedMap};
+use bolt_ts_parser::ParsedMap;
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -2467,8 +2467,11 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             LogicalOr => {
-                if self.has_type_facts(left_ty, TypeFacts::FALSE_FACTS) {
-                    right_ty
+                if self.has_type_facts(left_ty, TypeFacts::FALSY) {
+                    let left_ty = self.remove_definitely_falsy_tys(left_ty);
+                    let left_ty = self.get_non_nullable_ty(left_ty);
+                    let tys = &[left_ty, right_ty];
+                    self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None)
                 } else {
                     left_ty
                 }
@@ -4603,17 +4606,123 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_type_facts_worker(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        mut ty: &'cx ty::Ty<'cx>,
         caller_only_needs: TypeFacts,
     ) -> TypeFacts {
-        let flags = ty.flags;
+        if ty
+            .flags
+            .intersects(TypeFlags::INTERSECTION.union(TypeFlags::INSTANTIABLE))
+        {
+            ty = self
+                .get_base_constraint_of_ty(ty)
+                .unwrap_or(self.unknown_ty);
+        }
 
-        if let ty::TyKind::NumberLit(lit) = ty.kind {
-            let is_zero = lit.is(0.);
-            if is_zero {
+        let flags = ty.flags;
+        let strict_null_checks = self.config.strict_null_checks();
+
+        if flags.intersects(TypeFlags::STRING.union(TypeFlags::STRING_MAPPING)) {
+            if strict_null_checks {
+                TypeFacts::STRING_STRICT_FACTS
+            } else {
+                TypeFacts::STRING_FACTS
+            }
+        } else if flags.intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::TEMPLATE_LITERAL)) {
+            let is_empty = if flags.contains(TypeFlags::STRING_LITERAL)
+                && let Some(lit) = ty.kind.as_string_lit()
+            {
+                lit.val == keyword::IDENT_EMPTY
+            } else {
+                false
+            };
+
+            if strict_null_checks {
+                if is_empty {
+                    TypeFacts::ZERO_NUMBER_STRICT_FACTS
+                } else {
+                    TypeFacts::NON_ZERO_NUMBER_STRICT_FACTS
+                }
+            } else if is_empty {
                 TypeFacts::ZERO_NUMBER_FACTS
             } else {
                 TypeFacts::NON_ZERO_NUMBER_FACTS
+            }
+        } else if flags.intersects(TypeFlags::NUMBER.union(TypeFlags::ENUM)) {
+            if strict_null_checks {
+                TypeFacts::NUMBER_STRICT_FACTS
+            } else {
+                TypeFacts::NUMBER_FACTS
+            }
+        } else if let ty::TyKind::NumberLit(lit) = ty.kind {
+            let is_zero = lit.is(0.);
+            if strict_null_checks {
+                if is_zero {
+                    TypeFacts::ZERO_NUMBER_STRICT_FACTS
+                } else {
+                    TypeFacts::NON_ZERO_NUMBER_STRICT_FACTS
+                }
+            } else if is_zero {
+                TypeFacts::ZERO_NUMBER_FACTS
+            } else {
+                TypeFacts::NON_ZERO_NUMBER_FACTS
+            }
+        } else if flags.contains(TypeFlags::BIG_INT) {
+            if strict_null_checks {
+                TypeFacts::BIGINT_STRICT_FACTS
+            } else {
+                TypeFacts::BIGINT_FACTS
+            }
+        } else if flags.contains(TypeFlags::BIG_INT_LITERAL) {
+            todo!()
+        } else if flags.contains(TypeFlags::BOOLEAN) {
+            if strict_null_checks {
+                TypeFacts::BOOLEAN_STRICT_FACTS
+            } else {
+                TypeFacts::BOOLEAN_FACTS
+            }
+        } else if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
+            let is_false = ty == self.false_ty || ty == self.regular_false_ty;
+            if strict_null_checks {
+                if is_false {
+                    TypeFacts::FALSE_STRICT_FACTS
+                } else {
+                    TypeFacts::TRUE_STRICT_FACTS
+                }
+            } else if is_false {
+                TypeFacts::FALSE_FACTS
+            } else {
+                TypeFacts::TRUE_FACTS
+            }
+        } else if flags.contains(TypeFlags::OBJECT) {
+            let possible_facts = if strict_null_checks {
+                TypeFacts::EMPTY_OBJECT_STRICT_FACTS
+                    .union(TypeFacts::FUNCTION_STRICT_FACTS)
+                    .union(TypeFacts::OBJECT_STRICT_FACTS)
+            } else {
+                TypeFacts::EMPTY_OBJECT_FACTS
+                    .union(TypeFacts::FUNCTION_FACTS)
+                    .union(TypeFacts::OBJECT_FACTS)
+            };
+            if !caller_only_needs.intersects(possible_facts) {
+                return TypeFacts::empty();
+            }
+            let object_flags = ty.get_object_flags();
+            if object_flags.contains(ObjectFlags::ANONYMOUS) && self.is_empty_object_ty(ty) {
+                if strict_null_checks {
+                    TypeFacts::EMPTY_OBJECT_STRICT_FACTS
+                } else {
+                    TypeFacts::EMPTY_OBJECT_FACTS
+                }
+            } else if self.is_fn_object_ty(ty) {
+                if strict_null_checks {
+                    TypeFacts::FUNCTION_STRICT_FACTS
+                } else {
+                    TypeFacts::FUNCTION_FACTS
+                }
+            } else if strict_null_checks {
+                TypeFacts::OBJECT_STRICT_FACTS
+            } else {
+                TypeFacts::OBJECT_FACTS
             }
         } else if flags.contains(TypeFlags::VOID) {
             TypeFacts::VOID_FACTS
@@ -4621,9 +4730,22 @@ impl<'cx> TyChecker<'cx> {
             TypeFacts::UNDEFINED_FACTS
         } else if flags.contains(TypeFlags::NULL) {
             TypeFacts::NULL_FACTS
+        } else if flags.contains(TypeFlags::ES_SYMBOL_LIKE) {
+            if strict_null_checks {
+                TypeFacts::SYMBOL_STRICT_FACTS
+            } else {
+                TypeFacts::SYMBOL_FACTS
+            }
+        } else if flags.contains(TypeFlags::NON_PRIMITIVE) {
+            if strict_null_checks {
+                TypeFacts::OBJECT_STRICT_FACTS
+            } else {
+                TypeFacts::OBJECT_FACTS
+            }
         } else if flags.contains(TypeFlags::NEVER) {
             TypeFacts::empty()
         } else {
+            // TODO: union, intersection
             TypeFacts::UNKNOWN_FACTS
         }
     }

@@ -32,7 +32,7 @@ pub enum Node<'cx> {
     VarDecl(&'cx super::VarDecl<'cx>),
     ParamDecl(&'cx super::ParamDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
-    ShorthandSpec(&'cx super::ShorthandSpec<'cx>),
+    ImportExportShorthandSpec(&'cx super::ImportExportShorthandSpec<'cx>),
     NsImport(&'cx super::NsImport<'cx>),
     NsExport(&'cx super::NsExport<'cx>),
     GlobExport(&'cx super::GlobExport<'cx>),
@@ -300,7 +300,7 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
                 crate::ModuleName::StringLit(_) => None,
             },
-            ShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ImportExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -497,7 +497,7 @@ impl<'cx> Node<'cx> {
                 | ParamDecl(_)
                 | TyParam(_)
                 | NsImport(_)
-                | ShorthandSpec(_)
+                | ImportExportShorthandSpec(_)
                 | ExportNamedSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
@@ -826,7 +826,7 @@ impl<'cx> Node<'cx> {
     pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::Atom> {
         use Node::*;
         match self {
-            ShorthandSpec(n) => Some(n.name.name),
+            ImportExportShorthandSpec(n) => Some(n.name.name),
             ImportNamedSpec(n) => match n.prop_name.kind {
                 crate::ModuleExportNameKind::Ident(ident) => Some(ident.name),
                 crate::ModuleExportNameKind::StringLit(lit) => Some(lit.val),
@@ -1148,7 +1148,11 @@ as_node!(
     (UnionTy, super::UnionTy<'cx>, union_ty),
     (TypeofTy, super::TypeofTy<'cx>, typeof_ty),
     (ThrowStmt, super::ThrowStmt<'cx>, throw_stmt),
-    (ShorthandSpec, super::ShorthandSpec<'cx>, shorthand_spec),
+    (
+        ImportExportShorthandSpec,
+        super::ImportExportShorthandSpec<'cx>,
+        shorthand_spec
+    ),
     (NsImport, super::NsImport<'cx>, ns_import),
     (
         ImportNamedSpec,

@@ -339,7 +339,7 @@ impl<'cx> TyChecker<'cx> {
                         None
                     }
                 });
-            let error: bolt_ts_middle::Diag = if current
+            let error: bolt_ts_errors::BoxedDiag = if current
                 .is_some_and(|c| self.p.node(c).is_computed_prop_name())
             {
                 Box::new(errors::SuperCannotBeReferencedInAComputedPropertyName { span: node.span })

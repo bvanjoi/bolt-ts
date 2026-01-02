@@ -9,4 +9,5 @@ pub enum FsError {
     NotADir(PathId),
     FileExists(PathId),
     DirExists(PathId),
+    NotASymlink(PathId),
 }

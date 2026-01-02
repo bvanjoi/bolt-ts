@@ -50,7 +50,8 @@ with_option!(
     (module, RawModule),
     (always_strict, bool),
     (exact_optional_property_types, bool),
-    (allow_unused_labels, bool)
+    (allow_unused_labels, bool),
+    (preserve_symlinks, bool)
 );
 
 impl RawCompilerOptions {
@@ -90,6 +91,9 @@ impl RawCompilerOptions {
         }
         if self.strict_function_types.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
+        }
+        if self.preserve_symlinks.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
         }
 
         let allow_unused_labels = match self.allow_unused_labels {

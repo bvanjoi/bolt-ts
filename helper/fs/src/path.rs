@@ -36,6 +36,7 @@ impl PathId {
     }
 
     pub fn get(p: &std::path::Path, atoms: &mut AtomIntern) -> Self {
+        debug_assert!(p.is_normalized());
         let slice = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
         let atom = atoms.atom(slice);
         Self(atom)

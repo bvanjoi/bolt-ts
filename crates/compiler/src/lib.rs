@@ -12,7 +12,6 @@ use crate::emit_declaration::emit_declaration_parallel;
 use self::cli::get_filenames;
 use self::wf::well_formed_check_parallel;
 
-use bolt_ts_ast::TokenKind;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
@@ -20,7 +19,6 @@ use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
 use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig};
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
-use bolt_ts_middle::Diag;
 use bolt_ts_optimize::{IrOutput, optimize_and_js_emit};
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::{ModuleArena, ModuleID};
@@ -99,9 +97,9 @@ pub fn init_atom() -> AtomIntern {
     #[cfg(debug_assertions)]
     for idx in 0..bolt_ts_ast::keyword::KEYWORDS.len() {
         let t = bolt_ts_ast::keyword_idx_to_token(idx);
-        if t == TokenKind::Var {
-            assert_eq!(t as u8 + 1, TokenKind::Let as u8);
-            assert_eq!(t as u8 + 2, TokenKind::Const as u8);
+        if t == bolt_ts_ast::TokenKind::Var {
+            assert_eq!(t as u8 + 1, bolt_ts_ast::TokenKind::Let as u8);
+            assert_eq!(t as u8 + 2, bolt_ts_ast::TokenKind::Const as u8);
         }
     }
     bolt_ts_ast::keyword::init_atom_map()
@@ -116,7 +114,9 @@ pub fn eval_from_memory_path(
     let root = std::path::PathBuf::from(cwd);
     add_default_libs(&mut files, &default_lib_dir);
     let default_lib_dir = std::path::PathBuf::from(default_lib_dir);
-    let mut fs = bolt_ts_fs::MemoryFS::new(files.into_iter(), &mut atoms).unwrap();
+
+    let mut fs =
+        bolt_ts_fs::MemoryFS::new(files.into_iter(), Vec::new().into_iter(), &mut atoms).unwrap();
     let tsconfig: bolt_ts_config::RawTsConfig = if let Ok(raw_tsconfig) =
         fs.read_file(std::path::Path::new("/tsconfig.json"), &mut atoms)
     {
@@ -298,7 +298,17 @@ pub fn eval_with_fs(
             }
             let m = if cfg!(target_arch = "wasm32") {
                 assert!(content.is_none());
-                module_arena.new_module(p, is_default_lib, &mut fs, &mut atoms)
+                module_arena.new_module(
+                    p,
+                    is_default_lib,
+                    |p, atoms| {
+                        let Ok(atom) = fs.read_file(p, atoms) else {
+                            return None;
+                        };
+                        Some(atom)
+                    },
+                    &mut atoms,
+                )
             } else {
                 let content = content.unwrap();
                 let computed_atom = atoms.atom(&content);
@@ -322,10 +332,7 @@ pub fn eval_with_fs(
         &herd,
         &mut p,
         fs,
-        tsconfig
-            .compiler_options()
-            .flags()
-            .contains(CompilerOptionFlags::ALWAYS_STRICT),
+        tsconfig,
     );
 
     // ==== bind ====

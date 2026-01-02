@@ -1,19 +1,18 @@
 mod errors;
 
 use bolt_ts_ast::{self as ast};
-use bolt_ts_parser::ParsedMap;
-use bolt_ts_utils::path::NormalizePath;
-
-use bolt_ts_span::{ModuleArena, ModuleID};
-
-use std::sync::{Arc, Mutex};
-
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
 use bolt_ts_module_resolve::RResult;
+use bolt_ts_parser::ParsedMap;
+use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::path::NormalizePath;
+
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModuleRes {
@@ -43,7 +42,7 @@ impl ModuleGraph {
         self.deps.get(&from).and_then(|map| map.get(&by).copied())
     }
 
-    pub fn push_error(&mut self, diag: bolt_ts_middle::Diag) {
+    pub fn push_error(&mut self, diag: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: diag });
     }
 
@@ -60,10 +59,16 @@ pub fn build_graph<'cx>(
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parsed: &mut ParsedMap<'cx>,
     fs: impl bolt_ts_fs::CachedFileSystem,
-    always_strict: bool,
+    options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
-    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone());
+    let always_strict = options.compiler_options().always_strict();
+    let flags = if options.compiler_options().preserve_symlinks() {
+        bolt_ts_module_resolve::ResolveFlags::PRESERVE_SYMLINKS
+    } else {
+        bolt_ts_module_resolve::ResolveFlags::empty()
+    };
+    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone(), flags);
     let mut resolved = fx_hashmap_with_capacity(2048);
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {

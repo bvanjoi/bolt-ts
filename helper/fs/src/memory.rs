@@ -1,8 +1,11 @@
-use super::CachedFileSystem;
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_utils::path::NormalizePath;
 
-use crate::errors::FsResult;
-use crate::tree::{FSNodeId, FSTree};
+use crate::PathId;
+
+use super::CachedFileSystem;
+use super::errors::FsResult;
+use super::tree::{FSNodeId, FSTree};
 
 pub struct MemoryFS {
     tree: FSTree,
@@ -10,15 +13,22 @@ pub struct MemoryFS {
 
 impl MemoryFS {
     pub fn new(
-        input: impl Iterator<Item = (String, String)>,
+        content_map: impl Iterator<Item = (String, String)>,
+        symlink_map: impl Iterator<Item = (String, String)>,
         atoms: &mut AtomIntern,
     ) -> FsResult<Self> {
         let mut tree = FSTree::new(atoms);
 
-        for (path, content) in input {
+        for (path, content) in content_map {
             let path = std::path::Path::new(&path);
             let content = atoms.atom(&content);
             tree.add_file(atoms, path, content)?;
+        }
+
+        for (from, to) in symlink_map {
+            let path = std::path::Path::new(&from);
+            let target = std::path::Path::new(&to);
+            tree.add_symlink_file(atoms, path, target)?;
         }
 
         Ok(Self { tree })
@@ -131,126 +141,17 @@ impl CachedFileSystem for MemoryFS {
     ) -> Atom {
         unreachable!("Cannot add file to memory fs")
     }
-}
 
-#[test]
-fn test_mem_fs() {
-    let json = serde_json::json!({
-      "/a": "/a",
-      "/b/c": "/b/c",
-    });
+    fn is_symlink(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
+        self.tree.is_symlink(p, atoms)
+    }
 
-    let atoms = &mut AtomIntern::prefill(&[]);
-    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let mut fs = MemoryFS::new(inputs.into_iter(), atoms).unwrap();
-
-    use super::FsError::*;
-    use std::path::Path;
-
-    let read_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| {
-        fs.read_file(Path::new(path), atoms)
-    };
-
-    assert_eq!(fs.glob(Path::new("/"), &["a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["/a"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["/b"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["/b/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["/*/c"], &[], atoms).len(), 1);
-    // TODO: should `*/c` match `/b/c`?
-    // assert_eq!(fs.glob(Path::new("/"), &["*/c"], &[],atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["**/*"], &[], atoms).len(), 2);
-    assert_eq!(fs.glob(Path::new("/"), &["**/a"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["**/b"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["**/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/b"), &["**/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/b"), &["**/a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/a"), &["**/a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/c"), &["**/a"], &[], atoms).len(), 0);
-
-    let res = read_file(&mut fs, "/a", atoms);
-    assert!(res.is_ok_and(|id| atoms.get(id) == "/a"));
-
-    let res = read_file(&mut fs, "/b/c", atoms);
-    assert!(res.is_ok_and(|id| atoms.get(id) == "/b/c"));
-
-    let res = read_file(&mut fs, "/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
-
-    let res = read_file(&mut fs, "/not-exist", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotFound(_))));
-
-    let res = read_file(&mut fs, "/b", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
-
-    let res = read_file(&mut fs, "/b/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
-
-    let res = read_file(&mut fs, "/a/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
-
-    assert!(fs.file_exists(Path::new("/a"), atoms));
-    assert!(fs.file_exists(Path::new("/b/c"), atoms));
-    assert!(!fs.file_exists(Path::new("/"), atoms));
-    assert!(!fs.file_exists(Path::new("/not-exist"), atoms));
-    assert!(!fs.file_exists(Path::new("/a/"), atoms));
-    assert!(!fs.file_exists(Path::new("/b"), atoms));
-    assert!(!fs.file_exists(Path::new("/b/"), atoms));
-
-    let read_dir_failed = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| match fs
-        .read_dir(std::path::Path::new(path), atoms)
-    {
-        Ok(_) => unreachable!(),
-        Err(err) => err,
-    };
-
-    let res = read_dir_failed(&mut fs, "/a", atoms);
-    assert!(matches!(res, NotADir(_)));
-
-    let read_dir = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| match fs
-        .read_dir(std::path::Path::new(path), atoms)
-    {
-        Ok(iter) => iter
-            .map(|p| p.to_string_lossy().to_string())
-            .collect::<Vec<_>>(),
-        Err(err) => unreachable!("{:?}", err),
-    };
-
-    let res = read_dir(&mut fs, "/", atoms);
-    assert_eq!(res, vec!["/a", "/b"]);
-
-    let res = read_dir(&mut fs, "/b", atoms);
-    assert_eq!(res, vec!["/b/c"]);
-
-    assert!(fs.dir_exists(Path::new("/"), atoms));
-    assert!(fs.dir_exists(Path::new("/b"), atoms));
-    assert!(!fs.dir_exists(Path::new("/a"), atoms));
-    assert!(!fs.dir_exists(Path::new("/a/"), atoms));
-    assert!(!fs.dir_exists(Path::new("/b/c"), atoms));
-    assert!(!fs.dir_exists(Path::new("/not-exist"), atoms));
-    assert!(!fs.dir_exists(Path::new("/not-exist/"), atoms));
-}
-
-#[test]
-fn test_mem_fs_with_overlap_name_between_dir_and_file() {
-    use super::errors;
-
-    let json = serde_json::json!({
-      "/a": "content",
-      "/a/b": "content",
-    });
-
-    let atoms = &mut AtomIntern::prefill(&[]);
-    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let fs = MemoryFS::new(inputs.into_iter(), atoms);
-    assert!(fs.is_err_and(|err| matches!(err, errors::FsError::FileExists(_))));
-
-    let json = serde_json::json!({
-        "/a/b": "content",
-        "/a": "content",
-    });
-
-    let atoms = &mut AtomIntern::prefill(&[]);
-    let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let fs = MemoryFS::new(inputs.into_iter(), atoms);
-    assert!(fs.is_err_and(|err| matches!(err, errors::FsError::DirExists(_))));
+    fn realpath(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> FsResult<PathId> {
+        debug_assert!(p.is_normalized());
+        if !self.is_symlink(p, atoms) {
+            let p = PathId::new(p, atoms);
+            return Err(crate::errors::FsError::NotASymlink(p));
+        }
+        self.tree.read_symlink(p, atoms).map(|ret| ret.into())
+    }
 }

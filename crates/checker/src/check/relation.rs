@@ -260,7 +260,7 @@ impl<'cx> TyChecker<'cx> {
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
-        error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> bolt_ts_middle::Diag,
+        error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> bolt_ts_errors::BoxedDiag,
     ) -> Ternary {
         if self.is_type_related_to(source, target, relation) {
             return Ternary::TRUE;

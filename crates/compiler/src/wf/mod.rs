@@ -72,7 +72,7 @@ impl<'cx> CheckState<'cx> {
         bolt_ts_binder::NodeQuery::new(&self.resolve_results.parent_map, self.p.get(self.module_id))
     }
 
-    fn push_error(&mut self, error: crate::Diag) {
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 

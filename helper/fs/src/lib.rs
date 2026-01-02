@@ -11,39 +11,41 @@ pub use self::real::LocalFS;
 pub use self::real::read_file_with_encoding;
 
 use bolt_ts_atom::{Atom, AtomIntern};
+use std::path::{Path, PathBuf};
 
 pub trait CachedFileSystem: Send + Sync {
-    fn read_file(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> FsResult<Atom>;
+    fn file_exists(&mut self, p: &Path, atoms: &mut AtomIntern) -> bool;
+    fn read_file(&mut self, p: &Path, atoms: &mut AtomIntern) -> FsResult<Atom>;
 
-    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool;
+    fn is_symlink(&mut self, p: &Path, atoms: &mut AtomIntern) -> bool;
+    fn realpath(&mut self, p: &Path, atoms: &mut AtomIntern) -> FsResult<PathId>;
 
+    fn dir_exists(&mut self, p: &Path, atoms: &mut AtomIntern) -> bool;
     fn read_dir(
         &mut self,
-        p: &std::path::Path,
+        p: &Path,
         atoms: &mut AtomIntern,
-    ) -> FsResult<impl Iterator<Item = std::path::PathBuf>>;
-
-    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool;
+    ) -> FsResult<impl Iterator<Item = PathBuf>>;
 
     // TODO: maybe use regexp?
     fn glob(
         &mut self,
-        base_dir: &std::path::Path,
+        base_dir: &Path,
         includes: &[&str],
         excludes: &[&str],
         atoms: &mut AtomIntern,
-    ) -> Vec<std::path::PathBuf>;
+    ) -> Vec<PathBuf>;
 
     fn add_file(
         &mut self,
-        p: &std::path::Path,
+        p: &Path,
         content: String,
         atom: Option<Atom>,
         atoms: &mut AtomIntern,
     ) -> Atom;
 }
 
-pub fn has_slash_suffix_and_not_root(p: &std::path::Path) -> bool {
+pub fn has_slash_suffix_and_not_root(p: &Path) -> bool {
     let p = p.as_os_str().as_encoded_bytes();
     p.len() > 1 && p.last() == Some(&b'/')
 }

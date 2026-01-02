@@ -44,13 +44,6 @@ type Diag = Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'sta
 
 type PResult<T> = Result<T, ()>;
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum AccessKind {
-    Read,
-    Write,
-    ReadWrite,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Tristate {
     False,

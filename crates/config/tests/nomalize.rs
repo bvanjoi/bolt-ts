@@ -6,6 +6,15 @@ fn normalize(input: &str) -> NormalizedTsConfig {
 }
 
 #[test]
+fn test_default_compiler_options() {
+    let c = normalize("{}");
+    let co = c.compiler_options();
+    assert!(!co.strict());
+    assert!(!co.always_strict());
+    assert!(!co.preserve_symlinks());
+}
+
+#[test]
 fn test_default_include() {
     let c = normalize("{}");
     assert_eq!(c.include(), &["**/*"]);
@@ -21,7 +30,7 @@ fn test_default_include() {
 }
 
 #[test]
-fn strict_should_effect() {
+fn test_strict_options_should_effect_0() {
     let c = normalize(
         r#"
 {
@@ -32,7 +41,10 @@ fn strict_should_effect() {
     );
     assert!(c.compiler_options().strict());
     assert!(c.compiler_options().always_strict());
+}
 
+#[test]
+fn test_strict_options_should_effect_1() {
     let c = normalize(
         r#"
 {

@@ -1114,7 +1114,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TemplateSpanTy(n) => {
                 self.bind(n.ty.id());
             }
-            ShorthandSpec(n) => self.bind(n.name.id),
+            ImportExportShorthandSpec(n) => self.bind(n.name.id),
             ExportNamedSpec(n) => {
                 self.bind_module_export_name(n.prop_name);
                 self.bind_module_export_name(n.name);

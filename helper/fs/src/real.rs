@@ -12,6 +12,7 @@ pub struct LocalFS {
     file_exists_cache: FxHashMap<Atom, bool>,
     dir_exists_cache: FxHashMap<Atom, bool>,
     metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
+    symlink_metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
 }
 
 impl LocalFS {
@@ -22,6 +23,7 @@ impl LocalFS {
             file_exists_cache: fx_hashmap_with_capacity(1024),
             dir_exists_cache: fx_hashmap_with_capacity(1024),
             metadata_cache: fx_hashmap_with_capacity(1024),
+            symlink_metadata_cache: fx_hashmap_with_capacity(1024),
         }
     }
 
@@ -71,6 +73,27 @@ impl LocalFS {
         self.metadata_cache.insert(atom, metadata.clone());
         metadata
     }
+
+    fn symlink_metadata(
+        &mut self,
+        p: &std::path::Path,
+        atom: Option<Atom>,
+        atoms: &mut bolt_ts_atom::AtomIntern,
+    ) -> Result<std::fs::Metadata, ()> {
+        let s = unsafe { std::str::from_utf8_unchecked(p.as_os_str().as_encoded_bytes()) };
+        let atom = if let Some(atom) = atom {
+            debug_assert!(atoms.atom(s) == atom);
+            atom
+        } else {
+            atoms.atom(s)
+        };
+        if let Some(metadata) = self.symlink_metadata_cache.get(&atom).cloned() {
+            return metadata;
+        }
+        let metadata = std::fs::symlink_metadata(p).map_err(|_| ());
+        self.symlink_metadata_cache.insert(atom, metadata.clone());
+        metadata
+    }
 }
 
 impl CachedFileSystem for LocalFS {
@@ -86,6 +109,7 @@ impl CachedFileSystem for LocalFS {
             match read_file_with_encoding(path.as_path()) {
                 Ok(content) => {
                     let content = atoms.atom(&content);
+                    debug_assert!(path.is_normalized());
                     self.tree.add_file(atoms, path.as_path(), content).unwrap();
                     self.tree.read_file(path.as_path(), atoms)
                 }
@@ -114,6 +138,36 @@ impl CachedFileSystem for LocalFS {
         let exists = self.metadata(p, Some(id), atoms).is_ok_and(|m| m.is_file());
         self.file_exists_cache.insert(id, exists);
         exists
+    }
+
+    fn is_symlink(&mut self, from: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern) -> bool {
+        if self.tree.is_symlink(from, atoms) {
+            return true;
+        }
+        let Ok(meta) = self.symlink_metadata(from, None, atoms) else {
+            return false;
+        };
+        let is_symlink = meta.file_type().is_symlink();
+        if !is_symlink {
+            return false;
+        }
+        let to = std::fs::canonicalize(from).unwrap();
+        let res = self.tree.add_symlink_file(atoms, from, &to);
+        debug_assert!(res.is_ok());
+        true
+    }
+
+    fn realpath(
+        &mut self,
+        p: &std::path::Path,
+        atoms: &mut bolt_ts_atom::AtomIntern,
+    ) -> FsResult<crate::PathId> {
+        debug_assert!(p.is_normalized());
+        if !self.is_symlink(p, atoms) {
+            let p = crate::path::PathId::new(p, atoms);
+            return Err(crate::errors::FsError::NotASymlink(p));
+        }
+        self.tree.read_symlink(p, atoms).map(|atom| atom.into())
     }
 
     fn read_dir(

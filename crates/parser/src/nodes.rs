@@ -61,7 +61,7 @@ impl<'cx> Nodes<'cx> {
         use ast::Node::*;
         match node {
             ImportNamedSpec(_) |  // `import { a as b } from 'xxx'`
-            ShorthandSpec(_) |    // `export { spec }` or `import { spec } from 'xxx'`
+            ImportExportShorthandSpec(_) |    // `export { spec }` or `import { spec } from 'xxx'`
             ExportNamedSpec(_) |  // `export { a as b }`
             NsImport(_)           // `import * as ns from 'xxx'`
             => true,
