@@ -16,7 +16,7 @@ use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 use crate::check::TyChecker;
 
 pub use self::check_flags::CheckFlags;
-pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts, get_type_facts, has_type_facts};
+pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts};
 pub use self::flags::{ObjectFlags, TypeFlags};
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
@@ -463,10 +463,8 @@ impl<'cx> TyKind<'cx> {
     }
 
     pub fn is_generic_tuple_type(&self) -> bool {
-        self.as_object_reference()
-            .and_then(|refer| refer.target.kind.as_object_tuple())
-            .map(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
-            .unwrap_or_default()
+        self.as_object()
+            .is_some_and(|o| o.kind.as_generic_tuple_type().is_some())
     }
 
     pub fn is_this_ty_param(&self) -> bool {

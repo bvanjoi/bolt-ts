@@ -6,13 +6,12 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 
-use crate::ty::TypeFlags;
-
 use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::symbol_info::SymbolInfo;
 use super::ty;
+use super::ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_stmt(&mut self, stmt: &'cx ast::Stmt) {

@@ -1,4 +1,4 @@
-pub trait AccessorLike<'cx>: Copy {
+pub trait AccessorLike<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>>;
 }
 

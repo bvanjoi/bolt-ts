@@ -28,6 +28,7 @@ bitflags::bitflags! {
         const ALWAYS_STRICT                             = 1 << 8;
         const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 9;
         const NO_IMPLICIT_RETURNS                       = 1 << 10;
+        const PRESERVE_SYMLINKS                         = 1 << 11;
     }
 }
 
@@ -94,5 +95,10 @@ impl NormalizedCompilerOptions {
     pub const fn strict_function_types(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::STRICT_FUNCTION_TYPES)
+    }
+
+    #[inline(always)]
+    pub const fn preserve_symlinks(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::PRESERVE_SYMLINKS)
     }
 }

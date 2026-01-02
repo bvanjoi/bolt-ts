@@ -1,0 +1,12 @@
+  × Cannot find name 'T'.
+    ╭─[../../tests/compiler/baseExpressionTypeParameters/index.ts:10:27]
+ 10 │ T
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Base class expressions cannot reference class type parameters.
+    ╭─[../../tests/compiler/baseExpressionTypeParameters/index.ts:10:27]
+ 10 │ T
+    · ─
+    ╰────

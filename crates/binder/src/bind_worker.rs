@@ -550,7 +550,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             ModuleDecl(node) => self.bind_ns_decl(node),
-            ShorthandSpec(ast::ShorthandSpec { id, name, .. })
+            ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
                 // import { name } from 'xxx'
                 // import * as name from 'xxx'

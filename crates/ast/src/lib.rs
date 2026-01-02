@@ -23,7 +23,7 @@ pub use self::visitor::Visitor;
 
 use bolt_ts_span::Span;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Program<'cx> {
     pub id: NodeID,
     pub span: Span,

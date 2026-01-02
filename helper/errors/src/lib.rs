@@ -9,8 +9,10 @@ pub use thiserror;
 
 #[derive(Debug)]
 pub struct Diag {
-    pub inner: Box<dyn diag_ext::DiagnosticExt + Send + Sync + 'static>,
+    pub inner: BoxedDiag,
 }
+
+pub type BoxedDiag = Box<dyn self::diag_ext::DiagnosticExt + Send + Sync + 'static>;
 
 impl Diag {
     pub fn emit_message(self, module_arena: &ModuleArena, no_color: bool) -> String {

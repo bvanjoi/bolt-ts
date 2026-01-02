@@ -10,5 +10,6 @@ interface Bar extends Foo {
 
 var a: Bar;
 var kitty = a(1);
+var foo = a('');
 var bar = a(false);
 //~^ ERROR: No overload matches this call.

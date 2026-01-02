@@ -104,7 +104,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         unsafe { self.states.get_unchecked(idx).final_res[&decl] }
     }
 
-    fn push_error(&mut self, error: bolt_ts_middle::Diag) {
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error });
     }
 
@@ -423,6 +423,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Typeof(n) => {
                 self.resolve_entity_name(n.name, SymbolFlags::VALUE);
+                if let Some(ty_args) = n.ty_args {
+                    self.resolve_tys(ty_args.list);
+                }
             }
             Mapped(n) => {
                 self.resolve_ty_param(n.ty_param);
@@ -913,21 +916,22 @@ impl<'cx> Resolver<'cx, '_, '_> {
             return Symbol::ERR;
         }
 
-        let mut res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+        let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE);
+        let mut symbol = res.symbol;
 
-        if res == Symbol::ERR && report {
+        if symbol == Symbol::ERR && report {
             let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotFindName {
                 span: ident.span,
                 name,
                 errors: vec![],
             };
-            let error = self.on_failed_to_resolve_type_symbol(ident, error);
+            let error = self.on_failed_to_resolve_type_symbol(ident, &res, error);
             self.push_error(Box::new(error));
-        } else if res != Symbol::ERR {
-            self.on_success_resolved_type_symbol(ident, &mut res);
+        } else if symbol != Symbol::ERR {
+            self.on_success_resolved_type_symbol(ident, &mut symbol);
         };
-        res
+        symbol
     }
 
     fn resolve_symbol_by_ident(
@@ -997,7 +1001,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
             _ => {
                 // TODO: is_type_query_node
                 if (l.is_fn_decl_like()
-                    || ((l.is_class_prop_elem() || l.is_object_prop_member()) && !l.is_static()))
+                    || ((l.is_class_prop_elem() || l.is_object_prop_assignment())
+                        && !l.is_static()))
                     && (last_location.is_none_or(|last_location| {
                         self.p
                             .node(location)
@@ -1017,6 +1022,7 @@ pub struct ResolvedResult {
     symbol: SymbolID,
     associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
     within_deferred_context: bool,
+    base_class_expression_cannot_reference_class_type_parameters: bool,
 }
 
 fn get_symbol(
@@ -1080,6 +1086,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     symbol,
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
+                    base_class_expression_cannot_reference_class_type_parameters: false,
                 };
             }
 
@@ -1109,6 +1116,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     symbol,
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
+                    base_class_expression_cannot_reference_class_type_parameters: false,
                 };
             }
         }
@@ -1134,8 +1142,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         .and_then(|table| table.0.get(&SymbolName::ExportDefault))
                         .copied()
                     {
-                        if let r = resolver.symbol(result)
-                            && r.flags.intersects(meaning)
+                        let r = resolver.symbol(result);
+                        if r.flags.intersects(meaning)
                             && let Some(local_symbol) = get_local_symbol_for_export_default(
                                 &resolver.states[id.module().as_usize()].symbols,
                                 &resolver.states[id.module().as_usize()].local_symbols,
@@ -1148,6 +1156,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                                 symbol: result,
                                 associated_declaration_for_containing_initializer_or_binding_name,
                                 within_deferred_context,
+                                base_class_expression_cannot_reference_class_type_parameters: false,
                             };
                         }
                     }
@@ -1173,6 +1182,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: module_export,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
             }
@@ -1185,6 +1195,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: res,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
             }
@@ -1207,6 +1218,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: res,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
                 if let Some(c) = n.as_class_expr()
@@ -1217,17 +1229,16 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: resolver.symbol_of_decl(id),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
             }
             ExprWithTyArgs(expr) => {
                 if last_location.is_some_and(|l| l == expr.expr.id())
-                    && resolver
-                        .p
-                        .node(resolver.parent(id).unwrap())
-                        .is_class_extends_clause()
+                    && let parent_id = resolver.parent(id).unwrap()
+                    && resolver.p.node(parent_id).is_class_extends_clause()
                 {
-                    let container = resolver.parent(resolver.parent(id).unwrap()).unwrap();
+                    let container = resolver.parent(parent_id).unwrap();
                     let c = resolver.p.node(container);
                     if c.is_class_like()
                         && let Some(res) = resolver
@@ -1236,11 +1247,11 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             .and_then(|m| get_symbol(resolver, m, key, meaning & SymbolFlags::TYPE))
                     {
                         assert!(!resolver.symbol(res).flags.intersects(SymbolFlags::ALIAS));
-                        // TODO: throw ERROR
                         return ResolvedResult {
                             symbol: Symbol::ERR,
                             associated_declaration_for_containing_initializer_or_binding_name,
                             within_deferred_context,
+                            base_class_expression_cannot_reference_class_type_parameters: true,
                         };
                     }
                 }
@@ -1254,6 +1265,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: Symbol::ARGUMENTS,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
             }
@@ -1265,6 +1277,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: Symbol::ARGUMENTS,
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
                 if meaning.intersects(SymbolFlags::FUNCTION)
@@ -1274,6 +1287,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         symbol: resolver.symbol_of_decl(id),
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: false,
                     };
                 }
             }
@@ -1297,12 +1311,14 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             symbol,
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
+            base_class_expression_cannot_reference_class_type_parameters: false,
         };
     } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
         return ResolvedResult {
             symbol: Symbol::GLOBAL_THIS,
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
+            base_class_expression_cannot_reference_class_type_parameters: false,
         };
     }
 
@@ -1310,5 +1326,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         symbol: Symbol::ERR,
         associated_declaration_for_containing_initializer_or_binding_name,
         within_deferred_context,
+        base_class_expression_cannot_reference_class_type_parameters: false,
     }
 }

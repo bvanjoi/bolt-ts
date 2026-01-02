@@ -56,15 +56,18 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_local_ty_alias(&self, symbol: SymbolID) -> bool {
         let s = self.binder.symbol(symbol);
-
-        if s.flags == SymbolFlags::TYPE_ALIAS {
-            let decls = s.decls.as_ref().unwrap();
-            self.node_query(decls[0].module())
-                .get_containing_fn(decls[0])
+        let Some(decls) = s.decls.as_ref() else {
+            return false;
+        };
+        let decl = decls.iter().find(|&&decl| {
+            // TODO: is_js_doc_ty_alias
+            self.p.node(decl).is_type_alias_decl()
+        });
+        decl.is_some_and(|&decl| {
+            self.node_query(decl.module())
+                .get_containing_fn(decl)
                 .is_some()
-        } else {
-            false
-        }
+        })
     }
 
     fn get_ty_from_ty_alias_refer(
@@ -89,7 +92,7 @@ impl<'cx> TyChecker<'cx> {
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let ty = self.binder.symbol(symbol).name.to_string(&self.atoms);
-                let error: bolt_ts_middle::Diag = if min_ty_arg_count == ty_params.len() {
+                let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node.span(),
                         ty,
@@ -107,7 +110,7 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
             let alias_symbol = self.get_alias_symbol_for_ty_node(node.id());
-            let new_alias_symbol = alias_symbol.and_then(|alias_symbol| {
+            let mut new_alias_symbol = alias_symbol.and_then(|alias_symbol| {
                 if self.is_local_ty_alias(symbol) || !self.is_local_ty_alias(alias_symbol) {
                     Some(alias_symbol)
                 } else {
@@ -119,9 +122,20 @@ impl<'cx> TyChecker<'cx> {
                 alias_ty_args = self.get_ty_args_for_alias_symbol(new_alias_symbol)
             } else if self.p.node(node.id()).is_ty_refer_ty() {
                 let alias_symbol = self.resolve_ty_refer_name(node.name(), SymbolFlags::ALIAS);
-                // if alias_symbol != Symbol::ERR {
-
-                // }
+                if alias_symbol != Symbol::ERR
+                    && let resolved = self.resolve_alias(alias_symbol)
+                    && self
+                        .binder
+                        .symbol(resolved)
+                        .flags
+                        .contains(SymbolFlags::TYPE_ALIAS)
+                {
+                    new_alias_symbol = Some(resolved);
+                    alias_ty_args = self.ty_args_from_ty_refer_node(node.ty_args());
+                    if alias_ty_args.is_none() {
+                        alias_ty_args = Some(self.empty_array())
+                    }
+                }
             }
             let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
@@ -192,7 +206,7 @@ impl<'cx> TyChecker<'cx> {
             let num_ty_args = ty_args.map(|args| args.list.len()).unwrap_or_default();
             let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
-                let error: bolt_ts_middle::Diag = if min_ty_arg_count == ty_params.len() {
+                let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node_span,
                         ty: self.print_ty(ty).to_string(),
@@ -259,7 +273,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: &impl GetTypeFromTyReferLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_node_links(node.id()).get_resolved_ty() {
+        let id = node.id();
+        if let Some(ty) = self.get_node_links(id).get_resolved_ty() {
             return ty;
         }
         let name = node.name();
@@ -281,10 +296,9 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let symbol = self.resolve_ty_refer_name(name, SymbolFlags::TYPE);
-        self.get_mut_node_links(node.id())
-            .set_resolved_symbol(symbol);
+        self.get_mut_node_links(id).set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);
-        self.get_mut_node_links(node.id()).set_resolved_ty(ty);
+        self.get_mut_node_links(id).set_resolved_ty(ty);
         ty
     }
 }

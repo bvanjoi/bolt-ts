@@ -28,6 +28,7 @@ members = [
   "helper/span",
   "helper/utils",
 
+  "tools/bootstrap",
   "tools/compile-test",
 ]
 

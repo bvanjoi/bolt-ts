@@ -156,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.any_ty
             }
-        } else if let Some(n) = node.as_object_prop_member() {
+        } else if let Some(n) = node.as_object_prop_assignment() {
             if let Some(ty) = node.ty_anno() {
                 self.get_ty_from_type_node(ty)
             } else {
@@ -230,7 +230,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
-        let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty());
+        let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None);
 
         let s = self.symbol(symbol);
         if s.flags.intersects(SymbolFlags::CLASS) {
@@ -644,7 +644,7 @@ impl<'cx> TyChecker<'cx> {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
                 && self.is_var_const(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
-        } else if n.is_class_prop_elem() || n.is_object_prop_member() {
+        } else if n.is_class_prop_elem() || n.is_object_prop_assignment() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
         } else if n.is_prop_signature() {
             n.has_effective_readonly_modifier() // TODO: || is_commonjs_export_property_assignment
@@ -718,7 +718,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
             return ty;
         }
-        let ty = self.create_anonymous_ty(Some(self.final_res(node)), ObjectFlags::empty());
+        let ty = self.create_anonymous_ty(Some(self.final_res(node)), ObjectFlags::empty(), None);
         self.get_mut_node_links(node).set_resolved_ty(ty);
         ty
     }
@@ -822,7 +822,7 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn is_assignment_to_readonly_entity(
+    pub(super) fn is_assignment_to_readonly_entity(
         &mut self,
         expr: ast::NodeID,
         symbol: SymbolID,
@@ -935,7 +935,7 @@ impl<'cx> TyChecker<'cx> {
             let index_node = self.get_index_node_for_access_expr(access_node);
             let index_node = self.p.node(index_node);
             let span = index_node.span();
-            let error: bolt_ts_middle::Diag = if !index_node.is_big_int_lit()
+            let error: bolt_ts_errors::BoxedDiag = if !index_node.is_big_int_lit()
                 && index_ty
                     .flags
                     .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))
@@ -1155,20 +1155,23 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
         assert!(self.p.node(node).is_ty());
         let mut host = self.parent(node);
-        while let Some(node_id) = host {
-            let node = self.p.node(node);
+        while let Some(host_node_id) = host {
+            let node = self.p.node(host_node_id);
             if node.is_paren_type_node() {
-                host = self.parent(node_id);
+                host = self.parent(host_node_id);
             } else {
                 break;
             }
         }
-        host.and_then(|node_id| self.p.node(node_id).is_type_alias_decl().then_some(node_id))
-            .map(|node_id| {
-                let symbol = self.final_res(node_id);
-                assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
-                symbol
-            })
+        host.and_then(|node_id| {
+            // TODO: is_js_doc_ty_alias
+            self.p.node(node_id).is_type_alias_decl().then_some(node_id)
+        })
+        .map(|node_id| {
+            let symbol = self.final_res(node_id);
+            assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
+            symbol
+        })
     }
 
     pub(super) fn get_ty_args_for_alias_symbol(
@@ -1598,7 +1601,7 @@ impl<'cx> TyChecker<'cx> {
         let check_ty = self.get_ty_from_type_node(node.check_ty);
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_args = self.get_ty_args_for_alias_symbol(alias_symbol);
-        let all_outer_ty_params = self.get_outer_ty_params(node.id, true);
+        let all_outer_ty_params = self.get_outer_ty_params::<true>(node.id);
         let outer_ty_params: Option<ty::Tys<'cx>> = if alias_ty_args.is_some() {
             if let Some(all_outer_ty_params) = all_outer_ty_params {
                 Some(self.alloc(all_outer_ty_params))
@@ -1880,6 +1883,27 @@ impl<'cx> TyChecker<'cx> {
             unreachable!("Global type '{}' not found", name.to_string(&self.atoms));
         };
         self.get_declared_ty_of_symbol(s)
+    }
+
+    pub(super) fn get_global_non_nullable_ty_instantiation(
+        &mut self,
+        t: &'cx ty::Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let symbol = self
+            .deferred_global_non_nullable_type_alias
+            .get_or_init(|| {
+                self.get_global_symbol(
+                    SymbolName::Atom(keyword::IDENT_NON_NULLABLE),
+                    SymbolFlags::TYPE_ALIAS,
+                )
+            });
+        if let Some(symbol) = symbol {
+            let tys = self.alloc([t]);
+            self.get_type_alias_instantiation(*symbol, tys, None, None)
+        } else {
+            let tys = &[t, self.empty_object_ty()];
+            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+        }
     }
 
     fn get_ret_ty_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
@@ -2214,5 +2238,17 @@ impl<'cx> TyChecker<'cx> {
         } else {
             t.is_unit()
         }
+    }
+
+    pub(super) fn get_ty_from_type_query(
+        &mut self,
+        node: &'cx ast::TypeofTy<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            return ty;
+        }
+        let ty = self.check_expr_with_ty_args(node);
+        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        ty
     }
 }

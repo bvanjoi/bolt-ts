@@ -183,11 +183,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        if (self.relation == RelationKind::Comparable
+        if self.relation == RelationKind::Comparable
             && !target.flags.intersects(TypeFlags::NEVER)
             && self
                 .c
-                .is_simple_type_related_to(target, source, self.relation))
+                .is_simple_type_related_to(target, source, self.relation)
             || self
                 .c
                 .is_simple_type_related_to(source, target, self.relation)
@@ -1403,7 +1403,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if self.c.is_empty_array_lit_ty(source) {
                     return Ternary::TRUE;
                 }
-                let variances = self.c.get_variances(source_refer.target);
+                let ty = if source_refer.target.kind.is_object_interface() {
+                    source
+                } else {
+                    source_refer.target
+                };
+                let variances = self.c.get_variances(ty);
                 if variances == self.c.empty_array() {
                     // cycle
                     return Ternary::UNKNOWN;

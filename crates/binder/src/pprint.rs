@@ -6,8 +6,9 @@ impl<'cx> SymbolName {
         match self {
             SymbolName::Atom(atom_id) => atoms.get(atom_id).to_string(),
             SymbolName::EleNum(val) => val.val().to_string(),
-            SymbolName::Container => "__container".to_string(),
-            SymbolName::ClassExpr => "__container".to_string(),
+            SymbolName::InstantiationExpression => "__InstantiationExpression".to_string(),
+            SymbolName::Container => "__Container".to_string(),
+            SymbolName::ClassExpr => "__ClassExpr".to_string(),
             SymbolName::Array => "__container".to_string(),
             SymbolName::Object => "__container".to_string(),
             SymbolName::Fn => "__container".to_string(),
@@ -24,10 +25,7 @@ impl<'cx> SymbolName {
             SymbolName::ExportDefault => "__container".to_string(),
             SymbolName::Computed => "__container".to_string(),
             SymbolName::ParamIdx(_) => "__container".to_string(),
-            SymbolName::ESSymbol {
-                escaped_name,
-                symbol_id,
-            } => format!("{}#", atoms.get(escaped_name)),
+            SymbolName::ESSymbol { escaped_name, .. } => format!("{}#", atoms.get(escaped_name)),
         }
     }
 }

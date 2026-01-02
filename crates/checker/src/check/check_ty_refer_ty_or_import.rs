@@ -1,13 +1,13 @@
-use crate::check::create_ty::IntersectionFlags;
-use crate::check::cycle_check::ResolutionKey;
-use crate::check::get_simplified_ty::SimplifiedKind;
-use crate::check::is_deeply_nested_type::RecursionId;
-use crate::ty;
-use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+use super::create_ty::IntersectionFlags;
+use super::cycle_check::ResolutionKey;
+use super::get_simplified_ty::SimplifiedKind;
+use super::is_deeply_nested_type::RecursionId;
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {

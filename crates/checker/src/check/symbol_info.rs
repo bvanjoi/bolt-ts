@@ -46,7 +46,7 @@ pub trait SymbolInfo<'cx>: Sized {
     fn p(&self) -> &bolt_ts_parser::ParsedMap<'cx>;
     fn atoms(&self) -> &bolt_ts_atom::AtomIntern;
     fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
-    fn push_error(&mut self, error: bolt_ts_middle::Diag);
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag);
 
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>>;
     fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>>;
@@ -221,10 +221,12 @@ impl<'cx> super::TyChecker<'cx> {
             .union(SymbolFlags::NAMESPACE);
         match p.node(node) {
             ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, dont_recur_resolve),
-            ShorthandSpec(_) if p.node(self.parent(node).unwrap()).is_import_clause() => {
+            ImportExportShorthandSpec(_)
+                if p.node(self.parent(node).unwrap()).is_import_clause() =>
+            {
                 get_target_of_import_named_spec(self, node, dont_recur_resolve)
             }
-            ShorthandSpec(_) => {
+            ImportExportShorthandSpec(_) => {
                 assert!(p.node(self.parent(node).unwrap()).is_specs_export());
                 get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
             }
@@ -618,7 +620,7 @@ impl<'cx> super::TyChecker<'cx> {
         let flags = self.symbol(symbol).flags;
         if flags.intersects(meaning) {
             symbol
-        } else if flags.intersects(SymbolFlags::ALIAS) {
+        } else if flags.contains(SymbolFlags::ALIAS) {
             self.resolve_alias(symbol)
         } else {
             if let Ident(n) = name.kind {
@@ -948,7 +950,7 @@ fn get_external_module_member(
                 bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
                 bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
-            bolt_ts_ast::Node::ShorthandSpec(n) => n.name.name,
+            bolt_ts_ast::Node::ImportExportShorthandSpec(n) => n.name.name,
             bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
                 bolt_ts_ast::ModuleExportNameKind::Ident(n) => n.name,
                 bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
@@ -973,11 +975,8 @@ fn error_no_module_member_symbol(
     module_name: bolt_ts_atom::Atom,
     spec_name_id: bolt_ts_ast::NodeID,
 ) {
-    let spec_name = this
-        .p()
-        .node(spec_name_id)
-        .import_export_spec_name()
-        .unwrap();
+    let n = this.p().node(spec_name_id);
+    let spec_name = n.import_export_spec_name().unwrap();
     report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
 }
 
@@ -1026,7 +1025,7 @@ fn report_non_exported_member(
             .ident_name()
             .unwrap()
             .span;
-        let error: bolt_ts_middle::Diag = if let Some(decl) = decl {
+        let error: bolt_ts_errors::BoxedDiag = if let Some(decl) = decl {
             let mut helper = vec![];
             helper.push(
                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
@@ -1074,7 +1073,7 @@ fn report_non_exported_member(
     } else {
         use bolt_ts_ast::Node::*;
         let span = match this.p().node(spec_name_id) {
-            ShorthandSpec(n) => n.span,
+            ImportExportShorthandSpec(n) => n.span,
             ExportNamedSpec(n) => n.prop_name.span(),
             _ => unreachable!(),
         };
@@ -1107,7 +1106,7 @@ fn get_target_of_export_spec(
     }
 
     match n {
-        bolt_ts_ast::Node::ShorthandSpec(n) => {
+        bolt_ts_ast::Node::ImportExportShorthandSpec(n) => {
             let p_id = this.parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
             if p.module.is_some() {
@@ -1266,7 +1265,7 @@ impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
     fn atoms(&self) -> &bolt_ts_atom::AtomIntern {
         &self.atoms
     }
-    fn push_error(&mut self, error: bolt_ts_middle::Diag) {
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
     fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>> {

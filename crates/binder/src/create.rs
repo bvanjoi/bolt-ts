@@ -107,7 +107,7 @@ impl BinderState<'_, '_, '_> {
                         let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
                         let old_decl = self.p.node(old_decl_id);
 
-                        let error: bolt_ts_middle::Diag = if old_symbol
+                        let error: bolt_ts_errors::BoxedDiag = if old_symbol
                             .flags
                             .intersects(SymbolFlags::ENUM)
                             || includes.intersects(SymbolFlags::ENUM)

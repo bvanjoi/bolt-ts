@@ -94,9 +94,10 @@ impl<'cx> TyChecker<'cx> {
             ty.symbol(),
             object_flags,
             self.alloc(members),
-            &[],
-            &[],
-            &[],
+            self.empty_array(),
+            self.empty_array(),
+            self.empty_array(),
+            None,
         )
     }
 
@@ -185,13 +186,15 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(
         &mut self,
-        mut ty: &'cx ty::Ty<'cx>,
+        ty: &'cx ty::Ty<'cx>,
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if !self.is_literal_of_contextual_ty(ty, contextual_ty) {
-            ty = self.get_widened_literal_ty(ty);
+            let ty = self.get_widened_literal_ty(ty);
+            self.get_regular_ty_of_literal_ty(ty)
+        } else {
+            self.get_regular_ty_of_literal_ty(ty)
         }
-        self.get_regular_ty_of_literal_ty(ty)
     }
 
     pub(super) fn instantiate_contextual_ty(

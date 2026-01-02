@@ -1,6 +1,6 @@
 use bolt_ts_atom::Atom;
 
-pub trait FnLike<'cx>: Copy + std::fmt::Debug {
+pub trait FnLike<'cx>: std::fmt::Debug {
     fn id(&self) -> crate::NodeID;
     fn ty_params(&self) -> Option<crate::TyParams<'cx>>;
     fn params(&self) -> crate::ParamsDecl<'cx>;

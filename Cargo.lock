@@ -360,7 +360,6 @@ dependencies = [
 name = "bolt_ts_middle"
 version = "0.1.0"
 dependencies = [
- "bolt_ts_errors",
  "nohash-hasher",
 ]
 
@@ -468,7 +467,6 @@ name = "bolt_ts_span"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_atom",
- "bolt_ts_fs",
  "bolt_ts_utils",
  "miette",
 ]
@@ -511,6 +509,15 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "bootstrap"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

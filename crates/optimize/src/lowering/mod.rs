@@ -710,40 +710,40 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 let members = n
                     .members
                     .iter()
-                    .map(|m| match m.kind {
+                    .filter_map(|m| match m.kind {
                         ast::ObjectMemberKind::Shorthand(n) => {
                             let name = self.lower_ident(n.name);
-                            ir::ObjectLitMember::Shorthand(
+                            Some(ir::ObjectLitMember::Shorthand(
                                 self.nodes.alloc_object_shorthand_member(n.span, name),
-                            )
+                            ))
                         }
                         ast::ObjectMemberKind::PropAssignment(n) => {
                             let key = self.lower_prop_name(n.name);
                             let init = self.lower_expr(n.init);
-                            ir::ObjectLitMember::Prop(
+                            Some(ir::ObjectLitMember::Prop(
                                 self.nodes.alloc_object_prop_member(n.span, key, init),
-                            )
+                            ))
                         }
                         ast::ObjectMemberKind::Method(n) => {
                             let name = self.lower_prop_name(n.name);
                             let params = self.lower_param_decls(n.params);
                             let body = self.lower_block_stmt(n.body);
-                            ir::ObjectLitMember::Method(
+                            Some(ir::ObjectLitMember::Method(
                                 self.nodes
                                     .alloc_object_method_member(n.span, name, params, body),
-                            )
+                            ))
                         }
                         ast::ObjectMemberKind::SpreadAssignment(n) => {
                             let expr = self.lower_expr(n.expr);
-                            ir::ObjectLitMember::SpreadAssignment(
+                            Some(ir::ObjectLitMember::SpreadAssignment(
                                 self.nodes.alloc_spread_assignment(n.span, expr),
-                            )
+                            ))
                         }
                         ast::ObjectMemberKind::Getter(n) => {
-                            ir::ObjectLitMember::Getter(self.lower_getter_decl(n).unwrap())
+                            self.lower_getter_decl(n).map(ir::ObjectLitMember::Getter)
                         }
                         ast::ObjectMemberKind::Setter(n) => {
-                            ir::ObjectLitMember::Setter(self.lower_setter_decl(n).unwrap())
+                            self.lower_setter_decl(n).map(ir::ObjectLitMember::Setter)
                         }
                     })
                     .collect();

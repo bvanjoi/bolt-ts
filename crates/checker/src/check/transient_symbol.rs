@@ -1,11 +1,10 @@
 use bolt_ts_ast::{self as ast, NodeID};
-use bolt_ts_span::ModuleID;
-
-use crate::ty;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
+use bolt_ts_span::ModuleID;
 
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
+use super::ty;
 
 pub(super) fn create_transient_symbol(symbols: &mut Symbols, symbol: Symbol) -> SymbolID {
     debug_assert!(symbol.flags.intersects(SymbolFlags::TRANSIENT));
@@ -24,6 +23,7 @@ impl<'cx> TyChecker<'cx> {
         decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
     ) -> SymbolID {
+        debug_assert!(flags.contains(SymbolFlags::TRANSIENT));
         let symbol = Symbol {
             name,
             flags,
@@ -100,12 +100,12 @@ impl<'cx> TyChecker<'cx> {
         {
             return true;
         }
-        let symbol_flags = self.symbol(symbol).flags;
-        symbol_flags.intersects(SymbolFlags::PROPERTY)
+        let flags = self.symbol(symbol).flags;
+        flags.contains(SymbolFlags::PROPERTY)
             && self
                 .decl_modifier_flags_from_symbol(symbol)
-                .intersects(ast::ModifierKind::Readonly)
-            || symbol_flags.intersects(SymbolFlags::ENUM_MEMBER)
+                .contains(ast::ModifierKind::Readonly)
+            || flags.contains(SymbolFlags::ENUM_MEMBER)
     }
 
     pub(crate) fn get_late_flag(&self, symbol: SymbolID) -> ty::CheckFlags {

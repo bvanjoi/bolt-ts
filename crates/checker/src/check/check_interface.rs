@@ -2,9 +2,8 @@ use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use crate::ty;
-
 use super::symbol_info::SymbolInfo;
+use super::ty;
 use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {

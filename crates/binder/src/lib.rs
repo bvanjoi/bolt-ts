@@ -129,6 +129,13 @@ struct BinderState<'cx, 'atoms, 'parser> {
     flow_in_nodes: FlowInNodes,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum AccessKind {
+    Read,
+    Write,
+    ReadWrite,
+}
+
 struct BinderNodeQuery<'cx, 'p> {
     parent_map: &'p ParentMap,
     parse_result: &'p ParseResult<'cx>,
@@ -224,7 +231,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn push_error(&mut self, error: bolt_ts_middle::Diag) {
+    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
         let diag = bolt_ts_errors::Diag { inner: error };
         self.diags.push(diag);
     }

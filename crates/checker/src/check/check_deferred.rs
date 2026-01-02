@@ -23,21 +23,26 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_assertion_deferred(&mut self, expr: &'cx ast::TyAssertion<'cx>) {
-        let Some(expr_ty) = self.get_node_links(expr.id).get_assertion_expression_ty() else {
+    fn check_assertion_deferred(
+        &mut self,
+        node_id: ast::NodeID,
+        span: bolt_ts_span::Span,
+        assert_ty: &'cx ast::Ty<'cx>,
+    ) {
+        let Some(expr_ty) = self.get_node_links(node_id).get_assertion_expression_ty() else {
             unreachable!()
         };
         let expr_ty = self.get_base_ty_of_literal_ty(expr_ty);
         let expr_ty = self.get_regular_ty_of_object_literal(expr_ty);
-        let target_ty = self.get_ty_from_type_node(expr.ty);
+        let target_ty = self.get_ty_from_type_node(assert_ty);
         if !self.is_error(target_ty)
             && let widened_ty = self.get_widened_ty(expr_ty)
             && !self.is_type_related_to(target_ty, widened_ty, RelationKind::Comparable)
         {
             // TODO: report error in `check_type_comparable_to`
-            if !self.check_type_comparable_to(expr_ty, target_ty, Some(expr.id)) {
+            if !self.check_type_comparable_to(expr_ty, target_ty, Some(node_id)) {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
-                    span: expr.span,
+                    span: span,
                     source_ty: widened_ty.to_string(self),
                     target_ty: target_ty.to_string(self),
                 };
@@ -59,10 +64,12 @@ impl<'cx> TyChecker<'cx> {
                 let body = ast::ArrowFnExprBody::Block(expr.body);
                 self.check_fn_like_expr_or_object_method_member_deferred(expr, body)
             }
-            TyAssertionExpr(expr) => {
-                self.check_assertion_deferred(expr);
+            TyAssertionExpr(n) => {
+                self.check_assertion_deferred(n.id, n.span, n.ty);
             }
-            AsExpr(expr) => {}
+            AsExpr(n) => {
+                self.check_assertion_deferred(n.id, n.span, n.ty);
+            }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

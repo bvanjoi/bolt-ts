@@ -485,7 +485,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn has_correct_ty_arg_arity(
+    pub(super) fn has_correct_ty_arg_arity(
         &mut self,
         candidate: &'cx Sig<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
@@ -626,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
         has_error
     }
 
-    fn check_ty_args(
+    pub(super) fn check_ty_args(
         &mut self,
         sig: &'cx Sig<'cx>,
         ty_args: &'cx ast::Tys<'cx>,
@@ -918,7 +918,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
         } else if args.len() < min_required_params {
             let span = expr.span();
-            let error: bolt_ts_middle::Diag = if max_required_params == usize::MAX {
+            let error: bolt_ts_errors::BoxedDiag = if max_required_params == usize::MAX {
                 Box::new(errors::ExpectedAtLeastXArgsButGotY {
                     span,
                     x: min_required_params,

@@ -1,9 +1,8 @@
-use crate::ty::ElementFlags;
-
 use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::symbol_info::SymbolInfo;
+use super::ty::ElementFlags;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_ty(&mut self, ty: &'cx ast::Ty<'cx>) {
@@ -38,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
             Rest(n) => (),
             Union(n) => (),
             Intersection(n) => (),
-            Typeof(n) => (),
+            Typeof(n) => self.check_type_query(n),
             Paren(n) => (),
             Infer(n) => (),
             Intrinsic(n) => (),
@@ -47,6 +46,10 @@ impl<'cx> TyChecker<'cx> {
             This(n) => (),
         };
         self.current_node = saved_current_node;
+    }
+
+    fn check_type_query(&mut self, n: &'cx ast::TypeofTy<'cx>) {
+        self.get_ty_from_type_query(n);
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {

@@ -9,15 +9,16 @@ mod resolution_kind_spec_loader;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::Extension;
 use bolt_ts_fs::{CachedFileSystem, PathId};
+use bolt_ts_path::is_external_module_relative;
 use bolt_ts_utils::path::{NormalizePath, path_as_str};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
-use package_json::PackageJsonInfoContents;
 use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use self::errors::ResolveError;
 use self::normalize_join::normalize_join;
+pub use self::package_json::PackageJsonInfoContents;
 use self::package_json::{PackageJsonInfo, PackageJsonInfoId};
 
 pub type RResult<T> = Result<T, ResolveError>;
@@ -39,6 +40,7 @@ bitflags::bitflags! {
         const ImplementationFiles = Self::TypeScript.bits() | Self::JavaScript.bits();
     }
 }
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct CacheKey {
     base_dir: PathId,
@@ -51,16 +53,35 @@ pub struct Resolver<FS: CachedFileSystem> {
     cache: Arc<Mutex<FxHashMap<CacheKey, RResult<PathId>>>>,
     package_json_arena: Arc<Mutex<Vec<PackageJsonInfo>>>,
     package_json_cache: Arc<Mutex<nohash_hasher::IntMap<PathId, PackageJsonInfoId>>>,
+    flags: ResolveFlags,
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct ResolveFlags: u8 {
+        const PRESERVE_SYMLINKS = 1 << 0;
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Resolved {
+    path: PathId,
+}
+#[derive(Debug, Clone)]
+struct SearchResult {
+    resolved: Resolved,
+    is_external_library_import: bool,
 }
 
 impl<FS: CachedFileSystem> Resolver<FS> {
-    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomIntern>>) -> Self {
+    pub fn new(fs: Arc<Mutex<FS>>, atoms: Arc<Mutex<AtomIntern>>, flags: ResolveFlags) -> Self {
         Self {
             fs,
             atoms,
             cache: Arc::new(Mutex::new(fx_hashmap_with_capacity(1024 * 8))),
             package_json_arena: Arc::new(Mutex::new(Vec::with_capacity(1024 * 8))),
             package_json_cache: Arc::new(Mutex::new(no_hashmap_with_capacity(1024 * 8))),
+            flags,
         }
     }
 
@@ -70,21 +91,59 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         fs.file_exists(p, atoms)
     }
 
-    pub fn resolve(&self, base_dir: PathId, target: Atom) -> RResult<PathId> {
-        let cache_key = CacheKey { base_dir, target };
+    pub fn resolve(&self, base_dir: PathId, module_name: Atom) -> RResult<PathId> {
+        let cache_key = CacheKey {
+            base_dir,
+            target: module_name,
+        };
         if let Some(cached) = self.cache.lock().unwrap().get(&cache_key) {
             return *cached;
         }
-        let result = self.try_resolve(base_dir, target);
+        let resolved = self.try_resolve(base_dir, module_name);
+        let result = self.create_resolved_module_with_failed_lookup_locations_handing_symlink(
+            module_name,
+            resolved,
+        );
         self.cache.lock().unwrap().insert(cache_key, result);
         result
     }
 
-    fn try_resolve(&self, base_dir: PathId, target: Atom) -> RResult<PathId> {
+    fn get_original_and_resolved_file_name(&self, file_name: PathId) -> PathId {
+        let mut fs = self.fs.lock().unwrap();
+        let p = Path::new(self.atoms.lock().unwrap().get(file_name.into()));
+        if !fs.is_symlink(p, self.atoms.lock().as_mut().unwrap()) {
+            return file_name;
+        }
+        fs.realpath(p, self.atoms.lock().as_mut().unwrap()).unwrap()
+    }
+
+    fn create_resolved_module_with_failed_lookup_locations_handing_symlink(
+        &self,
+        module_name: Atom,
+        resolved: RResult<SearchResult>,
+    ) -> RResult<PathId> {
+        let resolved = resolved?;
+        if !self.flags.contains(ResolveFlags::PRESERVE_SYMLINKS)
+            && resolved.is_external_library_import
+            && !is_external_module_relative(self.atoms.lock().unwrap().get(module_name))
+        {
+            let res = self.get_original_and_resolved_file_name(resolved.resolved.path);
+            Ok(res)
+        } else {
+            Ok(resolved.resolved.path)
+        }
+    }
+
+    fn try_resolve(&self, base_dir: PathId, target: Atom) -> RResult<SearchResult> {
         let module_name = self.atoms.lock().unwrap().get(target);
         if !bolt_ts_path::is_external_module_relative(module_name) {
-            let ext = Extensions::TypeScript | Extensions::Declaration;
-            self.load_module_from_nearest_node_modules_dir(ext, target, base_dir)
+            let ext = Extensions::TypeScript.union(Extensions::Declaration);
+            let ret = self.load_module_from_nearest_node_modules_dir(ext, target, base_dir)?;
+            let resolved = Resolved { path: ret };
+            Ok(SearchResult {
+                resolved,
+                is_external_library_import: true,
+            })
         } else {
             let base_dir = self.atoms.lock().unwrap().get(base_dir.into());
             let candidate = {
@@ -95,11 +154,16 @@ impl<FS: CachedFileSystem> Resolver<FS> {
             let bytes = candidate.as_os_str().as_encoded_bytes();
             let s = unsafe { std::str::from_utf8_unchecked(bytes) };
             self.atoms.lock().unwrap().atom(s);
-            self.node_load_module_by_relative_name(
+            let ret = self.node_load_module_by_relative_name(
                 Extensions::TypeScript.union(Extensions::Declaration),
                 candidate,
                 false,
-            )
+            )?;
+            let resolved = Resolved { path: ret };
+            Ok(SearchResult {
+                resolved,
+                is_external_library_import: false,
+            })
         }
     }
 
@@ -245,10 +309,12 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         let mut fs = self.fs.lock().unwrap();
         let dir_exists = fs.dir_exists(pkg_dir, self.atoms.lock().as_mut().unwrap());
         if dir_exists && fs.file_exists(&pkg_json_path, self.atoms.lock().as_mut().unwrap()) {
+            debug_assert!(pkg_dir.is_normalized());
             let package_dir = PathId::get(pkg_dir, self.atoms.lock().as_mut().unwrap());
             let package_json_content = fs
                 .read_file(&pkg_json_path, self.atoms.lock().as_mut().unwrap())
                 .unwrap();
+            drop(fs);
             let c = self
                 .atoms
                 .lock()
@@ -364,7 +430,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         let result =
             self.try_adding_extension(candidate, ext, origin_extension, only_record_failures);
         candidate.set_extension(os_ext);
-        assert_eq!(candidate.as_os_str().len(), save_len);
+        debug_assert_eq!(candidate.as_os_str().len(), save_len);
         Some(result)
     }
 
@@ -436,8 +502,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         result
     }
 
-    fn try_file(&self, p: &std::path::Path, only_record_failures: bool) -> RResult<PathId> {
-        // TODO: `config.module_suffix`
+    fn try_file_lookup(&self, p: &std::path::Path, only_record_failures: bool) -> RResult<PathId> {
         debug_assert!(p.is_normalized());
         let is_file = self.is_file(p);
         let atoms = &mut self.atoms.lock().unwrap();
@@ -447,5 +512,11 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         } else {
             Err(ResolveError::NotFound(id))
         }
+    }
+
+    fn try_file(&self, p: &std::path::Path, only_record_failures: bool) -> RResult<PathId> {
+        // TODO: `config.module_suffix`
+        debug_assert!(p.is_normalized());
+        self.try_file_lookup(p, only_record_failures)
     }
 }

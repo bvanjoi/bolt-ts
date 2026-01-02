@@ -1,19 +1,25 @@
+mod dir_node;
+mod file_node;
+mod node;
+
 use std::{hash::Hash, path::PathBuf};
 
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
+use self::node::{FSNode, FSNodeKind};
+
+use super::FsError;
 use super::errors::{self, FsResult};
 use super::has_slash_suffix_and_not_root;
 use super::path::PathId;
-use crate::FsError;
 
 bolt_ts_utils::index!(FSNodeId);
 
 pub(super) struct FSTree {
-    nodes: Vec<FSNode>,
     path_to_node: nohash_hasher::IntMap<PathId, FSNodeId>,
+    nodes: Vec<FSNode>,
 }
 
 impl FSTree {
@@ -37,31 +43,52 @@ impl FSTree {
         target: PathId,
         is_dir: bool,
     ) -> Option<errors::FsError> {
-        match self.node(node).kind {
+        match self.node(node).kind() {
             FSNodeKind::Dir(_) if !is_dir => Some(errors::FsError::NotAFile(target)),
             FSNodeKind::File(_) if is_dir => Some(errors::FsError::NotADir(target)),
             _ => None,
         }
     }
 
-    fn insert_file_node(
+    fn insert_real_file_node(
         &mut self,
         parent: FSNodeId,
         path: PathId,
         content: Atom,
     ) -> FsResult<FSNodeId> {
         let parent_node = self.node(parent);
-        let FSNodeKind::Dir(dir) = &parent_node.kind else {
-            return Err(errors::FsError::FileExists(parent_node.kind.path()));
+        let FSNodeKind::Dir(dir) = &parent_node.kind() else {
+            return Err(errors::FsError::FileExists(parent_node.kind().path()));
         };
         if let Some(old) = dir.find_child(path, &self.nodes) {
-            if self.node(old).kind.as_dir_node().is_some() {
+            if self.node(old).kind().as_dir_node().is_some() {
                 Err(errors::FsError::DirExists(path))
             } else {
                 Ok(old)
             }
         } else {
-            Ok(self.insert_node(parent, FSNodeKind::file_node(path, content)))
+            Ok(self.insert_node(parent, FSNodeKind::real_file_node(path, content)))
+        }
+    }
+
+    fn insert_symlink_file_node(
+        &mut self,
+        parent: FSNodeId,
+        path: PathId,
+        to: PathId,
+    ) -> FsResult<FSNodeId> {
+        let parent_node = self.node(parent);
+        let FSNodeKind::Dir(dir) = &parent_node.kind() else {
+            return Err(errors::FsError::FileExists(parent_node.kind().path()));
+        };
+        if let Some(old) = dir.find_child(path, &self.nodes) {
+            if self.node(old).kind().as_dir_node().is_some() {
+                Err(errors::FsError::DirExists(path))
+            } else {
+                Ok(old)
+            }
+        } else {
+            Ok(self.insert_node(parent, FSNodeKind::symlink_file_node(path, to)))
         }
     }
 
@@ -73,11 +100,11 @@ impl FSTree {
     ) -> FsResult<FSNodeId> {
         if let Some(parent) = parent {
             let parent_node = self.node(parent);
-            let FSNodeKind::Dir(dir) = &parent_node.kind else {
+            let FSNodeKind::Dir(dir) = &parent_node.kind() else {
                 panic!("parent should must be a directory")
             };
             if let Some(old) = dir.find_child(path, &self.nodes) {
-                if self.node(old).kind.as_file_node().is_some() {
+                if self.node(old).kind().as_file_node().is_some() {
                     Err(errors::FsError::FileExists(path))
                 } else {
                     Ok(old)
@@ -89,11 +116,8 @@ impl FSTree {
             debug_assert!(atoms.atom("/") == path.into());
             if self.nodes.is_empty() {
                 let kind = FSNodeKind::dir_node(path);
-                let node = FSNode {
-                    id: FSNodeId::root(),
-                    kind,
-                };
-                let prev = self.path_to_node.insert(path, node.id);
+                let node = FSNode::new(FSNodeId::root(), kind);
+                let prev = self.path_to_node.insert(path, node.id());
                 assert!(prev.is_none());
                 self.nodes.push(node);
             }
@@ -101,19 +125,19 @@ impl FSTree {
         }
     }
 
-    fn insert_node(&mut self, parent: FSNodeId, node: FSNodeKind) -> FSNodeId {
+    fn insert_node(&mut self, parent: FSNodeId, kind: FSNodeKind) -> FSNodeId {
         let id = FSNodeId(self.nodes.len() as u32);
-        let node = FSNode { id, kind: node };
-        let prev = match &node.kind {
-            FSNodeKind::File(n) => self.path_to_node.insert(n.path, id),
-            FSNodeKind::Dir(n) => self.path_to_node.insert(n.path, id),
+        let node = FSNode::new(id, kind);
+        let prev = match node.kind() {
+            FSNodeKind::File(n) => self.path_to_node.insert(n.path(), id),
+            FSNodeKind::Dir(n) => self.path_to_node.insert(n.path(), id),
         };
         assert!(prev.is_none());
         self.nodes.push(node);
-        let FSNodeKind::Dir(dir) = &mut self.mut_node(parent).kind else {
+        let FSNodeKind::Dir(dir) = &mut self.mut_node(parent).kind_mut() else {
             unreachable!("parent should not be a directory")
         };
-        dir.children.push(id);
+        dir.add_child(id);
         id
     }
 
@@ -134,7 +158,20 @@ impl FSTree {
         let parent_dir = path.parent().unwrap();
         let parent = self.add_dir(atoms, parent_dir)?;
         let path_id = PathId::new(path, atoms);
-        self.insert_file_node(parent, path_id, content)
+        self.insert_real_file_node(parent, path_id, content)
+    }
+
+    pub(super) fn add_symlink_file(
+        &mut self,
+        atoms: &mut AtomIntern,
+        from: &std::path::Path,
+        to: &std::path::Path,
+    ) -> FsResult<FSNodeId> {
+        let parent_dir = from.parent().unwrap();
+        let parent = self.add_dir(atoms, parent_dir)?;
+        let from_id = PathId::new(from, atoms);
+        let to_id = PathId::new(to, atoms);
+        self.insert_symlink_file_node(parent, from_id, to_id)
     }
 
     pub(super) fn add_dir(
@@ -176,7 +213,7 @@ impl FSTree {
         path: &std::path::Path,
         is_dir: bool,
         atoms: &mut AtomIntern,
-    ) -> errors::FsResult<FSNodeId> {
+    ) -> FsResult<FSNodeId> {
         if path.as_os_str().as_encoded_bytes() == b"/" {
             return if is_dir {
                 Ok(FSTree::ROOT)
@@ -189,10 +226,11 @@ impl FSTree {
         let Some(parent) = path.parent() else {
             unreachable!()
         };
-        let Some(dir) = self.path_to_node.get(&PathId::get(parent, atoms)) else {
+        let parent = PathId::get(parent, atoms);
+        let Some(dir) = self.path_to_node.get(&parent) else {
             return Err(errors::FsError::NotFound(target));
         };
-        let dir = self.node(*dir).kind.as_dir_node().unwrap();
+        let dir = self.node(*dir).kind().as_dir_node().unwrap();
         match dir.find_child(target, &self.nodes) {
             Some(res) => {
                 if let Some(err) = self.target_error(res, target, is_dir) {
@@ -214,102 +252,36 @@ impl FSTree {
             Err(errors::FsError::NotAFile(PathId::get(path, atoms)))
         } else {
             let id = self.find_path(path, false, atoms)?;
-            let Some(file) = self.node(id).kind.as_file_node() else {
+            let Some(file) = self.node(id).kind().as_file_node() else {
                 unreachable!("handled been handled by `find_path`");
             };
-            Ok(file.content)
+            Ok(file.content(self))
         }
     }
 
     pub(super) fn file_exists(&self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
         self.find_path(p, super::has_slash_suffix_and_not_root(p), atoms)
-            .is_ok_and(|id| self.node(id).kind.as_file_node().is_some())
-    }
-}
-
-pub(super) struct FSNode {
-    id: FSNodeId,
-    kind: FSNodeKind,
-}
-
-impl PartialEq for FSNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl FSNode {
-    pub fn kind(&self) -> &FSNodeKind {
-        &self.kind
-    }
-}
-
-#[derive(Debug)]
-pub(super) enum FSNodeKind {
-    File(FileNode),
-    Dir(DirNode),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(super) struct FileNode {
-    path: PathId,
-    content: Atom,
-}
-
-#[derive(Debug)]
-pub(super) struct DirNode {
-    path: PathId,
-    children: Vec<FSNodeId>,
-}
-
-impl DirNode {
-    pub fn children(&self) -> &[FSNodeId] {
-        &self.children
+            .is_ok_and(|id| self.node(id).kind().as_file_node().is_some())
     }
 
-    fn find_child(&self, path: PathId, nodes: &[FSNode]) -> Option<FSNodeId> {
-        self.children
-            .iter()
-            .find(|child| {
-                let child = &nodes[child.as_usize()];
-                path == child.kind.path()
-            })
-            .copied()
-    }
-}
-
-impl FSNodeKind {
-    fn file_node(path: PathId, content: Atom) -> Self {
-        let node = FileNode { path, content };
-        FSNodeKind::File(node)
+    pub(super) fn is_symlink(&self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
+        self.find_path(p, false, atoms).is_ok_and(|id| {
+            self.node(id)
+                .kind()
+                .as_file_node()
+                .is_some_and(|n| n.realpath() != n.path())
+        })
     }
 
-    fn dir_node(path: PathId) -> Self {
-        let node = DirNode {
-            path,
-            children: Vec::with_capacity(32),
+    pub(super) fn read_symlink(
+        &self,
+        p: &std::path::Path,
+        atoms: &mut AtomIntern,
+    ) -> FsResult<PathId> {
+        let id = self.find_path(p, false, atoms)?;
+        let Some(file) = self.node(id).kind().as_file_node() else {
+            unreachable!("handled been handled by `find_path`");
         };
-        FSNodeKind::Dir(node)
-    }
-
-    pub fn as_file_node(&self) -> Option<FileNode> {
-        match self {
-            FSNodeKind::File(node) => Some(*node),
-            FSNodeKind::Dir(_) => None,
-        }
-    }
-
-    pub fn as_dir_node(&self) -> Option<&DirNode> {
-        match self {
-            FSNodeKind::File(_) => None,
-            FSNodeKind::Dir(node) => Some(node),
-        }
-    }
-
-    pub fn path(&self) -> PathId {
-        match self {
-            FSNodeKind::File(node) => node.path,
-            FSNodeKind::Dir(node) => node.path,
-        }
+        Ok(file.realpath())
     }
 }

@@ -1,5 +1,4 @@
 use super::*;
-use crate::keyword;
 
 pub type Stmts<'cx> = &'cx [&'cx Stmt<'cx>];
 
@@ -16,12 +15,12 @@ pub fn update_strict_mode_statement_list(stmts: Stmts<'_>, in_strict_mode: &mut 
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Stmt<'cx> {
     pub kind: StmtKind<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum StmtKind<'cx> {
     Empty(&'cx EmptyStmt),
     Var(&'cx VarStmt<'cx>),
@@ -96,7 +95,7 @@ impl Stmt<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SwitchStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -104,7 +103,7 @@ pub struct SwitchStmt<'cx> {
     pub case_block: &'cx CaseBlock<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CaseClause<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -112,27 +111,27 @@ pub struct CaseClause<'cx> {
     pub stmts: Stmts<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DefaultClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub stmts: Stmts<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum CaseOrDefaultClause<'cx> {
     Case(&'cx CaseClause<'cx>),
     Default(&'cx DefaultClause<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CaseBlock<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub clauses: &'cx [CaseOrDefaultClause<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct LabeledStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -140,20 +139,20 @@ pub struct LabeledStmt<'cx> {
     pub stmt: &'cx Stmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExprStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx super::Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DebuggerStmt {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct DoWhileStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -161,7 +160,7 @@ pub struct DoWhileStmt<'cx> {
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct WhileStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -169,7 +168,7 @@ pub struct WhileStmt<'cx> {
     pub stmt: &'cx Stmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TryStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -178,7 +177,7 @@ pub struct TryStmt<'cx> {
     pub finally_block: Option<&'cx BlockStmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CatchClause<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -186,21 +185,21 @@ pub struct CatchClause<'cx> {
     pub block: &'cx BlockStmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BreakStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub label: Option<&'cx Ident>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ContinueStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub label: Option<&'cx Ident>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ForStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -216,7 +215,7 @@ pub enum ForInitKind<'cx> {
     Expr(&'cx Expr<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ForOfStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -226,7 +225,7 @@ pub struct ForOfStmt<'cx> {
     pub body: &'cx Stmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ForInStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -235,7 +234,7 @@ pub struct ForInStmt<'cx> {
     pub body: &'cx Stmt<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EnumDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -246,7 +245,7 @@ pub struct EnumDecl<'cx> {
 
 pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EnumMember<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -254,14 +253,14 @@ pub struct EnumMember<'cx> {
     pub init: Option<&'cx Expr<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ThrowStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ModuleDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -281,7 +280,7 @@ impl ModuleDecl<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ModuleBlock<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -310,7 +309,7 @@ impl ModuleName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TypeAliasDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -320,7 +319,7 @@ pub struct TypeAliasDecl<'cx> {
     pub ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct InterfaceDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -336,7 +335,7 @@ pub type ObjectTyMembers<'cx> = &'cx [&'cx ObjectTyMember<'cx>];
 /// ```txt
 /// <modifiers> [key: key_ty]: ty;
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct IndexSigDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -346,7 +345,7 @@ pub struct IndexSigDecl<'cx> {
     pub ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectTyMember<'cx> {
     pub kind: ObjectTyMemberKind<'cx>,
 }
@@ -365,7 +364,7 @@ impl ObjectTyMember<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ObjectTyMemberKind<'cx> {
     IndexSig(&'cx IndexSigDecl<'cx>),
     Prop(&'cx PropSignature<'cx>),
@@ -376,7 +375,7 @@ pub enum ObjectTyMemberKind<'cx> {
     Getter(&'cx GetterDecl<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PropSignature<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -386,7 +385,7 @@ pub struct PropSignature<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MethodSignature<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -397,14 +396,14 @@ pub struct MethodSignature<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BlockStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub stmts: self::Stmts<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -417,13 +416,13 @@ pub struct ClassDecl<'cx> {
     pub elems: &'cx ClassElems<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassElems<'cx> {
     pub span: Span,
     pub list: &'cx [&'cx ClassElem<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassElem<'cx> {
     pub kind: ClassElemKind<'cx>,
 }
@@ -433,7 +432,7 @@ impl<'cx> ClassElem<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ClassElemKind<'cx> {
     Ctor(&'cx ClassCtor<'cx>),
     Prop(&'cx ClassPropElem<'cx>),
@@ -444,7 +443,7 @@ pub enum ClassElemKind<'cx> {
     StaticBlockDecl(&'cx ClassStaticBlockDecl<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassStaticBlockDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -491,7 +490,7 @@ impl<'cx> ClassElemKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct GetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -501,7 +500,7 @@ pub struct GetterDecl<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SetterDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -531,7 +530,7 @@ impl<'cx> SetterDecl<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassCtor<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -543,7 +542,7 @@ pub struct ClassCtor<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -555,7 +554,7 @@ pub struct ClassMethodElem<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassPropElem<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -567,7 +566,7 @@ pub struct ClassPropElem<'cx> {
     pub init: Option<&'cx Expr<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TyParam<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -578,41 +577,41 @@ pub struct TyParam<'cx> {
 
 pub type TyParams<'cx> = &'cx [&'cx TyParam<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct InterfaceExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassExtendsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr_with_ty_args: &'cx ExprWithTyArgs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ClassImplementsClause<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub list: &'cx [&'cx ReferTy<'cx>],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EmptyStmt {
     pub id: NodeID,
     pub span: Span,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RetStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: Option<&'cx Expr<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct IfStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -623,7 +622,7 @@ pub struct IfStmt<'cx> {
 
 pub type VarDecls<'cx> = &'cx [&'cx VarDecl<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct VarStmt<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -704,21 +703,21 @@ impl ModifierKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Modifiers<'cx> {
     pub span: Span,
     pub flags: enumflags2::BitFlags<ModifierKind>,
     pub list: &'cx [&'cx Modifier],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Modifier {
     pub id: NodeID,
     pub span: Span,
     pub kind: ModifierKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FnDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -731,7 +730,7 @@ pub struct FnDecl<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ParamDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -758,7 +757,7 @@ pub type ParamsDecl<'cx> = &'cx [&'cx ParamDecl<'cx>];
 /// import name, { a as b } from 'xxxx'
 /// import name, { a } from 'xxxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImportClause<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -776,34 +775,34 @@ pub enum ImportClauseKind<'cx> {
 /// ```txt
 /// import * as ns from 'xxxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NsImport<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImportSpec<'cx> {
     pub kind: ImportSpecKind<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ImportSpecKind<'cx> {
-    Shorthand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
     Named(&'cx ImportNamedSpec<'cx>),
 }
 
 pub type ImportSpecs<'cx> = &'cx [&'cx ImportSpec<'cx>];
 
-#[derive(Debug, Clone, Copy)]
-pub struct ShorthandSpec<'cx> {
+#[derive(Debug, Clone)]
+pub struct ImportExportShorthandSpec<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ModuleExportName<'cx> {
     pub kind: ModuleExportNameKind<'cx>,
 }
@@ -834,7 +833,7 @@ impl ModuleExportName<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ModuleExportNameKind<'cx> {
     Ident(&'cx Ident),
     StringLit(&'cx StringLit),
@@ -844,7 +843,7 @@ pub enum ModuleExportNameKind<'cx> {
 /// import { a as b } from 'xxxx'
 /// import { 'a' as b } from 'xxxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImportNamedSpec<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -852,7 +851,7 @@ pub struct ImportNamedSpec<'cx> {
     pub name: &'cx Ident,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ImportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -860,7 +859,7 @@ pub struct ImportDecl<'cx> {
     pub module: &'cx StringLit,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExportDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -880,7 +879,7 @@ impl<'cx> ExportDecl<'cx> {
 /// ```txt
 /// export default expr;
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExportAssign<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -895,13 +894,13 @@ impl ExportAssign<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExportClause<'cx> {
     pub is_type_only: bool,
     pub kind: ExportClauseKind<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ExportClauseKind<'cx> {
     Glob(&'cx GlobExport<'cx>),
     Ns(&'cx NsExport<'cx>),
@@ -911,7 +910,7 @@ pub enum ExportClauseKind<'cx> {
 /// ```txt
 /// export * from 'xxxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct GlobExport<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -922,7 +921,7 @@ pub struct GlobExport<'cx> {
 /// export * as ns from 'xxxx'
 /// export * as 'ns' from 'xxxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NsExport<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -936,7 +935,7 @@ pub struct NsExport<'cx> {
 /// export { a } from 'xxx'
 /// export { a as b } from 'xxx'
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SpecsExport<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -944,7 +943,7 @@ pub struct SpecsExport<'cx> {
     pub module: Option<&'cx StringLit>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExportSpec<'cx> {
     pub kind: ExportSpecKind<'cx>,
 }
@@ -959,9 +958,9 @@ impl ExportSpec<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ExportSpecKind<'cx> {
-    Shorthand(&'cx ShorthandSpec<'cx>),
+    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 
@@ -975,7 +974,7 @@ pub enum ExportSpecKind<'cx> {
 /// export { a as 'b' } from 'c'
 ///          ^^^^^^^^
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ExportNamedSpec<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -983,7 +982,7 @@ pub struct ExportNamedSpec<'cx> {
     pub name: &'cx ModuleExportName<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Binding<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -1017,7 +1016,7 @@ impl<'cx> BindingKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectPat<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -1026,7 +1025,7 @@ pub struct ObjectPat<'cx> {
 
 pub type ObjectBindingElems<'cx> = &'cx [&'cx ObjectBindingElem<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ObjectBindingElem<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -1035,7 +1034,7 @@ pub struct ObjectBindingElem<'cx> {
     pub init: Option<&'cx Expr<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ObjectBindingName<'cx> {
     Shorthand(&'cx Ident),
     Prop {
@@ -1044,7 +1043,7 @@ pub enum ObjectBindingName<'cx> {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrayPat<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -1053,18 +1052,18 @@ pub struct ArrayPat<'cx> {
 
 pub type ArrayBindingElems<'cx> = &'cx [&'cx ArrayBindingElem<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrayBindingElem<'cx> {
     pub kind: ArrayBindingElemKind<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ArrayBindingElemKind<'cx> {
     Omit(&'cx OmitExpr),
     Binding(&'cx ArrayBinding<'cx>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct ArrayBinding<'cx> {
     pub id: NodeID,
     pub span: Span,
