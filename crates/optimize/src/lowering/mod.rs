@@ -1,11 +1,11 @@
-use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+mod shortcut_binary_expr;
 
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_checker::check::TyChecker;
 use bolt_ts_ecma_logical::js_double_to_int32;
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::ModuleID;
 
-use crate::ir;
+use super::ir;
 
 struct LoweringCtx<'checker, 'cx> {
     checker: &'checker mut TyChecker<'cx>,
@@ -661,7 +661,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {
         let left = self.lower_expr(expr.left);
         let right = self.lower_expr(expr.right);
-        if let Some(lit) = shortcut_literal_binary_expression(self, left, right, expr.op) {
+        if let Some(lit) = self.shortcut_literal_binary_expression(left, right, expr.op) {
             ir::Expr::NumLit(lit)
         } else {
             ir::Expr::Bin(self.nodes.alloc_bin_expr(expr.span, left, expr.op, right))
@@ -1027,95 +1027,6 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             .collect();
         self.nodes.alloc_template_expr(n.span, head, spans)
     }
-}
-
-fn shortcut_literal_binary_expression(
-    ctx: &mut LoweringCtx,
-    x: ir::Expr,
-    y: ir::Expr,
-    op: ast::BinOp,
-) -> Option<ir::NumLitID> {
-    if let ir::Expr::NumLit(x) = x
-        && let ir::Expr::NumLit(y) = y
-    {
-        let x = ctx.nodes.get_num_lit(&x);
-        let y = ctx.nodes.get_num_lit(&y);
-        let span = || Span::new(x.span().lo(), y.span().hi(), ModuleID::TRANSIENT);
-        match op.kind {
-            ast::BinOpKind::Add => {
-                let val = x.val() + y.val();
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            ast::BinOpKind::Sub => {
-                let val = x.val() - y.val();
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            ast::BinOpKind::Mul => {
-                let val = x.val() * y.val();
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            ast::BinOpKind::Div => {
-                let val = x.val() / y.val();
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            ast::BinOpKind::Mod => {
-                let val = x.val() % y.val();
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            ast::BinOpKind::BitOr => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, l.bitor(r) as f64));
-            }
-            ast::BinOpKind::BitAnd => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, l.bitand(r) as f64));
-            }
-            ast::BinOpKind::BitXor => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, l.bitxor(r) as f64));
-            }
-            ast::BinOpKind::Shl => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, l.shl(r) as f64));
-            }
-            ast::BinOpKind::Shr => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, l.shr(r) as f64));
-            }
-            ast::BinOpKind::UShr => {
-                let l = js_double_to_int32(x.val());
-                let r = js_double_to_int32(y.val());
-                let span = span();
-                return Some(
-                    ctx.nodes
-                        .alloc_num_lit(span, l.wrapping_shr(r as u32) as f64),
-                );
-            }
-            ast::BinOpKind::Exp => {
-                let val = x.val().powf(y.val());
-                let span = span();
-                return Some(ctx.nodes.alloc_num_lit(span, val));
-            }
-            _ => (),
-        }
-    }
-
-    None
 }
 
 // fn get_representation_for_binary_expression(

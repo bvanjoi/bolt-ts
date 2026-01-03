@@ -4,6 +4,7 @@ mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
+use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_parser::ParsedMap;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -32,6 +33,7 @@ pub fn early_resolve_parallel<'cx>(
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
+    emit_standard_class_fields: bool,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
@@ -39,7 +41,16 @@ pub fn early_resolve_parallel<'cx>(
             let module_id = m.id();
             let is_default_lib = m.is_default_lib();
             let root = p.root(module_id);
-            let result = early_resolve(states, module_id, root, p, globals, merged, atoms);
+            let result = early_resolve(
+                states,
+                module_id,
+                root,
+                p,
+                globals,
+                merged,
+                atoms,
+                emit_standard_class_fields,
+            );
             assert!(!is_default_lib || result.diags.is_empty());
             result
         })
@@ -54,6 +65,7 @@ fn early_resolve<'cx>(
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
+    emit_standard_class_fields: bool,
 ) -> EarlyResolveResult {
     let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
@@ -65,6 +77,7 @@ fn early_resolve<'cx>(
         globals,
         merged,
         atoms,
+        emit_standard_class_fields,
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -83,6 +96,7 @@ pub struct Resolver<'cx, 'r, 'atoms> {
     globals: &'cx GlobalSymbols,
     merged: &'cx MergedSymbols,
     atoms: &'atoms bolt_ts_atom::AtomIntern,
+    emit_standard_class_fields: bool,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
@@ -686,15 +700,15 @@ impl<'cx> Resolver<'cx, '_, '_> {
     fn resolve_jsx_tag_name(&mut self, n: ast::JsxTagName<'cx>) {
         use bolt_ts_ast::JsxTagName::*;
         match n {
-            Ident(ident) => {
+            Ident(_) => {
                 // TODO:
                 // self.resolve_value_by_ident(ident)
             }
-            Ns(ns) => {
+            Ns(_) => {
                 // TODO:
                 // self.resolve_value_by_ident(ns.name)
             }
-            PropAccess(n) => {
+            PropAccess(_) => {
                 // TODO:
                 // self.resolve_prop_access_expr(n)
             }
@@ -888,12 +902,20 @@ impl<'cx> Resolver<'cx, '_, '_> {
         let res = self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
         if res.symbol == Symbol::ERR {
             let name = self.atoms.get(ident.name).to_string();
-            let error = errors::CannotFindName {
+            let mut error = errors::CannotFindName {
                 span: ident.span,
                 name,
                 errors: vec![],
             };
-            let error = self.on_failed_to_resolve_value_symbol(ident, error);
+            if let Some(property_with_invalid_initializer) = res.property_with_invalid_initializer {
+                error = self.on_property_with_invalid_initializer(
+                    ident,
+                    property_with_invalid_initializer,
+                    error,
+                );
+            } else {
+                error = self.on_failed_to_resolve_value_symbol(ident, error);
+            }
             self.push_error(Box::new(error));
         } else {
             self.on_success_resolved_value_symbol(
@@ -991,7 +1013,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     .get_immediately_invoked_fn_expr(location)
                     .is_none();
             }
-            ast::Node::ArrowFnExpr(f) => {
+            ast::Node::ArrowFnExpr(_) => {
                 // TODO: name
                 return self
                     .node_query()
@@ -1023,6 +1045,7 @@ pub struct ResolvedResult {
     associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
     within_deferred_context: bool,
     base_class_expression_cannot_reference_class_type_parameters: bool,
+    property_with_invalid_initializer: Option<ast::NodeID>,
 }
 
 fn get_symbol(
@@ -1073,6 +1096,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     let mut within_deferred_context = false;
     let mut last_location = Some(ident.id);
     let mut location = resolver.parent(ident.id);
+    let mut property_with_invalid_initializer = None;
 
     while let Some(id) = location {
         if let Some(locals) = resolver.locals(id)
@@ -1087,6 +1111,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
                     base_class_expression_cannot_reference_class_type_parameters: false,
+                    property_with_invalid_initializer,
                 };
             }
 
@@ -1117,6 +1142,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     associated_declaration_for_containing_initializer_or_binding_name,
                     within_deferred_context,
                     base_class_expression_cannot_reference_class_type_parameters: false,
+                    property_with_invalid_initializer,
                 };
             }
         }
@@ -1157,6 +1183,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                                 associated_declaration_for_containing_initializer_or_binding_name,
                                 within_deferred_context,
                                 base_class_expression_cannot_reference_class_type_parameters: false,
+                                property_with_invalid_initializer,
                             };
                         }
                     }
@@ -1183,6 +1210,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
             }
@@ -1196,7 +1224,26 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
+                }
+            }
+            ClassPropElem(n) => {
+                if let Some(location) = location
+                    && !n
+                        .modifiers
+                        .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Static))
+                    && let parent_id = resolver.parent(location).unwrap()
+                    && let parent = resolver.p.node(parent_id)
+                    && let Some(ctor) = parent
+                        .as_class_decl()
+                        .and_then(|c| c.find_ctor_decl())
+                        .or_else(|| parent.as_class_expr().and_then(|c| c.find_ctor_decl()))
+                    && let ctor_id = ctor.id
+                    && let Some(locals) = resolver.locals(ctor_id)
+                    && get_symbol(resolver, locals, key, meaning & SymbolFlags::VALUE).is_some()
+                {
+                    property_with_invalid_initializer = Some(n.id);
                 }
             }
             ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) => {
@@ -1219,6 +1266,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
                 if let Some(c) = n.as_class_expr()
@@ -1230,6 +1278,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
             }
@@ -1252,6 +1301,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             associated_declaration_for_containing_initializer_or_binding_name,
                             within_deferred_context,
                             base_class_expression_cannot_reference_class_type_parameters: true,
+                            property_with_invalid_initializer,
                         };
                     }
                 }
@@ -1266,6 +1316,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
             }
@@ -1278,6 +1329,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
                 if meaning.intersects(SymbolFlags::FUNCTION)
@@ -1288,6 +1340,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         associated_declaration_for_containing_initializer_or_binding_name,
                         within_deferred_context,
                         base_class_expression_cannot_reference_class_type_parameters: false,
+                        property_with_invalid_initializer,
                     };
                 }
             }
@@ -1312,6 +1365,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
             base_class_expression_cannot_reference_class_type_parameters: false,
+            property_with_invalid_initializer,
         };
     } else if ident.name == keyword::IDENT_GLOBAL_THIS && meaning.intersects(SymbolFlags::MODULE) {
         return ResolvedResult {
@@ -1319,6 +1373,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             associated_declaration_for_containing_initializer_or_binding_name,
             within_deferred_context,
             base_class_expression_cannot_reference_class_type_parameters: false,
+            property_with_invalid_initializer,
         };
     }
 
@@ -1327,5 +1382,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         associated_declaration_for_containing_initializer_or_binding_name,
         within_deferred_context,
         base_class_expression_cannot_reference_class_type_parameters: false,
+        property_with_invalid_initializer,
     }
 }

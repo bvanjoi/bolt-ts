@@ -1311,6 +1311,9 @@ function foo1() {
   assertEqual(8.815240927012887, 8.815240927012887);
   assertEqual(9.8596, 9.8596);
   assertEqual(22.21668954600232, 22.21668954600232);
+  assertEqual(8388608, 8388608);
+  assertEqual(-2147483648, -2147483648);
+  assertEqual(1, 1);
   assertEqual('', '');
   assertEqual('42', '42');
   assertEqual(true, true);

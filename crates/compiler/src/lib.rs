@@ -371,6 +371,11 @@ pub fn eval_with_fs(
         .collect::<(Vec<_>, Vec<_>)>();
 
     // ==== name resolution ====
+    let options = tsconfig.compiler_options();
+    let emit_standard_class_fields = options
+        .flags()
+        .contains(CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS)
+        && *options.target() >= bolt_ts_config::Target::ES2022;
     let early_resolve_result = early_resolve_parallel(
         module_arena.modules(),
         &bind_list,
@@ -378,6 +383,7 @@ pub fn eval_with_fs(
         &global_symbols,
         &merged_symbols,
         &atoms,
+        emit_standard_class_fields,
     );
 
     let states = module_arena

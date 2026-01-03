@@ -51,7 +51,8 @@ with_option!(
     (always_strict, bool),
     (exact_optional_property_types, bool),
     (allow_unused_labels, bool),
-    (preserve_symlinks, bool)
+    (preserve_symlinks, bool),
+    (use_define_for_class_fields, bool)
 );
 
 impl RawCompilerOptions {
@@ -94,6 +95,13 @@ impl RawCompilerOptions {
         }
         if self.preserve_symlinks.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
+        }
+        match self.use_define_for_class_fields {
+            Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),
+            None if target >= super::Target::ES2022 => {
+                flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS);
+            }
+            _ => {}
         }
 
         let allow_unused_labels = match self.allow_unused_labels {

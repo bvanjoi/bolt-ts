@@ -1,0 +1,35 @@
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:4:17]
+ 4 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:6:22]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:8:23]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:15:17]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:17:22]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations_useDefinedClassFields/index.ts:19:23]
+ 19 │ x
+    · ─
+    ╰────

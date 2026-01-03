@@ -243,6 +243,26 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
         self.emitter.print().p_semi();
     }
 
+    fn visit_union_ty(&mut self, n: &'cx bolt_ts_ast::UnionTy<'cx>) {
+        self.emit_list(
+            n.tys,
+            |this, item| {
+                this.visit_ty(item);
+            },
+            |this, _| {
+                this.emitter.print().p_whitespace();
+                this.emitter.print().p_pipe();
+                this.emitter.print().p_whitespace();
+            },
+        );
+    }
+
+    fn visit_array_ty(&mut self, node: &'cx bolt_ts_ast::ArrayTy<'cx>) {
+        self.visit_ty(node.ele);
+        self.emitter.print().p_l_bracket();
+        self.emitter.print().p_r_bracket();
+    }
+
     fn visit_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
         self.visit_entity_name(n.name);
         if let Some(ty_args) = n.ty_args {

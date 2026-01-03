@@ -92,4 +92,8 @@ impl PPrint {
     pub fn p_great(&mut self) {
         self.p(">")
     }
+    /// `|`
+    pub fn p_pipe(&mut self) {
+        self.p("|")
+    }
 }

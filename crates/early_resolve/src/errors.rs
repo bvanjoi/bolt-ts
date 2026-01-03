@@ -42,6 +42,11 @@ pub(super) enum CannotFindNameHelperKind {
     BaseClassExpressionsCannotReferenceClassTypeParameters(
         BaseClassExpressionsCannotReferenceClassTypeParameters,
     ),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(
+        InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor,
+    ),
 }
 
 impl CannotFindNameHelperKind {
@@ -59,6 +64,7 @@ impl CannotFindNameHelperKind {
             CannotFindNameHelperKind::BaseClassExpressionsCannotReferenceClassTypeParameters(
                 diag,
             ) => Box::new(diag),
+            CannotFindNameHelperKind::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(diag) => Box::new(diag),
         }
     }
 }
@@ -140,4 +146,17 @@ pub(super) struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
     pub span: Span,
     pub parameter: String,
     pub identifier: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Initializer of instance member variable '{x}' cannot reference identifier '{y}' declared in the constructor."
+)]
+#[diagnostic(severity(Advice))]
+pub(super) struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor
+{
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
 }
