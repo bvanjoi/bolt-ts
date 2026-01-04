@@ -1,5 +1,5 @@
 use super::ElementFlags;
-use crate::check::TyChecker;
+use super::TyChecker;
 
 pub fn pprint_tuple_ty<'cx>(
     ty: &'cx super::TupleTy<'cx>,

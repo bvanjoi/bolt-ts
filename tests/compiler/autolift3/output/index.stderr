@@ -1,0 +1,5 @@
+  × Property 'foo' does not exist on type 'B'.
+    ╭─[../../tests/compiler/autolift3/index.ts:28:3]
+ 28 │ foo
+    · ───
+    ╰────

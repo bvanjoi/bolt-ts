@@ -1355,6 +1355,10 @@ function foo1() {
   assertEqual(1<<23,    8388608);
   assertEqual(1<<31,    -2147483648);
   assertEqual(1<<32,    1);
+  assertEqual(3.14<<32, 3);
+  assertEqual(3<<31.78, -2147483648);
+  assertEqual(3<<32.78, 3);
+  assertEqual(3.14<<32.14, 3);
   assertEqual('',       '');
   assertEqual('42',     '42');
   assertEqual(!'',      true);

@@ -1608,16 +1608,15 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
         let is_prop_declared_in_ancestor_class = |this: &mut Self| -> bool {
-            let prop_symbol = this.binder.symbol(prop);
-            let parent = prop_symbol.parent.unwrap();
-            if !this
-                .binder
-                .symbol(parent)
-                .flags
-                .intersects(SymbolFlags::CLASS)
-            {
+            let prop_symbol = this.symbol(prop);
+            let Some(parent) = prop_symbol.parent else {
                 return false;
             };
+            let parent_symbol = this.binder.symbol(parent);
+            let parent_name = parent_symbol.name;
+            if !parent_symbol.flags.intersects(SymbolFlags::CLASS) {
+                return false;
+            }
             let mut class_ty = this.get_type_of_symbol(parent);
             loop {
                 if class_ty.symbol().is_none() {
@@ -1630,8 +1629,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 class_ty = this.get_intersection_ty(x, IntersectionFlags::None, None, None);
                 // ===
-                let prop_symbol = this.binder.symbol(prop);
-                if let Some(super_prop) = this.get_prop_of_ty(class_ty, prop_symbol.name) {
+                if let Some(super_prop) = this.get_prop_of_ty(class_ty, parent_name) {
                     if this.symbol(super_prop).value_decl.is_some() {
                         return true;
                     }

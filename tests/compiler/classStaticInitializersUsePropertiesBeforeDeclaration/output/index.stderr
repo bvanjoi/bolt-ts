@@ -1,0 +1,45 @@
+  × Enum 'Enum' used before its declaration.
+   ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:4:25]
+ 4 │ Enum
+   · ────
+   ╰────
+
+Advice: 
+  ☞ Enum 'Enum' is defined here
+    ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:14:1]
+ 14 │ ╭─▶ enum Enum {
+ 15 │ │       A
+ 16 │ ╰─▶ }
+    ╰────
+
+  × Property 'A' is used before its initialization.
+   ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:4:30]
+ 4 │ A
+   · ─
+   ╰────
+
+  × Block-scoped variable 'ObjLiteral' used before its declaration.
+   ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:7:31]
+ 7 │ ObjLiteral
+   · ──────────
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'ObjLiteral' is defined here
+    ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:18:7]
+ 18 │ ╭─▶ ObjLiteral = {
+ 19 │ │       A: 0
+ 20 │ ╰─▶ }
+    ╰────
+
+  × Property 'A' is used before its initialization.
+   ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:7:42]
+ 7 │ A
+   · ─
+   ╰────
+
+  × Property 'A' is used before its initialization.
+    ╭─[../../tests/compiler/classStaticInitializersUsePropertiesBeforeDeclaration/index.ts:10:40]
+ 10 │ A
+    · ─
+    ╰────

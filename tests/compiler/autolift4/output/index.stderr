@@ -1,0 +1,5 @@
+  × Property 'm' does not exist on type 'Point3D'.
+    ╭─[../../tests/compiler/autolift4/index.ts:21:70]
+ 21 │ m
+    · ─
+    ╰────

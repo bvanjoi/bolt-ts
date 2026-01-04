@@ -1,10 +1,11 @@
 use std::hash::Hash;
 
 use super::ElementFlags;
+use super::TyChecker;
 use super::TyMap;
 use super::TypeFlags;
 use super::ast;
-use crate::check::TyChecker;
+
 use bolt_ts_binder::SymbolID;
 
 bitflags::bitflags! {
