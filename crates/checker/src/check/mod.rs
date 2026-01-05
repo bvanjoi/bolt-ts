@@ -71,6 +71,7 @@ use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use self::check_expr::IterationUse;
+use self::check_expr::get_suggestion_boolean_op;
 use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
 use self::flow::FlowTy;
@@ -98,11 +99,10 @@ use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
-use crate::check::check_expr::get_suggestion_boolean_op;
-use crate::ty;
-use crate::ty::TyMapper;
-use crate::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
-use crate::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
+use super::ty::TyMapper;
+use super::ty::{self, AccessFlags};
+use super::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
+use super::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::VarLike;
@@ -1776,17 +1776,60 @@ impl<'cx> TyChecker<'cx> {
     fn check_destructing_assign(
         &mut self,
         node: &'cx ast::AssignExpr<'cx>,
-        right_ty: &'cx ty::Ty<'cx>,
+        source_ty: &'cx ty::Ty<'cx>,
         right_is_this: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if let ast::ExprKind::ArrayLit(array) = node.left.kind
-            && array.elems.is_empty()
-            && right_ty.kind.is_array(self)
-        {
-            return right_ty;
+        let target = node.left;
+        if let ast::ExprKind::ArrayLit(array) = target.kind {
+            return self.check_array_lit_assignment(array, source_ty);
         }
         let left_ty = self.check_expr(node.left);
-        self.check_binary_like_expr(node, left_ty, right_ty)
+        self.check_binary_like_expr(node, left_ty, source_ty)
+    }
+
+    fn check_array_lit_assignment(
+        &mut self,
+        array: &'cx ast::ArrayLit<'cx>,
+        source_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let possibly_out_of_bounds_ty = self.check_iterated_ty_or_element_ty(
+            IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS),
+            source_ty,
+            self.undefined_ty,
+            Some(array.id),
+        );
+        for (index, elem) in array.elems.iter().enumerate() {
+            let ty = possibly_out_of_bounds_ty;
+            // TODO: spared
+            self.check_array_lit_destructuring_elem_assignment(array, source_ty, index, ty)
+        }
+        source_ty
+    }
+
+    fn check_array_lit_destructuring_elem_assignment(
+        &mut self,
+        array: &'cx ast::ArrayLit<'cx>,
+        source_ty: &'cx ty::Ty<'cx>,
+        index: usize,
+        ty: &'cx ty::Ty<'cx>,
+    ) {
+        let elem = &array.elems[index];
+        if !matches!(elem.kind, ast::ExprKind::Omit(_)) {
+            if !matches!(elem.kind, ast::ExprKind::SpreadElement(_)) {
+                let index_ty = self.get_number_literal_type::<false>((index as f64).into(), None);
+                if self.is_array_like_ty(source_ty) {
+                    // TODO: `has_default_value`
+                    let access_flags = AccessFlags::EXPRESSION_POSITION;
+                    let element_ty = self.get_indexed_access_ty_or_undefined(
+                        source_ty,
+                        index_ty,
+                        Some(access_flags),
+                        Some(elem.id()),
+                    );
+                    // TODO: assigned_ty
+                }
+            }
+        }
     }
 
     fn check_object_prop_member(

@@ -863,9 +863,9 @@ impl<'cx> TyChecker<'cx> {
         access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
         let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
-        let symbol_name = self.get_prop_name_from_index(index_ty);
+        let prop_name = self.get_prop_name_from_index(index_ty);
         let prop: Option<SymbolID> =
-            symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
+            prop_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(prop) = prop {
             if let Some(access_expr) = access_expr
                 && let assignment_target_kind = self
@@ -889,20 +889,42 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.every_type(object_ty, |_, t| t.is_tuple())
-            && let Some(SymbolName::EleNum(num)) = symbol_name
-            && let num = num.val()
-            && num >= 0.
+            && let Some(SymbolName::EleNum(num)) = prop_name
         {
+            let index = num.val();
+            if let Some(access_node) = access_node
+                && self.every_type(object_ty, |_, t| {
+                    let tuple = t.as_tuple().unwrap();
+                    !tuple.combined_flags.intersects(ElementFlags::VARIABLE)
+                        && !access_flags.contains(AccessFlags::ALLOWING_MISSING)
+                })
+            {
+                let index_node = self.get_index_node_for_access_expr(access_node);
+                if object_ty.is_tuple() {
+                    if index < 0. {
+                        todo!()
+                    }
+                    let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
+                        span: self.p.node(index_node).span(),
+                        x: self.print_ty(object_ty).to_string(),
+                        y: TyChecker::get_ty_reference_arity(object_ty),
+                        z: index as usize,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
             // TODO: num is not integer
-            return Some(
-                self.get_tuple_elem_ty_out_of_start_count(
-                    object_ty,
-                    num as usize,
-                    access_flags
-                        .intersects(AccessFlags::INCLUDE_UNDEFINED)
-                        .then_some(self.missing_ty),
-                ),
-            );
+            if index > 0. {
+                return Some(
+                    self.get_tuple_elem_ty_out_of_start_count(
+                        object_ty,
+                        index as usize,
+                        access_flags
+                            .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                            .then_some(self.missing_ty),
+                    ),
+                );
+            }
         }
 
         if !index_ty.flags.contains(TypeFlags::NULLABLE)

@@ -1039,3 +1039,13 @@ pub(super) struct AllDeclarationsOfXMustHaveIdenticalModifiers {
     pub span: Span,
     pub symbol: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Tuple type '{x}' of length '{y}' has no element at index '{z}'.")]
+pub(super) struct TupleTypeXOfLengthYHasNoElementAtIndexZ {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: usize,
+    pub z: usize,
+}

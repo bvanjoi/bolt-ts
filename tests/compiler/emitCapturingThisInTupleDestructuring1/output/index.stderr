@@ -1,0 +1,11 @@
+  × Tuple type '[any]' of length '1' has no element at index '1'.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:5:17]
+ 5 │ this.test1
+   · ──────────
+   ╰────
+
+  × Tuple type '[any]' of length '1' has no element at index '2'.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:5:29]
+ 5 │ this.test2
+   · ──────────
+   ╰────

@@ -1363,6 +1363,12 @@ function foo1() {
   assertEqual('42',     '42');
   assertEqual(!'',      true);
   assertEqual(!'42',    false);
+  assertEqual(3 << -2, -1073741824);
+  assertEqual(-3 << -2, 1073741824);
+  assertEqual(-3.14 << -2.17, 1073741824);
+  assertEqual(-3.14 << -2, 1073741824);
+  assertEqual(-3 << -2.17, 1073741824);
+  assertEqual(-3 << -32, -3);
 }
 
 foo1()
