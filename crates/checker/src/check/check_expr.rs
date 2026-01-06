@@ -484,6 +484,24 @@ impl<'cx> TyChecker<'cx> {
             //     return if possible_out_of_bounds {};
             // }
         }
+
+        let array_ty = input_ty;
+        let has_string_constituent = false;
+        if !self.is_array_like_ty(array_ty) {
+            if let Some(error_node) = error_node {
+                let error = errors::TypeXIsNotAnArrayType {
+                    span: self.p.node(error_node).span(),
+                    ty: self.print_ty(input_ty).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+
+            if has_string_constituent {
+                todo!()
+            } else {
+                return None;
+            }
+        }
         None
     }
 

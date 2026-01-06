@@ -1,0 +1,29 @@
+  × Object is of type 'unknown'.
+   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:6:7]
+ 6 │ {} = f()
+   · ────────
+   ╰────
+
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:10:7]
+ 10 │ [] = f()
+    · ────────
+    ╰────
+
+  × Type 'unknown' is not an array type.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:10:7]
+ 10 │ [] = f()
+    · ────────
+    ╰────
+
+  × Type 'unknown' is not an array type.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:13:7]
+ 13 │ [e1, e2]
+    · ────────
+    ╰────
+
+  × Type 'unknown' is not an array type.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:13:7]
+ 13 │ [e1, e2]
+    · ────────
+    ╰────

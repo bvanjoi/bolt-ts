@@ -474,6 +474,10 @@ impl<'cx> Node<'cx> {
 
     pub fn is_decl(&self) -> bool {
         use super::Node::*;
+        debug_assert!(
+            self.as_array_binding()
+                .is_none_or(|b| matches!(b.name.kind, super::BindingKind::Ident(_))),
+        );
         matches!(
             self,
             VarDecl(_)
@@ -505,6 +509,7 @@ impl<'cx> Node<'cx> {
                 | Program(_)
                 | ModuleDecl(_)
                 | Binding(_)
+                | ArrayBinding(_)
         )
     }
 

@@ -416,6 +416,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_default_ty_argument_ty(&self, is_in_javascript_file: bool) -> &'cx ty::Ty<'cx> {
+        if is_in_javascript_file {
+            self.any_ty
+        } else {
+            self.unknown_ty
+        }
+    }
+
     pub(crate) fn get_inferred_ty(
         &mut self,
         inference: InferenceContextId,

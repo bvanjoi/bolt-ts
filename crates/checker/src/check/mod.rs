@@ -2249,7 +2249,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_non_null_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = self.check_expr(expr);
-        self.check_non_null_type(ty, expr)
+        self.check_non_null_type(ty, expr.id())
     }
 
     fn check_non_null_assertion(&mut self, n: &'cx ast::NonNullExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2258,31 +2258,30 @@ impl<'cx> TyChecker<'cx> {
         self.get_non_nullable_ty(ty)
     }
 
-    fn check_non_null_type(
+    fn check_non_null_type(&mut self, ty: &'cx ty::Ty<'cx>, node: ast::NodeID) -> &'cx ty::Ty<'cx> {
+        self.check_non_null_ty_with_reporter(
+            ty,
+            node,
+            Self::report_object_possibly_null_or_undefined_error,
+        )
+    }
+
+    fn check_non_null_ty_with_reporter(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        expr: &'cx ast::Expr<'cx>,
+        node: ast::NodeID,
+        report: impl FnOnce(&mut Self, ast::NodeID, TypeFacts),
     ) -> &'cx ty::Ty<'cx> {
-        if matches!(expr.kind, ast::ExprKind::NullLit(_)) {
-            let error = errors::TheValueCannotBeUsedHere {
-                span: expr.span(),
-                value: "null".to_string(),
-            };
-            self.push_error(Box::new(error));
-            return self.error_ty;
-        } else if matches!(expr.kind, ast::ExprKind::Ident(ast::Ident { name, .. }) if *name == keyword::KW_UNDEFINED)
-        {
-            let error = errors::TheValueCannotBeUsedHere {
-                span: expr.span(),
-                value: "undefined".to_string(),
+        if self.config.strict_null_checks() && ty.flags.intersects(TypeFlags::UNKNOWN) {
+            let error = errors::ObjectIsOfTypeUnknown {
+                span: self.p.node(node).span(),
             };
             self.push_error(Box::new(error));
             return self.error_ty;
         }
-
         let facts = self.get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL);
         if facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL) {
-            self.report_object_possibly_null_or_undefined_error(expr, facts);
+            report(self, node, facts);
             let t = self.get_non_nullable_ty(ty);
             return if t
                 .flags
@@ -2296,13 +2295,43 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn check_non_null_non_void_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
+    ) -> &'cx ty::Ty<'cx> {
+        let non_null_ty = self.check_non_null_type(ty, node);
+        // TODO: report `The value cannot used here`
+        non_null_ty
+    }
+
     fn report_object_possibly_null_or_undefined_error(
         &mut self,
-        expr: &'cx ast::Expr,
+        node: ast::NodeID,
         facts: TypeFacts,
     ) {
-        let name = match expr.kind {
-            ast::ExprKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
+        let n = self.p.node(node);
+        if n.is_null_lit() {
+            let error = errors::TheValueCannotBeUsedHere {
+                span: n.span(),
+                value: "null".to_string(),
+            };
+            self.push_error(Box::new(error));
+            return;
+        } else if n
+            .as_ident()
+            .is_some_and(|ident| ident.name == keyword::KW_UNDEFINED)
+        {
+            let error = errors::TheValueCannotBeUsedHere {
+                span: n.span(),
+                value: "undefined".to_string(),
+            };
+            self.push_error(Box::new(error));
+            return;
+        }
+
+        let name = match n {
+            ast::Node::Ident(ident) => self.atoms.get(ident.name).to_string(),
             _ => {
                 // TODO:
                 return;
@@ -2316,7 +2345,7 @@ impl<'cx> TyChecker<'cx> {
             errors::UndefinedOrNull::Undefined
         };
         let error = errors::XIsPossiblyNullOrUndefined {
-            span: expr.span(),
+            span: n.span(),
             name,
             kind,
         };
@@ -2464,8 +2493,8 @@ impl<'cx> TyChecker<'cx> {
                 if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
                     return self.silent_never_ty;
                 }
-                let left_ty = self.check_non_null_type(left_ty, left);
-                let right_ty = self.check_non_null_type(left_ty, left);
+                let left_ty = self.check_non_null_type(left_ty, left.id());
+                let right_ty = self.check_non_null_type(left_ty, left.id());
                 if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
                     && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
                     && let Some(suggest) = get_suggestion_boolean_op(op.kind.as_str())
@@ -2496,8 +2525,8 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             BitOr => {
-                let left = self.check_non_null_type(left_ty, left);
-                let right = self.check_non_null_type(right_ty, right);
+                let left = self.check_non_null_type(left_ty, left.id());
+                let right = self.check_non_null_type(right_ty, right.id());
                 self.number_ty
             }
             LogicalAnd => {
@@ -2523,11 +2552,11 @@ impl<'cx> TyChecker<'cx> {
                 if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
                 {
                     let left_ty = {
-                        let t = self.check_non_null_type(left_ty, left);
+                        let t = self.check_non_null_type(left_ty, left.id());
                         self.get_base_ty_of_literal_ty_for_comparison(t)
                     };
                     let right_ty = {
-                        let t = self.check_non_null_type(right_ty, right);
+                        let t = self.check_non_null_type(right_ty, right.id());
                         self.get_base_ty_of_literal_ty_for_comparison(t)
                     };
                     self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
@@ -4048,14 +4077,6 @@ impl<'cx> TyChecker<'cx> {
             self.get_non_nullable_ty(ty)
         } else {
             ty
-        }
-    }
-
-    fn get_default_ty_argument_ty(&self, is_in_javascript_file: bool) -> &'cx ty::Ty<'cx> {
-        if is_in_javascript_file {
-            self.any_ty
-        } else {
-            self.unknown_ty
         }
     }
 

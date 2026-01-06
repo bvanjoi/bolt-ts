@@ -1,7 +1,10 @@
 use super::TyChecker;
 use super::ty;
+use crate::check::CheckMode;
+use crate::check::check_expr::IterationUse;
 use crate::ty::Ty;
 
+use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
 
 impl<'cx> TyChecker<'cx> {
@@ -43,17 +46,91 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_for_var_like_decl(
+    fn get_ty_for_array_pat_parent(
+        &mut self,
+        pat: &'cx ast::ArrayPat<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        let parent_id = self.parent(pat.id).unwrap();
+        let parent = self.p.node(parent_id);
+        debug_assert!(parent.is_binding());
+        let parent_parent_id = self.parent(parent_id).unwrap();
+        let parent_parent = self.p.node(parent_parent_id);
+        match parent_parent {
+            ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+            _ => {
+                // TODO:
+                None
+            }
+        }
+    }
+
+    fn get_array_binding_element_ty_from_parent_ty(
+        &mut self,
+        binding: &'cx ast::ArrayBinding<'cx>,
+        parent: &'cx ast::ArrayPat<'cx>,
+        parent_parent_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        debug_assert!(self.parent(binding.id).is_some());
+        if self.is_type_any(parent_parent_ty) {
+            return parent_parent_ty;
+        }
+
+        let mode = if binding.dotdotdot.is_some() {
+            IterationUse::DESTRUCTURING
+        } else {
+            IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS)
+        };
+
+        let element_ty = self.check_iterated_ty_or_element_ty(
+            mode,
+            parent_parent_ty,
+            self.undefined_ty,
+            Some(parent.id),
+        );
+
+        element_ty
+    }
+
+    fn get_ty_for_array_binding(
+        &mut self,
+        binding: &'cx ast::ArrayBinding<'cx>,
+        parent: &'cx ast::ArrayPat<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        debug_assert!(self.parent(binding.id).is_some_and(|p| p == parent.id));
+        let check_mode = if binding.dotdotdot.is_some() {
+            CheckMode::REST_BINDING_ELEMENT
+        } else {
+            CheckMode::empty()
+        };
+        let old_check_mode = self.check_mode;
+        self.check_mode = Some(check_mode);
+        let parent_ty = self.get_ty_for_array_pat_parent(parent);
+        self.check_mode = old_check_mode;
+        parent_ty.map(|parent_ty| {
+            self.get_array_binding_element_ty_from_parent_ty(binding, parent, parent_ty)
+        })
+    }
+
+    pub(super) fn get_ty_for_var_like_decl<const INCLUDE_OPTIONALITY: bool>(
         &mut self,
         decl: &impl r#trait::VarLike<'cx>,
-        include_optionality: bool,
     ) -> Option<&'cx Ty<'cx>> {
         // TODO: for in stmt
         // TODO: for of stmt
 
-        let decl_node = self.p.node(decl.id());
+        let id = decl.id();
+        let parent_id = self.parent(id).unwrap();
+        let parent = self.p.node(parent_id);
+
+        if let Some(p) = parent.as_array_pat() {
+            let n = self.p.node(id).expect_array_binding();
+            return self.get_ty_for_array_binding(n, p);
+        }
+        // TODO: object binding
+
+        let decl_node = self.p.node(id);
         let is_property = decl_node.is_prop_signature();
-        let is_optional = include_optionality && decl_node.is_optional_decl();
+        let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
 
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
@@ -61,9 +138,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if decl.is_param() {
-            let parent = self.parent(decl.id()).unwrap();
-            let func = self.p.node(parent);
-            if let Some(setter) = func.as_setter_decl() {
+            if let Some(setter) = parent.as_setter_decl() {
                 // TODO: has bindable name
                 let symbol = self.get_symbol_of_decl(setter.id);
                 let getter = self

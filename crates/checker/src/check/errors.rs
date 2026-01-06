@@ -1049,3 +1049,18 @@ pub(super) struct TupleTypeXOfLengthYHasNoElementAtIndexZ {
     pub y: usize,
     pub z: usize,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Object is of type 'unknown'.")]
+pub(super) struct ObjectIsOfTypeUnknown {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not an array type.")]
+pub(super) struct TypeXIsNotAnArrayType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}

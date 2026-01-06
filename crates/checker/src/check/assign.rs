@@ -33,13 +33,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn assign_binding_ele_tys(
+    fn assign_array_binding_ele_tys(
         &mut self,
-        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        binding: &'cx bolt_ts_ast::ArrayBinding<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) {
         use bolt_ts_ast::BindingKind::*;
-        match binding.kind {
+        match binding.name.kind {
             Ident(_) => {
                 let symbol = self.get_symbol_of_decl(binding.id);
                 let prev = self
@@ -47,8 +47,8 @@ impl<'cx> TyChecker<'cx> {
                     .insert(symbol, SymbolLinks::default().with_ty(ty));
                 assert!(prev.is_none());
             }
-            ObjectPat(pat) => self.assign_object_pat_ele_tys(binding, pat, ty),
-            ArrayPat(pat) => self.assign_array_pat_ele_tys(binding, pat, ty),
+            ObjectPat(pat) => self.assign_object_pat_ele_tys(binding.name, pat, ty),
+            ArrayPat(pat) => self.assign_array_pat_ele_tys(binding.name, pat, ty),
         }
     }
 
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
                         parent_ty,
                         false,
                     );
-                    self.assign_binding_ele_tys(binding.name, ty);
+                    self.assign_array_binding_ele_tys(binding, ty);
                 }
                 Omit(_) => {}
             }

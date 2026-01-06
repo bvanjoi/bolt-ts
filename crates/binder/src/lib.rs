@@ -136,20 +136,6 @@ pub enum AccessKind {
     ReadWrite,
 }
 
-struct BinderNodeQuery<'cx, 'p> {
-    parent_map: &'p ParentMap,
-    parse_result: &'p ParseResult<'cx>,
-}
-
-impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
-    fn new(parent_map: &'p ParentMap, parse_result: &'p ParseResult<'cx>) -> Self {
-        Self {
-            parent_map,
-            parse_result,
-        }
-    }
-}
-
 // impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {
 //     fn node(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::Node<'cx> {
 //         self.parse_result.node(id)

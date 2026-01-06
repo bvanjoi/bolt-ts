@@ -218,7 +218,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.name.kind {
             Ident(ident) => {
                 let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(n.name.id, symbol);
+                self.create_final_res(n.id, symbol);
             }
             _ => {}
         };

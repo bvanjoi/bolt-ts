@@ -229,7 +229,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let save_check_mode = self.check_mode;
         self.check_mode = Some(CheckMode::empty());
-        let decl_ty = self.get_ty_for_var_like_decl(decl, true);
+        let decl_ty = self.get_ty_for_var_like_decl::<true>(decl);
         self.check_mode = save_check_mode;
         self.widen_ty_for_var_like_decl(decl_ty, decl)
     }

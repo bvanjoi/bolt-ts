@@ -1,5 +1,3 @@
-use bolt_ts_atom::Atom;
-
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
 
@@ -297,7 +295,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
             let init = init.unwrap();
-            let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher(true))?;
+            let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher::<true>())?;
             self.expect(RParen);
             let body = self.do_inside_of_parse_context(
                 ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
@@ -465,10 +463,6 @@ impl<'cx> ParserState<'cx, '_> {
         let decl =
             self.create_ns_decl::<false>(id, span, mods, ast::ModuleName::Ident(name), Some(block));
         Ok(decl)
-    }
-
-    pub(super) fn is_ident_name(&self, name: Atom) -> bool {
-        self.token.kind.is_ident_or_keyword() && self.ident_token() == name
     }
 
     fn parse_module_block(&mut self) -> PResult<&'cx ast::ModuleBlock<'cx>> {
@@ -654,7 +648,7 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ExportAssign<'cx>> {
         self.has_export_decl = true;
-        let expr = self.parse_assign_expr_or_higher(true)?;
+        let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
         let id = self.next_node_id();
         let node = self.alloc(ast::ExportAssign {
