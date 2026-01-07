@@ -1,10 +1,9 @@
 use super::BinderState;
 use super::FlowFlags;
+use super::SymbolTable;
 use super::container_flags::ContainerFlags;
 
 use bolt_ts_ast as ast;
-
-use crate::SymbolTable;
 
 impl BinderState<'_, '_, '_> {
     fn create_locals_for_container(&mut self, container: ast::NodeID) {

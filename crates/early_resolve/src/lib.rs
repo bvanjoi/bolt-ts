@@ -4,19 +4,16 @@ mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
-use bolt_ts_ast::r#trait::ClassLike;
-use bolt_ts_parser::ParsedMap;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
-
+use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, NodeFlags};
-use bolt_ts_binder::{
-    BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID, SymbolName,
-    SymbolTable, Symbols,
-};
+use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID};
+use bolt_ts_binder::{SymbolName, SymbolTable, Symbols};
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::Module;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 
@@ -112,6 +109,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         unsafe { self.states.get_unchecked(idx).symbols.get(symbol_id) }
     }
 
+    #[inline]
     fn symbol_of_decl(&self, decl: ast::NodeID) -> SymbolID {
         let idx = decl.module().as_usize();
         debug_assert!(idx < self.states.len());
@@ -326,7 +324,45 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
+    fn resolve_binding(&mut self, binding: &'cx ast::Binding<'cx>) {
+        match binding.kind {
+            ast::BindingKind::ObjectPat(pat) => {
+                for elem in pat.elems {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(_) => {
+                            debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
+                        }
+                        ast::ObjectBindingName::Prop { prop_name, .. } => match prop_name.kind {
+                            ast::PropNameKind::Ident(_) => {
+                                // TODO: debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
+                            }
+                            _ => {}
+                        },
+                    }
+                    if let Some(init) = elem.init {
+                        self.resolve_expr(init);
+                    }
+                }
+            }
+            ast::BindingKind::ArrayPat(pat) => {
+                for elem in pat.elems {
+                    match elem.kind {
+                        ast::ArrayBindingElemKind::Omit(_) => {}
+                        ast::ArrayBindingElemKind::Binding(binding) => {
+                            self.resolve_binding(binding.name);
+                            if let Some(init) = binding.init {
+                                self.resolve_expr(init);
+                            }
+                        }
+                    }
+                }
+            }
+            ast::BindingKind::Ident(_) => {}
+        }
+    }
+
     fn resolve_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
+        self.resolve_binding(decl.name);
         if let Some(ty) = decl.ty {
             self.resolve_ty(ty);
         }

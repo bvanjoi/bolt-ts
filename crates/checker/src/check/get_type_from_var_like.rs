@@ -1,8 +1,9 @@
+use super::CheckMode;
 use super::TyChecker;
+use super::check_expr::IterationUse;
 use super::ty;
-use crate::check::CheckMode;
-use crate::check::check_expr::IterationUse;
-use crate::ty::Ty;
+use super::ty::AccessFlags;
+use super::ty::Ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -46,11 +47,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_for_array_pat_parent(
-        &mut self,
-        pat: &'cx ast::ArrayPat<'cx>,
-    ) -> Option<&'cx Ty<'cx>> {
-        let parent_id = self.parent(pat.id).unwrap();
+    fn get_ty_for_binding_element_parent(&mut self, pat_id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
+        debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
+        let parent_id = self.parent(pat_id).unwrap();
         let parent = self.p.node(parent_id);
         debug_assert!(parent.is_binding());
         let parent_parent_id = self.parent(parent_id).unwrap();
@@ -91,6 +90,41 @@ impl<'cx> TyChecker<'cx> {
         element_ty
     }
 
+    fn get_object_binding_element_ty_from_parent_ty(
+        &mut self,
+        binding: &'cx ast::ObjectBindingElem<'cx>,
+        parent: &'cx ast::ObjectPat<'cx>,
+        parent_parent_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        debug_assert!(self.parent(binding.id).is_some());
+        if self.is_type_any(parent_parent_ty) {
+            return parent_parent_ty;
+        }
+
+        let access_flags = AccessFlags::EXPRESSION_POSITION;
+        if binding.dotdotdot.is_some() {
+            // TODO:
+            parent_parent_ty
+        } else {
+            let name = match binding.name {
+                ast::ObjectBindingName::Shorthand(ident) => ident,
+                ast::ObjectBindingName::Prop { prop_name, .. } => match prop_name.kind {
+                    ast::PropNameKind::Ident(ident) => ident,
+                    _ => unreachable!(),
+                },
+            };
+            let index_ty = self.get_string_literal_type_from_string(name.name);
+            let decl_ty = self.get_indexed_access_ty(
+                parent_parent_ty,
+                index_ty,
+                Some(access_flags),
+                Some(name.id),
+            );
+            // TODO: getFlowTypeOfDestructuring
+            decl_ty
+        }
+    }
+
     fn get_ty_for_array_binding(
         &mut self,
         binding: &'cx ast::ArrayBinding<'cx>,
@@ -104,10 +138,30 @@ impl<'cx> TyChecker<'cx> {
         };
         let old_check_mode = self.check_mode;
         self.check_mode = Some(check_mode);
-        let parent_ty = self.get_ty_for_array_pat_parent(parent);
+        let parent_ty = self.get_ty_for_binding_element_parent(parent.id);
         self.check_mode = old_check_mode;
         parent_ty.map(|parent_ty| {
             self.get_array_binding_element_ty_from_parent_ty(binding, parent, parent_ty)
+        })
+    }
+
+    fn get_ty_for_object_binding_elem(
+        &mut self,
+        binding: &'cx ast::ObjectBindingElem<'cx>,
+        parent: &'cx ast::ObjectPat<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        debug_assert!(self.parent(binding.id).is_some_and(|p| p == parent.id));
+        let check_mode = if binding.dotdotdot.is_some() {
+            CheckMode::REST_BINDING_ELEMENT
+        } else {
+            CheckMode::empty()
+        };
+        let old_check_mode = self.check_mode;
+        self.check_mode = Some(check_mode);
+        let parent_ty = self.get_ty_for_binding_element_parent(parent.id);
+        self.check_mode = old_check_mode;
+        parent_ty.map(|parent_ty| {
+            self.get_object_binding_element_ty_from_parent_ty(binding, parent, parent_ty)
         })
     }
 
@@ -122,11 +176,17 @@ impl<'cx> TyChecker<'cx> {
         let parent_id = self.parent(id).unwrap();
         let parent = self.p.node(parent_id);
 
-        if let Some(p) = parent.as_array_pat() {
-            let n = self.p.node(id).expect_array_binding();
-            return self.get_ty_for_array_binding(n, p);
+        match parent {
+            ast::Node::ArrayPat(pat) => {
+                let n = self.p.node(id).expect_array_binding();
+                return self.get_ty_for_array_binding(n, pat);
+            }
+            ast::Node::ObjectPat(pat) => {
+                let n = self.p.node(id).expect_object_binding_elem();
+                return self.get_ty_for_object_binding_elem(n, pat);
+            }
+            _ => {}
         }
-        // TODO: object binding
 
         let decl_node = self.p.node(id);
         let is_property = decl_node.is_prop_signature();

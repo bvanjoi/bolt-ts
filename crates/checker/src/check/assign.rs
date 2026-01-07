@@ -2,7 +2,7 @@ use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use crate::check::SymbolLinks;
 use crate::check::check_expr::IterationUse;
-use crate::ty::{self, AccessFlags};
+use crate::ty::{self, AccessFlags, CheckFlags};
 use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
@@ -191,11 +191,13 @@ impl<'cx> TyChecker<'cx> {
             sig.ty_params
         };
 
-        let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
+        let sig_has_rest = sig.has_rest_param();
+        let len = sig.params.len() - (if sig_has_rest { 1 } else { 0 });
         for i in 0..len {
             let param = sig.params[i];
             let decl = param.decl(self.binder);
             let decl = self.p.node(decl).expect_param_decl();
+            // TODO: !getEffectiveTypeAnnotationNode(decl)
             if decl.ty.is_none() {
                 let mut ty = self.try_get_ty_at_pos(context, i);
                 if let Some(t) = ty
@@ -211,8 +213,21 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if sig.has_rest_param() {
-            todo!()
+        if sig_has_rest {
+            let param = sig.params.last().unwrap();
+            let p = self.symbol(*param);
+            let need_assign = if let Some(value_decl) = p.value_decl {
+                let decl = self.p.node(value_decl).expect_param_decl();
+                // TODO: !getEffectiveTypeAnnotationNode(decl)
+                decl.ty.is_none()
+            } else {
+                self.get_check_flags(*param)
+                    .contains(CheckFlags::DEFERRED_TYPE)
+            };
+            if need_assign {
+                let contextual_parameter_ty = self.get_rest_ty_at_pos(context, len, false);
+                self.assign_param_ty(*param, Some(contextual_parameter_ty));
+            }
         }
     }
 
@@ -222,7 +237,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         for param in sig.params {
-            // TODO:
+            self.assign_param_ty(*param, None);
         }
     }
 }

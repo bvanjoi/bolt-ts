@@ -1257,9 +1257,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
-        if !ty.is_tuple() {
-            return Default::default();
-        };
+        debug_assert!(ty.is_tuple());
         let ty_args = self.get_ty_arguments(ty);
         let arity = Self::get_ty_reference_arity(ty);
         if ty_args.len() == arity {

@@ -1,10 +1,8 @@
 use ast::Node::*;
-use bolt_ts_ast::{
-    self as ast,
-    keyword::{self, is_prim_ty_name},
-};
+use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword::{self, is_prim_ty_name};
 
-use crate::{
+use super::{
     AccessKind, ParentMap,
     container_flags::{ContainerFlags, container_flags_for_node},
 };

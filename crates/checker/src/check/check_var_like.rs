@@ -121,7 +121,9 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
                     ObjectPat(n) => {
-                        // TODO:
+                        for elem in n.elems {
+                            self.check_var_like_decl(*elem);
+                        }
                     }
                     _ => unreachable!(),
                 }

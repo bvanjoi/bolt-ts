@@ -4,6 +4,12 @@
    · ────────
    ╰────
 
+  × Property '"p1"' does not exist on type 'unknown'.
+   ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:8:9]
+ 8 │ p1
+   · ──
+   ╰────
+
   × Object is of type 'unknown'.
     ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:10:7]
  10 │ [] = f()
@@ -26,4 +32,16 @@
     ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:13:7]
  13 │ [e1, e2]
     · ────────
+    ╰────
+
+  × Tuple type '[boolean]' of length '1' has no element at index '1'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:51:12]
+ 51 │ 1
+    · ─
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:47:15]
+ 47 │ _
+    · ─
     ╰────

@@ -473,11 +473,21 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_decl(&self) -> bool {
+        use super::BindingKind;
         use super::Node::*;
+        use super::ObjectBindingName;
         debug_assert!(
             self.as_array_binding()
-                .is_none_or(|b| matches!(b.name.kind, super::BindingKind::Ident(_))),
+                .is_none_or(|b| matches!(b.name.kind, BindingKind::Ident(_))),
         );
+        debug_assert!(self.as_object_binding_elem().is_none_or(|b| {
+            match b.name {
+                ObjectBindingName::Shorthand(_) => true,
+                ObjectBindingName::Prop { name, .. } => {
+                    matches!(name.kind, BindingKind::Ident(_))
+                }
+            }
+        }));
         matches!(
             self,
             VarDecl(_)
@@ -508,8 +518,8 @@ impl<'cx> Node<'cx> {
                 | ObjectLit(_)
                 | Program(_)
                 | ModuleDecl(_)
-                | Binding(_)
                 | ArrayBinding(_)
+                | ObjectBindingElem(_)
         )
     }
 

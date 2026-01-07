@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::get_simplified_ty::SimplifiedKind;
 use super::symbol_info::SymbolInfo;
 use super::{TyChecker, create_ty::IntersectionFlags};
@@ -122,8 +124,46 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_call_args(
         &mut self,
         expr: &impl r#trait::CallLike<'cx>,
-    ) -> ast::Exprs<'cx> {
-        expr.args()
+    ) -> Cow<'cx, [&'cx ast::Expr<'cx>]> {
+        let id = expr.id();
+        let node = self.p.node(id);
+        // if node.is_jsx_opening_fragment() {
+        //     // TODO:
+        //     return self.empty_array();
+        // }
+        match node {
+            ast::Node::TaggedTemplateExpr(_) => {
+                // TODO:
+                Cow::Borrowed(expr.args())
+            }
+            _ => {
+                let args = expr.args();
+                if let Some(spared_index) = self.get_spread_arg_index(args) {
+                    let mut effective_args = args[0..spared_index].to_vec();
+                    for i in spared_index..args.len() {
+                        let arg = args[i];
+                        if let ast::ExprKind::SpreadElement(spread) = &arg.kind {
+                            // TODO: flow_loop_count
+                            let spared_ty = self.check_expr(spread.expr);
+                            if let Some(t) = spared_ty.as_tuple() {
+                                let tys = self.get_element_tys(spared_ty);
+                                for (j, ty) in tys.iter().enumerate() {
+                                    let flags = t.element_flags[j];
+                                    // TODO: synthetic expr
+                                    effective_args.push(arg);
+                                }
+                                continue;
+                            }
+                        }
+
+                        effective_args.push(arg);
+                    }
+                    Cow::Owned(effective_args)
+                } else {
+                    Cow::Borrowed(args)
+                }
+            }
+        }
     }
 
     pub(super) fn get_effective_declaration_flags(

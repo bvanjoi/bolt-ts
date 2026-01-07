@@ -5,15 +5,14 @@
 declare function f<T>(): T;
 const {} = f();       // error (only in strictNullChecks)
 //~^ ERROR: Object is of type 'unknown'.
-// TODO:
-// const { p1 } = f();   // error
+const { p1 } = f();   // error
+//~^ ERROR: Property '"p1"' does not exist on type 'unknown'.
 const [] = f();       // error
 //~^ ERROR: Type 'unknown' is not an array type.
 //~| ERROR: Object is of type 'unknown'.
 const [e1, e2] = f(); // error
 //~^ ERROR: Type 'unknown' is not an array type.
 //~| ERROR: Type 'unknown' is not an array type.
-
 
 // Repro from #43605
 type Dispatch<A = { type: any; [extraProps: string]: any }> = { <T extends A>(action: T): T };
@@ -35,3 +34,25 @@ declare function useReduxDispatch1<T extends IDestructuring<TFuncs1>>(destructur
 //         funcC: (...p) => d(f.funcC(...p)),
 //     })
 // );
+
+{
+    function g(a: string, b: string): void {}
+    const n = ['hello', 'world'] as const;
+    g(...n); // OK
+}
+
+{
+    type F = (...p1: [boolean]) => void;
+    const _a0: F = (p2) => {
+        const _: number = p2; //~ ERROR: Type 'boolean' is not assignable to type 'number'.
+    };
+    const _a1: F = (...p2) => {
+        const _: boolean = p2[0]; // p should be inferrable
+        p2[1]; //~ ERROR: Tuple type '[boolean]' of length '1' has no element at index '1'.
+    };
+    // TODO:
+//     function g(...p2: Parameters<IFuncs>): void {
+//         const _: boolean = p2[0]; // p should be inferrable
+//         p2[1]; //TODO: ERROR: Tuple type '[boolean]' of length '1' has no element at index '1'.     
+//     }
+}

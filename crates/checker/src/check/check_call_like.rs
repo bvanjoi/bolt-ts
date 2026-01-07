@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
 use super::relation::RelationKind;
@@ -468,9 +470,9 @@ impl<'cx> TyChecker<'cx> {
         min_arg_count
     }
 
-    fn get_spread_arg_index(&self, args: &[&'cx ast::Expr<'cx>]) -> Option<usize> {
-        // TODO: support args
-        None
+    pub(super) fn get_spread_arg_index(&self, args: &[&'cx ast::Expr<'cx>]) -> Option<usize> {
+        args.iter()
+            .position(|arg| matches!(arg.kind, ast::ExprKind::SpreadElement(_)))
     }
 
     pub(super) fn has_effective_rest_param(&mut self, sig: &'cx Sig<'cx>) -> bool {
@@ -800,9 +802,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &impl CallLikeExpr<'cx>,
         candidates: Sigs<'cx>,
     ) -> &'cx Sig<'cx> {
-        if candidates.is_empty() {
-            return self.unknown_sig();
-        }
+        debug_assert!(!candidates.is_empty());
 
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
@@ -819,7 +819,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
 
-        let args = expr.args();
+        let args = self.get_effective_call_args(expr);
 
         let is_single = candidates.len() == 1;
         let is_single_non_generic_candidate = is_single && candidates[0].ty_params.is_none();
@@ -830,8 +830,6 @@ impl<'cx> TyChecker<'cx> {
         {
             argument_check_mode = CheckMode::SKIP_CONTEXT_SENSITIVE;
         }
-
-        let args = expr.args();
 
         let mut res = None;
 
@@ -868,7 +866,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let (best_match_idx, candidate) =
-            self.get_candidate_for_overload_failure(expr, &candidates, args);
+            self.get_candidate_for_overload_failure(expr, &candidates, &args);
 
         for sig in &candidates {
             if sig.min_args_count < min_required_params {
@@ -995,7 +993,7 @@ impl<'cx> TyChecker<'cx> {
             if sigs_with_correct_ty_arg_arity.is_empty() {
                 self.get_ty_arg_arity_error(expr, &candidates, expr.ty_args());
             } else {
-                self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, args);
+                self.get_arg_arity_error(expr, &sigs_with_correct_ty_arg_arity, &args);
             }
         }
 
@@ -1041,7 +1039,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         sigs: &[&'cx Sig<'cx>],
-        args: ast::Exprs<'cx>,
+        args: &Cow<'cx, [&'cx ast::Expr<'cx>]>,
     ) {
         let mut min = usize::MAX;
         let mut max = usize::MIN;
@@ -1092,7 +1090,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         candidates: &[&'cx Sig<'cx>],
-        args: ast::Exprs<'cx>,
+        args: &Cow<'cx, [&'cx ast::Expr<'cx>]>,
     ) -> (usize, &'cx ty::Sig<'cx>) {
         assert!(!candidates.is_empty());
         // self.check_node_deferred(expr.id());
@@ -1288,7 +1286,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         candidates: &[&'cx Sig<'cx>],
-        args: ast::Exprs<'cx>,
+        args: &Cow<'cx, [&'cx ast::Expr<'cx>]>,
     ) -> (usize, &'cx Sig<'cx>) {
         let best_index = self.get_longest_candidate_index(candidates, args.len());
         let candidate = candidates[best_index];
