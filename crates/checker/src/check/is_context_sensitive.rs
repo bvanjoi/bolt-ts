@@ -4,7 +4,7 @@ use bolt_ts_ast::keyword;
 use super::TyChecker;
 
 impl TyChecker<'_> {
-    fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
+    pub(super) fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         if node.ty_params().is_none() {
             if let Some(params) = node.params()
@@ -45,27 +45,24 @@ impl TyChecker<'_> {
     pub(super) fn is_context_sensitive(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
         assert!(!node.is_class_method_elem(), "{node:#?}");
-        if node.is_fn_expr()
-            || node.is_arrow_fn_expr()
-            || node.is_method_signature()
-            || node.is_fn_decl()
-            || node.is_object_method_member()
-        {
-            self.is_context_sensitive_fn_like(id)
-        } else if let Some(o) = node.as_object_lit() {
-            o.members.iter().any(|m| self.is_context_sensitive(m.id()))
-        } else if let Some(a) = node.as_array_lit() {
-            a.elems.iter().any(|m| self.is_context_sensitive(m.id()))
-        } else if let Some(c) = node.as_cond_expr() {
-            self.is_context_sensitive(c.when_true.id())
-                || self.is_context_sensitive(c.when_false.id())
-        } else if let Some(b) = node.as_bin_expr() {
-            matches!(b.op.kind, ast::BinOpKind::LogicalOr)
-                || self.is_context_sensitive(b.right.id())
-        } else if let Some(p) = node.as_paren_expr() {
-            self.is_context_sensitive(p.expr.id())
-        } else {
-            false
+        use ast::Node::*;
+        match node {
+            FnExpr(_) | ArrowFnExpr(_) | MethodSignature(_) | FnDecl(_) | ObjectMethodMember(_) => {
+                self.is_context_sensitive_fn_like(id)
+            }
+            ObjectLit(n) => n.members.iter().any(|m| self.is_context_sensitive(m.id())),
+            ArrayLit(n) => n.elems.iter().any(|m| self.is_context_sensitive(m.id())),
+            CondExpr(n) => {
+                self.is_context_sensitive(n.when_true.id())
+                    || self.is_context_sensitive(n.when_false.id())
+            }
+            BinExpr(n) => {
+                matches!(n.op.kind, ast::BinOpKind::LogicalOr)
+                    || self.is_context_sensitive(n.right.id())
+            }
+            ObjectPropAssignment(n) => self.is_context_sensitive(n.init.id()),
+            ParenExpr(n) => self.is_context_sensitive(n.expr.id()),
+            _ => false,
         }
     }
 }

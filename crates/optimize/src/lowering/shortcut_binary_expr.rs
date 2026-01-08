@@ -3,7 +3,7 @@ use super::ir;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ecma_logical::js_double_to_int32;
 
-use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
+use std::ops::{BitAnd, BitOr, BitXor, Shr};
 
 impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     pub(super) fn shortcut_literal_binary_expression(
@@ -77,9 +77,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 }
                 ast::BinOpKind::Shr => {
                     let l = js_double_to_int32(x.val());
-                    let r = js_double_to_int32(y.val());
+                    let r = js_double_to_int32(y.val()) & 0x1F;
+                    let val = l.shr(r);
                     let span = span();
-                    return Some(self.nodes.alloc_num_lit(span, l.shr(r) as f64));
+                    return Some(self.nodes.alloc_num_lit(span, val as f64));
                 }
                 ast::BinOpKind::UShr => {
                     let l = js_double_to_int32(x.val());

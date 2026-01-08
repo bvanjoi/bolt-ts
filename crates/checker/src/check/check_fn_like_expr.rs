@@ -1,7 +1,8 @@
 use super::NodeCheckFlags;
+use super::SymbolInfo;
 use super::ty;
+use super::ty::TypeFlags;
 use super::{CheckMode, TyChecker};
-use crate::ty::TypeFlags;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -68,19 +69,64 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_expr_or_object_method_member(
         &mut self,
-        id: ast::NodeID,
+        node: ast::NodeID,
     ) -> &'cx ty::Ty<'cx> {
-        self.check_node_deferred(id);
+        self.check_node_deferred(node);
+
         if let Some(mode) = self.check_mode
-            && mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE)
-            && self.is_context_sensitive(id)
+            && mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
+            && self.is_context_sensitive(node)
         {
-            return self.any_fn_ty();
+            return if self.get_effective_ret_type_node(node).is_none()
+                && !self.has_context_sensitive_params(node)
+                && let Some(contextual_sig) = self.get_contextual_sig(node)
+                && let ret_ty_of_sig = self.get_ret_ty_of_sig(contextual_sig)
+                && self.could_contain_ty_var(ret_ty_of_sig)
+            {
+                if let Some(context_free_ty) = self.get_node_links(node).get_context_free_ty() {
+                    return context_free_ty;
+                };
+                let ret_ty = self.get_ret_ty_from_body(node);
+                let ret_only_sig = self.new_sig(ty::Sig {
+                    id: ty::SigID::dummy(),
+                    params: self.empty_array(),
+                    ret: None,
+                    flags: ty::SigFlags::IS_NON_INFERRABLE,
+                    ty_params: None,
+                    this_param: None,
+                    target: None,
+                    mapper: None,
+                    class_decl: None,
+                    min_args_count: 0,
+                    node_id: None,
+                });
+                let prev = self.sig_links.insert(
+                    ret_only_sig.id,
+                    super::SigLinks::default().with_resolved_ret_ty(ret_ty),
+                );
+                assert!(prev.is_none());
+                let symbol = self.get_symbol_of_decl(node);
+                let call_sigs = self.alloc(vec![ret_only_sig]);
+                let ret_only_ty = self.create_anonymous_ty_with_resolved(
+                    Some(symbol),
+                    ty::ObjectFlags::NON_INFERRABLE_TYPE,
+                    self.alloc(Default::default()),
+                    call_sigs,
+                    self.empty_array(),
+                    self.empty_array(),
+                    None,
+                );
+                self.get_mut_node_links(node)
+                    .set_context_free_ty(ret_only_ty);
+                ret_only_ty
+            } else {
+                self.any_fn_ty()
+            };
         }
 
-        self.contextually_check_fn_expr_or_object_method_member(id);
+        self.contextually_check_fn_expr_or_object_method_member(node);
 
-        let symbol = self.get_symbol_of_decl(id);
+        let symbol = self.get_symbol_of_decl(node);
         self.get_type_of_symbol(symbol)
     }
 

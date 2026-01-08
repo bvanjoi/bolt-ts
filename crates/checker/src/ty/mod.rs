@@ -64,7 +64,7 @@ impl From<&Ty<'_>> for ObjectFlags {
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         if self.id == other.id {
-            assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
+            debug_assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
             true
         } else {
             false

@@ -1369,6 +1369,21 @@ function foo1() {
   assertEqual(-3.14 << -2, 1073741824);
   assertEqual(-3 << -2.17, 1073741824);
   assertEqual(-3 << -32, -3);
+
+  assertEqual(1 >> 23,          0);
+  assertEqual(1 >> 31,          0);
+  assertEqual(1 >> 32,          1);
+  assertEqual(1 >> 33,          0);
+  assertEqual(3.14 >> 32,       3);
+  assertEqual(3 >> 31.78,       0);
+  assertEqual(3 >> 32.78,       3);
+  assertEqual(3.14 >> 32.14,    3);
+  assertEqual(3  >> -2,         0);
+  assertEqual(-3 >> -2,         -1);
+  assertEqual(-3.14 >> -2.17,   -1);
+  assertEqual(-3.14 >> -2,      -1);
+  assertEqual(-3 >> -2.17,      -1);
+  assertEqual(-3 >> -32,        -3);
 }
 
 foo1()

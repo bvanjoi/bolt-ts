@@ -26,14 +26,13 @@ const funcs1 = {
 };
 type TFuncs1 = typeof funcs1;
 declare function useReduxDispatch1<T extends IDestructuring<TFuncs1>>(destructuring: Destructuring<TFuncs1, T>): T;
-// TODO:
-// const {} = useReduxDispatch1(
-//     (d, f) => ({
-//         funcA: (...p) => d(f.funcA(...p)), // p should be inferrable
-//         funcB: (...p) => d(f.funcB(...p)),
-//         funcC: (...p) => d(f.funcC(...p)),
-//     })
-// );
+const {} = useReduxDispatch1(
+    (d, f) => ({
+        funcA: (...p) => d(f.funcA(...p)), // p should be inferrable
+        funcB: (...p) => d(f.funcB(...p)),
+        funcC: (...p) => d(f.funcC(...p)),
+    })
+);
 
 {
     function g(a: string, b: string): void {}
@@ -50,9 +49,32 @@ declare function useReduxDispatch1<T extends IDestructuring<TFuncs1>>(destructur
         const _: boolean = p2[0]; // p should be inferrable
         p2[1]; //~ ERROR: Tuple type '[boolean]' of length '1' has no element at index '1'.
     };
-    // TODO:
-//     function g(...p2: Parameters<IFuncs>): void {
-//         const _: boolean = p2[0]; // p should be inferrable
-//         p2[1]; //TODO: ERROR: Tuple type '[boolean]' of length '1' has no element at index '1'.     
-//     }
+}
+
+{
+    type G0 = (b: string, bb: string) => void;
+    type G1 = (...p: Parameters<G0>) => void;
+    type G = () => G1;
+    const g: G = () => (...p) => {
+        let a0: number = p[0];
+        //~^ ERROR: Type 'string' is not assignable to type 'number'.
+        let a1: number = p[1];
+        //~^ ERROR: Type 'string' is not assignable to type 'number'.
+        p[2];
+        //~^ ERROR: Tuple type '[string, string]' of length '2' has no element at index '2'.
+    }
+}
+
+{
+    function f2(a: () => {funcB: (b: string) => void;}): void {}
+    f2(
+        () => ({
+            funcB: (...p) => {
+                let a0: number = p[0];
+                //~^ ERROR: Type 'string' is not assignable to type 'number'.
+                p[1];
+                //~^ ERROR: Tuple type '[string]' of length '1' has no element at index '1'.
+            },
+        })
+    );
 }

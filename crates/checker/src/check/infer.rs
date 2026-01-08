@@ -690,6 +690,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        // TODO: rest
+        // TODO: this
         for (idx, arg) in args.iter().enumerate() {
             if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
                 let param_ty = self.get_ty_at_pos(sig, idx);

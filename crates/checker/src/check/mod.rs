@@ -1837,8 +1837,7 @@ impl<'cx> TyChecker<'cx> {
         member: &'cx ast::ObjectPropAssignment<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: computed member
-
-        (self.check_expr_for_mutable_location(member.init)) as _
+        self.check_expr_for_mutable_location(member.init)
     }
 
     fn check_object_method_member(
@@ -2830,7 +2829,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 };
-                let ty = this.check_expr_with_cache(expr);
+                let ty = this.check_expr_cached(expr);
                 this.check_mode = old;
                 ty
             },
@@ -4250,7 +4249,7 @@ impl<'cx> TyChecker<'cx> {
             let check_mode = self.check_mode.unwrap_or(CheckMode::empty());
             self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode)
         } else {
-            self.check_expr_with_cache(init)
+            self.check_expr_cached(init)
         }
     }
 

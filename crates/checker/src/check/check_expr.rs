@@ -818,7 +818,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_expr_cached(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
         if self
             .check_mode
             .is_some_and(|check_mode| check_mode != CheckMode::empty())
@@ -872,12 +872,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
-        self.push_cached_contextual_type(node.id);
-
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
+
+        self.push_cached_contextual_type(node.id);
+
+        let contextual_ty = self.get_apparent_ty_of_contextual_ty(node.id, None);
+
         // let mut properties_array = Vec::with_capacity(node.members.len());
         let is_const_context = self.is_const_context(node.id);
         let mut has_computed_string_property = false;

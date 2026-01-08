@@ -37,3 +37,8 @@ pub const fn js_double_to_int32(f: f64) -> i32 {
 pub const fn js_double_to_boolean(f: f64) -> bool {
     f != 0. && !f.is_nan()
 }
+
+/// reference: [ToUInt32](https://tc39.es/ecma262/#sec-toint32)
+pub const fn js_double_to_uint32(f: f64) -> u32 {
+    js_double_to_int32(f) as u32
+}

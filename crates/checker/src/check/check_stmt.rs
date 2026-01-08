@@ -451,7 +451,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let expr_ty = node
                 .expr
-                .map(|expr| self.check_expr_with_cache(expr))
+                .map(|expr| self.check_expr_cached(expr))
                 .unwrap_or(self.undefined_ty);
             let c = self.p.node(container);
             if c.is_setter_decl() {

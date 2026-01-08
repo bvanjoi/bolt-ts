@@ -16,6 +16,7 @@ impl TyChecker<'_> {
             self.p.node(id)
         );
         let id = self.final_res(id);
+        debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
         // TODO: get_late_bound_symbol
         self.get_merged_symbol(id)
     }

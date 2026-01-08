@@ -1972,7 +1972,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            ret_ty = Some(self.check_expr_with_cache(expr));
+            ret_ty = Some(self.check_expr_cached(expr));
             self.check_mode = old;
         } else if let ast::ArrowFnExprBody::Block(body) = body {
             let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
@@ -1984,7 +1984,16 @@ impl<'cx> TyChecker<'cx> {
             };
             if tys.is_empty() {
                 if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                    ret_ty = Some(contextual_ret_ty);
+                    // TODO: unwrap_return_ty
+                    ret_ty = Some(
+                        if self.some_type(contextual_ret_ty, |_, t| {
+                            t.flags.contains(TypeFlags::UNDEFINED)
+                        }) {
+                            self.undefined_ty
+                        } else {
+                            self.void_ty
+                        },
+                    );
                 }
             } else {
                 ret_ty =

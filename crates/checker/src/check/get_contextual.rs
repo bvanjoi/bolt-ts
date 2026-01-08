@@ -2,6 +2,7 @@ use crate::check::Ternary;
 use crate::ty::MappedTyNameTyKind;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
+use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
 use super::TyChecker;
@@ -37,6 +38,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match parent {
             VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
+            ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
             AssignExpr(node) if id == node.right.id() => {
                 self.get_contextual_ty_for_assign(node.id, parent_id, flags)
             }
@@ -82,8 +84,28 @@ impl<'cx> TyChecker<'cx> {
             | ObjectShorthandMember(ast::ObjectShorthandMember { id, .. }) => {
                 self.get_contextual_ty_for_object_literal_ele(*id, flags)
             }
+            ParenExpr(n) => {
+                // TODO: is_in_js_file
+                self.get_contextual_ty(n.id, flags)
+            }
             _ => None,
         }
+    }
+
+    fn get_contextual_ty_for_return_expr(
+        &mut self,
+        id: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let f = self.node_query(id.module()).get_containing_fn(id)?;
+        let contextual_return_ty = self.get_contextual_ret_ty(f, flags)?;
+        let fn_flags = self.p.node(f).fn_flags();
+        if fn_flags.contains(FnFlags::GENERATOR) {
+            todo!()
+        } else if fn_flags.contains(FnFlags::ASYNC) {
+            todo!()
+        }
+        Some(contextual_return_ty)
     }
 
     fn get_contextual_ty_for_object_literal_ele(
@@ -113,14 +135,37 @@ impl<'cx> TyChecker<'cx> {
         self.get_contextual_ty_for_object_literal_ele(id, context_flags)
     }
 
+    fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
+        // TODO: signature.compositeSignatures
+        self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
+            && self
+                .find_resolution_cycle_start_index(super::ResolutionKey::ResolvedReturnType(sig.id))
+                .is_some()
+    }
+
     pub(super) fn get_contextual_ret_ty(
         &mut self,
         id: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ret_ty) = self.get_ret_ty_from_anno(id) {
-            Some(ret_ty)
-        } else if let Some(iife) = self.node_query(id.module()).get_iife(id) {
+            return Some(ret_ty);
+        }
+
+        if let Some(sig) = self.get_contextual_sig_for_fn_like_decl(id)
+            && !self.is_resolving_ret_ty_of_sig(sig)
+        {
+            let ret_ty = self.get_ret_ty_of_sig(sig);
+            let fn_flags = self.p.node(id).fn_flags();
+            if fn_flags.contains(FnFlags::GENERATOR) {
+                todo!()
+            } else if fn_flags.contains(FnFlags::ASYNC) {
+                todo!()
+            }
+            return Some(ret_ty);
+        }
+
+        if self.node_query(id.module()).get_iife(id).is_some() {
             self.get_contextual_ty(id, flags)
         } else {
             None

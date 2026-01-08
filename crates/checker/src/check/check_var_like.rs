@@ -49,7 +49,7 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
-                let init_ty = self.check_expr_with_cache(init);
+                let init_ty = self.check_expr_cached(init);
                 debug_assert!(
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
@@ -146,7 +146,7 @@ impl<'cx> TyChecker<'cx> {
                 if need_check_initializer || need_check_widened_ty {
                     let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
                     if need_check_initializer {
-                        let initializer_ty = self.check_expr_with_cache(decl.init().unwrap());
+                        let initializer_ty = self.check_expr_cached(decl.init().unwrap());
                         if self.config.strict_null_checks() && need_check_widened_ty {
                             self.check_non_null_non_void_ty(initializer_ty, id);
                         } else {
