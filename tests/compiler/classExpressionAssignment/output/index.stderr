@@ -1,0 +1,12 @@
+  × Property 'prop' is missing.
+   ╭─[../../tests/compiler/classExpressionAssignment/index.ts:8:7]
+ 8 │ A
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Property 'prop' is defined here
+   ╭─[../../tests/compiler/classExpressionAssignment/index.ts:3:11]
+ 3 │ A
+   · ─
+   ╰────

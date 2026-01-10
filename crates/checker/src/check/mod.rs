@@ -1016,15 +1016,18 @@ impl<'cx> TyChecker<'cx> {
         // }
     }
 
-    fn get_lit_ty_from_prop_name(&mut self, prop_name: &ast::PropName<'cx>) -> &'cx ty::Ty<'cx> {
-        match prop_name.kind {
+    fn get_lit_ty_from_prop_name(
+        &mut self,
+        prop_name: &ast::PropNameKind<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        match prop_name {
             ast::PropNameKind::Ident(ident) => self.get_string_literal_type_from_string(ident.name),
             ast::PropNameKind::NumLit(num) => {
                 let ty = self.get_number_literal_type_from_number(num.val);
                 self.get_regular_ty_of_literal_ty(ty)
             }
             ast::PropNameKind::StringLit { key, .. } => {
-                self.get_string_literal_type_from_string(key)
+                self.get_string_literal_type_from_string(*key)
             }
             ast::PropNameKind::Computed(name) => {
                 let ty = self.check_computed_prop_name(name);
@@ -1140,7 +1143,7 @@ impl<'cx> TyChecker<'cx> {
                                         ast::PropName { kind }
                                     })
                             })
-                            .map(|name| self.get_lit_ty_from_prop_name(&name))
+                            .map(|name| self.get_lit_ty_from_prop_name(&name.kind))
                             .or_else(|| {
                                 if let Some(num) = symbol_name.as_numeric() {
                                     let atom = self.atoms.atom(num.to_string().as_str());

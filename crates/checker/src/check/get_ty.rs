@@ -714,13 +714,25 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_from_object_lit_or_fn_or_ctor_ty_node(&mut self, node: ast::NodeID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
-            return ty;
-        }
-        let ty = self.create_anonymous_ty(Some(self.final_res(node)), ObjectFlags::empty(), None);
-        self.get_mut_node_links(node).set_resolved_ty(ty);
-        ty
+    pub(super) fn get_ty_from_object_lit_or_fn_or_ctor_ty_node(
+        &mut self,
+        node: ast::NodeID,
+    ) -> &'cx Ty<'cx> {
+        if let Some(resolved_ty) = self.get_node_links(node).get_resolved_ty() {
+            return resolved_ty;
+        };
+        let alias_symbol = self.get_alias_symbol_for_ty_node(node);
+        let node_symbol = self.get_symbol_of_node(node);
+        let res = if node_symbol.is_none_or(|node_symbol| {
+            alias_symbol.is_none() && self.get_members_of_symbol(node_symbol).0.is_empty()
+        }) {
+            self.empty_ty_literal_ty()
+        } else {
+            // TODO: alias symbol
+            self.create_anonymous_ty(node_symbol, ty::ObjectFlags::ANONYMOUS, None)
+        };
+        self.get_mut_node_links(node).set_resolved_ty(res);
+        res
     }
 
     fn get_ty_from_typeof_node(&mut self, node: &'cx ast::TypeofTy<'cx>) -> &'cx Ty<'cx> {

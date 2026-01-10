@@ -451,21 +451,16 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         {
             assert!(!unmatched.is_empty());
             if report_error {
+                // report unmatched properties
                 let symbol = self.c.symbol(target_symbol);
                 let decl = symbol.decls.as_ref().unwrap()[0];
-                let target_span = if symbol.flags.intersects(SymbolFlags::CLASS) {
-                    self.c
-                        .p
-                        .node(decl)
-                        .as_class_decl()
-                        .unwrap()
-                        .name
-                        .unwrap()
-                        .span
-                } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
-                    self.c.p.node(decl).as_interface_decl().unwrap().name.span
+                let d = self.c.p.node(decl);
+                let target_span = if symbol.flags.contains(SymbolFlags::CLASS) {
+                    d.as_class_decl().unwrap().name.unwrap().span
+                } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
+                    d.as_interface_decl().unwrap().name.span
                 } else {
-                    self.c.p.node(decl).span()
+                    d.span()
                 };
                 let Some(source_symbol) = source.symbol() else {
                     // TODO: unreachable!()

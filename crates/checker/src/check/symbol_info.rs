@@ -695,6 +695,17 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
+    pub(super) fn has_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+        !self.has_dynamic_name(id) || self.has_late_bindable_name(id)
+    }
+
+    pub(super) fn has_dynamic_name(&self, id: bolt_ts_ast::NodeID) -> bool {
+        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
+            return false;
+        };
+        name.is_late_bindable_ast()
+    }
+
     fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;

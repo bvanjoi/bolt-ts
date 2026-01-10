@@ -1,9 +1,9 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use crate::ty::{self, TypeFlags};
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
@@ -137,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
         self.alloc(index_infos)
     }
 
-    fn get_object_lit_index_info(
+    pub(super) fn get_object_lit_index_info(
         &mut self,
         is_readonly: bool,
         offset: usize,
