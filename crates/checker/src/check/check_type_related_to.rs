@@ -1545,6 +1545,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx ty::IndexInfo<'cx>,
         target: &'cx ty::IndexInfo<'cx>,
         intersection_state: IntersectionState,
+        report_error: bool,
     ) -> Ternary {
         let res = self.is_related_to(
             source.val_ty,
@@ -1553,7 +1554,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             false,
             intersection_state,
         );
-        if res == Ternary::FALSE {
+        if res == Ternary::FALSE && report_error {
             if source.key_ty == target.key_ty {
                 let decl = self.c.symbol(source.symbol).opt_decl().unwrap();
                 let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
@@ -1566,7 +1567,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 todo!()
             }
         }
-        Ternary::TRUE
+        res
     }
 
     fn members_related_to_index_info(
@@ -1596,7 +1597,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         for info in self.c.get_index_infos_of_ty(source) {
             if self.c.is_applicable_index_ty(info.key_ty, target.key_ty) {
-                let related = self.index_info_related_to(info, target, intersection_state);
+                let related =
+                    self.index_info_related_to(info, target, intersection_state, report_error);
                 if related == Ternary::FALSE {
                     return Ternary::FALSE;
                 }
@@ -1614,7 +1616,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
     ) -> Ternary {
         if let Some(source) = self.c.get_applicable_index_info(source, target.key_ty) {
-            self.index_info_related_to(source, target, intersection_state)
+            self.index_info_related_to(source, target, intersection_state, report_error)
         } else if !intersection_state.intersects(IntersectionState::SOURCE)
             && (self.relation != RelationKind::StrictSubtype
                 || source
@@ -1855,7 +1857,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let check_mode = match self.relation {
             RelationKind::Subtype => SigCheckMode::STRICT_TOP_SIGNATURE,
             RelationKind::StrictSubtype => {
-                SigCheckMode::STRICT_TOP_SIGNATURE | SigCheckMode::STRICT_ARITY
+                SigCheckMode::STRICT_TOP_SIGNATURE.union(SigCheckMode::STRICT_ARITY)
             }
             _ => SigCheckMode::empty(),
         };

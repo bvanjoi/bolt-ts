@@ -240,7 +240,11 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
+    pub(super) fn resolve_symbol(
+        &mut self,
+        symbol: SymbolID,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {

@@ -1464,6 +1464,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             .reduced_left(
                                 constraint_tys,
                                 |_, flags, t, _| flags | t.flags,
+                                |_, _| unreachable!(),
                                 Some(TypeFlags::empty()),
                                 None,
                                 None,
@@ -1566,6 +1567,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                             left
                                         }
                                     },
+                                    |_, _| unreachable!(),
                                     Some(self.c.never_ty),
                                     None,
                                     None,

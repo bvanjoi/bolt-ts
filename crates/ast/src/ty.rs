@@ -1,5 +1,5 @@
+use super::keyword;
 use super::*;
-use crate::keyword;
 
 use bolt_ts_atom::{Atom, AtomIntern};
 

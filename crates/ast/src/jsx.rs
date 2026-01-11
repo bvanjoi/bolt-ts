@@ -1,7 +1,7 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
-use crate::NodeID;
+use super::NodeID;
 
 #[derive(Debug, Clone)]
 pub struct JsxText {

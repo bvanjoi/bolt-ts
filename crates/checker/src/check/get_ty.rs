@@ -13,7 +13,7 @@ use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::{AssignmentKind, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
@@ -722,6 +722,7 @@ impl<'cx> TyChecker<'cx> {
             return resolved_ty;
         };
         let alias_symbol = self.get_alias_symbol_for_ty_node(node);
+        debug_assert!(Symbol::can_have_symbol(self.p.node(node)));
         let node_symbol = self.get_symbol_of_node(node);
         let res = if node_symbol.is_none_or(|node_symbol| {
             alias_symbol.is_none() && self.get_members_of_symbol(node_symbol).0.is_empty()
@@ -1187,10 +1188,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
-        assert!(self.p.node(node).is_ty());
         let mut host = self.parent(node);
         while let Some(host_node_id) = host {
             let node = self.p.node(host_node_id);
+            // TODO: handle `readonly`
             if node.is_paren_type_node() {
                 host = self.parent(host_node_id);
             } else {
@@ -1203,7 +1204,7 @@ impl<'cx> TyChecker<'cx> {
         })
         .map(|node_id| {
             let symbol = self.final_res(node_id);
-            assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
+            debug_assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
             symbol
         })
     }

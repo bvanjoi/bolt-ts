@@ -5,12 +5,12 @@ use super::infer::InferenceFlags;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
 use super::ty::ElementFlags;
+use super::ty::TypeFlags;
+use super::ty::{self, TypeFacts};
 use super::ty::{Sig, SigFlags, Sigs};
 use super::{CheckMode, errors};
 use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
-use crate::ty;
-use crate::ty::TypeFlags;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait::{self, CallLike};
@@ -385,7 +385,31 @@ impl<'cx> TyChecker<'cx> {
             return self.any_sig();
         }
 
-        let func_ty = self.check_expr(expr.callee());
+        let callee = expr.callee();
+        let func_ty = self.check_expr(callee);
+        let func_ty =
+            self.check_non_null_ty_with_reporter(func_ty, callee.id(), |this, _, facts| {
+                let error: bolt_ts_errors::BoxedDiag;
+                debug_assert!(facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL));
+                if facts.contains(TypeFacts::IS_UNDEFINED) {
+                    if facts.contains(TypeFacts::IS_NULL) {
+                        error =
+                            Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
+                                span: callee.span(),
+                            });
+                    } else {
+                        error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyUndefined {
+                            span: callee.span(),
+                        });
+                    }
+                } else {
+                    error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNull {
+                        span: callee.span(),
+                    });
+                }
+                this.push_error(error);
+            });
+
         let apparent_ty = self.get_apparent_ty(func_ty);
         if self.is_error(apparent_ty) {
             return self.resolve_error_call(expr);

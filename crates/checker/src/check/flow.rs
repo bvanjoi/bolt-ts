@@ -3,9 +3,11 @@ use super::type_predicate::TyPred;
 use crate::check::create_ty::IntersectionFlags;
 use crate::check::symbol_info::SymbolInfo;
 use crate::check::type_predicate::TyPredKind;
-use crate::ty::{self, ObjectFlags, TypeFlags};
+use crate::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use bolt_ts_ast::{self as ast, keyword};
-use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
+use bolt_ts_binder::{
+    FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind, SymbolFlags, SymbolID,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -301,6 +303,37 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_constant_variable(&self, symbol: SymbolID) -> bool {
+        let s = self.symbol(symbol);
+        s.flags.contains(SymbolFlags::VARIABLE)
+            && s.value_decl.is_some_and(|d| {
+                self.node_query(d.module())
+                    .get_combined_node_flags(d)
+                    .contains(ast::NodeFlags::CONSTANT)
+            })
+    }
+
+    fn narrow_ty_by_truthiness(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_matching_reference(refer, expr.id()) {
+            return self.get_adjusted_ty_with_facts(
+                ty,
+                if assume_true {
+                    TypeFacts::TRUTHY
+                } else {
+                    TypeFacts::FALSE_FACTS
+                },
+            );
+        }
+        // TODO: other case
+        ty
+    }
+
     fn narrow_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -309,7 +342,17 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::ExprKind::*;
+        if let Ident(node) = expr.kind
+            && !self.is_matching_reference(refer, node.id)
+            && let symbol = self.final_res(expr.id())
+            && self.is_constant_variable(symbol)
+        {
+            //TODO: inline_level < 5
+            let value_decl = self.symbol(symbol).value_decl.unwrap();
+        }
+
         match expr.kind {
+            Ident(n) => self.narrow_ty_by_truthiness(ty, refer, expr, assume_true),
             Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
             PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
                 self.narrow_ty(ty, refer, node.expr, !assume_true)

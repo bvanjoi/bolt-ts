@@ -746,7 +746,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
-        let flags = self.binder.symbol(symbol).flags;
+        let flags = self.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::LATE_BINDING_CONTAINER) {
             self.get_resolved_members_or_exports_of_symbol(
                 symbol,

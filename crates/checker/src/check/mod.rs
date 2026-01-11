@@ -2144,6 +2144,7 @@ impl<'cx> TyChecker<'cx> {
         let assignment_kind = self
             .node_query(ident.id.module())
             .get_assignment_target_kind(ident.id);
+
         if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
             let symbol = self.binder.symbol(symbol);
             if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
@@ -3102,13 +3103,14 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn get_adjusted_ty_with_facts<const STRICT_NULL_CHECKS: bool>(
+    fn get_adjusted_ty_with_facts(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         facts: TypeFacts,
     ) -> &'cx ty::Ty<'cx> {
+        let strict_null_checks = self.config.strict_null_checks();
         let ty = self.get_ty_with_facts(
-            if STRICT_NULL_CHECKS && ty.flags.contains(TypeFlags::UNKNOWN) {
+            if strict_null_checks && ty.flags.contains(TypeFlags::UNKNOWN) {
                 debug_assert!(self.unknown_union_ty().kind.is_union());
                 self.unknown_union_ty()
             } else {
@@ -3117,7 +3119,7 @@ impl<'cx> TyChecker<'cx> {
             facts,
         );
         let reduced = self.recombine_unknown_ty(ty);
-        if STRICT_NULL_CHECKS {
+        if strict_null_checks {
             if facts == ty::TypeFacts::NE_UNDEFINED {
                 return self.remove_nullable_by_intersection(
                     reduced,
@@ -3157,7 +3159,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_non_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if self.config.strict_null_checks() {
-            self.get_adjusted_ty_with_facts::<true>(ty, ty::TypeFacts::NE_UNDEFINED_OR_NULL)
+            self.get_adjusted_ty_with_facts(ty, ty::TypeFacts::NE_UNDEFINED_OR_NULL)
         } else {
             ty
         }
@@ -3626,6 +3628,7 @@ impl<'cx> TyChecker<'cx> {
                 .reduced_left(
                     tys,
                     |this, flags, t, _| flags | this.get_generic_object_flags(t),
+                    |_, _| unreachable!(),
                     Some(ObjectFlags::empty()),
                     None,
                     None,
@@ -3760,6 +3763,7 @@ impl<'cx> TyChecker<'cx> {
             |this, s, t, _| {
                 if this.is_ty_sub_type_of(t, s) { t } else { s }
             },
+            |_, t| t,
             None,
             None,
             None,
@@ -3842,6 +3846,7 @@ impl<'cx> TyChecker<'cx> {
                             s
                         }
                     },
+                    |_, t| t,
                     None,
                     None,
                     None,
@@ -3862,6 +3867,7 @@ impl<'cx> TyChecker<'cx> {
                             s
                         }
                     },
+                    |_, t| t,
                     None,
                     None,
                     None,
@@ -3891,6 +3897,7 @@ impl<'cx> TyChecker<'cx> {
                         t.flags
                     })
             },
+            |_, _| unreachable!(),
             Some(TypeFlags::empty()),
             None,
             None,
@@ -3898,10 +3905,11 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn reduced_left<T: Copy + Into<U>, U>(
+    fn reduced_left<T: Copy, U>(
         &mut self,
         array: &[T],
         f: impl Fn(&mut Self, U, T, usize) -> U,
+        t_into_u: impl Fn(&mut Self, &T) -> U,
         init: Option<U>,
         start: Option<usize>,
         count: Option<usize>,
@@ -3919,7 +3927,7 @@ impl<'cx> TyChecker<'cx> {
                 });
                 let mut result;
                 if init.is_none() && start.is_none() && count.is_none() {
-                    result = array[pos].into();
+                    result = t_into_u(self, &array[pos]);
                     pos += 1;
                 } else {
                     result = init.unwrap();
@@ -4808,8 +4816,18 @@ impl<'cx> TyChecker<'cx> {
             }
         } else if flags.contains(TypeFlags::NEVER) {
             TypeFacts::empty()
+        } else if let Some(u) = ty.kind.as_union() {
+            self.reduced_left(
+                u.tys,
+                |this, facts, t, _| facts.union(this.get_type_facts_worker(t, caller_only_needs)),
+                |_, _| unreachable!(),
+                Some(TypeFacts::empty()),
+                None,
+                None,
+            )
+            .unwrap()
         } else {
-            // TODO: union, intersection
+            // TODO:  intersection
             TypeFacts::UNKNOWN_FACTS
         }
     }

@@ -243,33 +243,24 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn as_ty(&self) -> Option<super::Ty<'cx>> {
-        macro_rules! as_ty_node {
-            ($( $ty:ident ),* $(,)?) => {
-                ::paste::paste! {
-                    match self {
-                        $(Node::[<$ty Ty>](n) => Some(super::Ty {
-                            kind: super::TyKind::$ty(n)
-                        }),)*
-                        _ => None,
-                    }
-                }
-            };
-        }
-        as_ty_node!(
-            Refer,
-            Array,
-            Tuple,
-            IndexedAccess,
-            Fn,
-            ObjectLit,
-            Lit,
-            Rest,
-            Cond,
-            Union,
-            Intersection,
-            Mapped,
-            Infer,
-        )
+        use super::{Ty, TyKind};
+        let kind = match self {
+            Node::ReferTy(n) => TyKind::Refer(n),
+            Node::ArrayTy(n) => TyKind::Array(n),
+            Node::TupleTy(n) => TyKind::Tuple(n),
+            Node::IndexedAccessTy(n) => TyKind::IndexedAccess(n),
+            Node::FnTy(n) => TyKind::Fn(n),
+            Node::ObjectLitTy(n) => TyKind::ObjectLit(n),
+            Node::LitTy(n) => TyKind::Lit(n),
+            Node::RestTy(n) => TyKind::Rest(n),
+            Node::CondTy(n) => TyKind::Cond(n),
+            Node::UnionTy(n) => TyKind::Union(n),
+            Node::IntersectionTy(n) => TyKind::Intersection(n),
+            Node::MappedTy(n) => TyKind::Mapped(n),
+            Node::InferTy(n) => TyKind::Infer(n),
+            _ => return None,
+        };
+        Some(Ty { kind })
     }
 
     pub fn name(&self) -> Option<super::DeclarationName<'cx>> {
@@ -355,66 +346,48 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn ty_args(&self) -> Option<&'cx super::Tys<'cx>> {
-        macro_rules! ty_args {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.ty_args,)*
-                    _ => None,
-                }
-            };
+        match self {
+            Node::ReferTy(n) => n.ty_args,
+            _ => None,
         }
-        ty_args!(ReferTy)
     }
 
     pub fn ty_params(&self) -> Option<super::TyParams<'cx>> {
-        macro_rules! ty_params {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.ty_params,)*
-                    _ => None,
-                }
-            };
+        match self {
+            Node::FnDecl(n) => n.ty_params,
+            Node::FnExpr(n) => n.ty_params,
+            Node::ArrowFnExpr(n) => n.ty_params,
+            Node::ClassDecl(n) => n.ty_params,
+            Node::ClassExpr(n) => n.ty_params,
+            Node::ClassCtor(n) => n.ty_params,
+            Node::CtorSigDecl(n) => n.ty_params,
+            Node::ClassMethodElem(n) => n.ty_params,
+            Node::TypeAliasDecl(n) => n.ty_params,
+            Node::MethodSignature(n) => n.ty_params,
+            Node::CallSigDecl(n) => n.ty_params,
+            Node::InterfaceDecl(n) => n.ty_params,
+            Node::FnTy(n) => n.ty_params,
+            _ => None,
         }
-        ty_params!(
-            FnDecl,
-            FnExpr,
-            ArrowFnExpr,
-            ClassDecl,
-            ClassExpr,
-            ClassCtor,
-            CtorSigDecl,
-            ClassMethodElem,
-            TypeAliasDecl,
-            MethodSignature,
-            CallSigDecl,
-            InterfaceDecl,
-            FnTy,
-        )
     }
 
     pub fn params(&self) -> Option<super::ParamsDecl<'cx>> {
-        macro_rules! params {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(n.params),)*
-                    _ => None,
-                }
-            };
-        }
-        params!(
-            FnDecl,
-            FnExpr,
-            ArrowFnExpr,
-            ClassCtor,
-            CtorSigDecl,
-            CtorTy,
-            ClassMethodElem,
-            MethodSignature,
-            ObjectMethodMember,
-            CallSigDecl,
-            FnTy,
-            SetterDecl,
-        )
+        let params = match self {
+            Node::FnDecl(n) => n.params,
+            Node::FnExpr(n) => n.params,
+            Node::ArrowFnExpr(n) => n.params,
+            Node::ClassCtor(n) => n.params,
+            Node::CtorSigDecl(n) => n.params,
+            Node::CtorTy(n) => n.params,
+            Node::ClassMethodElem(n) => n.params,
+            Node::MethodSignature(n) => n.params,
+            Node::ObjectMethodMember(n) => n.params,
+            Node::CallSigDecl(n) => n.params,
+            Node::FnTy(n) => n.params,
+            Node::SetterDecl(n) => n.params,
+            _ => return None,
+        };
+        Some(params)
     }
 
     pub fn ret_ty(&self) -> Option<&'cx super::Ty<'cx>> {
@@ -638,31 +611,24 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
-        macro_rules! modifiers {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.modifiers,)*
-                    _ => None,
-                }
-            };
+        match self {
+            Node::ClassCtor(n) => n.modifiers,
+            Node::ClassMethodElem(n) => n.modifiers,
+            Node::ClassPropElem(n) => n.modifiers,
+            Node::GetterDecl(n) => n.modifiers,
+            Node::SetterDecl(n) => n.modifiers,
+            Node::PropSignature(n) => n.modifiers,
+            Node::FnDecl(n) => n.modifiers,
+            Node::VarStmt(n) => n.modifiers,
+            Node::ClassDecl(n) => n.modifiers,
+            Node::ModuleDecl(n) => n.modifiers,
+            Node::TypeAliasDecl(n) => n.modifiers,
+            Node::InterfaceDecl(n) => n.modifiers,
+            Node::ParamDecl(n) => n.modifiers,
+            Node::IndexSigDecl(n) => n.modifiers,
+            Node::ExportAssign(n) => n.modifiers,
+            _ => None,
         }
-        modifiers!(
-            ClassCtor,
-            ClassMethodElem,
-            ClassPropElem,
-            GetterDecl,
-            SetterDecl,
-            PropSignature,
-            FnDecl,
-            VarStmt,
-            ClassDecl,
-            ModuleDecl,
-            TypeAliasDecl,
-            InterfaceDecl,
-            ParamDecl,
-            IndexSigDecl,
-            ExportAssign,
-        )
     }
 
     pub fn can_have_modifiers(&self) -> bool {
@@ -730,15 +696,8 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_flow_node(&self) -> bool {
-        macro_rules! has_flow_node {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(_) => true,)*
-                    _ => false,
-                }
-            };
-        }
-        has_flow_node!(Ident, ThisExpr, SuperExpr)
+        use Node::*;
+        matches!(self, Ident(_) | ThisExpr(_) | SuperExpr(_))
     }
 
     pub fn is_stmt(&self) -> bool {

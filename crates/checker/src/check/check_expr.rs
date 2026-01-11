@@ -909,9 +909,9 @@ impl<'cx> TyChecker<'cx> {
                         *has_computed_string_property = true;
                     }
                     // TODO: in_destructuring_pattern
-                } else {
-                    properties_table.insert(name, member);
                 }
+            } else {
+                properties_table.insert(name, member);
             }
         };
         let symbol = std::cell::OnceCell::new();

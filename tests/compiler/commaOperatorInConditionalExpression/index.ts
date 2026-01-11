@@ -9,6 +9,6 @@ function f (m: string) {
         return true? { [m]: i } : { [m]: i + 1 }
     })
     const a1: {[m]: number} = {[m]: 42};
-    // TODO:
-    // const a2: {[m]: number} = {[m]: '42'};
+    const a2: {[m]: number} = {[m]: '42'};
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
 }

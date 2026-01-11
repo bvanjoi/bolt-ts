@@ -37,7 +37,7 @@ impl<'cx> TyChecker<'cx> {
         let mut readonly_computed_symbol_property = true;
         let mut has_computed_string_property = false;
         let mut readonly_computed_string_property = true;
-        let mut computed_property_symbols = Vec::with_capacity(decls.len());
+        let mut computed_property_symbols = Vec::with_capacity(1);
         for decl in decls {
             let n = self.p.node(decl);
             if n.is_index_sig_decl() {
@@ -144,10 +144,11 @@ impl<'cx> TyChecker<'cx> {
         props: &[SymbolID],
         key_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::IndexInfo<'cx> {
-        assert!(offset < props.len());
-        let mut prop_tys = Vec::with_capacity(props.len());
-        let mut components = Vec::with_capacity(props.len());
-        for i in offset..prop_tys.len() {
+        debug_assert!(offset < props.len());
+        let cap = props.len() - offset;
+        let mut prop_tys = Vec::with_capacity(cap);
+        let mut components = Vec::with_capacity(cap);
+        for i in offset..props.len() {
             let p = props[i];
             if (key_ty == self.string_ty && !self.is_symbol_with_symbol_name(p))
                 || (key_ty == self.number_ty && self.is_symbol_with_numeric_name(p))

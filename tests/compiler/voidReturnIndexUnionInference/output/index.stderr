@@ -9,3 +9,9 @@
  27 │ b
     · ─
     ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/voidReturnIndexUnionInference/index.ts:33:9]
+ 33 │ b
+    · ─
+    ╰────

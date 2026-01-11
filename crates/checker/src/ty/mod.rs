@@ -50,17 +50,6 @@ pub struct Ty<'cx> {
     pub links: CommonTyLinksID<'cx>,
 }
 
-impl From<&Ty<'_>> for TypeFlags {
-    fn from(val: &Ty<'_>) -> Self {
-        val.flags
-    }
-}
-impl From<&Ty<'_>> for ObjectFlags {
-    fn from(val: &Ty<'_>) -> Self {
-        val.get_object_flags()
-    }
-}
-
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         if self.id == other.id {

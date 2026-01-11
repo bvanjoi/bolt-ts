@@ -1064,3 +1064,24 @@ pub(super) struct TypeXIsNotAnArrayType {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'null' or 'undefined'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'undefined'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyUndefined {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'null'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNull {
+    #[label(primary)]
+    pub span: Span,
+}
