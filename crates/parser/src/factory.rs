@@ -656,6 +656,7 @@ impl<'cx> ParserState<'cx, '_> {
         init: ast::ForInitKind<'cx>,
         expr: &'cx ast::Expr<'cx>,
         body: &'cx ast::Stmt<'cx>,
+        flags: ast::NodeFlags,
     ) -> &'cx ast::ForOfStmt<'cx> {
         self.check_invalid_type_annotation_in_for_in_or_of_stmt(false, &init);
 
@@ -669,7 +670,8 @@ impl<'cx> ParserState<'cx, '_> {
             body,
         });
         self.nodes.insert(id, ast::Node::ForOfStmt(node));
-        self.node_flags_map.insert(id, self.node_context_flags);
+        self.node_flags_map
+            .insert(id, flags | self.node_context_flags);
         node
     }
 

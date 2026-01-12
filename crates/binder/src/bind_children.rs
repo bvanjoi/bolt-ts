@@ -1359,10 +1359,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let flow = self.create_flow_assign(self.current_flow.unwrap(), node);
                 self.current_flow = Some(flow);
             }
-            ObjectPat(_) => {
-                // TODO: use element in object pat
-                let flow = self.create_flow_assign(self.current_flow.unwrap(), node);
-                self.current_flow = Some(flow);
+            ObjectPat(pat) => {
+                for elem in pat.elems {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(ident) => {
+                            let flow =
+                                self.create_flow_assign(self.current_flow.unwrap(), ident.id);
+                            self.current_flow = Some(flow);
+                        }
+                        ast::ObjectBindingName::Prop { name, .. } => {
+                            self.bind_initialized_var_flow(elem.id, name);
+                        }
+                    };
+                }
             }
             ArrayPat(pat) => {
                 for elem in pat.elems {

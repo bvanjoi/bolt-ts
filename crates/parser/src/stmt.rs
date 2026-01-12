@@ -274,15 +274,23 @@ impl<'cx> ParserState<'cx, '_> {
         let await_token = self.parse_optional(Await);
         self.expect(LParen);
         let t = self.token.kind;
+        let mut flags = ast::NodeFlags::empty();
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
                 let ctx = match t {
                     Var => VarDeclarationContext::empty(),
-                    Let => VarDeclarationContext::LET,
-                    Const => VarDeclarationContext::CONST,
+                    Let => {
+                        flags.insert(ast::NodeFlags::LET);
+                        VarDeclarationContext::LET
+                    }
+                    Const => {
+                        flags.insert(ast::NodeFlags::CONST);
+                        VarDeclarationContext::CONST
+                    }
                     _ => unreachable!(),
                 }
                 .union(VarDeclarationContext::FOR);
+                // TODO: `using` and `await`
                 Some(ast::ForInitKind::Var(self.parse_var_decl_list(ctx)))
             } else {
                 Some(ast::ForInitKind::Expr(
@@ -301,8 +309,14 @@ impl<'cx> ParserState<'cx, '_> {
                 ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
-            let node =
-                self.create_for_of_stmt(start, await_token.map(|t| t.span), init, expr, body);
+            let node = self.create_for_of_stmt(
+                start,
+                await_token.map(|t| t.span),
+                init,
+                expr,
+                body,
+                flags,
+            );
             Ok(ast::StmtKind::ForOf(node))
         } else if self.parse_optional(In).is_some() {
             let init = init.unwrap();
@@ -1057,8 +1071,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_object_binding_elem(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
         let start = self.token.start();
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        let token_is_ident = self.token.kind.is_binding_ident();
-        let name = if token_is_ident {
+        let name = if self.token.kind.is_binding_ident() {
             let name = self.create_ident(true, None);
             if self.token.kind != TokenKind::Colon {
                 self.alloc(ast::ObjectBindingName::Shorthand(name))
@@ -1075,7 +1088,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.parse_prop_name(false);
+            let prop_name = self.parse_prop_name(true);
             self.expect(TokenKind::Colon);
             let name = self.parse_ident_or_pat()?;
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
@@ -1197,6 +1210,8 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_var_decl_list(&mut self, ctx: VarDeclarationContext) -> VarDecls<'cx> {
+        use ast::TokenKind::*;
+        debug_assert!(matches!(self.token.kind, Let | Const | Var));
         self.next_token();
         self.parse_delimited_list::<false, _>(ParsingContext::VARIABLE_DECLARATIONS, |this| {
             this.parse_var_decl(ctx)

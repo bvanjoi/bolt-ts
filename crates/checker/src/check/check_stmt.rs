@@ -31,13 +31,13 @@ impl<'cx> TyChecker<'cx> {
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
+            ForOf(node) => self.check_for_of_stmt(node),
             Import(node) => self.check_import_decl(node),
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
-            ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
             Try(_) => {}
@@ -268,6 +268,15 @@ impl<'cx> TyChecker<'cx> {
         } else {
             index_ty
         }
+    }
+
+    fn check_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) {
+        match node.init {
+            ast::ForInitKind::Var(var) => {
+                self.check_var_decl_list(var);
+            }
+            ast::ForInitKind::Expr(_) => {}
+        };
     }
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {

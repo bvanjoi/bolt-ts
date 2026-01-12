@@ -122,6 +122,11 @@ impl<'cx> TyChecker<'cx> {
                     }
                     ObjectPat(n) => {
                         for elem in n.elems {
+                            if let ast::ObjectBindingName::Prop { prop_name, .. } = elem.name
+                                && let ast::PropNameKind::Computed(computed) = prop_name.kind
+                            {
+                                self.check_computed_prop_name(computed);
+                            }
                             self.check_var_like_decl(*elem);
                         }
                     }

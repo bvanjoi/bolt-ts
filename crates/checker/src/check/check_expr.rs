@@ -502,7 +502,15 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
         }
-        None
+
+        let array_element_ty = self.get_index_ty_of_ty(array_ty, self.number_ty);
+
+        if mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS) {
+            // TODO:
+            None
+        } else {
+            array_element_ty
+        }
     }
 
     fn is_template_literal_contextual_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -1583,7 +1591,12 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let ty = self.check_expr(node.expr);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            debug_assert!(self.is_type_any(ty));
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 }

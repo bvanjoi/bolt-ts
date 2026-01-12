@@ -2,10 +2,10 @@ use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
+use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
 use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
-use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
-use crate::ty::{ObjectFlags, Sig};
 
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, keyword};

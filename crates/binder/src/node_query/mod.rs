@@ -1,4 +1,3 @@
-use ast::Node::*;
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::{self, is_prim_ty_name};
 
@@ -52,6 +51,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_assigned_name(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
         let parent = self.parent(id)?;
         let p = self.node(parent);
+        use ast::Node::*;
         match p {
             ObjectBindingElem(n) => ast::DeclarationName::from_object_binding_name(n.name),
             VarDecl(n) => ast::DeclarationName::from_binding(n.name),
@@ -65,6 +65,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             .nodes
             .get_non_assigned_name_of_decl(id)
             .or_else(|| {
+                use ast::Node::*;
                 let n = self.node(id);
                 matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
                     .then(|| self.get_assigned_name(id))
@@ -80,13 +81,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn walkup_binding_elements_and_patterns(&self, binding: ast::NodeID) -> ast::NodeID {
+        use ast::Node::*;
         let mut n = self.parent(binding).unwrap();
+        debug_assert!(matches!(self.node(n), ObjectPat(_) | ArrayPat(_)));
         loop {
             let p = self.parent(n).unwrap();
             if self.node(p).is_binding() {
-                n = self.parent(p).unwrap()
+                n = p;
             } else {
-                break self.parent(n).unwrap();
+                break p;
             }
         }
     }
@@ -96,8 +99,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         mut id: ast::NodeID,
         get_flag: impl Fn(&Self, ast::NodeID) -> T,
     ) -> T {
+        use ast::Node::*;
         let mut n = self.node(id);
-        if n.is_binding() {
+        if matches!(n, ObjectBindingElem(_) | ArrayBinding(_)) {
             id = self.walkup_binding_elements_and_patterns(id);
             n = self.node(id);
         }
@@ -107,9 +111,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             id = self.parent(id).unwrap();
             n = self.node(id);
         }
-        // TODO: variable list
-        if let Some(s) = n.as_var_stmt() {
-            flags |= get_flag(self, s.id);
+        match n {
+            VarStmt(stmt) => flags |= get_flag(self, stmt.id),
+            ForOfStmt(stmt) => flags |= get_flag(self, stmt.id),
+            // TODO: ForIn, For
+            _ => {}
         }
         flags
     }
@@ -156,6 +162,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
         ) -> ModuleInstanceState {
+            use ast::Node::*;
             let n = this.node(node);
             match n {
                 InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
@@ -366,6 +373,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_object_lit_or_class_expr_method_or_accessor(&self, node: ast::NodeID) -> bool {
+        use ast::Node::*;
         let n = self.node(node);
         if n.is_object_method_member() {
             true
@@ -379,6 +387,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_type_decl(&self, id: ast::NodeID) -> bool {
+        use ast::Node::*;
         let n = self.node(id);
         matches!(
             n,
@@ -401,6 +410,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         include_arrow_fn: bool,
         include_class_computed_prop_name: bool,
     ) -> ast::NodeID {
+        use ast::Node::*;
         while let Some(parent) = self.parent(id) {
             id = parent;
             let node = self.node(id);
@@ -428,6 +438,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         mut id: ast::NodeID,
         stop_on_functions: bool,
     ) -> Option<ast::NodeID> {
+        use ast::Node::*;
         loop {
             let parent = self.parent(id)?;
             id = parent;
@@ -467,9 +478,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
-        let mut parent = self.parent(id);
+        use ast::Node::*;
         use ast::PostfixUnaryOp;
         use ast::PrefixUnaryOp;
+
+        let mut parent = self.parent(id);
         while let Some(p) = parent {
             match self.node(p) {
                 AssignExpr(n) => {
@@ -509,6 +522,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_decl_name_or_import_prop_name(&self, id: ast::NodeID) -> bool {
+        use ast::Node::*;
         self.parent(id).is_some_and(|p| match self.node(p) {
             ImportNamedSpec(_) | ExportNamedSpec(_) => {
                 matches!(self.node(id), Ident(_) | StringLit(_))
@@ -550,7 +564,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return AccessKind::Read;
         };
         match self.node(p) {
-            AssignExpr(n) => {
+            ast::Node::AssignExpr(n) => {
                 if n.left.id() == id {
                     if n.op == ast::AssignOp::Eq {
                         AccessKind::Write

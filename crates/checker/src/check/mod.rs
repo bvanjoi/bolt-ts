@@ -2046,26 +2046,67 @@ impl<'cx> TyChecker<'cx> {
         decl: ast::NodeID,
         used: &'cx ast::Ident,
     ) -> bool {
+        use ast::Node::*;
+        if decl.module() != used.id.module() {
+            return true;
+        }
         let used_span = used.span;
         let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo();
-        let decl_container = self
-            .node_query(decl.module())
-            .get_enclosing_blockscope_container(decl);
+        let nq = self.node_query(decl.module());
+        let decl_container = nq.get_enclosing_blockscope_container(decl);
 
         if decl_pos < used_span.lo() {
             let n = self.p.node(decl);
-            if let Some(decl) = n.as_var_decl() {
-                return !self
+            return match n {
+                VarDecl(decl) => !self
                     .node_query(decl.id.module())
-                    .is_immediately_used_in_init_or_block_scoped_var(
-                        decl,
-                        used.id,
-                        decl_container,
-                    );
-            } else {
-                return true;
-            }
+                    .is_immediately_used_in_init_or_block_scoped_var(decl, used.id, decl_container),
+                ObjectBindingElem(_) => {
+                    match nq.find_ancestor(used.id, |n| n.is_object_binding_elem().then_some(true))
+                    {
+                        Some(error_binding_element) => {
+                            n.span().lo() < self.p.node(error_binding_element).span().lo() || {
+                                nq.find_ancestor(error_binding_element, |n| {
+                                    matches!(n, ObjectBindingElem(_) | ArrayBinding(_))
+                                        .then_some(true)
+                                }) != nq.find_ancestor(decl, |n| {
+                                    matches!(n, ObjectBindingElem(_) | ArrayBinding(_))
+                                        .then_some(true)
+                                })
+                            }
+                        }
+                        None => {
+                            let decl = nq
+                                .find_ancestor(decl, |n| n.is_var_decl().then_some(true))
+                                .unwrap();
+                            self.is_block_scoped_name_declared_before_use(decl, used)
+                        }
+                    }
+                }
+                ArrayBinding(_) => {
+                    match nq.find_ancestor(used.id, |n| n.is_array_binding().then_some(true)) {
+                        Some(error_binding_element) => {
+                            n.span().lo() < self.p.node(error_binding_element).span().lo() || {
+                                nq.find_ancestor(error_binding_element, |n| {
+                                    matches!(n, ObjectBindingElem(_) | ArrayBinding(_))
+                                        .then_some(true)
+                                }) != nq.find_ancestor(decl, |n| {
+                                    matches!(n, ObjectBindingElem(_) | ArrayBinding(_))
+                                        .then_some(true)
+                                })
+                            }
+                        }
+                        None => {
+                            let decl = nq
+                                .find_ancestor(decl, |n| n.is_var_decl().then_some(true))
+                                .unwrap();
+                            self.is_block_scoped_name_declared_before_use(decl, used)
+                        }
+                    }
+                }
+                _ => true,
+            };
         }
 
         if self.is_used_in_fn_or_instance_prop(used, decl, decl_container) {
@@ -2084,12 +2125,15 @@ impl<'cx> TyChecker<'cx> {
         if !self
             .p
             .node_flags(decl)
-            .intersects(bolt_ts_ast::NodeFlags::AMBIENT)
+            .contains(bolt_ts_ast::NodeFlags::AMBIENT)
             && !self.is_block_scoped_name_declared_before_use(decl, ident)
         {
             let (decl_span, kind) = match self.p.node(decl) {
-                ast::Node::ClassDecl(class) => (class.name.unwrap().span, errors::DeclKind::Class),
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
+                ast::Node::ObjectBindingElem(elem) => {
+                    (elem.span, errors::DeclKind::BlockScopedVariable)
+                }
+                ast::Node::ClassDecl(class) => (class.name.unwrap().span, errors::DeclKind::Class),
                 ast::Node::EnumDecl(decl) => {
                     if s.flags.contains(SymbolFlags::REGULAR_ENUM) {
                         (decl.span, errors::DeclKind::Enum)
@@ -2132,6 +2176,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: move into name resolution.
+        // TODO: dont duplicate check more than once.
         if self.symbol(symbol).flags.intersects(
             SymbolFlags::CLASS
                 .union(SymbolFlags::BLOCK_SCOPED_VARIABLE)
@@ -2588,8 +2633,8 @@ impl<'cx> TyChecker<'cx> {
                 self.boolean_ty()
             }
             Shl => self.number_ty,
+            Sar => self.number_ty,
             Shr => self.number_ty,
-            UShr => self.number_ty,
             BitAnd => self.number_ty,
             Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
@@ -3255,13 +3300,17 @@ impl<'cx> TyChecker<'cx> {
                         }
                         bolt_ts_ast::BindingKind::ObjectPat(_)
                         | bolt_ts_ast::BindingKind::ArrayPat(_) => {
-                            let s = self.resolve_symbol_by_ident(s_ident);
-                            self.get_export_symbol_of_value_symbol_if_exported(s)
-                                == self.get_symbol_of_decl(t_v.name.id)
+                            unreachable!()
                         }
                     }
-                } else if t.is_object_binding_elem() {
-                    todo!()
+                } else if let Some(t) = t.as_object_binding_elem() {
+                    let s = self.resolve_symbol_by_ident(s_ident);
+                    self.get_export_symbol_of_value_symbol_if_exported(s)
+                        == self.get_symbol_of_decl(t.id)
+                } else if let Some(t) = t.as_array_binding() {
+                    let s = self.resolve_symbol_by_ident(s_ident);
+                    self.get_export_symbol_of_value_symbol_if_exported(s)
+                        == self.get_symbol_of_decl(t.id)
                 } else {
                     false
                 }

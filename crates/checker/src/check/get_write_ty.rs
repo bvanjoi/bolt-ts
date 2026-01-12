@@ -2,7 +2,8 @@ use super::ResolutionKey;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty;
-use crate::ty::CheckFlags;
+use super::ty::CheckFlags;
+
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 
 impl<'cx> TyChecker<'cx> {

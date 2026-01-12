@@ -3,9 +3,8 @@ use super::ContextFlags;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty;
-
-use crate::ty::ObjectFlags;
-use crate::ty::TypeFlags;
+use super::ty::ObjectFlags;
+use super::ty::TypeFlags;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;

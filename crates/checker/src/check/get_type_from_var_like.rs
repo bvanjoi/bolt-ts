@@ -106,19 +106,23 @@ impl<'cx> TyChecker<'cx> {
             // TODO:
             parent_parent_ty
         } else {
-            let name = match binding.name {
-                ast::ObjectBindingName::Shorthand(ident) => ident,
-                ast::ObjectBindingName::Prop { prop_name, .. } => match prop_name.kind {
-                    ast::PropNameKind::Ident(ident) => ident,
-                    _ => unreachable!(),
-                },
+            let index_ty = match binding.name {
+                ast::ObjectBindingName::Shorthand(ident) => {
+                    self.get_string_literal_type_from_string(ident.name)
+                }
+                ast::ObjectBindingName::Prop { prop_name, .. } => {
+                    self.get_lit_ty_from_prop_name(&prop_name.kind)
+                }
             };
-            let index_ty = self.get_string_literal_type_from_string(name.name);
+            let name = match binding.name {
+                ast::ObjectBindingName::Shorthand(ident) => ident.id,
+                ast::ObjectBindingName::Prop { prop_name, .. } => prop_name.id(),
+            };
             let decl_ty = self.get_indexed_access_ty(
                 parent_parent_ty,
                 index_ty,
                 Some(access_flags),
-                Some(name.id),
+                Some(name),
             );
             // TODO: getFlowTypeOfDestructuring
             decl_ty
@@ -165,6 +169,21 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    fn check_right_hand_side_of_for_of(
+        &mut self,
+        stmt: &'cx ast::ForOfStmt<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: await
+        let mode = IterationUse::FOR_OF;
+        let input_ty = self.check_non_null_expr(stmt.expr);
+        self.check_iterated_ty_or_element_ty(
+            mode,
+            input_ty,
+            self.undefined_ty,
+            Some(stmt.expr.id()),
+        )
+    }
+
     pub(super) fn get_ty_for_var_like_decl<const INCLUDE_OPTIONALITY: bool>(
         &mut self,
         decl: &impl r#trait::VarLike<'cx>,
@@ -175,6 +194,12 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let parent_id = self.parent(id).unwrap();
         let parent = self.p.node(parent_id);
+
+        if self.p.node(id).is_var_decl()
+            && let Some(stmt) = parent.as_for_of_stmt()
+        {
+            return Some(self.check_right_hand_side_of_for_of(stmt));
+        }
 
         match parent {
             ast::Node::ArrayPat(pat) => {

@@ -336,6 +336,9 @@ impl<'cx> Resolver<'cx, '_, '_> {
                             ast::PropNameKind::Ident(_) => {
                                 // TODO: debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
                             }
+                            ast::PropNameKind::Computed(n) => {
+                                self.resolve_expr(n.expr);
+                            }
                             _ => {}
                         },
                     }
