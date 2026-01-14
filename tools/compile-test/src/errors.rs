@@ -1,5 +1,3 @@
-use self::WhichLine::*;
-
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
@@ -8,6 +6,8 @@ use std::path::Path;
 use std::str::FromStr;
 
 use regex::Regex;
+
+use self::WhichLine::*;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ErrorKind {

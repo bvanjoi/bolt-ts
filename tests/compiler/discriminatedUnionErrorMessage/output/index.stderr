@@ -1,0 +1,7 @@
+  × Type '{ kind: "sq"; x: number; y: number; }' is not assignable to type
+  │ '{ kind: "sq"; size: number; } | { kind: "rt"; x: number; y: number; } |
+  │ { kind: "cr"; radius: number; }'.
+    ╭─[../../tests/compiler/discriminatedUnionErrorMessage/index.ts:10:5]
+ 10 │ shape
+    · ─────
+    ╰────

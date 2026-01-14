@@ -1,7 +1,7 @@
-  × Conversion of type 'new () => ErrImpl<number> & () => number' to type 'new
-  │ () => ErrImpl<string> & () => string' may be a mistake because neither
-  │ type sufficiently overlaps with the other. If this was intentional,
-  │ convert the expression to 'unknown' first.
+  × Conversion of type '(new () => ErrImpl<number>) & (() => number)' to type
+  │ '(new () => ErrImpl<string>) & (() => string)' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
     ╭─[../../tests/compiler/aliasInstantiationExpressionGenericIntersectionNoCrash1/index.ts:14:1]
  14 │ e as ErrAlias<string>
     · ─────────────────────

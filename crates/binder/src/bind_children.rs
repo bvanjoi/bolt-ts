@@ -190,8 +190,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             true_target,
             false_target,
         );
-        let should_add_antecedent = node
-            .is_none_or(|node| !node.kind.is_logical_assignment() && !node.kind.is_logical_expr());
+        let should_add_antecedent = node.is_none_or(|node| {
+            // TODO: optional chain
+            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
+        });
         if should_add_antecedent {
             let t = self.create_flow_condition(
                 FlowFlags::TRUE_CONDITION,
@@ -1551,13 +1553,41 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_while_stmt(&mut self, _n: &ast::WhileStmt<'cx>) {
+    pub(super) fn set_continue_target(&mut self, target: FlowID) -> FlowID {
         // TODO:
+        target
     }
+
+    fn bind_while_stmt(&mut self, n: &ast::WhileStmt<'cx>) {
+        let pre_while_label = {
+            let label = self.flow_nodes.create_loop_label();
+            self.set_continue_target(label)
+        };
+        let pre_body_label = self.flow_nodes.create_branch_label();
+        let post_while_label = self.flow_nodes.create_branch_label();
+        self.flow_nodes
+            .add_antecedent(pre_while_label, self.current_flow.unwrap());
+        self.current_flow = Some(pre_while_label);
+        self.bind_cond(Some(n.expr), pre_body_label, post_while_label);
+        self.current_flow = Some(self.finish_flow_label(pre_body_label));
+        self.bind_iterative_stmt(n.stmt, post_while_label, pre_while_label);
+        self.flow_nodes
+            .add_antecedent(pre_while_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(post_while_label));
+    }
+
     fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
         // TODO:
     }
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {
+        let pre_loop_label = {
+            let label = self.flow_nodes.create_loop_label();
+            self.set_continue_target(label)
+        };
+        let pre_body_label = self.flow_nodes.create_branch_label();
+        let pre_incrementor_label = self.flow_nodes.create_branch_label();
+        let post_loop_label = self.flow_nodes.create_branch_label();
+
         if let Some(init) = &n.init {
             use ast::ForInitKind::*;
             match init {
@@ -1569,20 +1599,44 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 Expr(expr) => self.bind(expr.id()),
             }
         }
+
+        self.flow_nodes
+            .add_antecedent(pre_loop_label, self.current_flow.unwrap());
+
+        self.current_flow = Some(pre_loop_label);
         if let Some(cond) = n.cond {
             // TODO: bind_cond
             self.bind(cond.id());
         }
+        self.current_flow = Some(self.finish_flow_label(pre_body_label));
+
+        self.bind_iterative_stmt(n.body, post_loop_label, pre_loop_label);
+        self.flow_nodes
+            .add_antecedent(pre_incrementor_label, self.current_flow.unwrap());
+
+        self.current_flow = Some(self.finish_flow_label(pre_incrementor_label));
         // TODO: delete this?
         if let Some(update) = n.incr {
             self.bind(update.id());
         }
-
-        self.bind_iterative_stmt(n.body);
+        self.flow_nodes
+            .add_antecedent(pre_loop_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(post_loop_label));
     }
 
-    pub(super) fn bind_iterative_stmt(&mut self, n: &'cx ast::Stmt<'cx>) {
+    pub(super) fn bind_iterative_stmt(
+        &mut self,
+        n: &'cx ast::Stmt<'cx>,
+        break_target: FlowID,
+        continue_target: FlowID,
+    ) {
+        let saved_break_target = self.current_break_target;
+        let saved_continue_target = self.current_continue_target;
+        self.current_break_target = Some(break_target);
+        self.current_continue_target = Some(continue_target);
         self.bind(n.id());
+        self.current_break_target = saved_break_target;
+        self.current_continue_target = saved_continue_target;
     }
 
     pub(super) fn bind(&mut self, node: ast::NodeID) {

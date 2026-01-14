@@ -835,8 +835,13 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
             ty
         } else {
+            let save_flow_loop_start = self.flow_loop_start;
+            self.flow_loop_start = self.flow_loop_count;
+
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
+
+            self.flow_loop_start = save_flow_loop_start;
             ty
         }
     }

@@ -1,13 +1,16 @@
+use std::cell::OnceCell;
+
 use super::TyChecker;
+use super::create_ty::IntersectionFlags;
+use super::symbol_info::SymbolInfo;
+use super::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use super::type_predicate::TyPred;
-use crate::check::create_ty::IntersectionFlags;
-use crate::check::symbol_info::SymbolInfo;
-use crate::check::type_predicate::TyPredKind;
-use crate::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
+use super::type_predicate::TyPredKind;
+
 use bolt_ts_ast::{self as ast, keyword};
-use bolt_ts_binder::{
-    FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind, SymbolFlags, SymbolID,
-};
+use bolt_ts_atom::Atom;
+use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -61,14 +64,22 @@ impl<'cx> TyChecker<'cx> {
         let Some(flow_node) = flow_node.or_else(|| self.get_flow_node_of_node(refer)) else {
             return declared_ty;
         };
+        let mut key = OnceCell::new();
 
         let init_ty = init_ty.unwrap_or(declared_ty);
 
         let shared_flow_start = self.shared_flow_info.len();
 
         let evolved_ty = {
-            let flow_ty =
-                self.get_ty_at_flow_node(flow_node, refer, shared_flow_start, declared_ty, init_ty);
+            let flow_ty = self.get_ty_at_flow_node(
+                flow_node,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                &mut key,
+            );
             self.get_ty_from_flow_ty(flow_ty)
         };
 
@@ -94,6 +105,8 @@ impl<'cx> TyChecker<'cx> {
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
     ) -> FlowTy<'cx> {
         let mut shared_flow = None;
         loop {
@@ -110,7 +123,15 @@ impl<'cx> TyChecker<'cx> {
             }
             let ty;
             if flags.intersects(FlowFlags::CONDITION) {
-                ty = self.get_ty_at_flow_cond(flow, refer, shared_flow_start, declared_ty, init_ty);
+                ty = self.get_ty_at_flow_cond(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
             } else if flags.contains(FlowFlags::ASSIGNMENT) {
                 let Some(t) = self.get_ty_at_flow_assign(
                     flow,
@@ -127,9 +148,15 @@ impl<'cx> TyChecker<'cx> {
                 };
                 ty = t;
             } else if flags.contains(FlowFlags::CALL) {
-                if let Some(t) =
-                    self.get_ty_at_flow_call(flow, refer, shared_flow_start, declared_ty, init_ty)
-                {
+                if let Some(t) = self.get_ty_at_flow_call(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                ) {
                     ty = t;
                 } else {
                     let FlowNodeKind::Call(n) = &self.flow_node(flow).kind else {
@@ -146,7 +173,30 @@ impl<'cx> TyChecker<'cx> {
                     // TODO:
                 }
                 ty = FlowTy::Ty(init_ty);
-            } else {
+            }
+            // else if flags.intersects(FlowFlags::LABEL) {
+            //     let FlowNodeKind::Label(label) = &n.kind else {
+            //         unreachable!()
+            //     };
+            //     let antecedent = label.antecedent.as_ref().unwrap();
+            //     if antecedent.len() == 1 {
+            //         flow = antecedent[0];
+            //         continue;
+            //     }
+            //     ty = if flags.contains(FlowFlags::BRANCH_LABEL) {
+            //         self.get_ty_at_flow_branch_label()
+            //     } else {
+            //         self.get_ty_at_flow_loop_label(
+            //             flow,
+            //             refer,
+            //             declared_ty,
+            //             init_ty,
+            //             flow_container,
+            //             key,
+            //         )
+            //     };
+            // }
+            else {
                 ty = FlowTy::Ty(self.convert_auto_to_any(declared_ty));
             }
 
@@ -154,6 +204,109 @@ impl<'cx> TyChecker<'cx> {
                 self.shared_flow_info.push((shared_flow, ty));
             }
             return ty;
+        }
+    }
+
+    fn get_ty_at_flow_branch_label(&mut self) -> FlowTy<'cx> {
+        todo!()
+    }
+
+    // fn get_ty_at_flow_loop_label(
+    //     &mut self,
+    //     flow: FlowID,
+    //     refer: ast::NodeID,
+    //     declared_ty: &'cx ty::Ty<'cx>,
+    //     init_ty: &'cx ty::Ty<'cx>,
+    //     flow_container: Option<ast::NodeID>,
+    //     key: &mut OnceCell<Option<FlowCacheKey>>,
+    // ) -> FlowTy<'cx> {
+    //     let FlowNodeKind::Label(n) = &self.flow_node(flow).kind else {
+    //         unreachable!()
+    //     };
+    //     let key = key
+    //         .get_or_init(|| self.get_flow_cache_key(refer, declared_ty, init_ty, flow_container));
+    //     let Some(key) = key else {
+    //         return FlowTy::Ty(declared_ty);
+    //     };
+    //     let caches = self.flow_loop_caches.get(index);
+    //     let has_caches = caches.is_some();
+    //     if let Some(cached) = caches.and_then(|caches| caches.get(key)) {
+    //         return FlowTy::Ty(cached);
+    //     };
+
+    //     for i in self.flow_loop_start..self.flow_loop_count {
+    //         let i = i as usize;
+    //         if self.flow_loop_nodes[i] == flow
+    //             && !self.flow_loop_types.is_empty()
+    //             && self.flow_loop_keys[i] == key
+    //         {
+    //             let t =
+    //                 self.get_union_or_evolving_array_ty(tys, ty::UnionReduction::Lit, declared_ty);
+    //             return FlowTy::Ty(t);
+    //         }
+    //     }
+
+    //     let antecedent_tys = vec![];
+    //     let subtype_reduction = false;
+    //     let mut first_antecedent_ty = None;
+    //     for &antecedent in n.antecedent.as_ref().unwrap() {
+    //         let flow_ty;
+    //         if first_antecedent_ty.is_none() {
+    //             let ty = self.get_ty_at_flow_node(
+    //                 antecedent,
+    //                 refer,
+    //                 shared_flow_start,
+    //                 declared_ty,
+    //                 init_ty,
+    //                 flow_container,
+    //                 key,
+    //             );
+    //             first_antecedent_ty = Some(ty);
+    //             flow_ty = ty;
+    //         } else {
+    //             self.flow_loop_nodes[self.flow_loop_count as usize] = flow;
+    //             self.flow_loop_keys[self.flow_loop_count as usize] = *key;
+    //             self.flow_loop_types[self.flow_loop_count as usize] = antecedent_tys;
+    //         }
+    //     }
+    // }
+
+    fn is_evolving_array_op_target(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
+        let mut has_evolving_array_ty = false;
+        for t in tys {
+            if !t.flags.contains(TypeFlags::NEVER) {
+                if !t.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
+                    return false;
+                }
+                has_evolving_array_ty = true;
+            }
+        }
+        has_evolving_array_ty
+    }
+
+    fn get_union_or_evolving_array_ty(
+        &mut self,
+        tys: &[&'cx ty::Ty<'cx>],
+        subtype_reduction: ty::UnionReduction,
+        declared_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_evolving_array_op_target(tys) {
+            todo!()
+        }
+
+        let result = {
+            // TODO: finalize_evolving_array_ty;
+            let ty = self.get_union_ty(tys, subtype_reduction, false, None, None);
+            self.recombine_unknown_ty(ty)
+        };
+        if result != declared_ty
+            && let Some(result_tys) = result.kind.as_union()
+            && let Some(declared_tys) = declared_ty.kind.as_union()
+            && self.array_is_equal(Some(result_tys.tys), Some(declared_tys.tys))
+        {
+            declared_ty
+        } else {
+            result
         }
     }
 
@@ -199,6 +352,8 @@ impl<'cx> TyChecker<'cx> {
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
     ) -> Option<FlowTy<'cx>> {
         let FlowNodeKind::Call(n) = &self.flow_node(flow).kind else {
             unreachable!()
@@ -219,6 +374,8 @@ impl<'cx> TyChecker<'cx> {
                 shared_flow_start,
                 declared_ty,
                 init_ty,
+                flow_container,
+                key,
             );
             let ty = self.finalize_evolving_array_ty(self.get_ty_from_flow_ty(flow_ty));
             let narrowed_ty = if pred.ty().is_some() {
@@ -256,6 +413,8 @@ impl<'cx> TyChecker<'cx> {
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
     ) -> FlowTy<'cx> {
         let n = self.flow_node(flow);
         let FlowNodeKind::Cond(cond) = &n.kind else {
@@ -270,6 +429,8 @@ impl<'cx> TyChecker<'cx> {
             shared_flow_start,
             declared_ty,
             init_ty,
+            flow_container,
+            key,
         );
         let ty = self.get_ty_from_flow_ty(flow_ty);
         if ty.flags.intersects(TypeFlags::NEVER) {
@@ -782,4 +943,122 @@ impl<'cx> TyChecker<'cx> {
             }
         }
     }
+
+    fn get_flow_cache_key(
+        &self,
+        node: ast::NodeID,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+    ) -> Option<FlowCacheKey> {
+        use ast::Node::*;
+        let nq = self.node_query(node.module());
+        let n = self.p.node(node);
+        match n {
+            Ident(_) if !nq.is_this_in_type_query(node) => {
+                let symbol = self.final_res(node);
+                if symbol != Symbol::ERR {
+                    let key = IdentFlowCacheKey {
+                        flow_container,
+                        declared_ty: declared_ty.id,
+                        init_ty: init_ty.id,
+                        symbol,
+                    };
+                    Some(FlowCacheKey::Ident(key))
+                } else {
+                    None
+                }
+            }
+            Ident(_) | ThisExpr(_) => {
+                let key = ThisFlowCacheKey {
+                    flow_container,
+                    declared_ty: declared_ty.id,
+                    init_ty: init_ty.id,
+                };
+                Some(FlowCacheKey::This(key))
+            }
+            NonNullExpr(n) => {
+                self.get_flow_cache_key(n.expr.id(), declared_ty, init_ty, flow_container)
+            }
+            ParenExpr(n) => {
+                self.get_flow_cache_key(n.expr.id(), declared_ty, init_ty, flow_container)
+            }
+            QualifiedName(n) => {
+                let left =
+                    self.get_flow_cache_key(n.left.id(), declared_ty, init_ty, flow_container)?;
+                Some(FlowCacheKey::QualifiedName(QualifiedNameFlowCacheKey {
+                    left: Box::new(left),
+                    right: n.right.name,
+                }))
+            }
+            PropAccessExpr(n) => {
+                let prop_name = n.name.name;
+                let left =
+                    self.get_flow_cache_key(n.expr.id(), declared_ty, init_ty, flow_container)?;
+                Some(FlowCacheKey::PropAccess(PropAccessFlowCacheKey {
+                    left: Box::new(left),
+                    right: prop_name,
+                }))
+            }
+            EleAccessExpr(n) => {
+                // TODO: try_get_element_access_name
+                None
+            }
+            ObjectPat(_)
+            | ArrayPat(_)
+            | FnDecl(_)
+            | FnExpr(_)
+            | ArrowFnExpr(_)
+            | ObjectMethodMember(_)
+            | ClassMethodElem(_) => {
+                let key = PseudoFlowCacheKey {
+                    node,
+                    declared_ty: declared_ty.id,
+                };
+                Some(FlowCacheKey::Pseudo(key))
+            }
+            _ => None,
+        }
+    }
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) enum FlowCacheKey {
+    Ident(IdentFlowCacheKey),
+    This(ThisFlowCacheKey),
+    QualifiedName(QualifiedNameFlowCacheKey),
+    PropAccess(PropAccessFlowCacheKey),
+    Pseudo(PseudoFlowCacheKey),
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct PseudoFlowCacheKey {
+    node: ast::NodeID,
+    declared_ty: ty::TyID,
+}
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct PropAccessFlowCacheKey {
+    left: Box<FlowCacheKey>,
+    right: Atom,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct QualifiedNameFlowCacheKey {
+    left: Box<FlowCacheKey>,
+    right: Atom,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct IdentFlowCacheKey {
+    flow_container: Option<ast::NodeID>,
+    declared_ty: ty::TyID,
+    init_ty: ty::TyID,
+    symbol: SymbolID,
+}
+
+#[derive(Hash, PartialEq, Eq)]
+pub(super) struct ThisFlowCacheKey {
+    flow_container: Option<ast::NodeID>,
+    declared_ty: ty::TyID,
+    init_ty: ty::TyID,
 }

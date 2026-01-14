@@ -197,7 +197,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Try(_) => {}
-            While(_) => {}
+            While(n) => {
+                self.resolve_expr(n.expr);
+                self.resolve_stmt(n.stmt);
+            }
             Do(_) => {}
             Debugger(_) => {}
             ExportAssign(n) => match n.expr.kind {

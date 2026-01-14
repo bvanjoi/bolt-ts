@@ -41,12 +41,17 @@ impl<'cx> TyChecker<'cx> {
             Break(_) => {}
             Continue(_) => {}
             Try(_) => {}
-            While(_) => {}
+            While(n) => self.check_while_stmt(n),
             Do(_) => {}
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
+        self.check_truthiness_expr(node.expr);
+        self.check_stmt(node.stmt);
     }
 
     fn is_type_equality_comparable_to(

@@ -70,6 +70,8 @@ use check_type_related_to::RecursionFlags;
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
+use crate::check::flow::FlowCacheKey;
+
 use self::check_expr::IterationUse;
 use self::check_expr::get_suggestion_boolean_op;
 use self::create_ty::IntersectionFlags;
@@ -281,6 +283,13 @@ pub struct TyChecker<'cx> {
     empty_array: &'cx [u8; 0],
     never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
     structure_members_placeholder: &'cx ty::StructuredMembers<'cx>,
+
+    flow_loop_start: u32,
+    flow_loop_count: u32,
+    flow_loop_nodes: Vec<FlowID>,
+    flow_loop_keys: Vec<FlowCacheKey>,
+    flow_loop_types: Vec<Vec<&'cx ty::Ty<'cx>>>,
+    flow_loop_caches: FxHashMap<FlowID, FxHashMap<FlowCacheKey, &'cx ty::Ty<'cx>>>,
 
     // === resolver ===
     pub binder: &'cx mut bolt_ts_binder::Binder,
@@ -604,6 +613,13 @@ impl<'cx> TyChecker<'cx> {
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             resolution_start: 0,
+
+            flow_loop_count: 0,
+            flow_loop_start: 0,
+            flow_loop_nodes: Vec::new(),
+            flow_loop_keys: Vec::new(),
+            flow_loop_types: Vec::new(),
+            flow_loop_caches: Default::default(),
 
             binder,
             merged_symbols,

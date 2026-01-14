@@ -243,18 +243,39 @@ impl<'cx> Ty<'cx> {
                     format!("\"{}\"", checker.atoms.get(lit.val))
                 }
             }
-            TyKind::Union(union) => union
-                .tys
-                .iter()
-                .map(|ty| ty.to_string(checker))
-                .collect::<Vec<_>>()
-                .join(" | "),
-            TyKind::Intersection(i) => i
-                .tys
-                .iter()
-                .map(|ty| ty.to_string(checker))
-                .collect::<Vec<_>>()
-                .join(" & "),
+            TyKind::Union(union) => union.tys.iter().fold(String::new(), |mut s, ty| {
+                if !s.is_empty() {
+                    s.push_str(" | ");
+                }
+                if ty.kind.is_object_anonymous()
+                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                        || !checker
+                            .get_signatures_of_type(ty, SigKind::Constructor)
+                            .is_empty())
+                {
+                    s.push_str(&format!("({})", checker.print_ty(ty)))
+                } else {
+                    s.push_str(checker.print_ty(ty))
+                }
+                s
+            }),
+            TyKind::Intersection(i) => i.tys.iter().fold(String::new(), |mut s, ty| {
+                if !s.is_empty() {
+                    s.push_str(" & ");
+                }
+                if ty.kind.is_object_anonymous()
+                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                        || !checker
+                            .get_signatures_of_type(ty, SigKind::Constructor)
+                            .is_empty())
+                {
+                    s.push_str(&format!("({})", checker.print_ty(ty)))
+                } else {
+                    s.push_str(checker.print_ty(ty))
+                }
+                s
+            }),
+
             TyKind::Param(param) => {
                 if param.symbol == Symbol::ERR {
                     "error_param".to_string()

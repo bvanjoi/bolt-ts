@@ -32,7 +32,17 @@ impl<'cx> ForInForOf<'cx> for bolt_ts_ast::ForOfStmt<'cx> {
 
 impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn bind_for_in_or_for_of_stmt(&mut self, node: &impl ForInForOf<'cx>) {
+        let pre_loop_label = {
+            let label = self.flow_nodes.create_loop_label();
+            self.set_continue_target(label)
+        };
+        let post_loop_label = self.flow_nodes.create_branch_label();
         self.bind(node.expr().id());
+        self.flow_nodes
+            .add_antecedent(pre_loop_label, self.current_flow.unwrap());
+        self.current_flow = Some(pre_loop_label);
+        self.flow_nodes
+            .add_antecedent(post_loop_label, self.current_flow.unwrap());
         use bolt_ts_ast::ForInitKind::*;
         match node.init() {
             Var(list) => {
@@ -40,8 +50,14 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     self.bind(item.id);
                 }
             }
-            Expr(expr) => self.bind(expr.id()),
+            Expr(expr) => {
+                self.bind(expr.id());
+                // TODO: bind_assignment_target_flow
+            }
         }
-        self.bind_iterative_stmt(node.stmt());
+        self.bind_iterative_stmt(node.stmt(), post_loop_label, pre_loop_label);
+        self.flow_nodes
+            .add_antecedent(pre_loop_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(post_loop_label));
     }
 }
