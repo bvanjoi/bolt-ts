@@ -1,4 +1,5 @@
 use std::cell::OnceCell;
+use std::ptr::read_unaligned;
 
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
@@ -173,30 +174,37 @@ impl<'cx> TyChecker<'cx> {
                     // TODO:
                 }
                 ty = FlowTy::Ty(init_ty);
-            }
-            // else if flags.intersects(FlowFlags::LABEL) {
-            //     let FlowNodeKind::Label(label) = &n.kind else {
-            //         unreachable!()
-            //     };
-            //     let antecedent = label.antecedent.as_ref().unwrap();
-            //     if antecedent.len() == 1 {
-            //         flow = antecedent[0];
-            //         continue;
-            //     }
-            //     ty = if flags.contains(FlowFlags::BRANCH_LABEL) {
-            //         self.get_ty_at_flow_branch_label()
-            //     } else {
-            //         self.get_ty_at_flow_loop_label(
-            //             flow,
-            //             refer,
-            //             declared_ty,
-            //             init_ty,
-            //             flow_container,
-            //             key,
-            //         )
-            //     };
-            // }
-            else {
+            } else if flags.intersects(FlowFlags::LABEL) {
+                let FlowNodeKind::Label(label) = &n.kind else {
+                    unreachable!()
+                };
+                let antecedent = label.antecedent.as_ref().unwrap();
+                if antecedent.len() == 1 {
+                    flow = antecedent[0];
+                    continue;
+                }
+                ty = if flags.contains(FlowFlags::BRANCH_LABEL) {
+                    self.get_ty_at_flow_branch_label(
+                        flow,
+                        refer,
+                        shared_flow_start,
+                        declared_ty,
+                        init_ty,
+                        flow_container,
+                        key,
+                    )
+                } else {
+                    self.get_ty_at_flow_loop_label(
+                        flow,
+                        refer,
+                        shared_flow_start,
+                        declared_ty,
+                        init_ty,
+                        flow_container,
+                        key,
+                    )
+                };
+            } else {
                 ty = FlowTy::Ty(self.convert_auto_to_any(declared_ty));
             }
 
@@ -207,69 +215,199 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_at_flow_branch_label(&mut self) -> FlowTy<'cx> {
-        todo!()
+    fn get_ty_at_flow_branch_label(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let FlowNodeKind::Label(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let antecedents = n.antecedent.clone().unwrap();
+        let antecedent_tys_id = self.flow_loop_types_arena.alloc(Vec::new());
+        let mut subtype_reduction = false;
+        let mut seen_incomplete = false;
+        for antecedent in antecedents {
+            if self
+                .flow_node(antecedent)
+                .flags
+                .contains(FlowFlags::SWITCH_CLAUSE)
+            {
+                todo!()
+            }
+
+            let flow_ty = self.get_ty_at_flow_node(
+                antecedent,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            );
+            let ty = self.get_ty_from_flow_ty(flow_ty);
+            if ty == declared_ty && declared_ty == init_ty {
+                return FlowTy::Ty(declared_ty);
+            }
+            let antecedent_tys = self.flow_loop_types_arena.get_mut(antecedent_tys_id);
+            if !antecedent_tys.contains(&ty) {
+                antecedent_tys.push(ty);
+            }
+            if !self.is_ty_sub_type_of(ty, init_ty) {
+                subtype_reduction = true;
+            }
+            if flow_ty.is_incomplete() {
+                seen_incomplete = true;
+            }
+        }
+        let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
+        let ty = self.get_union_or_evolving_array_ty(
+            &antecedent_tys.clone(),
+            if subtype_reduction {
+                ty::UnionReduction::Subtype
+            } else {
+                ty::UnionReduction::Lit
+            },
+            declared_ty,
+        );
+        self.create_flow_ty(ty, seen_incomplete)
     }
 
-    // fn get_ty_at_flow_loop_label(
-    //     &mut self,
-    //     flow: FlowID,
-    //     refer: ast::NodeID,
-    //     declared_ty: &'cx ty::Ty<'cx>,
-    //     init_ty: &'cx ty::Ty<'cx>,
-    //     flow_container: Option<ast::NodeID>,
-    //     key: &mut OnceCell<Option<FlowCacheKey>>,
-    // ) -> FlowTy<'cx> {
-    //     let FlowNodeKind::Label(n) = &self.flow_node(flow).kind else {
-    //         unreachable!()
-    //     };
-    //     let key = key
-    //         .get_or_init(|| self.get_flow_cache_key(refer, declared_ty, init_ty, flow_container));
-    //     let Some(key) = key else {
-    //         return FlowTy::Ty(declared_ty);
-    //     };
-    //     let caches = self.flow_loop_caches.get(index);
-    //     let has_caches = caches.is_some();
-    //     if let Some(cached) = caches.and_then(|caches| caches.get(key)) {
-    //         return FlowTy::Ty(cached);
-    //     };
+    fn get_ty_at_flow_loop_label(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let FlowNodeKind::Label(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let flow_cache_key = key
+            .get_or_init(|| self.get_flow_cache_key(refer, declared_ty, init_ty, flow_container));
+        let Some(flow_cache_key) = flow_cache_key else {
+            return FlowTy::Ty(declared_ty);
+        };
+        if let Some(cached) = self
+            .flow_loop_caches
+            .get(&flow)
+            .and_then(|caches| caches.get(flow_cache_key))
+        {
+            return FlowTy::Ty(cached);
+        };
 
-    //     for i in self.flow_loop_start..self.flow_loop_count {
-    //         let i = i as usize;
-    //         if self.flow_loop_nodes[i] == flow
-    //             && !self.flow_loop_types.is_empty()
-    //             && self.flow_loop_keys[i] == key
-    //         {
-    //             let t =
-    //                 self.get_union_or_evolving_array_ty(tys, ty::UnionReduction::Lit, declared_ty);
-    //             return FlowTy::Ty(t);
-    //         }
-    //     }
+        for i in self.flow_loop_start..self.flow_loop_count {
+            let i = i as usize;
+            if self.flow_loop_nodes[i] == flow
+                && !self.flow_loop_types.is_empty()
+                && self.flow_loop_keys[i].eq(flow_cache_key)
+            {
+                let id = self.flow_loop_types[i];
+                let tys = self.flow_loop_types_arena.get(id);
+                let ty = self.get_union_or_evolving_array_ty(
+                    &tys.clone(),
+                    ty::UnionReduction::Lit,
+                    declared_ty,
+                );
+                return FlowTy::Ty(ty);
+            }
+        }
 
-    //     let antecedent_tys = vec![];
-    //     let subtype_reduction = false;
-    //     let mut first_antecedent_ty = None;
-    //     for &antecedent in n.antecedent.as_ref().unwrap() {
-    //         let flow_ty;
-    //         if first_antecedent_ty.is_none() {
-    //             let ty = self.get_ty_at_flow_node(
-    //                 antecedent,
-    //                 refer,
-    //                 shared_flow_start,
-    //                 declared_ty,
-    //                 init_ty,
-    //                 flow_container,
-    //                 key,
-    //             );
-    //             first_antecedent_ty = Some(ty);
-    //             flow_ty = ty;
-    //         } else {
-    //             self.flow_loop_nodes[self.flow_loop_count as usize] = flow;
-    //             self.flow_loop_keys[self.flow_loop_count as usize] = *key;
-    //             self.flow_loop_types[self.flow_loop_count as usize] = antecedent_tys;
-    //         }
-    //     }
-    // }
+        let antecedents = n.antecedent.clone().unwrap();
+        let antecedent_tys_id = self.flow_loop_types_arena.alloc(Vec::new());
+        let mut subtype_reduction = false;
+        let mut first_antecedent_ty = None;
+        for antecedent in antecedents {
+            let flow_ty;
+            if first_antecedent_ty.is_none() {
+                let ty = self.get_ty_at_flow_node(
+                    antecedent,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
+                first_antecedent_ty = Some(ty);
+                flow_ty = ty;
+            } else {
+                self.flow_loop_nodes[self.flow_loop_count as usize] = flow;
+                self.flow_loop_keys[self.flow_loop_count as usize] =
+                    key.get().unwrap().clone().unwrap();
+                self.flow_loop_types[self.flow_loop_count as usize] = antecedent_tys_id;
+                self.flow_loop_count += 1;
+                let save_flow_ty_cache = self.flow_ty_cache.take();
+                flow_ty = self.get_ty_at_flow_node(
+                    antecedent,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
+                self.flow_ty_cache = save_flow_ty_cache;
+                self.flow_loop_count -= 1;
+                if let Some(cached) = self.flow_loop_caches.get(&flow).and_then(|caches| {
+                    let key = key.get().unwrap().as_ref().unwrap();
+                    caches.get(key)
+                }) {
+                    return FlowTy::Ty(cached);
+                }
+            }
+            let ty = self.get_ty_from_flow_ty(flow_ty);
+            let antecedent_tys = self.flow_loop_types_arena.get_mut(antecedent_tys_id);
+            if !antecedent_tys.contains(&ty) {
+                antecedent_tys.push(ty);
+            }
+            if !self.is_ty_sub_type_of(ty, init_ty) {
+                subtype_reduction = true;
+            }
+            if ty == declared_ty {
+                break;
+            }
+        }
+        let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
+        let result = self.get_union_or_evolving_array_ty(
+            &antecedent_tys.clone(),
+            if subtype_reduction {
+                ty::UnionReduction::Subtype
+            } else {
+                ty::UnionReduction::Lit
+            },
+            declared_ty,
+        );
+
+        let Some(first_antecedent_ty) = first_antecedent_ty else {
+            unreachable!()
+        };
+        if first_antecedent_ty.is_incomplete() {
+            self.create_flow_ty(result, true)
+        } else {
+            use std::collections::hash_map::Entry;
+            let flow_cache_key = key.get().unwrap().clone().unwrap();
+            match self.flow_loop_caches.entry(flow) {
+                Entry::Occupied(occ) => {
+                    occ.into_mut().insert(flow_cache_key, result);
+                }
+                Entry::Vacant(vac) => {
+                    let mut map = rustc_hash::FxHashMap::default();
+                    map.insert(flow_cache_key, result);
+                    vac.insert(map);
+                }
+            }
+            FlowTy::Ty(result)
+        }
+    }
 
     fn is_evolving_array_op_target(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
         let mut has_evolving_array_ty = false;
@@ -1022,7 +1160,7 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) enum FlowCacheKey {
     Ident(IdentFlowCacheKey),
     This(ThisFlowCacheKey),
@@ -1031,24 +1169,24 @@ pub(super) enum FlowCacheKey {
     Pseudo(PseudoFlowCacheKey),
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct PseudoFlowCacheKey {
     node: ast::NodeID,
     declared_ty: ty::TyID,
 }
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct PropAccessFlowCacheKey {
     left: Box<FlowCacheKey>,
     right: Atom,
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct QualifiedNameFlowCacheKey {
     left: Box<FlowCacheKey>,
     right: Atom,
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct IdentFlowCacheKey {
     flow_container: Option<ast::NodeID>,
     declared_ty: ty::TyID,
@@ -1056,7 +1194,7 @@ pub(super) struct IdentFlowCacheKey {
     symbol: SymbolID,
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub(super) struct ThisFlowCacheKey {
     flow_container: Option<ast::NodeID>,
     declared_ty: ty::TyID,

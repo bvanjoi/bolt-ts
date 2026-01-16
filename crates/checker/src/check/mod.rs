@@ -85,11 +85,11 @@ use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
 use self::infer::{InferenceFlags, InferencePriority};
 use self::instantiation_ty_map::InstantiationTyMap;
+use self::instantiation_ty_map::TyAliasInstantiationMap;
 use self::instantiation_ty_map::TyInstantiationMap;
-use self::instantiation_ty_map::{
-    IndexedAccessTyMap, IntersectionMap, StringMappingTyMap, TyAliasInstantiationMap, TyCacheTrait,
-    TyKey, UnionMap,
-};
+use self::instantiation_ty_map::UnionMap;
+use self::instantiation_ty_map::{IndexedAccessTyMap, IntersectionMap, StringMappingTyMap};
+use self::instantiation_ty_map::{TyCacheTrait, TyKey};
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
@@ -139,6 +139,30 @@ bitflags::bitflags! {
 }
 
 bolt_ts_utils::index!(InferenceContextId);
+
+struct FlowLoopTypesArena<'cx> {
+    arena: bolt_ts_arena::la_arena::Arena<Vec<&'cx ty::Ty<'cx>>>,
+}
+
+impl<'cx> FlowLoopTypesArena<'cx> {
+    fn new() -> Self {
+        Self {
+            arena: bolt_ts_arena::la_arena::Arena::new(),
+        }
+    }
+    fn alloc(&mut self, value: Vec<&'cx ty::Ty<'cx>>) -> FlowLoopTypesArenaId<'cx> {
+        FlowLoopTypesArenaId(self.arena.alloc(value))
+    }
+    fn get(&self, id: FlowLoopTypesArenaId<'cx>) -> &Vec<&'cx ty::Ty<'cx>> {
+        &self.arena[id.0]
+    }
+    fn get_mut(&mut self, id: FlowLoopTypesArenaId<'cx>) -> &mut Vec<&'cx ty::Ty<'cx>> {
+        &mut self.arena[id.0]
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct FlowLoopTypesArenaId<'cx>(bolt_ts_arena::la_arena::Idx<Vec<&'cx ty::Ty<'cx>>>);
 
 pub struct TyChecker<'cx> {
     pub atoms: AtomIntern,
@@ -288,8 +312,10 @@ pub struct TyChecker<'cx> {
     flow_loop_count: u32,
     flow_loop_nodes: Vec<FlowID>,
     flow_loop_keys: Vec<FlowCacheKey>,
-    flow_loop_types: Vec<Vec<&'cx ty::Ty<'cx>>>,
+    flow_loop_types_arena: FlowLoopTypesArena<'cx>,
+    flow_loop_types: Vec<FlowLoopTypesArenaId<'cx>>,
     flow_loop_caches: FxHashMap<FlowID, FxHashMap<FlowCacheKey, &'cx ty::Ty<'cx>>>,
+    flow_ty_cache: Option<Vec<&'cx ty::Ty<'cx>>>,
 
     // === resolver ===
     pub binder: &'cx mut bolt_ts_binder::Binder,
@@ -619,7 +645,9 @@ impl<'cx> TyChecker<'cx> {
             flow_loop_nodes: Vec::new(),
             flow_loop_keys: Vec::new(),
             flow_loop_types: Vec::new(),
+            flow_loop_types_arena: FlowLoopTypesArena::new(),
             flow_loop_caches: Default::default(),
+            flow_ty_cache: None,
 
             binder,
             merged_symbols,
