@@ -1304,10 +1304,6 @@ function foo1() {
   assertEqual(true, true);
   assertEqual(true, true);
   assertEqual(-124, -124);
-  assertEqual(8, 8);
-  assertEqual(8.815240927012887, 8.815240927012887);
-  assertEqual(9.8596, 9.8596);
-  assertEqual(22.21668954600232, 22.21668954600232);
   assertEqual('', '');
   assertEqual('42', '42');
   assertEqual(true, true);
@@ -1357,5 +1353,16 @@ function foo1() {
   assertEqual(3, 3);
   assertEqual(4294967293, 4294967293);
   assertEqual(4294967293, 4294967293);
+  assertEqual(22.21668954600232, 22.21668954600232);
+  assertEqual(1, 1);
+  assertEqual(7975331398947549, 7975331398947549);
+  assertEqual(7975331398947549, 7975331398947549);
+  assertEqual(1455169136612240.8, 1455169136612240.8);
+  assertEqual(4365507409836722.5, 4365507409836722.5);
+  assertEqual(9360927659723230, 9360927659723230);
+  assertEqual(0.1111111111111111, 0.1111111111111111);
+  assertEqual(8, 8);
+  assertEqual(8.815240927012887, 8.815240927012887);
+  assertEqual(9.8596, 9.8596);
 }
 foo1();

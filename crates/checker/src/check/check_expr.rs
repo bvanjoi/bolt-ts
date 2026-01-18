@@ -8,17 +8,17 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
-use crate::check::node_check_flags::NodeCheckFlags;
-use crate::ty::CheckFlags;
-use crate::ty::TypeFlags;
-
 use super::ObjectFlags;
 use super::TyChecker;
 use super::ast;
 use super::errors;
+use super::flow::flow_loop_ctx_len;
+use super::node_check_flags::NodeCheckFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
+use super::ty::CheckFlags;
+use super::ty::TypeFlags;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
 pub(super) fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -836,11 +836,9 @@ impl<'cx> TyChecker<'cx> {
             ty
         } else {
             let save_flow_loop_start = self.flow_loop_start;
-            self.flow_loop_start = self.flow_loop_count;
-
+            self.flow_loop_start = flow_loop_ctx_len(self);
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
-
             self.flow_loop_start = save_flow_loop_start;
             ty
         }

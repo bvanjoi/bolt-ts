@@ -769,7 +769,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
                 || n.is_program()
                 || n.is_class_prop_elem()
-                || n.is_block_stmt()
+                || n.is_module_block()
             {
                 Some(true)
             } else {

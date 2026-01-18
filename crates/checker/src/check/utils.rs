@@ -51,9 +51,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             )
-        } else if ty.flags.intersects(ty::TypeFlags::NEVER) {
-            self.never_ty
-        } else if f(self, ty) {
+        } else if ty.flags.intersects(ty::TypeFlags::NEVER) || f(self, ty) {
             ty
         } else {
             self.never_ty

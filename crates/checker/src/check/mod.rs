@@ -231,6 +231,20 @@ pub struct TyChecker<'cx> {
     pub undefined_or_missing_ty: &'cx ty::Ty<'cx>,
     pub undefined_widening_ty: &'cx ty::Ty<'cx>,
     pub never_ty: &'cx ty::Ty<'cx>,
+    /// These paths actually will not reach but should not throw error, for example:
+    /// ```typescript
+    /// function foo(cond: boolean) {
+    ///     let x: string | number = 0;
+    ///     while (cond) {
+    ///         if (typeof x === "string") {
+    ///             x = x.slice();
+    ///              // ~ the type of `x` is `silent_never_ty` when during the `x` in `typeof x`.
+    ///         } else {
+    ///             x = "abc";
+    ///         }
+    ///     }
+    /// }
+    /// ```
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub implicit_never_ty: &'cx ty::Ty<'cx>,
     pub unreachable_never_ty: &'cx ty::Ty<'cx>,
@@ -309,7 +323,6 @@ pub struct TyChecker<'cx> {
     structure_members_placeholder: &'cx ty::StructuredMembers<'cx>,
 
     flow_loop_start: u32,
-    flow_loop_count: u32,
     flow_loop_nodes: Vec<FlowID>,
     flow_loop_keys: Vec<FlowCacheKey>,
     flow_loop_types_arena: FlowLoopTypesArena<'cx>,
@@ -640,7 +653,6 @@ impl<'cx> TyChecker<'cx> {
             resolution_res: thin_vec::ThinVec::with_capacity(128),
             resolution_start: 0,
 
-            flow_loop_count: 0,
             flow_loop_start: 0,
             flow_loop_nodes: Vec::new(),
             flow_loop_keys: Vec::new(),
@@ -1587,7 +1599,8 @@ impl<'cx> TyChecker<'cx> {
             };
             self.get_apparent_ty(t)
         };
-        let is_any_like = self.is_type_any(apparent_left_ty); // TODO: apparent_left_ty == self.silent_never_ty;
+        let is_any_like =
+            self.is_type_any(apparent_left_ty) || apparent_left_ty == self.silent_never_ty;
         // TODO: is_private_identifier
 
         if is_any_like {
@@ -3472,7 +3485,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn create_flow_ty(&self, ty: &'cx ty::Ty<'cx>, incomplete: bool) -> FlowTy<'cx> {
         if incomplete {
-            let ty = if ty.flags.intersects(TypeFlags::NEVER) {
+            let ty = if ty.flags.contains(TypeFlags::NEVER) {
                 self.silent_never_ty
             } else {
                 ty

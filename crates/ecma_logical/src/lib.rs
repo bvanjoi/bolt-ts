@@ -1,6 +1,8 @@
 mod base;
+mod pow;
 
 use self::base::Double;
+pub use self::pow::pow;
 
 /// `2^53 - 1`
 pub const JS_MAX_SAFE_INTEGER: i64 = 9007199254740991;

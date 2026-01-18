@@ -3,6 +3,7 @@ use super::ir;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_ecma_logical::js_double_to_uint32;
+use bolt_ts_ecma_logical::pow;
 
 use std::ops::{BitAnd, BitOr, BitXor, Shr};
 
@@ -91,7 +92,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                     return Some(self.nodes.alloc_num_lit(span, value));
                 }
                 ast::BinOpKind::Exp => {
-                    let val = x.val().powf(y.val());
+                    let val = pow(x.val(), y.val());
                     let span = span();
                     return Some(self.nodes.alloc_num_lit(span, val));
                 }

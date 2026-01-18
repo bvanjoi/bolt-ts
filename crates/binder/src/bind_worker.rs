@@ -710,7 +710,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             && self.is_narrowable_reference(n.expr)
     }
 
-    fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
+    pub(super) fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {
             // TODO: metaProperty

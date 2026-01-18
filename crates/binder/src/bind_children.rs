@@ -895,6 +895,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             AssignExpr(n) => {
                 self.bind(n.left.id());
                 self.bind(n.right.id());
+                if !self.is_assignment_target(n.id) {
+                    self.bind_assignment_target_flow(n.left);
+                }
             }
             ArrowFnExpr(n) => {
                 if let Some(ty_params) = n.ty_params {
@@ -1254,6 +1257,56 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn is_assignment_target(&self, n: ast::NodeID) -> bool {
+        self.node_query().get_assignment_target(n).is_some()
+    }
+
+    fn bind_destructuring_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
+        if let ast::ExprKind::Assign(n) = n.kind {
+            self.bind_assignment_target_flow(n.left);
+        } else {
+            self.bind_assignment_target_flow(n);
+        }
+    }
+
+    fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
+        if self.is_narrowable_reference(n) {
+            self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), n.id()));
+        } else {
+            match n.kind {
+                ast::ExprKind::ArrayLit(n) => {
+                    for elem in n.elems {
+                        match elem.kind {
+                            ast::ExprKind::SpreadElement(e) => {
+                                self.bind_assignment_target_flow(e.expr);
+                            }
+                            _ => self.bind_destructuring_target_flow(*elem),
+                        }
+                    }
+                }
+                ast::ExprKind::ObjectLit(n) => {
+                    for member in n.members {
+                        match member.kind {
+                            ast::ObjectMemberKind::Shorthand(e) => {
+                                self.current_flow = Some(
+                                    self.create_flow_assign(self.current_flow.unwrap(), e.name.id),
+                                );
+                            }
+                            ast::ObjectMemberKind::PropAssignment(e) => {
+                                self.bind_destructuring_target_flow(e.init);
+                            }
+                            ast::ObjectMemberKind::SpreadAssignment(e) => {
+                                self.bind_assignment_target_flow(e.expr);
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     fn bind_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) {
