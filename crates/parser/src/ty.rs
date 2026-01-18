@@ -63,12 +63,16 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_union_or_intersection_ty<const IS_UNION_TY: bool>(
         &mut self,
-        expect: TokenKind,
         parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>> + Copy,
     ) -> PResult<&'cx ast::Ty<'cx>> {
+        let expect: TokenKind = if IS_UNION_TY {
+            TokenKind::Pipe
+        } else {
+            TokenKind::Amp
+        };
         let has_leading_operator = self.parse_optional(expect).is_some();
         let ty = if has_leading_operator {
-            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(IS_UNION_TY)? {
+            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY>()? {
                 ty
             } else {
                 parse_constituent_type(self)?
@@ -81,7 +85,7 @@ impl<'cx> ParserState<'cx, '_> {
             let mut tys = vec![ty];
             // self.parent_map.r#override(ty.id(), parent);
             while self.parse_optional(expect).is_some() {
-                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error(IS_UNION_TY)? {
+                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY>()? {
                     tys.push(ty);
                 } else {
                     let ty = parse_constituent_type(self)?;
@@ -90,7 +94,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
 
             let tys = self.alloc(tys);
-            let ty = if expect == TokenKind::Amp {
+            let ty = if !IS_UNION_TY {
                 let id = self.next_node_id();
                 let ty = self.alloc(ast::IntersectionTy {
                     id,
@@ -103,7 +107,7 @@ impl<'cx> ParserState<'cx, '_> {
                 })
             } else {
                 // union
-                assert_eq!(expect, TokenKind::Pipe);
+                debug_assert_eq!(expect, TokenKind::Pipe);
                 let id = self.next_node_id();
                 let ty = self.alloc(ast::UnionTy {
                     id,
@@ -122,11 +126,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_intersection_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty::<false>(TokenKind::Amp, Self::parse_ty_op_or_higher)
+        self.parse_union_or_intersection_ty::<false>(Self::parse_ty_op_or_higher)
     }
 
     fn parse_union_ty_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty::<true>(TokenKind::Pipe, Self::parse_intersection_ty)
+        self.parse_union_or_intersection_ty::<true>(Self::parse_intersection_ty)
     }
 
     fn parse_ty_pred_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
@@ -183,20 +187,36 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_ty()
     }
 
-    fn parse_fn_or_ctor_ty_to_error(
+    fn parse_fn_or_ctor_ty_to_error<const IS_UNION_TY: bool>(
         &mut self,
-        is_union_ty: bool,
     ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.is_start_of_fn_or_ctor_ty() {
             let ty = self.parse_fn_or_ctor_ty()?;
-            // TODO: error
+            let error = match ty.kind {
+                ast::TyKind::Fn(n) => {
+                        errors::FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType {
+                            span: n.span,
+                            is_fn_ty: true,
+                            is_union_ty: IS_UNION_TY
+                        }
+                }
+                ast::TyKind::Ctor(n) => {
+                        errors::FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType {
+                            span: n.span,
+                            is_fn_ty: false,
+                            is_union_ty: IS_UNION_TY
+                        }
+                },
+                _ => unreachable!(),
+            };
+            self.push_error(Box::new(error));
             Ok(Some(ty))
         } else {
             Ok(None)
         }
     }
 
-    fn parse_modifiers_for_ctor_ty(&mut self) -> PResult<Option<&'cx ast::Modifiers<'cx>>> {
+    fn parse_modifiers_for_ctor_ty(&mut self) -> Option<&'cx ast::Modifiers<'cx>> {
         if self.token.kind == TokenKind::Abstract {
             let pos = self.token.start();
             let m = self.parse_modifier::<false, false>(false).unwrap();
@@ -205,15 +225,15 @@ impl<'cx> ParserState<'cx, '_> {
                 flags: ast::ModifierKind::Abstract.into(),
                 list: self.alloc(vec![m]),
             });
-            Ok(Some(m))
+            Some(m)
         } else {
-            Ok(None)
+            None
         }
     }
 
     fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let modifiers = self.parse_modifiers_for_ctor_ty()?;
+        let modifiers = self.parse_modifiers_for_ctor_ty();
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
@@ -248,7 +268,6 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::TyKind::Fn(fn_ty),
             })
         };
-
         Ok(ty)
     }
 

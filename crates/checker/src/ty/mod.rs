@@ -50,21 +50,10 @@ pub struct Ty<'cx> {
     pub links: CommonTyLinksID<'cx>,
 }
 
-impl From<&Ty<'_>> for TypeFlags {
-    fn from(val: &Ty<'_>) -> Self {
-        val.flags
-    }
-}
-impl From<&Ty<'_>> for ObjectFlags {
-    fn from(val: &Ty<'_>) -> Self {
-        val.get_object_flags()
-    }
-}
-
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         if self.id == other.id {
-            assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
+            debug_assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
             true
         } else {
             false
@@ -254,18 +243,39 @@ impl<'cx> Ty<'cx> {
                     format!("\"{}\"", checker.atoms.get(lit.val))
                 }
             }
-            TyKind::Union(union) => union
-                .tys
-                .iter()
-                .map(|ty| ty.to_string(checker))
-                .collect::<Vec<_>>()
-                .join(" | "),
-            TyKind::Intersection(i) => i
-                .tys
-                .iter()
-                .map(|ty| ty.to_string(checker))
-                .collect::<Vec<_>>()
-                .join(" & "),
+            TyKind::Union(union) => union.tys.iter().fold(String::new(), |mut s, ty| {
+                if !s.is_empty() {
+                    s.push_str(" | ");
+                }
+                if ty.kind.is_object_anonymous()
+                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                        || !checker
+                            .get_signatures_of_type(ty, SigKind::Constructor)
+                            .is_empty())
+                {
+                    s.push_str(&format!("({})", checker.print_ty(ty)))
+                } else {
+                    s.push_str(checker.print_ty(ty))
+                }
+                s
+            }),
+            TyKind::Intersection(i) => i.tys.iter().fold(String::new(), |mut s, ty| {
+                if !s.is_empty() {
+                    s.push_str(" & ");
+                }
+                if ty.kind.is_object_anonymous()
+                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                        || !checker
+                            .get_signatures_of_type(ty, SigKind::Constructor)
+                            .is_empty())
+                {
+                    s.push_str(&format!("({})", checker.print_ty(ty)))
+                } else {
+                    s.push_str(checker.print_ty(ty))
+                }
+                s
+            }),
+
             TyKind::Param(param) => {
                 if param.symbol == Symbol::ERR {
                     "error_param".to_string()

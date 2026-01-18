@@ -1,6 +1,8 @@
 mod base;
+mod pow;
 
 use self::base::Double;
+pub use self::pow::pow;
 
 /// `2^53 - 1`
 pub const JS_MAX_SAFE_INTEGER: i64 = 9007199254740991;
@@ -36,4 +38,9 @@ pub const fn js_double_to_int32(f: f64) -> i32 {
 /// reference: [ToBoolean](https://tc39.es/ecma262/#sec-toboolean)
 pub const fn js_double_to_boolean(f: f64) -> bool {
     f != 0. && !f.is_nan()
+}
+
+/// reference: [ToUInt32](https://tc39.es/ecma262/#sec-toint32)
+pub const fn js_double_to_uint32(f: f64) -> u32 {
+    js_double_to_int32(f) as u32
 }

@@ -86,3 +86,38 @@ fn test_target_fields() {
         bolt_ts_config::Target::ES2022
     );
 }
+
+#[test]
+fn test_use_define_for_class_fields() {
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "useDefineForClassFields": true
+  }
+}"#,
+    );
+    assert!(c.compiler_options().use_define_for_class_fields());
+
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+    "target": "es2022"
+  }
+}"#,
+    );
+    assert!(c.compiler_options().use_define_for_class_fields());
+
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "useDefineForClassFields": false
+  }
+}"#,
+    );
+    assert!(!c.compiler_options().use_define_for_class_fields());
+}

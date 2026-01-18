@@ -631,11 +631,14 @@ pub enum BinOpKind {
     Mod,
     Less,
     LessEq,
+    // `<<`
     Shl,
     Great,
     GreatEq,
+    /// `>>`, Shift Arithmetic Right.
+    Sar,
+    /// `>>>`, Shift Logical Right.
     Shr,
-    UShr,
     BitOr,
     BitAnd,
     BitXor,
@@ -668,8 +671,8 @@ impl BinOpKind {
             Shl => "<<",
             Great => ">",
             GreatEq => ">=",
-            Shr => ">>",
-            UShr => ">>>",
+            Sar => ">>",
+            Shr => ">>>",
             BitAnd => "&",
             LogicalAnd => "&&",
             EqEq => "==",

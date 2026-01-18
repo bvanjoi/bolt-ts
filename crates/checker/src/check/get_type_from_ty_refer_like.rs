@@ -1,7 +1,7 @@
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::CheckFlags;
 use super::{TyChecker, errors};
-use crate::ty;
-use crate::ty::CheckFlags;
 
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{keyword, pprint_entity_name};

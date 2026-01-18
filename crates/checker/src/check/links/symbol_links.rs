@@ -24,6 +24,7 @@ links!(
     (key_ty, &'cx ty::Ty<'cx>),
     (prop_ty, &'cx ty::Ty<'cx>),
     (constraint_ty, &'cx ty::Ty<'cx>),
+    (synthetic_origin, SymbolID),
     // deferral
     (deferral_parent, &'cx ty::Ty<'cx>),
     (deferral_constituents, ty::Tys<'cx>),

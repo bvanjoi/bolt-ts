@@ -1,8 +1,6 @@
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
 
-use super::{Ty, TyKind, TypeFlags};
-
 bitflags::bitflags! {
   #[derive(Debug, Clone, Copy, PartialEq)]
   pub struct TypeFacts: u32 {

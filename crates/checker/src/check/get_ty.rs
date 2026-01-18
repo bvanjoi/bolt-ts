@@ -13,7 +13,7 @@ use bolt_ts_ast::keyword::is_prim_ty_name;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, EntityNameKind, FnFlags, keyword};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::{AssignmentKind, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
@@ -714,13 +714,26 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_from_object_lit_or_fn_or_ctor_ty_node(&mut self, node: ast::NodeID) -> &'cx Ty<'cx> {
-        if let Some(ty) = self.get_node_links(node).get_resolved_ty() {
-            return ty;
-        }
-        let ty = self.create_anonymous_ty(Some(self.final_res(node)), ObjectFlags::empty(), None);
-        self.get_mut_node_links(node).set_resolved_ty(ty);
-        ty
+    pub(super) fn get_ty_from_object_lit_or_fn_or_ctor_ty_node(
+        &mut self,
+        node: ast::NodeID,
+    ) -> &'cx Ty<'cx> {
+        if let Some(resolved_ty) = self.get_node_links(node).get_resolved_ty() {
+            return resolved_ty;
+        };
+        let alias_symbol = self.get_alias_symbol_for_ty_node(node);
+        debug_assert!(Symbol::can_have_symbol(self.p.node(node)));
+        let node_symbol = self.get_symbol_of_node(node);
+        let res = if node_symbol.is_none_or(|node_symbol| {
+            alias_symbol.is_none() && self.get_members_of_symbol(node_symbol).0.is_empty()
+        }) {
+            self.empty_ty_literal_ty()
+        } else {
+            // TODO: alias symbol
+            self.create_anonymous_ty(node_symbol, ty::ObjectFlags::ANONYMOUS, None)
+        };
+        self.get_mut_node_links(node).set_resolved_ty(res);
+        res
     }
 
     fn get_ty_from_typeof_node(&mut self, node: &'cx ast::TypeofTy<'cx>) -> &'cx Ty<'cx> {
@@ -863,9 +876,9 @@ impl<'cx> TyChecker<'cx> {
         access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
         let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
-        let symbol_name = self.get_prop_name_from_index(index_ty);
+        let prop_name = self.get_prop_name_from_index(index_ty);
         let prop: Option<SymbolID> =
-            symbol_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
+            prop_name.and_then(|symbol_name| self.get_prop_of_ty(object_ty, symbol_name));
         if let Some(prop) = prop {
             if let Some(access_expr) = access_expr
                 && let assignment_target_kind = self
@@ -889,20 +902,42 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.every_type(object_ty, |_, t| t.is_tuple())
-            && let Some(SymbolName::EleNum(num)) = symbol_name
-            && let num = num.val()
-            && num >= 0.
+            && let Some(SymbolName::EleNum(num)) = prop_name
         {
+            let index = num.val();
+            if let Some(access_node) = access_node
+                && self.every_type(object_ty, |_, t| {
+                    let tuple = t.as_tuple().unwrap();
+                    !tuple.combined_flags.intersects(ElementFlags::VARIABLE)
+                        && !access_flags.contains(AccessFlags::ALLOWING_MISSING)
+                })
+            {
+                let index_node = self.get_index_node_for_access_expr(access_node);
+                if object_ty.is_tuple() {
+                    if index < 0. {
+                        todo!()
+                    }
+                    let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
+                        span: self.p.node(index_node).span(),
+                        x: self.print_ty(object_ty).to_string(),
+                        y: TyChecker::get_ty_reference_arity(object_ty),
+                        z: index as usize,
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
             // TODO: num is not integer
-            return Some(
-                self.get_tuple_elem_ty_out_of_start_count(
-                    object_ty,
-                    num as usize,
-                    access_flags
-                        .intersects(AccessFlags::INCLUDE_UNDEFINED)
-                        .then_some(self.missing_ty),
-                ),
-            );
+            if index > 0. {
+                return Some(
+                    self.get_tuple_elem_ty_out_of_start_count(
+                        object_ty,
+                        index as usize,
+                        access_flags
+                            .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                            .then_some(self.missing_ty),
+                    ),
+                );
+            }
         }
 
         if !index_ty.flags.contains(TypeFlags::NULLABLE)
@@ -1153,10 +1188,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
-        assert!(self.p.node(node).is_ty());
         let mut host = self.parent(node);
         while let Some(host_node_id) = host {
             let node = self.p.node(host_node_id);
+            // TODO: handle `readonly`
             if node.is_paren_type_node() {
                 host = self.parent(host_node_id);
             } else {
@@ -1169,7 +1204,7 @@ impl<'cx> TyChecker<'cx> {
         })
         .map(|node_id| {
             let symbol = self.final_res(node_id);
-            assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
+            debug_assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
             symbol
         })
     }
@@ -1235,9 +1270,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_element_tys(&mut self, ty: &'cx Ty<'cx>) -> ty::Tys<'cx> {
-        if !ty.is_tuple() {
-            return Default::default();
-        };
+        debug_assert!(ty.is_tuple());
         let ty_args = self.get_ty_arguments(ty);
         let arity = Self::get_ty_reference_arity(ty);
         if ty_args.len() == arity {
@@ -1952,7 +1985,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            ret_ty = Some(self.check_expr_with_cache(expr));
+            ret_ty = Some(self.check_expr_cached(expr));
             self.check_mode = old;
         } else if let ast::ArrowFnExprBody::Block(body) = body {
             let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
@@ -1964,7 +1997,16 @@ impl<'cx> TyChecker<'cx> {
             };
             if tys.is_empty() {
                 if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                    ret_ty = Some(contextual_ret_ty);
+                    // TODO: unwrap_return_ty
+                    ret_ty = Some(
+                        if self.some_type(contextual_ret_ty, |_, t| {
+                            t.flags.contains(TypeFlags::UNDEFINED)
+                        }) {
+                            self.undefined_ty
+                        } else {
+                            self.void_ty
+                        },
+                    );
                 }
             } else {
                 ret_ty =

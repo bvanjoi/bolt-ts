@@ -1,17 +1,20 @@
 use bolt_ts_ast::keyword;
+use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::node_id_of_binding;
+use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
 use super::TyChecker;
 use super::ast;
+use super::check_call_like::CallLikeExpr;
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::CheckFlags;
+use super::ty::SigID;
+use super::ty::SigKind;
+use super::ty::TypeFlags;
+use super::ty::{Sig, SigFlags};
 use super::type_predicate::TyPred;
-use crate::check::check_call_like::CallLikeExpr;
-use crate::ty;
-use crate::ty::SigID;
-use crate::ty::SigKind;
-use crate::ty::TypeFlags;
-use crate::ty::{Sig, SigFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
@@ -212,6 +215,91 @@ impl<'cx> TyChecker<'cx> {
         sig
     }
 
+    fn is_declaration_with_explicit_ty_annotation(&self, node: ast::NodeID) -> bool {
+        use ast::Node::*;
+        match self.p.node(node) {
+            VarDecl(ast::VarDecl { ty, .. })
+            | ClassPropElem(ast::ClassPropElem { ty, .. })
+            | PropSignature(ast::PropSignature { ty, .. })
+            | ParamDecl(ast::ParamDecl { ty, .. }) => {
+                // TODO: is_in_js_file
+                ty.is_some()
+            }
+            _ => false,
+        }
+    }
+
+    fn get_explicit_ty_of_symbol(&mut self, symbol: SymbolID) -> Option<&'cx ty::Ty<'cx>> {
+        let symbol = self.resolve_symbol(symbol, false);
+        let s = self.symbol(symbol);
+        let s_value_decl = s.value_decl;
+        if s.flags.intersects(
+            SymbolFlags::FUNCTION
+                .union(SymbolFlags::METHOD)
+                .union(SymbolFlags::CLASS)
+                .union(SymbolFlags::VALUE_MODULE),
+        ) {
+            Some(self.get_type_of_symbol(symbol))
+        } else if s
+            .flags
+            .intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY))
+        {
+            if self.get_check_flags(symbol).contains(CheckFlags::MAPPED)
+                && let Some(original) = self.get_symbol_links(symbol).get_synthetic_origin()
+                && self.get_explicit_ty_of_symbol(original).is_some()
+            {
+                return Some(self.get_type_of_symbol(symbol));
+            }
+
+            let Some(decl) = s_value_decl else {
+                return None;
+            };
+            if self.is_declaration_with_explicit_ty_annotation(decl) {
+                return Some(self.get_type_of_symbol(symbol));
+            } else if self.p.node(decl).is_var_decl()
+                && let Some(parent_parent) = self.parent(decl).and_then(|n| self.parent(decl))
+                && self.p.node(parent_parent).is_for_of_stmt()
+            {
+                // TODO:
+            }
+            None
+        } else {
+            None
+        }
+    }
+
+    fn get_ty_of_dotted_name(&mut self, n: &'cx ast::Expr<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        if self
+            .p
+            .node_flags(n.id())
+            .contains(ast::NodeFlags::IN_WITH_STATEMENT)
+        {
+            return None;
+        }
+        use ast::ExprKind::*;
+        match n.kind {
+            Ident(n) => {
+                let symbol = self.final_res(n.id);
+                let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+                self.get_explicit_ty_of_symbol(symbol)
+            }
+            This(_) => {
+                // TODO:
+                None
+            }
+            Super(_) => {
+                // TODO:
+                None
+            }
+            PropAccess(_) => {
+                // TODO:
+                None
+            }
+            Paren(n) => self.get_ty_of_dotted_name(n.expr),
+            _ => None,
+        }
+    }
+
     pub(super) fn get_effects_sig(&mut self, node: ast::NodeID) -> Option<&'cx Sig<'cx>> {
         let sig = if let Some(sig) = self.get_node_links(node).get_effects_sig() {
             sig
@@ -227,7 +315,12 @@ impl<'cx> TyChecker<'cx> {
                 let right_ty = self.check_expr(bin.right);
                 // func_ty = Some()
                 todo!()
+            } else if let parent = self.parent(node).unwrap()
+                && let Some(stmt) = self.p.node(parent).as_expr_stmt()
+            {
+                func_ty = self.get_ty_of_dotted_name(stmt.expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
+                // TODO: is_optional_chain
                 func_ty = Some(self.check_non_null_expr(expr));
             };
             let sigs = if let Some(func_ty) = func_ty {

@@ -1,3 +1,5 @@
+use crate::check::check_expr::IterationUse;
+
 use super::TyChecker;
 use super::errors;
 use super::symbol_info::SymbolInfo;
@@ -47,7 +49,7 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
-                let init_ty = self.check_expr_with_cache(init);
+                let init_ty = self.check_expr_cached(init);
                 debug_assert!(
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
@@ -99,18 +101,87 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
         use bolt_ts_ast::r#trait::VarLikeName::*;
-        match decl.name() {
-            Ident(name) => self.check_non_pat_var_like_decl(name.id, decl.id(), decl),
-            StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, decl.id(), decl),
-            NumLit(num) => self.check_non_pat_var_like_decl(num.id, decl.id(), decl),
-            ArrayPat(_) | ObjectPat(_) | Computed(_) => {
-                // todo
+        let id = decl.id();
+        let name = decl.name();
+        match name {
+            Ident(name) => self.check_non_pat_var_like_decl(name.id, id, decl),
+            StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
+            NumLit(num) => self.check_non_pat_var_like_decl(num.id, id, decl),
+            Computed(_) => {}
+            ArrayPat(_) | ObjectPat(_) => {
+                match name {
+                    ArrayPat(n) => {
+                        for elem in n.elems {
+                            match elem.kind {
+                                ast::ArrayBindingElemKind::Omit(_) => {}
+                                ast::ArrayBindingElemKind::Binding(binding) => {
+                                    self.check_var_like_decl(binding);
+                                }
+                            }
+                        }
+                    }
+                    ObjectPat(n) => {
+                        for elem in n.elems {
+                            if let ast::ObjectBindingName::Prop { prop_name, .. } = elem.name
+                                && let ast::PropNameKind::Computed(computed) = prop_name.kind
+                            {
+                                self.check_computed_prop_name(computed);
+                            }
+                            self.check_var_like_decl(*elem);
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+
+                // TODO: `is_in_ambient_context` then `return`
+                let need_check_initializer = self.p.node(id).has_only_expr_init()
+                    && decl.init().is_some()
+                    && self
+                        .parent(id)
+                        .and_then(|id| self.parent(id))
+                        .is_some_and(|p| !self.p.node(p).is_for_in_stmt());
+                let need_check_widened_ty = match name {
+                    ArrayPat(n) => !n
+                        .elems
+                        .iter()
+                        .any(|ele| !matches!(ele.kind, ast::ArrayBindingElemKind::Omit(_))),
+                    ObjectPat(n) => n.elems.is_empty(),
+                    _ => unreachable!(),
+                };
+                if need_check_initializer || need_check_widened_ty {
+                    let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
+                    if need_check_initializer {
+                        let initializer_ty = self.check_expr_cached(decl.init().unwrap());
+                        if self.config.strict_null_checks() && need_check_widened_ty {
+                            self.check_non_null_non_void_ty(initializer_ty, id);
+                        } else {
+                            // checkTypeAssignableToAndOptionallyElaborate(
+                            //     initializerType,
+                            //     getWidenedTypeForVariableLikeDeclaration(node),
+                            //     node,
+                            //     node.initializer,
+                            // );
+                        }
+                    }
+                    if need_check_widened_ty {
+                        if let ArrayPat(_) = name {
+                            self.check_iterated_ty_or_element_ty(
+                                IterationUse::DESTRUCTURING,
+                                widened_ty,
+                                self.undefined_ty,
+                                Some(id),
+                            );
+                        } else if self.config.strict_null_checks() {
+                            // TODO:
+                            // self.check_non_null_non_void_ty(widened_ty, id);
+                        }
+                    }
+                }
             }
         }
 
         if decl.init().is_some()
             && decl.is_param()
-            && let id = decl.id()
             && let Some(f) = self.node_query(id.module()).get_containing_fn(id)
             && self.p.node(f).fn_body().is_none()
         {

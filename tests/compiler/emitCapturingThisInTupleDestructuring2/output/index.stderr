@@ -1,0 +1,5 @@
+  × Tuple type '[number, number]' of length '2' has no element at index '2'.
+    ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring2/index.ts:10:39]
+ 10 │ this.test2
+    · ──────────
+    ╰────

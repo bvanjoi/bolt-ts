@@ -1,11 +1,23 @@
   × 'string' index signatures are incompatible.
-    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:24:18]
- 24 │ number
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:25:18]
+ 25 │ number
     · ──────
     ╰────
 
+  × Interface 'F' incorrectly extends interface 'E'.
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:23:11]
+ 23 │ F
+    · ─
+    ╰────
+
   × 'string' index signatures are incompatible.
-    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:33:18]
- 33 │ number
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:35:18]
+ 35 │ number
     · ──────
+    ╰────
+
+  × Interface 'H' incorrectly extends interface 'G'.
+    ╭─[../../tests/compiler/derivedTypeIncompatibleSignatures/index.ts:33:11]
+ 33 │ H
+    · ─
     ╰────

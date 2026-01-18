@@ -1,0 +1,17 @@
+  × Cannot invoke an object which is possibly 'null'.
+   ╭─[../../tests/compiler/nullableFunctionError/index.ts:5:1]
+ 5 │ null
+   · ────
+   ╰────
+
+  × Cannot invoke an object which is possibly 'undefined'.
+   ╭─[../../tests/compiler/nullableFunctionError/index.ts:7:1]
+ 7 │ undefined
+   · ─────────
+   ╰────
+
+  × Cannot invoke an object which is possibly 'null' or 'undefined'.
+    ╭─[../../tests/compiler/nullableFunctionError/index.ts:10:1]
+ 10 │ f
+    · ─
+    ╰────

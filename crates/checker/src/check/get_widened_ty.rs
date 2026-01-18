@@ -3,9 +3,8 @@ use super::ContextFlags;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty;
-
-use crate::ty::ObjectFlags;
-use crate::ty::TypeFlags;
+use super::ty::ObjectFlags;
+use super::ty::TypeFlags;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -229,7 +228,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let save_check_mode = self.check_mode;
         self.check_mode = Some(CheckMode::empty());
-        let decl_ty = self.get_ty_for_var_like_decl(decl, true);
+        let decl_ty = self.get_ty_for_var_like_decl::<true>(decl);
         self.check_mode = save_check_mode;
         self.widen_ty_for_var_like_decl(decl_ty, decl)
     }

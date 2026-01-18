@@ -240,7 +240,11 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    fn resolve_symbol(&mut self, symbol: SymbolID, dont_resolve_alias: bool) -> SymbolID {
+    pub(super) fn resolve_symbol(
+        &mut self,
+        symbol: SymbolID,
+        dont_resolve_alias: bool,
+    ) -> SymbolID {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {
@@ -693,6 +697,17 @@ impl<'cx> super::TyChecker<'cx> {
         } else {
             symbol
         }
+    }
+
+    pub(super) fn has_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+        !self.has_dynamic_name(id) || self.has_late_bindable_name(id)
+    }
+
+    pub(super) fn has_dynamic_name(&self, id: bolt_ts_ast::NodeID) -> bool {
+        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
+            return false;
+        };
+        name.is_late_bindable_ast()
     }
 
     fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {

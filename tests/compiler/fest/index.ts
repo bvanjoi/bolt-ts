@@ -185,11 +185,11 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
   const b3: TupleValues = {c: true};
 
   const b4: TupleValues = {};
-  //~^ ERROR: Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
+  //~^ ERROR: Type '{ }' is not assignable to type '2 | { c: true; } | "1"'.
   const b5: TupleValues = 1;
-  //~^ ERROR: Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
+  //~^ ERROR: Type 'number' is not assignable to type '2 | { c: true; } | "1"'.
   const b6: TupleValues = '2';
-  //~^ ERROR: Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
+  //~^ ERROR: Type 'string' is not assignable to type '2 | { c: true; } | "1"'.
 
   type AnyStringValues = ArrayValues<string[]>;
   const c0: AnyStringValues = '';

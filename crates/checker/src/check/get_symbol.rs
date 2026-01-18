@@ -1,12 +1,17 @@
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 impl TyChecker<'_> {
     pub fn get_symbol_of_node(&self, id: ast::NodeID) -> Option<SymbolID> {
-        Symbol::can_have_symbol(self.p.node(id)).then(|| self.get_symbol_of_decl(id))
+        let n = self.p.node(id);
+        if Symbol::can_have_symbol(n) {
+            Some(self.final_res(id))
+        } else {
+            None
+        }
     }
     #[inline]
     pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
@@ -16,6 +21,7 @@ impl TyChecker<'_> {
             self.p.node(id)
         );
         let id = self.final_res(id);
+        debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
         // TODO: get_late_bound_symbol
         self.get_merged_symbol(id)
     }

@@ -66,7 +66,7 @@ pub use symbol_links::SymbolLinks;
 pub use ty_links::TyLinks;
 
 use super::NodeCheckFlags;
-use crate::ty::{SigID, TyID};
+use super::ty::{SigID, TyID};
 
 impl<'cx> super::TyChecker<'cx> {
     pub fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {

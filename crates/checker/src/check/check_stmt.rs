@@ -31,22 +31,27 @@ impl<'cx> TyChecker<'cx> {
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
+            ForOf(node) => self.check_for_of_stmt(node),
             Import(node) => self.check_import_decl(node),
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
             Empty(_) => {}
             Throw(_) => {}
-            ForOf(_) => {}
             Break(_) => {}
             Continue(_) => {}
             Try(_) => {}
-            While(_) => {}
+            While(n) => self.check_while_stmt(n),
             Do(_) => {}
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
+        self.check_truthiness_expr(node.expr);
+        self.check_stmt(node.stmt);
     }
 
     fn is_type_equality_comparable_to(
@@ -270,6 +275,15 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn check_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) {
+        match node.init {
+            ast::ForInitKind::Var(var) => {
+                self.check_var_decl_list(var);
+            }
+            ast::ForInitKind::Expr(_) => {}
+        };
+    }
+
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
             let ty = self.check_expr(node.expr);
@@ -451,7 +465,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let expr_ty = node
                 .expr
-                .map(|expr| self.check_expr_with_cache(expr))
+                .map(|expr| self.check_expr_cached(expr))
                 .unwrap_or(self.undefined_ty);
             let c = self.p.node(container);
             if c.is_setter_decl() {

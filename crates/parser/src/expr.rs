@@ -24,7 +24,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
-        let mut expr = self.parse_assign_expr_or_higher(false)?;
+        let mut expr = self.parse_assign_expr_or_higher::<false>()?;
 
         while let Some(t) = self.parse_optional(TokenKind::Comma) {
             debug_assert_eq!(t.kind, TokenKind::Comma);
@@ -32,7 +32,7 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: t.kind.into(),
                 span: t.span,
             };
-            let right = self.parse_assign_expr_or_higher(false)?;
+            let right = self.parse_assign_expr_or_higher::<false>()?;
             let kind = ast::ExprKind::Bin(self.create_binary_expr(start, expr, op, right));
             expr = self.alloc(ast::Expr { kind });
         }
@@ -41,7 +41,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_init(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         if self.parse_optional(TokenKind::Eq).is_some() {
-            self.parse_assign_expr_or_higher(false).map(Some)
+            self.parse_assign_expr_or_higher::<false>().map(Some)
         } else {
             Ok(None)
         }
@@ -164,7 +164,7 @@ impl<'cx> ParserState<'cx, '_> {
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
         } else {
-            self.parse_assign_expr_or_higher(false)
+            self.parse_assign_expr_or_higher::<false>()
                 .map(ast::ArrowFnExprBody::Expr)
         }
     }
@@ -206,9 +206,8 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    pub(super) fn parse_assign_expr_or_higher(
+    pub(super) fn parse_assign_expr_or_higher<const ALLOW_RET_TY_IN_ARROW_FN: bool>(
         &mut self,
-        allow_ret_ty_in_arrow_fn: bool,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr() {
             return Ok(expr);
@@ -225,7 +224,7 @@ impl<'cx> ParserState<'cx, '_> {
             // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();
-            let right = self.parse_assign_expr_or_higher(false)?;
+            let right = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
             let id = self.next_node_id();
             let expr = self.alloc(ast::AssignExpr {
                 id,
@@ -683,7 +682,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_arg_or_array_lit_elem(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        self.parse_assign_expr_or_higher(false)
+        match self.token.kind {
+            TokenKind::DotDotDot => self.parse_spread_element(),
+            TokenKind::Comma => todo!(),
+            _ => self.parse_assign_expr_or_higher::<false>(),
+        }
     }
 
     fn parse_object_method_decl(
@@ -714,7 +717,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_object_lit_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let start = self.token.start();
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
-            let expr = self.parse_assign_expr_or_higher(true)?;
+            let expr = self.parse_assign_expr_or_higher::<true>()?;
             let id = self.next_node_id();
             let n = self.alloc(ast::SpreadAssignment {
                 id,
@@ -788,7 +791,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(member);
         }
         self.expect(TokenKind::Colon);
-        let value = self.parse_assign_expr_or_higher(false)?;
+        let value = self.parse_assign_expr_or_higher::<false>()?;
         let id = self.next_node_id();
         let kind = self.alloc(ast::ObjectPropAssignment {
             id,
@@ -804,8 +807,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_paren_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::LParen);
         let start = self.token.start();
-        self.expect(TokenKind::LParen);
+        self.next_token(); // consume `(`
         let expr = self.parse_expr()?;
         self.expect(TokenKind::RParen);
         let id = self.next_node_id();
@@ -849,7 +853,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_spread_element(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::DotDotDot);
-        let expr = self.parse_assign_expr_or_higher(true)?;
+        let expr = self.parse_assign_expr_or_higher::<true>()?;
         let id = self.next_node_id();
         let node = self.alloc(ast::SpreadElement {
             id,
@@ -880,7 +884,7 @@ impl<'cx> ParserState<'cx, '_> {
                     });
                     Ok(expr)
                 }
-                _ => this.parse_assign_expr_or_higher(false),
+                _ => this.parse_assign_expr_or_higher::<false>(),
             },
         )
     }

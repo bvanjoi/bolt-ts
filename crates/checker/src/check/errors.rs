@@ -1039,3 +1039,49 @@ pub(super) struct AllDeclarationsOfXMustHaveIdenticalModifiers {
     pub span: Span,
     pub symbol: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Tuple type '{x}' of length '{y}' has no element at index '{z}'.")]
+pub(super) struct TupleTypeXOfLengthYHasNoElementAtIndexZ {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: usize,
+    pub z: usize,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Object is of type 'unknown'.")]
+pub(super) struct ObjectIsOfTypeUnknown {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is not an array type.")]
+pub(super) struct TypeXIsNotAnArrayType {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'null' or 'undefined'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'undefined'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyUndefined {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot invoke an object which is possibly 'null'.")]
+pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNull {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -1,5 +1,5 @@
+use super::keyword;
 use super::*;
-use crate::keyword;
 
 use bolt_ts_atom::{Atom, AtomIntern};
 
@@ -395,7 +395,7 @@ impl PropName<'_> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
     StringLit { raw: &'cx StringLit, key: Atom },
@@ -403,10 +403,17 @@ pub enum PropNameKind<'cx> {
     Computed(&'cx ComputedPropName<'cx>),
 }
 
-impl PropNameKind<'_> {
-    pub fn as_ident(&self) -> Option<&Ident> {
+impl<'cx> PropNameKind<'cx> {
+    pub fn as_ident(&self) -> Option<&'cx Ident> {
         match self {
             PropNameKind::Ident(ident) => Some(ident),
+            _ => None,
+        }
+    }
+
+    pub fn as_computed(&self) -> Option<&'cx ComputedPropName<'cx>> {
+        match self {
+            PropNameKind::Computed(n) => Some(n),
             _ => None,
         }
     }

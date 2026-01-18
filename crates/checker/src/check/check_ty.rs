@@ -134,6 +134,10 @@ impl<'cx> TyChecker<'cx> {
                 Getter(_) => (),
             }
         }
+
+        let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
+        self.check_index_constraints(ty, false);
+        // TODO: duplicate index signatures check
     }
 
     fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {

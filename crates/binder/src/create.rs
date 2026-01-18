@@ -1,6 +1,6 @@
+use super::SymbolTable;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
-use crate::SymbolTable;
 
 use bolt_ts_ast as ast;
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};

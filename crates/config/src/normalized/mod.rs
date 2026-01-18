@@ -29,6 +29,7 @@ bitflags::bitflags! {
         const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 9;
         const NO_IMPLICIT_RETURNS                       = 1 << 10;
         const PRESERVE_SYMLINKS                         = 1 << 11;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 12;
     }
 }
 
@@ -100,5 +101,11 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn preserve_symlinks(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::PRESERVE_SYMLINKS)
+    }
+
+    #[inline(always)]
+    pub const fn use_define_for_class_fields(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS)
     }
 }

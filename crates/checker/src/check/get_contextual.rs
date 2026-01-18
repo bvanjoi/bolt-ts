@@ -2,6 +2,7 @@ use crate::check::Ternary;
 use crate::ty::MappedTyNameTyKind;
 use crate::ty::ObjectFlags;
 use crate::ty::TypeFlags;
+use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
 use super::TyChecker;
@@ -37,6 +38,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match parent {
             VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
+            ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
             AssignExpr(node) if id == node.right.id() => {
                 self.get_contextual_ty_for_assign(node.id, parent_id, flags)
             }
@@ -78,39 +80,92 @@ impl<'cx> TyChecker<'cx> {
                 let parent_parent = self.parent(parent_id).unwrap();
                 self.get_contextual_ty(parent_parent, flags)
             }
-            ObjectPropAssignment(ast::ObjectPropAssignment { id, .. })
-            | ObjectShorthandMember(ast::ObjectShorthandMember { id, .. }) => {
-                self.get_contextual_ty_for_object_literal_ele(*id, flags)
+            ObjectPropAssignment(n) => self.get_contextual_ty_for_object_literal_ele(n, flags),
+            ObjectShorthandMember(n) => self.get_contextual_ty_for_object_literal_ele(n, flags),
+            ParenExpr(n) => {
+                // TODO: is_in_js_file
+                self.get_contextual_ty(n.id, flags)
             }
             _ => None,
         }
     }
 
-    fn get_contextual_ty_for_object_literal_ele(
+    fn get_contextual_ty_for_return_expr(
         &mut self,
         id: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let f = self.node_query(id.module()).get_containing_fn(id)?;
+        let contextual_return_ty = self.get_contextual_ret_ty(f, flags)?;
+        let fn_flags = self.p.node(f).fn_flags();
+        if fn_flags.contains(FnFlags::GENERATOR) {
+            todo!()
+        } else if fn_flags.contains(FnFlags::ASYNC) {
+            todo!()
+        }
+        Some(contextual_return_ty)
+    }
+
+    fn get_contextual_ty_for_object_literal_ele(
+        &mut self,
+        element: &'cx impl ast::r#trait::ObjectLitElementLike<'cx>,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        let id = element.id();
         let object_literal = {
             let p = self.parent(id).unwrap();
             self.p.node(p).expect_object_lit()
         };
         let ty = self.get_apparent_ty_of_contextual_ty(object_literal.id, context_flags)?;
-        // TODO: has_bindable_name
-        let symbol = self.get_symbol_of_decl(id);
-        let name = self.symbol(symbol).name;
-        let name_ty = self.get_symbol_links(symbol).get_name_ty();
-        self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty)
+        if self.has_bindable_name(id) {
+            let symbol = self.get_symbol_of_decl(id);
+            let name = self.symbol(symbol).name;
+            let name_ty = self.get_symbol_links(symbol).get_name_ty();
+            return self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty);
+        }
+        let nq = self.node_query(id.module());
+        if nq.has_dynamic_name(id)
+            && let Some(name) = nq.get_name_of_decl(id)
+            && let ast::DeclarationName::Computed(name) = name
+            && let expr_ty = self.check_expr(name.expr)
+            && expr_ty.useable_as_prop_name()
+            && let Some(prop_name) = self.get_prop_name_from_ty(expr_ty)
+            && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
+        {
+            Some(prop_ty)
+        } else if let Some(name) = element.name() {
+            let name_ty = self.get_lit_ty_from_prop_name(&name);
+            self.map_ty(
+                ty,
+                |this, t| {
+                    let index_infos = this.get_index_infos_of_structured_ty(t);
+                    match this.find_applicable_index_info(index_infos, name_ty) {
+                        Some(index_info) => Some(index_info.val_ty),
+                        None => None,
+                    }
+                },
+                true,
+            )
+        } else {
+            None
+        }
     }
 
     fn get_contextual_ty_for_object_literal_method(
         &mut self,
-        id: ast::NodeID,
+        n: &'cx ast::ObjectMethodMember<'cx>,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        assert!(self.p.node(id).is_object_method_member());
         // TODO: NodeFlags.InWithStatement
-        self.get_contextual_ty_for_object_literal_ele(id, context_flags)
+        self.get_contextual_ty_for_object_literal_ele(n, context_flags)
+    }
+
+    fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
+        // TODO: signature.compositeSignatures
+        self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
+            && self
+                .find_resolution_cycle_start_index(super::ResolutionKey::ResolvedReturnType(sig.id))
+                .is_some()
     }
 
     pub(super) fn get_contextual_ret_ty(
@@ -119,8 +174,23 @@ impl<'cx> TyChecker<'cx> {
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(ret_ty) = self.get_ret_ty_from_anno(id) {
-            Some(ret_ty)
-        } else if let Some(iife) = self.node_query(id.module()).get_iife(id) {
+            return Some(ret_ty);
+        }
+
+        if let Some(sig) = self.get_contextual_sig_for_fn_like_decl(id)
+            && !self.is_resolving_ret_ty_of_sig(sig)
+        {
+            let ret_ty = self.get_ret_ty_of_sig(sig);
+            let fn_flags = self.p.node(id).fn_flags();
+            if fn_flags.contains(FnFlags::GENERATOR) {
+                todo!()
+            } else if fn_flags.contains(FnFlags::ASYNC) {
+                todo!()
+            }
+            return Some(ret_ty);
+        }
+
+        if self.node_query(id.module()).get_iife(id).is_some() {
             self.get_contextual_ty(id, flags)
         } else {
             None
@@ -295,8 +365,17 @@ impl<'cx> TyChecker<'cx> {
         name: SymbolName,
         name_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if ty.is_tuple() && name.as_numeric().is_some_and(|n| n >= 0.) {
-            //TODO: rest_ty
+        if let Some(tup) = ty.as_tuple()
+            && name.as_numeric().is_some_and(|n| n >= 0.)
+            && let Some(rest_ty) = self.get_element_ty_of_slice_of_tuple_ty(
+                ty,
+                tup.fixed_length,
+                Some(0),
+                Some(false),
+                Some(true),
+            )
+        {
+            return Some(rest_ty);
         }
         let index_infos = self.get_index_infos_of_structured_ty(ty);
         let key_ty = name_ty.unwrap_or_else(|| {
@@ -405,8 +484,8 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let contextual_ty = if self.p.node(node).is_object_method_member() {
-            self.get_contextual_ty_for_object_literal_method(node, flags)
+        let contextual_ty = if let Some(n) = self.p.node(node).as_object_method_member() {
+            self.get_contextual_ty_for_object_literal_method(n, flags)
         } else {
             self.get_contextual_ty(node, flags)
         };

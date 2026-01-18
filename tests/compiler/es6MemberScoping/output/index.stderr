@@ -1,0 +1,13 @@
+  × Cannot find name 'store'.
+   ╭─[../../tests/compiler/es6MemberScoping/index.ts:9:21]
+ 9 │ store
+   · ─────
+   ╰────
+
+Advice: 
+  ☞ Initializer of instance member variable 'store' cannot reference
+  │ identifier '_store' declared in the constructor.
+   ╭─[../../tests/compiler/es6MemberScoping/index.ts:9:21]
+ 9 │ store
+   · ─────
+   ╰────

@@ -8,17 +8,17 @@ use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
-use crate::check::node_check_flags::NodeCheckFlags;
-use crate::ty::CheckFlags;
-use crate::ty::TypeFlags;
-
 use super::ObjectFlags;
 use super::TyChecker;
 use super::ast;
 use super::errors;
+use super::flow::flow_loop_ctx_len;
+use super::node_check_flags::NodeCheckFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
+use super::ty::CheckFlags;
+use super::ty::TypeFlags;
 use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
 
 pub(super) fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
@@ -484,7 +484,33 @@ impl<'cx> TyChecker<'cx> {
             //     return if possible_out_of_bounds {};
             // }
         }
-        None
+
+        let array_ty = input_ty;
+        let has_string_constituent = false;
+        if !self.is_array_like_ty(array_ty) {
+            if let Some(error_node) = error_node {
+                let error = errors::TypeXIsNotAnArrayType {
+                    span: self.p.node(error_node).span(),
+                    ty: self.print_ty(input_ty).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+
+            if has_string_constituent {
+                todo!()
+            } else {
+                return None;
+            }
+        }
+
+        let array_element_ty = self.get_index_ty_of_ty(array_ty, self.number_ty);
+
+        if mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS) {
+            // TODO:
+            None
+        } else {
+            array_element_ty
+        }
     }
 
     fn is_template_literal_contextual_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -800,7 +826,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn check_expr_with_cache(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_expr_cached(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
         if self
             .check_mode
             .is_some_and(|check_mode| check_mode != CheckMode::empty())
@@ -809,8 +835,11 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(ty) = self.get_node_links(expr.id()).get_resolved_ty() {
             ty
         } else {
+            let save_flow_loop_start = self.flow_loop_start;
+            self.flow_loop_start = flow_loop_ctx_len(self);
             let ty = self.check_expr(expr);
             self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
+            self.flow_loop_start = save_flow_loop_start;
             ty
         }
     }
@@ -854,21 +883,61 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
-        self.push_cached_contextual_type(node.id);
-
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
+
+        self.push_cached_contextual_type(node.id);
+
+        let contextual_ty = self.get_apparent_ty_of_contextual_ty(node.id, None);
+
         // let mut properties_array = Vec::with_capacity(node.members.len());
         let is_const_context = self.is_const_context(node.id);
         let mut has_computed_string_property = false;
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
+        let push_properties_table = |this: &mut TyChecker<'cx>,
+                                     computed_named_ty: Option<&'cx ty::Ty<'cx>>,
+                                     has_computed_string_property: &mut bool,
+                                     has_computed_number_property: &mut bool,
+                                     has_computed_symbol_property: &mut bool,
+                                     properties_table: &mut FxIndexMap<SymbolName, SymbolID>,
+                                     name: SymbolName,
+                                     member: SymbolID| {
+            if let Some(computed_named_ty) = computed_named_ty
+                && !computed_named_ty
+                    .flags
+                    .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+            {
+                if this.is_type_assignable_to(computed_named_ty, this.string_number_symbol_ty()) {
+                    if this.is_type_assignable_to(computed_named_ty, this.number_ty) {
+                        *has_computed_number_property = true;
+                    } else if this.is_type_assignable_to(computed_named_ty, this.es_symbol_ty) {
+                        *has_computed_symbol_property = true;
+                    } else {
+                        *has_computed_string_property = true;
+                    }
+                    // TODO: in_destructuring_pattern
+                }
+            } else {
+                properties_table.insert(name, member);
+            }
+        };
         let symbol = std::cell::OnceCell::new();
+        let mut offset = 0;
         for member in node.members {
             use bolt_ts_ast::ObjectMemberKind::*;
+            let computed_name = match member.kind {
+                PropAssignment(n) => n.name.kind.as_computed(),
+                Method(n) => n.name.kind.as_computed(),
+                Getter(n) => n.name.kind.as_computed(),
+                Setter(n) => n.name.kind.as_computed(),
+                Shorthand(n) => None,
+                SpreadAssignment(n) => None,
+            };
+            let computed_named_ty = computed_name.map(|n| self.check_computed_prop_name(n));
             match member.kind {
                 Shorthand(_) | PropAssignment(_) | Method(_) => {
                     let member_symbol = self.get_symbol_of_decl(member.id());
@@ -898,13 +967,32 @@ impl<'cx> TyChecker<'cx> {
                         declarations,
                         value_declaration,
                     );
-                    properties_table.insert(name, prop);
+                    push_properties_table(
+                        self,
+                        computed_named_ty,
+                        &mut has_computed_string_property,
+                        &mut has_computed_number_property,
+                        &mut has_computed_symbol_property,
+                        &mut properties_table,
+                        name,
+                        prop,
+                    );
                     properties_array.push(member_symbol);
                 }
                 SpreadAssignment(s) => {
                     if !properties_array.is_empty() {
                         let props = self.alloc(std::mem::take(&mut properties_table));
-                        let right = create_object_lit_ty(self, node, object_flags, props);
+                        let right = create_object_lit_ty(
+                            self,
+                            node,
+                            object_flags,
+                            props,
+                            has_computed_string_property,
+                            has_computed_number_property,
+                            has_computed_symbol_property,
+                            offset,
+                            &properties_array,
+                        );
                         let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
                         spread = self.get_spread_ty(
                             spread,
@@ -938,6 +1026,7 @@ impl<'cx> TyChecker<'cx> {
                             object_flags,
                             is_const_context,
                         );
+                        offset = properties_array.len();
                     } else {
                         // TODO: error
                         spread = self.error_ty;
@@ -953,7 +1042,16 @@ impl<'cx> TyChecker<'cx> {
                         _ => unreachable!(),
                     };
                     let member_symbol = self.get_symbol_of_decl(member.id());
-                    properties_table.insert(name, member_symbol);
+                    push_properties_table(
+                        self,
+                        computed_named_ty,
+                        &mut has_computed_string_property,
+                        &mut has_computed_number_property,
+                        &mut has_computed_symbol_property,
+                        &mut properties_table,
+                        name,
+                        member_symbol,
+                    );
                     properties_array.push(member_symbol);
                 }
             }
@@ -967,7 +1065,17 @@ impl<'cx> TyChecker<'cx> {
         if spread != self.empty_object_ty() {
             if !properties_array.is_empty() {
                 let props = self.alloc(std::mem::take(&mut properties_table));
-                let right = create_object_lit_ty(self, node, object_flags, props);
+                let right = create_object_lit_ty(
+                    self,
+                    node,
+                    object_flags,
+                    props,
+                    has_computed_string_property,
+                    has_computed_number_property,
+                    has_computed_symbol_property,
+                    offset,
+                    &properties_array,
+                );
                 let s = *symbol.get_or_init(|| self.get_symbol_of_decl(node.id));
                 spread = self.get_spread_ty(spread, right, Some(s), object_flags, is_const_context);
                 properties_array.clear();
@@ -985,6 +1093,11 @@ impl<'cx> TyChecker<'cx> {
                                 node,
                                 object_flags,
                                 properties_table,
+                                has_computed_string_property,
+                                has_computed_number_property,
+                                has_computed_symbol_property,
+                                offset,
+                                &properties_array,
                             ))
                         } else {
                             Some(t)
@@ -1000,8 +1113,35 @@ impl<'cx> TyChecker<'cx> {
             node: &'cx ast::ObjectLit<'cx>,
             object_flags: ObjectFlags,
             properties_table: &'cx FxIndexMap<SymbolName, SymbolID>,
+            has_computed_string_property: bool,
+            has_computed_number_property: bool,
+            has_computed_symbol_property: bool,
+            offset: usize,
+            properties: &[SymbolID],
         ) -> &'cx ty::Ty<'cx> {
-            let ty = this.create_anonymous_ty(
+            let mut index_infos = vec![];
+            let is_readonly = this.is_const_context(node.id);
+
+            if has_computed_string_property {
+                let index_info =
+                    this.get_object_lit_index_info(is_readonly, offset, properties, this.string_ty);
+                index_infos.push(index_info);
+            }
+            if has_computed_number_property {
+                let index_info =
+                    this.get_object_lit_index_info(is_readonly, offset, properties, this.number_ty);
+                index_infos.push(index_info);
+            }
+            if has_computed_symbol_property {
+                let index_info = this.get_object_lit_index_info(
+                    is_readonly,
+                    offset,
+                    properties,
+                    this.es_symbol_ty,
+                );
+                index_infos.push(index_info);
+            }
+            let res = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
                 object_flags
                     | (ObjectFlags::OBJECT_LITERAL
@@ -1011,20 +1151,34 @@ impl<'cx> TyChecker<'cx> {
 
             let props = this.get_props_from_members(properties_table);
             this.ty_links.insert(
-                ty.id,
+                res.id,
                 TyLinks::default().with_structured_members(this.alloc(ty::StructuredMembers {
                     members: properties_table,
-                    call_sigs: Default::default(),
-                    ctor_sigs: Default::default(),
-                    index_infos: Default::default(),
+                    call_sigs: this.empty_array(),
+                    ctor_sigs: this.empty_array(),
+                    index_infos: if index_infos.is_empty() {
+                        this.empty_array()
+                    } else {
+                        this.alloc(index_infos)
+                    },
                     props,
                 })),
             );
-            ty
+            res
         }
 
         let properties_table = self.alloc(properties_table);
-        create_object_lit_ty(self, node, object_flags, properties_table)
+        create_object_lit_ty(
+            self,
+            node,
+            object_flags,
+            properties_table,
+            has_computed_string_property,
+            has_computed_number_property,
+            has_computed_symbol_property,
+            offset,
+            &properties_array,
+        )
     }
 
     fn is_empty_object_ty_or_spreads_into_empty_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -1440,7 +1594,12 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let ty = self.check_expr(node.expr);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+            debug_assert!(self.is_type_any(ty));
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 }

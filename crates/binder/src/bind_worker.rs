@@ -1,15 +1,14 @@
-use super::BinderState;
-use super::symbol::SymbolFlags;
-use super::symbol::SymbolTableLocation;
-use super::symbol::{SymbolID, SymbolName};
-
 use bolt_ts_ast as ast;
 use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
-use crate::create::DeclareSymbolProperty;
-use crate::node_query::ModuleInstanceState;
+use super::BinderState;
+use super::create::DeclareSymbolProperty;
+use super::node_query::ModuleInstanceState;
+use super::symbol::SymbolFlags;
+use super::symbol::SymbolTableLocation;
+use super::symbol::{SymbolID, SymbolName};
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
@@ -195,8 +194,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.name {
             Shorthand(name) => {
                 let symbol = self.bind_var(n.id, name.name);
-                // TODO: use binding.id
-                self.create_final_res(name.id, symbol);
+                self.create_final_res(n.id, symbol);
             }
             Prop { name, .. } => {
                 if let ast::BindingKind::Ident(name) = name.kind {
@@ -218,7 +216,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.name.kind {
             Ident(ident) => {
                 let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(n.name.id, symbol);
+                self.create_final_res(n.id, symbol);
             }
             _ => {}
         };
@@ -712,7 +710,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             && self.is_narrowable_reference(n.expr)
     }
 
-    fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
+    pub(super) fn is_narrowable_reference(&self, expr: &ast::Expr<'_>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {
             // TODO: metaProperty

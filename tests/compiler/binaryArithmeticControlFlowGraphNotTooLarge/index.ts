@@ -1326,9 +1326,6 @@ function foo1() {
   assertEqual(3.14 & 2,                 2);
   assertEqual(3.14 & 2.71,              2);
   assertEqual(3.14 ^ 2.71,              1);
-  assertEqual(3.14 << 2.71,             12);
-  assertEqual(3.14 >> 2.71,             0);
-  assertEqual(3.14 >>> 2.71,            0);
   assertEqual(3.14 + 3.86,              7);
   assertEqual(2147483647 | 0,           2147483647);
   assertEqual(2147483647.0 | 0,         2147483647);
@@ -1348,14 +1345,72 @@ function foo1() {
   assertEqual(!-0,      true);
   assertEqual(!null,    true);
   assertEqual(~123,     -124);
-  assertEqual(2**3,     8);
-  assertEqual(2**3.14,  8.815240927012887);
-  assertEqual(3.14**2,  9.8596);
-  assertEqual(3.14**2.71, 22.21668954600232);
+  
+
   assertEqual('',       '');
   assertEqual('42',     '42');
   assertEqual(!'',      true);
   assertEqual(!'42',    false);
+
+  assertEqual(3.14 << 2.71, 12);
+  assertEqual(1<<23,    8388608);
+  assertEqual(1<<31,    -2147483648);
+  assertEqual(1<<32,    1);
+  assertEqual(3.14<<32, 3);
+  assertEqual(3<<31.78, -2147483648);
+  assertEqual(3<<32.78, 3);
+  assertEqual(3.14<<32.14, 3);
+  assertEqual(3 << -2, -1073741824);
+  assertEqual(-3 << -2, 1073741824);
+  assertEqual(-3.14 << -2.17, 1073741824);
+  assertEqual(-3.14 << -2, 1073741824);
+  assertEqual(-3 << -2.17, 1073741824);
+  assertEqual(-3 << -32, -3);
+
+  assertEqual(1 >> 23,          0);
+  assertEqual(1 >> 31,          0);
+  assertEqual(1 >> 32,          1);
+  assertEqual(1 >> 33,          0);
+  assertEqual(3.14 >> 32,       3);
+  assertEqual(3 >> 31.78,       0);
+  assertEqual(3 >> 32.78,       3);
+  assertEqual(3.14 >> 32.14,    3);
+  assertEqual(3.14 >> 2.71,     0);
+  assertEqual(3  >> -2,         0);
+  assertEqual(-3 >> -2,         -1);
+  assertEqual(-3.14 >> -2.17,   -1);
+  assertEqual(-3.14 >> -2,      -1);
+  assertEqual(-3 >> -2.17,      -1);
+  assertEqual(-3 >> -32,        -3);
+
+  assertEqual(3.14 >>> 2.71,     0);
+  assertEqual(1 >>> 23,          0);
+  assertEqual(1 >>> 31,          0);
+  assertEqual(1 >>> 32,          1);
+  assertEqual(1 >>> 33,          0);
+  assertEqual(3.14 >>> 32,       3);
+  assertEqual(3 >>> 31.78,       0);
+  assertEqual(3 >>> 32.78,       3);
+  assertEqual(3.14 >>> 32.14,    3);
+  assertEqual(3  >>> -2,         0);
+  assertEqual(-3 >>> -2,         3);
+  assertEqual(-3.14 >>> -2.17,   3);
+  assertEqual(-3.14 >>> -2,      3);
+  assertEqual(-3 >>> -2.17,      3);
+  assertEqual(-3 >>> -32,        4294967293);
+  assertEqual(-3 >>> 0,          4294967293);
+
+  assertEqual(3.14 ** 2.71,      22.21668954600232);
+  assertEqual(1 ** 23,           1);
+  assertEqual(3.14 ** 32,        7975331398947549);
+  assertEqual(3.14 ** 32,        7975331398947549.0);
+  assertEqual(3 ** 31.78,        1455169136612240.8);
+  assertEqual(3 ** 32.78,        4365507409836722.5);
+  assertEqual(3.14 ** 32.14,     9360927659723230);
+  assertEqual(3  ** -2,          0.1111111111111111);
+  assertEqual(2**3,              8);
+  assertEqual(2**3.14,           8.815240927012887);
+  assertEqual(3.14**2,           9.8596);
 }
 
 foo1()

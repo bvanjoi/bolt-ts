@@ -1,7 +1,5 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.3/tests/cases/compiler/badInferenceLowerPriorityThanGoodInference.ts`, Apache-2.0 License
 
-//@ run-fail
-
 interface Foo<A> {
   a: A;
   b: (x: A) => void;
@@ -15,6 +13,14 @@ const result = canYouInferThis(() => ({
 }))
 
 result.BLAH;
+
+canYouInferThis(() => ({
+  a: { BLAH: 33 },
+  b: x => { 
+    let s: string = x.BLAH; 
+    //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  }
+}))
 
 // Repro from #26629
 

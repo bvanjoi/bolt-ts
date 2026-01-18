@@ -27,3 +27,10 @@ function bad<P extends Props>(props: Readonly<P>) {
   let b: string = safeInvoke(props.onBar, "blah");
   //~^ ERROR: Type 'undefined | void' is not assignable to type 'string'.
 }
+
+function f(a: string | undefined) {
+  if (a) {
+    let b: number = a
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
+  }
+}

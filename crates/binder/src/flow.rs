@@ -126,6 +126,14 @@ impl<'cx> FlowNodes<'cx> {
         self.insert_flow_node(node)
     }
 
+    pub(super) fn create_loop_label(&mut self) -> FlowID {
+        let node = FlowNode {
+            flags: FlowFlags::LOOP_LABEL,
+            kind: FlowNodeKind::Label(FlowLabel { antecedent: None }),
+        };
+        self.insert_flow_node(node)
+    }
+
     pub(super) fn create_branch_label(&mut self) -> FlowID {
         let node = FlowNode {
             flags: FlowFlags::BRANCH_LABEL,

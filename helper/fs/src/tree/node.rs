@@ -1,9 +1,9 @@
 use bolt_ts_atom::Atom;
 
 use super::FSNodeId;
+use super::PathId;
 use super::dir_node::DirNode;
 use super::file_node::FileNode;
-use crate::PathId;
 
 pub struct FSNode {
     id: FSNodeId,

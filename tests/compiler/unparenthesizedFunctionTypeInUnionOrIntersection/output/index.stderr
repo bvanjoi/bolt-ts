@@ -1,0 +1,111 @@
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+   ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:3:20]
+ 3 │ () => void
+   · ──────────
+   ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+   ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:5:20]
+ 5 │ (foo: number) => void
+   · ─────────────────────
+   ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+   ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:7:13]
+ 7 │ () => number
+   · ────────────
+   ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+   ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:9:13]
+ 9 │ (foo?: number) => void
+   · ──────────────────────
+   ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:11:20]
+ 11 │ (number: number, foo?: string) => void | number
+    · ───────────────────────────────────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:15:5]
+ 15 │ ╭─▶ (...args: any[]) => void
+ 16 │ ╰─▶   | number
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:19:20]
+ 19 │ () => void
+    · ──────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:21:20]
+ 21 │ (...foo: number[]) => void
+    · ──────────────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:23:13]
+ 23 │ () => boolean
+    · ─────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:25:13]
+ 25 │ () => boolean & null
+    · ────────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:27:20]
+ 27 │ (any: any, any2: any) => any & any
+    · ──────────────────────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:31:5]
+ 31 │ (foo: any) => void
+    · ──────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:34:38]
+ 34 │ () => number
+    · ────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:36:32]
+ 36 │ () => void
+    · ──────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in a union
+  │ type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:38:38]
+ 38 │ () => void & any
+    · ────────────────
+    ╰────
+
+  × Function Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedFunctionTypeInUnionOrIntersection/index.ts:38:17]
+ 38 │ (foo: any) => void | () => void & any
+    · ─────────────────────────────────────
+    ╰────

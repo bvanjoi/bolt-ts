@@ -7,6 +7,16 @@ pub trait ClassLike<'cx>: std::fmt::Debug {
     fn implements(&self) -> Option<&'cx crate::ClassImplementsClause<'cx>>;
     fn elems(&self) -> &'cx crate::ClassElems<'cx>;
     fn span(&self) -> crate::Span;
+    fn find_ctor_decl(&self) -> Option<&'cx crate::ClassCtor<'cx>> {
+        for elem in self.elems().list {
+            if let crate::ClassElemKind::Ctor(ctor) = elem.kind
+                && ctor.body.is_some()
+            {
+                return Some(ctor);
+            }
+        }
+        None
+    }
 }
 
 impl<'cx> ClassLike<'cx> for crate::ClassDecl<'cx> {

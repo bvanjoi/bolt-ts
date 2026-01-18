@@ -17,15 +17,14 @@ mod parent_map;
 mod pprint;
 mod symbol;
 
-use bolt_ts_parser::ParsedMap;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_config::NormalizedTsConfig;
-use bolt_ts_parser::ParseResult;
 use bolt_ts_parser::ParseResultForGraph;
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::Module;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -35,10 +34,10 @@ pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::flow_in_node::{FlowInNode, FlowInNodes};
 pub use self::merge::merge_global_symbol;
 pub use self::merge::{MergeGlobalSymbolResult, MergeSymbol, MergedSymbols, SymbolTableLocation};
+pub use self::node_query::{AssignmentKind, ModuleInstanceState, NodeQuery};
 pub use self::parent_map::ParentMap;
 pub use self::symbol::{GlobalSymbols, Symbol, SymbolID, SymbolName, Symbols};
 pub use self::symbol::{SymbolFlags, SymbolTable};
-pub use crate::node_query::{AssignmentKind, ModuleInstanceState, NodeQuery};
 
 pub struct ResolveResult {
     pub symbols: Symbols,
@@ -134,20 +133,6 @@ pub enum AccessKind {
     Read,
     Write,
     ReadWrite,
-}
-
-struct BinderNodeQuery<'cx, 'p> {
-    parent_map: &'p ParentMap,
-    parse_result: &'p ParseResult<'cx>,
-}
-
-impl<'cx, 'p> BinderNodeQuery<'cx, 'p> {
-    fn new(parent_map: &'p ParentMap, parse_result: &'p ParseResult<'cx>) -> Self {
-        Self {
-            parent_map,
-            parse_result,
-        }
-    }
 }
 
 // impl<'cx> NodeQuery<'cx> for BinderNodeQuery<'cx, '_> {

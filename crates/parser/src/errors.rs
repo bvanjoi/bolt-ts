@@ -576,3 +576,25 @@ pub(super) struct OnlyAmbientModulesCanUseQuotedNames {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("{} Function type notation must be parenthesized when used in {} type.", {
+    if self.is_fn_ty {
+        "Function"
+    } else {
+        "Constructor"
+    }
+}, {
+    if self.is_union_ty {
+        "a union"
+    } else {
+        "an intersection"
+    }
+})]
+pub(super) struct FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType
+{
+    #[label(primary)]
+    pub span: Span,
+    pub is_fn_ty: bool,
+    pub is_union_ty: bool,
+}

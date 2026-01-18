@@ -2,10 +2,10 @@ use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
+use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
 use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
-use crate::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
-use crate::ty::{ObjectFlags, Sig};
 
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, keyword};
@@ -416,6 +416,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_default_ty_argument_ty(&self, is_in_javascript_file: bool) -> &'cx ty::Ty<'cx> {
+        if is_in_javascript_file {
+            self.any_ty
+        } else {
+            self.unknown_ty
+        }
+    }
+
     pub(crate) fn get_inferred_ty(
         &mut self,
         inference: InferenceContextId,
@@ -682,6 +690,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        // TODO: rest
+        // TODO: this
         for (idx, arg) in args.iter().enumerate() {
             if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
                 let param_ty = self.get_ty_at_pos(sig, idx);
@@ -1454,6 +1464,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             .reduced_left(
                                 constraint_tys,
                                 |_, flags, t, _| flags | t.flags,
+                                |_, _| unreachable!(),
                                 Some(TypeFlags::empty()),
                                 None,
                                 None,
@@ -1556,6 +1567,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                             left
                                         }
                                     },
+                                    |_, _| unreachable!(),
                                     Some(self.c.never_ty),
                                     None,
                                     None,

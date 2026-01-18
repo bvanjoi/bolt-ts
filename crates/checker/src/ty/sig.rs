@@ -1,10 +1,11 @@
 use std::hash::Hash;
 
 use super::ElementFlags;
+use super::TyChecker;
 use super::TyMap;
 use super::TypeFlags;
 use super::ast;
-use crate::check::TyChecker;
+
 use bolt_ts_binder::SymbolID;
 
 bitflags::bitflags! {
@@ -73,19 +74,22 @@ impl<'cx> Sig<'cx> {
     }
 
     pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
-        self.has_rest_param().then(|| {
-            let rest_ty = checker.get_type_of_symbol(*self.params.last().unwrap());
-            if !rest_ty.is_tuple() {
-                if rest_ty.flags.intersects(TypeFlags::ANY) {
-                    checker.any_array_ty()
-                } else {
-                    rest_ty
+        if self.has_rest_param() {
+            let symbol = *self.params.last().unwrap();
+            let rest_ty = checker.get_type_of_symbol(symbol);
+            if let Some(t) = rest_ty.as_tuple() {
+                if t.combined_flags.intersects(ElementFlags::VARIABLE) {
+                    // TODO: return slice_tuple_ty
                 }
             } else {
-                // TODO: tuple
-                checker.any_ty
-            }
-        })
+                return if rest_ty.flags.intersects(TypeFlags::ANY) {
+                    Some(checker.any_array_ty())
+                } else {
+                    Some(rest_ty)
+                };
+            };
+        }
+        None
     }
 
     pub fn get_non_array_rest_ty(
