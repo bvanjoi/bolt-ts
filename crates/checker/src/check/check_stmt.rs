@@ -451,6 +451,31 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn unwrap_ret_ty(&mut self, ret_ty: &'cx ty::Ty<'cx>, flags: ast::FnFlags) -> &'cx ty::Ty<'cx> {
+        let is_generator = flags.contains(ast::FnFlags::GENERATOR);
+        let is_async = flags.contains(ast::FnFlags::ASYNC);
+        if is_generator {
+            todo!()
+        } else if is_async {
+            todo!()
+        } else {
+            ret_ty
+        }
+    }
+
+    fn is_unwrapped_ret_ty_undefined_void_or_any(
+        &mut self,
+        func: ast::NodeID,
+        ret_ty: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let flags = self.p.node(func).fn_flags();
+        let ty = self.unwrap_ret_ty(ret_ty, flags);
+        ty.maybe_type_of_kind(TypeFlags::VOID)
+            || ty
+                .flags
+                .intersects(TypeFlags::ANY.union(TypeFlags::UNDEFINED))
+    }
+
     fn check_ret_stmt(&mut self, node: &ast::RetStmt<'cx>) {
         let Some(container) = self.get_containing_fn_or_class_static_block(node.id) else {
             // delay bug
@@ -485,6 +510,12 @@ impl<'cx> TyChecker<'cx> {
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 self.check_ret_expr(container, ret_ty, node.expr, expr_ty);
             }
+        } else if self.config.no_implicit_returns()
+            && !self.p.node(container).is_class_ctor()
+            && !self.is_unwrapped_ret_ty_undefined_void_or_any(container, ret_ty)
+        {
+            let error = errors::NotAllCodePathsReturnAValue { span: node.span };
+            self.push_error(Box::new(error));
         }
     }
 

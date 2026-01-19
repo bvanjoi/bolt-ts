@@ -1,10 +1,10 @@
-use crate::check::{SymbolInfo, TyChecker};
-
 use bolt_ts_ast::{self as ast, pprint_binding};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_ty::ObjectFlags;
 use bolt_ts_utils::FxIndexMap;
 
-use super::flags::ObjectFlags;
+use crate::check::{SymbolInfo, TyChecker};
+
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
 use super::pprint::pprint_reference_ty;
 use super::{Ty, TyMap};

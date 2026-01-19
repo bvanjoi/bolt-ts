@@ -45,6 +45,7 @@ with_option!(
     (strict_function_types, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
+    (no_implicit_returns, bool),
     (no_unchecked_indexed_access, bool),
     (target, RawTarget),
     (module, RawModule),
@@ -95,6 +96,9 @@ impl RawCompilerOptions {
         }
         if self.preserve_symlinks.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::PRESERVE_SYMLINKS);
+        }
+        if self.no_implicit_returns.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_RETURNS);
         }
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),

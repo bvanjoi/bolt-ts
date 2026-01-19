@@ -203,6 +203,7 @@ dependencies = [
  "bolt_ts_parser",
  "bolt_ts_path",
  "bolt_ts_span",
+ "bolt_ts_ty",
  "bolt_ts_utils",
  "enumflags2",
  "indexmap",
@@ -478,6 +479,13 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-tree",
+]
+
+[[package]]
+name = "bolt_ts_ty"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.9.4",
 ]
 
 [[package]]

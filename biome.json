@@ -47,7 +47,8 @@
 			},
 			"security": {
 				"noDangerouslySetInnerHtml": "warn"
-			}
+			},
+			"performance": "error"
 		}
 	}
 }

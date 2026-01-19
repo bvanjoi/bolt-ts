@@ -1,6 +1,4 @@
-mod check_flags;
 mod facts;
-mod flags;
 mod links;
 mod mapper;
 mod num_lit;
@@ -12,12 +10,14 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+pub use bolt_ts_ty::CheckFlags;
+pub use bolt_ts_ty::ObjectFlags;
+pub use bolt_ts_ty::TypeFacts;
+pub use bolt_ts_ty::TypeFlags;
 
 use crate::check::TyChecker;
 
-pub use self::check_flags::CheckFlags;
-pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts};
-pub use self::flags::{ObjectFlags, TypeFlags};
+pub use self::facts::TYPEOF_NE_FACTS;
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};

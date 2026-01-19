@@ -1085,3 +1085,10 @@ pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNull {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Not all code paths return a value.")]
+pub(super) struct NotAllCodePathsReturnAValue {
+    #[label(primary)]
+    pub span: Span,
+}
