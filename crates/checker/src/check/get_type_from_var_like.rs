@@ -1,6 +1,9 @@
+use crate::check::SymbolInfo;
+
 use super::CheckMode;
 use super::TyChecker;
 use super::check_expr::IterationUse;
+use super::errors;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ty::Ty;
@@ -94,7 +97,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,
-        parent_parent_ty: &'cx Ty<'cx>,
+        mut parent_parent_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         debug_assert!(self.parent(binding.id).is_some());
         if self.is_type_any(parent_parent_ty) {
@@ -103,7 +106,22 @@ impl<'cx> TyChecker<'cx> {
 
         let access_flags = AccessFlags::EXPRESSION_POSITION;
         if binding.dotdotdot.is_some() {
+            parent_parent_ty = self.get_reduced_ty(parent_parent_ty);
+            if parent_parent_ty.flags.contains(ty::TypeFlags::UNKNOWN)
+                || !self.is_valid_spread_ty(parent_parent_ty)
+            {
+                let error = errors::RestTypesMayOnlyBeCreatedFromObjectTypes { span: binding.span };
+                self.push_error(Box::new(error));
+                return self.error_ty;
+            }
             // TODO:
+            // const literalMembers: PropertyName[] = [];
+            // for (const element of pattern.elements) {
+            //     if (!element.dotDotDotToken) {
+            //         literalMembers.push(element.propertyName || element.name as Identifier);
+            //     }
+            // }
+            // type = getRestType(parentType, literalMembers, declaration.symbol);
             parent_parent_ty
         } else {
             let index_ty = match binding.name {

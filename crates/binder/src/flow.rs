@@ -193,12 +193,12 @@ impl<'cx> FlowNodes<'cx> {
         self.insert_flow_node(node)
     }
 
-    pub(super) fn insert_container_map(&mut self, node: ast::NodeID, flow: FlowID) {
+    pub(super) fn insert_flow_of_node(&mut self, node: ast::NodeID, flow: FlowID) {
         let prev = self.container_map.insert(node.index_as_u32(), flow.index);
         assert!(prev.is_none());
     }
 
-    pub(super) fn reset_container_map(&mut self, node: ast::NodeID) {
+    pub(super) fn reset_flow_of_node(&mut self, node: ast::NodeID) {
         self.container_map.remove(&node.index_as_u32());
     }
 

@@ -1,0 +1,17 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/targetTypeBaseCalls/index.ts:20:61]
+ 20 │ s
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/targetTypeBaseCalls/index.ts:15:23]
+ 15 │ s
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/targetTypeBaseCalls/index.ts:11:19]
+ 11 │ s
+    · ─
+    ╰────

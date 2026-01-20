@@ -1092,3 +1092,10 @@ pub(super) struct NotAllCodePathsReturnAValue {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Rest types may only be created from object types.")]
+pub(super) struct RestTypesMayOnlyBeCreatedFromObjectTypes {
+    #[label(primary)]
+    pub span: Span,
+}

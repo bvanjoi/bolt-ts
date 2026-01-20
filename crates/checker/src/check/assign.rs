@@ -85,6 +85,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    // TODO: use `get_object_binding_element_ty_from_parent_ty` and `get_array_binding_element_ty_from_parent_ty`
     fn get_binding_ele_ty_from_parent_ty(
         &mut self,
         binding: &'cx bolt_ts_ast::Binding<'cx>,
@@ -133,7 +134,7 @@ impl<'cx> TyChecker<'cx> {
                 AccessFlags::empty()
             };
 
-        (match binding.kind {
+        match binding.kind {
             ObjectPat(pat) => {
                 todo!()
             }
@@ -172,7 +173,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty,
                 Some(binding.id),
             ),
-        }) as _
+        }
     }
 
     pub(super) fn assign_contextual_param_tys(

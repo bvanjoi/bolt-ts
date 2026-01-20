@@ -24,15 +24,15 @@
 		"vscode-languageclient": "^9.0.1"
 	},
 	"devDependencies": {
-		"@types/vscode": "^1.106.1",
 		"@types/mocha": "^10.0.10",
-		"@types/node": "^24.10.1",
-		"esbuild": "^0.27.1",
-		"npm-run-all": "^4.1.5",
-		"typescript": "^5.9.3",
+		"@types/node": "^25.0.9",
+		"@types/vscode": "^1.108.1",
 		"@vscode/test-cli": "^0.0.12",
 		"@vscode/test-electron": "^2.5.2",
-		"undici-types": "^7.16.0"
+		"esbuild": "^0.27.2",
+		"npm-run-all": "^4.1.5",
+		"typescript": "^5.9.3",
+		"undici-types": "^7.17.0"
 	},
 	"contributes": {
 		"commands": [

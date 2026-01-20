@@ -1290,9 +1290,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     for member in n.members {
                         match member.kind {
                             ast::ObjectMemberKind::Shorthand(e) => {
-                                self.current_flow = Some(
-                                    self.create_flow_assign(self.current_flow.unwrap(), e.name.id),
-                                );
+                                self.current_flow =
+                                    Some(self.create_flow_assign(self.current_flow.unwrap(), e.id));
                             }
                             ast::ObjectMemberKind::PropAssignment(e) => {
                                 self.bind_destructuring_target_flow(e.init);
@@ -1417,9 +1416,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectPat(pat) => {
                 for elem in pat.elems {
                     match elem.name {
-                        ast::ObjectBindingName::Shorthand(ident) => {
-                            let flow =
-                                self.create_flow_assign(self.current_flow.unwrap(), ident.id);
+                        ast::ObjectBindingName::Shorthand(_) => {
+                            let flow = self.create_flow_assign(self.current_flow.unwrap(), elem.id);
                             self.current_flow = Some(flow);
                         }
                         ast::ObjectBindingName::Prop { name, .. } => {
@@ -1698,7 +1696,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.parent_map.insert(node, parent);
         }
 
-        self._bind(node);
+        self.bind_worker(node);
 
         let save_parent = self.parent;
         self.parent = Some(node);

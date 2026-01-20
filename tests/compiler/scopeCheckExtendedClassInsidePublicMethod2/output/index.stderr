@@ -1,0 +1,11 @@
+  × Cannot find name 'v'.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:6:7]
+ 6 │ v
+   · ─
+   ╰────
+
+  × Cannot find name 's'.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:9:7]
+ 9 │ s
+   · ─
+   ╰────

@@ -1274,6 +1274,8 @@ function foo1() {
   assertEqual(1, 1);
   assertEqual(1, 1);
   assertEqual(0, 0);
+  assertEqual(5, 5);
+  assertEqual(7, 7);
   assertEqual(1, 1);
   assertEqual(1, 1);
   assertEqual(-1, -1);

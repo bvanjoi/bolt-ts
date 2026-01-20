@@ -2,7 +2,7 @@
 	"name": "root",
 	"private": true,
 	"packageManager": "pnpm@10.18.2",
-  "scripts": {
+	"scripts": {
 		"build": "turbo build",
 		"dev": "turbo dev --parallel",
 		"test": "turbo test --concurrency 1"
@@ -12,7 +12,7 @@
 		"pnpm": "10.18.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.8",
-		"turbo": "^2.6.1"
+		"@biomejs/biome": "^2.3.11",
+		"turbo": "^2.7.5"
 	}
 }

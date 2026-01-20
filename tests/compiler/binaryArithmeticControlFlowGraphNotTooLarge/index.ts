@@ -1295,7 +1295,6 @@ const foo = function (this: any) {
     }
 };
 
-
 function foo1() {
   assertEqual(3, 3);
   assertEqual(1 + 2, 3);
@@ -1312,6 +1311,8 @@ function foo1() {
   assertEqual(1 * 1, 1);
   assertEqual(1 / 1, 1);
   assertEqual(1 % 1, 0);
+  assertEqual(1 * 2 + 3,         5);
+  assertEqual(1 + 2 * 3,         7);
   // toInt32
   assertEqual(1 | 0,                    1);
   assertEqual(+1 | 0,                   1);
