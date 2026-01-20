@@ -5,6 +5,9 @@
 		"includes": [
 			"packages/**/*",
 			"!**/.vscode-test/**/*",
+			"!**/.next/**/*",
+			"!**/playwright/.cache/**/*",
+			"!**/test-results/**/*",
 			"!**/node_modules/**/*",
 			"!**/dist/**/*",
 			"!**/out/**/*",
@@ -23,6 +26,11 @@
 			"trailingCommas": "none"
 		},
 		"jsxRuntime": "reactClassic"
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
 	},
 	"linter": {
 		"enabled": true,
@@ -43,12 +51,26 @@
 				"noUselessElse": "error"
 			},
 			"correctness": {
-				"noUnusedVariables": "error"
+				"noUnusedVariables": "error",
+				"noConstantCondition": "error"
 			},
 			"security": {
 				"noDangerouslySetInnerHtml": "warn"
 			},
-			"performance": "error"
+			"performance": {
+				"noAwaitInLoops": "error",
+				"noBarrelFile": "error",
+				"noAccumulatingSpread": "error",
+				"noDelete": "error",
+				"noDynamicNamespaceImportAccess": "error",
+				"noImgElement": "error",
+				"noNamespaceImport": "error",
+				"noReExportAll": "error",
+				"noUnwantedPolyfillio": "error",
+				"useGoogleFontPreconnect": "error",
+				"useTopLevelRegex": "error",
+				"useSolidForComponent": "off"
+			}
 		}
 	}
 }
