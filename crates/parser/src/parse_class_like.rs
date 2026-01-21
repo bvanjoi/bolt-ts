@@ -454,6 +454,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         {
             Ok(ctor)
         } else if self.is_index_sig() {
+            if let Some(ms) = modifiers {
+                for m in ms.list {
+                    use ast::ModifierKind;
+                    if !matches!(m.kind, ModifierKind::Readonly | ModifierKind::Static) {
+                        self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
+                            span: m.span,
+                            kind: m.kind,
+                        }));
+                    }
+                }
+            }
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::IndexSig(decl),

@@ -1,5 +1,4 @@
 use std::cell::OnceCell;
-use std::ptr::read_unaligned;
 
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;

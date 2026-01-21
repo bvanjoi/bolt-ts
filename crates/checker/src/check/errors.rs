@@ -1099,3 +1099,23 @@ pub(super) struct RestTypesMayOnlyBeCreatedFromObjectTypes {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in an interface must refer to an expression whose type is a literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhoseTypeIsALiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}

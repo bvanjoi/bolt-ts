@@ -1,5 +1,4 @@
-use crate::ty::{self, IndexFlags, TypeFlags};
-
+use super::ty::{self, IndexFlags, TypeFlags};
 use super::{TyChecker, create_ty::IntersectionFlags};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

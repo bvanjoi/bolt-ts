@@ -72,7 +72,9 @@ impl<'cx> DeclarationName<'cx> {
     pub fn is_dynamic_name(&self) -> bool {
         use DeclarationName::*;
         match self {
-            Computed(_) => true,
+            Computed(n) => {
+                !n.expr.is_string_or_number_lit_like() && !n.expr.is_signed_numeric_lit()
+            }
             // TODO: element access
             _ => false,
         }

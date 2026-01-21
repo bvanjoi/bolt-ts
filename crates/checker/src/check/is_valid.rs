@@ -2,7 +2,7 @@ use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
 
 use super::TyChecker;
-use crate::ty::{self, TypeFlags};
+use super::ty::{self, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_valid_index_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {

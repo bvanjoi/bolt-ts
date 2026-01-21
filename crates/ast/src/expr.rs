@@ -112,6 +112,14 @@ impl<'cx> Expr<'cx> {
         )
     }
 
+    pub fn is_signed_numeric_lit(&self) -> bool {
+        let ExprKind::PrefixUnary(n) = &self.kind else {
+            return false;
+        };
+        matches!(n.op, PrefixUnaryOp::Plus | PrefixUnaryOp::Minus)
+            && matches!(n.expr.kind, ExprKind::NumLit(_))
+    }
+
     pub fn is_string_or_number_lit_like(&self) -> bool {
         self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
     }

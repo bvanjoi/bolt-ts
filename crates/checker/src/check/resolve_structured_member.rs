@@ -1,4 +1,5 @@
 use bolt_ts_ast::{self as ast, MappedTyModifiers};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_span::Span;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
@@ -8,9 +9,8 @@ use super::cycle_check::{Cycle, ResolutionKey};
 use super::infer::InferenceFlags;
 use super::links::SigLinks;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
 use super::{SymbolLinks, Ternary, TyChecker, errors};
-use crate::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum MemberOrExportsResolutionKind {

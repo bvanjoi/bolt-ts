@@ -66,16 +66,16 @@ use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
-use check_type_related_to::RecursionFlags;
+
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
-use crate::check::flow::FlowCacheKey;
-
 use self::check_expr::IterationUse;
 use self::check_expr::get_suggestion_boolean_op;
+use self::check_type_related_to::RecursionFlags;
 use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
+use self::flow::FlowCacheKey;
 use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};

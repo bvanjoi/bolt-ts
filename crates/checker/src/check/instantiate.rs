@@ -3,11 +3,11 @@ use super::instantiation_ty_map::{
     ConditionalTyInstantiationTyMap, TyAliasInstantiationMap, TyCacheTrait,
 };
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, ObjectMappedTyLinks};
+use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
-use crate::check::{TyInstantiationMap, errors};
-use crate::ty::{self, ObjectMappedTyLinks};
-use crate::ty::{ObjectFlags, TyMapper, TypeFlags};
+use super::{TyInstantiationMap, errors};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;

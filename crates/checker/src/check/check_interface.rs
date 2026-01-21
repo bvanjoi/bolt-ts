@@ -61,7 +61,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_ty_member(&mut self, member: &'cx ast::ObjectTyMember<'cx>) {
         match member.kind {
-            ast::ObjectTyMemberKind::Prop(n) => self.check_var_like_decl(n),
+            ast::ObjectTyMemberKind::Prop(n) => {
+                let decl_name = ast::DeclarationName::from_prop_name(n.name);
+                self.check_invalid_dynamic_name(decl_name, |this| {
+                    let error = errors::AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhoseTypeIsALiteralTypeOrAUniqueSymbolType {
+                        span: n.name.span(),
+                    };
+                    this.push_error(Box::new(error));
+                });
+                self.check_var_like_decl(n)
+            }
             _ => {
                 // TODO:
             }

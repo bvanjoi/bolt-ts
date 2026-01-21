@@ -18,8 +18,8 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomIntern) -> String {
     match binding.kind {
         super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
-        super::BindingKind::ObjectPat(n) => todo!(),
-        crate::BindingKind::ArrayPat(n) => todo!(),
+        super::BindingKind::ObjectPat(_) => todo!(),
+        super::BindingKind::ArrayPat(_) => todo!(),
     }
 }
 

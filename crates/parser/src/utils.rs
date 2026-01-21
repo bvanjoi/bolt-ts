@@ -1,6 +1,7 @@
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
+use enumflags2::BitFlag;
 
 use crate::lookahead::Lookahead;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
@@ -407,11 +408,20 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         allow_decorators: bool,
     ) -> Option<&'cx ast::Modifiers<'cx>> {
+        let push_precede_error = |this: &mut Self, x: &ast::Modifier, y: ast::ModifierKind| {
+            let error = errors::XModifierMustPrecedeYModifier {
+                span: x.span,
+                x: x.kind,
+                y,
+            };
+            this.push_error(Box::new(error));
+        };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let has_seen_static_modifier = false;
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
+        let mut flags = ast::ModifierKind::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
@@ -420,15 +430,50 @@ impl<'cx> ParserState<'cx, '_> {
             else {
                 break;
             };
+            flags.insert(m.kind);
             list.push(m);
+
+            match m.kind {
+                ast::ModifierKind::Override => {
+                    if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Public
+                | ast::ModifierKind::Protected
+                | ast::ModifierKind::Private => {
+                    if flags.contains(ast::ModifierKind::Static) {
+                        push_precede_error(self, m, ast::ModifierKind::Static);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Static => {
+                    if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Override) {
+                        push_precede_error(self, m, ast::ModifierKind::Override);
+                    }
+                }
+                _ => {}
+            }
         }
         if list.is_empty() {
             None
         } else {
             let span = self.new_span(start);
-            let flags = list
-                .iter()
-                .fold(Default::default(), |flags, m| flags | m.kind);
             let ms = self.alloc(ast::Modifiers {
                 span,
                 flags,

@@ -1054,6 +1054,16 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))
         } else if self.is_index_sig() {
+            if let Some(ms) = modifiers {
+                for m in ms.list {
+                    if !matches!(m.kind, ast::ModifierKind::Readonly) {
+                        self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
+                            span: m.span,
+                            kind: m.kind,
+                        }));
+                    }
+                }
+            }
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),

@@ -10,6 +10,7 @@
 		"test": "playwright clear-cache && playwright test"
 	},
 	"dependencies": {
+		"@bolt-ts/napi": "workspace:*",
 		"@hookform/resolvers": "^5.2.2",
 		"@monaco-editor/react": "4.7.0",
 		"@radix-ui/react-accordion": "1.2.12",

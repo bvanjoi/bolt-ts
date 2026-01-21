@@ -1,3 +1,4 @@
 packages:
+  - 'packages/napi'
   - 'packages/playground'
   - 'packages/vscode-extension'
