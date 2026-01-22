@@ -2036,8 +2036,8 @@ impl<'cx> TyChecker<'cx> {
             );
         }
 
-        if let Some(ret_t) = ret_ty {
-            ret_ty = Some(self.get_widened_ty(ret_t));
+        if let Some(ty) = ret_ty {
+            ret_ty = Some(self.get_widened_ty(ty));
         }
 
         ret_ty.unwrap_or(fallback_ret_ty)

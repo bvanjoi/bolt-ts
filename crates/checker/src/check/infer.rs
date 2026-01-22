@@ -220,6 +220,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         ty_param: &'cx ty::Ty<'cx>,
     ) -> bool {
+        // TODO: get_ty_predicate_of_sig
         let ret_ty = self.get_ret_ty_of_sig(sig);
         self.is_ty_param_at_top_level(ret_ty, ty_param, 0)
     }
@@ -454,7 +455,7 @@ impl<'cx> TyChecker<'cx> {
                         inferred_contravariant_ty.is_none_or(|inferred_contravariant_ty| {
                             !inferred_contravariant_ty
                                 .flags
-                                .intersects(TypeFlags::NEVER | TypeFlags::ANY)
+                                .intersects(TypeFlags::NEVER.union(TypeFlags::ANY))
                                 && self
                                     .inference_info(inference, idx)
                                     .contra_candidates
@@ -548,19 +549,53 @@ impl<'cx> TyChecker<'cx> {
                 constraint,
                 Some(self.inference(inference).non_fixing_mapper),
             );
-            if inferred_ty.is_none_or(|inferred_ty| {
-                let ty =
-                    self.get_ty_with_this_arg(instantiated_constraint, Some(inferred_ty), false);
-                // TODO: more flexible compare types
-                !self.is_type_related_to(inferred_ty, ty, super::relation::RelationKind::Assignable)
-            }) {
-                // TODO: fallback
-                self.override_inferred_ty_of_inference_info(
-                    inference,
-                    idx,
-                    instantiated_constraint,
+            if let Some(ty) = inferred_ty {
+                let constraint_with_this =
+                    self.get_ty_with_this_arg(instantiated_constraint, Some(ty), false);
+                // TODO: `ctx.compare_types`
+                if !self.is_type_related_to(
+                    ty,
+                    constraint_with_this,
+                    super::relation::RelationKind::Assignable,
+                ) {
+                    let filtered_by_constraint = if self
+                        .inference_info(inference, idx)
+                        .priority
+                        .is_some_and(|p| p == InferencePriority::RETURN_TYPE)
+                    {
+                        // TODO: filter_ty
+                        ty
+                    } else {
+                        self.never_ty
+                    };
+                    if filtered_by_constraint.flags.contains(TypeFlags::NEVER) {
+                        inferred_ty = None;
+                    }
+                }
+            }
+            if inferred_ty.is_none() {
+                inferred_ty = Some(
+                    if let Some(fallback_ty) = fallback_ty
+                    && let target =
+                        self.get_ty_with_this_arg(instantiated_constraint, Some(fallback_ty), false)
+                        // TODO: `ctx.compare_types`
+                    && self.is_type_related_to(
+                        fallback_ty,
+                        target,
+                        super::relation::RelationKind::Assignable,
+                    ) {
+                        fallback_ty
+                    } else {
+                        instantiated_constraint
+                    },
                 );
             }
+            self.override_inferred_ty_of_inference_info(inference, idx, inferred_ty.unwrap());
+        }
+
+        // clear_active_mapper_cache
+        for mapper_cache in &mut self.activity_ty_mapper_caches {
+            mapper_cache.clear();
         }
 
         self.inference_info(inference, idx).inferred_ty.unwrap()
@@ -706,11 +741,11 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-
+        // TODO: rest_ty
         self.get_inferred_tys(inference)
     }
 
-    pub(super) fn infer_from_annotated_params(
+    pub(super) fn infer_from_annotated_params_and_return(
         &mut self,
         sig: &'cx Sig<'cx>,
         contextual_sig: &'cx Sig<'cx>,
@@ -769,7 +804,11 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Sig<'cx>,
         f: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
     ) {
-        // TODO: handle ty_pred
+        if let Some(target_ty_pred) = self.get_ty_predicate_of_sig(target)
+            && let Some(source_ty_pred) = self.get_ty_predicate_of_sig(source)
+        {
+            todo!("type_predicate_kind_match");
+        }
         let target_ret_ty = self.get_ret_ty_of_sig(target);
         if self.could_contain_ty_var(target_ret_ty) {
             let source_ret_ty = self.get_ret_ty_of_sig(source);

@@ -210,6 +210,7 @@ impl<'cx> Expr<'cx> {
                 | Template(_)
                 | Super(_)
                 | NonNull(_)
+                | ExprWithTyArgs(_)
         )
     }
 }

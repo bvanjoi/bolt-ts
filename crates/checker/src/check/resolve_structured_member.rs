@@ -175,19 +175,19 @@ impl<'cx> TyChecker<'cx> {
                 assert!(prev.is_none());
             }
         }
-
+        // TODO: this
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
         });
 
-        (self.new_sig(ty::Sig {
+        self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
             params,
             ty_params: fresh_ty_params,
             id: SigID::dummy(),
             ..*sig
-        })) as _
+        })
     }
 
     fn report_circular_base_ty(

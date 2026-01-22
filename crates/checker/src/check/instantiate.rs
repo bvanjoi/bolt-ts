@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::{
     ConditionalTyInstantiationTyMap, TyAliasInstantiationMap, TyCacheTrait,
@@ -12,7 +14,9 @@ use super::{TyInstantiationMap, errors};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;
 use bolt_ts_ast::keyword;
-use bolt_ts_binder::SymbolID;
+use bolt_ts_binder::{SymbolFlags, SymbolID};
+
+use thin_vec::thin_vec;
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(
@@ -677,14 +681,49 @@ impl<'cx> TyChecker<'cx> {
             ty_params
         } else {
             let outer_params = if let Some(outer_params) = self.get_outer_ty_params::<true>(decl) {
-                self.alloc(outer_params)
+                debug_assert!(!outer_params.is_empty());
+                Cow::Owned(outer_params)
             } else {
-                self.empty_array()
+                Cow::Borrowed(self.empty_array())
             };
-            self.get_mut_node_links(decl)
-                .set_outer_ty_params(outer_params);
-            // TODO: filter
-            outer_params
+            // let is_reference = ty.get_object_flags().intersects(
+            //     ObjectFlags::REFERENCE.union(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE),
+            // );
+            // let all_decls = if is_reference {
+            //     Some(thin_vec::thin_vec![decl])
+            // } else {
+            //     self.symbol(ty.symbol().unwrap()).decls.clone()
+            // };
+            // let target_symbol = target.symbol().unwrap();
+            // let target_s = self.symbol(target_symbol);
+            // let ty_params = if is_reference
+            //     || target_s
+            //         .flags
+            //         .intersects(SymbolFlags::METHOD.union(SymbolFlags::TYPE_LITERAL))
+            // // TODO: && !target.aliasTypeArguments
+            // {
+            //     Cow::Owned(
+            //         outer_params
+            //             .iter()
+            //             .filter(|tp| {
+            //                 all_decls.as_ref().is_some_and(|all_decls| {
+            //                     all_decls
+            //                         .iter()
+            //                         .any(|&d| self.is_ty_param_possibly_referenced(tp, d))
+            //                 })
+            //             })
+            //             .copied()
+            //             .collect::<Vec<_>>(),
+            //     )
+            // } else {
+            //     outer_params
+            // };
+            let ty_params = match outer_params {
+                Cow::Borrowed(outer_params) => outer_params,
+                Cow::Owned(outer_params) => self.alloc(outer_params),
+            };
+            self.get_mut_node_links(decl).set_outer_ty_params(ty_params);
+            ty_params
         };
 
         if !ty_params.is_empty() {

@@ -151,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
         if let Some(ty_params) = sig.ty_params {
-            // TODO: cache
+            // TODO: baseSignatureCache
             let ty_eraser = self.create_ty_eraser(ty_params);
             let targets = {
                 let tys = ty_params

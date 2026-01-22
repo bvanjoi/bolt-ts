@@ -533,8 +533,12 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
             .collect::<Vec<_>>();
-        // TODO: get_intersected_sigs
-        if sigs.is_empty() { None } else { Some(sigs[0]) }
+        if sigs.is_empty() {
+            // TODO: get_intersected_sigs
+            None
+        } else {
+            Some(sigs[0])
+        }
     }
 
     pub(super) fn get_contextual_sig_for_fn_like_decl(

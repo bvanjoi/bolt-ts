@@ -1396,6 +1396,7 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let ty_args = self.alloc(ty_args);
+        // TODO: is_js
         let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), false, None);
         self.get_mut_sig_links(sig.id)
             .set_canonical_sig(canonical_sig_cache);
@@ -4207,71 +4208,95 @@ impl<'cx> TyChecker<'cx> {
             tp: &'cx ty::Ty<'cx>,
             checker: &'checker mut TyChecker<'cx>,
             contain_reference: bool,
+            stop: bool,
         }
 
         impl<'cx, 'checker> ContainReferenceVisitor<'cx, 'checker> {
             fn new(ty: &'cx ty::Ty<'cx>, checker: &'checker mut TyChecker<'cx>) -> Self {
+                debug_assert!(ty.kind.is_param());
                 Self {
                     tp: ty,
                     checker,
                     contain_reference: false,
+                    stop: false,
                 }
             }
         }
         impl<'cx> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
-            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
+            fn visit_this_ty(&mut self, _: &'cx bolt_ts_ast::ThisTy) {
+                if self.stop {
+                    return;
+                }
                 let t = self.tp.kind.expect_param();
+                if !t.is_this_ty {
+                    self.contain_reference = true;
+                    self.stop = true;
+                }
+            }
+            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
+                if self.stop {
+                    return;
+                }
+                let t = self.tp.kind.expect_param();
+                let nq = self.checker.node_query(n.id.module());
                 if !t.is_this_ty
-                    && self
-                        .checker
-                        .node_query(n.id.module())
-                        .is_part_of_ty_node(n.id)
-                    && self
-                        .checker
-                        .node_query(n.id.module())
-                        .maybe_ty_param_reference(n.id)
+                    && nq.is_part_of_ty_node(n.id)
+                    && nq.maybe_ty_param_reference(n.id)
                     && self.checker.get_ty_from_ident(n) == self.tp
                 {
                     self.contain_reference = true;
+                    self.stop = true;
+                }
+            }
+            fn visit_typeof_ty(&mut self, n: &'cx bolt_ts_ast::TypeofTy<'cx>) {
+                if self.stop {
+                    return;
+                }
+            }
+            fn visit_method_signature(&mut self, n: &'cx bolt_ts_ast::MethodSignature<'cx>) {
+                if self.stop {
+                    return;
+                }
+            }
+            fn visit_class_method_elem(&mut self, n: &'cx bolt_ts_ast::ClassMethodElem<'cx>) {
+                if self.stop {
+                    return;
                 }
             }
         }
 
         let tp = ty.kind.expect_param();
-        let decl = {
-            let Some(decls) = &self.symbol(tp.symbol).decls else {
+        let Some(decls) = &self.symbol(tp.symbol).decls else {
+            return true;
+        };
+        if decls.len() != 1 {
+            return true;
+        }
+        let decl = decls[0];
+        let Some(container) = self.parent(decl) else {
+            return true;
+        };
+        let mut n = node;
+        while n != container {
+            let node = self.p.node(n);
+            if node.is_block_stmt()
+                || node.as_cond_ty().is_some_and(|c| {
+                    let mut v = ContainReferenceVisitor::new(ty, self);
+                    bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
+                    v.contain_reference
+                })
+            {
                 return true;
             };
-            if decls.len() != 1 {
-                return true;
-            }
-            decls[0]
-        };
-        let container = self.parent(decl);
-        if let Some(container) = container {
-            let mut n = node;
-            while n != container {
-                let node = self.p.node(n);
-                if node.is_block_stmt()
-                    || node.as_cond_ty().is_some_and(|c| {
-                        let mut v = ContainReferenceVisitor::new(ty, self);
-                        bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
-                        v.contain_reference
-                    })
-                {
-                    return true;
-                };
-                let Some(next) = self.parent(n) else {
-                    break;
-                };
-                n = next;
-            }
-            let n = self.p.node(n);
-            let mut v = ContainReferenceVisitor::new(ty, self);
-            bolt_ts_ast::visitor::visit_node(&mut v, &n);
-            return v.contain_reference;
+            let Some(next) = self.parent(n) else {
+                break;
+            };
+            n = next;
         }
-        true
+        let n = self.p.node(n);
+        let mut v = ContainReferenceVisitor::new(ty, self);
+        bolt_ts_ast::visitor::visit_node(&mut v, &n);
+        v.contain_reference
     }
 
     fn get_annotated_accessor_ty(&mut self, n: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
@@ -4609,7 +4634,7 @@ impl<'cx> TyChecker<'cx> {
             target_count
         };
         let param_count = if source_rest_ty.is_some() {
-            target_count
+            target_non_rest_count
         } else {
             usize::min(source_count, target_non_rest_count)
         };

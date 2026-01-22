@@ -204,9 +204,10 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
         Intrinsic(n) => v.visit_intrinsic_ty(n),
         Nullable(n) => v.visit_nullable_ty(n),
         TemplateLit(n) => v.visit_template_lit_ty(n),
-        This(_) => {}
+        This(n) => v.visit_this_ty(n),
     }
 }
+pub fn visit_this_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ThisTy) {}
 pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ReferTy<'cx>) {
     // TODO: name
     if let Some(ty_args) = n.ty_args {
@@ -480,6 +481,7 @@ make_visitor!(
     (visit_call_expr, super::CallExpr<'cx>),
     (visit_prop_signature, super::PropSignature<'cx>),
     (visit_method_signature, super::MethodSignature<'cx>),
+    (visit_this_ty, super::ThisTy)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
