@@ -98,6 +98,16 @@ impl<'cx> DeclarationName<'cx> {
             Computed(n) => n.span,
         }
     }
+
+    pub fn to_string(&self, atoms: &bolt_ts_atom::AtomIntern) -> String {
+        use DeclarationName::*;
+        match self {
+            Ident(n) => atoms.get(n.name).to_string(),
+            NumLit(n) => n.val.to_string(),
+            StringLit { raw, .. } => atoms.get(raw.val).to_string(),
+            Computed(n) => todo!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

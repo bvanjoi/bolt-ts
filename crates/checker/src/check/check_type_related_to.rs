@@ -1902,7 +1902,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let is_top_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
-            if sig.ty_params.is_none()
+            if this.c.get_sig_links(sig.id).get_ty_params().is_none()
                 && sig.params.len() == 1
                 && sig.has_rest_param()
                 && (sig.this_param.is_none_or(|this_param| {
@@ -1951,10 +1951,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source_has_more_params {
             return Ternary::FALSE;
         }
-        if let Some(ty_params) = source.ty_params
-            && target
-                .ty_params
-                .is_none_or(|target_ty_params| !std::ptr::eq(ty_params, target_ty_params))
+        if let Some(source_ty_params) = self.c.get_sig_links(source.id).get_ty_params()
+            && self
+                .c
+                .get_sig_links(target.id)
+                .get_ty_params()
+                .is_none_or(|target_ty_params| !std::ptr::eq(source_ty_params, target_ty_params))
         {
             // when compare signatures, such as:
             // `<G>() => G` and `<T>() => T`

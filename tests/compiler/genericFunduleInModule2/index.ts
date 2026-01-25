@@ -1,7 +1,10 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/genericFunduleInModule.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/genericFunduleInModule2.ts`, Apache-2.0 License
 
 namespace A {
     export function B<T>(x: T) { return x; }
+}
+
+namespace A {
     export namespace B {
         export var x = 1;
     }

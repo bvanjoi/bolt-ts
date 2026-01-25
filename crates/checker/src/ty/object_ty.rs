@@ -37,6 +37,13 @@ impl<'cx> ObjectTyKind<'cx> {
             .as_object_tuple()
             .filter(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
     }
+
+    pub fn alias_ty_arguments(&self) -> Option<super::Tys<'cx>> {
+        match self {
+            ObjectTyKind::Mapped(m) => m.alias_ty_arguments,
+            _ => None,
+        }
+    }
 }
 
 macro_rules! ty_kind_as_object_ty_kind {

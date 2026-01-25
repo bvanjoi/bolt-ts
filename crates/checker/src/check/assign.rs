@@ -181,16 +181,14 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         context: &'cx ty::Sig<'cx>,
     ) {
-        let ty_params = if context.ty_params.is_some() {
-            if sig.ty_params.is_none() {
-                // TODO: store context ty_params into sig.
-                context.ty_params
+        if let Some(context_ty_params) = self.get_sig_links(context.id).get_ty_params() {
+            if self.get_sig_links(sig.id).get_ty_params().is_none() {
+                self.get_mut_sig_links(sig.id)
+                    .set_ty_params(context_ty_params);
             } else {
                 return;
             }
-        } else {
-            sig.ty_params
-        };
+        }
 
         let sig_has_rest = sig.has_rest_param();
         let len = sig.params.len() - (if sig_has_rest { 1 } else { 0 });

@@ -155,7 +155,10 @@ impl<'cx> TyChecker<'cx> {
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         if sigs.len() == 1 {
             let sig = sigs[0];
-            if sig.ty_params.is_none() && sig.params.len() == 1 && sig.has_rest_param() {
+            if self.get_sig_links(sig.id).get_ty_params().is_none()
+                && sig.params.len() == 1
+                && sig.has_rest_param()
+            {
                 let param_ty = self.get_type_of_param(sig.params[0]);
                 return self.is_type_any(param_ty)
                     || self
@@ -378,8 +381,8 @@ impl<'cx> TyChecker<'cx> {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);
                         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-                        if let Some(sigs) = sigs.first()
-                            && let Some(ty_params) = sigs.ty_params
+                        if let Some(sig) = sigs.first()
+                            && let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params()
                         {
                             return if let Some(mut outer_ty_params) = outer_ty_params {
                                 outer_ty_params.extend(ty_params);

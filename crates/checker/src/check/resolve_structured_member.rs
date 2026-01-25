@@ -158,7 +158,7 @@ impl<'cx> TyChecker<'cx> {
         erase_ty_params: bool,
     ) -> &'cx ty::Sig<'cx> {
         let mut fresh_ty_params = None;
-        if !erase_ty_params && let Some(ty_params) = &sig.ty_params {
+        if !erase_ty_params && let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
             let new_ty_params = ty_params
                 .iter()
                 .map(|ty| self.clone_param_ty(ty))
@@ -180,14 +180,20 @@ impl<'cx> TyChecker<'cx> {
             this.instantiate_symbol(symbol, mapper)
         });
 
-        self.new_sig(ty::Sig {
+        let sig = self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
             params,
-            ty_params: fresh_ty_params,
             id: SigID::dummy(),
             ..*sig
-        })
+        });
+        if let Some(fresh_ty_params) = fresh_ty_params {
+            let links = SigLinks::default().with_ty_params(fresh_ty_params);
+            let prev = self.sig_links.insert(sig.id, links);
+            debug_assert!(prev.is_none());
+        }
+
+        sig
     }
 
     fn report_circular_base_ty(
@@ -637,7 +643,6 @@ impl<'cx> TyChecker<'cx> {
         let next = ty::Sig {
             id: SigID::dummy(),
             flags: sig.flags & SigFlags::PROPAGATING_FLAGS,
-            ty_params: sig.ty_params,
             params: sig.params,
             this_param: sig.this_param,
             min_args_count: sig.min_args_count,
@@ -647,9 +652,14 @@ impl<'cx> TyChecker<'cx> {
             mapper: sig.mapper,
             class_decl: sig.class_decl,
         };
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            let links = SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(next.id, links);
+            debug_assert!(prev.is_none());
+        }
 
         // TODO: composite_kind and composite_signatures
-        (self.new_sig(next)) as _
+        self.new_sig(next)
     }
 
     fn get_default_construct_sigs(
@@ -673,7 +683,6 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     SigFlags::empty()
                 },
-                ty_params: i.local_ty_params,
                 this_param: None,
                 params: self.empty_array(),
                 min_args_count: 0,
@@ -684,10 +693,14 @@ impl<'cx> TyChecker<'cx> {
                 id: SigID::dummy(),
                 class_decl: decl,
             });
-            let prev = self
-                .sig_links
-                .insert(sig.id, SigLinks::default().with_resolved_ret_ty(class_ty));
-            assert!(prev.is_none());
+            let links = SigLinks::default().with_resolved_ret_ty(class_ty);
+            let links = if let Some(ty_params) = i.local_ty_params {
+                links.with_ty_params(ty_params)
+            } else {
+                links
+            };
+            let prev = self.sig_links.insert(sig.id, links);
+            debug_assert!(prev.is_none());
             self.alloc([sig])
         } else if let Some(base_ty_node) = self.get_base_type_node_of_class(class_ty) {
             let is_js = false;
@@ -695,14 +708,15 @@ impl<'cx> TyChecker<'cx> {
             let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
             let mut res = Vec::with_capacity(base_sigs.len());
             for base_sig in base_sigs {
-                let min_ty_argument_count = self.get_min_ty_arg_count(base_sig.ty_params);
-                let ty_param_count = base_sig.ty_params.map(|t| t.len()).unwrap_or_default();
+                let base_sig_ty_params = self.get_sig_links(base_sig.id).get_ty_params();
+                let min_ty_argument_count = self.get_min_ty_arg_count(base_sig_ty_params);
+                let ty_param_count = base_sig_ty_params.map(|t| t.len()).unwrap_or_default();
                 if is_js || ty_arg_count >= min_ty_argument_count && ty_arg_count <= ty_param_count
                 {
                     let sig = if ty_param_count > 0 {
                         let ty_args = self.fill_missing_ty_args(
                             ty_args,
-                            base_sig.ty_params,
+                            base_sig_ty_params,
                             min_ty_argument_count,
                         );
                         self.create_sig_instantiation(base_sig, ty_args)
@@ -715,6 +729,11 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         SigLinks::default().with_resolved_ret_ty(class_ty)
                     };
+                    let links = if let Some(ty_params) = i.local_ty_params {
+                        links.with_ty_params(ty_params)
+                    } else {
+                        links
+                    };
                     let sig = ty::Sig {
                         id: ty::SigID::dummy(),
                         flags: if is_abstract {
@@ -722,7 +741,6 @@ impl<'cx> TyChecker<'cx> {
                         } else {
                             sig.flags & !SigFlags::ABSTRACT
                         },
-                        ty_params: i.local_ty_params,
                         params: sig.params,
                         this_param: sig.this_param,
                         min_args_count: sig.min_args_count,
@@ -1157,11 +1175,14 @@ impl<'cx> TyChecker<'cx> {
             return Ternary::TRUE;
         } else if !self.is_matching_sig(source, target, partial_match) {
             return Ternary::FALSE;
-        } else if source.ty_params.map(|t| t.len()) != target.ty_params.map(|t| t.len()) {
+        }
+        let source_ty_params = self.get_sig_links(source.id).get_ty_params();
+        let target_ty_params = self.get_sig_links(target.id).get_ty_params();
+        if source_ty_params.map(|t| t.len()) != target_ty_params.map(|t| t.len()) {
             return Ternary::FALSE;
         }
-        if let Some(target_ty_params) = target.ty_params {
-            let source_ty_params = source.ty_params.unwrap();
+        if let Some(target_ty_params) = target_ty_params {
+            let source_ty_params = source_ty_params.unwrap();
             let mapper = self.create_ty_mapper(source_ty_params, target_ty_params);
             for i in 0..target_ty_params.len() {
                 let s = source_ty_params[i];

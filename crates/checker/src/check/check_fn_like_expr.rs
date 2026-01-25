@@ -103,7 +103,6 @@ impl<'cx> TyChecker<'cx> {
                     params: self.empty_array(),
                     ret: None,
                     flags: ty::SigFlags::IS_NON_INFERRABLE,
-                    ty_params: None,
                     this_param: None,
                     target: None,
                     mapper: None,

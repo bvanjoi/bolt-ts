@@ -9,7 +9,7 @@ impl<'cx> TyChecker<'cx> {
         ty.flags
             .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
             || ty.kind.as_intersection().is_some_and(|i| {
-                !self.is_generic(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
+                !self.is_generic_ty(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
             })
             || ty.is_pattern_lit_ty()
     }

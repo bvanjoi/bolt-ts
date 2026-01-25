@@ -1119,3 +1119,21 @@ pub(super) struct AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhose
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Object literal's property '{prop}' implicitly has an '{ty}' type.")]
+pub(super) struct ObjectLiteralSPropertyXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}', which lacks return-type annotation, implicitly has an '{y}' return type.")]
+pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

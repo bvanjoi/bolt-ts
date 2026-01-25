@@ -516,11 +516,11 @@ impl<'cx> TyChecker<'cx> {
         candidate: &'cx Sig<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
     ) -> bool {
-        let num_ty_params = candidate
-            .ty_params
+        let ty_params = self.get_sig_links(candidate.id).get_ty_params();
+        let num_ty_params = ty_params
             .map(|ty_params| ty_params.len())
             .unwrap_or_default();
-        let min_ty_args = self.get_min_ty_arg_count(candidate.ty_params);
+        let min_ty_args = self.get_min_ty_arg_count(ty_params);
         if let Some(ty_args) = ty_args {
             let ty_args = ty_args.list;
             if ty_args.is_empty() {
@@ -658,7 +658,9 @@ impl<'cx> TyChecker<'cx> {
         ty_args: &'cx ast::Tys<'cx>,
         report_error: bool,
     ) -> Option<ty::Tys<'cx>> {
-        let ty_params = sig.ty_params.unwrap();
+        let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
+            unreachable!();
+        };
         let ty_arg_tys = {
             let ty_arg_tys = ty_args
                 .list
@@ -737,7 +739,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut check_candidate = *candidate;
                 let mut infer_ctx = None;
 
-                if let Some(ty_params) = candidate.ty_params {
+                if let Some(ty_params) = self.get_sig_links(candidate.id).get_ty_params() {
                     let ty_arg_tys;
                     if let Some(ty_args) = ty_args {
                         ty_arg_tys = self.check_ty_args(candidate, ty_args, false);
@@ -846,7 +848,11 @@ impl<'cx> TyChecker<'cx> {
         let args = self.get_effective_call_args(expr);
 
         let is_single = candidates.len() == 1;
-        let is_single_non_generic_candidate = is_single && candidates[0].ty_params.is_none();
+        let is_single_non_generic_candidate = is_single
+            && self
+                .get_sig_links(candidates[0].id)
+                .get_ty_params()
+                .is_none();
 
         let mut argument_check_mode = CheckMode::empty();
         if !is_single_non_generic_candidate
@@ -1035,9 +1041,9 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or_default();
         if sigs.len() == 1 {
             let sig = sigs[0];
-            let min = self.get_min_ty_arg_count(sig.ty_params);
-            let max = sig
-                .ty_params
+            let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
+            let min = self.get_min_ty_arg_count(sig_ty_params);
+            let max = sig_ty_params
                 .map(|ty_params| ty_params.len())
                 .unwrap_or_default();
             let x = if min == max {
@@ -1119,9 +1125,11 @@ impl<'cx> TyChecker<'cx> {
         assert!(!candidates.is_empty());
         // self.check_node_deferred(expr.id());
         if candidates.len() == 1
-            || candidates
-                .iter()
-                .any(|c| c.ty_params.is_some_and(|ty_params| !ty_params.is_empty()))
+            || candidates.iter().any(|c| {
+                self.get_sig_links(c.id)
+                    .get_ty_params()
+                    .is_some_and(|ty_params| !ty_params.is_empty())
+            })
         {
             self.pick_longest_candidate_sig(expr, candidates, args)
         } else {
@@ -1248,7 +1256,6 @@ impl<'cx> TyChecker<'cx> {
             flags,
             id: ty::SigID::dummy(),
             node_id: candidates[0].node_id,
-            ty_params: None,
             params: self.alloc(params),
             this_param,
             min_args_count,
@@ -1314,7 +1321,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> (usize, &'cx Sig<'cx>) {
         let best_index = self.get_longest_candidate_index(candidates, args.len());
         let candidate = candidates[best_index];
-        let Some(ty_params) = candidate.ty_params else {
+        let Some(ty_params) = self.get_sig_links(candidate.id).get_ty_params() else {
             return (best_index, candidate);
         };
         if ty_params.is_empty() {

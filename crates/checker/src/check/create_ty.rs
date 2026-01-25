@@ -609,8 +609,7 @@ impl<'cx> TyChecker<'cx> {
                     if includes.intersects(TypeFlags::INCLUDES_NON_WIDENING_TYPE) {
                         self.undefined_ty
                     } else {
-                        // TODO: undefined_widening_ty
-                        self.undefined_ty
+                        self.undefined_widening_ty
                     }
                 } else {
                     self.never_ty

@@ -420,6 +420,16 @@ impl<'cx> Ty<'cx> {
             ty.target == t || self == t
         })
     }
+
+    pub fn alias_ty_arguments(&self) -> Option<Tys<'cx>> {
+        match self.kind {
+            TyKind::Union(ty) => ty.alias_ty_arguments,
+            TyKind::Intersection(ty) => ty.alias_ty_arguments,
+            TyKind::Cond(ty) => ty.alias_ty_arguments,
+            TyKind::Object(ty) => ty.kind.alias_ty_arguments(),
+            _ => None,
+        }
+    }
 }
 
 impl<'cx> TyKind<'cx> {
@@ -529,7 +539,7 @@ pub struct CondTy<'cx> {
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub combined_mapper: Option<&'cx dyn TyMap<'cx>>,
     pub alias_symbol: Option<SymbolID>,
-    pub alias_ty_args: Option<Tys<'cx>>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];

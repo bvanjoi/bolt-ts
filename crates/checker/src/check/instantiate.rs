@@ -234,7 +234,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let new_constraint = self.instantiate_ty(sub.constraint, Some(mapper));
                 if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
-                    && self.is_generic(new_constraint)
+                    && self.is_generic_ty(new_constraint)
                 {
                     self.get_substitution_ty(new_base_ty, new_constraint)
                 } else if new_constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || {
@@ -680,7 +680,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_params = if let Some(ty_params) = self.get_node_links(decl).get_outer_ty_params() {
             ty_params
         } else {
-            let outer_params = if let Some(outer_params) = self.get_outer_ty_params::<true>(decl) {
+            let ty_params = if let Some(outer_params) = self.get_outer_ty_params::<true>(decl) {
                 debug_assert!(!outer_params.is_empty());
                 Cow::Owned(outer_params)
             } else {
@@ -692,18 +692,20 @@ impl<'cx> TyChecker<'cx> {
             // let all_decls = if is_reference {
             //     Some(thin_vec::thin_vec![decl])
             // } else {
-            //     self.symbol(ty.symbol().unwrap()).decls.clone()
+            //     let s = self.symbol(ty.symbol().unwrap());
+            //     debug_assert!(s.decls.is_some());
+            //     s.decls.clone()
             // };
             // let target_symbol = target.symbol().unwrap();
             // let target_s = self.symbol(target_symbol);
-            // let ty_params = if is_reference
+            // let ty_params = if (is_reference
             //     || target_s
             //         .flags
-            //         .intersects(SymbolFlags::METHOD.union(SymbolFlags::TYPE_LITERAL))
-            // // TODO: && !target.aliasTypeArguments
+            //         .intersects(SymbolFlags::METHOD.union(SymbolFlags::TYPE_LITERAL)))
+            //     && target.alias_ty_arguments().is_none()
             // {
             //     Cow::Owned(
-            //         outer_params
+            //         ty_params
             //             .iter()
             //             .filter(|tp| {
             //                 all_decls.as_ref().is_some_and(|all_decls| {
@@ -716,11 +718,11 @@ impl<'cx> TyChecker<'cx> {
             //             .collect::<Vec<_>>(),
             //     )
             // } else {
-            //     outer_params
+            //     ty_params
             // };
-            let ty_params = match outer_params {
-                Cow::Borrowed(outer_params) => outer_params,
-                Cow::Owned(outer_params) => self.alloc(outer_params),
+            let ty_params = match ty_params {
+                Cow::Borrowed(n) => n,
+                Cow::Owned(n) => self.alloc(n),
             };
             self.get_mut_node_links(decl).set_outer_ty_params(ty_params);
             ty_params
@@ -915,10 +917,11 @@ impl<'cx> TyChecker<'cx> {
         is_js: bool,
         inferred_ty_params: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Sig<'cx> {
+        let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
         let ty_args = self.fill_missing_ty_args(
             ty_args,
-            sig.ty_params,
-            self.get_min_ty_arg_count(sig.ty_params),
+            sig_ty_params,
+            self.get_min_ty_arg_count(sig_ty_params),
         );
         let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
         if let Some(inferred_ty_params) = inferred_ty_params {

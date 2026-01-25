@@ -182,7 +182,8 @@ fn get_instantiated_sigs<'cx>(
     ty_args: &'cx ast::Tys<'cx>,
 ) -> ty::Sigs<'cx> {
     let applicable_sigs = checker.filter(sigs, |checker, sig| {
-        sig.ty_params.is_some() && checker.has_correct_ty_arg_arity(sig, Some(ty_args))
+        checker.get_sig_links(sig.id).get_ty_params().is_some()
+            && checker.has_correct_ty_arg_arity(sig, Some(ty_args))
     });
     checker
         .same_map_sigs(Some(applicable_sigs), |this, sig, _| {

@@ -642,7 +642,7 @@ impl<'cx> TyChecker<'cx> {
         check_mode: CheckMode,
         inference: InferenceContextId,
     ) -> ty::Tys<'cx> {
-        let Some(sig_ty_params) = sig.ty_params else {
+        let Some(sig_ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
             unreachable!()
         };
 
@@ -665,7 +665,9 @@ impl<'cx> TyChecker<'cx> {
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
                     let inference_source_ty =
                         if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
-                            if let Some(ty_param) = contextual_sig.ty_params {
+                            if let Some(ty_param) =
+                                self.get_sig_links(contextual_sig.id).get_ty_params()
+                            {
                                 // TODO: `get_or_create_ty_from_sig`
                                 instantiated_ty
                             } else {
@@ -760,6 +762,11 @@ impl<'cx> TyChecker<'cx> {
                 self.infer_tys(inference, source, target, None, false);
             }
         }
+        if let Some(ty_node) = self.get_effective_ret_type_node(sig.def_id()) {
+            let source = self.get_ty_from_type_node(ty_node);
+            let target = self.get_ret_ty_of_sig(contextual_sig);
+            self.infer_tys(inference, source, target, None, false);
+        }
     }
 
     pub(super) fn infer_state<'checker>(
@@ -779,9 +786,9 @@ impl<'cx> TyChecker<'cx> {
             bivariant: false,
             propagation_ty: None,
             expanding_flags: RecursionFlags::empty(),
-            source_stack: Vec::with_capacity(32),
-            target_stack: Vec::with_capacity(32),
-            visited: fx_hashmap_with_capacity(32),
+            source_stack: Vec::with_capacity(4),
+            target_stack: Vec::with_capacity(4),
+            visited: fx_hashmap_with_capacity(4),
             original_target,
         }
     }
@@ -2042,8 +2049,9 @@ impl<'cx> InferenceState<'cx, '_> {
                 || n.is_class_ctor();
 
             self.apply_to_param_tys(source, target, |this, source, target| {
-                let strict_fn_tys = false; // TODO: config;
-                if strict_fn_tys || this.priority.intersects(InferencePriority::ALWAYS_STRICT) {
+                if this.c.config.strict_function_types()
+                    || this.priority.intersects(InferencePriority::ALWAYS_STRICT)
+                {
                     this.infer_from_contravariant_tys(source, target);
                 } else {
                     this.infer_from_tys(source, target);
@@ -2068,10 +2076,10 @@ impl<'cx> InferenceState<'cx, '_> {
         if source_len > 0 {
             let target_sigs = self.c.get_signatures_of_type(target, kind);
             let target_len = target_sigs.len();
-            for (i, sig) in target_sigs.iter().enumerate().take(target_len) {
+            for (i, target_sig) in target_sigs.iter().enumerate().take(target_len) {
                 let source_index = (source_len + i).saturating_sub(target_len);
                 let source = self.c.get_base_sig(source_sigs[source_index]);
-                let target = self.c.get_erased_sig(sig);
+                let target = self.c.get_erased_sig(target_sig);
                 self.infer_from_sig(source, target);
             }
         }
