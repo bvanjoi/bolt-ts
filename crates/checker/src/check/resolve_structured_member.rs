@@ -945,11 +945,6 @@ impl<'cx> TyChecker<'cx> {
         let a = ty.kind.expect_object_anonymous();
         let symbol_id = a.symbol.unwrap();
         let symbol = self.symbol(symbol_id);
-        assert!(
-            !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
-            "Object literal should be resolved during check"
-        );
-
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
             let members = {
@@ -976,6 +971,10 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_ty_links(ty.id).set_structured_members(m);
             return;
         }
+        assert!(
+            !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
+            "Object literal should be resolved during check"
+        );
         // TODO: get_merged_symbol
         // let symbol_id = self.get_merged_symbol(symbol_id);
         // let symbol = self.symbol(symbol_id);

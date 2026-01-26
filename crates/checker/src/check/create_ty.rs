@@ -6,16 +6,15 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
-use crate::check::SymbolLinks;
-use crate::check::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
-use crate::check::links::TyLinks;
-use crate::ty;
-use crate::ty::{
-    CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
-};
-
+use super::SymbolLinks;
+use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
+use super::links::TyLinks;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::{
+    CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
+};
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, IntersectionMap, UnionMap};
 use super::{TyChecker, errors};
@@ -1587,13 +1586,8 @@ impl<'cx> TyChecker<'cx> {
                     };
                     return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
                 }
-                return self.get_intersection_ty(
-                    &[left, right],
-                    IntersectionFlags::None,
-                    None,
-                    None,
-                );
             }
+            return self.get_intersection_ty(&[left, right], IntersectionFlags::None, None, None);
         }
 
         let left_props = self.get_props_of_ty(left);

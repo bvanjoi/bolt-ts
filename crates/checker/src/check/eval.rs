@@ -1,6 +1,6 @@
-use crate::check::{get_declared_ty::EnumMemberValue, symbol_info::SymbolInfo};
-
 use super::TyChecker;
+use super::{get_declared_ty::EnumMemberValue, symbol_info::SymbolInfo};
+
 use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};

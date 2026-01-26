@@ -3,9 +3,9 @@ use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::TypeFlags;
 
-use crate::ty;
-use crate::ty::TypeFlags;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::SymbolName;
 

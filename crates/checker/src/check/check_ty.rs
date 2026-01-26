@@ -2,6 +2,7 @@ use super::TyChecker;
 use super::ast;
 use super::errors;
 use super::symbol_info::SymbolInfo;
+use super::ty;
 use super::ty::ElementFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -142,7 +143,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
         let ty = self.get_ty_from_type_node(n.key_ty);
-        if !self.every_type(ty, |this, ty| this.is_valid_index_key_ty(ty)) {
+        if self.some_type(ty, |this, t| {
+            t.flags
+                .intersects(ty::TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+                || this.is_generic_ty(ty)
+        }) {
+            let error = errors::AnIndexSignatureParameterTypeCannotBeALiteralTypeOrGenericTypeConsiderUsingAMappedObjectTypeInstead {
+                span: n.span,
+            };
+            self.push_error(Box::new(error));
+        } else if !self.every_type(ty, |this, ty| this.is_valid_index_key_ty(ty)) {
             let error = errors::AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
                 span: n.span,
             };

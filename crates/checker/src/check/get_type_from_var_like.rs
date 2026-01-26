@@ -3,12 +3,17 @@ use super::SymbolInfo;
 use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::errors;
+use super::relation;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ty::Ty;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
+use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolID;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
@@ -56,11 +61,22 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(parent.is_binding());
         let parent_parent_id = self.parent(parent_id).unwrap();
         let parent_parent = self.p.node(parent_parent_id);
-        match parent_parent {
-            ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
-            _ => {
-                // TODO:
-                None
+        if self.check_mode.is_some_and(|m| m != CheckMode::empty()) {
+            match parent_parent {
+                ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+                _ => {
+                    // TODO:
+                    None
+                }
+            }
+        } else {
+            // TODO: cache
+            match parent_parent {
+                ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+                _ => {
+                    // TODO:
+                    None
+                }
             }
         }
     }
@@ -113,15 +129,22 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
                 return self.error_ty;
             }
-            // TODO:
-            // const literalMembers: PropertyName[] = [];
-            // for (const element of pattern.elements) {
-            //     if (!element.dotDotDotToken) {
-            //         literalMembers.push(element.propertyName || element.name as Identifier);
-            //     }
-            // }
-            // type = getRestType(parentType, literalMembers, declaration.symbol);
-            parent_parent_ty
+            let mut literal_members = Vec::with_capacity(parent.elems.len());
+            for elem in parent.elems {
+                if elem.dotdotdot.is_none() {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(ident) => {
+                            literal_members.push(ast::PropNameKind::Ident(ident));
+                        }
+                        ast::ObjectBindingName::Prop { prop_name, .. } => {
+                            literal_members.push(prop_name.kind);
+                        }
+                    }
+                }
+            }
+            let symbol = self.get_symbol_of_decl(binding.id);
+            // TODO: getFlowTypeOfDestructuring
+            self.get_rest_ty(parent_parent_ty, &literal_members, Some(symbol))
         } else {
             let index_ty = match binding.name {
                 ast::ObjectBindingName::Shorthand(ident) => {
@@ -143,6 +166,122 @@ impl<'cx> TyChecker<'cx> {
             );
             // TODO: getFlowTypeOfDestructuring
             decl_ty
+        }
+    }
+
+    fn is_spreadable_property(&self, prop: SymbolID) -> bool {
+        let s = self.symbol(prop);
+        // TODO: s.decls.iter().any(|decl| self.is_private_identifier_class_element_declaration(decl))
+        let flags = s.flags;
+        return !flags.intersects(
+            SymbolFlags::METHOD
+                .union(SymbolFlags::GET_ACCESSOR)
+                .union(SymbolFlags::SET_ACCESSOR),
+        ) || s.decls.as_ref().is_none_or(|decls| {
+            decls.iter().any(|decl| {
+                if let Some(p) = self.parent(*decl) {
+                    self.p.node(p).is_class_like()
+                } else {
+                    false
+                }
+            })
+        });
+    }
+
+    fn get_rest_ty(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        props: &[ast::PropNameKind<'cx>],
+        symbol: Option<SymbolID>,
+    ) -> &'cx Ty<'cx> {
+        let source = self.filter_type(source, |this, t| !t.flags.contains(ty::TypeFlags::NULLABLE));
+        if source.flags.contains(ty::TypeFlags::NEVER) {
+            return self.empty_object_ty();
+        } else if source.flags.contains(ty::TypeFlags::UNION) {
+            return self
+                .map_ty(
+                    source,
+                    |this, t| Some(this.get_rest_ty(t, props, symbol)),
+                    false,
+                )
+                .unwrap();
+        }
+
+        let mut omit_key_ty = {
+            let props = props
+                .iter()
+                .map(|prop| self.get_lit_ty_from_prop_name(prop))
+                .collect::<Vec<_>>();
+            self.get_union_ty(&props, ty::UnionReduction::Lit, false, None, None)
+        };
+
+        let mut spreadable_props = vec![];
+        let mut unsparedable_to_rest_keys = vec![];
+
+        for &prop in self.get_props_of_ty(source) {
+            let lit_ty_from_property = self.get_lit_ty_from_prop(
+                prop,
+                ty::TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                false,
+            );
+            if !self.is_type_related_to(
+                lit_ty_from_property,
+                omit_key_ty,
+                relation::RelationKind::Assignable,
+            ) && (self.get_declaration_modifier_flags_from_symbol(prop, None)
+                & (ast::ModifierKind::Private | ast::ModifierKind::Protected))
+                .is_empty()
+                && self.is_spreadable_property(prop)
+            {
+                spreadable_props.push(prop);
+            } else {
+                unsparedable_to_rest_keys.push(lit_ty_from_property);
+            }
+        }
+
+        if self.is_generic_object_ty(source) || self.is_generic_index_ty(omit_key_ty) {
+            if unsparedable_to_rest_keys.len() > 0 {
+                // If the type we're spreading from has properties that cannot
+                // be spread into the rest type (e.g. getters, methods), ensure
+                // they are explicitly omitted, as they would in the non-generic case.
+                let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
+                tys.push(omit_key_ty);
+                tys.extend(unsparedable_to_rest_keys);
+                let tys = self.alloc(tys);
+                omit_key_ty = self.get_union_ty(tys, ty::UnionReduction::Lit, false, None, None);
+            }
+
+            if omit_key_ty.flags.contains(ty::TypeFlags::NEVER) {
+                return source;
+            }
+
+            let Some(omit_type_alias) = self.get_global_ty_alias_symbol(
+                bolt_ts_binder::SymbolName::Atom(keyword::IDENT_OMIT),
+                2,
+                true,
+            ) else {
+                return self.error_ty;
+            };
+            let ty_args = self.alloc([source, omit_key_ty]);
+            self.get_type_alias_instantiation(omit_type_alias, ty_args, None, None)
+        } else {
+            let mut members = fx_indexmap_with_capacity(spreadable_props.len());
+            for prop in spreadable_props {
+                let spared_symbol = self.get_spread_symbol(prop, false);
+                let name = self.symbol(prop).name;
+                members.insert(name, spared_symbol);
+            }
+            let members = self.alloc(members);
+            let index_infos = self.get_index_infos_of_ty(source);
+            self.create_anonymous_ty_with_resolved(
+                symbol,
+                ty::ObjectFlags::OBJECT_REST_TYPE,
+                members,
+                self.empty_array(),
+                self.empty_array(),
+                index_infos,
+                None,
+            )
         }
     }
 

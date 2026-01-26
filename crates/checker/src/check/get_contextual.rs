@@ -1,15 +1,15 @@
-use crate::check::Ternary;
-use crate::ty::MappedTyNameTyKind;
-use crate::ty::ObjectFlags;
-use crate::ty::TypeFlags;
 use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
+use super::Ternary;
 use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty;
+use super::ty::MappedTyNameTyKind;
+use super::ty::ObjectFlags;
+use super::ty::TypeFlags;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq)]

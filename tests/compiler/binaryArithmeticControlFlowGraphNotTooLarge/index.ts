@@ -1297,6 +1297,7 @@ const foo = function (this: any) {
 
 function foo1() {
   assertEqual(3, 3);
+  assertEqual(-0, -0);
   assertEqual(1 + 2, 3);
   assertEqual(1 - 2, -1);
   assertEqual(1 - -1, 2);
@@ -1313,21 +1314,41 @@ function foo1() {
   assertEqual(1 % 1, 0);
   assertEqual(1 * 2 + 3,         5);
   assertEqual(1 + 2 * 3,         7);
-  // toInt32
-  assertEqual(1 | 0,                    1);
-  assertEqual(+1 | 0,                   1);
-  assertEqual(-+1 | 0,                  -1);
-  assertEqual(NaN | 0,                  0);
-  assertEqual(Infinity | 0,             0);
-  assertEqual(-Infinity | 0,            0);
-  assertEqual(3.14 | 0,                 3);
-  assertEqual(-3.14 | 0,                -3);
-  assertEqual(0 | 3.14,                 3);
+
   assertEqual(3 & 2.71,                 2);
   assertEqual(3.14 & 2,                 2);
   assertEqual(3.14 & 2.71,              2);
   assertEqual(3.14 ^ 2.71,              1);
   assertEqual(3.14 + 3.86,              7);
+
+  assertEqual('',       '');
+  assertEqual('42',     '42');
+
+  assertEqual(!'',      true);
+  assertEqual(!'42',    false);
+  assertEqual(!true,    false);
+  assertEqual(!!true,   true);
+  assertEqual(!123,     false);
+  assertEqual(!0,       true);
+  assertEqual(!+0,      true);
+  assertEqual(!-0,      true);
+  assertEqual(!null,    true);
+
+  assertEqual(~123,     -124);
+  assertEqual(~32.0,   -33);
+  assertEqual(~-32.0,  31);
+
+  assertEqual(1 | 0,                    1);
+  assertEqual(+1 | 0,                   1);
+  assertEqual(-+1 | 0,                  -1);
+  assertEqual(NaN | 0,                  0);
+  assertEqual(Infinity | 0,             0);
+  assertEqual(Infinity | 1,             1);
+  assertEqual(-Infinity | 0,            0);
+  assertEqual(-Infinity | 1,            1);
+  assertEqual(3.14 | 0,                 3);
+  assertEqual(-3.14 | 0,                -3);
+  assertEqual(0 | 3.14,                 3);
   assertEqual(2147483647 | 0,           2147483647);
   assertEqual(2147483647.0 | 0,         2147483647);
   assertEqual(2147483648 | 0,           -2147483648);
@@ -1336,22 +1357,6 @@ function foo1() {
   assertEqual(9007199254740992 | 0,     0);
   assertEqual(-9007199254740991 | 0,    1);
   assertEqual(-9007199254740992 | 0,    0);
-
-  assertEqual(!true,    false);
-  assertEqual(!!true,   true);
-  // toBoolean
-  assertEqual(!123,     false);
-  assertEqual(!0,       true);
-  assertEqual(!+0,      true);
-  assertEqual(!-0,      true);
-  assertEqual(!null,    true);
-  assertEqual(~123,     -124);
-  
-
-  assertEqual('',       '');
-  assertEqual('42',     '42');
-  assertEqual(!'',      true);
-  assertEqual(!'42',    false);
 
   assertEqual(3.14 << 2.71, 12);
   assertEqual(1<<23,    8388608);

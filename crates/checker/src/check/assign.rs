@@ -1,8 +1,9 @@
+use super::SymbolLinks;
 use super::TyChecker;
+use super::check_expr::IterationUse;
 use super::symbol_info::SymbolInfo;
-use crate::check::SymbolLinks;
-use crate::check::check_expr::IterationUse;
-use crate::ty::{self, AccessFlags, CheckFlags};
+use super::ty::{self, AccessFlags, CheckFlags};
+
 use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {

@@ -1,6 +1,7 @@
 use super::TyChecker;
 use super::ty;
-use crate::check::{SymbolLinks, create_ty::IntersectionFlags};
+use super::{SymbolLinks, create_ty::IntersectionFlags};
+
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_binder::SymbolFlags;
 

@@ -349,6 +349,16 @@ pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATempla
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
+    "An index signature parameter type cannot be a literal type or generic type. Consider using a mapped object type instead."
+)]
+pub(super) struct AnIndexSignatureParameterTypeCannotBeALiteralTypeOrGenericTypeConsiderUsingAMappedObjectTypeInstead
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
     "A class can only implement an object type or intersection of object types with statically known members."
 )]
 pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers

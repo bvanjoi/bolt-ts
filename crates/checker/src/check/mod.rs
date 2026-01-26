@@ -1092,7 +1092,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_declaration_modifier_flags_from_symbol(
+    pub(super) fn get_declaration_modifier_flags_from_symbol(
         &self,
         symbol: SymbolID,
         is_write: Option<bool>,

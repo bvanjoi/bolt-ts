@@ -10,10 +10,10 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::{RelationKind, SigCheckMode};
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, Ty, TyKind, TypeFlags};
+use super::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
-use crate::ty::{self, Ty, TyKind, TypeFlags};
-use crate::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]

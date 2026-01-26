@@ -7,7 +7,7 @@ use super::ty::{self, TypeFlags};
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_valid_index_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags
-            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
+            .intersects(TypeFlags::STRING.union(TypeFlags::NUMBER.union(TypeFlags::ES_SYMBOL)))
             || ty.kind.as_intersection().is_some_and(|i| {
                 !self.is_generic_ty(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
             })
