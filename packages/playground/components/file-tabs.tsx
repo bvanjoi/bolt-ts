@@ -1,9 +1,11 @@
 'use client'
 
-import { Plus, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import type React from 'react'
 import { useState } from 'react'
 import type { SourceFile } from './compiler-playground'
+import { DeleteIcon } from './delete-icon'
+import { FilenameDisplay, FileTab } from './file-tab'
 
 interface FileTabsProps {
 	files: SourceFile[]
@@ -71,23 +73,22 @@ export function FileTabs({
 						/>
 					) : (
 						<>
-							<span className="font-mono text-xs">{file.name}</span>
+							<FilenameDisplay filename={file.name} />
 							{files.length > 1 && (
-								<button
-									onClick={e => {
+								<DeleteIcon
+									deleteId={file.id}
+									handleDelete={(e, filename) => {
 										e.stopPropagation()
-										onRemove(file.id)
+										onRemove(filename)
 									}}
-									className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#ddd] rounded transition-opacity"
-								>
-									<X size={12} />
-								</button>
+								/>
 							)}
 						</>
 					)}
 				</div>
 			))}
 			<button
+				type="button"
 				onClick={onAdd}
 				className="p-1 text-[#666] hover:text-[#222] hover:bg-[#eee] rounded transition-colors"
 				title="Add file"

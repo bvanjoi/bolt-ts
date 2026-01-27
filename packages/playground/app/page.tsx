@@ -1,5 +1,5 @@
-import { CompilerPlayground } from "@/components/compiler-playground"
+import { CompilerPlayground } from '@/components/compiler-playground'
 
 export default function Home() {
-  return <CompilerPlayground />
+	return <CompilerPlayground />
 }

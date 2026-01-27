@@ -12,7 +12,7 @@
 		"pnpm": "10.18.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.11",
-		"turbo": "^2.7.5"
+		"@biomejs/biome": "^2.3.13",
+		"turbo": "^2.7.6"
 	}
 }

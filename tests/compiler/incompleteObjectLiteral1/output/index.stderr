@@ -1,0 +1,18 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/incompleteObjectLiteral1/index.ts:3:14]
+ 3 │ ;
+   · ─
+   ╰────
+
+  × Cannot find name 'aa'.
+   ╭─[../../tests/compiler/incompleteObjectLiteral1/index.ts:3:12]
+ 3 │ aa
+   · ──
+   ╰────
+
+Advice: 
+  ☞ Shorthand property need an initializer.
+   ╭─[../../tests/compiler/incompleteObjectLiteral1/index.ts:3:12]
+ 3 │ aa
+   · ──
+   ╰────

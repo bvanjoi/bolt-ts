@@ -1147,3 +1147,13 @@ pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "An interface can only extend an object type or intersection of object types with statically known members."
+)]
+pub(super) struct AnInterfaceCanOnlyExtendAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
+{
+    #[label(primary)]
+    pub span: Span,
+}

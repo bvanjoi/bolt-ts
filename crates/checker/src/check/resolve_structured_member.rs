@@ -266,6 +266,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 for node in ty_nodes {
                     let base_ty = self.get_ty_from_ty_reference(*node);
+                    let base_ty = self.get_reduced_ty(base_ty);
                     if !self.is_error(base_ty) {
                         if self.is_valid_base_ty(base_ty) {
                             if ty != base_ty && !self.has_base_ty(base_ty, ty) {
@@ -275,7 +276,10 @@ impl<'cx> TyChecker<'cx> {
                                 self.report_circular_base_ty(decl, ty, Some(node.name.span()));
                             }
                         } else {
-                            // TODO: ERROR: An interface can only extend an object...
+                            let error = errors::AnInterfaceCanOnlyExtendAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers {
+                                span: node.span,
+                            };
+                            self.push_error(Box::new(error));
                         }
                     }
                 }
