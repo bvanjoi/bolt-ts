@@ -629,8 +629,11 @@ impl<'cx> TyChecker<'cx> {
         if source.is_tuple() && target.is_tuple() {
             self.tuple_tys_definitely_unrelated(source, target)
         } else {
-            self.get_unmatched_prop(source, target, false).is_some()
-                && self.get_unmatched_prop(target, source, false).is_some()
+            self.get_unmatched_prop(source, target, false, true)
+                .is_some()
+                && self
+                    .get_unmatched_prop(target, source, false, false)
+                    .is_some()
         }
     }
 
@@ -1150,6 +1153,29 @@ impl<'cx> InferenceState<'cx, '_> {
         self.priority = save_priority;
     }
 
+    fn infer_from_ty_arguments(
+        &mut self,
+        source_tys: ty::Tys<'cx>,
+        target_tys: ty::Tys<'cx>,
+        variances: &[super::VarianceFlags],
+    ) {
+        let count = if source_tys.len() < target_tys.len() {
+            source_tys.len()
+        } else {
+            target_tys.len()
+        };
+        for i in 0..count {
+            if i < variances.len()
+                && (variances[i] & super::VarianceFlags::VARIANCE_MASK
+                    == super::VarianceFlags::CONTRAVARIANT)
+            {
+                self.infer_from_contravariant_tys(source_tys[i], target_tys[i]);
+            } else {
+                self.infer_from_tys(source_tys[i], target_tys[i]);
+            }
+        }
+    }
+
     pub(super) fn infer_from_tys(
         &mut self,
         mut source: &'cx ty::Ty<'cx>,
@@ -1223,59 +1249,120 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
 
-        if target.kind.is_type_variable()
-            && let Some(idx) = self.get_inference_info_for_ty(target)
+        if target
+            .flags
+            .intersects(TypeFlags::INDEXED_ACCESS.union(TypeFlags::SUBSTITUTION))
         {
-            let info = self.c.inference_info(self.inference, idx);
-            if !info.is_fixed {
-                let candidate = self.propagation_ty.unwrap_or(source);
-                if info.priority.is_none() || self.priority < info.priority.unwrap() {
-                    self.reset_info_candidate(idx);
-                    self.reset_info_contra_candidate(idx);
-                    self.set_info_priority(idx, self.priority);
-                    self.set_info_toplevel(idx);
-                }
+            if target.is_no_infer_ty() {
+                return;
+            }
+            target = self.c.get_actual_ty_variable(target);
+        }
+
+        if target.kind.is_type_variable() {
+            // TODO: is_from_inference_block_source
+
+            if let Some(idx) = self.get_inference_info_for_ty(target) {
                 let info = self.c.inference_info(self.inference, idx);
-                if Some(self.priority) == info.priority {
-                    if self.contravariant && !self.bivariant {
-                        if info
-                            .contra_candidates
+                if !info.is_fixed {
+                    let candidate = self.propagation_ty.unwrap_or(source);
+                    if info.priority.is_none() || self.priority < info.priority.unwrap() {
+                        self.reset_info_candidate(idx);
+                        self.reset_info_contra_candidate(idx);
+                        self.set_info_priority(idx, self.priority);
+                        self.set_info_toplevel(idx);
+                    }
+                    let info = self.c.inference_info(self.inference, idx);
+                    if Some(self.priority) == info.priority {
+                        if self.contravariant && !self.bivariant {
+                            if info
+                                .contra_candidates
+                                .as_ref()
+                                .is_none_or(|cs| !cs.contains(&candidate))
+                            {
+                                self.append_contra_candidate(idx, candidate);
+                                self.c.clear_cached_inferences(self.inference);
+                            }
+                        } else if info
+                            .candidates
                             .as_ref()
                             .is_none_or(|cs| !cs.contains(&candidate))
                         {
-                            self.append_contra_candidate(idx, candidate);
+                            self.append_candidate(idx, candidate);
                             self.c.clear_cached_inferences(self.inference);
                         }
-                    } else if info
-                        .candidates
-                        .as_ref()
-                        .is_none_or(|cs| !cs.contains(&candidate))
+                    }
+
+                    if !self.priority.intersects(InferencePriority::RETURN_TYPE)
+                        && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                        && self.c.inference_info(self.inference, idx).top_level
+                        && !self
+                            .c
+                            .is_ty_param_at_top_level(self.original_target, target, 0)
                     {
-                        self.append_candidate(idx, candidate);
+                        self.set_info_toplevel_false(idx);
                         self.c.clear_cached_inferences(self.inference);
                     }
                 }
+                self.inference_priority = if self.inference_priority < self.priority {
+                    self.inference_priority
+                } else {
+                    self.priority
+                };
+                return;
+            }
 
-                if !self.priority.intersects(InferencePriority::RETURN_TYPE)
-                    && target.flags.intersects(TypeFlags::TYPE_PARAMETER)
-                    && self.c.inference_info(self.inference, idx).top_level
-                    && !self
-                        .c
-                        .is_ty_param_at_top_level(self.original_target, target, 0)
-                {
-                    self.set_info_toplevel_false(idx);
-                    self.c.clear_cached_inferences(self.inference);
+            let simplified = self
+                .c
+                .get_simplified_ty(target, super::SimplifiedKind::Reading);
+            if simplified != target {
+                self.infer_from_tys(source, simplified);
+            } else if let Some(target_index_ty) = target.kind.as_indexed_access() {
+                let index_ty = self
+                    .c
+                    .get_simplified_ty(target_index_ty.index_ty, super::SimplifiedKind::Reading);
+                if index_ty.flags.contains(TypeFlags::INSTANTIABLE) {
+                    let object_ty = self.c.get_simplified_ty(
+                        target_index_ty.object_ty,
+                        super::SimplifiedKind::Reading,
+                    );
+                    let simplified = self.c.distribute_object_over_object_ty(
+                        object_ty,
+                        index_ty,
+                        super::SimplifiedKind::Reading,
+                    );
+                    if let Some(simplified) = simplified
+                        && simplified != target
+                    {
+                        self.infer_from_tys(source, simplified);
+                    }
                 }
             }
-            self.inference_priority = if self.inference_priority < self.priority {
-                self.inference_priority
-            } else {
-                self.priority
-            };
-            return;
         }
 
-        if target.kind.is_cond_ty() {
+        if let Some(source_refer) = source.kind.as_object_reference()
+            && let Some(target_refer) = target.kind.as_object_reference()
+            && (source_refer.target == target_refer.target
+                || source.kind.is_array(self.c) && target.kind.is_array(self.c))
+            && !(source_refer.node.is_none() && target_refer.node.is_none())
+        {
+            let source_tys = self.c.get_ty_arguments(source);
+            let target_tys = self.c.get_ty_arguments(target);
+            let variances = self.c.get_variances(source_refer.target);
+            self.infer_from_ty_arguments(source_tys, target_tys, variances);
+        } else if let Some(source) = source.kind.as_index_ty()
+            && let Some(target) = target.kind.as_index_ty()
+        {
+            self.infer_from_contravariant_tys(source.ty, target.ty);
+            // TODO:((isLiteralType(source) || source.flags & TypeFlags.String) && target.flags & TypeFlags.Index) {
+        } else if let Some(source) = source.kind.as_indexed_access()
+            && let Some(target) = target.kind.as_indexed_access()
+        {
+            self.infer_from_tys(source.object_ty, target.object_ty);
+            self.infer_from_tys(source.index_ty, target.index_ty);
+            // TODO: (source.flags & TypeFlags.StringMapping && target.flags & TypeFlags.StringMapping)
+            // TODO: (source.flags & TypeFlags.Substitution)
+        } else if target.kind.is_cond_ty() {
             self.invoke_once(source, target, |this, source, target| {
                 this.infer_to_cond_ty(source, target);
             });
@@ -1289,16 +1376,21 @@ impl<'cx> InferenceState<'cx, '_> {
             self.infer_to_template_lit_ty(source, target)
         } else {
             source = self.c.get_reduced_ty(source);
-            if !(self.priority.intersects(InferencePriority::NO_CONSTRAINTS)
+            if self.c.is_generic_mapped_ty(source) && self.c.is_generic_mapped_ty(target) {
+                self.invoke_once(source, target, |this, source, target| {
+                    this.infer_from_generic_mapped_tys(source, target);
+                });
+            }
+            if !(self.priority.contains(InferencePriority::NO_CONSTRAINTS)
                 && source
                     .flags
                     .intersects(TypeFlags::INTERSECTION.union(TypeFlags::INSTANTIABLE)))
             {
                 let apparent_source = self.c.get_apparent_ty(source);
                 if apparent_source != source
-                    && !(apparent_source
+                    && !apparent_source
                         .flags
-                        .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION)))
+                        .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
                 {
                     return self.infer_from_tys(apparent_source, target);
                 }
@@ -1309,6 +1401,26 @@ impl<'cx> InferenceState<'cx, '_> {
                     this.infer_from_object_tys(source, target);
                 });
             }
+        }
+    }
+
+    fn infer_from_generic_mapped_tys(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) {
+        let s = self.c.get_constraint_ty_from_mapped_ty(source);
+        let t = self.c.get_constraint_ty_from_mapped_ty(target);
+        self.infer_from_tys(s, t);
+
+        let s = self.c.get_template_ty_from_mapped_ty(source);
+        let t = self.c.get_template_ty_from_mapped_ty(target);
+        self.infer_from_tys(s, t);
+
+        if let Some(source_name_ty) = self.c.get_name_ty_from_mapped_ty(source)
+            && let Some(target_name_ty) = self.c.get_name_ty_from_mapped_ty(target)
+        {
+            self.infer_from_tys(source_name_ty, target_name_ty);
         }
     }
 

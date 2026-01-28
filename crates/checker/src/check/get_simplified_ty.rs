@@ -85,12 +85,15 @@ impl<'cx> TyChecker<'cx> {
         u.flags.intersects(TypeFlags::NEVER)
     }
 
-    fn distribute_object_over_object_ty(
+    pub(super) fn distribute_object_over_object_ty(
         &mut self,
         object_ty: &'cx ty::Ty<'cx>,
         index_ty: &'cx ty::Ty<'cx>,
         kind: SimplifiedKind,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // (T | U)[K] -> T[K] | U[K] (reading)
+        // (T | U)[K] -> T[K] & U[K] (writing)
+        // (T & U)[K] -> T[K] & U[K]
         if let Some(tys) = object_ty.kind.tys_of_union_or_intersection()
             && !self.should_defer_index_ty(object_ty, IndexFlags::empty())
         {

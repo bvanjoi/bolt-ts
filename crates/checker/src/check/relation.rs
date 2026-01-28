@@ -647,8 +647,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
-        self.get_unmatched_props(source, target, require_optional_properties)
+        self.get_unmatched_props(
+            source,
+            target,
+            require_optional_properties,
+            match_discriminant_properties,
+        )
     }
 
     fn get_unmatched_props(
@@ -656,10 +662,12 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
         let properties = self.get_props_of_ty(target);
         let mut unmatched = Vec::with_capacity(properties.len());
         for target_prop in properties {
+            // TODO: is_static_private_ident_property
             let s = self.symbol(*target_prop);
             if require_optional_properties
                 || !(s.flags.intersects(SymbolFlags::OPTIONAL)

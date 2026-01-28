@@ -447,7 +447,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if let Some((mut unmatched, target_symbol)) =
             self.c
-                .get_unmatched_prop(source, target, require_optional_properties)
+                .get_unmatched_prop(source, target, require_optional_properties, false)
         {
             assert!(!unmatched.is_empty());
             if report_error {
@@ -896,7 +896,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let mut result = Ternary::TRUE;
+        let mut result;
         let source_flags = source.flags;
         let target_flags = target.flags;
         if self.relation == RelationKind::Identity {

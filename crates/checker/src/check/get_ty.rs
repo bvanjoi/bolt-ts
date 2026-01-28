@@ -539,11 +539,11 @@ impl<'cx> TyChecker<'cx> {
             && (indexed_access
                 .object_ty
                 .flags
-                .intersects(TypeFlags::SUBSTITUTION)
+                .contains(TypeFlags::SUBSTITUTION)
                 || indexed_access
                     .index_ty
                     .flags
-                    .intersects(TypeFlags::SUBSTITUTION))
+                    .contains(TypeFlags::SUBSTITUTION))
         {
             let object_ty = self.get_actual_ty_variable(indexed_access.object_ty);
             let index_ty = self.get_actual_ty_variable(indexed_access.index_ty);

@@ -3,15 +3,15 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 
 use super::ast;
 use super::errors;
+use super::keyword;
 use super::lookahead::Lookahead;
+use super::parse_break_or_continue::{ParseBreak, ParseContinue};
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
-use crate::keyword;
-use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
-use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]

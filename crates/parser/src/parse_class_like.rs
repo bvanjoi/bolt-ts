@@ -211,7 +211,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
                         expr
                     } else {
-                        let ty_arguments = self.try_parse_ty_args()?;
+                        let ty_arguments = self.try_parse_ty_args();
                         let id = self.next_node_id();
                         let expr = self.alloc(ast::ExprWithTyArgs {
                             id,

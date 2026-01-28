@@ -47,7 +47,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             let tag_name = self.parse_jsx_ele_name()?;
             let ty_args = if !self.node_context_flags.contains(NodeFlags::JAVASCRIPT_FILE) {
-                self.try_parse_ty_args()?
+                self.try_parse_ty_args()
             } else {
                 None
             };

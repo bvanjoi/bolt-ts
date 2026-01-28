@@ -1,0 +1,7 @@
+  × Subsequent variable declarations must have the same type. Variable 'f'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: U, y: T) =>
+  │ U'.
+   ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersSwitched/index.ts:4:5]
+ 4 │ f
+   · ─
+   ╰────
