@@ -612,7 +612,7 @@ pub struct EntityName<'cx> {
     pub kind: EntityNameKind<'cx>,
 }
 
-impl EntityName<'_> {
+impl<'cx> EntityName<'cx> {
     pub fn span(&self) -> Span {
         use EntityNameKind::*;
         match self.kind {
@@ -626,6 +626,13 @@ impl EntityName<'_> {
         match self.kind {
             Ident(ident) => ident.id,
             Qualified(name) => name.id,
+        }
+    }
+
+    pub fn get_first_identifier(&self) -> &'cx Ident {
+        match self.kind {
+            EntityNameKind::Ident(ident) => ident,
+            EntityNameKind::Qualified(q) => q.left.get_first_identifier(),
         }
     }
 }

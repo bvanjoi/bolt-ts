@@ -527,7 +527,7 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
+    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
         let id = ident.id;
         self.get_resolve_results()[id.module().as_usize()]
             .final_res
@@ -699,27 +699,33 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn has_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_bindable_name(&mut self, id: ast::NodeID) -> bool {
         !self.has_dynamic_name(id) || self.has_late_bindable_name(id)
     }
 
-    pub(super) fn has_dynamic_name(&self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         name.is_late_bindable_ast()
     }
 
-    fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    fn has_late_bindable_name(&mut self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_name(&name)
     }
 
-    fn is_late_bindable_name(&mut self, name: &bolt_ts_ast::DeclarationName<'cx>) -> bool {
+    pub(super) fn is_non_bindable_dynamic_name(
+        &mut self,
+        name: &ast::DeclarationName<'cx>,
+    ) -> bool {
+        name.is_dynamic_name() && !self.is_late_bindable_name(name)
+    }
+    fn is_late_bindable_name(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
-            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+            let ty = if let ast::DeclarationName::Computed(n) = name {
                 self.check_computed_prop_name(n)
             } else {
                 todo!("element access")
@@ -728,19 +734,16 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_late_bindable_index_signature(&mut self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_index_signature(&name)
     }
 
-    fn is_late_bindable_index_signature(
-        &mut self,
-        name: &bolt_ts_ast::DeclarationName<'cx>,
-    ) -> bool {
+    fn is_late_bindable_index_signature(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
-            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+            let ty = if let ast::DeclarationName::Computed(n) = name {
                 self.check_computed_prop_name(n)
             } else {
                 todo!("element access")
@@ -756,7 +759,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn add_decl_to_late_bound_symbol(
         &mut self,
         symbol: SymbolID,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
         flags: SymbolFlags,
     ) {
         assert!(self.get_check_flags(symbol).intersects(CheckFlags::LATE));
@@ -791,7 +794,7 @@ impl<'cx> super::TyChecker<'cx> {
         parent: SymbolID,
         early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
     ) -> SymbolID {
         if let Some(s) = self.get_node_links(decl).get_resolved_symbol() {
             return s;
@@ -801,7 +804,7 @@ impl<'cx> super::TyChecker<'cx> {
         // TODO: binary expression
         let decl_name = self.p.node(decl).name().unwrap();
         let ty = match decl_name {
-            bolt_ts_ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
+            ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
             // TODO: element access
             _ => unreachable!("decl_name: {:#?}", decl_name),
         };
@@ -865,7 +868,7 @@ impl<'cx> super::TyChecker<'cx> {
         &mut self,
         early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
     ) {
         let late_symbol = match late_symbols.0.get(&SymbolName::Index).copied() {
             Some(index_symbol) => index_symbol,
@@ -916,7 +919,7 @@ fn handle_members_for_label_symbol<'cx>(
 
 fn get_target_of_ns_import<'cx>(
     this: &mut TyChecker<'cx>,
-    n: &'cx bolt_ts_ast::NsImport<'cx>,
+    n: &'cx ast::NsImport<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let p = this.p();
@@ -930,7 +933,7 @@ fn get_target_of_ns_import<'cx>(
 
 fn get_target_of_import_named_spec(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
     let p = this.p();
@@ -947,13 +950,13 @@ fn get_target_of_import_named_spec(
 
 fn get_external_module_member(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
-    spec: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
+    spec: ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
     let module_spec = match this.p().node(node) {
-        bolt_ts_ast::Node::ImportDecl(n) => n.module,
-        bolt_ts_ast::Node::SpecsExport(n) => n.module.unwrap(),
+        ast::Node::ImportDecl(n) => n.module,
+        ast::Node::SpecsExport(n) => n.module.unwrap(),
         _ => todo!("node: {:#?}", this.p().node(node)),
     };
     let module_symbol = this.resolve_external_module_name(module_spec.id, module_spec.val);
@@ -961,14 +964,14 @@ fn get_external_module_member(
     let target_symbol = module_symbol;
     if let Some(target_symbol) = target_symbol {
         let name = match this.p().node(spec) {
-            bolt_ts_ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
-                bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(ident) => ident.name,
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
-            bolt_ts_ast::Node::ImportExportShorthandSpec(n) => n.name.name,
-            bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-                bolt_ts_ast::ModuleExportNameKind::Ident(n) => n.name,
-                bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            ast::Node::ImportExportShorthandSpec(n) => n.name.name,
+            ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(n) => n.name,
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
             _ => todo!(),
         };
@@ -988,7 +991,7 @@ fn error_no_module_member_symbol(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::Atom,
-    spec_name_id: bolt_ts_ast::NodeID,
+    spec_name_id: ast::NodeID,
 ) {
     let n = this.p().node(spec_name_id);
     let spec_name = n.import_export_spec_name().unwrap();
@@ -997,7 +1000,7 @@ fn error_no_module_member_symbol(
 
 fn report_non_exported_member(
     this: &mut TyChecker<'_>,
-    spec_name_id: bolt_ts_ast::NodeID,
+    spec_name_id: ast::NodeID,
     spec_name: bolt_ts_atom::Atom,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::Atom,
@@ -1022,9 +1025,7 @@ fn report_non_exported_member(
                     let decl = s.decls.as_ref().unwrap()[0];
                     if let Some(spec) = this.p().node(decl).as_export_named_spec() {
                         match spec.prop_name.kind {
-                            bolt_ts_ast::ModuleExportNameKind::Ident(ident)
-                                if ident.name == spec_name =>
-                            {
+                            ast::ModuleExportNameKind::Ident(ident) if ident.name == spec_name => {
                                 return Some(decl);
                             }
                             _ => (),
@@ -1051,9 +1052,9 @@ fn report_non_exported_member(
                 ),
             );
             let target_name = match this.p().node(decl) {
-                bolt_ts_ast::Node::ExportNamedSpec(n) => match n.name.kind {
-                    bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                    bolt_ts_ast::ModuleExportNameKind::StringLit(lit) => lit.val,
+                ast::Node::ExportNamedSpec(n) => match n.name.kind {
+                    ast::ModuleExportNameKind::Ident(ident) => ident.name,
+                    ast::ModuleExportNameKind::StringLit(lit) => lit.val,
                 },
                 _ => unreachable!(),
             };
@@ -1086,7 +1087,7 @@ fn report_non_exported_member(
         };
         this.push_error(error);
     } else {
-        use bolt_ts_ast::Node::*;
+        use ast::Node::*;
         let span = match this.p().node(spec_name_id) {
             ImportExportShorthandSpec(n) => n.span,
             ExportNamedSpec(n) => n.prop_name.span(),
@@ -1103,7 +1104,7 @@ fn report_non_exported_member(
 
 fn get_target_of_export_spec(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     meaning: SymbolFlags,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
@@ -1121,7 +1122,7 @@ fn get_target_of_export_spec(
     }
 
     match n {
-        bolt_ts_ast::Node::ImportExportShorthandSpec(n) => {
+        ast::Node::ImportExportShorthandSpec(n) => {
             let p_id = this.parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
             if p.module.is_some() {
@@ -1134,8 +1135,8 @@ fn get_target_of_export_spec(
                     .copied()
             }
         }
-        bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-            bolt_ts_ast::ModuleExportNameKind::Ident(ident) => {
+        ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+            ast::ModuleExportNameKind::Ident(ident) => {
                 let p = this.parent(node).unwrap();
                 let p = this.p().node(p).expect_specs_export();
                 if p.module.is_some() {
@@ -1147,7 +1148,7 @@ fn get_target_of_export_spec(
                         .copied()
                 }
             }
-            bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            ast::ModuleExportNameKind::StringLit(_) => todo!(),
         },
         _ => unreachable!(),
     }
@@ -1155,7 +1156,7 @@ fn get_target_of_export_spec(
 
 fn get_target_of_export_assignment<'cx>(
     this: &mut TyChecker<'cx>,
-    node: &'cx bolt_ts_ast::ExportAssign<'cx>, // TODO: binary expr
+    node: &'cx ast::ExportAssign<'cx>, // TODO: binary expr
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let expr = node.expr;
@@ -1166,10 +1167,10 @@ fn get_target_of_export_assignment<'cx>(
 
 fn get_target_of_alias_like_expr<'cx>(
     this: &mut TyChecker<'cx>,
-    expr: &'cx bolt_ts_ast::Expr<'cx>,
+    expr: &'cx ast::Expr<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
-    use bolt_ts_ast::ExprKind;
+    use ast::ExprKind;
     if let ExprKind::Class(n) = expr.kind {
         // TODO: check_expression?
         return Some(this.get_resolve_results()[n.id.module().as_usize()].final_res[&n.id]);
@@ -1179,7 +1180,7 @@ fn get_target_of_alias_like_expr<'cx>(
     };
     let symbol;
     match expr.kind {
-        bolt_ts_ast::ExprKind::Ident(n) => {
+        ast::ExprKind::Ident(n) => {
             let id = this.resolve_symbol_by_ident(n);
             symbol = this.get_merged_symbol(id);
             if symbol == Symbol::ERR || dont_resolve_alias {
@@ -1204,7 +1205,7 @@ fn get_target_of_alias_like_expr<'cx>(
 
 fn get_target_of_import_clause<'cx>(
     this: &mut TyChecker<'cx>,
-    node: &'cx bolt_ts_ast::ImportClause<'cx>,
+    node: &'cx ast::ImportClause<'cx>,
     dont_recur_alias: bool,
 ) -> Option<SymbolID> {
     let parent = this.parent(node.id).unwrap();
@@ -1218,7 +1219,7 @@ fn get_target_of_import_clause<'cx>(
 fn get_target_of_module_default(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let ms = binder_symbol(this, module_symbol);

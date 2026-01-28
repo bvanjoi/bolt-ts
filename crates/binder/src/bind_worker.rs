@@ -308,34 +308,34 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn _bind(&mut self, node: ast::NodeID) {
+    pub(super) fn bind_worker(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
         use ast::Node::*;
         match n {
             Ident(_) => {
                 // TODO: identifier with NodeFlags.IdentifierIsInJSDocNamespace
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             ThisExpr(_) => {
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             QualifiedName(_) => {
                 if let Some(flow) = self.current_flow
                     && self.node_query().is_part_of_ty_query(node)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             // TODO: meta
             SuperExpr(_) => {
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 } else {
-                    self.flow_nodes.reset_container_map(node);
+                    self.flow_nodes.reset_flow_of_node(node);
                 }
             }
             // TODO: private
@@ -343,7 +343,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(flow) = self.current_flow
                     && self.is_narrowable_reference(p.expr)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js
@@ -352,7 +352,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(flow) = self.current_flow
                     && self.ele_access_is_narrowable_reference(e)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js
@@ -380,7 +380,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             VarDecl(n) => self.bind_var_decl(n),
             ObjectBindingElem(n) => {
                 // self.flow_nodes
-                //     .insert_container_map(node, self.current_flow.unwrap());
+                //     .insert_container_map(n.id, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
             ArrayBinding(n) => self.bind_array_binding(n),

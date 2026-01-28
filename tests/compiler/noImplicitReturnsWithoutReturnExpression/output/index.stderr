@@ -1,0 +1,11 @@
+  × Not all code paths return a value.
+   ╭─[../../tests/compiler/noImplicitReturnsWithoutReturnExpression/index.ts:6:5]
+ 6 │ return;
+   · ───────
+   ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsWithoutReturnExpression/index.ts:27:9]
+ 27 │ return;
+    · ───────
+    ╰────

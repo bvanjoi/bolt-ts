@@ -1,6 +1,5 @@
-use crate::check::check_expr::IterationUse;
-
 use super::TyChecker;
+use super::check_expr::IterationUse;
 use super::errors;
 use super::symbol_info::SymbolInfo;
 

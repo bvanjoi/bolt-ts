@@ -1,15 +1,15 @@
-use crate::check::Ternary;
-use crate::ty::MappedTyNameTyKind;
-use crate::ty::ObjectFlags;
-use crate::ty::TypeFlags;
 use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
+use super::Ternary;
 use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty;
+use super::ty::MappedTyNameTyKind;
+use super::ty::ObjectFlags;
+use super::ty::TypeFlags;
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -533,8 +533,12 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
             .collect::<Vec<_>>();
-        // TODO: get_intersected_sigs
-        if sigs.is_empty() { None } else { Some(sigs[0]) }
+        if sigs.is_empty() {
+            // TODO: get_intersected_sigs
+            None
+        } else {
+            Some(sigs[0])
+        }
     }
 
     pub(super) fn get_contextual_sig_for_fn_like_decl(

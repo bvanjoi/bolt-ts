@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use super::get_simplified_ty::SimplifiedKind;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, TypeFlags};
 use super::{TyChecker, create_ty::IntersectionFlags};
-use crate::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;

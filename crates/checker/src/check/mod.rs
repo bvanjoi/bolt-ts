@@ -66,16 +66,16 @@ use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
-use check_type_related_to::RecursionFlags;
+
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
-use crate::check::flow::FlowCacheKey;
-
 use self::check_expr::IterationUse;
 use self::check_expr::get_suggestion_boolean_op;
+use self::check_type_related_to::RecursionFlags;
 use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
+use self::flow::FlowCacheKey;
 use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
@@ -726,9 +726,9 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, false, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
-            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
-            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
-            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), ty_params: None, this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
@@ -1092,7 +1092,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_declaration_modifier_flags_from_symbol(
+    pub(super) fn get_declaration_modifier_flags_from_symbol(
         &self,
         symbol: SymbolID,
         is_write: Option<bool>,
@@ -1267,7 +1267,7 @@ impl<'cx> TyChecker<'cx> {
         else {
             return ty;
         };
-        let Some(ty_params) = sig.ty_params else {
+        let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
             return ty;
         };
         let Some(contextual_ty) =
@@ -1278,7 +1278,11 @@ impl<'cx> TyChecker<'cx> {
         let Some(contextual_sig) = self.get_single_sig(contextual_ty, kind, false) else {
             return ty;
         };
-        if contextual_sig.ty_params.is_some() {
+        if self
+            .get_sig_links(contextual_sig.id)
+            .get_ty_params()
+            .is_some()
+        {
             return ty;
         }
         if check_mode.intersects(CheckMode::SKIP_GENERIC_FUNCTIONS) {
@@ -1293,7 +1297,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|sig| self.get_ret_ty_of_sig(sig))
             .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
         if let Some(ret_sig) = ret_sig
-            && ret_sig.ty_params.is_none()
+            && self.get_sig_links(ret_sig.id).get_ty_params().is_none()
             && !self
                 .inference_infos(inference)
                 .iter()
@@ -1377,7 +1381,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_canonical_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Sig<'cx> {
-        let Some(ty_params) = sig.ty_params else {
+        let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
             return sig;
         };
         if let Some(canonical_sig_cache) = self.get_sig_links(sig.id).get_canonical_sig() {
@@ -1396,6 +1400,7 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let ty_args = self.alloc(ty_args);
+        // TODO: is_js
         let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), false, None);
         self.get_mut_sig_links(sig.id)
             .set_canonical_sig(canonical_sig_cache);
@@ -2217,7 +2222,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx ty::Ty<'cx> {
         match ident.name {
-            keyword::KW_UNDEFINED => return self.undefined_ty,
+            keyword::KW_UNDEFINED => return self.undefined_widening_ty,
             keyword::KW_NULL => return self.null_ty,
             _ => (),
         }
@@ -3765,7 +3770,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_generic(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_generic_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         !self.get_generic_object_flags(ty).is_empty()
     }
 
@@ -4211,6 +4216,7 @@ impl<'cx> TyChecker<'cx> {
 
         impl<'cx, 'checker> ContainReferenceVisitor<'cx, 'checker> {
             fn new(ty: &'cx ty::Ty<'cx>, checker: &'checker mut TyChecker<'cx>) -> Self {
+                debug_assert!(ty.kind.is_param());
                 Self {
                     tp: ty,
                     checker,
@@ -4219,18 +4225,119 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         impl<'cx> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
-            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
+            fn visit_this_ty(&mut self, _: &'cx bolt_ts_ast::ThisTy) {
+                if self.contain_reference {
+                    return;
+                }
                 let t = self.tp.kind.expect_param();
+                if !t.is_this_ty {
+                    self.contain_reference = true;
+                }
+            }
+            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
+                if self.contain_reference {
+                    return;
+                }
+                let t = self.tp.kind.expect_param();
+                let nq = self.checker.node_query(n.id.module());
                 if !t.is_this_ty
-                    && self
-                        .checker
-                        .node_query(n.id.module())
-                        .is_part_of_ty_node(n.id)
-                    && self
-                        .checker
-                        .node_query(n.id.module())
-                        .maybe_ty_param_reference(n.id)
+                    && nq.is_part_of_ty_node(n.id)
+                    && nq.maybe_ty_param_reference(n.id)
                     && self.checker.get_ty_from_ident(n) == self.tp
+                {
+                    self.contain_reference = true;
+                }
+            }
+            fn visit_typeof_ty(&mut self, n: &'cx bolt_ts_ast::TypeofTy<'cx>) {
+                if self.contain_reference {
+                    return;
+                }
+                let entity_name = n.name;
+                let first_identifier = entity_name.get_first_identifier();
+                if first_identifier.name != keyword::KW_THIS {
+                    let first_identifier_symbol = self.checker.final_res(first_identifier.id);
+                    let tp_symbol = self.checker.symbol(self.tp.symbol().unwrap());
+                    let tp_decls = tp_symbol.decls.as_ref().unwrap();
+                    debug_assert_eq!(tp_decls.len(), 1);
+                    let tp_decl = tp_decls[0];
+                    let tp_scope = if self.checker.p.node(tp_decl).is_ty_param() {
+                        self.checker.parent(tp_decl)
+                    } else if self.tp.kind.is_this_ty_param() {
+                        Some(tp_decl)
+                    } else {
+                        None
+                    };
+                    if let Some(tp_scope) = tp_scope
+                        && let s = self.checker.symbol(first_identifier_symbol)
+                        && let Some(decls) = s.decls.as_ref()
+                    {
+                        if decls.clone().into_iter().any(|id_decl| {
+                            self.checker
+                                .node_query(id_decl.module())
+                                .is_descendant_of(id_decl, tp_scope)
+                        }) || n.ty_args.is_some_and(|ty_args| {
+                            ty_args.list.iter().any(|ty| {
+                                let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                                bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                                v.contain_reference
+                            })
+                        }) {
+                            self.contain_reference = true;
+                        }
+                        return;
+                    }
+                }
+
+                self.contain_reference = true;
+            }
+            fn visit_method_signature(&mut self, n: &'cx bolt_ts_ast::MethodSignature<'cx>) {
+                if self.contain_reference {
+                    return;
+                }
+                if !(n.ty.is_some()
+                    || n.ty_params.is_some_and(|ty_params| {
+                        ty_params.iter().any(|ty_param| {
+                            let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                            bolt_ts_ast::visitor::visit_ty_param(&mut v, ty_param);
+                            v.contain_reference
+                        })
+                    })
+                    || n.params.iter().any(|param| {
+                        let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                        bolt_ts_ast::visitor::visit_param_decl(&mut v, param);
+                        v.contain_reference
+                    })
+                    || n.ty.is_some_and(|ty| {
+                        let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                        bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                        v.contain_reference
+                    }))
+                {
+                    self.contain_reference = true;
+                }
+            }
+            fn visit_class_method_elem(&mut self, n: &'cx bolt_ts_ast::ClassMethodElem<'cx>) {
+                if self.contain_reference {
+                    return;
+                }
+                if !(n.ty.is_some() && n.body.is_some()
+                    || n.ty_params.is_some_and(|ty_params| {
+                        ty_params.iter().any(|ty_param| {
+                            let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                            bolt_ts_ast::visitor::visit_ty_param(&mut v, ty_param);
+                            v.contain_reference
+                        })
+                    })
+                    || n.params.iter().any(|param| {
+                        let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                        bolt_ts_ast::visitor::visit_param_decl(&mut v, param);
+                        v.contain_reference
+                    })
+                    || n.ty.is_some_and(|ty| {
+                        let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
+                        bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                        v.contain_reference
+                    }))
                 {
                     self.contain_reference = true;
                 }
@@ -4238,40 +4345,37 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        let decl = {
-            let Some(decls) = &self.symbol(tp.symbol).decls else {
+        let Some(decls) = &self.symbol(tp.symbol).decls else {
+            return true;
+        };
+        if decls.len() != 1 {
+            return true;
+        }
+        let decl = decls[0];
+        let Some(container) = self.parent(decl) else {
+            return true;
+        };
+        let mut n = node;
+        while n != container {
+            let node = self.p.node(n);
+            if node.is_block_stmt()
+                || node.as_cond_ty().is_some_and(|c| {
+                    let mut v = ContainReferenceVisitor::new(ty, self);
+                    bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
+                    v.contain_reference
+                })
+            {
                 return true;
             };
-            if decls.len() != 1 {
-                return true;
-            }
-            decls[0]
-        };
-        let container = self.parent(decl);
-        if let Some(container) = container {
-            let mut n = node;
-            while n != container {
-                let node = self.p.node(n);
-                if node.is_block_stmt()
-                    || node.as_cond_ty().is_some_and(|c| {
-                        let mut v = ContainReferenceVisitor::new(ty, self);
-                        bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
-                        v.contain_reference
-                    })
-                {
-                    return true;
-                };
-                let Some(next) = self.parent(n) else {
-                    break;
-                };
-                n = next;
-            }
-            let n = self.p.node(n);
-            let mut v = ContainReferenceVisitor::new(ty, self);
-            bolt_ts_ast::visitor::visit_node(&mut v, &n);
-            return v.contain_reference;
+            let Some(next) = self.parent(n) else {
+                break;
+            };
+            n = next;
         }
-        true
+        let n = self.p.node(n);
+        let mut v = ContainReferenceVisitor::new(ty, self);
+        bolt_ts_ast::visitor::visit_node(&mut v, &n);
+        v.contain_reference
     }
 
     fn get_annotated_accessor_ty(&mut self, n: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
@@ -4539,11 +4643,10 @@ impl<'cx> TyChecker<'cx> {
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         // TODO: is_javascript
         sigs.iter().filter_map(move |sig| {
-            let min = self.get_min_ty_arg_count(sig.ty_params);
+            let ty_params = self.get_sig_links(sig.id).get_ty_params();
+            let min = self.get_min_ty_arg_count(ty_params);
             if ty_arg_count >= min
-                && sig
-                    .ty_params
-                    .is_none_or(|ty_params| ty_arg_count <= ty_params.len())
+                && ty_params.is_none_or(|ty_params| ty_arg_count <= ty_params.len())
             {
                 Some(*sig)
             } else {
@@ -4572,7 +4675,7 @@ impl<'cx> TyChecker<'cx> {
         let sigs = sigs
             .iter()
             .map(|sig| {
-                if sig.ty_params.is_some() {
+                if self.get_sig_links(sig.id).get_ty_params().is_some() {
                     self.get_sig_instantiation(sig, ty_args, false, None)
                 } else {
                     sig
@@ -4609,7 +4712,7 @@ impl<'cx> TyChecker<'cx> {
             target_count
         };
         let param_count = if source_rest_ty.is_some() {
-            target_count
+            target_non_rest_count
         } else {
             usize::min(source_count, target_non_rest_count)
         };

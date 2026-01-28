@@ -1,5 +1,5 @@
 use super::symbol_info::SymbolInfo;
-use crate::ty::{self, ObjectFlags};
+use super::ty::{self, ObjectFlags};
 
 use super::TyChecker;
 

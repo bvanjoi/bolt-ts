@@ -1,0 +1,6 @@
+  × 'bar', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/typeCheckObjectLiteralMethodBody/index.ts:5:13]
+ 5 │ bar() { return undefined }
+   · ──────────────────────────
+   ╰────

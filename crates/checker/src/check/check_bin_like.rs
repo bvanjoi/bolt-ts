@@ -1,5 +1,5 @@
 use super::TyChecker;
-use crate::ty;
+use super::ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait::{BinaryLike, BinaryLikeOp};

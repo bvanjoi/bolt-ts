@@ -1,17 +1,17 @@
-use bolt_ts_ast::{self as ast, ModifierKind};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
+
 use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
+use super::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
 use super::{SymbolLinks, errors};
-use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
-use crate::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
-use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
-
 use super::{Ternary, TyChecker};
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -511,24 +511,25 @@ impl<'cx> TyChecker<'cx> {
                     (false, false) => check_flags &= !CheckFlags::READONLY,
                     _ => (),
                 };
-                check_flags |=
-                    if !modifiers.intersects(ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
-                        CheckFlags::CONTAINS_PUBLIC
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Protected) {
-                        CheckFlags::CONTAINS_PROTECTED
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Private) {
-                        CheckFlags::CONTAINS_PRIVATE
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Static) {
-                        CheckFlags::CONTAINS_STATIC
-                    } else {
-                        CheckFlags::empty()
-                    };
+                check_flags |= if !modifiers
+                    .intersects(ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                {
+                    CheckFlags::CONTAINS_PUBLIC
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Protected) {
+                    CheckFlags::CONTAINS_PROTECTED
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Private) {
+                    CheckFlags::CONTAINS_PRIVATE
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Static) {
+                    CheckFlags::CONTAINS_STATIC
+                } else {
+                    CheckFlags::empty()
+                };
                 // TODO: !is_prototype_prop
             } else if is_union {
                 // TODO:
@@ -646,8 +647,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
-        self.get_unmatched_props(source, target, require_optional_properties)
+        self.get_unmatched_props(
+            source,
+            target,
+            require_optional_properties,
+            match_discriminant_properties,
+        )
     }
 
     fn get_unmatched_props(
@@ -655,10 +662,12 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
         let properties = self.get_props_of_ty(target);
         let mut unmatched = Vec::with_capacity(properties.len());
         for target_prop in properties {
+            // TODO: is_static_private_ident_property
             let s = self.symbol(*target_prop);
             if require_optional_properties
                 || !(s.flags.intersects(SymbolFlags::OPTIONAL)

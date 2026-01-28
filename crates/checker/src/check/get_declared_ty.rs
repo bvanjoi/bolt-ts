@@ -1,25 +1,25 @@
 use std::ptr;
 
+use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
 
+use super::InstantiationTyMap;
+use super::TyCacheTrait;
 use super::TyChecker;
 use super::cycle_check::Cycle;
 use super::cycle_check::ResolutionKey;
 use super::errors;
+use super::eval::EvalResult;
+use super::links::TyLinks;
+use super::node_check_flags::NodeCheckFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty;
+use super::ty::ObjectFlags;
+use super::ty::TypeFlags;
 use super::utils::append_if_unique;
-use crate::check::InstantiationTyMap;
-use crate::check::TyCacheTrait;
-use crate::check::eval::EvalResult;
-use crate::check::links::TyLinks;
-use crate::check::node_check_flags::NodeCheckFlags;
-use crate::ty::ObjectFlags;
-use crate::ty::TypeFlags;
-use bolt_ts_ast as ast;
-use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 #[derive(Debug, Clone, Copy)]
 pub enum EnumMemberValue {
@@ -155,7 +155,10 @@ impl<'cx> TyChecker<'cx> {
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         if sigs.len() == 1 {
             let sig = sigs[0];
-            if sig.ty_params.is_none() && sig.params.len() == 1 && sig.has_rest_param() {
+            if self.get_sig_links(sig.id).get_ty_params().is_none()
+                && sig.params.len() == 1
+                && sig.has_rest_param()
+            {
                 let param_ty = self.get_type_of_param(sig.params[0]);
                 return self.is_type_any(param_ty)
                     || self
@@ -378,8 +381,8 @@ impl<'cx> TyChecker<'cx> {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);
                         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
-                        if let Some(sigs) = sigs.first()
-                            && let Some(ty_params) = sigs.ty_params
+                        if let Some(sig) = sigs.first()
+                            && let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params()
                         {
                             return if let Some(mut outer_ty_params) = outer_ty_params {
                                 outer_ty_params.extend(ty_params);

@@ -1,7 +1,7 @@
 use super::TyChecker;
-use bolt_ts_binder::SymbolID;
 
 use bolt_ts_ast as ast;
+use bolt_ts_binder::SymbolID;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {

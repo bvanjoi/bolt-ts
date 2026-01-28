@@ -210,6 +210,7 @@ pub trait MergeSymbol<'cx> {
             if let Some(old_decls) = s.decls.clone() {
                 match self.get_mut_symbol(target).decls.as_mut() {
                     Some(decls) => {
+                        debug_assert!(decls.iter().all(|d| !old_decls.contains(d)));
                         decls.extend(old_decls);
                     }
                     None => {

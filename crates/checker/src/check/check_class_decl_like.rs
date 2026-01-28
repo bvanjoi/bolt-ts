@@ -1,7 +1,7 @@
 use super::symbol_info::SymbolInfo;
+use super::ty;
+use super::ty::TypeFlags;
 use super::{TyChecker, errors};
-use crate::ty;
-use crate::ty::TypeFlags;
 
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_ident};
@@ -100,7 +100,33 @@ impl<'cx> TyChecker<'cx> {
         self.check_fn_like_decl(method);
     }
 
+    pub(super) fn check_invalid_dynamic_name(
+        &mut self,
+        name: ast::DeclarationName<'cx>,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if !self.is_non_bindable_dynamic_name(&name) {
+            return;
+        }
+        let expr = match name {
+            ast::DeclarationName::Computed(n) => n.expr,
+            // TODO: element access expr
+            _ => unreachable!(),
+        };
+        if !expr.is_entity_name_expr() {
+            push_error(self);
+        }
+    }
+
     fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+        let decl_name = ast::DeclarationName::from_prop_name(prop.name);
+        self.check_invalid_dynamic_name(decl_name, |this| {
+            let error = errors::AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType {
+                span: prop.name.span(),
+            };
+            this.push_error(Box::new(error));
+        });
+
         self.check_var_like_decl(prop);
     }
 

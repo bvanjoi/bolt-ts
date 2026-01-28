@@ -1,0 +1,5 @@
+  × Object literal may only specify known properties, and 'z' does not exist.
+   ╭─[../../tests/compiler/objectLiteralFreshnessWithSpread/index.ts:4:35]
+ 4 │ z: 3
+   · ────
+   ╰────

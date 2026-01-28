@@ -87,6 +87,12 @@ impl NormalizedCompilerOptions {
     }
 
     #[inline(always)]
+    pub const fn no_implicit_returns(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::NO_IMPLICIT_RETURNS)
+    }
+
+    #[inline(always)]
     pub const fn exact_optional_property_types(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::EXACT_OPTIONAL_PROPERTY_TYPES)

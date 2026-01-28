@@ -1,0 +1,5 @@
+  × Interface 'Hello' cannot simultaneously extend types 'Foo' and 'Bar'.
+   ╭─[../../tests/compiler/genericAndNonGenericInheritedSignature1/index.ts:9:11]
+ 9 │ Hello
+   · ─────
+   ╰────

@@ -1,8 +1,9 @@
+use super::SymbolLinks;
 use super::TyChecker;
+use super::check_expr::IterationUse;
 use super::symbol_info::SymbolInfo;
-use crate::check::SymbolLinks;
-use crate::check::check_expr::IterationUse;
-use crate::ty::{self, AccessFlags, CheckFlags};
+use super::ty::{self, AccessFlags, CheckFlags};
+
 use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
@@ -85,6 +86,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    // TODO: use `get_object_binding_element_ty_from_parent_ty` and `get_array_binding_element_ty_from_parent_ty`
     fn get_binding_ele_ty_from_parent_ty(
         &mut self,
         binding: &'cx bolt_ts_ast::Binding<'cx>,
@@ -133,7 +135,7 @@ impl<'cx> TyChecker<'cx> {
                 AccessFlags::empty()
             };
 
-        (match binding.kind {
+        match binding.kind {
             ObjectPat(pat) => {
                 todo!()
             }
@@ -172,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty,
                 Some(binding.id),
             ),
-        }) as _
+        }
     }
 
     pub(super) fn assign_contextual_param_tys(
@@ -180,16 +182,14 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         context: &'cx ty::Sig<'cx>,
     ) {
-        let ty_params = if context.ty_params.is_some() {
-            if sig.ty_params.is_none() {
-                // TODO: store context ty_params into sig.
-                context.ty_params
+        if let Some(context_ty_params) = self.get_sig_links(context.id).get_ty_params() {
+            if self.get_sig_links(sig.id).get_ty_params().is_none() {
+                self.get_mut_sig_links(sig.id)
+                    .set_ty_params(context_ty_params);
             } else {
                 return;
             }
-        } else {
-            sig.ty_params
-        };
+        }
 
         let sig_has_rest = sig.has_rest_param();
         let len = sig.params.len() - (if sig_has_rest { 1 } else { 0 });

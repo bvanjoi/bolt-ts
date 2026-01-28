@@ -1,8 +1,8 @@
-import * as assert from 'node:assert'
+import { ok } from 'node:assert/strict'
 
-import * as vscode from 'vscode'
+import { extensions } from 'vscode'
 
 test('bolt-ts extension exist', async () => {
-	const ext = vscode.extensions.getExtension('bohan.bolt-ts-vscode-extension')
-	assert.ok(ext)
+	const ext = extensions.getExtension('bohan.bolt-ts-vscode-extension')
+	ok(ext)
 })

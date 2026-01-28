@@ -1,11 +1,10 @@
 use bolt_ts_ast as ast;
 
-use crate::check::errors;
-use crate::check::relation::RelationKind;
-use crate::check::symbol_info::SymbolInfo;
-
 use super::NodeCheckFlags;
 use super::TyChecker;
+use super::errors;
+use super::relation::RelationKind;
+use super::symbol_info::SymbolInfo;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_node_deferred(&mut self, node: ast::NodeID) {

@@ -1,0 +1,6 @@
+  × 'A.B' refers to a value, but is being used as a type here. Did you mean
+  │ 'typeof A.B'?
+    ╭─[../../tests/compiler/genericFunduleInModule2/index.ts:13:10]
+ 13 │ B
+    · ─
+    ╰────

@@ -188,6 +188,7 @@ impl BinderState<'_, '_, '_> {
         let has_members = s.members.is_some();
         s.flags |= flags;
         if let Some(decls) = s.decls.as_mut() {
+            debug_assert!(!decls.contains(&node));
             decls.push(node);
         } else {
             let mut decls = thin_vec::ThinVec::with_capacity(4);

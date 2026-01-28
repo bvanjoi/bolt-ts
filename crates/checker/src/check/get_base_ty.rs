@@ -1,5 +1,5 @@
 use super::TyChecker;
-use crate::ty::{self, TypeFlags};
+use super::ty::{self, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     fn get_base_type_of_literal_type_union(

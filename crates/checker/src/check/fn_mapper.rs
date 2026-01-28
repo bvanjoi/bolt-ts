@@ -1,5 +1,5 @@
+use super::ty;
 use super::{InferenceContextId, TyChecker, links};
-use crate::ty;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct PermissiveMapper;
