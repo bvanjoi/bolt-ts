@@ -15,7 +15,6 @@ impl<'cx> SymbolName {
             SymbolName::Constructor => "__container".to_string(),
             SymbolName::New => "__container".to_string(),
             SymbolName::Call => "__container".to_string(),
-            SymbolName::Interface => "__container".to_string(),
             SymbolName::Index => "__container".to_string(),
             SymbolName::Type => "__container".to_string(),
             SymbolName::Missing => "__container".to_string(),

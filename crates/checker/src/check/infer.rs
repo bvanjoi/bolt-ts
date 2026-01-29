@@ -348,7 +348,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let info = self.inference_info(inference, idx);
         // TODO: remove clone
-        let cs = info.candidates.as_ref().unwrap().clone();
+        let cs = info.contra_candidates.as_ref().unwrap().clone();
         if info
             .priority
             .unwrap()
@@ -2203,7 +2203,16 @@ impl<'cx> InferenceState<'cx, '_> {
         target: &'cx ty::Sig<'cx>,
         f: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>),
     ) {
-        // TODO: handle ty_pred
+        if let Some(target_ty_pred) = self.c.get_ty_predicate_of_sig(target)
+            && let Some(source_ty_pred) = self.c.get_ty_predicate_of_sig(source)
+            && target_ty_pred.kind_match(source_ty_pred)
+            && let Some(s) = source_ty_pred.ty()
+            && let Some(t) = target_ty_pred.ty()
+        {
+            f(self, s, t);
+            return;
+        }
+
         let target_ret_ty = self.c.get_ret_ty_of_sig(target);
         if self.c.could_contain_ty_var(target_ret_ty) {
             let source_ret_ty = self.c.get_ret_ty_of_sig(source);

@@ -343,18 +343,16 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
             };
-            let candidate =
-                if sigs.len() == 1 && self.get_sig_links(sigs[0].id).get_ty_params().is_none() {
-                    Some(sigs[0])
-                } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                    // TODO: get_resolved_sig(node)
-                    Some(self.get_resolved_sig(node))
-                } else {
-                    None
-                };
-            let sig = candidate
-                .filter(|sig| self.has_ty_pred_or_never_ret_ty(sig))
-                .unwrap_or(self.unknown_sig());
+            let sig = if sigs.len() == 1
+                && self.get_sig_links(sigs[0].id).get_ty_params().is_none()
+                && self.has_ty_pred_or_never_ret_ty(sigs[0])
+            {
+                sigs[0]
+            } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
+                self.get_resolved_sig(node)
+            } else {
+                self.unknown_sig()
+            };
             self.get_mut_node_links(node).set_effects_sig(sig);
             sig
         };

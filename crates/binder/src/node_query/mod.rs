@@ -521,6 +521,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn is_in_compound_like_assignment(&self, id: ast::NodeID) -> bool {
+        let Some(target) = self.get_assignment_target(id) else {
+            return false;
+        };
+        let n = self.node(target);
+        n.as_assign_expr()
+            .is_some_and(ast::AssignExpr::is_compound_assignment)
+    }
+
     pub fn is_decl_name_or_import_prop_name(&self, id: ast::NodeID) -> bool {
         use ast::Node::*;
         self.parent(id).is_some_and(|p| match self.node(p) {
