@@ -16,29 +16,29 @@ impl<'cx> TyChecker<'cx> {
         self.get_widened_ty_with_context(ty)
     }
 
+    // TODO: WideningContext
     fn get_widened_ty_with_context(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty
+        if !ty
             .get_object_flags()
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
         {
-            // TODO: cache
-            if ty
-                .flags
-                .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
-            {
-                self.any_ty
-            } else if ty.is_object_literal() {
-                self.get_widened_type_of_object_lit(ty)
-            } else if self.is_array_or_tuple(ty) {
-                let refer = ty.kind.expect_object_reference();
-                let ty_args = self.get_ty_arguments(ty);
-                let ty_args =
-                    self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
-                assert!(ty_args.is_some());
-                self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
-            } else {
-                ty
-            }
+            return ty;
+        }
+        // TODO: widened cache
+        if ty
+            .flags
+            .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
+        {
+            self.any_ty
+        } else if ty.is_object_literal() {
+            self.get_widened_type_of_object_lit(ty)
+        } else if self.is_array_or_tuple(ty) {
+            let refer = ty.kind.expect_object_reference();
+            let ty_args = self.get_ty_arguments(ty);
+            let ty_args =
+                self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
+            assert!(ty_args.is_some());
+            self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
         } else {
             ty
         }

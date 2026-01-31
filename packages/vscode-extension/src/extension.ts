@@ -1,5 +1,5 @@
 import path from 'node:path'
-import * as vscode from 'vscode'
+import { type OutputChannel, window } from 'vscode'
 import {
 	type Executable,
 	LanguageClient,
@@ -8,7 +8,7 @@ import {
 } from 'vscode-languageclient/node'
 
 interface ClientOptions {
-	logger: vscode.OutputChannel
+	logger: OutputChannel
 }
 interface Client {
 	start(): Promise<void>
@@ -49,7 +49,7 @@ function createClient(options: ClientOptions): Client {
 let client: Client | undefined
 
 export function activate() {
-	const logger = vscode.window.createOutputChannel('bolt-ts Extension', {
+	const logger = window.createOutputChannel('bolt-ts Extension', {
 		log: true
 	})
 

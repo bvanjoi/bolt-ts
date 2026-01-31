@@ -3,15 +3,15 @@ use bolt_ts_ast::{NodeFlags, VarDecls};
 
 use super::ast;
 use super::errors;
+use super::keyword;
 use super::lookahead::Lookahead;
+use super::parse_break_or_continue::{ParseBreak, ParseContinue};
 use super::parse_class_like::ParseClassDecl;
 use super::parse_fn_like::ParseFnDecl;
 use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
-use crate::keyword;
-use crate::parse_break_or_continue::{ParseBreak, ParseContinue};
-use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug)]
@@ -396,7 +396,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         if matches!(name.kind, ast::PropNameKind::NumLit(_)) {
             let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
             self.push_error(Box::new(error));
@@ -1088,7 +1088,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.parse_prop_name(true);
+            let prop_name = self.parse_prop_name::<true>();
             self.expect(TokenKind::Colon);
             let name = self.parse_ident_or_pat()?;
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })

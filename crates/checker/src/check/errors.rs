@@ -349,6 +349,16 @@ pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATempla
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
+    "An index signature parameter type cannot be a literal type or generic type. Consider using a mapped object type instead."
+)]
+pub(super) struct AnIndexSignatureParameterTypeCannotBeALiteralTypeOrGenericTypeConsiderUsingAMappedObjectTypeInstead
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
     "A class can only implement an object type or intersection of object types with statically known members."
 )]
 pub(super) struct AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
@@ -1084,4 +1094,75 @@ pub(super) struct CannotInvokeAnObjectWhichIsPossiblyUndefined {
 pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNull {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Not all code paths return a value.")]
+pub(super) struct NotAllCodePathsReturnAValue {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Rest types may only be created from object types.")]
+pub(super) struct RestTypesMayOnlyBeCreatedFromObjectTypes {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in an interface must refer to an expression whose type is a literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhoseTypeIsALiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Object literal's property '{prop}' implicitly has an '{ty}' type.")]
+pub(super) struct ObjectLiteralSPropertyXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}', which lacks return-type annotation, implicitly has an '{y}' return type.")]
+pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "An interface can only extend an object type or intersection of object types with statically known members."
+)]
+pub(super) struct AnInterfaceCanOnlyExtendAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class '{class}' incorrectly implements interface '{interface}'.")]
+pub(super) struct ClassXIncorrectlyImplementsInterfaceY {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub interface: String,
 }

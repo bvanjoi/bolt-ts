@@ -25,7 +25,6 @@ pub enum SymbolName {
     /// constructor sigs
     New,
     Call,
-    Interface,
     Index,
     Type,
     Missing,
@@ -61,6 +60,25 @@ impl SymbolName {
 
     pub fn is_numeric(&self) -> bool {
         self.as_numeric().is_some()
+    }
+
+    pub fn is_late_bound(&self) -> bool {
+        matches!(
+            self,
+            SymbolName::Call
+                | SymbolName::Constructor
+                | SymbolName::New
+                | SymbolName::Index
+                // TODO: | SymbolName::GLOBAL
+                | SymbolName::Type
+                | SymbolName::Object
+                // TODO: | SymbolName::JSX_ATTRIBUTES
+                | SymbolName::ClassExpr
+                | SymbolName::Fn
+                | SymbolName::Computed
+                | SymbolName::Resolving
+                | SymbolName::InstantiationExpression // TODO: ImportAttributes
+        )
     }
 }
 

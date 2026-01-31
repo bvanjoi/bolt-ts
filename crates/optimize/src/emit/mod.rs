@@ -202,6 +202,13 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p(content);
     }
 
+    fn emit_private_ident(&mut self, ident: ir::PrivateIdentID) {
+        let ident = self.nodes.get_private_ident(&ident);
+        let content = self.emitter.atoms.get(ident.name());
+        self.emitter.print().p("#");
+        self.emitter.print().p(content);
+    }
+
     fn emit_num_lit(&mut self, num: ir::NumLitID) {
         let num = self.nodes.get_num_lit(&num);
         self.emitter.print().p(&num.val().to_string())
@@ -242,6 +249,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 let name = self.nodes.get_computed_prop_name(&id);
                 self.emit_expr(name.expr());
                 self.emitter.print().p_r_bracket();
+            }
+            ir::PropName::PrivateIdent(n) => {
+                self.emit_private_ident(n);
             }
         }
     }
@@ -899,6 +909,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         ir::PropName::StringLit(lit) => this.emit_string_lit(lit),
                         ir::PropName::NumLit(num) => this.emit_num_lit(num),
                         ir::PropName::Computed(_) => todo!(),
+                        ir::PropName::PrivateIdent(_) => todo!(),
                     }
                     this.emitter.content.p_r_bracket();
                     this.emitter.content.p_whitespace();
@@ -922,6 +933,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         ir::PropName::StringLit(lit) => this.emit_string_lit(lit),
                         ir::PropName::NumLit(num) => this.emit_num_lit(num),
                         ir::PropName::Computed(_) => todo!(),
+                        ir::PropName::PrivateIdent(_) => todo!(),
                     }
                 }
             },

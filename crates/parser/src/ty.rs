@@ -1,9 +1,9 @@
-use crate::SignatureFlags;
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-
+use super::SignatureFlags;
 use super::lookahead::Lookahead;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
 use super::{ast, errors};
+
 use bolt_ts_ast::{Token, TokenKind};
 
 impl<'cx> ParserState<'cx, '_> {
@@ -515,7 +515,7 @@ impl<'cx> ParserState<'cx, '_> {
         (self.token.kind != TokenKind::Dot).then_some(token)
     }
 
-    pub(super) fn try_parse_ty_args(&mut self) -> PResult<Option<&'cx ast::Tys<'cx>>> {
+    pub(super) fn try_parse_ty_args(&mut self) -> Option<&'cx ast::Tys<'cx>> {
         if self.token.kind == TokenKind::Less {
             let start = self.token.start();
             let tys = self.parse_bracketed_list::<false, _>(
@@ -530,9 +530,9 @@ impl<'cx> ParserState<'cx, '_> {
                 self.push_error(Box::new(error));
             }
             let tys = self.alloc(ast::Tys { span, list: tys });
-            Ok(Some(tys))
+            Some(tys)
         } else {
-            Ok(None)
+            None
         }
     }
 
@@ -542,7 +542,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `typeof`
         let name = self.parse_entity_name::<true>();
         let ty_args = if !self.has_preceding_line_break() {
-            self.try_parse_ty_args()?
+            self.try_parse_ty_args()
         } else {
             None
         };
@@ -954,7 +954,7 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let name = self.parse_prop_name(true);
+        let name = self.parse_prop_name::<true>();
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
@@ -1054,6 +1054,16 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::ObjectTyMemberKind::Setter(decl),
             }))
         } else if self.is_index_sig() {
+            if let Some(ms) = modifiers {
+                for m in ms.list {
+                    if !matches!(m.kind, ast::ModifierKind::Readonly) {
+                        self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
+                            span: m.span,
+                            kind: m.kind,
+                        }));
+                    }
+                }
+            }
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ObjectTyMember {
                 kind: ast::ObjectTyMemberKind::IndexSig(decl),

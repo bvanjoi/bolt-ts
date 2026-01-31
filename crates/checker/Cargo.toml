@@ -16,6 +16,7 @@ bolt_ts_module_graph = { path = "../module_graph" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_parser = { path = "../parser" }
 bolt_ts_path = { path = "../path" }
+bolt_ts_ty = { path = "../ty" }
 bolt_ts_utils = { path = "../../helper/utils" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }

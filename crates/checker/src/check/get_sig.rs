@@ -25,6 +25,20 @@ impl<'cx> TyChecker<'cx> {
         s
     }
 
+    fn get_ty_params_from_decl(&mut self, decl: ast::NodeID) -> Option<ty::Tys<'cx>> {
+        let mut result = vec![];
+        let ty_params = self.get_effective_ty_param_decls(decl);
+        self.append_ty_params(&mut result, ty_params);
+        if !ty_params.is_empty() {
+            Some(self.alloc(result))
+        } else if self.p.node(decl).is_fn_decl() {
+            self.get_sig_of_ty_tag(decl)
+                .and_then(|sig| self.get_sig_links(sig.id).get_ty_params())
+        } else {
+            None
+        }
+    }
+
     pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
@@ -42,16 +56,16 @@ impl<'cx> TyChecker<'cx> {
             let r = class_ty.kind.expect_object_reference();
             let i = r.target.kind.expect_object_interface();
             i.local_ty_params
-        } else if let Some(ty_params) = decl.ty_params() {
-            let mut res = Vec::with_capacity(ty_params.len());
-            self.append_ty_params(&mut res, ty_params);
-            let ty_params: ty::Tys<'cx> = self.alloc(res);
-            Some(ty_params)
         } else {
-            None
+            self.get_ty_params_from_decl(id)
         };
-        let sig = get_sig_from_decl(self, decl, ty_params);
+        let sig = get_sig_from_decl(self, decl);
         let sig = self.new_sig(sig);
+        if let Some(ty_params) = ty_params {
+            let links = super::links::SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(sig.id, links);
+            debug_assert!(prev.is_none());
+        }
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
@@ -150,8 +164,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
-        if let Some(ty_params) = sig.ty_params {
-            // TODO: cache
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            // TODO: baseSignatureCache
             let ty_eraser = self.create_ty_eraser(ty_params);
             let targets = {
                 let tys = ty_params
@@ -186,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_erased_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
-        if let Some(ty_params) = sig.ty_params {
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
             // TODO: cache
             self.create_erased_sig(sig, ty_params)
         } else {
@@ -329,17 +343,16 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
             };
-            let candidate = if sigs.len() == 1 && sigs[0].ty_params.is_none() {
-                Some(sigs[0])
+            let sig = if sigs.len() == 1
+                && self.get_sig_links(sigs[0].id).get_ty_params().is_none()
+                && self.has_ty_pred_or_never_ret_ty(sigs[0])
+            {
+                sigs[0]
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                // TODO: get_resolved_sig(node)
-                Some(self.get_resolved_sig(node))
+                self.get_resolved_sig(node)
             } else {
-                None
+                self.unknown_sig()
             };
-            let sig = candidate
-                .filter(|sig| self.has_ty_pred_or_never_ret_ty(sig))
-                .unwrap_or(self.unknown_sig());
             self.get_mut_node_links(node).set_effects_sig(sig);
             sig
         };
@@ -433,11 +446,7 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn get_sig_from_decl<'cx>(
-    checker: &TyChecker<'cx>,
-    node: ast::Node<'cx>,
-    ty_params: Option<ty::Tys<'cx>>,
-) -> Sig<'cx> {
+fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
     debug_assert!(
         node.is_fn_decl()
             || node.is_fn_expr()
@@ -518,7 +527,6 @@ fn get_sig_from_decl<'cx>(
     };
     Sig {
         flags,
-        ty_params,
         this_param,
         params,
         min_args_count,

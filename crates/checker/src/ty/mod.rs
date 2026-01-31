@@ -1,6 +1,4 @@
-mod check_flags;
 mod facts;
-mod flags;
 mod links;
 mod mapper;
 mod num_lit;
@@ -12,12 +10,14 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+pub use bolt_ts_ty::CheckFlags;
+pub use bolt_ts_ty::ObjectFlags;
+pub use bolt_ts_ty::TypeFacts;
+pub use bolt_ts_ty::TypeFlags;
 
 use crate::check::TyChecker;
 
-pub use self::check_flags::CheckFlags;
-pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts};
-pub use self::flags::{ObjectFlags, TypeFlags};
+pub use self::facts::TYPEOF_NE_FACTS;
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
@@ -420,6 +420,16 @@ impl<'cx> Ty<'cx> {
             ty.target == t || self == t
         })
     }
+
+    pub fn alias_ty_arguments(&self) -> Option<Tys<'cx>> {
+        match self.kind {
+            TyKind::Union(ty) => ty.alias_ty_arguments,
+            TyKind::Intersection(ty) => ty.alias_ty_arguments,
+            TyKind::Cond(ty) => ty.alias_ty_arguments,
+            TyKind::Object(ty) => ty.kind.alias_ty_arguments(),
+            _ => None,
+        }
+    }
 }
 
 impl<'cx> TyKind<'cx> {
@@ -529,7 +539,7 @@ pub struct CondTy<'cx> {
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub combined_mapper: Option<&'cx dyn TyMap<'cx>>,
     pub alias_symbol: Option<SymbolID>,
-    pub alias_ty_args: Option<Tys<'cx>>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];

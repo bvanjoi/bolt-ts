@@ -10,10 +10,10 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::{RelationKind, SigCheckMode};
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, Ty, TyKind, TypeFlags};
+use super::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
-use crate::ty::{self, Ty, TyKind, TypeFlags};
-use crate::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -264,6 +264,23 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> Ternary {
+        let source_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(source_prop, None);
+        let target_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(target_prop, None);
+        if source_prop_flags.contains(ast::ModifierKind::Private)
+            || target_prop_flags.contains(ast::ModifierKind::Private)
+        {
+            if self.c.symbol(source_prop).value_decl != self.c.symbol(target_prop).value_decl {
+                if report_error {
+                    //TODO:
+                }
+                return Ternary::FALSE;
+            }
+        }
+
         let related = self.is_property_symbol_ty_related(
             source_prop,
             target_prop,
@@ -447,7 +464,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if let Some((mut unmatched, target_symbol)) =
             self.c
-                .get_unmatched_prop(source, target, require_optional_properties)
+                .get_unmatched_prop(source, target, require_optional_properties, false)
         {
             assert!(!unmatched.is_empty());
             if report_error {
@@ -896,7 +913,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let mut result = Ternary::TRUE;
+        let mut result;
         let source_flags = source.flags;
         let target_flags = target.flags;
         if self.relation == RelationKind::Identity {
@@ -1902,7 +1919,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let is_top_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
-            if sig.ty_params.is_none()
+            if this.c.get_sig_links(sig.id).get_ty_params().is_none()
                 && sig.params.len() == 1
                 && sig.has_rest_param()
                 && (sig.this_param.is_none_or(|this_param| {
@@ -1951,10 +1968,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source_has_more_params {
             return Ternary::FALSE;
         }
-        if let Some(ty_params) = source.ty_params
-            && target
-                .ty_params
-                .is_none_or(|target_ty_params| !std::ptr::eq(ty_params, target_ty_params))
+        if let Some(source_ty_params) = self.c.get_sig_links(source.id).get_ty_params()
+            && self
+                .c
+                .get_sig_links(target.id)
+                .get_ty_params()
+                .is_none_or(|target_ty_params| !std::ptr::eq(source_ty_params, target_ty_params))
         {
             // when compare signatures, such as:
             // `<G>() => G` and `<T>() => T`

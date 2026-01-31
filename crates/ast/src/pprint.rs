@@ -12,14 +12,15 @@ pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern)
         NumLit(lit) => lit.val.to_string(),
         StringLit { raw, .. } => atoms.get(raw.val).to_string(),
         Computed(_) => "todo: computed name".to_string(),
+        PrivateIdent(n) => todo!(),
     }
 }
 
 pub fn pprint_binding(binding: &super::Binding<'_>, atoms: &AtomIntern) -> String {
     match binding.kind {
         super::BindingKind::Ident(ident) => pprint_ident(ident, atoms),
-        super::BindingKind::ObjectPat(n) => todo!(),
-        crate::BindingKind::ArrayPat(n) => todo!(),
+        super::BindingKind::ObjectPat(_) => todo!(),
+        super::BindingKind::ArrayPat(_) => todo!(),
     }
 }
 

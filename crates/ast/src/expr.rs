@@ -112,6 +112,14 @@ impl<'cx> Expr<'cx> {
         )
     }
 
+    pub fn is_signed_numeric_lit(&self) -> bool {
+        let ExprKind::PrefixUnary(n) = &self.kind else {
+            return false;
+        };
+        matches!(n.op, PrefixUnaryOp::Plus | PrefixUnaryOp::Minus)
+            && matches!(n.expr.kind, ExprKind::NumLit(_))
+    }
+
     pub fn is_string_or_number_lit_like(&self) -> bool {
         self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
     }
@@ -202,6 +210,7 @@ impl<'cx> Expr<'cx> {
                 | Template(_)
                 | Super(_)
                 | NonNull(_)
+                | ExprWithTyArgs(_)
         )
     }
 }
@@ -561,6 +570,15 @@ pub struct AssignExpr<'cx> {
     pub op: AssignOp,
     pub right: &'cx Expr<'cx>,
 }
+impl AssignExpr<'_> {
+    pub fn is_compound_assignment(&self) -> bool {
+        let right = self.right.kind.skip_paren();
+        match right {
+            ExprKind::Bin(e) => e.op.kind.is_shift_op_or_higher(),
+            _ => false,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct NewExpr<'cx> {
@@ -696,6 +714,33 @@ impl BinOpKind {
         // TODO: QuestionQuestion
         self.is_logical_op()
     }
+
+    pub fn is_shift_op(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Shl | Sar | Shr)
+    }
+
+    pub fn is_additive_op(self) -> bool {
+        matches!(self, Self::Add | Self::Sub)
+    }
+
+    pub fn is_multiplicative_op(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Mul | Div | Mod)
+    }
+
+    pub fn is_multiplicative_op_or_higher(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Exp) || self.is_multiplicative_op()
+    }
+
+    pub fn is_additive_op_or_higher(self) -> bool {
+        self.is_additive_op() || self.is_multiplicative_op_or_higher()
+    }
+
+    pub fn is_shift_op_or_higher(self) -> bool {
+        self.is_shift_op() || self.is_additive_op_or_higher()
+    }
 }
 
 impl std::fmt::Display for BinOpKind {
@@ -739,6 +784,13 @@ pub struct VarDecl<'cx> {
 
 #[derive(Debug, Clone)]
 pub struct Ident {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: Atom,
+}
+
+#[derive(Debug, Clone)]
+pub struct PrivateIdent {
     pub id: NodeID,
     pub span: Span,
     pub name: Atom,

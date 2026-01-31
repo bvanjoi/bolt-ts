@@ -1,5 +1,6 @@
 use super::TyChecker;
-use crate::ty::{SigID, TyID};
+use super::ty::{SigID, TyID};
+
 use bolt_ts_binder::SymbolID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

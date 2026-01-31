@@ -29,7 +29,11 @@ impl<'cx> TyChecker<'cx> {
                             && check_mode.intersects(CheckMode::INFERENTIAL)
                         {
                             let inference = inference.unwrap().inference.unwrap();
-                            self.infer_from_annotated_params(sig, contextual_sig, inference);
+                            self.infer_from_annotated_params_and_return(
+                                sig,
+                                contextual_sig,
+                                inference,
+                            );
                             let rest_ty = contextual_sig.get_rest_ty(self);
                             if let Some(rest_ty) = rest_ty
                                 && rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
@@ -63,8 +67,15 @@ impl<'cx> TyChecker<'cx> {
                     let ret_ty = self.get_ret_ty_from_body(id);
                     self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
                 }
+
+                self.check_sig_decl(id);
             }
         }
+    }
+
+    fn check_sig_decl(&mut self, id: ast::NodeID) {
+        let ty_params = self.get_effective_ty_param_decls(id);
+        self.check_ty_params(ty_params);
     }
 
     pub(super) fn check_fn_like_expr_or_object_method_member(
@@ -92,7 +103,6 @@ impl<'cx> TyChecker<'cx> {
                     params: self.empty_array(),
                     ret: None,
                     flags: ty::SigFlags::IS_NON_INFERRABLE,
-                    ty_params: None,
                     this_param: None,
                     target: None,
                     mapper: None,

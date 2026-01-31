@@ -1,17 +1,17 @@
-use bolt_ts_ast::{self as ast, ModifierKind};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
+
 use rustc_hash::FxHashSet;
 
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
+use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
+use super::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
 use super::{SymbolLinks, errors};
-use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
-use crate::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
-use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
-
 use super::{Ternary, TyChecker};
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -338,7 +338,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
             unreachable!()
         };
-        let mut members = fx_indexmap_with_capacity(64);
+        let mut members = fx_indexmap_with_capacity(16);
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
@@ -425,17 +425,15 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        self.get_union_or_intersection_prop(ty, name)
-            .and_then(|prop| {
-                if !self
-                    .get_check_flags(prop)
-                    .intersects(CheckFlags::READ_PARTIAL)
-                {
-                    Some(prop)
-                } else {
-                    None
-                }
-            })
+        let prop = self.get_union_or_intersection_prop(ty, name)?;
+        if !self
+            .get_check_flags(prop)
+            .intersects(CheckFlags::READ_PARTIAL)
+        {
+            Some(prop)
+        } else {
+            None
+        }
     }
 
     fn get_union_or_intersection_prop(
@@ -459,8 +457,9 @@ impl<'cx> TyChecker<'cx> {
 
         let mut single_prop = None;
         let mut prop_set: Option<FxHashSet<_>> = None;
-        let index_tys: Option<Vec<Ty<'cx>>> = None;
+        let mut index_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
+        let mut synthetic_flags = CheckFlags::SYNTHETIC_METHOD;
         let mut check_flags = if is_union {
             CheckFlags::empty()
         } else {
@@ -511,27 +510,63 @@ impl<'cx> TyChecker<'cx> {
                     (false, false) => check_flags &= !CheckFlags::READONLY,
                     _ => (),
                 };
-                check_flags |=
-                    if !modifiers.intersects(ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
-                        CheckFlags::CONTAINS_PUBLIC
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Protected) {
-                        CheckFlags::CONTAINS_PROTECTED
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Private) {
-                        CheckFlags::CONTAINS_PRIVATE
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Static) {
-                        CheckFlags::CONTAINS_STATIC
-                    } else {
-                        CheckFlags::empty()
-                    };
+                check_flags |= if !modifiers
+                    .intersects(ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                {
+                    CheckFlags::CONTAINS_PUBLIC
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Protected) {
+                    CheckFlags::CONTAINS_PROTECTED
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Private) {
+                    CheckFlags::CONTAINS_PRIVATE
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.intersects(ast::ModifierKind::Static) {
+                    CheckFlags::CONTAINS_STATIC
+                } else {
+                    CheckFlags::empty()
+                };
                 // TODO: !is_prototype_prop
             } else if is_union {
-                // TODO:
+                if !name.is_late_bound()
+                    && let Some(index_info) = self.get_applicable_index_for_name(ty, name)
+                {
+                    // TODO: prop_flags
+                    check_flags |= CheckFlags::WRITE_PARTIAL
+                        | if index_info.is_readonly {
+                            CheckFlags::READONLY
+                        } else {
+                            CheckFlags::empty()
+                        };
+
+                    let index_ty = if ty.is_tuple() {
+                        self.get_rest_ty_of_tuple_ty(ty)
+                            .unwrap_or(self.undefined_ty)
+                    } else {
+                        index_info.val_ty
+                    };
+                    match &mut index_tys {
+                        Some(index_tys) => index_tys.push(index_ty),
+                        None => {
+                            index_tys = Some(vec![index_ty]);
+                        }
+                    }
+                } else if ty.is_object_literal()
+                    && !ty.get_object_flags().contains(ObjectFlags::CONTAINS_SPREAD)
+                {
+                    check_flags |= CheckFlags::WRITE_PARTIAL;
+                    match &mut index_tys {
+                        Some(index_tys) => index_tys.push(self.undefined_ty),
+                        None => {
+                            index_tys = Some(vec![self.undefined_ty]);
+                        }
+                    }
+                } else {
+                    check_flags |= CheckFlags::READ_PARTIAL
+                }
             }
         }
         let single_prop = single_prop?;
@@ -577,7 +612,7 @@ impl<'cx> TyChecker<'cx> {
             | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)
-            .with_check_flags(CheckFlags::empty());
+            .with_check_flags(synthetic_flags | check_flags);
         let mut links = if let Some(name_ty) = name_ty {
             links.with_name_ty(name_ty)
         } else {
@@ -646,8 +681,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
-        self.get_unmatched_props(source, target, require_optional_properties)
+        self.get_unmatched_props(
+            source,
+            target,
+            require_optional_properties,
+            match_discriminant_properties,
+        )
     }
 
     fn get_unmatched_props(
@@ -655,10 +696,12 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
+        match_discriminant_properties: bool,
     ) -> Option<(Vec<Atom>, SymbolID)> {
         let properties = self.get_props_of_ty(target);
         let mut unmatched = Vec::with_capacity(properties.len());
         for target_prop in properties {
+            // TODO: is_static_private_ident_property
             let s = self.symbol(*target_prop);
             if require_optional_properties
                 || !(s.flags.intersects(SymbolFlags::OPTIONAL)
@@ -673,6 +716,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                     continue;
                 };
+                // TODO: match_discriminant_properties
             }
         }
         if unmatched.is_empty() {

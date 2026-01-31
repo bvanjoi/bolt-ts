@@ -305,6 +305,7 @@ pub enum TokenKind {
     JSXTextAllWhiteSpaces,
     Regexp,
     Ident,
+    PrivateIdent,
     NoSubstitutionTemplate,
     TemplateHead,
     TemplateMiddle,
@@ -652,7 +653,7 @@ impl TokenKind {
 
     #[inline(always)]
     pub const fn is_ident_or_keyword(self) -> bool {
-        matches!(self, TokenKind::Ident) || self.is_keyword()
+        matches!(self, TokenKind::Ident | TokenKind::PrivateIdent) || self.is_keyword()
     }
 
     #[inline(always)]

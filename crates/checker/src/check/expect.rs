@@ -1,6 +1,7 @@
 use super::TyChecker;
 use super::ty;
-use crate::ty::TypeFlags;
+use super::ty::TypeFlags;
+
 use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {

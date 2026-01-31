@@ -50,7 +50,7 @@ fn visit_binding<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::Binding<'cx>)
     }
 }
 
-fn visit_param_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::ParamDecl<'cx>) {
+pub fn visit_param_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::ParamDecl<'cx>) {
     v.visit_binding(node.name);
     if let Some(ty) = node.ty {
         v.visit_ty(ty);
@@ -92,9 +92,9 @@ fn visit_var_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx super::VarStmt<'cx>
     }
 }
 
-pub fn visit_type_alias_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::TypeAliasDecl<'cx>) {
-    v.visit_ident(decl.name);
-    v.visit_ty(decl.ty);
+pub fn visit_type_alias_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TypeAliasDecl<'cx>) {
+    v.visit_ident(n.name);
+    v.visit_ty(n.ty);
 }
 
 pub fn visit_module_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx super::ModuleDecl<'cx>) {
@@ -126,10 +126,10 @@ pub fn visit_class_decl<'cx>(v: &mut impl Visitor<'cx>, class: &'cx super::Class
         v.visit_class_elem(ele);
     }
 }
-pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::InterfaceDecl<'cx>) {
-    v.visit_ident(node.name);
+pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::InterfaceDecl<'cx>) {
+    v.visit_ident(n.name);
     // TODO: node.extends
-    for member in node.members {
+    for member in n.members {
         use super::ObjectTyMemberKind::*;
         match member.kind {
             IndexSig(n) => {}
@@ -142,9 +142,9 @@ pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::In
         }
     }
 }
-pub fn visit_prop_signature<'cx>(v: &mut impl Visitor<'cx>, node: &'cx super::PropSignature<'cx>) {
-    v.visit_prop_name(node.name);
-    if let Some(ty) = node.ty {
+pub fn visit_prop_signature<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PropSignature<'cx>) {
+    v.visit_prop_name(n.name);
+    if let Some(ty) = n.ty {
         v.visit_ty(ty);
     }
 }
@@ -204,9 +204,10 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx super::Ty<'cx>) {
         Intrinsic(n) => v.visit_intrinsic_ty(n),
         Nullable(n) => v.visit_nullable_ty(n),
         TemplateLit(n) => v.visit_template_lit_ty(n),
-        This(_) => {}
+        This(n) => v.visit_this_ty(n),
     }
 }
+pub fn visit_this_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ThisTy) {}
 pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::ReferTy<'cx>) {
     // TODO: name
     if let Some(ty_args) = n.ty_args {
@@ -226,20 +227,25 @@ pub fn visit_indexed_access_ty<'cx>(
     v.visit_ty(n.index_ty);
 }
 pub fn visit_fn_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::FnTy<'cx>) {
-    // if let Some(ty_params) = n.ty_params {
-    //     for ty_param in ty_params {
-    //         v.visit_ty_param(ty_param);
-    //     }
-    // }
-    // for param in n.params {
-    //     v.visit_param(param);
-    // }
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
     v.visit_ty(n.ty);
 }
 pub fn visit_ctor_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::CtorTy<'cx>) {
-    // for param in n.params {
-    //     v.visit_param(param);
-    // }
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
     v.visit_ty(n.ty);
 }
 pub fn visit_object_lit_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::ObjectLitTy<'cx>) {
@@ -328,6 +334,7 @@ pub fn visit_prop_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PropName<'
         super::PropNameKind::StringLit { raw, .. } => v.visit_string_lit(raw),
         super::PropNameKind::NumLit(_) => {}
         super::PropNameKind::Computed(expr) => v.visit_computed_prop_name(expr),
+        super::PropNameKind::PrivateIdent(n) => v.visit_private_ident(n),
     }
 }
 pub fn visit_computed_prop_name<'cx>(
@@ -337,6 +344,7 @@ pub fn visit_computed_prop_name<'cx>(
     v.visit_expr(n.expr);
 }
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
+pub fn visit_private_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::PrivateIdent) {}
 pub fn visit_entity_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::EntityName) {
     match n.kind {
         super::EntityNameKind::Ident(node) => v.visit_ident(node),
@@ -409,6 +417,15 @@ pub fn visit_if_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::IfStmt<'cx>)
         v.visit_stmt(else_then);
     }
 }
+pub fn visit_ty_param<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::TyParam<'cx>) {
+    v.visit_ident(n.name);
+    if let Some(ty) = n.constraint {
+        v.visit_ty(ty);
+    }
+    if let Some(default_ty) = n.default {
+        v.visit_ty(default_ty)
+    }
+}
 
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
@@ -433,6 +450,7 @@ make_visitor!(
     (visit_index_sig_decl, super::IndexSigDecl<'cx>),
     (visit_entity_name, super::EntityName<'cx>),
     (visit_ident, super::Ident),
+    (visit_private_ident, super::PrivateIdent),
     (visit_ty, super::Ty<'cx>),
     (visit_refer_ty, super::ReferTy<'cx>),
     (visit_array_ty, super::ArrayTy<'cx>),
@@ -450,6 +468,7 @@ make_visitor!(
     (visit_typeof_ty, super::TypeofTy<'cx>),
     (visit_mapped_ty, super::MappedTy<'cx>),
     (visit_ty_op_ty, super::TyOp<'cx>),
+    (visit_ty_param, super::TyParam<'cx>),
     (visit_pred_ty, super::PredTy<'cx>),
     (visit_paren_ty, super::ParenTy<'cx>),
     (visit_infer_ty, super::InferTy<'cx>),
@@ -480,18 +499,159 @@ make_visitor!(
     (visit_call_expr, super::CallExpr<'cx>),
     (visit_prop_signature, super::PropSignature<'cx>),
     (visit_method_signature, super::MethodSignature<'cx>),
+    (visit_this_ty, super::ThisTy)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
-    macro_rules! v {
-        ($( ($variant: ident, $node: ident ) ),* $(,)?) => {
-            match node {
-                $(
-                    super::Node::$variant(n) => v.$node(n),
-                )*
-                _ => {}, // TODO: Handle all other variants
-            }
-        };
+    use super::Node::*;
+    match node {
+        Program(n) => v.visit_program(n),
+        Modifier(n) => todo!(),
+        VarDecl(n) => todo!(),
+        ParamDecl(n) => todo!(),
+        ClassExtendsClause(n) => todo!(),
+        ImportExportShorthandSpec(n) => todo!(),
+        NsImport(n) => todo!(),
+        NsExport(n) => todo!(),
+        GlobExport(n) => todo!(),
+        SpecsExport(n) => todo!(),
+        ExportNamedSpec(n) => todo!(),
+        ImportNamedSpec(n) => todo!(),
+        ImportClause(n) => todo!(),
+        ObjectPat(n) => todo!(),
+        ObjectBindingElem(n) => todo!(),
+        ArrayPat(n) => todo!(),
+        ArrayBinding(n) => todo!(),
+        EnumMember(n) => todo!(),
+        ObjectShorthandMember(n) => todo!(),
+        ObjectPropAssignment(n) => todo!(),
+        ObjectMethodMember(n) => todo!(),
+        SpreadAssignment(n) => todo!(),
+        SpreadElement(n) => todo!(),
+        TemplateHead(n) => todo!(),
+        TemplateSpan(n) => todo!(),
+        CaseClause(n) => todo!(),
+        DefaultClause(n) => todo!(),
+        CaseBlock(n) => todo!(),
+        VarStmt(n) => todo!(),
+        FnDecl(n) => todo!(),
+        IfStmt(n) => todo!(),
+        RetStmt(n) => todo!(),
+        EmptyStmt(n) => todo!(),
+        ClassDecl(n) => todo!(),
+        ModuleDecl(n) => todo!(),
+        ClassCtor(n) => todo!(),
+        ClassPropElem(n) => todo!(),
+        ClassMethodElem(n) => todo!(),
+        ClassStaticBlockDecl(n) => todo!(),
+        GetterDecl(n) => todo!(),
+        SetterDecl(n) => todo!(),
+        InterfaceDecl(n) => visit_interface_decl(v, n),
+        TypeAliasDecl(n) => visit_type_alias_decl(v, n),
+        InterfaceExtendsClause(n) => todo!(),
+        ClassImplementsClause(n) => todo!(),
+        BlockStmt(n) => todo!(),
+        ModuleBlock(n) => todo!(),
+        ThrowStmt(n) => todo!(),
+        EnumDecl(n) => todo!(),
+        ImportDecl(n) => todo!(),
+        ExportDecl(n) => todo!(),
+        ExportAssign(n) => todo!(),
+        ForStmt(n) => todo!(),
+        ForInStmt(n) => todo!(),
+        ForOfStmt(n) => todo!(),
+        WhileStmt(n) => todo!(),
+        DoWhileStmt(n) => todo!(),
+        BreakStmt(n) => todo!(),
+        ContinueStmt(n) => todo!(),
+        TryStmt(n) => todo!(),
+        CatchClause(n) => todo!(),
+        DebuggerStmt(n) => todo!(),
+        LabeledStmt(n) => todo!(),
+        SwitchStmt(n) => todo!(),
+        ExprStmt(n) => todo!(),
+        BinExpr(n) => todo!(),
+        OmitExpr(n) => todo!(),
+        ParenExpr(n) => todo!(),
+        CondExpr(n) => todo!(),
+        CallExpr(n) => todo!(),
+        FnExpr(n) => todo!(),
+        ClassExpr(n) => todo!(),
+        NewExpr(n) => todo!(),
+        AssignExpr(n) => todo!(),
+        ArrowFnExpr(n) => todo!(),
+        PrefixUnaryExpr(n) => todo!(),
+        PostfixUnaryExpr(n) => todo!(),
+        PropAccessExpr(n) => todo!(),
+        EleAccessExpr(n) => todo!(),
+        ThisExpr(n) => todo!(),
+        TypeofExpr(n) => todo!(),
+        VoidExpr(n) => todo!(),
+        AwaitExpr(n) => todo!(),
+        SuperExpr(n) => todo!(),
+        AsExpr(n) => todo!(),
+        TyAssertionExpr(n) => todo!(),
+        SatisfiesExpr(n) => todo!(),
+        NonNullExpr(n) => todo!(),
+        TemplateExpr(n) => todo!(),
+        TaggedTemplateExpr(n) => todo!(),
+        DeleteExpr(n) => todo!(),
+        NumLit(n) => todo!(),
+        BigIntLit(n) => todo!(),
+        BoolLit(n) => todo!(),
+        NullLit(n) => todo!(),
+        RegExpLit(n) => todo!(),
+        StringLit(n) => todo!(),
+        NoSubstitutionTemplateLit(n) => todo!(),
+        ArrayLit(n) => todo!(),
+        ObjectLit(n) => todo!(),
+        Ident(n) => todo!(),
+        Binding(n) => todo!(),
+        ComputedPropName(n) => todo!(),
+        ExprWithTyArgs(n) => todo!(),
+        LitTy(n) => todo!(),
+        ReferTy(n) => todo!(),
+        ArrayTy(n) => todo!(),
+        IndexedAccessTy(n) => todo!(),
+        FnTy(n) => visit_fn_ty(v, n),
+        CtorTy(n) => todo!(),
+        ObjectLitTy(n) => todo!(),
+        TyParam(n) => todo!(),
+        IndexSigDecl(n) => todo!(),
+        CallSigDecl(n) => todo!(),
+        CtorSigDecl(n) => todo!(),
+        PropSignature(n) => todo!(),
+        MethodSignature(n) => todo!(),
+        RestTy(n) => todo!(),
+        NamedTupleTy(n) => todo!(),
+        TupleTy(n) => todo!(),
+        CondTy(n) => todo!(),
+        IntersectionTy(n) => todo!(),
+        UnionTy(n) => todo!(),
+        TypeofTy(n) => todo!(),
+        MappedTy(n) => todo!(),
+        TyOp(n) => todo!(),
+        PredTy(n) => todo!(),
+        ParenTy(n) => todo!(),
+        InferTy(n) => todo!(),
+        NullableTy(n) => todo!(),
+        TemplateLitTy(n) => todo!(),
+        TemplateSpanTy(n) => todo!(),
+        IntrinsicTy(n) => todo!(),
+        ThisTy(n) => todo!(),
+        QualifiedName(n) => todo!(),
+        JsxText(n) => todo!(),
+        JsxOpeningFrag(n) => todo!(),
+        JsxClosingFrag(n) => todo!(),
+        JsxOpeningElem(n) => todo!(),
+        JsxClosingElem(n) => todo!(),
+        JsxSelfClosingElem(n) => todo!(),
+        JsxSpreadAttr(n) => todo!(),
+        JsxNsName(n) => todo!(),
+        JsxNamedAttr(n) => todo!(),
+        JsxExpr(n) => todo!(),
+        JsxFrag(n) => todo!(),
+        JsxElem(n) => todo!(),
+        PrivateIdent(n) => todo!(),
     }
-    v!((Program, visit_program),);
 }

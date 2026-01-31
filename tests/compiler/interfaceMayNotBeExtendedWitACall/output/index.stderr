@@ -1,0 +1,17 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/interfaceMayNotBeExtendedWitACall/index.ts:5:29]
+ 5 │ (
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/interfaceMayNotBeExtendedWitACall/index.ts:5:29]
+ 5 │ (
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/interfaceMayNotBeExtendedWitACall/index.ts:5:29]
+ 5 │ (
+   · ─
+   ╰────

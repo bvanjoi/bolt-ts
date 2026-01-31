@@ -2,7 +2,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
 
 use super::symbol_info::SymbolInfo;
-use crate::ty;
+use super::ty;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TyPred<'cx> {
@@ -16,6 +16,19 @@ impl<'cx> TyPred<'cx> {
             TyPredKind::This(pred) => Some(pred.ty),
             TyPredKind::AssertsThis(pred) => pred.ty,
             TyPredKind::AssertsIdent(pred) => pred.ty,
+        }
+    }
+
+    pub fn kind_match(&self, other: &TyPred<'cx>) -> bool {
+        match (&self.kind, &other.kind) {
+            (TyPredKind::Ident(a), TyPredKind::Ident(b)) => a.param_index == b.param_index,
+            (TyPredKind::AssertsIdent(a), TyPredKind::AssertsIdent(b)) => {
+                a.param_index == b.param_index
+            }
+            (TyPredKind::This(_), TyPredKind::This(_))
+            | (TyPredKind::AssertsThis(_), TyPredKind::AssertsThis(_)) => true,
+
+            _ => false,
         }
     }
 }
@@ -96,9 +109,9 @@ impl<'cx> super::TyChecker<'cx> {
             }
             PredTyName::This(_) => {
                 let kind = if node.asserts.is_some() {
-                    TyPredKind::This(ThisTyPred { ty: ty.unwrap() })
-                } else {
                     TyPredKind::AssertsThis(AssertsThisTyPred { ty })
+                } else {
+                    TyPredKind::This(ThisTyPred { ty: ty.unwrap() })
                 };
                 self.alloc(TyPred { kind })
             }

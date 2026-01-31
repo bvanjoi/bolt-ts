@@ -1,5 +1,4 @@
 use std::cell::OnceCell;
-use std::ptr::read_unaligned;
 
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
@@ -11,6 +10,7 @@ use super::type_predicate::TyPredKind;
 
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
@@ -505,7 +505,22 @@ impl<'cx> TyChecker<'cx> {
             _ => unreachable!(),
         };
         if self.is_matching_reference(refer, node) {
-            let t = declared_ty;
+            if !self.is_reachable_flow_node(flow) {
+                // TODO: unreachable_never_ty
+            }
+            let nq = self.node_query(node.module());
+            if nq.get_assignment_target_kind(node) == AssignmentKind::Compound {
+                // TODO:
+            }
+            {}
+            if declared_ty == self.auto_ty || declared_ty == self.auto_array_ty() {
+                // TODO:
+            }
+            let t = if nq.is_in_compound_like_assignment(node) {
+                self.get_base_ty_of_literal_ty(declared_ty)
+            } else {
+                declared_ty
+            };
             let t = if t.kind.is_union() {
                 let init_ty = self.get_init_or_assigned_ty(flow, refer);
                 self.get_assign_reduced_ty(t, init_ty)
@@ -1047,8 +1062,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            let pred = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig));
-            if let Some(pred) = pred
+            if let Some(pred) = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig))
                 && matches!(pred.kind, TyPredKind::Ident(_) | TyPredKind::This(_))
             {
                 return self.narrow_ty_by_ty_pred(ty, refer, pred, call_expr, assume_true);

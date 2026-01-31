@@ -1,0 +1,26 @@
+[package]
+name = "bolt_ts_napi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bolt_ts_atom = { path = "../../helper/atom" }
+bolt_ts_config = { path = "../config" }
+bolt_ts_compiler = { path = "../compiler" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_fs = { path = "../../helper/fs" }
+bolt_ts_libs = { path = "../libs" }
+bolt_ts_span = { path = "../../helper/span" }
+bolt_ts_optimize = { path = "../optimize" }
+wasm-bindgen = "0.2"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+indexmap = { workspace = true, features = ["serde"] }
+napi = "3.0.0"
+napi-derive = "3.0.0"
+
+[build-dependencies]
+napi-build = "2"

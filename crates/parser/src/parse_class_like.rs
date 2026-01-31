@@ -211,7 +211,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
                         expr
                     } else {
-                        let ty_arguments = self.try_parse_ty_args()?;
+                        let ty_arguments = self.try_parse_ty_args();
                         let id = self.next_node_id();
                         let expr = self.alloc(ast::ExprWithTyArgs {
                             id,
@@ -289,7 +289,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.parse_prop_name(true);
+        let name = self.parse_prop_name::<true>();
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params();
@@ -454,6 +454,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         {
             Ok(ctor)
         } else if self.is_index_sig() {
+            if let Some(ms) = modifiers {
+                for m in ms.list {
+                    use ast::ModifierKind;
+                    if !matches!(m.kind, ModifierKind::Readonly | ModifierKind::Static) {
+                        self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
+                            span: m.span,
+                            kind: m.kind,
+                        }));
+                    }
+                }
+            }
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::IndexSig(decl),

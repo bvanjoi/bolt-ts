@@ -1,8 +1,8 @@
 use bolt_ts_ast::{self as ast};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 impl<'cx> TyChecker<'cx> {
     fn is_this_less_ty_param(&self, ty_param: &ast::TyParam<'cx>) -> bool {

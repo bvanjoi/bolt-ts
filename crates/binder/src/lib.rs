@@ -293,6 +293,7 @@ fn bind<'cx, 'atoms, 'parser>(
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
     match name.kind {
         ast::PropNameKind::Ident(ident) => SymbolName::Atom(ident.name),
+        ast::PropNameKind::PrivateIdent(ident) => SymbolName::Atom(ident.name),
         ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
         ast::PropNameKind::StringLit { key, .. } => SymbolName::Atom(key),
         ast::PropNameKind::Computed(c) => {

@@ -33,6 +33,7 @@ pub struct Program<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum DeclarationName<'cx> {
     Ident(&'cx Ident),
+    PrivateIdent(&'cx PrivateIdent),
     NumLit(&'cx NumLit),
     StringLit {
         raw: &'cx StringLit,
@@ -49,6 +50,7 @@ impl<'cx> DeclarationName<'cx> {
             StringLit { raw, key } => DeclarationName::StringLit { raw, key },
             NumLit(n) => DeclarationName::NumLit(n),
             Computed(n) => DeclarationName::Computed(n),
+            PrivateIdent(n) => DeclarationName::PrivateIdent(n),
         }
     }
 
@@ -72,7 +74,9 @@ impl<'cx> DeclarationName<'cx> {
     pub fn is_dynamic_name(&self) -> bool {
         use DeclarationName::*;
         match self {
-            Computed(_) => true,
+            Computed(n) => {
+                !n.expr.is_string_or_number_lit_like() && !n.expr.is_signed_numeric_lit()
+            }
             // TODO: element access
             _ => false,
         }
@@ -94,6 +98,18 @@ impl<'cx> DeclarationName<'cx> {
             NumLit(n) => n.span,
             StringLit { raw, .. } => raw.span,
             Computed(n) => n.span,
+            PrivateIdent(n) => n.span,
+        }
+    }
+
+    pub fn to_string(&self, atoms: &bolt_ts_atom::AtomIntern) -> String {
+        use DeclarationName::*;
+        match self {
+            Ident(n) => atoms.get(n.name).to_string(),
+            NumLit(n) => n.val.to_string(),
+            StringLit { raw, .. } => atoms.get(raw.val).to_string(),
+            Computed(n) => todo!(),
+            PrivateIdent(n) => todo!(),
         }
     }
 }

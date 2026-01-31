@@ -1,5 +1,6 @@
 pub enum VarLikeName<'cx> {
     Ident(&'cx crate::Ident),
+    PrivateIdent(&'cx crate::PrivateIdent),
     ObjectPat(&'cx crate::ObjectPat<'cx>),
     ArrayPat(&'cx crate::ArrayPat<'cx>),
     NumLit(&'cx crate::NumLit),
@@ -17,6 +18,7 @@ impl<'cx> From<&crate::PropName<'cx>> for VarLikeName<'cx> {
             crate::PropNameKind::NumLit(num) => VarLikeName::NumLit(num),
             crate::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
             crate::PropNameKind::Computed(computed) => VarLikeName::Computed(computed),
+            crate::PropNameKind::PrivateIdent(n) => VarLikeName::PrivateIdent(n),
         }
     }
 }

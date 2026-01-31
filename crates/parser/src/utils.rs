@@ -1,6 +1,7 @@
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_span::Span;
+use enumflags2::BitFlag;
 
 use crate::lookahead::Lookahead;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
@@ -345,9 +346,8 @@ impl<'cx> ParserState<'cx, '_> {
         })
     }
 
-    pub(super) fn parse_prop_name(
+    pub(super) fn parse_prop_name<const ALLOW_COMPUTED_PROP_NAMES: bool>(
         &mut self,
-        allow_computed_prop_names: bool,
     ) -> &'cx ast::PropName<'cx> {
         let kind = match self.token.kind {
             TokenKind::String => {
@@ -369,7 +369,7 @@ impl<'cx> ParserState<'cx, '_> {
         if let Some(kind) = kind {
             let prop_name = self.alloc(ast::PropName { kind });
             prop_name
-        } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
+        } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
             let Ok(expr) = self.allow_in_and(Self::parse_expr) else {
@@ -381,13 +381,27 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::PropNameKind::Computed(kind),
             });
             prop_name
+        } else if self.token.kind == TokenKind::PrivateIdent {
+            let ident = self.parse_private_ident();
+            let kind = ast::PropNameKind::PrivateIdent(ident);
+            self.alloc(ast::PropName { kind })
         } else {
-            // TODO: Private
             let ident = self.parse_ident_name();
             let kind = ast::PropNameKind::Ident(ident);
-            let prop_name = self.alloc(ast::PropName { kind });
-            prop_name
+            self.alloc(ast::PropName { kind })
         }
+    }
+
+    fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
+        debug_assert!(self.token.kind == TokenKind::PrivateIdent);
+        let name = self.ident_token();
+        let span = self.token.span;
+        let id = self.next_node_id();
+        let private_ident = self.alloc(ast::PrivateIdent { id, span, name });
+        self.nodes
+            .insert(id, ast::Node::PrivateIdent(private_ident));
+        self.next_token();
+        private_ident
     }
 
     #[inline(always)]
@@ -407,11 +421,20 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         allow_decorators: bool,
     ) -> Option<&'cx ast::Modifiers<'cx>> {
+        let push_precede_error = |this: &mut Self, x: &ast::Modifier, y: ast::ModifierKind| {
+            let error = errors::XModifierMustPrecedeYModifier {
+                span: x.span,
+                x: x.kind,
+                y,
+            };
+            this.push_error(Box::new(error));
+        };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let has_seen_static_modifier = false;
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
+        let mut flags = ast::ModifierKind::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
@@ -420,15 +443,50 @@ impl<'cx> ParserState<'cx, '_> {
             else {
                 break;
             };
+            flags.insert(m.kind);
             list.push(m);
+
+            match m.kind {
+                ast::ModifierKind::Override => {
+                    if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Public
+                | ast::ModifierKind::Protected
+                | ast::ModifierKind::Private => {
+                    if flags.contains(ast::ModifierKind::Static) {
+                        push_precede_error(self, m, ast::ModifierKind::Static);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Static => {
+                    if flags.contains(ast::ModifierKind::Readonly) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierKind::Async) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierKind::Override) {
+                        push_precede_error(self, m, ast::ModifierKind::Override);
+                    }
+                }
+                _ => {}
+            }
         }
         if list.is_empty() {
             None
         } else {
             let span = self.new_span(start);
-            let flags = list
-                .iter()
-                .fold(Default::default(), |flags, m| flags | m.kind);
             let ms = self.alloc(ast::Modifiers {
                 span,
                 flags,
@@ -862,7 +920,7 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         let ty_params = self.parse_ty_params();
         if !self.parse_params().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
@@ -893,7 +951,7 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         let params = if params.is_empty() {

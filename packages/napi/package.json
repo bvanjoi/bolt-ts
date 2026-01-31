@@ -1,0 +1,51 @@
+{
+	"name": "@bolt-ts/napi",
+	"version": "0.1.0",
+	"private": true,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./wasm-browser": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/bolt-ts-napi.wasi-browser.js"
+		},
+		"./wasm-node": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/bolt-ts-napi.wasi.cjs"
+		}
+	},
+	"scripts": {
+		"postinstall": "npm run build",
+		"build": "npm run build:node && npm run build:wasm",
+		"build:node": "napi build --platform --release --manifest-path ../../crates/napi/Cargo.toml --output-dir ./dist",
+		"build:debug:node": "napi build --platform --manifest-path ../../crates/napi/Cargo.toml --output-dir ./dist",
+		"build:wasm": "napi build --platform --target wasm32-wasip1-threads --release --manifest-path ../../crates/napi/Cargo.toml --output-dir ./dist",
+		"test": "npm run build && node ./tests/binding.test.js"
+	},
+	"devDependencies": {
+		"@napi-rs/cli": "^3.5.1",
+		"@napi-rs/wasm-runtime": "^1.1.1",
+		"typescript": "^5.9.3"
+	},
+	"napi": {
+		"binaryName": "bolt-ts-napi",
+		"targets": [
+			"x86_64-apple-darwin",
+			"aarch64-apple-darwin",
+			"x86_64-unknown-linux-gnu",
+			"x86_64-pc-windows-msvc",
+			"x86_64-unknown-linux-musl",
+			"aarch64-unknown-linux-gnu",
+			"i686-pc-windows-msvc",
+			"armv7-unknown-linux-gnueabihf",
+			"aarch64-linux-android",
+			"x86_64-unknown-freebsd",
+			"aarch64-unknown-linux-musl",
+			"aarch64-pc-windows-msvc",
+			"armv7-linux-androideabi",
+			"wasm32-wasi-preview1-threads"
+		]
+	}
+}

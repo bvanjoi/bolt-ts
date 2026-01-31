@@ -382,6 +382,7 @@ impl PropName<'_> {
             PropNameKind::NumLit(num) => num.span,
             PropNameKind::StringLit { raw, .. } => raw.span,
             PropNameKind::Computed(n) => n.span,
+            PropNameKind::PrivateIdent(ident) => ident.span,
         }
     }
 
@@ -391,6 +392,7 @@ impl PropName<'_> {
             PropNameKind::NumLit(num) => num.id,
             PropNameKind::StringLit { raw, .. } => raw.id,
             PropNameKind::Computed(n) => n.id,
+            PropNameKind::PrivateIdent(ident) => ident.id,
         }
     }
 }
@@ -398,6 +400,7 @@ impl PropName<'_> {
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
+    PrivateIdent(&'cx PrivateIdent),
     StringLit { raw: &'cx StringLit, key: Atom },
     NumLit(&'cx NumLit),
     Computed(&'cx ComputedPropName<'cx>),
@@ -428,6 +431,7 @@ impl<'cx> PropNameKind<'cx> {
                 super::ExprKind::NumLit(n) => Some(atoms.atom(&n.val.to_string())),
                 _ => None,
             },
+            PropNameKind::PrivateIdent(private_ident) => Some(private_ident.name),
         }
     }
 }
@@ -612,7 +616,7 @@ pub struct EntityName<'cx> {
     pub kind: EntityNameKind<'cx>,
 }
 
-impl EntityName<'_> {
+impl<'cx> EntityName<'cx> {
     pub fn span(&self) -> Span {
         use EntityNameKind::*;
         match self.kind {
@@ -626,6 +630,13 @@ impl EntityName<'_> {
         match self.kind {
             Ident(ident) => ident.id,
             Qualified(name) => name.id,
+        }
+    }
+
+    pub fn get_first_identifier(&self) -> &'cx Ident {
+        match self.kind {
+            EntityNameKind::Ident(ident) => ident,
+            EntityNameKind::Qualified(q) => q.left.get_first_identifier(),
         }
     }
 }
