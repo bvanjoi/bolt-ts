@@ -4,9 +4,9 @@ use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
 use bolt_ts_ast::r#trait::ClassLike;
-use bolt_ts_ast::{self as ast, pprint_ident};
+use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::SymbolID;
+use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 
 bitflags::bitflags! {
@@ -135,6 +135,7 @@ impl<'cx> TyChecker<'cx> {
         class: &impl ClassLike<'cx>,
         ty_with_this: &'cx ty::Ty<'cx>,
         base_with_this: &'cx ty::Ty<'cx>,
+        push_error: impl FnOnce(&mut Self),
     ) {
         let mut issued_member_error = false;
         for member in class.elems().list {
@@ -175,8 +176,10 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if !issued_member_error {
-            self.check_type_assignable_to(ty_with_this, base_with_this, Some(class.id()));
+        if !issued_member_error
+            && !self.check_type_assignable_to(ty_with_this, base_with_this, Some(class.id()))
+        {
+            push_error(self);
         }
     }
 
@@ -307,7 +310,7 @@ impl<'cx> TyChecker<'cx> {
 
                 let base_with_this = self.get_ty_with_this_arg(base_ty, this_arg, false);
                 if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
-                    self.issue_member_spec_error(class, ty_with_this, base_with_this);
+                    self.issue_member_spec_error(class, ty_with_this, base_with_this, |_| {});
                 } else {
                     let target = self.get_ty_without_sig(static_base_ty);
                     if !self.check_type_assignable_to(static_ty, target, None) {
@@ -426,7 +429,16 @@ impl<'cx> TyChecker<'cx> {
                         .this_ty;
                     let base_with_this = self.get_ty_with_this_arg(t, this_arg, false);
                     if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
-                        self.issue_member_spec_error(class, ty_with_this, base_with_this);
+                        self.issue_member_spec_error(class, ty_with_this, base_with_this, |this| {
+                            let error = errors::ClassXIncorrectlyImplementsInterfaceY {
+                                span: ty_ref_node.span,
+                                class: class.name().map_or("class".to_string(), |ident| {
+                                    pprint_ident(ident, &this.atoms)
+                                }),
+                                interface: pprint_entity_name(ty_ref_node.name, &this.atoms),
+                            };
+                            this.push_error(Box::new(error));
+                        });
                     }
                 } else {
                     let error = errors::AClassCanOnlyImplementAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers {

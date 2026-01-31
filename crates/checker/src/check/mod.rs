@@ -1030,6 +1030,14 @@ impl<'cx> TyChecker<'cx> {
         prop_name_ty: &'cx ty::Ty<'cx>,
         prop_ty: &'cx ty::Ty<'cx>,
     ) {
+        let value_decl = self.symbol(prop).value_decl;
+        let name = value_decl.and_then(|d| self.node_query(d.module()).get_name_of_decl(d));
+        if let Some(name) = name
+            && matches!(name, ast::DeclarationName::PrivateIdent(_))
+        {
+            return;
+        }
+
         for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
             if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
                 let prop_decl = self.get_symbol_decl(prop).unwrap();
@@ -1045,7 +1053,8 @@ impl<'cx> TyChecker<'cx> {
                     ast::PropNameKind::StringLit { raw, .. } => {
                         format!("\"{}\"", self.atoms.get(raw.val))
                     }
-                    bolt_ts_ast::PropNameKind::Computed(_) => "[...]".to_string(),
+                    ast::PropNameKind::Computed(_) => "[...]".to_string(),
+                    ast::PropNameKind::PrivateIdent(_) => unreachable!(),
                 };
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
@@ -1088,6 +1097,9 @@ impl<'cx> TyChecker<'cx> {
             ast::PropNameKind::Computed(name) => {
                 let ty = self.check_computed_prop_name(name);
                 self.get_regular_ty_of_literal_ty(ty)
+            }
+            ast::PropNameKind::PrivateIdent(ident) => {
+                self.get_string_literal_type_from_string(ident.name)
             }
         }
     }
@@ -1185,6 +1197,9 @@ impl<'cx> TyChecker<'cx> {
                                         let kind = match name {
                                             ast::DeclarationName::Ident(ident) => {
                                                 ast::PropNameKind::Ident(ident)
+                                            }
+                                            ast::DeclarationName::PrivateIdent(n) => {
+                                                ast::PropNameKind::PrivateIdent(n)
                                             }
                                             ast::DeclarationName::NumLit(lit) => {
                                                 ast::PropNameKind::NumLit(lit)

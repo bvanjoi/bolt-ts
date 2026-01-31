@@ -396,7 +396,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         if matches!(name.kind, ast::PropNameKind::NumLit(_)) {
             let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
             self.push_error(Box::new(error));
@@ -1088,7 +1088,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
             }
         } else {
-            let prop_name = self.parse_prop_name(true);
+            let prop_name = self.parse_prop_name::<true>();
             self.expect(TokenKind::Colon);
             let name = self.parse_ident_or_pat()?;
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })

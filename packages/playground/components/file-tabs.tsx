@@ -5,7 +5,7 @@ import type React from 'react'
 import { useState } from 'react'
 import type { SourceFile } from './compiler-playground'
 import { DeleteIcon } from './delete-icon'
-import { FilenameDisplay, FileTab } from './file-tab'
+import { FilenameDisplay } from './file-tab'
 
 interface FileTabsProps {
 	files: SourceFile[]

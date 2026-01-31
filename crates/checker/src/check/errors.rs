@@ -1157,3 +1157,12 @@ pub(super) struct AnInterfaceCanOnlyExtendAnObjectTypeOrIntersectionOfObjectType
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class '{class}' incorrectly implements interface '{interface}'.")]
+pub(super) struct ClassXIncorrectlyImplementsInterfaceY {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub interface: String,
+}

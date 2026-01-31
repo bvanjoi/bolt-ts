@@ -105,6 +105,7 @@ decl_nodes!(
     array_lit: ArrayLit,
     object_lit: ObjectLit,
     ident: Ident,
+    private_ident: PrivateIdent,
     computed_prop_name: ComputedPropName,
 
     param_decl: ParamDecl,
@@ -1482,6 +1483,18 @@ impl Nodes {
         let id = self.ident_nodes.0.alloc(Ident {
             id: idx,
             ty,
+            span,
+            name,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_private_ident(&mut self, span: Span, name: Atom) -> PrivateIdentID {
+        let idx = PrivateIdentID(usize_into_idx(self.private_ident_nodes.0.len()));
+        let id = self.private_ident_nodes.0.alloc(PrivateIdent {
+            id: idx,
             span,
             name,
         });
@@ -3979,6 +3992,24 @@ impl Ident {
     }
 }
 
+#[derive(Debug)]
+pub struct PrivateIdent {
+    id: PrivateIdentID,
+    span: Span,
+    name: Atom,
+}
+impl PrivateIdent {
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    #[inline(always)]
+    pub fn name(&self) -> Atom {
+        self.name
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Stmt {
     Var(VarStmtID),
@@ -4056,6 +4087,7 @@ pub enum Binding {
 #[derive(Debug, Clone, Copy)]
 pub enum PropName {
     Ident(IdentID),
+    PrivateIdent(PrivateIdentID),
     StringLit(StringLitID),
     NumLit(NumLitID),
     Computed(ComputedPropNameID),

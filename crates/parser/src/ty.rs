@@ -954,7 +954,7 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ObjectTyMember<'cx>> {
-        let name = self.parse_prop_name(true);
+        let name = self.parse_prop_name::<true>();
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();

@@ -14,7 +14,7 @@ export function DeleteIcon<T>(props: DeleteIconProps<T>) {
 				e.stopPropagation()
 				props.handleDelete(e, props.deleteId)
 			}}
-			className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#ddd] rounded transition-opacity"
+			className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#ddd] rounded transition-opacity hover:cursor-pointer"
 		>
 			<X size={12} />
 		</button>

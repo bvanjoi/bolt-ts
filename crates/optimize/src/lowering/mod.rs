@@ -639,6 +639,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 let expr = self.lower_expr(n.expr);
                 ir::PropName::Computed(self.nodes.alloc_computed_prop_name(n.span, expr))
             }
+            ast::PropNameKind::PrivateIdent(n) => {
+                ir::PropName::PrivateIdent(self.lower_private_ident(n))
+            }
         }
     }
 
@@ -656,6 +659,11 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             .get_resolved_ty()
             .unwrap_or(self.checker.error_ty);
         self.nodes.alloc_ident(ty.id, ident.span, ident.name)
+    }
+
+    fn lower_private_ident(&mut self, private_ident: &'cx ast::PrivateIdent) -> ir::PrivateIdentID {
+        self.nodes
+            .alloc_private_ident(private_ident.span, private_ident.name)
     }
 
     fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {

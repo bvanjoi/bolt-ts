@@ -1,0 +1,11 @@
+  × Expected '('.
+    ╭─[../../tests/compiler/classFieldsBrokenConstructorEmitNoCrash1/index.ts:11:1]
+ 11 │ }
+    · ─
+    ╰────
+
+  × Constructor implementation is missing.
+   ╭─[../../tests/compiler/classFieldsBrokenConstructorEmitNoCrash1/index.ts:9:3]
+ 9 │ constructor
+   · ───────────
+   ╰────

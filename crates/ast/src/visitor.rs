@@ -334,6 +334,7 @@ pub fn visit_prop_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::PropName<'
         super::PropNameKind::StringLit { raw, .. } => v.visit_string_lit(raw),
         super::PropNameKind::NumLit(_) => {}
         super::PropNameKind::Computed(expr) => v.visit_computed_prop_name(expr),
+        super::PropNameKind::PrivateIdent(n) => v.visit_private_ident(n),
     }
 }
 pub fn visit_computed_prop_name<'cx>(
@@ -343,6 +344,7 @@ pub fn visit_computed_prop_name<'cx>(
     v.visit_expr(n.expr);
 }
 pub fn visit_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::Ident) {}
+pub fn visit_private_ident<'cx>(_: &mut impl Visitor<'cx>, _: &'cx super::PrivateIdent) {}
 pub fn visit_entity_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx super::EntityName) {
     match n.kind {
         super::EntityNameKind::Ident(node) => v.visit_ident(node),
@@ -448,6 +450,7 @@ make_visitor!(
     (visit_index_sig_decl, super::IndexSigDecl<'cx>),
     (visit_entity_name, super::EntityName<'cx>),
     (visit_ident, super::Ident),
+    (visit_private_ident, super::PrivateIdent),
     (visit_ty, super::Ty<'cx>),
     (visit_refer_ty, super::ReferTy<'cx>),
     (visit_array_ty, super::ArrayTy<'cx>),
@@ -649,5 +652,6 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
         JsxExpr(n) => todo!(),
         JsxFrag(n) => todo!(),
         JsxElem(n) => todo!(),
+        PrivateIdent(n) => todo!(),
     }
 }

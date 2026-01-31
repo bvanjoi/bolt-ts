@@ -227,6 +227,7 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
             Computed(n) => {
                 todo!()
             }
+            PrivateIdent(private_ident) => todo!(),
         }
     }
 

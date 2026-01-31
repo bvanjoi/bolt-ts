@@ -790,6 +790,13 @@ pub struct Ident {
 }
 
 #[derive(Debug, Clone)]
+pub struct PrivateIdent {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: Atom,
+}
+
+#[derive(Debug, Clone)]
 pub struct OmitExpr {
     pub id: NodeID,
     pub span: Span,

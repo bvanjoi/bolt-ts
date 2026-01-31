@@ -264,6 +264,23 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> Ternary {
+        let source_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(source_prop, None);
+        let target_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(target_prop, None);
+        if source_prop_flags.contains(ast::ModifierKind::Private)
+            || target_prop_flags.contains(ast::ModifierKind::Private)
+        {
+            if self.c.symbol(source_prop).value_decl != self.c.symbol(target_prop).value_decl {
+                if report_error {
+                    //TODO:
+                }
+                return Ternary::FALSE;
+            }
+        }
+
         let related = self.is_property_symbol_ty_related(
             source_prop,
             target_prop,

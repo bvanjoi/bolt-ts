@@ -477,6 +477,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::PropNameKind::*;
         match name.kind {
             Ident(n) => self.bind(n.id),
+            PrivateIdent(n) => self.bind(n.id),
             StringLit { raw: n, .. } => self.bind(n.id),
             NumLit(n) => self.bind(n.id),
             Computed(n) => self.bind(n.id),
@@ -1253,6 +1254,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             AwaitExpr(n) => {
                 self.bind(n.expr.id());
+            }
+            PrivateIdent(_) => {
+                // TODO:
             }
         }
         // TODO: bind_js_doc

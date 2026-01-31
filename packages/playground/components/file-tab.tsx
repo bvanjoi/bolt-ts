@@ -1,13 +1,5 @@
 import { clsx } from 'clsx'
-import { type ReactNode, useState } from 'react'
-
-type FileTabInputProps = {
-	filename: string
-}
-
-function FileTabInput(props: FileTabInputProps) {
-	const [editName, setEditName] = useState(props.filename)
-}
+import type { ReactNode } from 'react'
 
 export function FilenameDisplay(props: { filename: string }) {
 	return <span className="font-mono text-xs">{props.filename}</span>

@@ -289,7 +289,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.parse_prop_name(true);
+        let name = self.parse_prop_name::<true>();
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params();

@@ -761,7 +761,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let asterisk_token = self.parse_optional(TokenKind::Asterisk);
-        let name = self.parse_prop_name(true);
+        let name = self.parse_prop_name::<true>();
         if let Some(question_token) = self.parse_optional(TokenKind::Question) {
             let error = errors::AnObjectMemberCannotBeDeclaredOptional {
                 span: question_token.span,

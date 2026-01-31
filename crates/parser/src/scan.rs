@@ -826,6 +826,34 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'`' => self.scan_template_and_set_token_value(false),
+                b'#' => {
+                    let char_after_hash = self.next_ch();
+                    if let Some(ch) = char_after_hash
+                        && is_ascii_identifier_start(ch)
+                    {
+                        self.pos += 1;
+                        if let Some(token) = self.scan_identifier(ch)
+                            && token.kind == TokenKind::Ident
+                        {
+                            debug_assert!(
+                                self.token_value
+                                    .is_some_and(|value| matches!(value, TokenValue::Ident { .. }))
+                            );
+                            Token::new(
+                                TokenKind::PrivateIdent,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        } else {
+                            let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                            self.push_error(Box::new(errors::InvalidCharacter { span }));
+                            Token::new(TokenKind::Unknown, span)
+                        }
+                    } else {
+                        let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                        self.push_error(Box::new(errors::InvalidCharacter { span }));
+                        Token::new(TokenKind::Unknown, span)
+                    }
+                }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'X' | b'x')) =>
                 {

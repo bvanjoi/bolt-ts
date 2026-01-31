@@ -104,6 +104,9 @@ impl<'cx> TyChecker<'cx> {
         let name = decl.name();
         match name {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, id, decl),
+            PrivateIdent(name) => {
+                // TODO:
+            }
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
             NumLit(num) => self.check_non_pat_var_like_decl(num.id, id, decl),
             Computed(_) => {}

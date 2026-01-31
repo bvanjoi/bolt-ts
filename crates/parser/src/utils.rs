@@ -346,9 +346,8 @@ impl<'cx> ParserState<'cx, '_> {
         })
     }
 
-    pub(super) fn parse_prop_name(
+    pub(super) fn parse_prop_name<const ALLOW_COMPUTED_PROP_NAMES: bool>(
         &mut self,
-        allow_computed_prop_names: bool,
     ) -> &'cx ast::PropName<'cx> {
         let kind = match self.token.kind {
             TokenKind::String => {
@@ -370,7 +369,7 @@ impl<'cx> ParserState<'cx, '_> {
         if let Some(kind) = kind {
             let prop_name = self.alloc(ast::PropName { kind });
             prop_name
-        } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
+        } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
             let Ok(expr) = self.allow_in_and(Self::parse_expr) else {
@@ -382,13 +381,27 @@ impl<'cx> ParserState<'cx, '_> {
                 kind: ast::PropNameKind::Computed(kind),
             });
             prop_name
+        } else if self.token.kind == TokenKind::PrivateIdent {
+            let ident = self.parse_private_ident();
+            let kind = ast::PropNameKind::PrivateIdent(ident);
+            self.alloc(ast::PropName { kind })
         } else {
-            // TODO: Private
             let ident = self.parse_ident_name();
             let kind = ast::PropNameKind::Ident(ident);
-            let prop_name = self.alloc(ast::PropName { kind });
-            prop_name
+            self.alloc(ast::PropName { kind })
         }
+    }
+
+    fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
+        debug_assert!(self.token.kind == TokenKind::PrivateIdent);
+        let name = self.ident_token();
+        let span = self.token.span;
+        let id = self.next_node_id();
+        let private_ident = self.alloc(ast::PrivateIdent { id, span, name });
+        self.nodes
+            .insert(id, ast::Node::PrivateIdent(private_ident));
+        self.next_token();
+        private_ident
     }
 
     #[inline(always)]
@@ -907,7 +920,7 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         let ty_params = self.parse_ty_params();
         if !self.parse_params().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
@@ -938,7 +951,7 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
+        let name = self.parse_prop_name::<false>();
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         let params = if params.is_empty() {
