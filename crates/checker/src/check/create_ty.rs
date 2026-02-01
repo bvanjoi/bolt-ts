@@ -1282,7 +1282,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
             || base_ty == constraint
-            || base_ty.flags.intersects(TypeFlags::ANY)
+            || base_ty.flags.contains(TypeFlags::ANY)
         {
             base_ty
         } else {

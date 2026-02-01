@@ -629,6 +629,14 @@ pub struct IntrinsicTy {
     pub name: Atom,
 }
 
+/// For example:
+///
+/// ```ts
+/// type A<T> = T extends number ? T : string;
+///                              //~ this is a substitution type:
+///                              // - `base_type` is `T`,
+///                              // - `constraint` is `number`.
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SubstitutionTy<'cx> {
     pub object_flags: ObjectFlags,

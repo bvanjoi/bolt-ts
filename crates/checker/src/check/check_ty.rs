@@ -27,6 +27,9 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(ty_params) = n.ty_params {
                     self.check_ty_params(ty_params);
                 }
+                for param in n.params {
+                    self.check_var_like_decl(*param);
+                }
                 self.check_ty(n.ty);
             }
             Pred(n) => self.check_pred_ty(n),

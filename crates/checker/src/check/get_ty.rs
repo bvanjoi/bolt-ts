@@ -586,16 +586,22 @@ impl<'cx> TyChecker<'cx> {
             if parent_node.is_param_decl() {
                 covariant = !covariant;
             }
-            if covariant || ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
-                if let Some(cond) = parent_node.as_cond_ty()
-                    && cond.true_ty.id() == node
-                    && let Some(constraint) =
-                        self.get_implied_constraint(ty, cond.check_ty, cond.extends_ty)
+            if (covariant || ty.flags.intersects(TypeFlags::TYPE_VARIABLE))
+                && let Some(cond) = parent_node.as_cond_ty()
+                && node == cond.true_ty.id()
+            {
+                if let Some(constraint) =
+                    self.get_implied_constraint(ty, cond.check_ty, cond.extends_ty)
                 {
                     constraints.push(constraint);
                 }
-            } else if ty.flags.intersects(TypeFlags::TYPE_PARAMETER) {
-                // TODO: mapped_ty
+            } else if ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+                && parent_node.as_mapped_ty().is_some_and(|mapped_ty| {
+                    mapped_ty.name_ty.is_none() && mapped_ty.ty.is_some_and(|ty| ty.id() == node)
+                })
+            {
+                // TODO:
+                // let mapped_ty = self.get_ty_from_type_node()
             }
             node = parent;
         }
