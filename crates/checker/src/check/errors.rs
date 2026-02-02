@@ -1166,3 +1166,18 @@ pub(super) struct ClassXIncorrectlyImplementsInterfaceY {
     pub class: String,
     pub interface: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class declaration cannot implement overload list for '{name}'.")]
+pub(super) struct ClassDeclarationCannotImplementOverloadListForX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Function with bodies can only merge with classes that are ambient.")]
+pub(super) struct FunctionWithBodiesCanOnlyMergeWithClassesThatAreAmbient {
+    #[label(primary)]
+    pub span: Span,
+}

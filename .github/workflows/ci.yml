@@ -32,10 +32,11 @@ jobs:
       uses: pnpm/action-setup@v4
 
     - name: Set up Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-        override: true
+        target: wasm32-wasip1-threads
+        rustflags: ""
 
     - name: Cache cargo registry
       uses: actions/cache@v4

@@ -3,9 +3,9 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
 
 use super::errors;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-use crate::{SignatureFlags, keyword};
+use super::{SignatureFlags, keyword};
 
 pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
@@ -87,6 +87,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             elems,
         });
         state.set_external_module_indicator_if_has_export_mod(modifiers, id);
+        state.node_flags_map.insert(id, state.node_context_flags);
         state.nodes.insert(decl.id, ast::Node::ClassDecl(decl));
         decl
     }
@@ -117,6 +118,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
             implements,
             elems,
         });
+        state.node_flags_map.insert(id, state.node_context_flags);
         state.nodes.insert(expr.id, ast::Node::ClassExpr(expr));
         expr
     }

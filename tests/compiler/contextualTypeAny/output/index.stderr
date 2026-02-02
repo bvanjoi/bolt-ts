@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/contextualTypeAny/index.ts:5:38]
+ 5 │ p
+   · ─
+   ╰────

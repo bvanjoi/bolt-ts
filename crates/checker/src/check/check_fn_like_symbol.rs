@@ -25,24 +25,31 @@ impl<'cx> TyChecker<'cx> {
         let mut body_declaration = None;
         let mut some_node_flags = enumflags2::BitFlags::empty();
         let mut all_node_flags = FLAGS_TO_CHECK;
-        let is_ctor = s.flags.intersects(SymbolFlags::CONSTRUCTOR);
+        let is_ctor = s.flags.contains(SymbolFlags::CONSTRUCTOR);
 
         let mut last_seen_non_ambient_decl = None;
-        let mut multiple_constructor_implement = false;
         let mut duplicate_function_declaration = false;
+        let mut multiple_constructor_implement = false;
+        let mut has_non_ambient_class = false;
         let mut fn_decls = vec![];
 
         for decl in decls {
             let node = self.p.node(*decl);
-            let is_ambient_context = self.p.node_flags(*decl).intersects(ast::NodeFlags::AMBIENT);
-            let is_ambient_context_or_interface = self.parent(*decl).is_some_and(|parent| {
-                let p = self.p.node(parent);
-                p.is_interface_decl() || p.is_object_lit_ty()
-            }) || is_ambient_context;
+            let is_ambient_context = self.p.node_flags(*decl).contains(ast::NodeFlags::AMBIENT);
+            let is_ambient_context_or_interface = is_ambient_context
+                || self.parent(*decl).is_some_and(|parent| {
+                    let p = self.p.node(parent);
+                    p.is_interface_decl() || p.is_object_lit_ty()
+                });
+
+            if node.is_class_like() && !is_ambient_context {
+                has_non_ambient_class = true;
+            }
 
             if node.is_fn_decl()
-                || node.is_method_signature()
                 || node.is_class_method_elem()
+                || node.is_object_method_member()
+                || node.is_method_signature()
                 || node.is_class_ctor()
             {
                 fn_decls.push(*decl);
@@ -94,6 +101,36 @@ impl<'cx> TyChecker<'cx> {
                 self.diags.push(bolt_ts_errors::Diag {
                     inner: Box::new(error),
                 });
+            }
+        }
+
+        if has_non_ambient_class && !is_ctor && s.flags.contains(SymbolFlags::FUNCTION) {
+            for decl in decls {
+                debug_assert!(decls.len() >= 1);
+                let n = self.p.node(*decl);
+                match n {
+                    ast::Node::ClassDecl(n) => {
+                        let name = n.name.unwrap();
+                        let error = errors::ClassDeclarationCannotImplementOverloadListForX {
+                            span: name.span,
+                            name: self.atoms.get(name.name).to_string(),
+                        };
+                        self.diags.push(bolt_ts_errors::Diag {
+                            inner: Box::new(error),
+                        });
+                    }
+                    ast::Node::FnDecl(n) => {
+                        let name = n.name.unwrap();
+                        let error =
+                            errors::FunctionWithBodiesCanOnlyMergeWithClassesThatAreAmbient {
+                                span: name.span,
+                            };
+                        self.diags.push(bolt_ts_errors::Diag {
+                            inner: Box::new(error),
+                        });
+                    }
+                    _ => {}
+                }
             }
         }
 

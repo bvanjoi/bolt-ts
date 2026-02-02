@@ -1,0 +1,18 @@
+  × Function with bodies can only merge with classes that are ambient.
+   ╭─[../../tests/compiler/classOverloadForFunction2/index.ts:3:10]
+ 3 │ bar
+   · ───
+   ╰────
+
+  × Class declaration cannot implement overload list for 'bar'.
+   ╭─[../../tests/compiler/classOverloadForFunction2/index.ts:6:7]
+ 6 │ bar
+   · ───
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/classOverloadForFunction2/index.ts:3:10]
+ 3 │ bar
+   · ───
+   ╰────

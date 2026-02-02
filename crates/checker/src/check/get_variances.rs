@@ -24,7 +24,6 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_variances(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [VarianceFlags] {
-        assert!(ty.kind.is_object_reference(), "ty: {:#?}", ty);
         if ty == self.global_array_ty() || ty == self.global_readonly_array_ty() || ty.is_tuple() {
             return self.array_variances();
         }

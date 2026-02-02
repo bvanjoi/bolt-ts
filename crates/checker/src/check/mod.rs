@@ -2996,7 +2996,9 @@ impl<'cx> TyChecker<'cx> {
     fn is_known_prop(&mut self, target: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
         if target.kind.as_object().is_some() {
             if self.get_prop_of_ty(target, name).is_some()
-                || self.get_applicable_index_for_name(target, name).is_some()
+                || self
+                    .get_applicable_index_info_for_name(target, name)
+                    .is_some()
             {
                 return true;
             }

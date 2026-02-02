@@ -348,6 +348,11 @@ impl<'cx> TyChecker<'cx> {
                     vac.insert(combined_prop);
                 }
             }
+
+            if ty.flags.contains(TypeFlags::UNION) && self.get_index_infos_of_ty(current).is_empty()
+            {
+                break;
+            }
         }
         let props = members.into_values().collect::<Vec<_>>();
         let props = self.alloc(props);
@@ -532,7 +537,7 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: !is_prototype_prop
             } else if is_union {
                 if !name.is_late_bound()
-                    && let Some(index_info) = self.get_applicable_index_for_name(ty, name)
+                    && let Some(index_info) = self.get_applicable_index_info_for_name(ty, name)
                 {
                     // TODO: prop_flags
                     check_flags |= CheckFlags::WRITE_PARTIAL

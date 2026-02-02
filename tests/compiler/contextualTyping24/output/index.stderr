@@ -1,0 +1,6 @@
+  × Type '(a: string) => number' is not assignable to type '(a: () => number)
+  │ => number'.
+   ╭─[../../tests/compiler/contextualTyping24/index.ts:4:55]
+ 4 │ foo
+   · ───
+   ╰────

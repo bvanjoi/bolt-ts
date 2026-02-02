@@ -313,18 +313,19 @@ impl<'cx> TyChecker<'cx> {
         self.find_applicable_index_info(index_infos, key_ty)
     }
 
-    pub(super) fn get_applicable_index_for_name(
+    pub(super) fn get_applicable_index_info_for_name(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
-        // TODO: is late name
-        let key_ty = if let Some(name) = name.as_atom() {
+        let key_ty = if name.is_late_bound() {
+            self.es_symbol_ty
+        } else if let Some(name) = name.as_atom() {
             self.get_string_literal_type_from_string(name)
         } else if let Some(v) = name.as_numeric() {
             self.get_number_literal_type_from_number(v)
         } else {
-            unreachable!()
+            unreachable!("name: {:?}", name.to_string(&self.atoms))
         };
         self.get_applicable_index_info(ty, key_ty)
     }
