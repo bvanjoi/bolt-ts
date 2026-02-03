@@ -23,7 +23,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.flow_nodes
             .add_antecedent(post_if_label, self.current_flow.unwrap());
         self.current_flow = Some(self.finish_flow_label(else_label));
-
         if let Some(alt) = n.else_then {
             self.bind(alt.id());
         }

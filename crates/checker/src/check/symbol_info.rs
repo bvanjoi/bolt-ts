@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::pprint_entity_name;
+use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{
@@ -578,48 +579,91 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_entity_name<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
+    fn pprint_entity_name_like(&self, left: ast::Node<'_>, right: &'cx ast::Ident) -> String {
+        let mut ret = match left {
+            ast::Node::Ident(ident) => pprint_ident(ident, &self.atoms),
+            ast::Node::QualifiedName(q) => {
+                let mut name = pprint_entity_name(q.left, &self.atoms);
+                name.push('.');
+                name.push_str(&pprint_ident(q.right, &self.atoms));
+                name
+            }
+            ast::Node::PropAccessExpr(n) => {
+                todo!()
+            }
+            _ => unreachable!(),
+        };
+
+        ret.push('.');
+        ret.push_str(&pprint_ident(right, &self.atoms));
+        ret
+    }
+
+    pub(super) fn resolve_qualified_name_like<
+        const IGNORE_ERROR: bool,
+        const DONT_RESOLVE_ALIAS: bool,
+    >(
         &mut self,
-        name: &'cx bolt_ts_ast::EntityName<'cx>,
+        left: ast::NodeID,
+        right: &'cx ast::Ident,
         meaning: SymbolFlags,
     ) -> SymbolID {
-        use bolt_ts_ast::EntityNameKind::*;
-        let symbol;
-        match name.kind {
-            Ident(n) => {
-                let id = self.resolve_symbol_by_ident(n);
-                symbol = self.get_merged_symbol(id);
-                if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
-                    return symbol;
+        let ns = match self.p.node(left) {
+            ast::Node::Ident(n) => {
+                self.resolve_ident::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
+            }
+            ast::Node::QualifiedName(n) => self
+                .resolve_qualified_name_like::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(
+                    n.left.id(),
+                    n.right,
+                    SymbolFlags::NAMESPACE,
+                ),
+            ast::Node::PropAccessExpr(n) => self
+                .resolve_qualified_name_like::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(
+                    n.expr.id(),
+                    n.name,
+                    SymbolFlags::NAMESPACE,
+                ),
+            _ => unreachable!("left: {left:#?}"),
+        };
+        if ns == Symbol::ERR {
+            return Symbol::ERR;
+        }
+        let exports = self.get_exports_of_symbol(ns);
+        let Some(symbol) = self.get_symbol(exports, SymbolName::Atom(right.name), meaning) else {
+            if !IGNORE_ERROR {
+                let can_suggest_typeof = self
+                    .get_symbol(exports, SymbolName::Atom(right.name), SymbolFlags::VALUE)
+                    .is_some();
+                if can_suggest_typeof {
+                    let error = errors::XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
+                        span: right.span,
+                        item: self.pprint_entity_name_like(self.p.node(left), right),
+                    };
+                    self.push_error(Box::new(error));
                 }
             }
-            Qualified(n) => {
-                let ns =
-                    self.resolve_entity_name::<IGNORE_ERROR, false>(n.left, SymbolFlags::NAMESPACE);
-                if ns == Symbol::ERR {
-                    return Symbol::ERR;
-                }
-                let exports = self.get_exports_of_symbol(ns);
-                let Some(s) = self.get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
-                else {
-                    if !IGNORE_ERROR {
-                        let can_suggest_typeof = self
-                            .get_symbol(exports, SymbolName::Atom(n.right.name), SymbolFlags::VALUE)
-                            .is_some();
-                        if can_suggest_typeof {
-                            let error =
-                                errors::XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
-                                    span: n.right.span,
-                                    item: pprint_entity_name(name, self.atoms()),
-                                };
-                            self.push_error(Box::new(error));
-                            return Symbol::ERR;
-                        }
-                    }
-                    return Symbol::ERR;
-                };
-                symbol = s;
-            }
+            return Symbol::ERR;
+        };
+        let flags = self.symbol(symbol).flags;
+        if flags.intersects(meaning) {
+            symbol
+        } else if flags.contains(SymbolFlags::ALIAS) {
+            self.resolve_alias(symbol)
+        } else {
+            Symbol::ERR
+        }
+    }
+
+    fn resolve_ident<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        n: &'cx ast::Ident,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        let id = self.resolve_symbol_by_ident(n);
+        let symbol = self.get_merged_symbol(id);
+        if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
+            return symbol;
         }
         let flags = self.symbol(symbol).flags;
         if flags.intersects(meaning) {
@@ -627,10 +671,24 @@ impl<'cx> super::TyChecker<'cx> {
         } else if flags.contains(SymbolFlags::ALIAS) {
             self.resolve_alias(symbol)
         } else {
-            if let Ident(n) = name.kind {
-                self.check_and_report_error_for_using_type_as_namespace(n, n.name, meaning);
-            }
+            self.check_and_report_error_for_using_type_as_namespace(n, n.name, meaning);
             Symbol::ERR
+        }
+    }
+
+    pub(super) fn resolve_entity_name<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        name: &'cx bolt_ts_ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        use bolt_ts_ast::EntityNameKind::*;
+        match name.kind {
+            Ident(n) => self.resolve_ident::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(n, meaning),
+            Qualified(n) => self.resolve_qualified_name_like::<IGNORE_ERROR, false>(
+                n.left.id(),
+                n.right,
+                meaning,
+            ),
         }
     }
 

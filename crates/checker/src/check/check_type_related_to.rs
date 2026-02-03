@@ -2116,7 +2116,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::TRUE;
             } else {
                 let source_ret_ty = ret_ty(self, source);
-                // TODO: ty_predict
+                // TODO: ty_predicate
                 let related = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
                     compare(self, source_ret_ty, target_ret_ty, false)
                 } else {

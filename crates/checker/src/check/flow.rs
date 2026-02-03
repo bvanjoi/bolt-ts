@@ -570,7 +570,7 @@ impl<'cx> TyChecker<'cx> {
             } else if let TyPredKind::AssertsIdent(i) = pred.kind {
                 if (i.param_index as usize) < n_node.args.len() {
                     let expr = n_node.args[i.param_index as usize];
-                    self.narrow_ty_by_assertion(ty, refer, expr)
+                    self.narrow_ty_by_assertion(ty, declared_ty, refer, expr)
                 } else {
                     ty
                 }
@@ -624,7 +624,8 @@ impl<'cx> TyChecker<'cx> {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
-        let narrowed_ty = self.narrow_ty(non_evolving_ty, refer, cond_node, assume_true);
+        let narrowed_ty =
+            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, assume_true);
         if narrowed_ty == non_evolving_ty {
             flow_ty
         } else {
@@ -651,10 +652,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_constant_variable(&self, symbol: SymbolID) -> bool {
-        let s = self.symbol(symbol);
-        s.flags.contains(SymbolFlags::VARIABLE)
-            && s.value_decl.is_some_and(|d| {
+    pub fn is_constant_variable(&self, symbol: &Symbol) -> bool {
+        symbol.flags.contains(SymbolFlags::VARIABLE)
+            && symbol.value_decl.is_some_and(|d| {
                 self.node_query(d.module())
                     .get_combined_node_flags(d)
                     .contains(ast::NodeFlags::CONSTANT)
@@ -685,6 +685,7 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
         assume_true: bool,
@@ -693,19 +694,20 @@ impl<'cx> TyChecker<'cx> {
         if let Ident(node) = expr.kind
             && !self.is_matching_reference(refer, node.id)
             && let symbol = self.final_res(expr.id())
-            && self.is_constant_variable(symbol)
+            && let s = self.symbol(symbol)
+            && self.is_constant_variable(s)
         {
             //TODO: inline_level < 5
-            let value_decl = self.symbol(symbol).value_decl.unwrap();
+            let value_decl = s.value_decl.unwrap();
         }
 
         match expr.kind {
             Ident(_) => self.narrow_ty_by_truthiness(ty, refer, expr, assume_true),
             Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
             PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
-                self.narrow_ty(ty, refer, node.expr, !assume_true)
+                self.narrow_ty(ty, declared_ty, refer, node.expr, !assume_true)
             }
-            Bin(node) => self.narrow_ty_by_bin_expr(ty, refer, node, assume_true),
+            Bin(node) => self.narrow_ty_by_bin_expr(ty, declared_ty, refer, node, assume_true),
             _ => ty,
         }
     }
@@ -745,9 +747,58 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_candidate_discriminant_prop_access(
+        &mut self,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> Option<&'cx ast::Expr<'cx>> {
+        let n = self.p.node(refer);
+        if n.is_array_pat()
+            || n.is_object_pat()
+            || n.is_fn_expr_or_arrow_fnc_expr()
+            || n.is_object_method_member()
+        {
+            if let ast::ExprKind::Ident(n) = expr.kind {
+                // TODO:
+            }
+        } else if let ast::ExprKind::PropAccess(ast::PropAccessExpr { expr: target, .. })
+        | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr: target, .. }) = expr.kind
+        {
+            if self.is_matching_reference(refer, target.id()) {
+                return Some(expr);
+            }
+        } else if let ast::ExprKind::Ident(ident) = expr.kind {
+            // TODO:
+        }
+
+        None
+    }
+
+    fn get_discriminant_prop_access(
+        &mut self,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+        computed_ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ast::PropAccessExpr<'cx>> {
+        if (declared_ty.flags.contains(TypeFlags::UNION)
+            || computed_ty.flags.contains(TypeFlags::UNION))
+            && let Some(access) = self.get_candidate_discriminant_prop_access(refer, expr)
+        {
+            // TODO:
+            // match access.kind {
+            //     ast::ExprKind::PropAccess(n) => n.name,
+            //     ast::ExprKind::EleAccess(n) => n.arg
+            //     _ => None,
+            // }
+        }
+        None
+    }
+
     fn narrow_ty_by_bin_expr(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         expr: &'cx ast::BinExpr<'cx>,
         assume_true: bool,
@@ -777,6 +828,15 @@ impl<'cx> TyChecker<'cx> {
                     return self.narrow_ty_by_equality(ty, expr.op.kind, right, assume_true);
                 } else if self.is_matching_reference(refer, right.id()) {
                     return self.narrow_ty_by_equality(ty, expr.op.kind, left, assume_true);
+                }
+
+                if self.config.strict_null_checks() {
+                    // TODO:
+                }
+
+                if let Some(left_access) =
+                    self.get_discriminant_prop_access(refer, left, ty, declared_ty)
+                {
                 }
 
                 ty
@@ -1015,6 +1075,7 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty_by_assertion(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -1023,11 +1084,11 @@ impl<'cx> TyChecker<'cx> {
             ast::ExprKind::BoolLit(n) if !n.val => self.unreachable_never_ty,
             ast::ExprKind::Bin(n) => {
                 if n.op.kind == ast::BinOpKind::LogicalAnd {
-                    let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
-                    self.narrow_ty_by_assertion(left_ty, refer, n.right)
+                    let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
+                    self.narrow_ty_by_assertion(left_ty, declared_ty, refer, n.right)
                 } else if n.op.kind == ast::BinOpKind::LogicalOr {
-                    let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
-                    let right_ty = self.narrow_ty_by_assertion(ty, refer, n.right);
+                    let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
+                    let right_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.right);
                     self.get_union_ty(
                         &[left_ty, right_ty],
                         ty::UnionReduction::Lit,
@@ -1036,10 +1097,10 @@ impl<'cx> TyChecker<'cx> {
                         None,
                     )
                 } else {
-                    self.narrow_ty(ty, refer, n.left, true)
+                    self.narrow_ty(ty, declared_ty, refer, n.left, true)
                 }
             }
-            _ => self.narrow_ty(ty, refer, expr, true),
+            _ => self.narrow_ty(ty, declared_ty, refer, expr, true),
         }
     }
 

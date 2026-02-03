@@ -26,11 +26,13 @@ bitflags::bitflags! {
 
 bolt_ts_utils::module_index!(FlowID);
 
+#[derive(Debug)]
 pub struct FlowNode<'cx> {
     pub flags: FlowFlags,
     pub kind: FlowNodeKind<'cx>,
 }
 
+#[derive(Debug)]
 pub enum FlowNodeKind<'cx> {
     Start(FlowStart),
     Cond(FlowCond<'cx>),
@@ -41,7 +43,7 @@ pub enum FlowNodeKind<'cx> {
     Switch(FlowSwitchClause<'cx>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowSwitchClause<'cx> {
     pub node: &'cx ast::SwitchStmt<'cx>,
     pub clause_start: u8,
@@ -49,30 +51,33 @@ pub struct FlowSwitchClause<'cx> {
     pub antecedent: FlowID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowCall<'cx> {
     pub node: &'cx ast::CallExpr<'cx>,
     pub antecedent: FlowID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowAssign {
     pub node: ast::NodeID,
     pub antecedent: FlowID,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FlowCond<'cx> {
     pub node: &'cx ast::Expr<'cx>,
     pub antecedent: FlowID,
 }
 
+#[derive(Debug)]
 pub struct FlowLabel {
     pub antecedent: Option<Vec<FlowID>>,
 }
 
+#[derive(Debug)]
 pub struct FlowUnreachable;
 
+#[derive(Debug)]
 pub struct FlowStart {
     pub node: Option<ast::NodeID>,
 }
@@ -143,11 +148,14 @@ impl<'cx> FlowNodes<'cx> {
     }
 
     pub(super) fn add_antecedent(&mut self, label: FlowID, antecedent: FlowID) {
-        let node = self.get_mut_flow_node(label);
-        if node.flags.intersects(FlowFlags::UNREACHABLE) {
+        if self
+            .get_flow_node(antecedent)
+            .flags
+            .contains(FlowFlags::UNREACHABLE)
+        {
             return;
         }
-        let FlowNodeKind::Label(label) = &mut node.kind else {
+        let FlowNodeKind::Label(label) = &mut self.get_mut_flow_node(label).kind else {
             unreachable!()
         };
         let contain = label
@@ -240,11 +248,11 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         expr: Option<&'cx ast::Expr<'cx>>,
     ) -> FlowID {
         let antecedent_flags = self.flow_nodes.get_flow_node(antecedent).flags;
-        if antecedent_flags.intersects(FlowFlags::UNREACHABLE) {
+        if antecedent_flags.contains(FlowFlags::UNREACHABLE) {
             return antecedent;
         }
         let Some(expr) = expr else {
-            return if flags.intersects(FlowFlags::TRUE_CONDITION) {
+            return if flags.contains(FlowFlags::TRUE_CONDITION) {
                 antecedent
             } else {
                 self.unreachable_flow_node
@@ -252,12 +260,12 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         };
         if match &expr.kind {
             ast::ExprKind::BoolLit(lit)
-                if lit.val && flags.intersects(FlowFlags::FALSE_CONDITION) =>
+                if lit.val && flags.contains(FlowFlags::FALSE_CONDITION) =>
             {
                 true
             }
             ast::ExprKind::BoolLit(lit)
-                if !lit.val && flags.intersects(FlowFlags::TRUE_CONDITION) =>
+                if !lit.val && flags.contains(FlowFlags::TRUE_CONDITION) =>
             {
                 true
             }
@@ -265,7 +273,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         } {
             return self.unreachable_flow_node;
         };
-
+        // TODO: !is_narrowing_expression(expr)
         self.flow_nodes.set_flow_node_referenced(antecedent);
 
         let node = FlowNode {

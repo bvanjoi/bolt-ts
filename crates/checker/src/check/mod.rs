@@ -349,6 +349,12 @@ fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
     unsafe { &*(empty_array as *const [u8] as *const [T]) }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum ElementAccessName {
+    Atom(Atom),
+    Number(f64),
+}
+
 impl<'cx> TyChecker<'cx> {
     fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
         let p = self.p.get(module_id);
@@ -5056,6 +5062,43 @@ impl<'cx> TyChecker<'cx> {
             // TODO:  intersection
             TypeFacts::UNKNOWN_FACTS
         }
+    }
+
+    fn try_get_element_access_name(
+        &mut self,
+        n: &'cx ast::EleAccessExpr<'cx>,
+    ) -> Option<ElementAccessName> {
+        match n.arg.kind {
+            ast::ExprKind::StringLit(n) => Some(ElementAccessName::Atom(n.val)),
+            ast::ExprKind::NumLit(n) => Some(ElementAccessName::Number(n.val)),
+            _ if n.arg.is_entity_name_expr() => self.try_get_name_from_entity_name_expr(n.arg),
+            _ => None,
+        }
+    }
+
+    fn try_get_name_from_entity_name_expr(
+        &mut self,
+        n: &'cx ast::Expr<'cx>,
+    ) -> Option<ElementAccessName> {
+        let symbol = match n.kind {
+            ast::ExprKind::Ident(n) => self.final_res(n.id),
+            ast::ExprKind::PropAccess(n) => self.resolve_qualified_name_like::<true, false>(
+                n.expr.id(),
+                n.name,
+                SymbolFlags::VALUE,
+            ),
+            _ => unreachable!(),
+        };
+
+        if symbol == Symbol::ERR {
+            return None;
+        }
+        let s = self.symbol(symbol);
+        if !self.is_constant_variable(s) || s.flags.contains(SymbolFlags::ENUM_MEMBER) {
+            return None;
+        }
+        let decl = s.value_decl?;
+        None
     }
 }
 

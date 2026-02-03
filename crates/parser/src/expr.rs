@@ -954,9 +954,9 @@ impl<'cx> ParserState<'cx, '_> {
         let node = self.alloc(ast::SuperExpr { id, span });
         self.nodes.insert(node.id, ast::Node::SuperExpr(node));
 
-        (self.alloc(ast::Expr {
+        self.alloc(ast::Expr {
             kind: ast::ExprKind::Super(node),
-        })) as _
+        })
     }
 
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
