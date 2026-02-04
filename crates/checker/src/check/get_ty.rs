@@ -287,7 +287,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = if let Some(ty) = ty {
             ty
         } else {
-            // TODO: error
+            // TODO: throw error
             self.any_ty
         };
         if self.pop_ty_resolution().has_cycle() {
@@ -360,7 +360,7 @@ impl<'cx> TyChecker<'cx> {
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
-            self.get_optional_ty(prop_ty, true)
+            self.get_optional_ty::<true>(prop_ty)
         } else if check_flags.intersects(CheckFlags::STRIP_OPTIONAL) {
             self.remove_missing_or_undefined_ty(prop_ty)
         } else {
@@ -786,18 +786,25 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_type_node(ty_node)
     }
 
-    pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> Option<SymbolName> {
+    pub(super) fn try_get_name_from_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<SymbolName> {
         match ty.kind {
-            ty::TyKind::UniqueESSymbol(lit) => Some(lit.escape_name),
+            ty::TyKind::UniqueESSymbol(n) => Some(n.escape_name),
             ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
             ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val)),
-            _ => None, // TODO: unreachable
+            _ => None,
         }
+    }
+
+    pub(super) fn get_prop_name_from_ty(&self, ty: &'cx Ty<'cx>) -> SymbolName {
+        let Some(name) = self.try_get_name_from_ty(ty) else {
+            unreachable!()
+        };
+        name
     }
 
     fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
         if index_ty.useable_as_prop_name() {
-            self.get_prop_name_from_ty(index_ty)
+            Some(self.get_prop_name_from_ty(index_ty))
         } else {
             None
         }
@@ -1764,7 +1771,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_from_rest_ty_node(node)
         } else {
             let ty = self.get_ty_from_type_node(node.ty);
-            self.add_optionality(ty, true, node.question.is_some())
+            self.add_optionality::<true>(ty, node.question.is_some())
         };
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty

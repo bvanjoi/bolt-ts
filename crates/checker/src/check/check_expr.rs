@@ -1248,7 +1248,7 @@ impl<'cx> TyChecker<'cx> {
                 self.undefined_ty
             } else {
                 let ty = self.get_type_of_symbol(*prop);
-                self.add_optionality(ty, true, false)
+                self.add_optionality::<true>(ty, false)
             };
             // TODO: is_late_check_flags
             let check_flags = if readonly {

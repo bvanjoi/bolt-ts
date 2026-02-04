@@ -441,7 +441,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_union_or_intersection_prop(
+    pub(super) fn get_union_or_intersection_prop(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -460,6 +460,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut optional_flag = None;
 
+        let mut prop_flags = SymbolFlags::empty();
         let mut single_prop = None;
         let mut prop_set: Option<FxHashSet<_>> = None;
         let mut index_tys: Option<Vec<&'cx Ty<'cx>>> = None;
@@ -508,6 +509,9 @@ impl<'cx> TyChecker<'cx> {
                     }
                 } else {
                     single_prop = Some(prop);
+                    prop_flags = symbol_flags
+                        .intersection(SymbolFlags::ACCESSOR)
+                        .union(SymbolFlags::PROPERTY);
                 }
 
                 match (is_union, self.is_readonly_symbol(prop)) {
@@ -534,7 +538,9 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     CheckFlags::empty()
                 };
-                // TODO: !is_prototype_prop
+                if !self.is_prototype_prop(prop) {
+                    synthetic_flags = CheckFlags::SYNTHETIC_PROPERTY;
+                }
             } else if is_union {
                 if !name.is_late_bound()
                     && let Some(index_info) = self.get_applicable_index_info_for_name(ty, name)
@@ -587,12 +593,36 @@ impl<'cx> TyChecker<'cx> {
             .map(|set| set.into_iter().collect())
             .unwrap_or_else(|| vec![single_prop]);
 
+        let mut first_value_declaration = None;
+        let mut has_non_uniform_value_declaration = false;
+        let mut declarations: Option<thin_vec::ThinVec<bolt_ts_ast::NodeID>> = None;
         let mut first_ty = None;
         let mut name_ty = None;
         let mut prop_tys = Vec::with_capacity(props.len());
         let mut write_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
         for prop in props {
+            let s = self.symbol(prop);
+            let prop_value_decl = s.value_decl;
+            if let Some(first_value_decl) = first_value_declaration {
+                if prop_value_decl.is_some_and(|d| d == first_value_decl) {
+                    has_non_uniform_value_declaration = true;
+                }
+            } else {
+                first_value_declaration = prop_value_decl;
+            }
+            if let Some(decls) = s.decls.as_ref()
+                && !decls.is_empty()
+            {
+                match &mut declarations {
+                    Some(v) => {
+                        v.extend(decls.clone());
+                    }
+                    None => {
+                        declarations = Some(decls.clone());
+                    }
+                }
+            }
             let ty = self.get_type_of_symbol(prop);
             if first_ty.is_none() {
                 first_ty = Some(ty);
@@ -608,12 +638,20 @@ impl<'cx> TyChecker<'cx> {
                     write_tys = Some(t);
                 }
             }
-            // if first_ty.map_or(true, |first_ty| first_ty != ty)
-            // {}
+            if first_ty != Some(ty) {
+                check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE;
+            }
+
+            if ty.is_lit_ty() || ty.is_pattern_lit_ty() {
+                check_flags |= CheckFlags::HAS_LITERAL_TYPE;
+            }
+
+            // TODO: if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {}
+
             prop_tys.push(ty);
         }
 
-        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+        let symbol_flags = prop_flags.union(SymbolFlags::TRANSIENT)
             | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)

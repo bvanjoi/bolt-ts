@@ -1,3 +1,5 @@
+use bolt_ts_binder::SymbolName;
+
 macro_rules! links {
     ($s: ident, $(($x: ident, $ty: ty)),* $( , )? ) => {
         #[derive(Debug, Default, Clone, Copy)]
@@ -5,6 +7,7 @@ macro_rules! links {
             $(
                 $x: Option<$ty>,
             )*
+            phantom: std::marker::PhantomData<&'cx ()>
         }
 
         impl<'cx> $s<'cx> {
@@ -82,3 +85,5 @@ links!(
     (resolved_apparent_ty, &'cx super::Ty<'cx>),
     (contains_error, bool),
 );
+
+links!(UnionTyLinks, (key_prop_name, SymbolName),);

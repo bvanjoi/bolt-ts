@@ -141,9 +141,8 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_type_of_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let decl = self.symbol(symbol).value_decl;
         let ty = self.get_type_of_symbol(symbol);
-        self.add_optionality(
+        self.add_optionality::<false>(
             ty,
-            false,
             decl.is_some_and(|decl| {
                 let n = self.p.node(decl);
                 n.initializer().is_some() || n.is_optional_decl()

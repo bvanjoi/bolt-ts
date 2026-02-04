@@ -664,10 +664,12 @@ impl<'cx> TyChecker<'cx> {
             flags |= TypeFlags::ENUM_LITERAL;
         }
         let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
         let union = self.alloc(ty::UnionTy {
             tys: self.alloc(tys),
             object_flags,
             fresh_ty_links,
+            union_ty_links,
             alias_symbol,
             alias_ty_arguments,
         });

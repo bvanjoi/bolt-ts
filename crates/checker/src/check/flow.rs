@@ -11,8 +11,10 @@ use super::type_predicate::TyPredKind;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
+use bolt_ts_ty::CheckFlags;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -774,23 +776,53 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
+    fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
+        if ty.kind.is_union()
+            && let Some(prop) = self.get_union_or_intersection_prop(ty, name)
+            && let check_flags = self.get_check_flags(prop)
+            && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
+        {
+            return match self.get_symbol_links(prop).get_is_discriminant_property() {
+                Some(is_discriminant) => is_discriminant,
+                None => {
+                    dbg!(check_flags);
+                    dbg!(self.get_check_flags(prop));
+                    let is_discriminant = check_flags.intersects(CheckFlags::DISCRIMINANT) && {
+                        let ty = self.get_type_of_symbol(prop);
+                        !self.is_generic_ty(ty)
+                    };
+                    self.get_mut_symbol_links(prop)
+                        .set_is_discriminant_property(is_discriminant);
+                    is_discriminant
+                }
+            };
+        }
+        false
+    }
+
     fn get_discriminant_prop_access(
         &mut self,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
         computed_ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ast::PropAccessExpr<'cx>> {
+    ) -> Option<&'cx ast::Expr<'cx>> {
         if (declared_ty.flags.contains(TypeFlags::UNION)
             || computed_ty.flags.contains(TypeFlags::UNION))
             && let Some(access) = self.get_candidate_discriminant_prop_access(refer, expr)
         {
-            // TODO:
-            // match access.kind {
-            //     ast::ExprKind::PropAccess(n) => n.name,
-            //     ast::ExprKind::EleAccess(n) => n.arg
-            //     _ => None,
-            // }
+            if let Some(name) = self.get_accessed_prop_name(access) {
+                let ty = if declared_ty.flags.contains(TypeFlags::UNION)
+                    && self.is_ty_subset_of(computed_ty, declared_ty)
+                {
+                    declared_ty
+                } else {
+                    computed_ty
+                };
+                if self.is_discriminant_prop(ty, name) {
+                    return Some(access);
+                }
+            }
         }
         None
     }
@@ -837,12 +869,73 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(left_access) =
                     self.get_discriminant_prop_access(refer, left, ty, declared_ty)
                 {
+                    return self.narrow_ty_by_discriminant_prop(
+                        ty,
+                        left_access,
+                        refer,
+                        expr.op.kind,
+                        right,
+                        assume_true,
+                    );
                 }
 
                 ty
             }
             _ => ty,
         }
+    }
+
+    fn narrow_ty_by_discriminant_prop(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        access: &'cx ast::Expr<'cx>,
+        refer: ast::NodeID,
+        op: ast::BinOpKind,
+        value: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if matches!(op, ast::BinOpKind::EqEqEq | ast::BinOpKind::EqEq)
+            && ty.kind.is_union()
+            && let Some(key_prop_name) = self.get_key_prop_name(ty)
+        {
+            // TODO: key_prop_name ==  match access {}
+        }
+
+        self.narrow_ty_by_discriminant(access, ty, |this, t| {
+            this.narrow_ty_by_equality(t, op, value, assume_true)
+        })
+    }
+
+    fn narrow_ty_by_discriminant(
+        &mut self,
+        access: &'cx ast::Expr<'cx>,
+        ty: &'cx ty::Ty<'cx>,
+        narrow_ty: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(prop_name) = self.get_accessed_prop_name(access) else {
+            return ty;
+        };
+        let optional_chain = false; // TODO: is_optional_chain(access);
+        let remove_nullable = self.config.strict_null_checks()
+            && (optional_chain/* TODO: is_non_null_access */)
+            && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
+        let Some(prop_ty) =
+            self.get_ty_of_prop_of_ty(if remove_nullable { todo!() } else { ty }, prop_name)
+        else {
+            return ty;
+        };
+        if remove_nullable && optional_chain {
+            todo!()
+        }
+        let narrowed_prop_ty = narrow_ty(self, prop_ty);
+        self.filter_type(ty, |this, t| {
+            let discriminant_ty = this
+                .get_ty_of_prop_or_index_sig_of_ty(t, prop_name)
+                .unwrap_or(self.unknown_ty);
+            !discriminant_ty.flags.contains(TypeFlags::NEVER)
+                && !narrowed_prop_ty.flags.contains(TypeFlags::NEVER)
+                && this.are_types_comparable(narrowed_prop_ty, discriminant_ty)
+        })
     }
 
     fn narrow_ty_by_typeof(
@@ -1210,7 +1303,7 @@ impl<'cx> TyChecker<'cx> {
             Self::is_ty_sub_type_of
         };
 
-        let key_prop_name = ty.kind.as_union().and_then(|u| self.get_key_prop_name(u));
+        let key_prop_name = ty.kind.as_union().and_then(|_| self.get_key_prop_name(ty));
         let narrowed_ty = self
             .map_ty(
                 candidate,
@@ -1218,8 +1311,8 @@ impl<'cx> TyChecker<'cx> {
                     let discriminant =
                         key_prop_name.and_then(|name| this.get_ty_of_prop_of_ty(c, name));
                     let matching = discriminant.and_then(|key_ty| {
-                        let union_ty = ty.kind.expect_union();
-                        this.get_constituent_ty_for_key_ty(ty, union_ty, key_ty)
+                        debug_assert!(ty.kind.is_union());
+                        this.get_constituent_ty_for_key_ty(ty, key_ty)
                     });
                     let directly_related = this
                         .map_ty(

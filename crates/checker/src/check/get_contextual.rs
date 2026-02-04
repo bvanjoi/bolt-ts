@@ -129,7 +129,7 @@ impl<'cx> TyChecker<'cx> {
             && let ast::DeclarationName::Computed(name) = name
             && let expr_ty = self.check_expr(name.expr)
             && expr_ty.useable_as_prop_name()
-            && let Some(prop_name) = self.get_prop_name_from_ty(expr_ty)
+            && let prop_name = self.get_prop_name_from_ty(expr_ty)
             && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
         {
             Some(prop_ty)

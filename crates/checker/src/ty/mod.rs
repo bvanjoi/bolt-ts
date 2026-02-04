@@ -15,13 +15,14 @@ pub use bolt_ts_ty::ObjectFlags;
 pub use bolt_ts_ty::TypeFacts;
 pub use bolt_ts_ty::TypeFlags;
 
-use crate::check::TyChecker;
+use super::check::TyChecker;
 
 pub use self::facts::TYPEOF_NE_FACTS;
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
 pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena};
+pub use self::links::{UnionTyLinks, UnionTyLinksArena, UnionTyLinksID};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::num_lit::NumberLitTy;
@@ -389,6 +390,19 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn is_lit_ty(&self) -> bool {
+        self.flags.intersects(TypeFlags::BOOLEAN)
+            || if let Some(u) = self.kind.as_union() {
+                if self.flags.contains(TypeFlags::ENUM_LITERAL) {
+                    true
+                } else {
+                    u.tys.iter().all(|ty| ty.is_unit())
+                }
+            } else {
+                self.is_unit()
+            }
+    }
+
     pub fn is_pattern_lit_ty(&self) -> bool {
         match self.kind {
             TyKind::TemplateLit(n) => n.tys.iter().all(|ty| ty.is_pattern_lit_placeholder_ty()),
@@ -574,6 +588,7 @@ pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
+    pub union_ty_links: UnionTyLinksID<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
 }

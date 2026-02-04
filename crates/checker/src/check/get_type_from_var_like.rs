@@ -16,9 +16,12 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
+    pub(super) fn get_optional_ty<const IS_PROPERTY: bool>(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
         assert!(self.config.strict_null_checks());
-        let missing_or_undefined = if is_property {
+        let missing_or_undefined = if IS_PROPERTY {
             self.undefined_or_missing_ty
         } else {
             self.undefined_ty
@@ -41,14 +44,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn add_optionality(
+    pub(super) fn add_optionality<const IS_PROPERTY: bool>(
         &mut self,
         declared_ty: &'cx Ty<'cx>,
-        is_property: bool,
         is_optional: bool,
     ) -> &'cx Ty<'cx> {
         if self.config.strict_null_checks() && is_optional {
-            self.get_optional_ty(declared_ty, is_property)
+            self.get_optional_ty::<IS_PROPERTY>(declared_ty)
         } else {
             declared_ty
         }
@@ -370,12 +372,16 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let decl_node = self.p.node(id);
-        let is_property = decl_node.is_prop_signature();
         let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
 
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
-            return Some(self.add_optionality(ty, is_property, is_optional));
+            let is_property = decl_node.is_prop_signature();
+            return Some(if is_property {
+                self.add_optionality::<true>(ty, is_optional)
+            } else {
+                self.add_optionality::<false>(ty, is_optional)
+            });
         }
 
         if decl.is_param() {

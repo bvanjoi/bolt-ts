@@ -867,7 +867,7 @@ impl<'cx> super::TyChecker<'cx> {
             _ => unreachable!("decl_name: {:#?}", decl_name),
         };
         if ty.useable_as_prop_name() {
-            let member_name = self.get_prop_name_from_ty(ty).unwrap();
+            let member_name = self.get_prop_name_from_ty(ty);
             let symbol_flags = self.binder.symbol(s).flags;
             use indexmap::map::Entry;
             let late_symbol = match late_symbols.0.entry(member_name) {

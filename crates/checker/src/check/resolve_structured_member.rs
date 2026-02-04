@@ -1418,7 +1418,7 @@ impl<'cx> TyChecker<'cx> {
         let mut add_member_for_key_ty_worker =
             |this: &mut Self, key_ty: &'cx ty::Ty<'cx>, prop_name_ty: &'cx ty::Ty<'cx>| {
                 if prop_name_ty.useable_as_prop_name() {
-                    let symbol_name = this.get_prop_name_from_ty(prop_name_ty).unwrap();
+                    let symbol_name = this.get_prop_name_from_ty(prop_name_ty);
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
@@ -1447,7 +1447,7 @@ impl<'cx> TyChecker<'cx> {
                             .override_key_ty(key_ty);
                     } else {
                         let modifiers_prop = if key_ty.useable_as_prop_name() {
-                            let symbol_name = this.get_prop_name_from_ty(key_ty).unwrap();
+                            let symbol_name = this.get_prop_name_from_ty(key_ty);
                             this.get_prop_of_ty(modifiers_ty, symbol_name)
                         } else {
                             None

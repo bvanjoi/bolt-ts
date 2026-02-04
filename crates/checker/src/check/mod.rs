@@ -214,6 +214,7 @@ pub struct TyChecker<'cx> {
     shared_flow_info: Vec<(FlowID, FlowTy<'cx>)>,
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
     fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
+    union_ty_links_arena: ty::UnionTyLinksArena<'cx>,
     interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
     object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena<'cx>,
     // === ast ===
@@ -347,12 +348,6 @@ pub struct TyChecker<'cx> {
 
 fn cast_empty_array<'cx, T>(empty_array: &[u8; 0]) -> &'cx [T] {
     unsafe { &*(empty_array as *const [u8] as *const [T]) }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ElementAccessName {
-    Atom(Atom),
-    Number(f64),
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -654,6 +649,7 @@ impl<'cx> TyChecker<'cx> {
             fresh_ty_links_arena: ty::FreshTyLinksArena::with_capacity(cap),
             interface_ty_links_arena: ty::InterfaceTyLinksArena::with_capacity(cap),
             object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena::with_capacity(cap),
+            union_ty_links_arena: ty::UnionTyLinksArena::with_capacity(cap),
 
             resolution_tys: thin_vec::ThinVec::with_capacity(128),
             resolution_res: thin_vec::ThinVec::with_capacity(128),
@@ -1971,7 +1967,7 @@ impl<'cx> TyChecker<'cx> {
                 element_flags.push(ElementFlags::OPTIONAL);
             } else {
                 let ty = self.check_expr_for_mutable_location(elem);
-                element_types.push(self.add_optionality(ty, true, has_omitted_expr));
+                element_types.push(self.add_optionality::<true>(ty, has_omitted_expr));
                 element_flags.push(ElementFlags::REQUIRED);
             }
         }
@@ -3105,7 +3101,46 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_key_prop_name(&self, union_ty: &'cx ty::UnionTy<'cx>) -> Option<SymbolName> {
+    fn get_key_prop_name(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<SymbolName> {
+        let union_ty = ty.kind.expect_union();
+        let tys = union_ty.tys;
+        if tys.len() < 10
+            || ty.get_object_flags().contains(ObjectFlags::PRIMITIVE_UNION)
+            || tys.iter().fold(0, |count, ty| {
+                let flags = ty.flags;
+                if flags.intersects(TypeFlags::OBJECT.union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE))
+                {
+                    count + 1
+                } else {
+                    count
+                }
+            }) < 10
+        {
+            return None;
+        }
+
+        if let Some(ret) = self.union_ty_links_arena[union_ty.union_ty_links].get_key_prop_name() {
+            return Some(ret);
+        }
+        let key_prop_name = tys.iter().find_map(|ty| {
+            if ty
+                .flags
+                .intersects(TypeFlags::OBJECT.union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE))
+            {
+                let props = self.get_props_of_ty(ty);
+                props.iter().find_map(|prop| {
+                    let ty = self.get_type_of_symbol(*prop);
+                    ty.is_unit().then(|| self.symbol(*prop).name)
+                })
+            } else {
+                None
+            }
+        });
+        // TODO:
+        // let map_by_key_prop = key_prop_name.map(|name| {
+
+        // })
+
         None
     }
 
@@ -3120,10 +3155,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_matching_union_constituent_for_ty(
         &mut self,
-        union_ty: &'cx ty::UnionTy<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let key_prop_name = self.get_key_prop_name(union_ty);
+        debug_assert!(ty.kind.is_union());
+        let key_prop_name = self.get_key_prop_name(ty);
         let prop_ty = key_prop_name.and_then(|name| self.get_ty_of_prop_of_ty(ty, name));
         // TODO: prop_ty.and_then(|ty| self.)
         None
@@ -3500,15 +3535,55 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_related_to(source, target, relation::RelationKind::StrictSubtype)
     }
 
+    fn is_prototype_prop(&self, symbol: SymbolID) -> bool {
+        let flags = self.symbol(symbol).flags;
+        if flags.contains(SymbolFlags::METHOD)
+            || self
+                .get_check_flags(symbol)
+                .contains(CheckFlags::SYNTHETIC_METHOD)
+        {
+            true
+        } else {
+            // TODO: is_in_js_file
+            false
+        }
+    }
+
+    fn is_ty_subset_of(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) -> bool {
+        source == target
+            || source.flags.intersects(TypeFlags::NEVER)
+            || target
+                .kind
+                .as_union()
+                .is_some_and(|target| self.is_ty_subset_of_union(source, target))
+    }
+
+    fn is_ty_subset_of_union(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::UnionTy<'cx>,
+    ) -> bool {
+        if let Some(source) = source.kind.as_union() {
+            for s in source.tys {
+                if !target.tys.contains(s) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        // if (source.flags & TypeFlags.EnumLike && getBaseTypeOfEnumLikeType(source as LiteralType) === target) {
+        //     return true;
+        // }
+        target.tys.contains(&source)
+    }
+
     fn get_constituent_ty_for_key_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        union_ty: &'cx ty::UnionTy<'cx>,
         key_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let key_prop_name = self.get_key_prop_name(union_ty);
-        let prop_ty = key_prop_name.and_then(|name| self.get_ty_of_prop_of_ty(key_ty, name));
-        prop_ty.and_then(|ty| self.get_matching_union_constituent_for_ty(union_ty, ty))
+        // TODO:
+        None
     }
 
     fn create_flow_ty(&self, ty: &'cx ty::Ty<'cx>, incomplete: bool) -> FlowTy<'cx> {
@@ -4098,7 +4173,7 @@ impl<'cx> TyChecker<'cx> {
         };
         // TODO: is_optional
         let is_optional = false;
-        self.add_optionality(instantiated_template_ty, true, is_optional)
+        self.add_optionality::<true>(instantiated_template_ty, is_optional)
     }
 
     fn is_circular_mapped_prop(&self, symbol: SymbolID) -> bool {
@@ -5067,19 +5142,16 @@ impl<'cx> TyChecker<'cx> {
     fn try_get_element_access_name(
         &mut self,
         n: &'cx ast::EleAccessExpr<'cx>,
-    ) -> Option<ElementAccessName> {
+    ) -> Option<SymbolName> {
         match n.arg.kind {
-            ast::ExprKind::StringLit(n) => Some(ElementAccessName::Atom(n.val)),
-            ast::ExprKind::NumLit(n) => Some(ElementAccessName::Number(n.val)),
+            ast::ExprKind::StringLit(n) => Some(SymbolName::Atom(n.val)),
+            ast::ExprKind::NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
             _ if n.arg.is_entity_name_expr() => self.try_get_name_from_entity_name_expr(n.arg),
             _ => None,
         }
     }
 
-    fn try_get_name_from_entity_name_expr(
-        &mut self,
-        n: &'cx ast::Expr<'cx>,
-    ) -> Option<ElementAccessName> {
+    fn try_get_name_from_entity_name_expr(&mut self, n: &'cx ast::Expr<'cx>) -> Option<SymbolName> {
         let symbol = match n.kind {
             ast::ExprKind::Ident(n) => self.final_res(n.id),
             ast::ExprKind::PropAccess(n) => self.resolve_qualified_name_like::<true, false>(
@@ -5089,7 +5161,6 @@ impl<'cx> TyChecker<'cx> {
             ),
             _ => unreachable!(),
         };
-
         if symbol == Symbol::ERR {
             return None;
         }
@@ -5098,7 +5169,37 @@ impl<'cx> TyChecker<'cx> {
             return None;
         }
         let decl = s.value_decl?;
+        let decl_node = self.p.node(decl);
+        if let Some(ty) = decl_node.ty_anno().map(|ty| self.get_ty_from_type_node(ty))
+            && let Some(name) = self.try_get_name_from_ty(ty)
+        {
+            return Some(name);
+        }
+
+        // TODO: if decl_node.has_only_expr_init() && self.is_block_scoped_name_declared_before_use(decl, used) {}
         None
+    }
+
+    fn get_accessed_prop_name(&mut self, access: &'cx ast::Expr<'cx>) -> Option<SymbolName> {
+        match access.kind {
+            ast::ExprKind::PropAccess(n) => Some(SymbolName::Atom(n.name.name)),
+            ast::ExprKind::EleAccess(n) => self.try_get_element_access_name(n),
+            // TODO: binding
+            // TODO: is_param
+            _ => None,
+        }
+    }
+
+    fn get_ty_of_prop_or_index_sig_of_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: SymbolName,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(prop) = self.get_ty_of_prop_of_ty(ty, name) {
+            return Some(prop);
+        }
+        let prop_ty = self.get_applicable_index_info_for_name(ty, name)?;
+        Some(self.add_optionality::<true>(prop_ty.val_ty, true))
     }
 }
 

@@ -144,7 +144,7 @@ impl<'cx> TyChecker<'cx> {
                 .decl
                 .get_modifiers()
                 .intersects(bolt_ts_ast::MappedTyModifiers::INCLUDE_OPTIONAL);
-            let t = self.add_optionality(decl_ty, true, is_optional);
+            let t = self.add_optionality::<true>(decl_ty, is_optional);
             self.instantiate_ty(t, mapped_ty.mapper)
         } else {
             self.error_ty

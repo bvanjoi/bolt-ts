@@ -28,6 +28,6 @@ new B<string>('');
 new B<number>(42);
 new B<boolean>(false);
 
-(new B('')).f(42)
+(new B('')).f(42);
 //~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'string'.
 (new B('')).f('42')

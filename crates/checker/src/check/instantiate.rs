@@ -445,7 +445,7 @@ impl<'cx> TyChecker<'cx> {
             && modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)
         {
-            self.get_optional_ty(prop_ty, true)
+            self.get_optional_ty::<true>(prop_ty)
         } else if strict_null_checks
             && modifiers.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
             && is_optional

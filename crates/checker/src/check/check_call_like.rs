@@ -87,15 +87,15 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         self.is_type_any(func_ty)
             || self.is_type_any(apparent_func_ty)
-                && (func_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
-                    && num_ctor_sigs == 0
-                    && num_call_sigs == 0
-                    && !apparent_func_ty.flags.contains(TypeFlags::UNION)
-                    && !self
-                        .get_reduced_ty(apparent_func_ty)
-                        .flags
-                        .contains(TypeFlags::NEVER)
-                    && self.is_type_assignable_to(func_ty, self.global_fn_ty()))
+                && func_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+            || num_ctor_sigs == 0
+                && num_call_sigs == 0
+                && !apparent_func_ty.flags.contains(TypeFlags::UNION)
+                && !self
+                    .get_reduced_ty(apparent_func_ty)
+                    .flags
+                    .contains(TypeFlags::NEVER)
+                && self.is_type_assignable_to(func_ty, self.global_fn_ty())
     }
 
     pub(super) fn check_call_like_expr(
@@ -445,10 +445,9 @@ impl<'cx> TyChecker<'cx> {
                     ty: format!("typeof {}", self.atoms.get(decl.name.unwrap().name)),
                 };
                 self.push_error(Box::new(error));
+            } else {
+                self.invocation_error(expr, apparent_ty, ty::SigKind::Call);
             }
-            //  else {
-            //     self.invocation_error(expr, apparent_ty, ty::SigKind::Call);
-            // }
             return self.unknown_sig();
         }
 
