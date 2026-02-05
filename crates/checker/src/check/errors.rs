@@ -120,8 +120,8 @@ pub(super) struct PropertyXIsMissing {
     #[label(primary)]
     pub span: Span,
     pub field: String,
-    #[related]
-    pub related: [DefinedHere; 1],
+    // #[related]
+    // pub related: [DefinedHere; 1],
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

@@ -776,7 +776,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
+    pub(super) fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
         if ty.kind.is_union()
             && let Some(prop) = self.get_union_or_intersection_prop(ty, name)
             && let check_flags = self.get_check_flags(prop)
@@ -785,8 +785,6 @@ impl<'cx> TyChecker<'cx> {
             return match self.get_symbol_links(prop).get_is_discriminant_property() {
                 Some(is_discriminant) => is_discriminant,
                 None => {
-                    dbg!(check_flags);
-                    dbg!(self.get_check_flags(prop));
                     let is_discriminant = check_flags.intersects(CheckFlags::DISCRIMINANT) && {
                         let ty = self.get_type_of_symbol(prop);
                         !self.is_generic_ty(ty)

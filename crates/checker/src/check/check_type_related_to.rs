@@ -1,8 +1,10 @@
+use std::borrow::Cow;
+
 use rustc_hash::FxHashSet;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::IDENT_LENGTH;
-use bolt_ts_binder::{SymbolFlags, SymbolID};
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::fx_hashset_with_capacity;
 
 use super::errors;
@@ -350,11 +352,42 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         result
     }
 
+    fn should_report_unmatched_prop_error(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        if self.c.get_props_of_object_ty(source).is_empty()
+            && let ty_call_sigs = self.c.get_signatures_of_type(source, SigKind::Call)
+            && let ty_ctor_sigs = self.c.get_signatures_of_type(source, SigKind::Constructor)
+            && (!ty_ctor_sigs.is_empty() || !ty_ctor_sigs.is_empty())
+        {
+            return if (!self
+                .c
+                .get_signatures_of_type(target, SigKind::Call)
+                .is_empty()
+                && !ty_call_sigs.is_empty())
+                || (!self
+                    .c
+                    .get_signatures_of_type(target, SigKind::Constructor)
+                    .is_empty()
+                    && !ty_ctor_sigs.is_empty())
+            {
+                true
+            } else {
+                false
+            };
+        }
+
+        true
+    }
+
     fn props_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        excluded_props: Option<&FxHashSet<SymbolName>>,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if self.relation == RelationKind::Identity {
@@ -462,48 +495,47 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && !self.c.is_empty_array_lit_ty(source)
             && !source.is_tuple();
 
-        if let Some((mut unmatched, target_symbol)) =
+        if let Some(mut unmatched) =
             self.c
                 .get_unmatched_prop(source, target, require_optional_properties, false)
         {
-            assert!(!unmatched.is_empty());
-            if report_error {
-                // report unmatched properties
-                let symbol = self.c.symbol(target_symbol);
-                let decl = symbol.decls.as_ref().unwrap()[0];
-                let d = self.c.p.node(decl);
-                let target_span = if symbol.flags.contains(SymbolFlags::CLASS) {
-                    d.as_class_decl().unwrap().name.unwrap().span
-                } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
-                    d.as_interface_decl().unwrap().name.span
-                } else {
-                    d.span()
-                };
-                let Some(source_symbol) = source.symbol() else {
+            debug_assert!(!unmatched.is_empty());
+            if report_error && self.should_report_unmatched_prop_error(source, target) {
+                if source.symbol().is_none() {
                     // TODO: unreachable!()
                     return Ternary::TRUE;
-                };
-                unmatched.sort();
+                }
+                // report unmatched properties
+                unmatched.sort_by(|a, b| {
+                    if a.module().as_usize() <= b.module().as_usize()
+                        && a.index_as_u32() < b.index_as_u32()
+                    {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                });
                 if unmatched.len() < 3 {
-                    for name in unmatched {
-                        let field = self.c.atoms.get(name).to_string();
-                        let defined = errors::DefinedHere {
-                            span: target_span,
-                            kind: errors::DeclKind::Property,
-                            name: field.to_string(),
+                    for symbol in unmatched {
+                        let Some(name) = self.c.symbol(symbol).name.as_atom() else {
+                            continue;
                         };
+                        let field = self.c.atoms.get(name).to_string();
+                        // let decl = self.c.symbol(symbol).decls.as_ref().unwrap()[0];
                         let span = self.c.p.node(self.error_node.unwrap()).span();
                         let error = errors::PropertyXIsMissing {
                             span,
                             field,
-                            related: [defined],
+                            // related: [],
                         };
                         self.c.push_error(Box::new(error));
                     }
-                } else {
+                } else if let Some(name0) = self.c.symbol(unmatched[0]).name.as_atom()
+                    && let Some(name1) = self.c.symbol(unmatched[1]).name.as_atom()
+                {
                     let props = vec![
-                        self.c.atoms.get(unmatched[0]).to_string(),
-                        self.c.atoms.get(unmatched[1]).to_string(),
+                        self.c.atoms.get(name0).to_string(),
+                        self.c.atoms.get(name1).to_string(),
                     ];
                     let len = unmatched.len() - 2;
                     let span = self.c.p.node(self.error_node.unwrap()).span();
@@ -523,8 +555,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::FALSE;
         }
 
-        let props = self.c.properties_of_ty(target);
-        for target_prop in props {
+        let props = self.c.get_props_of_ty(target);
+        let props = match excluded_props {
+            Some(excluded) => Cow::Owned(self.c.exclude_props(props, excluded).collect()),
+            None => Cow::Borrowed(props),
+        };
+        for target_prop in props.iter() {
             let s = self.c.symbol(*target_prop);
             let name = s.name;
             if !s.flags.intersects(SymbolFlags::PROTOTYPE)
@@ -1468,43 +1504,187 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 };
             }
 
-            if source.kind.is_object_or_intersection() && target.kind.is_object() {
-                let report_error = report_error && !source_is_primitive;
-
-                let mut res =
-                    self.props_related_to(source, target, report_error, intersection_state);
-                if res != Ternary::FALSE {
-                    res &= self.sigs_related_to(
+            if source.kind.is_object_or_intersection() {
+                if target.kind.is_object() {
+                    let report_error = report_error && !source_is_primitive;
+                    let mut res = self.props_related_to(
                         source,
                         target,
-                        SigKind::Call,
                         report_error,
+                        None,
                         intersection_state,
                     );
                     if res != Ternary::FALSE {
                         res &= self.sigs_related_to(
                             source,
                             target,
-                            SigKind::Constructor,
+                            SigKind::Call,
                             report_error,
                             intersection_state,
                         );
                         if res != Ternary::FALSE {
-                            res &= self.index_sigs_related_to(
+                            res &= self.sigs_related_to(
                                 source,
                                 target,
-                                source_is_primitive,
+                                SigKind::Constructor,
                                 report_error,
                                 intersection_state,
                             );
+                            if res != Ternary::FALSE {
+                                res &= self.index_sigs_related_to(
+                                    source,
+                                    target,
+                                    source_is_primitive,
+                                    report_error,
+                                    intersection_state,
+                                );
+                            }
+                        }
+                    }
+                    return res;
+                }
+
+                if target.kind.is_union() {
+                    // When source type is object type and target type is a discriminated union:
+                    // ```
+                    // type Source = {a: 'x' | 'y', b: number};
+                    // type Target = {a: 'x', b: number} | {a: 'y', b: number};
+                    // ```
+                    let object_only_target = self.c.extract_tys_of_kind(
+                        target,
+                        TypeFlags::OBJECT
+                            .union(TypeFlags::INTERSECTION)
+                            .union(TypeFlags::SUBSTITUTION),
+                    );
+                    if object_only_target.flags.contains(TypeFlags::UNION) {
+                        let result =
+                            self.ty_related_to_discriminated_ty(source, object_only_target);
+                        if result != Ternary::FALSE {
+                            return result;
                         }
                     }
                 }
-                return res;
             }
         }
 
         Ternary::FALSE
+    }
+
+    fn ty_related_to_discriminated_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> Ternary {
+        let target_union = target.kind.expect_union();
+        let source_props_filtered = {
+            let source_props = self.c.get_props_of_ty(source);
+            self.c.find_discriminant_props(source_props, target)
+        };
+        if source_props_filtered.is_empty() {
+            return Ternary::FALSE;
+        }
+
+        let mut num_combinations = 1;
+        for &source_prop in &source_props_filtered {
+            num_combinations *= {
+                let ty = self.c.get_non_missing_type_of_symbol(source_prop);
+                ty.count()
+            };
+            if num_combinations > 25 {
+                // limitation
+                return Ternary::FALSE;
+            }
+        }
+
+        let mut source_discriminant_tys = Vec::with_capacity(source_props_filtered.len());
+        let mut excluded_props = fx_hashset_with_capacity(source_props_filtered.len());
+        for &source_prop in &source_props_filtered {
+            let source_prop_ty = self.c.get_non_missing_type_of_symbol(source_prop);
+            source_discriminant_tys.push(if let Some(u) = source_prop_ty.kind.as_union() {
+                Cow::Borrowed(u.tys)
+            } else {
+                Cow::Owned(vec![source_prop_ty])
+            });
+            excluded_props.insert(self.c.symbol(source_prop).name);
+        }
+
+        let discriminant_combinations = ty_cartesian_product(source_discriminant_tys.as_ref());
+        let mut matching_tys = vec![];
+        let skip_optional =
+            self.c.config.strict_null_checks() || self.relation == RelationKind::Comparable;
+        for combination in discriminant_combinations {
+            let mut has_match = false;
+            'outer: for ty in target_union.tys {
+                for (i, &source_prop) in source_props_filtered.iter().enumerate() {
+                    let name = self.c.symbol(source_prop).name;
+                    let Some(target_prop) = self.c.get_prop_of_ty(ty, name) else {
+                        continue 'outer;
+                    };
+                    if source_prop == target_prop {
+                        continue;
+                    }
+                    let related = self.prop_related_to(
+                        source,
+                        target,
+                        source_prop,
+                        target_prop,
+                        |_, _| combination[i],
+                        false,
+                        IntersectionState::empty(),
+                        skip_optional,
+                    );
+                    if related == Ternary::FALSE {
+                        continue 'outer;
+                    }
+                }
+                if !matching_tys.contains(ty) {
+                    matching_tys.push(ty);
+                }
+                has_match = true;
+            }
+            if !has_match {
+                return Ternary::FALSE;
+            }
+        }
+
+        let mut res = Ternary::TRUE;
+        for ty in matching_tys {
+            res = self.props_related_to(
+                source,
+                ty,
+                false,
+                Some(&excluded_props),
+                IntersectionState::empty(),
+            );
+            if res != Ternary::FALSE {
+                res = self.sigs_related_to(
+                    source,
+                    ty,
+                    SigKind::Call,
+                    false,
+                    IntersectionState::empty(),
+                );
+                if res != Ternary::FALSE {
+                    res = self.sigs_related_to(
+                        source,
+                        ty,
+                        SigKind::Constructor,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if res != Ternary::FALSE && !(source.is_tuple() && ty.is_tuple()) {
+                        res = self.index_sigs_related_to(
+                            source,
+                            ty,
+                            false,
+                            false,
+                            IntersectionState::empty(),
+                        );
+                    }
+                }
+            }
+        }
+        res
     }
 
     fn recur_ty_related_to(
@@ -2285,5 +2465,33 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
         Ternary::FALSE
+    }
+}
+
+fn ty_cartesian_product<'a, T: Copy>(lists: &Vec<Cow<'a, [T]>>) -> Vec<Vec<T>> {
+    let mut result = Vec::new();
+    ty_cartesian_product_worker(&mut result, lists, None, 0);
+    result
+}
+
+fn ty_cartesian_product_worker<'a, T: Copy>(
+    result: &mut Vec<Vec<T>>,
+    lists: &Vec<Cow<'a, [T]>>,
+    outer: Option<Vec<T>>,
+    index: usize,
+) {
+    for element in lists[index].as_ref() {
+        let mut inner;
+        if let Some(outer) = outer.clone() {
+            inner = outer;
+            inner.push(*element)
+        } else {
+            inner = vec![*element];
+        }
+        if index == lists.len() - 1 {
+            result.push(inner);
+        } else {
+            ty_cartesian_product_worker(result, lists, Some(inner), index + 1);
+        }
     }
 }

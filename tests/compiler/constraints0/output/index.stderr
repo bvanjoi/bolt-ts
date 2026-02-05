@@ -3,10 +3,3 @@
  16 │ B
     · ─
     ╰────
-
-Advice: 
-  ☞ Property 'a' is defined here
-   ╭─[../../tests/compiler/constraints0/index.ts:3:11]
- 3 │ A
-   · ─
-   ╰────

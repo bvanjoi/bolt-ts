@@ -684,7 +684,7 @@
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
-  │ 'unknown[]': concat, indexOf, and 10 more.
+  │ 'unknown[]': concat, join, and 10 more.
       ╭─[../../tests/compiler/fest/index.ts:2758:9]
  2758 │ b5
       · ──

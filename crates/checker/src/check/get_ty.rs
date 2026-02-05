@@ -27,7 +27,7 @@ enum WideningKind {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_non_missing_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {
         // TODO: resolving missing.
-        (self.get_type_of_symbol(id)) as _
+        self.get_type_of_symbol(id)
     }
 
     pub(crate) fn get_type_of_symbol(&mut self, id: SymbolID) -> &'cx Ty<'cx> {

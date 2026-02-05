@@ -5,13 +5,6 @@
  34 │ ╰─▶                         }
     ╰────
 
-Advice: 
-  ☞ Property 'i' is defined here
-    ╭─[../../tests/compiler/deeplyNestedCheck/index.ts:18:11]
- 18 │ H
-    · ─
-    ╰────
-
   × Type 'number' is not assignable to type 'string'.
     ╭─[../../tests/compiler/deeplyNestedCheck/index.ts:49:35]
  49 │ 42

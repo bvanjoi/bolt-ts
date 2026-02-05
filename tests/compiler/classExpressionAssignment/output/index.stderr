@@ -3,10 +3,3 @@
  8 │ A
    · ─
    ╰────
-
-Advice: 
-  ☞ Property 'prop' is defined here
-   ╭─[../../tests/compiler/classExpressionAssignment/index.ts:3:11]
- 3 │ A
-   · ─
-   ╰────

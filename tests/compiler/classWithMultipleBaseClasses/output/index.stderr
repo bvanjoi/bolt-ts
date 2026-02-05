@@ -8,13 +8,6 @@
  25 │ ╰─▶ }
     ╰────
 
-Advice: 
-  ☞ Property 'foo' is defined here
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:11:11]
- 11 │ I
-    · ─
-    ╰────
-
   × Property 'bar' is missing.
     ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:1]
  20 │ ╭─▶ class D implements I, J {
@@ -23,11 +16,4 @@ Advice:
  23 │ │       baz() { }
  24 │ │       bat() { }
  25 │ ╰─▶ }
-    ╰────
-
-Advice: 
-  ☞ Property 'bar' is defined here
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:11:11]
- 11 │ I
-    · ─
     ╰────

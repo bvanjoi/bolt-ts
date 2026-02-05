@@ -68,7 +68,7 @@ use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
 use enumflags2::BitFlag;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::check_expr::IterationUse;
 use self::check_expr::get_suggestion_boolean_op;
@@ -5200,6 +5200,43 @@ impl<'cx> TyChecker<'cx> {
         }
         let prop_ty = self.get_applicable_index_info_for_name(ty, name)?;
         Some(self.add_optionality::<true>(prop_ty.val_ty, true))
+    }
+
+    fn extract_tys_of_kind(&mut self, ty: &'cx ty::Ty<'cx>, kind: TypeFlags) -> &'cx ty::Ty<'cx> {
+        self.filter_type(ty, |_, t| t.flags.intersects(kind))
+    }
+
+    fn find_discriminant_props(
+        &mut self,
+        source_props: &[SymbolID],
+        target: &'cx ty::Ty<'cx>,
+    ) -> Vec<SymbolID> {
+        source_props
+            .iter()
+            .filter_map(|&prop| {
+                let name = self.symbol(prop).name;
+                if self.is_discriminant_prop(target, name) {
+                    Some(prop)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn exclude_props(
+        &self,
+        props: &[SymbolID],
+        excludes: &FxHashSet<SymbolName>,
+    ) -> impl Iterator<Item = SymbolID> {
+        props.into_iter().filter_map(|prop| {
+            let name = self.symbol(*prop).name;
+            if excludes.contains(&name) {
+                None
+            } else {
+                Some(*prop)
+            }
+        })
     }
 }
 

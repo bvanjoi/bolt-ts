@@ -69,6 +69,7 @@ impl SymbolName {
                 | SymbolName::Constructor
                 | SymbolName::New
                 | SymbolName::Index
+                | SymbolName::ESSymbol { .. }
                 // TODO: | SymbolName::GLOBAL
                 | SymbolName::Type
                 | SymbolName::Object

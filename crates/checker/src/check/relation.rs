@@ -474,7 +474,7 @@ impl<'cx> TyChecker<'cx> {
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
-            if self.is_error(ty) || ty.flags.intersects(TypeFlags::NEVER) {
+            if self.is_error(ty) || ty.flags.contains(TypeFlags::NEVER) {
                 continue;
             }
             if let Some(prop) = self.get_prop_of_ty(ty, name) {
@@ -725,7 +725,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Option<(Vec<Atom>, SymbolID)> {
+    ) -> Option<Vec<SymbolID>> {
         self.get_unmatched_props(
             source,
             target,
@@ -740,45 +740,41 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
         match_discriminant_properties: bool,
-    ) -> Option<(Vec<Atom>, SymbolID)> {
+    ) -> Option<Vec<SymbolID>> {
         let properties = self.get_props_of_ty(target);
-        let mut unmatched = Vec::with_capacity(properties.len());
+        let mut unmatched = vec![];
         for target_prop in properties {
             // TODO: is_static_private_ident_property
-            let s = self.symbol(*target_prop);
+            let target_prop_symbol = self.symbol(*target_prop);
             if require_optional_properties
-                || !(s.flags.intersects(SymbolFlags::OPTIONAL)
+                || !(target_prop_symbol.flags.intersects(SymbolFlags::OPTIONAL)
                     || self
                         .get_check_flags(*target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
-                let target_prop_name = s.name;
+                let target_prop_name = target_prop_symbol.name;
                 let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
-                    if let Some(target_prop_name) = target_prop_name.as_atom() {
-                        unmatched.push(target_prop_name);
-                    }
+                    unmatched.push(*target_prop);
                     continue;
                 };
-                // TODO: match_discriminant_properties
+                if match_discriminant_properties {
+                    let target_ty = self.get_type_of_symbol(*target_prop);
+                    if target_ty.is_unit() {
+                        let source_ty = self.get_type_of_symbol(source_prop);
+                        if !source_ty.flags.contains(TypeFlags::ANY)
+                            && self.get_regular_ty_of_literal_ty(source_ty)
+                                != self.get_regular_ty_of_literal_ty(target_ty)
+                        {
+                            unmatched.push(*target_prop);
+                        }
+                    }
+                }
             }
         }
         if unmatched.is_empty() {
             None
         } else {
-            let target = self.get_reduced_apparent_ty(target);
-            let ty = target.kind.expect_object();
-            fn recur(ty: &ObjectTy) -> SymbolID {
-                match ty.kind {
-                    ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
-                    ObjectTyKind::Interface(ty) => ty.symbol,
-                    ObjectTyKind::Anonymous(ty) => ty.symbol.unwrap(),
-                    ObjectTyKind::Mapped(ty) => ty.symbol,
-                    ObjectTyKind::Tuple(_) => Symbol::ERR,
-                    _ => unreachable!("{ty:#?}"),
-                }
-            }
-            let symbol = recur(ty);
-            Some((unmatched, symbol))
+            Some(unmatched)
         }
     }
 

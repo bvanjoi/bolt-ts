@@ -4,22 +4,8 @@
     · ─
     ╰────
 
-Advice: 
-  ☞ Property 'value' is defined here
-   ╭─[../../tests/compiler/chainedAssignment3/index.ts:7:7]
- 7 │ B
-   · ─
-   ╰────
-
   × Property 'value' is missing.
     ╭─[../../tests/compiler/chainedAssignment3/index.ts:22:5]
  22 │ b
     · ─
     ╰────
-
-Advice: 
-  ☞ Property 'value' is defined here
-   ╭─[../../tests/compiler/chainedAssignment3/index.ts:7:7]
- 7 │ B
-   · ─
-   ╰────

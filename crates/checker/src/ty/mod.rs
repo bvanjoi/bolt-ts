@@ -128,6 +128,13 @@ impl<'cx> Ty<'cx> {
         let i = self.kind.as_intrinsic();
         i.map(|i| i.name)
     }
+
+    pub fn count(&self) -> usize {
+        match self.kind {
+            TyKind::Union(u) => u.tys.len(),
+            _ => 1,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
