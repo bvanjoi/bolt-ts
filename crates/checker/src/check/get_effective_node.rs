@@ -97,6 +97,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         node: &ast::TyParam<'cx>,
     ) -> Option<&'cx ast::Ty<'cx>> {
+        // TODO: js
         node.constraint
     }
 

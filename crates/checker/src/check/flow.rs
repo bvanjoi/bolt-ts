@@ -729,7 +729,7 @@ impl<'cx> TyChecker<'cx> {
             assume_true = !assume_true;
         }
         let value_ty = self.get_ty_of_expr(value);
-        let double_equal = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
+        let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
         if value_ty.flags.contains(TypeFlags::NULLABLE) {
             if !self.config.strict_null_checks() {
                 return ty;
@@ -737,7 +737,25 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if assume_true {
-            // TODO
+            if !double_equals
+                && (ty.flags.contains(TypeFlags::UNKNOWN)
+                    || self.some_type(ty, Self::is_empty_anonymous_object_ty))
+            {
+                if value_ty
+                    .flags
+                    .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NON_PRIMITIVE))
+                    || self.is_empty_anonymous_object_ty(value_ty)
+                {
+                    return value_ty;
+                } else if value_ty.flags.contains(TypeFlags::OBJECT) {
+                    return self.non_primitive_ty;
+                }
+            }
+            let filtered_ty = self.filter_type(ty, |this, t| {
+                this.are_types_comparable(t, value_ty)
+                    || double_equals && ty::Ty::is_coercible_under_double_equals(t, value_ty)
+            });
+            return self.replace_primitives_with_literals(filtered_ty, value_ty);
         }
 
         if value_ty.is_unit() {
@@ -747,82 +765,6 @@ impl<'cx> TyChecker<'cx> {
         } else {
             ty
         }
-    }
-
-    fn get_candidate_discriminant_prop_access(
-        &mut self,
-        refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
-    ) -> Option<&'cx ast::Expr<'cx>> {
-        let n = self.p.node(refer);
-        if n.is_array_pat()
-            || n.is_object_pat()
-            || n.is_fn_expr_or_arrow_fnc_expr()
-            || n.is_object_method_member()
-        {
-            if let ast::ExprKind::Ident(n) = expr.kind {
-                // TODO:
-            }
-        } else if let ast::ExprKind::PropAccess(ast::PropAccessExpr { expr: target, .. })
-        | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr: target, .. }) = expr.kind
-        {
-            if self.is_matching_reference(refer, target.id()) {
-                return Some(expr);
-            }
-        } else if let ast::ExprKind::Ident(ident) = expr.kind {
-            // TODO:
-        }
-
-        None
-    }
-
-    pub(super) fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
-        if ty.kind.is_union()
-            && let Some(prop) = self.get_union_or_intersection_prop(ty, name)
-            && let check_flags = self.get_check_flags(prop)
-            && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
-        {
-            return match self.get_symbol_links(prop).get_is_discriminant_property() {
-                Some(is_discriminant) => is_discriminant,
-                None => {
-                    let is_discriminant = check_flags.intersects(CheckFlags::DISCRIMINANT) && {
-                        let ty = self.get_type_of_symbol(prop);
-                        !self.is_generic_ty(ty)
-                    };
-                    self.get_mut_symbol_links(prop)
-                        .set_is_discriminant_property(is_discriminant);
-                    is_discriminant
-                }
-            };
-        }
-        false
-    }
-
-    fn get_discriminant_prop_access(
-        &mut self,
-        refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
-        computed_ty: &'cx ty::Ty<'cx>,
-        declared_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ast::Expr<'cx>> {
-        if (declared_ty.flags.contains(TypeFlags::UNION)
-            || computed_ty.flags.contains(TypeFlags::UNION))
-            && let Some(access) = self.get_candidate_discriminant_prop_access(refer, expr)
-        {
-            if let Some(name) = self.get_accessed_prop_name(access) {
-                let ty = if declared_ty.flags.contains(TypeFlags::UNION)
-                    && self.is_ty_subset_of(computed_ty, declared_ty)
-                {
-                    declared_ty
-                } else {
-                    computed_ty
-                };
-                if self.is_discriminant_prop(ty, name) {
-                    return Some(access);
-                }
-            }
-        }
-        None
     }
 
     fn narrow_ty_by_bin_expr(
@@ -895,6 +837,11 @@ impl<'cx> TyChecker<'cx> {
         if matches!(op, ast::BinOpKind::EqEqEq | ast::BinOpKind::EqEq)
             && ty.kind.is_union()
             && let Some(key_prop_name) = self.get_key_prop_name(ty)
+            && self
+                .get_accessed_prop_name(access)
+                .is_some_and(|name| name == key_prop_name)
+            && let key_ty = self.get_ty_of_expr(value)
+            && let Some(candidate) = self.get_constituent_ty_for_key_ty(ty, key_ty)
         {
             // TODO: key_prop_name ==  match access {}
         }

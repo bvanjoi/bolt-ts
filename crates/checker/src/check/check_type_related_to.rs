@@ -358,25 +358,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx ty::Ty<'cx>,
     ) -> bool {
         if self.c.get_props_of_object_ty(source).is_empty()
-            && let ty_call_sigs = self.c.get_signatures_of_type(source, SigKind::Call)
-            && let ty_ctor_sigs = self.c.get_signatures_of_type(source, SigKind::Constructor)
-            && (!ty_ctor_sigs.is_empty() || !ty_ctor_sigs.is_empty())
+            && let source_call_sigs = self.c.get_signatures_of_type(source, SigKind::Call)
+            && let source_ctor_sigs = self.c.get_signatures_of_type(source, SigKind::Constructor)
+            && (!source_call_sigs.is_empty() || !source_ctor_sigs.is_empty())
         {
-            return if (!self
-                .c
-                .get_signatures_of_type(target, SigKind::Call)
-                .is_empty()
-                && !ty_call_sigs.is_empty())
-                || (!self
-                    .c
-                    .get_signatures_of_type(target, SigKind::Constructor)
-                    .is_empty()
-                    && !ty_ctor_sigs.is_empty())
-            {
-                true
-            } else {
-                false
-            };
+            let target_call_sigs = self.c.get_signatures_of_type(target, SigKind::Call);
+            let target_ctor_sigs = self.c.get_signatures_of_type(target, SigKind::Constructor);
+            return (!target_call_sigs.is_empty() && !source_call_sigs.is_empty())
+                || (!target_ctor_sigs.is_empty() && !source_ctor_sigs.is_empty());
         }
 
         true

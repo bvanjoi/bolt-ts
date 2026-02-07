@@ -1181,3 +1181,11 @@ pub(super) struct FunctionWithBodiesCanOnlyMergeWithClassesThatAreAmbient {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("All declarations of '{name}' must have identical type parameters.")]
+pub(super) struct AllDeclarationsOfXMustHaveIdenticalTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

@@ -1,0 +1,25 @@
+  × Duplicate identifier 'A'.
+   ╭─[../../tests/compiler/extendedInterfacesWithDuplicateTypeParameters/index.ts:5:42]
+ 5 │ A
+   · ─
+   ╰────
+
+  × All declarations of 'InterfaceWithSomeTypars' must have identical type
+  │ parameters.
+    ╭─[../../tests/compiler/extendedInterfacesWithDuplicateTypeParameters/index.ts:10:11]
+ 10 │ InterfaceWithSomeTypars
+    · ───────────────────────
+    ╰────
+
+  × All declarations of 'InterfaceWithSomeTypars' must have identical type
+  │ parameters.
+    ╭─[../../tests/compiler/extendedInterfacesWithDuplicateTypeParameters/index.ts:15:11]
+ 15 │ InterfaceWithSomeTypars
+    · ───────────────────────
+    ╰────
+
+  × Duplicate identifier 'C'.
+    ╭─[../../tests/compiler/extendedInterfacesWithDuplicateTypeParameters/index.ts:15:38]
+ 15 │ C
+    · ─
+    ╰────

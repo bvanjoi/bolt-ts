@@ -13,6 +13,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let symbol = self.get_symbol_of_decl(interface.id);
+        self.check_ty_param_lists_identical(symbol);
 
         let first_interface_decl = self
             .binder

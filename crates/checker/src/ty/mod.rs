@@ -135,6 +135,18 @@ impl<'cx> Ty<'cx> {
             _ => 1,
         }
     }
+
+    pub fn as_class_or_interface_ty(&self) -> Option<&'cx InterfaceTy<'cx>> {
+        if let Some(i) = self.kind.as_object_interface() {
+            Some(i)
+        } else if let Some(r) = self.kind.as_object_reference()
+            && let Some(i) = r.target.kind.as_object_interface()
+        {
+            Some(i)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -450,6 +462,18 @@ impl<'cx> Ty<'cx> {
             TyKind::Object(ty) => ty.kind.alias_ty_arguments(),
             _ => None,
         }
+    }
+
+    pub fn is_coercible_under_double_equals(source: &Self, target: &Self) -> bool {
+        source.flags.intersects(
+            TypeFlags::NUMBER
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::BOOLEAN_LITERAL),
+        ) || target.flags.intersects(
+            TypeFlags::NUMBER
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::BOOLEAN),
+        )
     }
 }
 

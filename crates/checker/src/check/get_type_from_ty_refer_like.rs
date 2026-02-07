@@ -195,11 +195,7 @@ impl<'cx> TyChecker<'cx> {
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let i = if let Some(i) = ty.kind.as_object_interface() {
-            i
-        } else if let Some(r) = ty.kind.as_object_reference() {
-            r.target.kind.expect_object_interface()
-        } else {
+        let Some(i) = ty.as_class_or_interface_ty() else {
             unreachable!()
         };
         if let Some(ty_params) = i.local_ty_params {
