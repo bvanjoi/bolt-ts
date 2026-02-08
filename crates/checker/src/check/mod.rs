@@ -60,7 +60,6 @@ mod type_predicate;
 pub mod utils;
 
 use std::fmt::Debug;
-use std::num;
 
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};

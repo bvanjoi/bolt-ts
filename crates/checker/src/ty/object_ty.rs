@@ -230,11 +230,86 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
+    fn print_object_pat(&self, pat: &'cx ast::ObjectPat<'cx>, checker: &TyChecker<'cx>) -> String {
+        let mut res = String::from("{ ");
+        for (idx, elem) in pat.elems.iter().enumerate() {
+            match elem.name {
+                ast::ObjectBindingName::Shorthand(n) => res.push_str(checker.atoms.get(n.name)),
+                ast::ObjectBindingName::Prop { prop_name, name } => {
+                    match prop_name.kind {
+                        ast::PropNameKind::Ident(n) => res.push_str(checker.atoms.get(n.name)),
+                        ast::PropNameKind::PrivateIdent(n) => {
+                            res.push('#');
+                            res.push_str(checker.atoms.get(n.name))
+                        }
+                        ast::PropNameKind::StringLit { raw, .. } => {
+                            res.push_str(checker.atoms.get(raw.val))
+                        }
+                        ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
+                        ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
+                    }
+                    res.push_str(&": ");
+                    res.push_str(&self.print_binding(name, checker));
+                }
+            }
+            if idx == pat.elems.len() - 1 {
+                break;
+            }
+            res.push_str(", ");
+        }
+        res.push_str(" }");
+        res
+    }
+
+    fn print_array_pat(&self, pat: &'cx ast::ArrayPat<'cx>, checker: &TyChecker<'cx>) -> String {
+        let mut res = String::from("[");
+        for (i, elem) in pat.elems.iter().enumerate() {
+            let is_last = i == pat.elems.len() - 1;
+            match elem.kind {
+                ast::ArrayBindingElemKind::Omit(_) => {
+                    res.push(',');
+                }
+                ast::ArrayBindingElemKind::Binding(n) => {
+                    if n.dotdotdot.is_some() {
+                        res.push_str("...");
+                    }
+                    res.push_str(self.print_binding(n.name, checker).as_str());
+                    if !is_last {
+                        res.push(',');
+                    }
+                }
+            }
+            if !is_last {
+                res.push(' ');
+            }
+        }
+        res.push_str("]");
+        res
+    }
+
+    fn print_binding(&self, n: &'cx ast::Binding<'cx>, checker: &TyChecker<'cx>) -> String {
+        match n.kind {
+            ast::BindingKind::Ident(n) => checker.atoms.get(n.name).to_string(),
+            ast::BindingKind::ObjectPat(pat) => self.print_object_pat(pat, checker),
+            ast::BindingKind::ArrayPat(pat) => self.print_array_pat(pat, checker),
+        }
+    }
+
+    fn print_parameter_name(
+        &self,
+        n: &'cx ast::ParamDecl<'cx>,
+        checker: &TyChecker<'cx>,
+    ) -> String {
+        match n.name.kind {
+            ast::BindingKind::Ident(n) => checker.atoms.get(n.name).to_string(),
+            ast::BindingKind::ObjectPat(pat) => self.print_object_pat(pat, checker),
+            ast::BindingKind::ArrayPat(pat) => self.print_array_pat(pat, checker),
+        }
+    }
+
     pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
-                let symbol = a.symbol.unwrap();
-                let symbol = checker.symbol(symbol);
                 let print_fn_like_str =
                     |checker: &mut TyChecker<'cx>, sig: &'cx super::Sig<'cx>| -> String {
                         let params = sig
@@ -242,13 +317,10 @@ impl<'cx> ObjectTyKind<'cx> {
                             .iter()
                             .map(|param| {
                                 let decl = checker.get_symbol_decl(*param).unwrap();
-                                let name = checker.p.node(decl).ident_name().unwrap();
+                                let n = checker.p.node(decl).expect_param_decl();
+                                let name = self.print_parameter_name(n, checker);
                                 let ty = checker.get_type_of_symbol(*param);
-                                format!(
-                                    "{name}: {ty}",
-                                    ty = ty.to_string(checker),
-                                    name = checker.atoms.get(name.name),
-                                )
+                                format!("{name}: {ty}", ty = ty.to_string(checker))
                             })
                             .collect::<Vec<_>>()
                             .join(", ");
@@ -256,7 +328,8 @@ impl<'cx> ObjectTyKind<'cx> {
                         let ret = ret.to_string(checker);
                         format!("({params}) => {ret}")
                     };
-                if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+                let symbol_flags = a.symbol.map(|s| checker.symbol(s).flags);
+                if symbol_flags.is_some_and(|s| s.contains(SymbolFlags::OBJECT_LITERAL)) {
                     let members = checker
                         .expect_ty_links(self_ty.id)
                         .expect_structured_members()
@@ -283,12 +356,15 @@ impl<'cx> ObjectTyKind<'cx> {
                         .collect::<Vec<_>>()
                         .join("");
                     format!("{{ {members}}}")
-                } else if symbol.flags.intersects(
-                    SymbolFlags::CLASS
-                        .union(SymbolFlags::VALUE_MODULE)
-                        .union(SymbolFlags::CONST_ENUM),
-                ) {
-                    let name = symbol.name.expect_atom();
+                } else if symbol_flags.is_some_and(|s| {
+                    s.intersects(
+                        SymbolFlags::CLASS
+                            .union(SymbolFlags::VALUE_MODULE)
+                            .union(SymbolFlags::CONST_ENUM),
+                    )
+                }) {
+                    let s = checker.symbol(a.symbol.unwrap());
+                    let name = s.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker
                     .get_signatures_of_type(self_ty, super::SigKind::Call)

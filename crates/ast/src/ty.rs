@@ -387,13 +387,7 @@ impl PropName<'_> {
     }
 
     pub fn id(&self) -> NodeID {
-        match self.kind {
-            PropNameKind::Ident(ident) => ident.id,
-            PropNameKind::NumLit(num) => num.id,
-            PropNameKind::StringLit { raw, .. } => raw.id,
-            PropNameKind::Computed(n) => n.id,
-            PropNameKind::PrivateIdent(ident) => ident.id,
-        }
+        self.kind.id()
     }
 }
 
@@ -432,6 +426,16 @@ impl<'cx> PropNameKind<'cx> {
                 _ => None,
             },
             PropNameKind::PrivateIdent(private_ident) => Some(private_ident.name),
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self {
+            PropNameKind::Ident(ident) => ident.id,
+            PropNameKind::NumLit(num) => num.id,
+            PropNameKind::StringLit { raw, .. } => raw.id,
+            PropNameKind::Computed(n) => n.id,
+            PropNameKind::PrivateIdent(ident) => ident.id,
         }
     }
 }

@@ -11,10 +11,10 @@ impl<'cx> TyChecker<'cx> {
     fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
         let flags = |this: &mut Self| this.get_node_links(id).flags();
 
-        if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
+        if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
             let contextual_sig = self.get_contextual_sig(id);
 
-            if !flags(self).intersects(NodeCheckFlags::CONTEXT_CHECKED) {
+            if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
                 self.get_mut_node_links(id)
                     .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
                 let symbol = self.get_symbol_of_decl(id);
@@ -36,7 +36,7 @@ impl<'cx> TyChecker<'cx> {
                             );
                             let rest_ty = contextual_sig.get_rest_ty(self);
                             if let Some(rest_ty) = rest_ty
-                                && rest_ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                                && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
                             {
                                 let mapper = self.inference(inference).non_fixing_mapper;
                                 instantiated_contextual_sig =

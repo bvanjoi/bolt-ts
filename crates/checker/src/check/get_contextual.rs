@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
@@ -37,20 +39,21 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.p.node(parent_id);
         use bolt_ts_ast::Node::*;
         match parent {
-            VarDecl(node) => self.get_contextual_ty_for_var_like_decl(node.id),
+            VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id),
+            ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
-            AssignExpr(node) if id == node.right.id() => {
-                self.get_contextual_ty_for_assign(node.id, parent_id, flags)
+            AssignExpr(parent) if id == parent.right.id() => {
+                self.get_contextual_ty_for_assign(parent.id, parent_id, flags)
             }
-            ArrayLit(node) => {
-                let ty = self.get_apparent_ty_of_contextual_ty(node.id, flags);
-                let element_idx = self.p.index_of_node(node.elems, id);
+            ArrayLit(parent) => {
+                let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
+                let element_idx = self.p.index_of_node(parent.elems, id);
                 let (first, last) = {
                     // TODO: cache
                     let mut first = None;
                     let mut last = None;
-                    for i in 0..node.elems.len() {
-                        if matches!(node.elems[i].kind, ast::ExprKind::SpreadElement(_)) {
+                    for i in 0..parent.elems.len() {
+                        if matches!(parent.elems[i].kind, ast::ExprKind::SpreadElement(_)) {
                             if first.is_none() {
                                 first = Some(i);
                             }
@@ -62,29 +65,33 @@ impl<'cx> TyChecker<'cx> {
                 self.get_contextual_ty_for_element_expr(
                     ty,
                     element_idx,
-                    Some(node.elems.len()),
+                    Some(parent.elems.len()),
                     first,
                     last,
                 )
             }
             // TODO: type assertion
-            AsExpr(n) => {
-                debug_assert!(n.id == parent_id);
-                if n.ty.is_const_ty_refer() {
-                    self.get_contextual_ty(n.id, flags)
+            AsExpr(parent) => {
+                debug_assert!(parent.id == parent_id);
+                if parent.ty.is_const_ty_refer() {
+                    self.get_contextual_ty(parent.id, flags)
                 } else {
-                    Some(self.get_ty_from_type_node(n.ty))
+                    Some(self.get_ty_from_type_node(parent.ty))
                 }
             }
             SpreadAssignment(_) => {
                 let parent_parent = self.parent(parent_id).unwrap();
                 self.get_contextual_ty(parent_parent, flags)
             }
-            ObjectPropAssignment(n) => self.get_contextual_ty_for_object_literal_ele(n, flags),
-            ObjectShorthandMember(n) => self.get_contextual_ty_for_object_literal_ele(n, flags),
-            ParenExpr(n) => {
+            ObjectPropAssignment(parent) => {
+                self.get_contextual_ty_for_object_literal_ele(parent, flags)
+            }
+            ObjectShorthandMember(parent) => {
+                self.get_contextual_ty_for_object_literal_ele(parent, flags)
+            }
+            ParenExpr(parent) => {
                 // TODO: is_in_js_file
-                self.get_contextual_ty(n.id, flags)
+                self.get_contextual_ty(parent.id, flags)
             }
             _ => None,
         }
@@ -218,21 +225,64 @@ impl<'cx> TyChecker<'cx> {
         Some(ret)
     }
 
-    fn get_contextual_ty_for_var_like_decl(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
-        let node = self.p.node(id);
-        use bolt_ts_ast::Node::*;
-        match node {
-            VarDecl(decl) => {
-                if decl.init.is_some()
-                    && let Some(decl_ty) = decl.ty
-                {
-                    return Some(self.get_ty_from_type_node(decl_ty));
-                }
-            }
-            _ => unreachable!(),
-        };
+    fn get_contextual_ty_for_var_decl(
+        &mut self,
+        parent: &'cx ast::VarDecl<'cx>,
+        node: ast::NodeID,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if parent.init.is_some_and(|init| init.id() == node)
+            && let Some(decl_ty) = parent.ty
+        {
+            // TODO: js
+            Some(self.get_ty_from_type_node(decl_ty))
+        } else {
+            None
+        }
+    }
 
-        None
+    fn get_contextual_ty_for_array_binding(
+        &mut self,
+        parent: &'cx ast::ArrayBinding<'cx>,
+        node: ast::NodeID,
+        context_flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if parent.init.is_some_and(|init| init.id() == node) {
+            // TODO: js
+            let name = parent.name;
+            let pp_id = self.parent(parent.id).unwrap();
+            debug_assert!(self.p.node(pp_id).is_array_pat());
+            let ppp_id = self.parent(pp_id).unwrap();
+            let pppp_id = self.parent(ppp_id).unwrap();
+            let parent_parent_parent_ty = match self.p.node(pppp_id) {
+                ast::Node::VarDecl(n) => {
+                    // TODO: init_ty
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                }
+                _ => {
+                    // TODO: other cases
+                    None
+                }
+            }?;
+            let index = self
+                .p
+                .node(pp_id)
+                .expect_array_pat()
+                .elems
+                .iter()
+                .position(|e| match e.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => false,
+                    ast::ArrayBindingElemKind::Binding(item) => std::ptr::eq(item, parent),
+                })?;
+            self.get_contextual_ty_for_element_expr(
+                Some(parent_parent_parent_ty),
+                index,
+                None,
+                None,
+                None,
+            )
+        } else {
+            None
+        }
     }
 
     fn get_contextual_ty_for_element_expr(
@@ -491,13 +541,13 @@ impl<'cx> TyChecker<'cx> {
         };
         let instantiated_ty = self.instantiate_contextual_ty(contextual_ty, node, flags)?;
         if flags.is_none_or(|flags| {
-            !(flags.intersects(ContextFlags::NO_CONSTRAINTS)
+            !(flags.contains(ContextFlags::NO_CONSTRAINTS)
                 && instantiated_ty.kind.is_type_variable())
         }) {
             let apparent_ty = self.map_ty(
                 instantiated_ty,
                 |this, t| {
-                    if t.get_object_flags().intersects(ObjectFlags::MAPPED) {
+                    if t.get_object_flags().contains(ObjectFlags::MAPPED) {
                         Some(t)
                     } else {
                         Some(this.get_apparent_ty(t))
@@ -505,6 +555,7 @@ impl<'cx> TyChecker<'cx> {
                 },
                 true,
             );
+            // TODO: union
             return apparent_ty;
         }
         None

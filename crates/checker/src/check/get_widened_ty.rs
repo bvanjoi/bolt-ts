@@ -100,7 +100,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn get_widened_lit_ty_for_init(
+    pub(super) fn get_widened_lit_ty_for_init(
         &mut self,
         decl: &impl r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,

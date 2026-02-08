@@ -1690,18 +1690,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::MAYBE;
         }
 
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
+        if recursion_flags.contains(RecursionFlags::SOURCE) {
             self.source_stack.push(source);
-            if !self.expanding_flags.intersects(RecursionFlags::SOURCE)
+            if !self.expanding_flags.contains(RecursionFlags::SOURCE)
                 && self.c.is_deeply_nested_type(source, &self.source_stack, 3)
             {
                 self.expanding_flags |= RecursionFlags::SOURCE;
             }
         }
 
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
+        if recursion_flags.contains(RecursionFlags::TARGET) {
             self.target_stack.push(target);
-            if !self.expanding_flags.intersects(RecursionFlags::TARGET)
+            if !self.expanding_flags.contains(RecursionFlags::TARGET)
                 && self.c.is_deeply_nested_type(target, &self.target_stack, 3)
             {
                 self.expanding_flags |= RecursionFlags::TARGET;
@@ -1714,11 +1714,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to(source, target, report_error, intersection_state)
         };
 
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
+        if recursion_flags.contains(RecursionFlags::TARGET) {
             self.target_stack.pop();
         }
 
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
+        if recursion_flags.contains(RecursionFlags::SOURCE) {
             self.source_stack.pop();
         }
 
@@ -2201,7 +2201,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty
-                && ((source_ty != target_ty) || check_mode.intersects(SigCheckMode::STRICT_ARITY))
+                && ((source_ty != target_ty) || check_mode.contains(SigCheckMode::STRICT_ARITY))
             {
                 let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
                     None

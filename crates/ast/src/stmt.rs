@@ -1043,6 +1043,15 @@ pub enum ObjectBindingName<'cx> {
     },
 }
 
+impl<'cx> ObjectBindingName<'cx> {
+    pub fn name(&self) -> PropNameKind<'cx> {
+        match self {
+            ObjectBindingName::Shorthand(ident) => PropNameKind::Ident(ident),
+            ObjectBindingName::Prop { prop_name, .. } => prop_name.kind,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ArrayPat<'cx> {
     pub id: NodeID,

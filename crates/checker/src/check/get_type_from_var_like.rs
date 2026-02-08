@@ -13,6 +13,7 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
+use bolt_ts_ty::TypeFlags;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
@@ -83,13 +84,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_array_binding_element_ty_from_parent_ty(
+    pub(super) fn get_array_binding_element_ty_from_parent_ty(
         &mut self,
         binding: &'cx ast::ArrayBinding<'cx>,
         parent: &'cx ast::ArrayPat<'cx>,
+        no_tuple_bounds_check: bool,
         parent_parent_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        debug_assert!(self.parent(binding.id).is_some());
+        debug_assert!(self.parent(binding.id).is_some_and(|p| p == parent.id));
         if self.is_type_any(parent_parent_ty) {
             return parent_parent_ty;
         }
@@ -100,12 +102,77 @@ impl<'cx> TyChecker<'cx> {
             IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS)
         };
 
-        let element_ty = self.check_iterated_ty_or_element_ty(
-            mode,
-            parent_parent_ty,
-            self.undefined_ty,
-            Some(parent.id),
-        );
+        let access_flags = AccessFlags::EXPRESSION_POSITION
+            | if no_tuple_bounds_check {
+                // TODO: add `has_default_value` in condition
+                AccessFlags::ALLOWING_MISSING
+            } else {
+                AccessFlags::empty()
+            };
+
+        let has_dotdotdot = binding.dotdotdot.is_some();
+        let index = || {
+            parent
+                .elems
+                .iter()
+                .position(|ele| match ele.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => false,
+                    ast::ArrayBindingElemKind::Binding(item) => item.id == binding.id,
+                })
+                .unwrap()
+        };
+        let fallback_element_ty = |this: &mut Self| {
+            this.check_iterated_ty_or_element_ty(
+                mode,
+                parent_parent_ty,
+                this.undefined_ty,
+                Some(parent.id),
+            )
+        };
+        let element_ty = if has_dotdotdot {
+            let base_constraint = self
+                .map_ty(
+                    parent_parent_ty,
+                    |this, t| {
+                        Some(
+                            if t.flags
+                                .intersects(ty::TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+                            {
+                                this.get_base_constraint_or_ty(t)
+                            } else {
+                                t
+                            },
+                        )
+                    },
+                    false,
+                )
+                .unwrap();
+            if self.every_type(base_constraint, |_, t| t.is_tuple()) {
+                let index = index();
+                self.map_ty(
+                    base_constraint,
+                    |this, t| Some(this.slice_tuple_ty(t, index, 0)),
+                    false,
+                )
+                .unwrap()
+            } else {
+                let element_ty = fallback_element_ty(self);
+                self.create_array_ty(element_ty, false)
+            }
+        } else if self.is_array_like_ty(parent_parent_ty) {
+            let index_ty = self.get_number_literal_type_from_number(index() as f64);
+            self.get_indexed_access_ty_or_undefined(
+                parent_parent_ty,
+                index_ty,
+                Some(access_flags),
+                Some(binding.id),
+            )
+            .unwrap_or(self.error_ty)
+        } else {
+            fallback_element_ty(self)
+        };
+
+        // TODO: widen
 
         element_ty
     }
@@ -156,10 +223,7 @@ impl<'cx> TyChecker<'cx> {
                     self.get_lit_ty_from_prop_name(&prop_name.kind)
                 }
             };
-            let name = match binding.name {
-                ast::ObjectBindingName::Shorthand(ident) => ident.id,
-                ast::ObjectBindingName::Prop { prop_name, .. } => prop_name.id(),
-            };
+            let name = binding.name.name().id();
             let decl_ty = self.get_indexed_access_ty(
                 parent_parent_ty,
                 index_ty,
@@ -303,7 +367,7 @@ impl<'cx> TyChecker<'cx> {
         let parent_ty = self.get_ty_for_binding_element_parent(parent.id);
         self.check_mode = old_check_mode;
         parent_ty.map(|parent_ty| {
-            self.get_array_binding_element_ty_from_parent_ty(binding, parent, parent_ty)
+            self.get_array_binding_element_ty_from_parent_ty(binding, parent, false, parent_ty)
         })
     }
 

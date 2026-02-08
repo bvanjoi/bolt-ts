@@ -10,7 +10,7 @@ use rustc_hash::FxHashSet;
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
-use super::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
+use super::ty::{Ty, TyKind};
 use super::{SymbolLinks, errors};
 use super::{Ternary, TyChecker};
 

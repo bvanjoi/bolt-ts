@@ -1,15 +1,251 @@
 use super::SymbolLinks;
 use super::TyChecker;
-use super::check_expr::IterationUse;
 use super::symbol_info::SymbolInfo;
-use super::ty::{self, AccessFlags, CheckFlags};
+use super::ty::{self, CheckFlags};
 
+use bolt_ts_ast as ast;
+use bolt_ts_binder::Symbol;
+use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
+use bolt_ts_binder::SymbolName;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
-    fn assign_param_ty(&mut self, param: SymbolID, ctx: Option<&'cx ty::Ty<'cx>>) {
+    fn get_ty_from_object_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+        &mut self,
+        pat: &'cx bolt_ts_ast::ObjectPat<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut members = fx_indexmap_with_capacity(pat.elems.len());
+        let mut string_index_info = None;
+        let mut object_flags = ty::ObjectFlags::OBJECT_LITERAL
+            .union(ty::ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL);
+        for elem in pat.elems {
+            if elem.dotdotdot.is_some() && string_index_info.is_none() {
+                string_index_info = Some(self.alloc(ty::IndexInfo {
+                    key_ty: self.string_ty,
+                    val_ty: self.any_ty,
+                    is_readonly: false,
+                    symbol: Symbol::ERR,
+                }));
+                continue;
+            }
+            let name = elem.name.name();
+            let expr_ty = self.get_lit_ty_from_prop_name(&name);
+            if !expr_ty.useable_as_prop_name() {
+                object_flags |= ty::ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
+                continue;
+            }
+            let flags = SymbolFlags::PROPERTY
+                | if elem.init.is_some() {
+                    SymbolFlags::OPTIONAL
+                } else {
+                    SymbolFlags::empty()
+                };
+            let name = match name {
+                ast::PropNameKind::Ident(n) => SymbolName::Atom(n.name),
+                ast::PropNameKind::PrivateIdent(n) => SymbolName::Atom(n.name),
+                ast::PropNameKind::StringLit { raw, .. } => SymbolName::Atom(raw.val),
+                ast::PropNameKind::NumLit(n) => SymbolName::EleNum(n.val.into()),
+                ast::PropNameKind::Computed(_) => SymbolName::Computed,
+            };
+            let ty = self.get_ty_from_object_binding::<INCLUDE_PATTERN_IN_TY>(elem);
+            let links = SymbolLinks::default().with_ty(ty);
+            let symbol = self.create_transient_symbol(
+                name,
+                flags | SymbolFlags::TRANSIENT,
+                links,
+                None,
+                None,
+            );
+            members.insert(name, symbol);
+        }
+        let members = self.alloc(members);
+        let index_infos = if let Some(string_index_info) = string_index_info {
+            self.alloc(vec![string_index_info])
+        } else {
+            self.empty_array()
+        };
+        if INCLUDE_PATTERN_IN_TY {
+            // TODO: pattern
+            object_flags |= ty::ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
+        }
+        let result = self.create_anonymous_ty_with_resolved(
+            None,
+            object_flags,
+            members,
+            self.empty_array(),
+            self.empty_array(),
+            index_infos,
+            None,
+        );
+        result
+    }
+
+    fn get_ty_from_object_binding<const INCLUDE_PATTERN_IN_TY: bool>(
+        &mut self,
+        elem: &'cx bolt_ts_ast::ObjectBindingElem<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if elem.init.is_some() {
+            let contextual_ty = if let ast::ObjectBindingName::Prop { name, .. } = elem.name
+                && let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = name.kind
+            {
+                self.get_ty_from_binding_pat::<INCLUDE_PATTERN_IN_TY>(name)
+            } else {
+                self.unknown_ty
+            };
+            let old_check_mode = self.check_mode;
+            self.check_mode = Some(super::CheckMode::empty());
+            let ty = self.check_decl_init(elem, Some(contextual_ty));
+            self.check_mode = old_check_mode;
+            let ty = self.get_widened_lit_ty_for_init(elem, ty);
+            return self.add_optionality::<false>(ty, true);
+        }
+
+        if let ast::ObjectBindingName::Prop { name, .. } = elem.name
+            && let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = name.kind
+        {
+            return self.get_ty_from_binding_pat::<INCLUDE_PATTERN_IN_TY>(name);
+        }
+
+        // TODO: report_errors
+
+        if INCLUDE_PATTERN_IN_TY {
+            self.non_inferrable_any_ty
+        } else {
+            self.any_ty
+        }
+    }
+
+    fn get_ty_from_array_binding<const INCLUDE_PATTERN_IN_TY: bool>(
+        &mut self,
+        elem: &'cx bolt_ts_ast::ArrayBinding<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if elem.init.is_some() {
+            let contextual_ty = match elem.name.kind {
+                ast::BindingKind::Ident(_) => self.unknown_ty,
+                ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
+                    self.get_ty_from_binding_pat::<INCLUDE_PATTERN_IN_TY>(elem.name)
+                }
+            };
+            let old_check_mode = self.check_mode;
+            self.check_mode = Some(super::CheckMode::empty());
+            let ty = self.check_decl_init(elem, Some(contextual_ty));
+            self.check_mode = old_check_mode;
+            let ty = self.get_widened_lit_ty_for_init(elem, ty);
+            return self.add_optionality::<false>(ty, true);
+        }
+
+        if let ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) = elem.name.kind {
+            return self.get_ty_from_binding_pat::<INCLUDE_PATTERN_IN_TY>(elem.name);
+        }
+
+        // TODO: report_errors
+
+        if INCLUDE_PATTERN_IN_TY {
+            self.non_inferrable_any_ty
+        } else {
+            self.any_ty
+        }
+    }
+
+    fn get_ty_from_array_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+        &mut self,
+        pat: &'cx bolt_ts_ast::ArrayPat<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let elements = pat.elems;
+        let last_elements = elements.last();
+        let rest_elements = if let Some(last) = last_elements
+            && let ast::ArrayBindingElemKind::Binding(binding) = last.kind
+            && binding.dotdotdot.is_some()
+        {
+            Some(last)
+        } else {
+            None
+        };
+        if elements.is_empty() || (elements.len() == 1 && rest_elements.is_some()) {
+            if *self.config.target() >= bolt_ts_config::Target::ES2015 {
+                todo!()
+            } else {
+                return self.any_array_ty();
+            }
+        }
+
+        let element_types = elements
+            .iter()
+            .map(|e| match e.kind {
+                ast::ArrayBindingElemKind::Omit(_) => self.any_ty,
+                ast::ArrayBindingElemKind::Binding(elem) => {
+                    self.get_ty_from_array_binding::<INCLUDE_PATTERN_IN_TY>(elem)
+                }
+            })
+            .collect::<Vec<_>>();
+        let element_types = self.alloc(element_types);
+        let min_len = elements
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(idx, e)| {
+                if rest_elements.is_none_or(|rest| !std::ptr::eq(e, rest)) {
+                    return None;
+                }
+                match e.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => None,
+                    ast::ArrayBindingElemKind::Binding(binding) => {
+                        if binding.init.is_none() {
+                            Some(idx + 1)
+                        } else {
+                            None
+                        }
+                    }
+                }
+            })
+            .map_or(0, |idx| idx + 1);
+        let element_flags = elements
+            .iter()
+            .enumerate()
+            .map(|(idx, e)| {
+                if rest_elements.is_some_and(|rest| std::ptr::eq(rest, e)) {
+                    ty::ElementFlags::REST
+                } else if idx >= min_len {
+                    ty::ElementFlags::OPTIONAL
+                } else {
+                    ty::ElementFlags::REQUIRED
+                }
+            })
+            .collect::<Vec<_>>();
+        let element_flags = self.alloc(element_flags);
+        let res = self.create_tuple_ty(element_types, Some(element_flags), false);
+        if INCLUDE_PATTERN_IN_TY {
+            todo!()
+        };
+        res
+    }
+
+    fn get_ty_from_binding_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+        &mut self,
+        binding: &'cx ast::Binding<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if INCLUDE_PATTERN_IN_TY {
+            todo!("push")
+        }
+        let ret = match binding.kind {
+            ast::BindingKind::Ident(_) => unreachable!(),
+            ast::BindingKind::ObjectPat(pat) => {
+                self.get_ty_from_object_pat::<INCLUDE_PATTERN_IN_TY>(pat)
+            }
+            ast::BindingKind::ArrayPat(pat) => {
+                self.get_ty_from_array_pat::<INCLUDE_PATTERN_IN_TY>(pat)
+            }
+        };
+        if INCLUDE_PATTERN_IN_TY {
+            todo!("pop")
+        };
+        ret
+    }
+
+    fn assign_param_ty(&mut self, param: SymbolID, contextual_ty: Option<&'cx ty::Ty<'cx>>) {
         if let Some(ty) = self.get_symbol_links(param).get_ty()
-            && let Some(ctx) = ctx
+            && let Some(ctx) = contextual_ty
         {
             assert_eq!(
                 ctx, ty,
@@ -19,11 +255,17 @@ impl<'cx> TyChecker<'cx> {
         }
         let decl_id = param.decl(self.binder);
         let decl = self.p.node(decl_id).expect_param_decl();
-        let ty = if let Some(ctx) = ctx {
+        let ty = if let Some(ctx) = contextual_ty {
             ctx
         } else {
             self.get_widened_ty_for_var_like_decl(decl)
         };
+        // TODO: optional for js
+        let mut ty =
+            self.add_optionality::<false>(ty, decl.init.is_none() && decl.question.is_some());
+        if ty == self.unknown_ty && !matches!(decl.name.kind, ast::BindingKind::Ident(_)) {
+            ty = self.get_ty_from_binding_pat::<false>(decl.name);
+        }
         self.get_mut_symbol_links(param).set_ty(ty);
 
         use bolt_ts_ast::BindingKind::*;
@@ -69,111 +311,16 @@ impl<'cx> TyChecker<'cx> {
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
         use bolt_ts_ast::ArrayBindingElemKind::*;
-        for (idx, ele) in pat.elems.iter().enumerate() {
+        for ele in pat.elems {
             match ele.kind {
                 Binding(binding) => {
-                    let ty = self.get_binding_ele_ty_from_parent_ty(
-                        binding.name,
-                        binding.id,
-                        idx,
-                        parent_ty,
-                        false,
+                    let ty = self.get_array_binding_element_ty_from_parent_ty(
+                        binding, pat, false, parent_ty,
                     );
                     self.assign_array_binding_ele_tys(binding, ty);
                 }
                 Omit(_) => {}
             }
-        }
-    }
-
-    // TODO: use `get_object_binding_element_ty_from_parent_ty` and `get_array_binding_element_ty_from_parent_ty`
-    fn get_binding_ele_ty_from_parent_ty(
-        &mut self,
-        binding: &'cx bolt_ts_ast::Binding<'cx>,
-        ele: bolt_ts_ast::NodeID,
-        idx: usize,
-        mut parent_ty: &'cx ty::Ty<'cx>,
-        no_tuple_bounds_check: bool,
-    ) -> &'cx ty::Ty<'cx> {
-        if self.is_type_any(parent_ty) {
-            return parent_ty;
-        }
-
-        let strict_null_check = self.config.strict_null_checks();
-
-        if strict_null_check
-            && self
-                .p
-                .node_flags(binding.id)
-                .contains(bolt_ts_ast::NodeFlags::AMBIENT)
-            && self
-                .node_query(binding.id.module())
-                .is_part_of_param_decl(binding.id)
-        {
-            parent_ty = self.get_non_nullable_ty(parent_ty)
-        } else if strict_null_check
-            && self
-                .p
-                .node(self.parent(binding.id).unwrap())
-                .initializer()
-                .is_some_and(|init| {
-                    // let ty = self.get_ty_of_init(init);
-                    false
-                    // TODO: has_ty_facts
-                })
-        {
-            todo!()
-        }
-
-        use bolt_ts_ast::BindingKind::*;
-
-        let access_flags = AccessFlags::EXPRESSION_POSITION
-            | if no_tuple_bounds_check {
-                // TODO: add `has_default_value` in condition
-                AccessFlags::ALLOWING_MISSING
-            } else {
-                AccessFlags::empty()
-            };
-
-        match binding.kind {
-            ObjectPat(pat) => {
-                todo!()
-            }
-            ArrayPat(pat) => {
-                let ele = self.p.node(ele).expect_array_binding();
-                let has_dotdotdot = ele.dotdotdot.is_some();
-                if has_dotdotdot {
-                    todo!()
-                } else if self.is_array_like_ty(parent_ty) {
-                    let index_ty = self.get_number_literal_type_from_number(idx as f64);
-
-                    self.get_indexed_access_ty_or_undefined(
-                        parent_ty,
-                        index_ty,
-                        Some(access_flags),
-                        Some(ele.id),
-                    )
-                    .unwrap_or(self.error_ty)
-                } else {
-                    self.check_iterated_ty_or_element_ty(
-                        IterationUse::DESTRUCTURING
-                            | if has_dotdotdot {
-                                IterationUse::empty()
-                            } else {
-                                IterationUse::POSSIBLY_OUT_OF_BOUNDS
-                            },
-                        parent_ty,
-                        self.undefined_ty,
-                        Some(ele.id),
-                    )
-                }
-            }
-            _ => self.check_iterated_ty_or_element_ty(
-                IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS),
-                parent_ty,
-                self.undefined_ty,
-                Some(binding.id),
-            ),
         }
     }
 
