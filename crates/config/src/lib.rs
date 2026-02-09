@@ -2,6 +2,7 @@ mod normalized;
 mod options;
 mod raw;
 
+pub use self::normalized::AllowUnreachableCode;
 pub use self::normalized::AllowUnusedLabels;
 pub use self::normalized::{CompilerOptionFlags, NormalizedCompilerOptions, NormalizedTsConfig};
 pub use self::options::{ALL_SUPPORTED_EXTENSIONS, FLATTENED_ALL_SUPPORTED_EXTENSIONS};

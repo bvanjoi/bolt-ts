@@ -60,12 +60,9 @@ impl<'cx> TyChecker<'cx> {
     fn get_ty_for_binding_element_parent(&mut self, pat_id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
         debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
         let parent_id = self.parent(pat_id).unwrap();
-        let parent = self.p.node(parent_id);
-        debug_assert!(parent.is_binding());
-        let parent_parent_id = self.parent(parent_id).unwrap();
-        let parent_parent = self.p.node(parent_parent_id);
+        let parent_node = self.p.node(parent_id);
         if self.check_mode.is_some_and(|m| m != CheckMode::empty()) {
-            match parent_parent {
+            match parent_node {
                 ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
                 _ => {
                     // TODO:
@@ -74,7 +71,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             // TODO: cache
-            match parent_parent {
+            match parent_node {
                 ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
                 _ => {
                     // TODO:

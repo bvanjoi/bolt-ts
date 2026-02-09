@@ -451,16 +451,19 @@ pub struct ClassStaticBlockDecl<'cx> {
 }
 
 impl<'cx> ClassElemKind<'cx> {
-    pub fn is_static(&self) -> bool {
-        use ClassElemKind::*;
-        let ms = match self {
-            Ctor(_) | StaticBlockDecl(_) => None,
-            Prop(n) => n.modifiers,
-            Method(n) => n.modifiers,
+    pub fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>> {
+        use crate::ClassElemKind::*;
+        match self {
             IndexSig(n) => n.modifiers,
-            Getter(n) => n.modifiers,
+            Prop(n) => n.modifiers,
             Setter(n) => n.modifiers,
-        };
+            Getter(n) => n.modifiers,
+            Method(n) => n.modifiers,
+            Ctor(_) | StaticBlockDecl(_) => None,
+        }
+    }
+    pub fn is_static(&self) -> bool {
+        let ms = self.modifiers();
         ms.is_some_and(|ms| ms.flags.contains(ModifierKind::Static))
     }
 
@@ -487,6 +490,17 @@ impl<'cx> ClassElemKind<'cx> {
             | ClassElemKind::Ctor(_)
             | ClassElemKind::StaticBlockDecl(_) => None,
         }
+    }
+
+    pub fn is_kind_without_init(&self) -> bool {
+        let ClassElemKind::Prop(prop) = self else {
+            return false;
+        };
+        prop.init.is_none()
+            && prop.excl.is_none()
+            && !prop
+                .modifiers
+                .is_some_and(|ms| ms.flags.contains(ModifierKind::Abstract))
     }
 }
 
@@ -984,7 +998,6 @@ pub struct ExportNamedSpec<'cx> {
 
 #[derive(Debug, Clone)]
 pub struct Binding<'cx> {
-    pub id: NodeID,
     pub span: Span,
     pub kind: BindingKind<'cx>,
 }

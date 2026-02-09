@@ -615,3 +615,10 @@ pub(super) struct XModifierMustPrecedeYModifier {
     pub x: bolt_ts_ast::ModifierKind,
     pub y: bolt_ts_ast::ModifierKind,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An index signature cannot have a rest parameter.")]
+pub(super) struct AnIndexSignatureCannotHaveARestParameter {
+    #[label(primary)]
+    pub span: Span,
+}

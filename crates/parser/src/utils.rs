@@ -604,15 +604,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.create_ident(true, None)
         };
-        let kind = ast::BindingKind::Ident(ident);
-        let id = self.next_node_id();
-        let name = self.alloc(ast::Binding {
-            id,
-            span: ident.span,
-            kind,
-        });
-        self.nodes.insert(id, ast::Node::Binding(name));
-        name
+        self.create_binding(ast::BindingKind::Ident(ident))
     }
 
     pub(super) fn parse_param(
@@ -868,10 +860,18 @@ impl<'cx> ParserState<'cx, '_> {
                     errors::AnIndexSignatureParameterCannotHaveAnInitializer { span: init.span() };
                 self.push_error(Box::new(error));
             }
+
+            if let Some(dotdotdot) = param.dotdotdot {
+                let error = errors::AnIndexSignatureCannotHaveARestParameter { span: dotdotdot };
+                self.push_error(Box::new(error));
+            }
         }
 
         let (name, name_ty) = if let Some(param) = params.first() {
-            (param.name, param.ty.unwrap())
+            (
+                param.name,
+                param.ty.unwrap_or_else(|| self.create_missing_ty()),
+            )
         } else {
             let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
             let name = self.parse_binding_with_ident(Some(missing_ident));

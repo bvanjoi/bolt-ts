@@ -1189,3 +1189,13 @@ pub(super) struct AllDeclarationsOfXMustHaveIdenticalTypeParameters {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Property '{property}' has no initializer and is not definitely assigned in the constructor."
+)]
+pub(super) struct PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}

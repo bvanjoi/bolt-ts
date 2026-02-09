@@ -30,6 +30,7 @@ bitflags::bitflags! {
         const NO_IMPLICIT_RETURNS                       = 1 << 10;
         const PRESERVE_SYMLINKS                         = 1 << 11;
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 12;
+        const STRICT_PROPERTY_INITIALIZATION            = 1 << 13;
     }
 }
 
@@ -40,11 +41,19 @@ pub enum AllowUnusedLabels {
     Warning,
 }
 
+#[derive(Debug)]
+pub enum AllowUnreachableCode {
+    Allow,
+    Deny,
+    Warning,
+}
+
 normalized_option!(
     NormalizedCompilerOptions,
     (out_dir, OutDir),
     (target, Target),
     (allow_unused_labels, AllowUnusedLabels),
+    (allow_unreachable_code, AllowUnreachableCode),
     (flags, CompilerOptionFlags),
 );
 
@@ -113,5 +122,11 @@ impl NormalizedCompilerOptions {
     pub const fn use_define_for_class_fields(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS)
+    }
+
+    #[inline(always)]
+    pub const fn strict_property_initialization(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::STRICT_PROPERTY_INITIALIZATION)
     }
 }

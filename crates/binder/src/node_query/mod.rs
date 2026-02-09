@@ -85,11 +85,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let mut n = self.parent(binding).unwrap();
         debug_assert!(matches!(self.node(n), ObjectPat(_) | ArrayPat(_)));
         loop {
-            let p = self.parent(n).unwrap();
-            if self.node(p).is_binding() {
-                n = p;
+            let parent_id = self.parent(n).unwrap();
+            let parent_node = self.node(parent_id);
+            if matches!(parent_node, ObjectBindingElem(_) | ArrayBinding(_)) {
+                n = parent_id;
             } else {
-                break p;
+                break parent_id;
             }
         }
     }
@@ -288,19 +289,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             if n.is_object_binding_elem() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_object_pat());
-                let p = self.parent(p).unwrap();
-                debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
                 n = self.node(id);
             } else if n.is_array_binding() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_array_pat(), "span: {:#?}", self.node(p));
-                let p = self.parent(p).unwrap();
-                debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
-                n = self.node(id);
-            } else if n.is_binding() {
-                id = self.parent(id).unwrap();
                 n = self.node(id);
             } else {
                 break;

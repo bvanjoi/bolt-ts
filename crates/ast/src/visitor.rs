@@ -606,7 +606,6 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &super::Node<'cx>) {
         ArrayLit(n) => todo!(),
         ObjectLit(n) => todo!(),
         Ident(n) => todo!(),
-        Binding(n) => todo!(),
         ComputedPropName(n) => todo!(),
         ExprWithTyArgs(n) => todo!(),
         LitTy(n) => todo!(),

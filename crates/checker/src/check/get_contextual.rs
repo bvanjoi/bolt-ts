@@ -249,11 +249,10 @@ impl<'cx> TyChecker<'cx> {
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
             let name = parent.name;
-            let pp_id = self.parent(parent.id).unwrap();
-            debug_assert!(self.p.node(pp_id).is_array_pat());
-            let ppp_id = self.parent(pp_id).unwrap();
-            let pppp_id = self.parent(ppp_id).unwrap();
-            let parent_parent_parent_ty = match self.p.node(pppp_id) {
+            let parent_parent_id = self.parent(parent.id).unwrap();
+            debug_assert!(self.p.node(parent_parent_id).is_array_pat());
+            let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
+            let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
                 ast::Node::VarDecl(n) => {
                     // TODO: init_ty
                     n.ty.map(|ty| self.get_ty_from_type_node(ty))
@@ -265,7 +264,7 @@ impl<'cx> TyChecker<'cx> {
             }?;
             let index = self
                 .p
-                .node(pp_id)
+                .node(parent_parent_id)
                 .expect_array_pat()
                 .elems
                 .iter()

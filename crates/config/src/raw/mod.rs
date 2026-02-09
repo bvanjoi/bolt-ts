@@ -52,8 +52,10 @@ with_option!(
     (always_strict, bool),
     (exact_optional_property_types, bool),
     (allow_unused_labels, bool),
+    (allow_unreachable_code, bool),
     (preserve_symlinks, bool),
-    (use_define_for_class_fields, bool)
+    (use_define_for_class_fields, bool),
+    (strict_property_initialization, bool)
 );
 
 impl RawCompilerOptions {
@@ -75,6 +77,9 @@ impl RawCompilerOptions {
         let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
         if get_strict_option_value(self.strict_null_checks) {
             flags.insert(super::CompilerOptionFlags::STRICT_NULL_CHECKS);
+        }
+        if get_strict_option_value(self.strict_property_initialization) {
+            flags.insert(super::CompilerOptionFlags::STRICT_PROPERTY_INITIALIZATION);
         }
         if get_strict_option_value(self.no_implicit_any) {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_ANY);
@@ -114,11 +119,18 @@ impl RawCompilerOptions {
             None => super::AllowUnusedLabels::Allow,
         };
 
+        let allow_unreachable_code = match self.allow_unreachable_code {
+            Some(true) => super::AllowUnreachableCode::Allow,
+            Some(false) => super::AllowUnreachableCode::Deny,
+            None => super::AllowUnreachableCode::Warning,
+        };
+
         super::NormalizedCompilerOptions {
             out_dir,
             target,
             flags,
             allow_unused_labels,
+            allow_unreachable_code,
         }
     }
 }

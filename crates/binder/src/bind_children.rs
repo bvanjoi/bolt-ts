@@ -804,7 +804,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     }
                 }
             }
-            Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}
             ParenExpr(n) => {
                 self.bind(n.expr.id());
@@ -1000,7 +999,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(modifiers) = n.modifiers {
                     self.bind_modifiers(modifiers);
                 }
-                self.bind(n.key.id);
+                self.bind_binding(n.key);
                 self.bind(n.key_ty.id());
                 self.bind(n.ty.id());
             }
@@ -1338,8 +1337,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.finish_flow_label(post_switch_label));
     }
 
-    fn bind_param_flow(&mut self, n: &ast::ParamDecl) {
-        self.bind(n.name.id);
+    fn bind_param_flow(&mut self, n: &'cx ast::ParamDecl<'cx>) {
+        self.bind_binding(n.name);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
@@ -1355,7 +1354,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ast::ObjectBindingName::Prop { prop_name, name } => {
                 self.bind(prop_name.id());
-                self.bind(name.id);
+                self.bind_binding(name);
             }
         }
         if let Some(init) = n.init {
@@ -1364,7 +1363,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_array_binding_flow(&mut self, n: &ast::ArrayBinding<'cx>) {
-        self.bind(n.name.id);
+        self.bind_binding(n.name);
         if let Some(init) = n.init {
             self.bind(init.id());
         }
@@ -1441,7 +1440,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_var_decl_flow(&mut self, n: &ast::VarDecl<'cx>) {
-        self.bind(n.name.id);
+        self.bind_binding(n.name);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }

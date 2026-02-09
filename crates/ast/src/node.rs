@@ -135,7 +135,6 @@ pub enum Node<'cx> {
     ObjectLit(&'cx super::ObjectLit<'cx>),
     Ident(&'cx super::Ident),
     PrivateIdent(&'cx super::PrivateIdent),
-    Binding(&'cx super::Binding<'cx>),
     ComputedPropName(&'cx super::ComputedPropName<'cx>),
     ExprWithTyArgs(&'cx super::ExprWithTyArgs<'cx>),
 
@@ -889,7 +888,6 @@ impl<'cx> Node<'cx> {
             self,
             Node::VarDecl(_)
                 | Node::ParamDecl(_)
-                | Node::Binding(_)
                 | Node::ClassPropElem(_)
                 | Node::PropSignature(_)
                 | Node::ObjectPropAssignment(_)
@@ -919,17 +917,12 @@ impl<'cx> Node<'cx> {
 
     pub fn is_variable_like(&self) -> bool {
         use Node::*;
-        matches!(
-            self,
-            Binding(_)
-                | EnumMember(_)
-                | ParamDecl(_)
-                | ObjectPropAssignment(_)
-                | ClassPropElem(_)
-                | PropSignature(_)
-                | ObjectShorthandMember(_)
-                | VarDecl(_)
-        )
+        matches!(self, |EnumMember(_)| ParamDecl(_)
+            | ObjectPropAssignment(_)
+            | ClassPropElem(_)
+            | PropSignature(_)
+            | ObjectShorthandMember(_)
+            | VarDecl(_))
     }
 }
 
@@ -1024,7 +1017,6 @@ as_node!(
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
     (PrivateIdent, super::PrivateIdent, private_ident),
-    (Binding, super::Binding<'cx>, binding),
     (OmitExpr, super::OmitExpr, omit_expr),
     (ParenExpr, super::ParenExpr<'cx>, paren_expr),
     (CondExpr, super::CondExpr<'cx>, cond_expr),

@@ -2,11 +2,10 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
-use crate::stmt::VarDeclarationContext;
-
 use super::ParserState;
 use super::errors;
 use super::paren_rule::{NoParenRule, ParenRuleTrait};
+use super::stmt::VarDeclarationContext;
 
 impl<'cx> ParserState<'cx, '_> {
     #[inline(always)]
@@ -793,14 +792,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     #[inline(always)]
     pub fn create_binding(&mut self, kind: ast::BindingKind<'cx>) -> &'cx ast::Binding<'cx> {
-        let id = self.next_node_id();
         let binding = self.alloc(ast::Binding {
-            id,
             span: kind.span(),
             kind,
         });
-        self.nodes.insert(id, ast::Node::Binding(binding));
-        self.node_flags_map.insert(id, ast::NodeFlags::empty());
         binding
     }
 

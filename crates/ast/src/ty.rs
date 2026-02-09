@@ -438,6 +438,18 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::PrivateIdent(ident) => ident.id,
         }
     }
+
+    pub fn to_string(&self, atoms: &AtomIntern) -> String {
+        match self {
+            PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
+            PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
+            PropNameKind::NumLit(num) => num.val.to_string(),
+            PropNameKind::Computed(n) => todo!(),
+            PropNameKind::PrivateIdent(ident) => {
+                format!("#{}", atoms.get(ident.name).to_string())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

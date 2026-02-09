@@ -77,6 +77,15 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn contains_undefined_ty(&self) -> bool {
+        let ty = if let Some(u) = self.kind.as_union() {
+            u.tys[0]
+        } else {
+            self
+        };
+        ty.flags.contains(TypeFlags::UNDEFINED)
+    }
+
     pub fn is_fresh_object_literal(&self) -> bool {
         self.get_object_flags()
             .contains(ObjectFlags::FRESH_LITERAL.union(ObjectFlags::OBJECT_LITERAL))

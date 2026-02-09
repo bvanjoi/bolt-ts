@@ -3,7 +3,7 @@ use super::ty;
 use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
-use bolt_ts_ast::r#trait::ClassLike;
+use bolt_ts_ast::r#trait::{ClassLike, MembersOfDecl};
 use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
@@ -256,7 +256,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
-        let symbol = self.get_symbol_of_decl(class.id());
+        let class_id = class.id();
+        let symbol = self.get_symbol_of_decl(class_id);
 
         if let Some(ty_params) = class.ty_params() {
             self.check_ty_params(ty_params);
@@ -268,7 +269,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_for_duplicate_decls(class);
         self.check_index_constraints(ty, false);
 
-        if let Some(base_ty_node) = self.get_effective_base_type_node(class.id()) {
+        if let Some(base_ty_node) = self.get_effective_base_type_node(class_id) {
             let base_tys = self.get_base_tys(ty);
             if !base_tys.is_empty() {
                 let base_ty = base_tys[0];
@@ -449,6 +450,54 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        // check_property_initialization
+        if self.config.strict_null_checks()
+            && self.config.strict_property_initialization()
+            && !self
+                .p
+                .node_flags(class_id)
+                .contains(ast::NodeFlags::AMBIENT)
+        {
+            let ctor = class.find_ctor_decl();
+            for elem in class.elems().list {
+                if elem
+                    .kind
+                    .modifiers()
+                    .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                {
+                    continue;
+                }
+                if !elem.kind.is_static() && elem.kind.is_kind_without_init() {
+                    let ast::ClassElemKind::Prop(prop) = elem.kind else {
+                        unreachable!()
+                    };
+                    let prop_name = prop.name;
+                    if matches!(
+                        prop.name.kind,
+                        ast::PropNameKind::Ident(_)
+                            | ast::PropNameKind::PrivateIdent(_)
+                            | ast::PropNameKind::Computed(_)
+                    ) {
+                        let symbol = self.get_symbol_of_decl(prop.id);
+                        let prop_ty = self.get_type_of_symbol(symbol);
+                        if !prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
+                            || prop_ty.contains_undefined_ty()
+                        {
+                            if ctor.is_none_or(|ctor| {
+                                !self.is_prop_initialized_in_ctor(prop_name, prop_ty, ctor)
+                            }) {
+                                let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+                                    span: prop_name.span(),
+                                    property: prop_name.kind.to_string(&self.atoms),
+                                };
+                                self.push_error(Box::new(error));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         for ele in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
@@ -463,5 +512,15 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
+    }
+
+    fn is_prop_initialized_in_ctor(
+        &self,
+        prop_name: &'cx ast::PropName<'cx>,
+        prop_ty: &'cx ty::Ty<'cx>,
+        ctor: &'cx ast::ClassCtor<'cx>,
+    ) -> bool {
+        // TODO:
+        true
     }
 }

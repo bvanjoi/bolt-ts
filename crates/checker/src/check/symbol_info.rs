@@ -994,8 +994,11 @@ fn get_target_of_import_named_spec(
     node: ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
-    let p = this.p();
-    let root = if p.node(node).is_binding() {
+    let n = this.p().node(node);
+    let root = if matches!(
+        n,
+        ast::Node::ArrayBinding(_) | ast::Node::ObjectBindingElem(_)
+    ) {
         this.node_query(node.module()).get_root_decl(node)
     } else {
         let p_id = this.parent(node).unwrap();
