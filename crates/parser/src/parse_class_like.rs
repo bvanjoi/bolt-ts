@@ -1,5 +1,6 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::errors;
@@ -303,8 +304,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 SignatureFlags::empty()
             };
             let body = self.parse_fn_block_or_semi(flags);
+            let span = self.new_span(start);
             let method =
-                self.create_class_method_elem(start, modifiers, name, ty_params, params, ty, body);
+                self.create_class_method_elem(span, modifiers, name, ty_params, params, ty, body);
             self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Method(method),
             })
@@ -331,7 +333,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
                     this.push_error(Box::new(error));
                 }
-                let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
+                let span = this.new_span(start);
+                let prop = this.create_class_prop_elem(span, modifiers, name, ty, init, excl);
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),
@@ -379,9 +382,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     SignatureFlags::empty()
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
+                let span = this.p().new_span(start);
                 let ctor = this
                     .p()
-                    .create_class_ctor(start, mods, ty_params, name_span, params, ret, body);
+                    .create_class_ctor(span, mods, ty_params, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -482,7 +486,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.next_token(); // consume `static`
         let body =
             self.do_inside_of_parse_context(ParseContext::CLASS_STATIC_BLOCK, Self::parse_block);
-        let block = self.create_class_static_block_decl(start as u32, body);
+        let span = self.new_span(start as u32);
+        let block = self.create_class_static_block_decl(span, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),
         }))

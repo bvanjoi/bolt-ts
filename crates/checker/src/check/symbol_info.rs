@@ -781,6 +781,7 @@ impl<'cx> super::TyChecker<'cx> {
     ) -> bool {
         name.is_dynamic_name() && !self.is_late_bindable_name(name)
     }
+
     fn is_late_bindable_name(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
             let ty = if let ast::DeclarationName::Computed(n) = name {

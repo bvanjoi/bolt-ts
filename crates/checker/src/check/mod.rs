@@ -4321,7 +4321,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        impl<'cx> bolt_ts_ast::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
+        impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
             fn visit_this_ty(&mut self, _: &'cx bolt_ts_ast::ThisTy) {
                 if self.contain_reference {
                     return;
@@ -4375,7 +4375,7 @@ impl<'cx> TyChecker<'cx> {
                         }) || n.ty_args.is_some_and(|ty_args| {
                             ty_args.list.iter().any(|ty| {
                                 let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                                bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                                bolt_ts_ast_visitor::visit_ty(&mut v, ty);
                                 v.contain_reference
                             })
                         }) {
@@ -4395,18 +4395,18 @@ impl<'cx> TyChecker<'cx> {
                     || n.ty_params.is_some_and(|ty_params| {
                         ty_params.iter().any(|ty_param| {
                             let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                            bolt_ts_ast::visitor::visit_ty_param(&mut v, ty_param);
+                            bolt_ts_ast_visitor::visit_ty_param(&mut v, ty_param);
                             v.contain_reference
                         })
                     })
                     || n.params.iter().any(|param| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                        bolt_ts_ast::visitor::visit_param_decl(&mut v, param);
+                        bolt_ts_ast_visitor::visit_param_decl(&mut v, param);
                         v.contain_reference
                     })
                     || n.ty.is_some_and(|ty| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                        bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                        bolt_ts_ast_visitor::visit_ty(&mut v, ty);
                         v.contain_reference
                     }))
                 {
@@ -4421,18 +4421,18 @@ impl<'cx> TyChecker<'cx> {
                     || n.ty_params.is_some_and(|ty_params| {
                         ty_params.iter().any(|ty_param| {
                             let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                            bolt_ts_ast::visitor::visit_ty_param(&mut v, ty_param);
+                            bolt_ts_ast_visitor::visit_ty_param(&mut v, ty_param);
                             v.contain_reference
                         })
                     })
                     || n.params.iter().any(|param| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                        bolt_ts_ast::visitor::visit_param_decl(&mut v, param);
+                        bolt_ts_ast_visitor::visit_param_decl(&mut v, param);
                         v.contain_reference
                     })
                     || n.ty.is_some_and(|ty| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
-                        bolt_ts_ast::visitor::visit_ty(&mut v, ty);
+                        bolt_ts_ast_visitor::visit_ty(&mut v, ty);
                         v.contain_reference
                     }))
                 {
@@ -4458,7 +4458,7 @@ impl<'cx> TyChecker<'cx> {
             if node.is_block_stmt()
                 || node.as_cond_ty().is_some_and(|c| {
                     let mut v = ContainReferenceVisitor::new(ty, self);
-                    bolt_ts_ast::visitor::visit_ty(&mut v, c.extends_ty);
+                    bolt_ts_ast_visitor::visit_ty(&mut v, c.extends_ty);
                     v.contain_reference
                 })
             {
@@ -4471,7 +4471,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let n = self.p.node(n);
         let mut v = ContainReferenceVisitor::new(ty, self);
-        bolt_ts_ast::visitor::visit_node(&mut v, &n);
+        bolt_ts_ast_visitor::visit_node(&mut v, &n);
         v.contain_reference
     }
 

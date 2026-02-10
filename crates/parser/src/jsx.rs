@@ -1,8 +1,10 @@
 use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
-use crate::{errors, parsing_ctx::ParsingContext, state::LanguageVariant};
-
+use super::errors;
+use super::parsing_ctx::ParsingContext;
+use super::state::LanguageVariant;
 use super::{PResult, ParserState};
 
 #[derive(Debug)]
@@ -242,7 +244,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut expr = self.alloc(bolt_ts_ast::Expr { kind });
         while self.parse_optional(TokenKind::Dot).is_some() {
             let name = self.parse_right_side_of_dot::<true>();
-            let prop = self.create_prop_access_expr(start, expr, name);
+            let span = self.new_span(start);
+            let prop = self.create_prop_access_expr(span, expr, name);
             expr = self.alloc(bolt_ts_ast::Expr {
                 kind: ExprKind::PropAccess(prop),
             });

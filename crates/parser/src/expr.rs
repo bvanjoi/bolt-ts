@@ -2,14 +2,15 @@ use crate::SignatureFlags;
 use crate::parsing_ctx::{ParseContext, ParsingContext};
 
 use super::lookahead::Lookahead;
-use super::paren_rule::{NoParenRule, ParenRuleTrait};
 use super::parse_fn_like::ParseFnExpr;
 use super::state::LanguageVariant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
+use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
 use bolt_ts_ast::{self as ast, ModifierKind, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 use enumflags2::BitFlag;
 
 impl<'cx> ParserState<'cx, '_> {
@@ -33,7 +34,8 @@ impl<'cx> ParserState<'cx, '_> {
                 span: t.span,
             };
             let right = self.parse_assign_expr_or_higher::<false>()?;
-            let kind = ast::ExprKind::Bin(self.create_binary_expr(start, expr, op, right));
+            let kind =
+                ast::ExprKind::Bin(self.create_binary_expr(self.new_span(start), expr, op, right));
             expr = self.alloc(ast::Expr { kind });
         }
         Ok(expr)
@@ -311,7 +313,7 @@ impl<'cx> ParserState<'cx, '_> {
                     span: t.span,
                 };
                 let right = self.parse_binary_expr(next_prec)?;
-                let expr = self.create_binary_expr(start, left, op, right);
+                let expr = self.create_binary_expr(self.new_span(start), left, op, right);
                 ast::ExprKind::Bin(expr)
             };
             left = self.alloc(ast::Expr { kind });
@@ -370,7 +372,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let start = self.token.start();
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
-                    let expr = self.create_await_expr(start, expr);
+                    let expr = self.create_await_expr(self.new_span(start), expr);
                     let expr = self.alloc(ast::Expr {
                         kind: ast::ExprKind::Await(expr),
                     });
@@ -394,13 +396,12 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `delete`
         let expr = self.parse_simple_unary_expr()?;
+        let span = self.new_span(start);
         if self.in_strict_mode && matches!(expr.kind, ast::ExprKind::Ident(_)) {
-            let error = errors::DeleteCannotBeCalledOnAnIdentifierInStrictMode {
-                span: self.new_span(start),
-            };
+            let error = errors::DeleteCannotBeCalledOnAnIdentifierInStrictMode { span };
             self.push_error(Box::new(error));
         }
-        let n = self.create_delete_expr(start, expr);
+        let n = self.create_delete_expr(span, expr);
         let n = self.alloc(ast::Expr {
             kind: ast::ExprKind::Delete(n),
         });
@@ -707,7 +708,8 @@ impl<'cx> ParserState<'cx, '_> {
         let body = self
             .parse_fn_block_or_semi(SignatureFlags::empty())
             .unwrap();
-        let node = self.create_object_method_member(start, name, ty_params, params, ty, body);
+        let span = self.new_span(start);
+        let node = self.create_object_method_member(span, name, ty_params, params, ty, body);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
         });
@@ -1190,10 +1192,11 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
+        let span = self.new_span(start as u32);
         let prop = if is_optional_chain {
-            self.create_prop_access_chain(start as u32, expr, question_dot, name)
+            self.create_prop_access_chain(span, expr, question_dot, name)
         } else {
-            self.create_prop_access_expr(start as u32, expr, name)
+            self.create_prop_access_expr(span, expr, name)
         };
         Ok(prop)
     }
@@ -1263,7 +1266,20 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.prase_template_expr(true)?
         };
-        let expr = self.create_tagged_template_expr(start as u32, tag, ty_args, tpl, question_dot);
+        if question_dot.is_some()
+            || self
+                .node_flags_map
+                .get(tag.id())
+                .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            self.push_error(Box::new(
+                errors::TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
+                    span: tpl.span(),
+                },
+            ));
+        }
+        let span = self.new_span(start as u32);
+        let expr = self.create_tagged_template_expr(span, tag, ty_args, tpl);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TaggedTemplate(expr),
         });

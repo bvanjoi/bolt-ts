@@ -1,5 +1,6 @@
 use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 use enumflags2::BitFlag;
 
@@ -376,7 +377,8 @@ impl<'cx> ParserState<'cx, '_> {
                 todo!("remove error result")
             };
             self.expect(TokenKind::RBracket);
-            let kind = self.create_computed_prop_name(start, expr);
+            let span = self.new_span(start);
+            let kind = self.create_computed_prop_name(span, expr);
             let prop_name = self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
             });
@@ -888,7 +890,8 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         self.parse_ty_member_semi();
-        let sig = self.create_index_sig_decl(start, modifiers, name, name_ty, ty);
+        let span = self.new_span(start);
+        let sig = self.create_index_sig_decl(span, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 

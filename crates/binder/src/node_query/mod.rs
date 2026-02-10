@@ -924,4 +924,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_source_file_of_node(&self) -> &'cx ast::Program<'cx> {
         self.parse_result.root()
     }
+
+    pub fn get_right_most_assigned_expr(&self, mut node: ast::NodeID) -> ast::NodeID {
+        while let Some(assign) = self.node(node).as_assign_expr() {
+            node = assign.right.id();
+        }
+        node
+    }
 }

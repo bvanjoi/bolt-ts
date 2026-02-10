@@ -9,8 +9,6 @@ mod token;
 pub mod r#trait;
 mod ty;
 
-pub mod visitor;
-
 pub use self::expr::*;
 pub use self::jsx::*;
 pub use self::node::{FnFlags, Node, NodeID};
@@ -19,7 +17,6 @@ pub use self::pprint::*;
 pub use self::stmt::*;
 pub use self::token::*;
 pub use self::ty::*;
-pub use self::visitor::Visitor;
 
 use bolt_ts_span::Span;
 

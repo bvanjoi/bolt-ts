@@ -1,28 +1,28 @@
-use bolt_ts_ast as ast;
+use super::super::Expr;
 
-pub(super) trait ParenRuleTrait<'cx> {
+pub trait ParenRuleTrait<'cx> {
     fn paren_left_side_of_access(
         &self,
-        expr: &'cx ast::Expr<'cx>,
+        expr: &'cx Expr<'cx>,
         optional_chain: bool,
-    ) -> &'cx ast::Expr<'cx>;
+    ) -> &'cx Expr<'cx>;
 }
 
-pub(super) struct ParenRule;
+pub struct ParenRule;
 
 impl<'cx> ParenRuleTrait<'cx> for ParenRule {
     fn paren_left_side_of_access(
         &self,
-        expr: &'cx ast::Expr<'cx>,
+        expr: &'cx Expr<'cx>,
         optional_chain: bool,
-    ) -> &'cx ast::Expr<'cx> {
+    ) -> &'cx Expr<'cx> {
         todo!()
     }
 }
 
-pub(super) struct NoParenRule;
+pub struct NoParenRule;
 impl<'cx> ParenRuleTrait<'cx> for NoParenRule {
-    fn paren_left_side_of_access(&self, expr: &'cx ast::Expr<'cx>, _: bool) -> &'cx ast::Expr<'cx> {
+    fn paren_left_side_of_access(&self, expr: &'cx Expr<'cx>, _: bool) -> &'cx Expr<'cx> {
         debug_assert!(
             expr.is_left_hand_side_expr_kind(),
             "Expected left-hand side expression, but got {expr:#?}"

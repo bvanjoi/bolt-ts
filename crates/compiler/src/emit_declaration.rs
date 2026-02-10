@@ -1,4 +1,5 @@
-use bolt_ts_ast::{self as ast, Visitor};
+use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_visitor::Visitor;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker::check::TyChecker;
 use bolt_ts_optimize::Emitter;
@@ -62,7 +63,7 @@ impl<'cx> DeclarationEmitter<'cx> {
     }
 }
 
-impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
+impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
         self.emitter.print().p("declare");
         self.emitter.print().p_whitespace();

@@ -40,7 +40,7 @@ impl<'cx> TyChecker<'cx> {
             ret: Option<&'cx ast::CallExpr<'cx>>,
         }
 
-        use ast::visitor::Visitor;
+        use bolt_ts_ast_visitor::Visitor;
         impl<'cx> Visitor<'cx> for FindFirstSuperCall<'cx> {
             fn visit_fn_decl(&mut self, _: &'cx bolt_ts_ast::FnDecl<'cx>) {}
             fn visit_class_decl(&mut self, _: &'cx bolt_ts_ast::ClassDecl<'cx>) {}
@@ -50,7 +50,7 @@ impl<'cx> TyChecker<'cx> {
                     self.ret = Some(node);
                     return;
                 }
-                ast::visitor::visit_call_expr(self, node);
+                bolt_ts_ast_visitor::visit_call_expr(self, node);
             }
             fn visit_block_stmt(&mut self, node: &'cx bolt_ts_ast::BlockStmt<'cx>) {
                 for stmt in node.stmts {

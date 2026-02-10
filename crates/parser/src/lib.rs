@@ -1,10 +1,8 @@
 mod errors;
 mod expr;
-mod factory;
 mod jsx;
 mod lookahead;
 mod nodes;
-mod paren_rule;
 mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
@@ -22,8 +20,9 @@ mod ty;
 mod unicode;
 mod utils;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_ast::{Visitor, keyword};
+use bolt_ts_ast_visitor::Visitor;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
@@ -328,7 +327,7 @@ struct CollectDepsResult<'cx> {
     ambient_modules: Vec<Atom>,
 }
 
-impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
+impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
     fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
         let module_name = match node.kind {
             ast::StmtKind::Import(n) => Some(n.module),
@@ -466,5 +465,31 @@ bitflags::bitflags! {
         const IGNORE_MISSING_OPEN_BRACE = 1 << 4;
         const JSDOC = 1 << 5;
         const ASYNC = 1 << 6;
+    }
+}
+
+impl<'cx, 'p> bolt_ts_ast_factory::ASTFactory<'cx> for ParserState<'cx, 'p> {
+    fn next_node_id(&mut self) -> NodeID {
+        self.next_node_id()
+    }
+
+    fn insert_node(&mut self, node_id: NodeID, node: bolt_ts_ast::Node<'cx>) {
+        self.nodes.insert(node_id, node);
+    }
+
+    fn insert_node_flags(&mut self, node_id: NodeID, flags: bolt_ts_ast::NodeFlags) {
+        self.node_flags_map.insert(node_id, flags);
+    }
+
+    fn alloc<T>(&self, val: T) -> &'cx T {
+        self.alloc(val)
+    }
+
+    fn node_context_flags(&self) -> bolt_ts_ast::NodeFlags {
+        self.node_context_flags
+    }
+
+    fn set_external_module_indicator(&mut self, node_id: NodeID) {
+        self.set_external_module_indicator(node_id);
     }
 }

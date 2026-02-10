@@ -1,5 +1,7 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
+use bolt_ts_ast_factory::ASTFactory;
+use bolt_ts_ast_factory::VarDeclarationContext;
 
 use super::ast;
 use super::errors;
@@ -12,24 +14,6 @@ use super::parse_import_export_spec::ParseNamedExports;
 use super::parse_import_export_spec::ParseNamedImports;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
-
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug)]
-    pub(super) struct VarDeclarationContext: u8 {
-        const FOR = 1 << 0;
-        const CONST = 1 << 1;
-        const AMBIENT = 1 << 2;
-        const LET = 1 << 3;
-    }
-}
-
-impl VarDeclarationContext {
-    const fn init_should_exit(&self) -> bool {
-        self.contains(VarDeclarationContext::CONST)
-            && !self.contains(VarDeclarationContext::AMBIENT)
-            && !self.contains(VarDeclarationContext::FOR)
-    }
-}
 
 impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
@@ -108,7 +92,8 @@ impl<'cx> ParserState<'cx, '_> {
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
                         this.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)
                     });
-                    ast::CaseOrDefaultClause::Case(this.create_case_clause(start, expr, stmts))
+                    let span = this.new_span(start);
+                    ast::CaseOrDefaultClause::Case(this.create_case_clause(span, expr, stmts))
                 } else {
                     // parse default clause
                     let start = this.token.start();
@@ -117,13 +102,16 @@ impl<'cx> ParserState<'cx, '_> {
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
                         this.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)
                     });
-                    ast::CaseOrDefaultClause::Default(this.create_default_clause(start, stmts))
+                    let span = this.new_span(start);
+                    ast::CaseOrDefaultClause::Default(this.create_default_clause(span, stmts))
                 })
             });
             self.expect(TokenKind::RBrace);
-            self.create_case_block(start, clauses)
+            let span = self.new_span(start);
+            self.create_case_block(span, clauses)
         };
-        Ok(self.create_switch_stmt(start, expr, case_block))
+        let span = self.new_span(start);
+        Ok(self.create_switch_stmt(span, expr, case_block))
     }
 
     fn parse_debugger_stmt(&mut self) -> PResult<&'cx ast::DebuggerStmt> {
@@ -266,6 +254,29 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
+    #[inline(always)]
+    fn check_invalid_type_annotation_in_for_in_or_of_stmt<const IS_FOR_IN: bool>(
+        &mut self,
+        init: &ast::ForInitKind<'cx>,
+    ) {
+        let ast::ForInitKind::Var(decls) = init else {
+            return;
+        };
+        for decl in decls.iter() {
+            if decl.ty.is_none() {
+                continue;
+            }
+            let span = decl.name.span;
+            let error = Box::new(
+                errors::TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
+                    span,
+                    is_for_in: IS_FOR_IN,
+                },
+            );
+            self.push_error(error);
+        }
+    }
+
     fn parse_for_stmt(&mut self) -> PResult<ast::StmtKind<'cx>> {
         debug_assert!(self.token.kind == TokenKind::For);
         use bolt_ts_ast::TokenKind::*;
@@ -310,13 +321,14 @@ impl<'cx> ParserState<'cx, '_> {
                 Self::parse_stmt,
             )?;
             let node = self.create_for_of_stmt(
-                start,
+                self.new_span(start),
                 await_token.map(|t| t.span),
                 init,
                 expr,
                 body,
                 flags,
             );
+            self.check_invalid_type_annotation_in_for_in_or_of_stmt::<false>(&init);
             Ok(ast::StmtKind::ForOf(node))
         } else if self.parse_optional(In).is_some() {
             let init = init.unwrap();
@@ -326,7 +338,9 @@ impl<'cx> ParserState<'cx, '_> {
                 ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
-            let node = self.create_for_in_stmt(start, init, expr, body);
+            let span = self.new_span(start);
+            let node = self.create_for_in_stmt(span, init, expr, body);
+            self.check_invalid_type_annotation_in_for_in_or_of_stmt::<true>(&init);
             Ok(ast::StmtKind::ForIn(node))
         } else {
             self.expect(Semi);
@@ -441,7 +455,8 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.allow_in_and(Self::parse_expr)?
         };
-        let node = self.create_throw_stmt(start, expr);
+        let span = self.new_span(start);
+        let node = self.create_throw_stmt(span, expr);
         if !self.try_parse_semi()? {
             todo!()
         }
@@ -794,7 +809,8 @@ impl<'cx> ParserState<'cx, '_> {
 
         self.parse_semi();
 
-        self.create_import_decl(start, clause, module)
+        let span = self.new_span(start);
+        self.create_import_decl(span, clause, module)
     }
 
     fn try_parse_import_clause(
@@ -1206,7 +1222,8 @@ impl<'cx> ParserState<'cx, '_> {
             let span = name.span;
             self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
         }
-        Ok(self.create_var_decl(start, name, ty, init, ctx))
+        let span = self.new_span(start);
+        Ok(self.create_var_decl(span, name, ty, init, ctx))
     }
 
     fn parse_var_decl_list(&mut self, ctx: VarDeclarationContext) -> VarDecls<'cx> {
@@ -1269,7 +1286,8 @@ impl<'cx> ParserState<'cx, '_> {
             Some(self.parse_expr()?)
         };
         self.parse_semi();
-        let stmt = self.create_ret_stmt(start, expr);
+        let span = self.new_span(start);
+        let stmt = self.create_ret_stmt(span, expr);
         Ok(stmt)
     }
 
@@ -1284,7 +1302,8 @@ impl<'cx> ParserState<'cx, '_> {
             }
             let stmt =
                 self.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)?;
-            let stmt = self.create_labeled_stmt(start, ident, stmt);
+            let span = self.new_span(start);
+            let stmt = self.create_labeled_stmt(span, ident, stmt);
             let prev = self.labels.pop();
             debug_assert!(prev.is_some());
             Ok(ast::StmtKind::Labeled(stmt))

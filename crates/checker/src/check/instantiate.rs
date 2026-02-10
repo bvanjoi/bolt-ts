@@ -14,9 +14,7 @@ use super::{TyInstantiationMap, errors};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::MappedTyModifiers;
 use bolt_ts_ast::keyword;
-use bolt_ts_binder::{SymbolFlags, SymbolID};
-
-use thin_vec::thin_vec;
+use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
     pub fn instantiate_ty(

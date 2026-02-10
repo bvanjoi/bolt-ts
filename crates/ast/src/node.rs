@@ -924,6 +924,59 @@ impl<'cx> Node<'cx> {
             | ObjectShorthandMember(_)
             | VarDecl(_))
     }
+
+    pub fn is_void_zero_expr(&self) -> bool {
+        if let Some(v) = self.as_void_expr()
+            && let super::ExprKind::NumLit(lit) = v.expr.kind
+        {
+            lit.val == 0.0
+        } else {
+            false
+        }
+    }
+
+    pub fn is_entity_name_expr(&self) -> bool {
+        matches!(self, Node::Ident(_)) || self.is_prop_access_entity_name_expr()
+    }
+
+    pub fn is_prop_access_entity_name_expr(&self) -> bool {
+        if let Some(e) = self.as_prop_access_expr() {
+            // TODO: matches!(p.name.kind, ExprKind::Ident(_))
+            e.expr.is_entity_name_expr()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_bindable_static_name_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        self.is_entity_name_expr() || self.is_bindable_static_access_expr::<EXCLUDE_THIS_KEYWORD>()
+    }
+
+    pub fn is_bindable_static_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if let Some(e) = self.as_prop_access_expr()
+            && (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_))
+                || e.expr.is_bindable_static_name_expr::<true>())
+        {
+            true
+        } else {
+            self.is_bindable_static_element_access_expr::<EXCLUDE_THIS_KEYWORD>()
+        }
+    }
+
+    pub fn is_literal_like_element_access(&self) -> bool {
+        self.as_ele_access_expr()
+            .is_some_and(|e| e.arg.is_string_or_number_lit_like())
+    }
+
+    pub fn is_bindable_static_element_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if !self.is_literal_like_element_access() {
+            return false;
+        }
+        let e = self.expect_ele_access_expr();
+        (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_)))
+            || e.expr.is_entity_name_expr()
+            || e.expr.is_bindable_static_access_expr::<true>()
+    }
 }
 
 macro_rules! as_node {

@@ -106,22 +106,15 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn is_string_lit_like(&self) -> bool {
-        matches!(
-            self.kind,
-            ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
-        )
+        self.kind.is_string_lit_like()
     }
 
     pub fn is_signed_numeric_lit(&self) -> bool {
-        let ExprKind::PrefixUnary(n) = &self.kind else {
-            return false;
-        };
-        matches!(n.op, PrefixUnaryOp::Plus | PrefixUnaryOp::Minus)
-            && matches!(n.expr.kind, ExprKind::NumLit(_))
+        self.kind.is_signed_numeric_lit()
     }
 
     pub fn is_string_or_number_lit_like(&self) -> bool {
-        self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
+        self.kind.is_string_or_number_lit_like()
     }
 
     pub fn is_entity_name_expr(&self) -> bool {
@@ -213,6 +206,56 @@ impl<'cx> Expr<'cx> {
                 | ExprWithTyArgs(_)
         )
     }
+
+    pub fn is_bindable_static_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if let ExprKind::PropAccess(e) = self.kind
+            && (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_))
+                || e.expr.is_bindable_static_name_expr::<true>())
+        {
+            true
+        } else {
+            self.is_bindable_static_element_access_expr::<EXCLUDE_THIS_KEYWORD>()
+        }
+    }
+
+    pub fn is_bindable_static_name_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        self.is_entity_name_expr() || self.is_bindable_static_access_expr::<EXCLUDE_THIS_KEYWORD>()
+    }
+
+    pub fn is_literal_like_element_access(&self) -> bool {
+        let ExprKind::EleAccess(e) = self.kind else {
+            return false;
+        };
+        e.arg.is_string_or_number_lit_like()
+    }
+
+    pub fn is_bindable_static_element_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if !self.is_literal_like_element_access() {
+            return false;
+        }
+        let ExprKind::EleAccess(e) = &self.kind else {
+            return false;
+        };
+        (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_)))
+            || e.expr.is_entity_name_expr()
+            || e.expr.is_bindable_static_access_expr::<true>()
+    }
+
+    pub fn is_prototype_access(&self) -> bool {
+        self.is_bindable_static_access_expr::<false>() && {
+            match &self.kind {
+                ExprKind::PropAccess(n) => n.name.name == keyword::IDENT_PROTOTYPE,
+                ExprKind::EleAccess(n) => {
+                    if let ExprKind::Ident(ident) = &n.expr.kind {
+                        ident.name == keyword::IDENT_PROTOTYPE
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -261,6 +304,17 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
+    pub fn is_string_lit_like(&self) -> bool {
+        matches!(
+            self,
+            ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
+        )
+    }
+
+    pub fn is_string_or_number_lit_like(&self) -> bool {
+        self.is_string_lit_like() || matches!(self, ExprKind::NumLit(_))
+    }
+
     fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
         match self {
             ExprKind::Paren(p) => p.expr.kind.skip_paren(),
@@ -320,6 +374,14 @@ impl<'cx> ExprKind<'cx> {
 
     pub fn is_access_expr(&self) -> bool {
         matches!(self, ExprKind::PropAccess(_) | ExprKind::EleAccess(_))
+    }
+
+    pub fn is_signed_numeric_lit(&self) -> bool {
+        let ExprKind::PrefixUnary(n) = &self else {
+            return false;
+        };
+        matches!(n.op, PrefixUnaryOp::Plus | PrefixUnaryOp::Minus)
+            && matches!(n.expr.kind, ExprKind::NumLit(_))
     }
 }
 
@@ -427,6 +489,13 @@ pub struct EleAccessExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub arg: &'cx Expr<'cx>,
+}
+
+impl<'cx> EleAccessExpr<'cx> {
+    pub fn is_dynamic_name(&self) -> bool {
+        let expr = ExprKind::skip_paren(&self.arg.kind);
+        !expr.is_string_or_number_lit_like() && !expr.is_signed_numeric_lit()
+    }
 }
 
 /// ```txt

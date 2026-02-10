@@ -5,6 +5,7 @@ use super::{PResult, ParserState};
 use super::{ast, errors};
 
 use bolt_ts_ast::{Token, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 
 impl<'cx> ParserState<'cx, '_> {
     fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> bool {
@@ -961,7 +962,8 @@ impl<'cx> ParserState<'cx, '_> {
             let params = self.parse_params();
             self.check_params(params, false);
             let ty = self.parse_ret_ty(true)?;
-            let sig = self.create_method_signature(start, name, question, ty_params, params, ty);
+            let span = self.new_span(start);
+            let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
             ast::ObjectTyMemberKind::Method(sig)
         } else {
             let ty = self.parse_ty_anno()?;

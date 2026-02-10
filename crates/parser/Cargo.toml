@@ -12,6 +12,8 @@ enumflags2 = { workspace = true }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_ast = { path = "../ast" }
+bolt_ts_ast_factory = { path = "../ast_factory" }
+bolt_ts_ast_visitor = { path = "../ast_visitor" }
 bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }

@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolName;
 
@@ -23,6 +21,32 @@ bitflags::bitflags! {
     }
 }
 
+enum AssignmentDeclarationKind {
+    None,
+    /// `exports.name = expr`
+    /// `module.exports.name = expr`
+    ExportsProperty,
+    /// `module.exports = expr`
+    ModuleExports,
+    /// `className.prototype.name = expr`
+    PrototypeProperty,
+    /// `this.name = expr`
+    ThisProperty,
+    // `F.name = expr`
+    Property,
+    // `F.prototype = { ... }`
+    Prototype,
+    // `Object.defineProperty(x, 'name', { value: any, writable?: boolean (false by default) });`
+    // `Object.defineProperty(x, 'name', { get: Function, set: Function });`
+    // `Object.defineProperty(x, 'name', { get: Function });`
+    // `Object.defineProperty(x, 'name', { set: Function });`
+    ObjectDefinePropertyValue,
+    // `Object.defineProperty(exports || module.exports, 'name', ...);`
+    ObjectDefinePropertyExports,
+    // `Object.defineProperty(Foo.prototype, 'name', ...);`
+    ObjectDefinePrototypeProperty,
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_contextual_ty(
         &mut self,
@@ -43,7 +67,7 @@ impl<'cx> TyChecker<'cx> {
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
             AssignExpr(parent) if id == parent.right.id() => {
-                self.get_contextual_ty_for_assign(parent.id, parent_id, flags)
+                self.get_contextual_ty_for_assign(parent, flags)
             }
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
@@ -204,25 +228,105 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_contextual_ty_for_assign(
+    fn get_assignment_declaration_prop_access_kind(
         &mut self,
-        node: ast::NodeID,
-        parent: ast::NodeID,
-        flags: Option<ContextFlags>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        let assign = self.p.node(parent).expect_assign_expr();
-        // TODO: assign_kind;
-        let lhs_symbol = self.get_symbol_for_expr(assign.left.id());
-        let decl = lhs_symbol.and_then(|s| self.binder.symbol(s).opt_decl());
-        if let Some(decl) = decl {
-            let n = self.p.node(decl);
-            if n.is_class_prop_elem() || n.is_prop_signature() {
-                // TODO: handle this;
-                return None;
+        access: ast::NodeID,
+    ) -> AssignmentDeclarationKind {
+        let access_node = self.p.node(access);
+        let expr = match access_node {
+            ast::Node::PropAccessExpr(n) => n.expr,
+            ast::Node::EleAccessExpr(n) => n.expr,
+            _ => unreachable!(),
+        };
+        if matches!(expr.kind, ast::ExprKind::This(_)) {
+            return AssignmentDeclarationKind::ThisProperty;
+        }
+        // TODO: module_exports
+        if expr.is_bindable_static_name_expr::<true>() {
+            if expr.is_prototype_access() {
+                return AssignmentDeclarationKind::PrototypeProperty;
+            }
+            // TODO: exportsProperty
+
+            if access_node.is_bindable_static_name_expr::<true>()
+                || access_node
+                    .as_ele_access_expr()
+                    .is_some_and(|ele| ele.is_dynamic_name())
+            {
+                return AssignmentDeclarationKind::Property;
             }
         }
-        let ret = self.get_ty_of_expr(assign.left);
-        Some(ret)
+        AssignmentDeclarationKind::None
+    }
+
+    fn get_assignment_declaration_kind_for_assign_expr(
+        &mut self,
+        expr: &'cx ast::AssignExpr<'cx>,
+    ) -> AssignmentDeclarationKind {
+        if expr.op != ast::AssignOp::Eq
+            || !expr.left.kind.is_access_expr()
+            || self
+                .p
+                .node(
+                    self.node_query(expr.id.module())
+                        .get_right_most_assigned_expr(expr.id),
+                )
+                .is_void_zero_expr()
+        {
+            AssignmentDeclarationKind::None
+        } else {
+            // TODO: prototype
+            self.get_assignment_declaration_prop_access_kind(expr.left.id())
+        }
+    }
+
+    fn get_contextual_ty_for_assign(
+        &mut self,
+        parent: &'cx ast::AssignExpr<'cx>,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let kind = self.get_assignment_declaration_kind_for_assign_expr(parent);
+        match kind {
+            AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
+                let lhs_symbol = self.get_symbol_for_expr(parent.left.id());
+                if let Some(lhs_symbol) = lhs_symbol
+                    && let Some(decl) = self.symbol(lhs_symbol).value_decl
+                {
+                    let n = self.p.node(decl);
+                    if let ast::Node::ClassPropElem(ast::ClassPropElem { ty, .. })
+                    | ast::Node::PropSignature(ast::PropSignature { ty, .. }) = n
+                    {
+                        return match ty {
+                            Some(ty) => {
+                                let ty = self.get_ty_from_type_node(*ty);
+                                let mapper = self.get_symbol_links(lhs_symbol).get_ty_mapper();
+                                Some(self.instantiate_ty(ty, mapper))
+                            }
+                            None => {
+                                if let Some(n) = n.as_class_prop_elem()
+                                    && n.init.is_some()
+                                {
+                                    Some(self.get_ty_of_expr(parent.left))
+                                } else {
+                                    None
+                                }
+                            }
+                        };
+                    }
+                }
+                if matches!(kind, AssignmentDeclarationKind::None) {
+                    let ret = self.get_ty_of_expr(parent.left);
+                    Some(ret)
+                } else {
+                    // TODO: get_contextual_ty_for_this_property_assignment
+                    None
+                }
+            }
+            _ => {
+                // TODO: other case
+                None
+            }
+        }
     }
 
     fn get_contextual_ty_for_var_decl(
