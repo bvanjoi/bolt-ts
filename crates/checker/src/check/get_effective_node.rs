@@ -7,6 +7,7 @@ use super::{TyChecker, create_ty::IntersectionFlags};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_binder::SymbolName;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_base_type_node(
@@ -204,5 +205,19 @@ impl<'cx> TyChecker<'cx> {
         }
 
         modifier_flags & flags_to_check
+    }
+
+    pub(super) fn get_effective_prop_name_for_prop_name_node(
+        &mut self,
+        node: &ast::PropNameKind<'cx>,
+    ) -> Option<SymbolName> {
+        if let Some(name) = bolt_ts_binder::prop_name_opt(node) {
+            Some(name)
+        } else if let ast::PropNameKind::Computed(node) = node {
+            let ty = self.get_ty_of_expr(node.expr);
+            self.try_get_name_from_ty(ty)
+        } else {
+            None
+        }
     }
 }

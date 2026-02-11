@@ -787,11 +787,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn try_get_name_from_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<SymbolName> {
-        match ty.kind {
-            ty::TyKind::UniqueESSymbol(n) => Some(n.escape_name),
-            ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
-            ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val)),
-            _ => None,
+        if ty.flags.contains(TypeFlags::UNIQUE_ES_SYMBOL) {
+            let unique_es_symbol = ty.kind.expect_unique_es_symbol();
+            Some(unique_es_symbol.escape_name)
+        } else if ty.flags.intersects(TypeFlags::STRING_OR_NUMBER_LITERAL) {
+            match ty.kind {
+                ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
+                ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val)),
+                _ => todo!(),
+            }
+        } else {
+            None
         }
     }
 

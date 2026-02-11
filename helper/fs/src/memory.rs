@@ -1,9 +1,8 @@
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_utils::path::NormalizePath;
 
-use crate::PathId;
-
 use super::CachedFileSystem;
+use super::PathId;
 use super::errors::FsResult;
 use super::tree::{FSNodeId, FSTree};
 

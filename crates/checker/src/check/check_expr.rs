@@ -6,6 +6,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::Target;
 use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
+use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
 use super::ObjectFlags;
@@ -883,6 +884,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> &'cx ty::Ty<'cx> {
+        let is_destructuring = self
+            .node_query(node.id.module())
+            .get_assignment_target(node.id)
+            .is_some();
+        let mut seen = fx_hashmap_with_capacity(node.members.len());
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
         let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
@@ -947,20 +953,15 @@ impl<'cx> TyChecker<'cx> {
                         Method(n) => self.check_object_method_member(n),
                         _ => unreachable!(),
                     };
-                    let name = match member.kind {
-                        Shorthand(n) => SymbolName::Atom(n.name.name),
-                        PropAssignment(n) => bolt_ts_binder::prop_name(n.name),
-                        Method(n) => bolt_ts_binder::prop_name(n.name),
-                        _ => unreachable!(),
-                    };
                     object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                     let member_s = self.binder.symbol(member_symbol);
                     let declarations = member_s.decls.clone();
                     let value_declaration = member_s.value_decl;
+                    let name = member_s.name;
+                    let flags = member_s.flags;
                     let prop = self.create_transient_symbol(
                         name,
-                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
-                            | self.binder.symbol(member_symbol).flags,
+                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT) | flags,
                         SymbolLinks::default()
                             .with_target(member_symbol)
                             .with_ty(ty),
@@ -1055,7 +1056,69 @@ impl<'cx> TyChecker<'cx> {
                     properties_array.push(member_symbol);
                 }
             }
+
+            if !is_destructuring {
+                let prop_name = match member.kind {
+                    PropAssignment(n) => Some(n.name.kind),
+                    Method(n) => Some(n.name.kind),
+                    Getter(n) => Some(n.name.kind),
+                    Setter(n) => Some(n.name.kind),
+                    Shorthand(n) => Some(ast::PropNameKind::Ident(n.name)),
+                    SpreadAssignment(_) => None,
+                };
+                if let Some(prop_name) = prop_name
+                    && let Some(effective_name) =
+                        self.get_effective_prop_name_for_prop_name_node(&prop_name)
+                {
+                    let report_duplicate =
+                        |this: &mut Self,
+                         exist: (&'cx ast::ObjectMember<'_>, Span),
+                         current: &'cx ast::ObjectMember<'_>| {
+                            use ast::ObjectMemberKind;
+                            if matches!(current.kind, ObjectMemberKind::Method(_))
+                                && matches!(exist.0.kind, ObjectMemberKind::Method(_))
+                            {
+                                // TODO: report duplicate identifier?
+                            } else if matches!(
+                                current.kind,
+                                ObjectMemberKind::PropAssignment(_)
+                                    | ObjectMemberKind::Shorthand(_)
+                            ) && matches!(
+                                exist.0.kind,
+                                ObjectMemberKind::PropAssignment(_)
+                                    | ObjectMemberKind::Shorthand(_)
+                            ) {
+                                let error =
+                            errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+                                span: prop_name.span(),
+                                old: exist.1,
+                            };
+                                this.push_error(Box::new(error));
+                            }
+                            // TODO: other cases
+                        };
+
+                    if let SymbolName::Atom(atom) = effective_name
+                        && let s = self.atoms.get(atom)
+                        && (s.starts_with("-")
+                            || s.as_bytes()
+                                .first()
+                                .is_some_and(|byte| matches!(byte, b'1'..=b'9')))
+                        && let Ok(num) = s.parse::<f64>()
+                        && let Some(exist) =
+                            seen.insert(SymbolName::EleNum(num.into()), (*member, prop_name.span()))
+                    {
+                        report_duplicate(self, exist, member);
+                        continue;
+                    }
+
+                    if let Some(exist) = seen.insert(effective_name, (*member, prop_name.span())) {
+                        report_duplicate(self, exist, member);
+                    }
+                }
+            }
         }
+
         self.pop_type_context();
 
         if self.is_error(spread) {

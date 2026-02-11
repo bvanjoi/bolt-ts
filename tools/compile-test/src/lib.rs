@@ -2,9 +2,13 @@ mod common;
 pub mod errors;
 mod header;
 pub mod run_tests;
+mod temp_dir;
+mod temp_files;
 
 pub use common::TestConfig;
 pub use header::TestProps;
+pub use temp_dir::{TempDir, tempdir};
+pub use temp_files::build_temp_files;
 
 pub fn ensure_node_exist() {
     let output = std::process::Command::new("node")
@@ -71,6 +75,6 @@ pub fn run_node(p: &std::path::Path) -> Result<Option<String>, String> {
 }
 
 pub fn temp_node_file(name: &str) -> std::path::PathBuf {
-    let temp_dir = tempfile::TempDir::with_prefix("bolt-ts-compiler-temp").unwrap();
+    let temp_dir = tempdir("bolt-ts-compiler-temp");
     temp_dir.path().join(format!("{name}.js"))
 }

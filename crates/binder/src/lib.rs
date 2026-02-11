@@ -291,18 +291,25 @@ fn bind<'cx, 'atoms, 'parser>(
 }
 
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
-    match name.kind {
-        ast::PropNameKind::Ident(ident) => SymbolName::Atom(ident.name),
-        ast::PropNameKind::PrivateIdent(ident) => SymbolName::Atom(ident.name),
-        ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
-        ast::PropNameKind::StringLit { key, .. } => SymbolName::Atom(key),
+    prop_name_opt(&name.kind).unwrap()
+}
+
+pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
+    match name {
+        ast::PropNameKind::Ident(ident) => Some(SymbolName::Atom(ident.name)),
+        ast::PropNameKind::PrivateIdent(ident) => Some(SymbolName::Atom(ident.name)),
+        ast::PropNameKind::NumLit(num) => Some(SymbolName::EleNum(num.val.into())),
+        ast::PropNameKind::StringLit { key, .. } => Some(SymbolName::Atom(*key)),
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => SymbolName::Atom(n.name),
-                StringLit(n) => SymbolName::Atom(n.val),
-                NumLit(n) => SymbolName::EleNum(n.val.into()),
-                _ => unreachable!("name: {name:#?}"),
+                Ident(n) => Some(SymbolName::Atom(n.name)),
+                StringLit(n) => Some(SymbolName::Atom(n.val)),
+                NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
+                _ => {
+                    let n = c.expr.kind.as_signed_numeric_lit()?;
+                    Some(SymbolName::EleNum(n.into()))
+                }
             }
         }
     }

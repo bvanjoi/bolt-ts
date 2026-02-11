@@ -3,6 +3,7 @@ mod errors;
 use bolt_ts_ast::keyword::is_reserved_type_name;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident};
 use bolt_ts_atom::AtomIntern;
+use bolt_ts_binder::SymbolName;
 use bolt_ts_checker::check::errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::ParsedMap;
@@ -131,21 +132,9 @@ impl<'cx> CheckState<'cx> {
     }
 
     fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
-        let mut seen = fx_hashmap_with_capacity(node.members.len());
-        for member in node.members {
-            if let ast::ObjectMemberKind::PropAssignment(n) = member.kind {
-                let name = bolt_ts_binder::prop_name(n.name);
-                if let Some(prev) = seen.insert(name, n.span) {
-                    let error =
-                        errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
-                            span: n.name.span(),
-                            old: prev,
-                        };
-                    self.push_error(Box::new(error));
-                }
-            }
-        }
+        // TODO:
     }
+
     fn check_grammar_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
         if let Some(c) = node.catch_clause
             && let Some(v) = c.var

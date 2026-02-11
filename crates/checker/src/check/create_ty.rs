@@ -586,8 +586,8 @@ impl<'cx> TyChecker<'cx> {
                 );
             }
 
-            if includes.intersects(TypeFlags::STRING_LITERAL)
-                && includes.intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            if includes.contains(TypeFlags::STRING_LITERAL)
+                && includes.intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
             {
                 // TODO:
             }
@@ -981,19 +981,19 @@ impl<'cx> TyChecker<'cx> {
         while i > 0 {
             i -= 1;
             let t = tys[i];
-            let remove = t.flags.intersects(TypeFlags::STRING)
+            let remove = t.flags.contains(TypeFlags::STRING)
                 && includes.intersects(
                     TypeFlags::STRING_LITERAL
-                        | TypeFlags::TEMPLATE_LITERAL
-                        | TypeFlags::STRING_MAPPING,
+                        .union(TypeFlags::TEMPLATE_LITERAL)
+                        .union(TypeFlags::STRING_MAPPING),
                 )
-                || t.flags.intersects(TypeFlags::NUMBER)
-                    && includes.intersects(TypeFlags::NUMBER_LITERAL)
-                || t.flags.intersects(TypeFlags::BIG_INT)
-                    && includes.intersects(TypeFlags::BIG_INT_LITERAL)
-                || t.flags.intersects(TypeFlags::ES_SYMBOL)
-                    && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                || t.flags.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+                || t.flags.contains(TypeFlags::NUMBER)
+                    && includes.contains(TypeFlags::NUMBER_LITERAL)
+                || t.flags.contains(TypeFlags::BIG_INT)
+                    && includes.contains(TypeFlags::BIG_INT_LITERAL)
+                || t.flags.contains(TypeFlags::ES_SYMBOL)
+                    && includes.contains(TypeFlags::UNIQUE_ES_SYMBOL)
+                || t.flags.contains(TypeFlags::VOID) && includes.contains(TypeFlags::UNDEFINED)
                 || self.is_empty_anonymous_object_ty(t)
                     && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE);
             if remove {

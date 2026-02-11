@@ -377,13 +377,7 @@ pub struct PropName<'cx> {
 
 impl PropName<'_> {
     pub fn span(&self) -> Span {
-        match self.kind {
-            PropNameKind::Ident(ident) => ident.span,
-            PropNameKind::NumLit(num) => num.span,
-            PropNameKind::StringLit { raw, .. } => raw.span,
-            PropNameKind::Computed(n) => n.span,
-            PropNameKind::PrivateIdent(ident) => ident.span,
-        }
+        self.kind.span()
     }
 
     pub fn id(&self) -> NodeID {
@@ -448,6 +442,15 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::PrivateIdent(ident) => {
                 format!("#{}", atoms.get(ident.name).to_string())
             }
+        }
+    }
+    pub fn span(&self) -> Span {
+        match self {
+            PropNameKind::Ident(ident) => ident.span,
+            PropNameKind::NumLit(num) => num.span,
+            PropNameKind::StringLit { raw, .. } => raw.span,
+            PropNameKind::Computed(n) => n.span,
+            PropNameKind::PrivateIdent(ident) => ident.span,
         }
     }
 }

@@ -214,7 +214,7 @@ as_ty_kind!(Enum, &'cx EnumTy<'cx>, enum);
 as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
 as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
-as_ty_kind!(UniqueESSymbol, &'cx UniqueESSymbolTy, unique_ess_symbol);
+as_ty_kind!(UniqueESSymbol, &'cx UniqueESSymbolTy, unique_es_symbol);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
 as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);

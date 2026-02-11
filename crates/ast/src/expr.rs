@@ -377,11 +377,21 @@ impl<'cx> ExprKind<'cx> {
     }
 
     pub fn is_signed_numeric_lit(&self) -> bool {
+        self.as_signed_numeric_lit().is_some()
+    }
+
+    pub fn as_signed_numeric_lit(&self) -> Option<f64> {
         let ExprKind::PrefixUnary(n) = &self else {
-            return false;
+            return None;
         };
-        matches!(n.op, PrefixUnaryOp::Plus | PrefixUnaryOp::Minus)
-            && matches!(n.expr.kind, ExprKind::NumLit(_))
+        let ExprKind::NumLit(num) = n.expr.kind else {
+            return None;
+        };
+        match n.op {
+            PrefixUnaryOp::Plus => Some(num.val),
+            PrefixUnaryOp::Minus => Some(-num.val),
+            _ => None,
+        }
     }
 }
 

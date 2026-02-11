@@ -1199,3 +1199,12 @@ pub(super) struct PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstr
     pub span: Span,
     pub property: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An object literal cannot have multiple properties with the same name.")]
+pub(super) struct AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+    #[label(primary)]
+    pub span: Span,
+    #[label("Previous definition here")]
+    pub old: Span,
+}

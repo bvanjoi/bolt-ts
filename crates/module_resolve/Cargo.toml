@@ -14,3 +14,6 @@ bolt_ts_config = { path = "../config" }
 bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_path = { path = "../path" }
+
+[dev-dependencies]
+compile-test = { path = "../../tools/compile-test" }

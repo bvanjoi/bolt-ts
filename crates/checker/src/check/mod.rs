@@ -279,21 +279,18 @@ pub struct TyChecker<'cx> {
     empty_symbols: &'cx SymbolTable,
 
     enum_number_index_info: std::cell::OnceCell<&'cx ty::IndexInfo<'cx>>,
-    unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+
     any_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     resolving_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
+
+    any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    any_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
+    auto_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     circular_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_generic_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_ty_literal_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -303,7 +300,6 @@ pub struct TyChecker<'cx> {
     global_newable_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    any_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -313,9 +309,15 @@ pub struct TyChecker<'cx> {
     mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    array_variances: std::cell::OnceCell<&'cx [VarianceFlags]>,
+    no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
+    number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
 
     deferred_global_non_nullable_type_alias: std::cell::OnceCell<Option<SymbolID>>,
@@ -3328,9 +3330,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_ty_or_base_identical_to(&mut self, s: &'cx ty::Ty<'cx>, t: &'cx ty::Ty<'cx>) -> bool {
-        (t.flags.intersects(TypeFlags::STRING) && s.flags.intersects(TypeFlags::STRING_LITERAL))
-            || (t.flags.intersects(TypeFlags::NUMBER)
-                && s.flags.intersects(TypeFlags::NUMBER_LITERAL))
+        (t.flags.contains(TypeFlags::STRING) && s.flags.contains(TypeFlags::STRING_LITERAL))
+            || (t.flags.contains(TypeFlags::NUMBER) && s.flags.contains(TypeFlags::NUMBER_LITERAL))
             || self.is_type_identical_to(s, t)
     }
 
