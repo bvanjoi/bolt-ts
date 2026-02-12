@@ -13,7 +13,6 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
-use bolt_ts_ty::TypeFlags;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {

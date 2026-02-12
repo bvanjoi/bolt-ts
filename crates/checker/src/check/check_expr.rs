@@ -15,6 +15,7 @@ use super::ast;
 use super::errors;
 use super::flow::flow_loop_ctx_len;
 use super::node_check_flags::NodeCheckFlags;
+use super::relation;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
@@ -169,6 +170,148 @@ impl<'cx> TyChecker<'cx> {
         // TODO: check grammar
         let t = self.get_bigint_literal_type(neg, val);
         self.get_fresh_ty_of_literal_ty(t)
+    }
+
+    fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx ty::Ty<'cx> {
+        let l = self.check_expr(node.left);
+        let r = self.check_expr(node.right);
+        self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
+    }
+
+    fn check_bin_like_expr(
+        &mut self,
+        node: &'cx ast::BinExpr,
+        op: ast::BinOp,
+        left: &'cx ast::Expr,
+        left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr,
+        right_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        use bolt_ts_ast::BinOpKind::*;
+        match op.kind {
+            Add => {
+                (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
+                    Some(ty) => ty,
+                    None => {
+                        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
+                            op: op.kind.to_string(),
+                            ty1: left_ty.to_string(self),
+                            ty2: right_ty.to_string(self),
+                            span: node.span,
+                        };
+                        self.push_error(Box::new(error));
+                        self.any_ty
+                    }
+                }) as _
+            }
+            Sub | Mul | Div | Mod => {
+                if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
+                    return self.silent_never_ty;
+                }
+                let left_ty = self.check_non_null_type(left_ty, left.id());
+                let right_ty = self.check_non_null_type(left_ty, left.id());
+                if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+                    && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
+                    && let Some(suggest) = get_suggestion_boolean_op(op.kind.as_str())
+                {
+                    let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
+                        span: op.span,
+                        op1: op.kind.to_string(),
+                        op2: suggest.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                    self.number_ty
+                } else {
+                    let left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
+                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                            span: left.span(),
+                            left_or_right: errors::LeftOrRight::Left
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                    let right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
+                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
+                            span: right.span(),
+                            left_or_right: errors::LeftOrRight::Right
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                    self.number_ty
+                }
+            }
+            BitOr => {
+                let left = self.check_non_null_type(left_ty, left.id());
+                let right = self.check_non_null_type(right_ty, right.id());
+                self.number_ty
+            }
+            LogicalAnd => {
+                if self.has_type_facts(left_ty, ty::TypeFacts::TRUTHY) {
+                    left_ty
+                } else {
+                    right_ty
+                }
+            }
+            LogicalOr => {
+                if self.has_type_facts(left_ty, ty::TypeFacts::FALSY) {
+                    let left_ty = self.remove_definitely_falsy_tys(left_ty);
+                    let left_ty = self.get_non_nullable_ty(left_ty);
+                    let tys = &[left_ty, right_ty];
+                    self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None)
+                } else {
+                    left_ty
+                }
+            }
+            EqEq => self.boolean_ty(),
+            EqEqEq => self.boolean_ty(),
+            Less | LessEq | Great | GreatEq => {
+                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
+                {
+                    let left_ty = {
+                        let t = self.check_non_null_type(left_ty, left.id());
+                        self.get_base_ty_of_literal_ty_for_comparison(t)
+                    };
+                    let right_ty = {
+                        let t = self.check_non_null_type(right_ty, right.id());
+                        self.get_base_ty_of_literal_ty_for_comparison(t)
+                    };
+                    self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
+                        if this.is_type_any(l) || this.is_type_any(r) {
+                            true
+                        } else {
+                            let left_assignable_to_number =
+                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                            let right_assignable_to_number =
+                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                            left_assignable_to_number && right_assignable_to_number
+                                || !left_assignable_to_number && !right_assignable_to_number && {
+                                    this.is_type_related_to(
+                                        l,
+                                        r,
+                                        relation::RelationKind::Comparable,
+                                    ) || this.is_type_related_to(
+                                        r,
+                                        l,
+                                        relation::RelationKind::Comparable,
+                                    )
+                                }
+                        }
+                    });
+                }
+                self.boolean_ty()
+            }
+            Shl => self.number_ty,
+            Sar => self.number_ty,
+            Shr => self.number_ty,
+            BitAnd => self.number_ty,
+            Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
+            In => self.check_in_expr(left, left_ty, right, right_ty),
+            Satisfies => todo!(),
+            NEq => self.boolean_ty(),
+            NEqEq => self.boolean_ty(),
+            Comma => right_ty,
+            BitXor => self.number_ty,
+            Exp => self.number_ty,
+        }
     }
 
     pub(super) fn check_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {

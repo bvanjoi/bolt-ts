@@ -1,0 +1,5 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/duplicateOverloadInTypeAugmentation1/index.ts:12:10]
+ 12 │ a
+    · ─
+    ╰────

@@ -124,6 +124,15 @@ pub enum CaseOrDefaultClause<'cx> {
     Default(&'cx DefaultClause<'cx>),
 }
 
+impl<'cx> CaseOrDefaultClause<'cx> {
+    pub fn stmts(&self) -> Stmts<'cx> {
+        match self {
+            CaseOrDefaultClause::Case(c) => c.stmts,
+            CaseOrDefaultClause::Default(c) => c.stmts,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CaseBlock<'cx> {
     pub id: NodeID,

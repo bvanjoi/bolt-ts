@@ -10,6 +10,7 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+
 pub use bolt_ts_ty::CheckFlags;
 pub use bolt_ts_ty::ObjectFlags;
 pub use bolt_ts_ty::TypeFacts;
@@ -17,7 +18,7 @@ pub use bolt_ts_ty::TypeFlags;
 
 use super::check::TyChecker;
 
-pub use self::facts::TYPEOF_NE_FACTS;
+pub use self::facts::{TYPEOF_NE_FACTS, typeof_ne_facts};
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
@@ -35,6 +36,7 @@ pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
 
 bolt_ts_utils::index!(TyID);
+
 impl nohash_hasher::IsEnabled for TyID {}
 
 impl TyID {
@@ -75,6 +77,12 @@ impl<'cx> Ty<'cx> {
             flags,
             links,
         }
+    }
+
+    pub fn is_neither_unit_ty_nor_never(&self) -> bool {
+        !self
+            .flags
+            .intersects(TypeFlags::UNIT.union(TypeFlags::NEVER))
     }
 
     pub fn contains_undefined_ty(&self) -> bool {

@@ -1237,16 +1237,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(stmt.id());
                 }
             }
-            CaseBlock(n) => {
-                for item in n.clauses {
-                    use ast::CaseOrDefaultClause::*;
-                    match item {
-                        Case(c) => self.bind(c.id),
-                        Default(c) => self.bind(c.id),
-                    }
-                }
-            }
             SwitchStmt(n) => self.bind_switch_stmt(n),
+            CaseBlock(n) => self.bind_case_block(n),
             DeleteExpr(n) => {
                 self.bind(n.expr.id());
             }
@@ -1262,7 +1254,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn is_assignment_target(&self, n: ast::NodeID) -> bool {
-        self.node_query().get_assignment_target(n).is_some()
+        self.node_query().is_assignment_target(n)
     }
 
     fn bind_destructuring_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
@@ -1307,6 +1299,29 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    fn bind_case_block(&mut self, n: &'cx ast::CaseBlock<'cx>) {
+        let mut fallthrough_flow = self.unreachable_flow_node;
+
+        for i in 0..n.clauses.len() {
+            let clause_start = i;
+            // while clause.stmts().is_empty() && i + 1 < n.clauses.len() {
+            // TODO:
+            // }
+            let prev_case_label = self.flow_nodes.create_branch_label();
+            self.flow_nodes
+                .add_antecedent(prev_case_label, self.pre_switch_case_flow.unwrap());
+            self.flow_nodes
+                .add_antecedent(prev_case_label, fallthrough_flow);
+            self.current_flow = Some(self.finish_flow_label(prev_case_label));
+            match n.clauses[i] {
+                ast::CaseOrDefaultClause::Case(c) => self.bind(c.id),
+                ast::CaseOrDefaultClause::Default(c) => self.bind(c.id),
+            }
+            fallthrough_flow = self.current_flow.unwrap();
+            // TODO: clause.fallthrough_flow = fallthrough_flow;
         }
     }
 

@@ -517,6 +517,7 @@ pub struct PropAccessExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub question_dot: Option<Span>,
+    // TODO: private identifier
     pub name: &'cx Ident,
 }
 

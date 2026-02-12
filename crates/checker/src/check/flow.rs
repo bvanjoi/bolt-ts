@@ -4,17 +4,17 @@ use super::FlowLoopTypesArenaId;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
+use super::ty::typeof_ne_facts;
 use super::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use super::type_predicate::TyPred;
 use super::type_predicate::TyPredKind;
 
+use bolt_ts_ast::keyword::is_push_or_unshift;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
-use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
-use bolt_ts_ty::CheckFlags;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -102,6 +102,47 @@ impl<'cx> TyChecker<'cx> {
         evolved_ty
     }
 
+    pub fn is_evolving_array_op_target(&mut self, node: ast::NodeID) -> bool {
+        let root = self.node_query(node.module()).get_reference_root(node);
+        let Some(parent) = self.parent(root) else {
+            unreachable!()
+        };
+        let parent_node = self.p.node(parent);
+        let is_length_push_or_unshift = if let ast::Node::PropAccessExpr(parent_node) = parent_node
+        {
+            parent_node.name.name == keyword::IDENT_LENGTH || {
+                let parent_parent = self.parent(parent).unwrap();
+                self.p.node(parent_parent).is_call_expr()
+                    && is_push_or_unshift(parent_node.name.name)
+            }
+        } else {
+            false
+        };
+        if is_length_push_or_unshift {
+            return true;
+        }
+
+        let is_element_assignment = parent_node.as_ele_access_expr().is_some_and(|parent_node| {
+            parent_node.expr.id() == root && {
+                let parent_parent = self.parent(parent).unwrap();
+                let parent_parent_node = self.p.node(parent_parent);
+                parent_parent_node
+                    .as_assign_expr()
+                    .is_some_and(|parent_parent_node| {
+                        parent_parent_node.left.id() == parent
+                            && !self
+                                .node_query(parent_parent.module())
+                                .is_assignment_target(parent_parent)
+                            && {
+                                let ty = self.get_ty_of_expr(parent_node.arg);
+                                self.is_type_assignable_to_kind(ty, TypeFlags::NUMBER_LIKE, false)
+                            }
+                    })
+            }
+        });
+        is_element_assignment
+    }
+
     fn get_ty_at_flow_node(
         &mut self,
         mut flow: FlowID,
@@ -116,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
         loop {
             let n = self.flow_node(flow);
             let flags = n.flags;
-            if flags.intersects(FlowFlags::SHARED) {
+            if flags.contains(FlowFlags::SHARED) {
                 for i in shared_flow_start..self.shared_flow_info.len() {
                     let (n, ty) = self.shared_flow_info[i];
                     if flow == n {
@@ -233,16 +274,17 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let antecedents = n.antecedent.clone().unwrap();
-        let antecedent_tys_id = self.flow_loop_types_arena.alloc(Vec::new());
+        let mut antecedent_tys = vec![];
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
+        let mut bypass_flow = None;
         for antecedent in antecedents {
-            if self
-                .flow_node(antecedent)
-                .flags
-                .contains(FlowFlags::SWITCH_CLAUSE)
+            if bypass_flow.is_none()
+                && let FlowNodeKind::Switch(n) = &self.flow_node(antecedent).kind
+                && n.clause_start == n.clause_end
             {
-                todo!()
+                bypass_flow = Some(antecedent);
+                continue;
             }
 
             let flow_ty = self.get_ty_at_flow_node(
@@ -258,7 +300,6 @@ impl<'cx> TyChecker<'cx> {
             if ty == declared_ty && declared_ty == init_ty {
                 return FlowTy::Ty(declared_ty);
             }
-            let antecedent_tys = self.flow_loop_types_arena.get_mut(antecedent_tys_id);
             if !antecedent_tys.contains(&ty) {
                 antecedent_tys.push(ty);
             }
@@ -269,9 +310,38 @@ impl<'cx> TyChecker<'cx> {
                 seen_incomplete = true;
             }
         }
-        let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
+        if let Some(bypass_flow) = bypass_flow {
+            let flow_ty = self.get_ty_at_flow_node(
+                bypass_flow,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            );
+            let ty = self.get_ty_from_flow_ty(flow_ty);
+            let FlowNodeKind::Switch(n) = &self.flow_node(bypass_flow).kind else {
+                unreachable!()
+            };
+            if !ty.flags.contains(TypeFlags::NEVER)
+                && !antecedent_tys.contains(&ty)
+                && !self.is_exhaustive_switch_stmt(n.node)
+            {
+                if ty == declared_ty && declared_ty == init_ty {
+                    return FlowTy::Ty(ty);
+                }
+                antecedent_tys.push(ty);
+                if !self.is_ty_subset_of(ty, init_ty) {
+                    subtype_reduction = true
+                }
+                if flow_ty.is_incomplete() {
+                    seen_incomplete = true;
+                }
+            }
+        }
         let ty = self.get_union_or_evolving_array_ty(
-            &antecedent_tys.clone(),
+            &antecedent_tys,
             if subtype_reduction {
                 ty::UnionReduction::Subtype
             } else {
@@ -414,7 +484,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_evolving_array_op_target(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
+    fn is_evolving_array_ty_list(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
         let mut has_evolving_array_ty = false;
         for t in tys {
             if !t.flags.contains(TypeFlags::NEVER) {
@@ -433,7 +503,7 @@ impl<'cx> TyChecker<'cx> {
         subtype_reduction: ty::UnionReduction,
         declared_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_evolving_array_op_target(tys) {
+        if self.is_evolving_array_ty_list(tys) {
             todo!()
         }
 
@@ -1016,17 +1086,9 @@ impl<'cx> TyChecker<'cx> {
             self.narrow_ty_by_ty_name(ty, lit)
         } else {
             let facts = match lit.kind {
-                ast::ExprKind::StringLit(s) => match s.val {
-                    keyword::IDENT_STRING => TypeFacts::TYPEOF_NE_STRING,
-                    keyword::IDENT_NUMBER => TypeFacts::TYPEOF_NE_NUMBER,
-                    keyword::IDENT_BIGINT => TypeFacts::TYPEOF_NE_BIGINT,
-                    keyword::IDENT_BOOLEAN => TypeFacts::TYPEOF_NE_BOOLEAN,
-                    keyword::IDENT_SYMBOL => TypeFacts::TYPEOF_NE_SYMBOL,
-                    keyword::KW_UNDEFINED => TypeFacts::NE_UNDEFINED,
-                    keyword::IDENT_OBJECT => TypeFacts::TYPEOF_NE_OBJECT,
-                    keyword::KW_FUNCTION => TypeFacts::TYPEOF_NE_FUNCTION,
-                    _ => TypeFacts::TYPEOF_NE_HOST_OBJECT,
-                },
+                ast::ExprKind::StringLit(s) => {
+                    typeof_ne_facts(s.val).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT)
+                }
                 _ => unreachable!(),
             };
             self.get_adjusted_ty_with_facts(ty, facts)

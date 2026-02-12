@@ -1208,3 +1208,11 @@ pub(super) struct AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
     #[label("Previous definition here")]
     pub old: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Variable '{name}' is used before being assigned.")]
+pub(super) struct VariableXIsUsedBeforeBeingAssigned {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

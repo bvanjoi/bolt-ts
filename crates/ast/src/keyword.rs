@@ -161,13 +161,19 @@ prefilled_atom_map!(
             INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 102],
             INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 103],
             INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 104],
-            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 105]
+            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 105],
+            IDENT_PUSH:                             ["push", 106],
+            IDENT_UNSHIFT:                          ["unshift", 107],
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 106]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 108]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 107]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 109]
         },
     }
 );
+
+pub fn is_push_or_unshift(name: Atom) -> bool {
+    matches!(name, IDENT_PUSH | IDENT_UNSHIFT)
+}

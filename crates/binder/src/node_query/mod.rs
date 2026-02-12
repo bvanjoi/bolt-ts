@@ -457,6 +457,24 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn is_in_ambient_or_type_node(&self, id: ast::NodeID) -> bool {
+        self.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+            || self
+                .find_ancestor(id, |node| {
+                    if matches!(
+                        node,
+                        ast::Node::InterfaceDecl(_)
+                            | ast::Node::TypeAliasDecl(_)
+                            | ast::Node::ObjectLitTy(_)
+                    ) {
+                        Some(true)
+                    } else {
+                        None
+                    }
+                })
+                .is_some()
+    }
+
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
         self.find_ancestor(id, |node| {
             if node.is_typeof_expr() || node.is_typeof_ty() {
@@ -469,6 +487,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         })
         .is_some()
+    }
+
+    pub fn is_assignment_target(&self, n: ast::NodeID) -> bool {
+        self.get_assignment_target(n).is_some()
     }
 
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
@@ -930,5 +952,21 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             node = assign.right.id();
         }
         node
+    }
+
+    pub fn get_reference_root(&self, node: ast::NodeID) -> ast::NodeID {
+        let parent = match self.parent(node) {
+            Some(p) => p,
+            None => unreachable!(),
+        };
+        let p = self.node(parent);
+        match p {
+            ast::Node::ParenExpr(_) => self.get_reference_root(parent),
+            ast::Node::AssignExpr(n) if n.left.id() == node => self.get_reference_root(parent),
+            ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma && n.right.id() == node => {
+                self.get_reference_root(parent)
+            }
+            _ => node,
+        }
     }
 }

@@ -207,6 +207,18 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn each_ty_contained_in(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        tys: ty::Tys<'cx>,
+    ) -> bool {
+        if let Some(u) = source.kind.as_union() {
+            !u.tys.iter().any(|t| tys.contains(t))
+        } else {
+            tys.contains(&source)
+        }
+    }
+
     pub(super) fn map_ty_with_alias(
         &mut self,
         ty: &'cx ty::Ty<'cx>,

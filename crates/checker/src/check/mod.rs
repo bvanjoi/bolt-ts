@@ -61,18 +61,27 @@ pub mod utils;
 
 use std::fmt::Debug;
 
+use bolt_ts_ast::keyword;
+use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
+use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
+use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_config::NormalizedCompilerOptions;
+use bolt_ts_middle::F64Represent;
+use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::check_expr::IterationUse;
-use self::check_expr::get_suggestion_boolean_op;
 use self::check_type_related_to::RecursionFlags;
 use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
@@ -99,6 +108,7 @@ use self::node_check_flags::NodeCheckFlags;
 pub use self::resolve::ExpectedArgsCount;
 pub(crate) use self::symbol_info::SymbolInfo;
 use self::transient_symbol::create_transient_symbol;
+use self::ty::typeof_ne_facts;
 use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
@@ -106,17 +116,6 @@ use super::ty::TyMapper;
 use super::ty::{self, AccessFlags};
 use super::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
 use super::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
-
-use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait::VarLike;
-use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
-use bolt_ts_binder::{
-    FlowID, FlowInNodes, FlowNodes, GlobalSymbols, MergedSymbols, ResolveResult, Symbol,
-    SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols,
-};
-use bolt_ts_middle::F64Represent;
-use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
-use bolt_ts_parser::ParsedMap;
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -2338,7 +2337,23 @@ impl<'cx> TyChecker<'cx> {
         let assume_initialized = is_param
             || is_alias
             || (is_outer_variable && !is_never_initialized)
-            || self.p.node_flags(decl).intersects(ast::NodeFlags::AMBIENT);
+            || self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT)
+            || (ty != self.auto_ty
+                && ty != self.auto_array_ty()
+                && (!self.config.strict_null_checks()
+                    || ty
+                        .flags
+                        .intersects(TypeFlags::ANY_OR_UNKNOWN.union(TypeFlags::VOID))
+                    || self
+                        .node_query(ident.id.module())
+                        .is_in_type_query(ident.id)
+                    || self
+                        .node_query(ident.id.module())
+                        .is_in_ambient_or_type_node(ident.id)
+                    || self
+                        .p
+                        .node(self.parent(ident.id).unwrap())
+                        .is_export_named_spec()));
         let init_ty = if is_automatic_ty_is_non_null {
             self.undefined_ty
         } else if assume_initialized {
@@ -2351,21 +2366,38 @@ impl<'cx> TyChecker<'cx> {
         } else if type_is_auto {
             self.undefined_ty
         } else {
-            ty
+            self.get_optional_ty::<false>(ty)
         };
 
         let flow_ty =
             self.get_flow_ty_of_reference(ident.id, ty, Some(init_ty), Some(flow_container), None);
-        if is_automatic_ty_is_non_null {
-            // TODO: get_non_nullable
+        let flow_ty = if is_automatic_ty_is_non_null {
+            self.get_non_nullable_ty(flow_ty)
+        } else {
+            flow_ty
         };
-        flow_ty
-    }
 
-    fn check_bin_expr(&mut self, node: &'cx ast::BinExpr) -> &'cx ty::Ty<'cx> {
-        let l = self.check_expr(node.left);
-        let r = self.check_expr(node.right);
-        self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
+        if (ty == self.auto_ty || ty == self.auto_array_ty())
+            && self.is_evolving_array_op_target(ident.id)
+        {
+            if flow_ty == self.auto_ty || flow_ty == self.auto_array_ty() {
+                if self.config.no_implicit_any() {
+                    todo!()
+                }
+                return self.convert_auto_to_any(flow_ty);
+            }
+        } else if !assume_initialized
+            && !ty.contains_undefined_ty()
+            && flow_ty.contains_undefined_ty()
+        {
+            let error = errors::VariableXIsUsedBeforeBeingAssigned {
+                span: ident.span,
+                name: self.atoms.get(ident.name).to_string(),
+            };
+            self.push_error(Box::new(error));
+            return ty;
+        }
+        flow_ty
     }
 
     fn check_non_null_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2582,142 +2614,6 @@ impl<'cx> TyChecker<'cx> {
             ty2: effective_right_ty.to_string(self),
         };
         self.push_error(Box::new(error));
-    }
-
-    fn check_bin_like_expr(
-        &mut self,
-        node: &'cx ast::BinExpr,
-        op: BinOp,
-        left: &'cx ast::Expr,
-        left_ty: &'cx ty::Ty<'cx>,
-        right: &'cx ast::Expr,
-        right_ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        use bolt_ts_ast::BinOpKind::*;
-        match op.kind {
-            Add => {
-                (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
-                    Some(ty) => ty,
-                    None => {
-                        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-                            op: op.kind.to_string(),
-                            ty1: left_ty.to_string(self),
-                            ty2: right_ty.to_string(self),
-                            span: node.span,
-                        };
-                        self.push_error(Box::new(error));
-                        self.any_ty
-                    }
-                }) as _
-            }
-            Sub | Mul | Div | Mod => {
-                if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
-                    return self.silent_never_ty;
-                }
-                let left_ty = self.check_non_null_type(left_ty, left.id());
-                let right_ty = self.check_non_null_type(left_ty, left.id());
-                if left_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
-                    && right_ty.flags.intersects(TypeFlags::BOOLEAN_LIKE)
-                    && let Some(suggest) = get_suggestion_boolean_op(op.kind.as_str())
-                {
-                    let error = errors::TheOp1IsNotAllowedForBooleanTypesConsiderUsingOp2Instead {
-                        span: op.span,
-                        op1: op.kind.to_string(),
-                        op2: suggest.to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                    self.number_ty
-                } else {
-                    let left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
-                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
-                            span: left.span(),
-                            left_or_right: errors::LeftOrRight::Left
-                        };
-                        this.push_error(Box::new(error));
-                    });
-                    let right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
-                        let error = errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
-                            span: right.span(),
-                            left_or_right: errors::LeftOrRight::Right
-                        };
-                        this.push_error(Box::new(error));
-                    });
-                    self.number_ty
-                }
-            }
-            BitOr => {
-                let left = self.check_non_null_type(left_ty, left.id());
-                let right = self.check_non_null_type(right_ty, right.id());
-                self.number_ty
-            }
-            LogicalAnd => {
-                if self.has_type_facts(left_ty, TypeFacts::TRUTHY) {
-                    left_ty
-                } else {
-                    right_ty
-                }
-            }
-            LogicalOr => {
-                if self.has_type_facts(left_ty, TypeFacts::FALSY) {
-                    let left_ty = self.remove_definitely_falsy_tys(left_ty);
-                    let left_ty = self.get_non_nullable_ty(left_ty);
-                    let tys = &[left_ty, right_ty];
-                    self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None)
-                } else {
-                    left_ty
-                }
-            }
-            EqEq => self.boolean_ty(),
-            EqEqEq => self.boolean_ty(),
-            Less | LessEq | Great | GreatEq => {
-                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
-                {
-                    let left_ty = {
-                        let t = self.check_non_null_type(left_ty, left.id());
-                        self.get_base_ty_of_literal_ty_for_comparison(t)
-                    };
-                    let right_ty = {
-                        let t = self.check_non_null_type(right_ty, right.id());
-                        self.get_base_ty_of_literal_ty_for_comparison(t)
-                    };
-                    self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
-                        if this.is_type_any(l) || this.is_type_any(r) {
-                            true
-                        } else {
-                            let left_assignable_to_number =
-                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
-                            let right_assignable_to_number =
-                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
-                            left_assignable_to_number && right_assignable_to_number
-                                || !left_assignable_to_number && !right_assignable_to_number && {
-                                    this.is_type_related_to(
-                                        l,
-                                        r,
-                                        relation::RelationKind::Comparable,
-                                    ) || this.is_type_related_to(
-                                        r,
-                                        l,
-                                        relation::RelationKind::Comparable,
-                                    )
-                                }
-                        }
-                    });
-                }
-                self.boolean_ty()
-            }
-            Shl => self.number_ty,
-            Sar => self.number_ty,
-            Shr => self.number_ty,
-            BitAnd => self.number_ty,
-            Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
-            In => self.check_in_expr(left, left_ty, right, right_ty),
-            Satisfies => todo!(),
-            NEq => self.boolean_ty(),
-            NEqEq => self.boolean_ty(),
-            Comma => right_ty,
-            BitXor => self.number_ty,
-            Exp => self.number_ty,
-        }
     }
 
     fn check_instanceof_expr(
@@ -5392,6 +5288,137 @@ impl<'cx> TyChecker<'cx> {
         }
 
         true
+    }
+
+    fn is_exhaustive_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> bool {
+        if let Some(is_exhaustive) = self.get_node_links(n.id).get_non_existent_prop_checked() {
+            return is_exhaustive;
+        }
+        let is_exhaustive = self.compute_exhaustive_switch_stmt(n);
+        self.get_mut_node_links(n.id)
+            .set_non_existent_prop_checked(is_exhaustive);
+        is_exhaustive
+    }
+
+    fn get_switch_clause_ty_of_witnesses(
+        &mut self,
+        n: &'cx ast::SwitchStmt<'cx>,
+    ) -> Option<FxIndexSet<Option<bolt_ts_atom::Atom>>> {
+        if n.case_block.clauses.iter().any(|clause| match clause {
+            ast::CaseOrDefaultClause::Case(n) => !n.expr.is_string_lit_like(),
+            ast::CaseOrDefaultClause::Default(_) => false,
+        }) {
+            return None;
+        }
+        let witnesses = n
+            .case_block
+            .clauses
+            .iter()
+            .map(|clause| match clause {
+                ast::CaseOrDefaultClause::Case(n) => match n.expr.kind {
+                    ast::ExprKind::StringLit(n) => Some(n.val),
+                    ast::ExprKind::NoSubstitutionTemplateLit(n) => Some(n.val),
+                    _ => unimplemented!(),
+                },
+                ast::CaseOrDefaultClause::Default(_) => None,
+            })
+            .collect();
+        Some(witnesses)
+    }
+
+    fn compute_exhaustive_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> bool {
+        if let ast::ExprKind::Typeof(expr) = n.expr.kind {
+            let Some(witnesses) = self.get_switch_clause_ty_of_witnesses(n) else {
+                return false;
+            };
+            let operand_constraint = {
+                let ty = self.check_expr_cached(expr.expr);
+                self.get_base_constraint_or_ty(ty)
+            };
+            let not_equal_facts = self.get_not_equal_facts_from_ty_of_switch(0, 0, &witnesses);
+            return if operand_constraint.flags.contains(TypeFlags::ANY_OR_UNKNOWN) {
+                (TypeFacts::ALL_TYPEOF_NE & not_equal_facts) == TypeFacts::ALL_TYPEOF_NE
+            } else {
+                !self.some_type(operand_constraint, |this, t| {
+                    this.get_ty_facts(t, not_equal_facts) == not_equal_facts
+                })
+            };
+        } else {
+            let ty = {
+                let ty = self.check_expr_cached(n.expr);
+                self.get_base_constraint_or_ty(ty)
+            };
+            if !ty.is_lit_ty() {
+                return false;
+            }
+
+            let switch_tys = self.get_switch_clause_tys(n);
+            return if switch_tys.is_empty()
+                || switch_tys
+                    .iter()
+                    .any(|ty| ty.is_neither_unit_ty_nor_never())
+            {
+                false
+            } else {
+                let ty = self
+                    .map_ty(
+                        ty,
+                        |this, t| Some(this.get_regular_ty_of_literal_ty(t)),
+                        false,
+                    )
+                    .unwrap();
+                self.each_ty_contained_in(ty, switch_tys)
+            };
+        }
+    }
+
+    fn get_ty_of_switch_clause(
+        &mut self,
+        n: &'cx ast::CaseOrDefaultClause<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        match n {
+            ast::CaseOrDefaultClause::Case(n) => {
+                let ty = self.get_ty_of_expr(n.expr);
+                self.get_regular_ty_of_literal_ty(ty)
+            }
+            ast::CaseOrDefaultClause::Default(_) => self.never_ty,
+        }
+    }
+
+    fn get_switch_clause_tys(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> ty::Tys<'cx> {
+        if let Some(tys) = self.get_node_links(n.id).get_switch_tys() {
+            return tys;
+        }
+        let tys = n
+            .case_block
+            .clauses
+            .iter()
+            .map(|clause| self.get_ty_of_switch_clause(clause))
+            .collect::<Vec<_>>();
+        let tys = self.alloc(tys);
+        self.get_mut_node_links(n.id).set_switch_tys(tys);
+        tys
+    }
+
+    fn get_not_equal_facts_from_ty_of_switch(
+        &self,
+        start: usize,
+        end: usize,
+        witnesses: &FxIndexSet<Option<bolt_ts_atom::Atom>>,
+    ) -> TypeFacts {
+        let mut facts = TypeFacts::empty();
+        for i in 0..witnesses.len() {
+            let witness = if i < start || i >= end {
+                witnesses[i]
+            } else {
+                continue;
+            };
+            if let Some(witness) = witness {
+                facts |= typeof_ne_facts(witness).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT);
+            }
+        }
+
+        facts
     }
 }
 
