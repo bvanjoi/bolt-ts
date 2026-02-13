@@ -799,6 +799,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 ir::Expr::New(self.nodes.alloc_new_expr(n.span, expr, args))
             }
             ExprKind::ArrowFn(n) => {
+                let modifier = n.async_modifier.as_ref().map(|m| self.lower_modifier(m));
                 let params = self.lower_param_decls(n.params);
                 let saved = self.current;
                 let graph = self.graph_arena.alloc_empty_graph();
@@ -818,7 +819,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                     }
                 };
                 self.current = saved;
-                let f = self.nodes.alloc_arrow_fn_expr(n.span, params, graph);
+                let f = self
+                    .nodes
+                    .alloc_arrow_fn_expr(n.span, modifier, params, graph);
                 ir::Expr::ArrowFn(f)
             }
             ExprKind::PrefixUnary(n) => self.lower_prefix_unary_expr(n),

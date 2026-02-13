@@ -1,8 +1,9 @@
-use crate::lookahead::Lookahead;
+use super::ParserState;
+use super::lookahead::Lookahead;
 
-use super::{PResult, ParserState};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
+use bolt_ts_ast_factory::ASTFactory;
 
 impl<'cx> ParserState<'cx, '_> {
     pub(super) fn can_follow_modifier(&self) -> bool {
@@ -43,10 +44,8 @@ impl<'cx> ParserState<'cx, '_> {
             return None;
         }
 
-        let id = self.next_node_id();
         let kind = t.try_into().unwrap();
-        let m = self.alloc(ast::Modifier { id, span, kind });
-        self.nodes.insert(id, ast::Node::Modifier(m));
+        let m = self.create_modifier(span, kind);
         Some(m)
     }
 }

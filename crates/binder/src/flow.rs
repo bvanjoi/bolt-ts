@@ -1,6 +1,5 @@
-use bolt_ts_utils::no_hashmap_with_capacity;
-
 use bolt_ts_ast as ast;
+use bolt_ts_utils::no_hashmap_with_capacity;
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, Default)]

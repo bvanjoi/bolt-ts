@@ -1812,6 +1812,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_arrow_fn(&mut self, f: ir::ArrowFnExprID) {
         let n = self.nodes.get_arrow_fn_expr(&f);
+        if n.modifier().is_some() {
+            self.emitter.print().p("async");
+            self.emitter.print().p_whitespace();
+        }
         self.emit_params(n.params());
         self.emitter.print().p_whitespace();
         self.emitter.print().p("=>");

@@ -1,6 +1,5 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_atom::Atom;
-use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{MergeSymbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
@@ -40,8 +39,8 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn is_excess_property_check_target(ty: &'cx Ty<'cx>) -> bool {
         if ty.kind.is_object() {
             let flags = ty.get_object_flags();
-            !flags.intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
-        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
+            !flags.contains(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
+        } else if ty.flags.contains(TypeFlags::NON_PRIMITIVE) {
             true
         } else if let Some(s) = ty.kind.as_substitution_ty() {
             Self::is_excess_property_check_target(s.base_ty)
@@ -89,18 +88,18 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if t.contains(TypeFlags::NEVER) {
             false
-        } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER))
-            || (s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING))
-            || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT))
-            || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN))
-            || (s.intersects(TypeFlags::UNDEFINED)
+        } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
+            || (s.intersects(TypeFlags::STRING_LIKE) && t.contains(TypeFlags::STRING))
+            || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.contains(TypeFlags::BIG_INT))
+            || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.contains(TypeFlags::BOOLEAN))
+            || (s.contains(TypeFlags::UNDEFINED)
                 && (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION)
                     || t.intersects(TypeFlags::UNDEFINED.union(TypeFlags::VOID))))
-            || (s.intersects(TypeFlags::NULL)
-                && (t.intersects(TypeFlags::NULL)
+            || (s.contains(TypeFlags::NULL)
+                && (t.contains(TypeFlags::NULL)
                     || (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION))))
-            || (s.intersects(TypeFlags::OBJECT)
-                && t.intersects(TypeFlags::NON_PRIMITIVE)
+            || (s.contains(TypeFlags::OBJECT)
+                && t.contains(TypeFlags::NON_PRIMITIVE)
                 && !(relation == StrictSubtype
                     && self.is_empty_anonymous_object_ty(source)
                     && !source
@@ -109,13 +108,13 @@ impl<'cx> TyChecker<'cx> {
         {
             true
         } else if matches!(relation, Assignable | Comparable) {
-            s.intersects(TypeFlags::ANY)
-                || (s.intersects(TypeFlags::NUMBER)
-                    && (t.intersects(TypeFlags::ENUM)
+            s.contains(TypeFlags::ANY)
+                || (s.contains(TypeFlags::NUMBER)
+                    && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))))
                 || (s.intersection(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                     == TypeFlags::NUMBER_LITERAL
-                    && (t.intersects(TypeFlags::ENUM)
+                    && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                             && source.kind.as_number_lit().is_some_and(|s| {
                                 target.kind.as_number_lit().is_some_and(|t| s.val == t.val)

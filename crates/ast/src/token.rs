@@ -9,18 +9,21 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
+        debug_assert!(span.lo() <= span.hi());
         Self { kind, span }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn start(&self) -> u32 {
         debug_assert_ne!(self.span.lo(), u32::MAX);
+        debug_assert!(self.span.lo() <= self.span.hi());
         self.span.lo()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn end(&self) -> u32 {
         debug_assert_ne!(self.span.hi(), u32::MAX);
+        debug_assert!(self.span.lo() <= self.span.hi());
         self.span.hi()
     }
 }

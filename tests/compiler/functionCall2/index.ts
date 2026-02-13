@@ -3,19 +3,23 @@ var x = foo();
 
 {
   bar();
+  //~^ ERROR: Cannot find name 'bar'.
   {
     function bar() {}
   }
   bar();
+  //~^ ERROR: Cannot find name 'bar'.
 }
 
 {
   "use strict";
   far();
+  //~^ ERROR: Cannot find name 'far'.
   {
     function far() {}
   }
   far(); 
+  //~^ ERROR: Cannot find name 'far'.
 }
 
 function f() {

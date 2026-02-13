@@ -2,12 +2,10 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
-//@compiler-options: alwaysStrict=true
+//@compiler-options: alwaysStrict=false
 
 var arguments = 10;
-//~^ ERROR: Invalid use of 'arguments' in strict mode.
 function foo(a) {
     arguments = 10;  /// This shouldnt be of type number and result in error.
     //~^ ERROR: Type 'number' is not assignable to type 'IArguments'.
-    //~| ERROR: Invalid use of 'arguments' in strict mode.
 }

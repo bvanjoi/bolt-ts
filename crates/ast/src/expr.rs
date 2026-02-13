@@ -587,6 +587,7 @@ pub enum ArrowFnExprBody<'cx> {
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub async_modifier: Option<&'cx Modifier>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,

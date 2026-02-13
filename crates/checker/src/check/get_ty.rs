@@ -1941,11 +1941,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn try_get_global_type(&mut self, name: SymbolName) -> Option<&'cx Ty<'cx>> {
+        let s = self.global_symbols.0.get(&name)?;
+        Some(self.get_declared_ty_of_symbol(*s))
+    }
+
     pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
-        let Some(s) = self.global_symbols.0.get(&name).copied() else {
+        let Some(ret) = self.try_get_global_type(name) else {
             unreachable!("Global type '{}' not found", name.to_string(&self.atoms));
         };
-        self.get_declared_ty_of_symbol(s)
+        ret
     }
 
     pub(super) fn get_global_non_nullable_ty_instantiation(

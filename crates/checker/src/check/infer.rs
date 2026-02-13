@@ -290,9 +290,9 @@ impl<'cx> TyChecker<'cx> {
                     };
                     t.maybe_type_of_kind(
                         TypeFlags::PRIMITIVE
-                            | TypeFlags::INDEX
-                            | TypeFlags::TEMPLATE_LITERAL
-                            | TypeFlags::STRING_MAPPING,
+                            .union(TypeFlags::INDEX)
+                            .union(TypeFlags::TEMPLATE_LITERAL)
+                            .union(TypeFlags::STRING_MAPPING),
                     )
                 })
         };

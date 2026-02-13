@@ -410,6 +410,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         res
     }
 
+    pub(super) fn set_yield_context(&mut self, val: bool) {
+        if val {
+            self.parse_context.insert(ParseContext::YIELD);
+            self.node_context_flags.insert(NodeFlags::YIELD_CONTEXT);
+        } else {
+            self.parse_context.remove(ParseContext::YIELD);
+            self.node_context_flags.remove(NodeFlags::YIELD_CONTEXT);
+        }
+    }
+
     pub(super) fn set_await_context(&mut self, val: bool) {
         if val {
             self.parse_context.insert(ParseContext::AWAIT);

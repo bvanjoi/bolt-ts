@@ -1,10 +1,8 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::{self, is_prim_ty_name};
 
-use super::{
-    AccessKind, ParentMap,
-    container_flags::{ContainerFlags, container_flags_for_node},
-};
+use super::container_flags::{ContainerFlags, container_flags_for_node};
+use super::{AccessKind, ParentMap};
 
 pub struct NodeQuery<'cx, 'a> {
     parent_map: &'a ParentMap,

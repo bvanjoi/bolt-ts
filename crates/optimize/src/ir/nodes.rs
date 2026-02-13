@@ -534,6 +534,7 @@ impl Nodes {
     pub fn alloc_arrow_fn_expr(
         &mut self,
         span: Span,
+        modifier: Option<ModifierID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
     ) -> ArrowFnExprID {
@@ -541,6 +542,7 @@ impl Nodes {
         let id = self.arrow_fn_expr_nodes.0.alloc(ArrowFnExpr {
             id: idx,
             span,
+            modifier,
             params,
             body,
         });
@@ -2334,6 +2336,7 @@ impl SpreadElement {
 pub struct ArrowFnExpr {
     id: ArrowFnExprID,
     span: Span,
+    modifier: Option<ModifierID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
 }
@@ -2349,6 +2352,10 @@ impl ArrowFnExpr {
 
     pub fn body(&self) -> ir::GraphID {
         self.body
+    }
+
+    pub fn modifier(&self) -> Option<ModifierID> {
+        self.modifier
     }
 }
 

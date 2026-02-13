@@ -1,0 +1,17 @@
+  × Type 'A & B' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes04/index.ts:22:5]
+ 22 │ num
+    · ───
+    ╰────
+
+  × Type 'A & B' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes04/index.ts:24:5]
+ 24 │ bool
+    · ────
+    ╰────
+
+  × Type 'A & B' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes04/index.ts:26:5]
+ 26 │ str
+    · ───
+    ╰────

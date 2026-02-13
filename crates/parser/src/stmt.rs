@@ -1059,6 +1059,9 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
         let binding = self.parse_ident_or_pat()?;
+        if self.in_strict_mode && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
+            self.check_strict_mode_eval_or_arguments_for_binding(binding);
+        }
         // if (getFullWidth(name) === 0 && !some(modifiers) && isModifierKind(token())) {
         //     // in cases like
         //     // 'use strict'
@@ -1197,9 +1200,38 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
+    pub(super) fn check_strict_mode_eval_or_arguments_for_binding(
+        &mut self,
+        binding: &ast::Binding,
+    ) {
         debug_assert!(self.in_strict_mode);
-        if n.name == keyword::IDENT_ARGUMENTS || n.name == keyword::IDENT_EVAL {
+        match binding.kind {
+            ast::BindingKind::Ident(n) => self.check_strict_mode_eval_or_arguments(n),
+            ast::BindingKind::ObjectPat(n) => {
+                for elem in n.elems {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(n) => {
+                            self.check_strict_mode_eval_or_arguments(n)
+                        }
+                        ast::ObjectBindingName::Prop { name, .. } => {
+                            self.check_strict_mode_eval_or_arguments_for_binding(name);
+                        }
+                    }
+                }
+            }
+            ast::BindingKind::ArrayPat(n) => {
+                for elem in n.elems {
+                    if let ast::ArrayBindingElemKind::Binding(n) = elem.kind {
+                        self.check_strict_mode_eval_or_arguments_for_binding(n.name);
+                    }
+                }
+            }
+        }
+    }
+
+    pub(super) fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
+        debug_assert!(self.in_strict_mode);
+        if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {
             let error = errors::InvalidUseOf0InStrictMode {
                 name: self.atoms.lock().unwrap().get(n.name).to_string(),
                 span: n.span,

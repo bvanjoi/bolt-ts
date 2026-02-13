@@ -469,26 +469,32 @@ bitflags::bitflags! {
 }
 
 impl<'cx, 'p> bolt_ts_ast_factory::ASTFactory<'cx> for ParserState<'cx, 'p> {
+    #[inline(always)]
     fn next_node_id(&mut self) -> NodeID {
         self.next_node_id()
     }
 
+    #[inline(always)]
     fn insert_node(&mut self, node_id: NodeID, node: bolt_ts_ast::Node<'cx>) {
         self.nodes.insert(node_id, node);
     }
 
+    #[inline(always)]
     fn insert_node_flags(&mut self, node_id: NodeID, flags: bolt_ts_ast::NodeFlags) {
         self.node_flags_map.insert(node_id, flags);
     }
 
+    #[inline(always)]
     fn alloc<T>(&self, val: T) -> &'cx T {
         self.alloc(val)
     }
 
+    #[inline(always)]
     fn node_context_flags(&self) -> bolt_ts_ast::NodeFlags {
         self.node_context_flags
     }
 
+    #[inline(always)]
     fn set_external_module_indicator(&mut self, node_id: NodeID) {
         self.set_external_module_indicator(node_id);
     }

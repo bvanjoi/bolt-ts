@@ -36,3 +36,13 @@ let a8: TestOld = false;
 //~^ ERROR: Type 'boolean' is not assignable to type 'never'.
 let a9: NonNullableOld<undefined> = false;
 //~^ ERROR: Type 'boolean' is not assignable to type 'never'.
+
+{
+  type CollapseLiterals<T> = {} extends T
+	? T
+	: T extends infer U & {}
+		? U
+		: T;
+  const _a: bigint = {} as CollapseLiterals<1n | 2n | (bigint & {})>;
+  const _b: bigint = {} as CollapseLiterals<bigint>;
+}

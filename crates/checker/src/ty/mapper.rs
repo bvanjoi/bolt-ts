@@ -1,5 +1,5 @@
 use super::Ty;
-use crate::check::TyChecker;
+use super::TyChecker;
 
 #[derive(Debug)]
 pub enum TyMapper<'cx> {

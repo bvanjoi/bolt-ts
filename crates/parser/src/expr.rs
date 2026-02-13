@@ -99,12 +99,29 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_modifiers_for_arrow_function(&mut self) -> Option<&'cx ast::Modifier> {
+        if self.token.kind == TokenKind::Async {
+            let span = self.token.span;
+            self.next_token();
+            let kind = ast::ModifierKind::Async;
+            Some(self.create_modifier(span, kind))
+        } else {
+            None
+        }
+    }
+
     fn parse_paren_arrow_fn_expr<const ALLOW_AMBIGUITY: bool>(
         &mut self,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         let start = self.token.start();
-        // TODO: mods
-        // TODO: isAsync
+        let modifier = self.parse_modifiers_for_arrow_function();
+        debug_assert!(modifier.is_none_or(|m| m.kind == ast::ModifierKind::Async));
+        let is_async = modifier.is_some();
+        let signature_flags = if is_async {
+            SignatureFlags::AWAIT
+        } else {
+            SignatureFlags::empty()
+        };
         let ty_params = self.parse_ty_params();
 
         let params: ast::ParamsDecl<'cx>;
@@ -115,7 +132,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             params = self.alloc([]);
         } else {
-            params = self.parse_params_worker(ALLOW_AMBIGUITY);
+            params = self.parse_params_worker(signature_flags, ALLOW_AMBIGUITY);
             if !self.expect(TokenKind::RParen) && !ALLOW_AMBIGUITY {
                 return Err(());
             }
@@ -125,33 +142,20 @@ impl<'cx> ParserState<'cx, '_> {
 
         // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_ret_ty(true)?;
-        if !ALLOW_AMBIGUITY
-            && self.token.kind != TokenKind::EqGreat
-            && self.token.kind != TokenKind::LBrace
-        {
+        if !ALLOW_AMBIGUITY && !matches!(self.token.kind, TokenKind::EqGreat | TokenKind::LBrace) {
             return Err(());
         }
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat);
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            // TODO:
-            let is_async = false;
             self.parse_arrow_fn_expr_body(is_async)?
         } else {
             ast::ArrowFnExprBody::Expr(self.parse_ident(None))
         };
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::ArrowFnExpr {
-            id,
-            span: self.new_span(start),
-            ty_params,
-            params,
-            ty,
-            body,
-        });
-        self.nodes.insert(id, ast::Node::ArrowFnExpr(kind));
+        let span = self.new_span(start);
+        let expr = self.create_arrow_fn_expr(span, modifier, ty_params, params, ty, body);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::ArrowFn(kind),
+            kind: ast::ExprKind::ArrowFn(expr),
         });
         Ok(Some(expr))
     }
@@ -192,18 +196,10 @@ impl<'cx> ParserState<'cx, '_> {
         let params = self.alloc([param]);
         self.expect(TokenKind::EqGreat);
         let body = self.parse_arrow_fn_expr_body(false)?;
-        let expr_id = self.next_node_id();
-        let f = self.alloc(ast::ArrowFnExpr {
-            id: expr_id,
-            span: self.new_span(param.span.lo()),
-            ty_params: None,
-            params,
-            ty: None,
-            body,
-        });
-        self.nodes.insert(expr_id, ast::Node::ArrowFnExpr(f));
+        let span = self.new_span(param.span.lo());
+        let expr = self.create_arrow_fn_expr(span, None, None, params, None, body);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::ArrowFn(f),
+            kind: ast::ExprKind::ArrowFn(expr),
         });
         Ok(expr)
     }
@@ -223,11 +219,17 @@ impl<'cx> ParserState<'cx, '_> {
             return self.parse_simple_arrow_fn_expr(ident);
         }
         if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
+            if self.in_strict_mode
+                && let ast::ExprKind::Ident(n) = expr.kind
+            {
+                self.check_strict_mode_eval_or_arguments(n);
+            }
             // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
             self.parse_token_node();
             let right = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
             let id = self.next_node_id();
+
             let expr = self.alloc(ast::AssignExpr {
                 id,
                 left: expr,

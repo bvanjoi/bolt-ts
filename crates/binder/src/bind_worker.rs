@@ -250,9 +250,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_param_decl(&mut self, n: &ast::ParamDecl<'cx>) {
-        if self.in_strict_mode && !self.p.node_flags(n.id).intersects(NodeFlags::AMBIENT) {
-            // TODO: check
-        }
         use bolt_ts_ast::BindingKind::*;
         match n.name.kind {
             Ident(ident) => {

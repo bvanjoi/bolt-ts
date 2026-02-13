@@ -300,6 +300,7 @@ pub struct TyChecker<'cx> {
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_regexp_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -612,6 +613,7 @@ impl<'cx> TyChecker<'cx> {
             auto_array_ty: Default::default(),
             empty_ty_literal_ty: Default::default(),
             global_number_ty: Default::default(),
+            global_bigint_ty: Default::default(),
             global_string_ty: Default::default(),
             global_symbol_ty: Default::default(),
             global_tpl_strings_array_ty: Default::default(),
@@ -697,6 +699,7 @@ impl<'cx> TyChecker<'cx> {
                 )*
             };
         }
+        // TODO: lazy
         make_global!({
             (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit, false, None, None)),
             (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, false, None, None)),
@@ -709,8 +712,12 @@ impl<'cx> TyChecker<'cx> {
             (global_array_ty,               this.get_global_type(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
             (global_regexp_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_REGEXP_CLASS))),
             (global_tpl_strings_array_ty,   this.get_global_type(SymbolName::Atom(keyword::IDENT_TEMPLATE_STRINGS_ARRAY_CLASS))),
-            (any_array_ty,                  this.create_array_ty(this.any_ty, false)),
             (global_readonly_array_ty,      this.get_global_type(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
+            (global_object_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
+            (global_fn_ty,                  this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
+            (global_callable_fn_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
+            (global_newable_fn_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS))),
+            (any_array_ty,                  this.create_array_ty(this.any_ty, false)),
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
@@ -724,10 +731,6 @@ impl<'cx> TyChecker<'cx> {
             (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (unknown_empty_object_ty,       this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
-            (global_object_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
-            (global_fn_ty,                  this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
-            (global_callable_fn_ty,         this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS))),
-            (global_newable_fn_ty,          this.get_global_type(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS))),
             (mark_sub_ty,                   this.create_param_ty(Symbol::ERR, None, false)),
             (mark_other_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
@@ -738,7 +741,9 @@ impl<'cx> TyChecker<'cx> {
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
-            (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true }))
+            (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
+
+            (global_bigint_ty,              this.try_get_global_type(SymbolName::Atom(keyword::IDENT_BIGINT_CLASS)).unwrap_or(empty_object_ty)),
         });
 
         let unknown_union_ty = if this.config.strict_null_checks() {
@@ -895,6 +900,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_apparent_ty_of_intersection_ty(t, ty)
         } else if flags.intersects(TypeFlags::NUMBER_LIKE) {
             self.global_number_ty()
+        } else if flags.intersects(TypeFlags::BIG_INT_LIKE) {
+            self.global_bigint_ty()
         } else if flags.intersects(TypeFlags::STRING_LIKE) {
             self.global_string_ty()
         } else if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
@@ -5453,6 +5460,7 @@ global_ty!(
     no_constraint_ty,
     typeof_ty,
     global_number_ty,
+    global_bigint_ty,
     global_string_ty,
     global_boolean_ty,
     global_symbol_ty,

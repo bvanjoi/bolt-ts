@@ -221,12 +221,10 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == TokenKind::Abstract {
             let pos = self.token.start();
             let m = self.parse_modifier::<false, false>(false).unwrap();
-            let m = self.alloc(ast::Modifiers {
-                span: self.new_span(pos),
-                flags: ast::ModifierKind::Abstract.into(),
-                list: self.alloc(vec![m]),
-            });
-            Some(m)
+            let span = self.new_span(pos);
+            let modifiers = self.alloc(vec![m]);
+            let flags = ast::ModifierKind::Abstract.into();
+            Some(self.create_modifiers(span, modifiers, flags))
         } else {
             None
         }

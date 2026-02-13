@@ -948,7 +948,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     result &= self.each_type_related_to_some_type(target, source);
                 }
                 return result;
-            } else if let Some(s_index) = source.kind.as_index_ty() {
+            }
+            if let Some(s_index) = source.kind.as_index_ty() {
                 let t_index = target.kind.expect_index_ty();
                 return self.is_related_to(
                     s_index.ty,
@@ -957,7 +958,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     false,
                     IntersectionState::empty(),
                 );
-            } else if let Some(s_indexed_access) = source.kind.as_indexed_access() {
+            }
+            if let Some(s_indexed_access) = source.kind.as_indexed_access() {
                 let t_indexed_access = target.kind.expect_indexed_access();
                 result = self.is_related_to(
                     s_indexed_access.object_ty,
@@ -978,7 +980,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         return result;
                     }
                 }
-            } else if let Some(s_cond) = source.kind.as_cond_ty() {
+            }
+            if let Some(s_cond) = source.kind.as_cond_ty() {
                 let t_cond = target.kind.expect_cond_ty();
                 if s_cond.root.is_distributive == t_cond.root.is_distributive {
                     result = self.is_related_to(
@@ -1023,7 +1026,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         }
                     }
                 }
-            } else if let Some(s_sub) = source.kind.as_substitution_ty() {
+            }
+            if let Some(s_sub) = source.kind.as_substitution_ty() {
                 let t_sub = target.kind.expect_substitution_ty();
                 result = self.is_related_to(
                     s_sub.base_ty,
@@ -1044,7 +1048,47 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         return result;
                     }
                 }
-            } else if !source.kind.is_object() {
+            }
+            if let Some(s_template_literal) = source.kind.as_template_lit_ty() {
+                let t_template_literal = target.kind.expect_template_lit_ty();
+                if s_template_literal
+                    .texts
+                    .iter()
+                    .zip(t_template_literal.texts.iter())
+                    .all(|(s_text, t_text)| s_text == t_text)
+                {
+                    let source_tys = s_template_literal.tys;
+                    let target_tys = t_template_literal.tys;
+                    let mut result = Ternary::TRUE;
+                    for i in 0..source_tys.len() {
+                        let related = self.is_related_to(
+                            source_tys[i],
+                            target_tys[i],
+                            RecursionFlags::BOTH,
+                            report_error,
+                            intersection_state,
+                        );
+                        result &= related;
+                        if result == Ternary::FALSE {
+                            return Ternary::FALSE;
+                        }
+                    }
+                    return result;
+                }
+            }
+            if let Some(s_string_mapping) = source.kind.as_string_mapping_ty() {
+                let t_string_mapping = target.kind.expect_string_mapping_ty();
+                if s_string_mapping.symbol == t_string_mapping.symbol {
+                    return self.is_related_to(
+                        s_string_mapping.ty,
+                        t_string_mapping.ty,
+                        RecursionFlags::BOTH,
+                        false,
+                        intersection_state,
+                    );
+                }
+            }
+            if !source.kind.is_object() {
                 return Ternary::FALSE;
             }
         } else if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
@@ -1329,6 +1373,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
                 let source_extends = source_cond.extends_ty;
                 let mapper = None;
+                // TODO: source_params
+
                 if self
                     .c
                     .is_type_identical_to(source_extends, target_cond.extends_ty)
@@ -2114,11 +2160,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             false
         };
 
-        if !(check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
+        if !(check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
             && is_top_sig(self, target)
         {
             return Ternary::TRUE;
-        } else if check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE)
+        } else if check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE)
             && is_top_sig(self, source)
             && !is_top_sig(self, target)
         {

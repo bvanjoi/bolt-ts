@@ -90,7 +90,7 @@ impl RawCompilerOptions {
         if self.no_unchecked_indexed_access.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);
         }
-        if get_strict_option_value(self.always_strict) {
+        if self.always_strict != Some(false) {
             flags.insert(super::CompilerOptionFlags::ALWAYS_STRICT);
         }
         if self.exact_optional_property_types.unwrap_or_default() {

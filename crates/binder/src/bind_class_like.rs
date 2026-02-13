@@ -1,10 +1,9 @@
-use crate::errors;
-
+use super::errors;
 use super::symbol::SymbolFlags;
 use super::{BinderState, SymbolID, SymbolName, prop_name};
-use bolt_ts_ast::r#trait;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::r#trait;
 
 impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn bind_prop_or_method_or_access(

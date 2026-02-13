@@ -24,15 +24,10 @@ impl VarDeclarationContext {
 }
 
 pub trait ASTFactory<'cx> {
-    #[inline(always)]
     fn next_node_id(&mut self) -> NodeID;
-    #[inline(always)]
     fn insert_node(&mut self, node_id: NodeID, node: ast::Node<'cx>);
-    #[inline(always)]
     fn insert_node_flags(&mut self, node_id: NodeID, flags: ast::NodeFlags);
-    #[inline(always)]
     fn alloc<T>(&self, val: T) -> &'cx T;
-    #[inline(always)]
     fn node_context_flags(&self) -> ast::NodeFlags;
     fn set_external_module_indicator(&mut self, node_id: NodeID);
 
@@ -761,5 +756,52 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::ImportDecl(import));
         self.insert_node_flags(id, ast::NodeFlags::empty());
         import
+    }
+
+    #[inline]
+    fn create_modifier(&mut self, span: Span, kind: ast::ModifierKind) -> &'cx ast::Modifier {
+        let id = self.next_node_id();
+        let m = self.alloc(ast::Modifier { id, span, kind });
+        self.insert_node(id, ast::Node::Modifier(m));
+        m
+    }
+
+    #[inline]
+    fn create_modifiers(
+        &mut self,
+        span: Span,
+        modifiers: &'cx [&'cx ast::Modifier],
+        flags: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> &'cx ast::Modifiers<'cx> {
+        self.alloc(ast::Modifiers {
+            span,
+            flags,
+            list: modifiers,
+        })
+    }
+
+    #[inline]
+    fn create_arrow_fn_expr(
+        &mut self,
+        span: Span,
+        modifier: Option<&'cx ast::Modifier>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        body: ast::ArrowFnExprBody<'cx>,
+    ) -> &'cx ast::ArrowFnExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ArrowFnExpr {
+            id,
+            span,
+            async_modifier: modifier,
+            ty_params,
+            params,
+            ty,
+            body,
+        });
+        self.insert_node(id, ast::Node::ArrowFnExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
     }
 }

@@ -489,12 +489,8 @@ impl<'cx> ParserState<'cx, '_> {
             None
         } else {
             let span = self.new_span(start);
-            let ms = self.alloc(ast::Modifiers {
-                span,
-                flags,
-                list: self.alloc(list),
-            });
-            Some(ms)
+            let modifiers = self.alloc(list);
+            Some(self.create_modifiers(span, modifiers, flags))
         }
     }
 
@@ -555,8 +551,19 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_params_worker(
         &mut self,
+        flags: SignatureFlags,
         allow_ambiguity_name: bool,
     ) -> ast::ParamsDecl<'cx> {
+        let saved_yield_context = self
+            .node_context_flags
+            .contains(ast::NodeFlags::YIELD_CONTEXT);
+        let saved_await_context = self
+            .node_context_flags
+            .contains(ast::NodeFlags::AWAIT_CONTEXT);
+
+        self.set_yield_context(flags.contains(SignatureFlags::YIELD));
+        self.set_await_context(flags.contains(SignatureFlags::AWAIT));
+
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
             Self::parse_param(this, allow_ambiguity_name)
@@ -584,6 +591,10 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
         }
+
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
         params
     }
 
@@ -592,7 +603,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.expect(LParen) {
             return &[];
         }
-        let params = self.parse_params_worker(true);
+        let params = self.parse_params_worker(SignatureFlags::empty(), true);
         self.expect(RParen);
         params
     }
