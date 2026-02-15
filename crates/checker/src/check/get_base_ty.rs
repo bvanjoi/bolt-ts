@@ -6,12 +6,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::UnionTy<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        // TODO: cache
         let tys = ty
             .tys
             .iter()
             .map(|ty| self.get_base_ty_of_literal_ty(ty))
             .collect::<Vec<_>>();
-        self.get_union_ty(&tys, ty::UnionReduction::None, false, None, None)
+        self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None)
     }
 
     pub(super) fn get_base_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -31,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
         } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
             self.boolean_ty()
         } else if let Some(union) = ty.kind.as_union() {
-            debug_assert!(ty.flags.intersects(TypeFlags::UNION));
+            debug_assert!(ty.flags.contains(TypeFlags::UNION));
             self.get_base_type_of_literal_type_union(union)
         } else {
             ty

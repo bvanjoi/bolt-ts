@@ -34,7 +34,7 @@ impl<'cx> TyChecker<'cx> {
             }
             Pred(n) => self.check_pred_ty(n),
             Mapped(n) => self.check_mapped_ty(n),
-            Array(n) => (),
+            Array(n) => self.check_array_ty(n),
             Ctor(n) => (),
             Lit(n) => (),
             NamedTuple(n) => (),
@@ -50,6 +50,10 @@ impl<'cx> TyChecker<'cx> {
             This(n) => (),
         };
         self.current_node = saved_current_node;
+    }
+
+    fn check_array_ty(&mut self, n: &'cx ast::ArrayTy<'cx>) {
+        self.check_ty(n.ele);
     }
 
     fn check_type_query(&mut self, n: &'cx ast::TypeofTy<'cx>) {

@@ -228,11 +228,6 @@ impl<'cx> Node<'cx> {
         self.is_fn_like() || self.is_class_static_block_decl()
     }
 
-    pub fn is_paren_type_node(&self) -> bool {
-        // matches!(self, Node::ParenTy(_))
-        false
-    }
-
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()

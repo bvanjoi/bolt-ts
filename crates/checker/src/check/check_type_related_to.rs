@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use bolt_ts_ty::TypeFacts;
 use rustc_hash::FxHashSet;
 
 use bolt_ts_ast as ast;
@@ -449,14 +450,22 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         return Ternary::FALSE;
                     }
 
-                    let source_ty = source_ty_args[source_pos];
+                    let source_ty = self.c.remove_missing_ty(
+                        source_ty_args[source_pos],
+                        source_flags
+                            .intersection(target_flags)
+                            .contains(ElementFlags::OPTIONAL),
+                    );
                     let target_ty = target_ty_args[target_pos];
                     let target_check_ty = if source_flags.intersects(ElementFlags::VARIADIC)
-                        && target_flags.intersects(ElementFlags::REST)
+                        && target_flags.contains(ElementFlags::REST)
                     {
                         self.c.create_array_ty(target_ty, false)
                     } else {
-                        target_ty
+                        self.c.remove_missing_ty(
+                            target_ty,
+                            target_flags.contains(ElementFlags::OPTIONAL),
+                        )
                     };
                     let is_related = self.is_related_to(
                         source_ty,
@@ -1812,19 +1821,35 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut res = Ternary::TRUE;
         let props = self.c.get_props_of_ty(source);
         for prop in props {
-            let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
-            let ty = prop_ty;
-            let related = self.is_related_to(
-                ty,
-                target.val_ty,
-                RecursionFlags::BOTH,
-                report_error,
-                intersection_state,
+            // TODO: ignore jsx
+            let lit_ty = self.c.get_lit_ty_from_prop(
+                *prop,
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                false,
             );
-            if related == Ternary::FALSE {
-                return Ternary::FALSE;
+            if self.c.is_applicable_index_ty(lit_ty, target.key_ty) {
+                let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
+                let ty = if self.c.config.exact_optional_property_types()
+                    || prop_ty.flags.contains(TypeFlags::UNDEFINED)
+                    || target.key_ty == self.c.number_ty
+                    || !self.c.symbol(*prop).flags.contains(SymbolFlags::OPTIONAL)
+                {
+                    prop_ty
+                } else {
+                    self.c.get_ty_with_facts(prop_ty, TypeFacts::NE_UNDEFINED)
+                };
+                let related = self.is_related_to(
+                    ty,
+                    target.val_ty,
+                    RecursionFlags::BOTH,
+                    report_error,
+                    intersection_state,
+                );
+                if related == Ternary::FALSE {
+                    return Ternary::FALSE;
+                }
+                res &= related;
             }
-            res &= related;
         }
 
         for info in self.c.get_index_infos_of_ty(source) {
@@ -1849,11 +1874,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         if let Some(source) = self.c.get_applicable_index_info(source, target.key_ty) {
             self.index_info_related_to(source, target, intersection_state, report_error)
-        } else if !intersection_state.intersects(IntersectionState::SOURCE)
+        } else if !intersection_state.contains(IntersectionState::SOURCE)
             && (self.relation != RelationKind::StrictSubtype
                 || source
                     .get_object_flags()
-                    .intersects(ObjectFlags::FRESH_LITERAL))
+                    .contains(ObjectFlags::FRESH_LITERAL))
             && self.c.is_object_ty_with_inferable_index(source)
         {
             self.members_related_to_index_info(source, target, report_error, intersection_state)
@@ -1894,7 +1919,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let related = if self.relation != RelationKind::StrictSubtype
                 && !source_is_primitive
                 && target_has_string_index
-                && target_info.val_ty.flags.intersects(TypeFlags::ANY)
+                && target_info.val_ty.flags.contains(TypeFlags::ANY)
             {
                 Ternary::TRUE
             } else if target_has_string_index && self.c.is_generic_mapped_ty(source) {

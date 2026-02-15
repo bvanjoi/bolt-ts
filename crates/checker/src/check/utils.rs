@@ -1,3 +1,5 @@
+use bolt_ts_ty::TypeFlags;
+
 use super::SymbolID;
 use super::TyChecker;
 use super::symbol_info::SymbolInfo;
@@ -34,24 +36,38 @@ impl<'cx> TyChecker<'cx> {
         f: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> bool,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(u) = ty.kind.as_union() {
-            let filtered = u
-                .tys
-                .iter()
-                .filter(|t| f(self, t))
-                .copied()
-                .collect::<Vec<_>>();
-            // TODO: filter should reduce alloc
-            // TODO: handle origin
-            self.get_union_ty_from_sorted_list(
-                filtered,
+            let filtered = self.filter(u.tys, |this, t| f(this, t));
+            if std::ptr::eq(filtered, u.tys) {
+                return ty;
+            }
+            let mut new_origin = None;
+            if let Some(origin) = u.origin
+                && let Some(origin_u) = origin.kind.as_union()
+            {
+                let origin_filtered = self.filter(origin_u.tys, |this, t| {
+                    t.flags.contains(TypeFlags::UNION) || f(this, t)
+                });
+                if origin_u.tys.len() - origin_filtered.len() == u.tys.len() - filtered.len() {
+                    if origin_filtered.len() == 1 {
+                        return origin_filtered[0];
+                    }
+                    new_origin =
+                        Some(self.create_origin_union_or_intersection_ty(
+                            TypeFlags::UNION,
+                            origin_filtered,
+                        ));
+                }
+            }
+            self.get_union_ty_from_sorted_list::<false>(
+                filtered.to_vec(),
                 ty.get_object_flags()
                     & (ty::ObjectFlags::PRIMITIVE_UNION
                         .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
-                false,
                 None,
                 None,
+                new_origin,
             )
-        } else if ty.flags.intersects(ty::TypeFlags::NEVER) || f(self, ty) {
+        } else if ty.flags.contains(ty::TypeFlags::NEVER) || f(self, ty) {
             ty
         } else {
             self.never_ty
@@ -155,8 +171,13 @@ impl<'cx> TyChecker<'cx> {
         no_reduction: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(std::ptr::eq(ty.kind.expect_union(), union));
-        // TODO: union.origin
-        let tys = union.tys;
+        let tys = if let Some(origin) = union.origin
+            && let Some(origin_u) = origin.kind.as_union()
+        {
+            origin_u.tys
+        } else {
+            union.tys
+        };
         let mut mapped_tys: Option<Vec<_>> = None;
         let mut changed = false;
         for t in tys {
@@ -183,7 +204,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     ty::UnionReduction::Lit
                 };
-                Some(self.get_union_ty(&mapped_tys, reduction, false, None, None))
+                Some(self.get_union_ty::<false>(&mapped_tys, reduction, None, None, None))
             } else {
                 None
             }
@@ -234,7 +255,13 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|ty| self.map_ty(ty, mapper, false).unwrap())
                 .collect::<Vec<_>>();
-            return Some(self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None));
+            return Some(self.get_union_ty::<false>(
+                &tys,
+                ty::UnionReduction::Lit,
+                Some(alias_symbol),
+                alias_symbol_ty_args,
+                None,
+            ));
         }
 
         self.map_ty(ty, mapper, false)

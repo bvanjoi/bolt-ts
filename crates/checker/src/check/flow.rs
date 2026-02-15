@@ -509,7 +509,7 @@ impl<'cx> TyChecker<'cx> {
 
         let result = {
             // TODO: finalize_evolving_array_ty;
-            let ty = self.get_union_ty(tys, subtype_reduction, false, None, None);
+            let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None);
             self.recombine_unknown_ty(ty)
         };
         if result != declared_ty
@@ -1047,7 +1047,13 @@ impl<'cx> TyChecker<'cx> {
                             TypeFacts::TYPEOF_EQ_OBJECT,
                         );
                         let b = self.narrow_ty_by_ty_facts(ty, self.null_ty, TypeFacts::EQ_NULL);
-                        self.get_union_ty(&[a, b], ty::UnionReduction::Lit, false, None, None)
+                        self.get_union_ty::<false>(
+                            &[a, b],
+                            ty::UnionReduction::Lit,
+                            None,
+                            None,
+                            None,
+                        )
                     }
                 }
                 keyword::KW_FUNCTION => {
@@ -1162,7 +1168,7 @@ impl<'cx> TyChecker<'cx> {
                             })
                             .collect::<Vec<_>>();
                         let tys = this.alloc(tys);
-                        this.get_union_ty(tys, ty::UnionReduction::Lit, false, None, None)
+                        this.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None)
                     })
                 },
                 false,
@@ -1189,10 +1195,10 @@ impl<'cx> TyChecker<'cx> {
                 } else if n.op.kind == ast::BinOpKind::LogicalOr {
                     let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
                     let right_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.right);
-                    self.get_union_ty(
+                    self.get_union_ty::<false>(
                         &[left_ty, right_ty],
                         ty::UnionReduction::Lit,
-                        false,
+                        None,
                         None,
                         None,
                     )

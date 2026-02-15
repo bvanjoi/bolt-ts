@@ -133,9 +133,9 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const a3:ValueKeys = 2;
 
   const a4: ValueKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+  //~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
   const a5: ValueKeys = 3;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+  //~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
 
   type TupleKeys = ArrayIndices<['a', 2]>;
 
@@ -146,15 +146,15 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const b2: TupleKeys = 1;
 
   const b3: TupleKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
+  //~^ ERROR: Type 'number' is not assignable to type 'TupleKeys'.
   const b4: TupleKeys = 2;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
+  //~^ ERROR: Type 'number' is not assignable to type 'TupleKeys'.
 
 	const c0: ArrayIndices<['a', 'b', 'c']> = 0;
 	const c1: ArrayIndices<['a', 'b', 'c']> = 1;
 	const c2: ArrayIndices<['a', 'b', 'c']> = 2;
 	const c3: ArrayIndices<['a', 'b', 'c']> = 3;
-	//~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+	//~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
 }
 
 // ========= ArrayValues =========
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except'.
 
   // Generic properties
   type Example = {
@@ -2750,14 +2750,14 @@ type UnknownArray = readonly unknown[];
   const b0: UnknownArray = null;      // depend on `strictNullChecks`
   const b1: UnknownArray = undefined; // depend on `strictNullChecks`
   const b2: UnknownArray = {};
-  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]'
+  //~^ ERROR: Type '{ }' is missing the following properties from type 'UnknownArray'
   const b3: UnknownArray = {0: 1};
-  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]'
+  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'UnknownArray'
   const b4: UnknownArray = 1;
-  //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
+  //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
-  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
-  //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'UnknownArray'
+  //~| ERROR: Type 'DateConstructor' is not assignable to type 'UnknownArray'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;
 

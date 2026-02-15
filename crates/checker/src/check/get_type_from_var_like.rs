@@ -20,7 +20,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        assert!(self.config.strict_null_checks());
+        debug_assert!(self.config.strict_null_checks());
         let missing_or_undefined = if IS_PROPERTY {
             self.undefined_or_missing_ty
         } else {
@@ -34,10 +34,10 @@ impl<'cx> TyChecker<'cx> {
         {
             ty
         } else {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[ty, missing_or_undefined],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
@@ -274,7 +274,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|prop| self.get_lit_ty_from_prop_name(prop))
                 .collect::<Vec<_>>();
-            self.get_union_ty(&props, ty::UnionReduction::Lit, false, None, None)
+            self.get_union_ty::<false>(&props, ty::UnionReduction::Lit, None, None, None)
         };
 
         let mut spreadable_props = vec![];
@@ -309,8 +309,8 @@ impl<'cx> TyChecker<'cx> {
                 let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
                 tys.push(omit_key_ty);
                 tys.extend(unsparedable_to_rest_keys);
-                let tys = self.alloc(tys);
-                omit_key_ty = self.get_union_ty(tys, ty::UnionReduction::Lit, false, None, None);
+                omit_key_ty =
+                    self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
             }
 
             if omit_key_ty.flags.contains(ty::TypeFlags::NEVER) {

@@ -2,3 +2,11 @@
 
 export default xyzzy;
 //~^ ERROR: Cannot find name 'xyzzy'.
+
+export type A = number;
+export namespace A {}
+
+export type B = string;
+export namespace B {
+  const b: string = '42';
+}

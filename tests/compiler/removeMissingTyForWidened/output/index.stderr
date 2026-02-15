@@ -1,0 +1,17 @@
+  × Type '[]' is not assignable to type '[string]'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:12:9]
+ 12 │ c
+    · ─
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:35:9]
+ 35 │ a
+    · ─
+    ╰────
+
+  × Type '1' is not assignable to type '0'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:42:9]
+ 42 │ a
+    · ─
+    ╰────

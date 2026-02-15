@@ -1,4 +1,5 @@
 use bolt_ts_ast::FnFlags;
+use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
 
 use super::Ternary;
@@ -404,9 +405,10 @@ impl<'cx> TyChecker<'cx> {
                         .is_none_or(|first_spread_index| index < first_spread_index)
                         && index < tup.fixed_length
                     {
-                        let t = this.get_ty_arguments(t)[index];
-                        // TODO: resolve_missing_ty
-                        return Some(t);
+                        let ty = this.get_ty_arguments(t)[index];
+                        let is_optional =
+                            tup.element_flags[index].contains(ty::ElementFlags::OPTIONAL);
+                        return Some(this.remove_missing_ty(ty, is_optional));
                     }
                     let offset = if last_spread_index.is_none_or(|last| index > last) {
                         length.map_or(0, |len| len.saturating_sub(index))
@@ -549,13 +551,13 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let prop = self.get_prop_of_ty(ty, name);
-        if prop.is_none_or(|p| self.is_circular_mapped_prop(p)) {
+        let prop = self.get_prop_of_ty(ty, name)?;
+        if self.is_circular_mapped_prop(prop) {
             return None;
         }
-        let t = self.get_type_of_symbol(prop.unwrap());
-        // TODO: resolve_missing_ty
-        Some(t)
+        let t = self.get_type_of_symbol(prop);
+        let is_optional = self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL);
+        Some(self.remove_missing_ty(t, is_optional))
     }
 
     fn append_contextual_prop_ty_constituent(

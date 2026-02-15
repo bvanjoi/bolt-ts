@@ -93,8 +93,15 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::DeclaredType(symbol)) {
             return self.error_ty;
         }
-        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
-        let decl = self.p.node(decl).expect_type_alias_decl();
+        let Some(decls) = self.binder.symbol(symbol).decls.as_ref() else {
+            unreachable!()
+        };
+        let Some(decl) = decls
+            .iter()
+            .find_map(|decl| self.p.node(*decl).as_type_alias_decl())
+        else {
+            unreachable!()
+        };
         let mut ty = self.get_ty_from_type_node(decl.ty);
         if !self.pop_ty_resolution().has_cycle() {
             if let Some(ty_params) =
@@ -306,6 +313,8 @@ impl<'cx> TyChecker<'cx> {
                 target,
                 mapper: None,
                 node: None,
+                alias_symbol: None,
+                alias_ty_arguments: None,
             });
             let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
             assert!(!self.ty_links.contains_key(&ty.id));
@@ -569,11 +578,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let enum_ty = if !member_ty_list.is_empty() {
-            self.get_union_ty(
+            self.get_union_ty::<true>(
                 &member_ty_list,
                 ty::UnionReduction::Lit,
-                true,
                 Some(symbol),
+                None,
                 None,
             )
         } else {

@@ -77,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if self
             .get_check_flags(symbol)
-            .intersects(CheckFlags::UNRESOLVED)
+            .contains(CheckFlags::UNRESOLVED)
         {
             return self.error_ty;
         }

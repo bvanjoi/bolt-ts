@@ -305,10 +305,10 @@ impl<'cx> TyChecker<'cx> {
         let deferral_parent = links.get_deferral_parent().unwrap();
         let deferral_constituents = links.get_deferral_constituents().unwrap();
         let ty = if deferral_parent.flags.intersects(TypeFlags::UNION) {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 deferral_constituents,
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
@@ -404,7 +404,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(tys) = &inference.candidates {
             // TODO: remove clone
             let tys = tys.clone();
-            Some(self.get_union_ty(&tys, ty::UnionReduction::Subtype, false, None, None))
+            Some(self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None))
         } else if let Some(tys) = &inference.contra_candidates {
             // TODO: remove clone
             let tys = tys.clone();
@@ -469,7 +469,10 @@ impl<'cx> TyChecker<'cx> {
             Paren(n) => self.get_ty_from_type_node(n.ty),
             Infer(n) => self.get_ty_from_infer_ty_node(n),
             Mapped(n) => self.get_ty_from_mapped_ty_node(n),
-            Nullable(n) => self.get_ty_from_type_node(n.ty),
+            Nullable(n) => {
+                let ty = self.get_ty_from_type_node(n.ty);
+                self.add_optionality::<true>(ty, true)
+            }
             TemplateLit(n) => self.get_ty_from_template_ty_node(n),
             Intrinsic(_) => self.intrinsic_marker_ty,
         }
@@ -714,9 +717,11 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.unknown_ty
         };
-        let no_super_ty_reduction = t
-            .flags
-            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT);
+        let no_super_ty_reduction = t.flags.intersects(
+            TypeFlags::STRING
+                .union(TypeFlags::NUMBER)
+                .union(TypeFlags::BIG_INT),
+        );
         let flags = if no_super_ty_reduction {
             IntersectionFlags::NoSuperTypeReduction
         } else {
@@ -768,13 +773,20 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
-        // let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let tys = node
             .tys
             .iter()
             .map(|ty| self.get_ty_from_type_node(ty))
             .collect::<Vec<_>>();
-        let ty = self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None);
+        let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
+        let alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
+        let ty = self.get_union_ty::<false>(
+            &tys,
+            ty::UnionReduction::Lit,
+            alias_symbol,
+            alias_ty_arguments,
+            None,
+        );
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -846,10 +858,10 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(undefined_or_missing_ty) = undefined_or_missing_ty
                     && index >= this.get_total_fixed_elem_count(t)
                 {
-                    return Some(this.get_union_ty(
+                    return Some(this.get_union_ty::<false>(
                         &[rest_ty, undefined_or_missing_ty],
                         ty::UnionReduction::Lit,
-                        false,
+                        None,
                         None,
                         None,
                     ));
@@ -1123,7 +1135,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(if access_flags.intersects(AccessFlags::WRITING) {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             } else {
-                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit, false, None, None)
+                self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Lit, None, None, None)
             });
         }
 
@@ -1215,25 +1227,28 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_alias_symbol_for_ty_node(&self, node: ast::NodeID) -> Option<SymbolID> {
-        let mut host = self.parent(node);
-        while let Some(host_node_id) = host {
-            let node = self.p.node(host_node_id);
-            // TODO: handle `readonly`
-            if node.is_paren_type_node() {
-                host = self.parent(host_node_id);
-            } else {
-                break;
+        let mut parent = self.parent(node);
+        while let Some(parent_id) = parent {
+            let parent_node = self.p.node(parent_id);
+            match parent_node {
+                ast::Node::ParenTy(_) => parent = self.parent(parent_id),
+                ast::Node::TyOp(n) if n.op == ast::TyOpKind::Readonly => {
+                    parent = self.parent(parent_id)
+                }
+                // TODO: js
+                _ => break,
             }
         }
-        host.and_then(|node_id| {
-            // TODO: is_js_doc_ty_alias
-            self.p.node(node_id).is_type_alias_decl().then_some(node_id)
-        })
-        .map(|node_id| {
-            let symbol = self.final_res(node_id);
-            debug_assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
-            symbol
-        })
+        parent
+            .and_then(|node_id| {
+                // TODO: is_js_doc_ty_alias
+                self.p.node(node_id).is_type_alias_decl().then_some(node_id)
+            })
+            .map(|node_id| {
+                let symbol = self.final_res(node_id);
+                debug_assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
+                symbol
+            })
     }
 
     pub(super) fn get_ty_args_for_alias_symbol(
@@ -1382,7 +1397,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         cond_ty: &'cx ty::CondTy<'cx>,
     ) -> &'cx Ty<'cx> {
-        assert!(
+        debug_assert!(
             ty.kind
                 .as_cond_ty()
                 .is_some_and(|c| std::ptr::eq(c, cond_ty))
@@ -1490,7 +1505,13 @@ impl<'cx> TyChecker<'cx> {
         let mut extra_tys = Vec::with_capacity(16);
         let result = loop {
             if tailed >= 1000 {
-                panic!()
+                let m = self.module_arena.get_path(root.node.span.module());
+                unreachable!(
+                    "{}({}:{})",
+                    m.display(),
+                    root.node.span.lo(),
+                    root.node.span.hi()
+                );
             }
 
             let check_ty = {
@@ -1547,13 +1568,13 @@ impl<'cx> TyChecker<'cx> {
                 if !inferred_extends_ty
                     .flags
                     .intersects(TypeFlags::ANY_OR_UNKNOWN)
-                    && (check_ty.flags.intersects(TypeFlags::ANY) || {
+                    && (check_ty.flags.contains(TypeFlags::ANY) || {
                         let source = self.get_permissive_instantiation(check_ty);
                         let target = self.get_permissive_instantiation(inferred_extends_ty);
                         !self.is_type_assignable_to(source, target)
                     })
                 {
-                    if check_ty.flags.intersects(TypeFlags::ANY) {
+                    if check_ty.flags.contains(TypeFlags::ANY) {
                         let ty = self.get_ty_from_type_node(root.node.true_ty);
                         let ty = self.instantiate_ty(ty, mapper);
                         extra_tys.push(ty);
@@ -1619,7 +1640,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if !extra_tys.is_empty() {
             extra_tys.push(result);
-            self.get_union_ty(&extra_tys, ty::UnionReduction::Lit, false, None, None)
+            self.get_union_ty::<false>(&extra_tys, ty::UnionReduction::Lit, None, None, None)
         } else {
             result
         }
@@ -1709,9 +1730,12 @@ impl<'cx> TyChecker<'cx> {
         let readonly = self
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
-        let element_ty = self.get_ty_from_type_node(node.ele);
-        // TODO: defer type
-        let ty = self.create_array_ty(element_ty, readonly);
+        let target = if readonly {
+            self.global_readonly_array_ty()
+        } else {
+            self.global_array_ty()
+        };
+        let ty = self.create_deferred_ty_reference(target, node.id, None, None, None);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -1819,7 +1843,7 @@ impl<'cx> TyChecker<'cx> {
             if node.tys.is_empty() {
                 target
             } else {
-                self.create_deferred_ty_reference(target, node.id, None)
+                self.create_deferred_ty_reference(target, node.id, None, None, None)
             }
         } else {
             let element_tys = node
@@ -2197,8 +2221,13 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
             } else {
-                ret_ty =
-                    Some(self.get_union_ty(&tys, ty::UnionReduction::Subtype, false, None, None))
+                ret_ty = Some(self.get_union_ty::<false>(
+                    &tys,
+                    ty::UnionReduction::Subtype,
+                    None,
+                    None,
+                    None,
+                ))
             }
         } else {
             todo!("is_generator")
@@ -2261,27 +2290,51 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn is_key_ty_included(&mut self, key_ty: &'cx ty::Ty<'cx>, include: TypeFlags) -> bool {
+        key_ty.flags.intersects(include)
+            || key_ty
+                .kind
+                .as_intersection()
+                .is_some_and(|i| i.tys.iter().any(|t| self.is_key_ty_included(t, include)))
+    }
+
     fn get_literal_ty_from_props(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         include: TypeFlags,
         include_origin: bool,
     ) -> &'cx ty::Ty<'cx> {
+        let origin = if include_origin
+            && (ty
+                .get_object_flags()
+                .intersects(ObjectFlags::CLASS_OR_INTERFACE.union(ObjectFlags::REFERENCE))
+                || ty.alias_symbol().is_some())
+        {
+            Some(self.create_index_ty(ty, IndexFlags::empty()))
+        } else {
+            None
+        };
         let mut property_tys = self
             .get_props_of_ty(ty)
             .iter()
             .map(|prop| self.get_lit_ty_from_prop(*prop, include, false))
             .collect::<Vec<_>>();
         let index_key_tys = self.get_index_infos_of_ty(ty).iter().map(|info| {
-            if info.key_ty == self.string_ty && include.intersects(TypeFlags::NUMBER) {
-                self.string_or_number_ty()
+            if !std::ptr::eq(info, &self.enum_number_index_info())
+                && self.is_key_ty_included(info.key_ty, include)
+            {
+                if info.key_ty == self.string_ty && include.intersects(TypeFlags::NUMBER) {
+                    self.string_or_number_ty()
+                } else {
+                    info.key_ty
+                }
             } else {
-                info.key_ty
+                self.never_ty
             }
         });
         property_tys.extend(index_key_tys);
         let tys = property_tys;
-        self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
+        self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, origin)
     }
 
     fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -2388,7 +2441,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|t| self.get_index_ty(t, index_flags))
                 .collect::<Vec<_>>();
-            self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
+            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
         } else if ty.kind.is_object_mapped() {
             self.get_index_ty_for_mapped_ty(ty, index_flags)
         } else if ty == self.wildcard_ty {

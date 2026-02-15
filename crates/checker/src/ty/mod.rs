@@ -53,6 +53,12 @@ pub struct Ty<'cx> {
     pub links: CommonTyLinksID<'cx>,
 }
 
+impl std::hash::Hash for Ty<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
         if self.id == other.id {
@@ -63,6 +69,8 @@ impl PartialEq for Ty<'_> {
         }
     }
 }
+
+impl Eq for Ty<'_> {}
 
 impl<'cx> Ty<'cx> {
     pub fn new(
@@ -166,7 +174,7 @@ impl<'cx> Ty<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnionReduction {
     None,
     Lit,
@@ -250,7 +258,10 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
-        if self.kind.is_array(checker) {
+        if let Some(alias_symbol) = self.alias_symbol() {
+            let s = checker.binder.symbol(alias_symbol);
+            return s.name.to_string(&checker.atoms);
+        } else if self.kind.is_array(checker) {
             let ele = checker.get_ty_arguments(self)[0];
             let ele = ele.to_string(checker);
             return format!("{ele}[]");
@@ -471,6 +482,16 @@ impl<'cx> Ty<'cx> {
         })
     }
 
+    pub fn alias_symbol(&self) -> Option<SymbolID> {
+        match self.kind {
+            TyKind::Union(ty) => ty.alias_symbol,
+            TyKind::Intersection(ty) => ty.alias_symbol,
+            TyKind::Cond(ty) => ty.alias_symbol,
+            TyKind::Object(ty) => ty.kind.alias_symbol(),
+            _ => None,
+        }
+    }
+
     pub fn alias_ty_arguments(&self) -> Option<Tys<'cx>> {
         match self.kind {
             TyKind::Union(ty) => ty.alias_ty_arguments,
@@ -634,6 +655,7 @@ pub struct IndexedAccessTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
+    pub origin: Option<&'cx self::Ty<'cx>>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
     pub union_ty_links: UnionTyLinksID<'cx>,
@@ -709,9 +731,9 @@ pub struct SubstitutionTy<'cx> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IterationTys<'cx> {
-    pub yield_ty: &'cx Ty<'cx>,
-    pub return_ty: &'cx Ty<'cx>,
-    pub next_ty: &'cx Ty<'cx>,
+    pub yield_ty: &'cx self::Ty<'cx>,
+    pub return_ty: &'cx self::Ty<'cx>,
+    pub next_ty: &'cx self::Ty<'cx>,
 }
 
 #[derive(Debug, Clone, Copy)]

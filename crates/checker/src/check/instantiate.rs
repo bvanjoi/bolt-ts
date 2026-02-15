@@ -1,9 +1,8 @@
 use std::borrow::Cow;
 
 use super::create_ty::IntersectionFlags;
-use super::instantiation_ty_map::{
-    ConditionalTyInstantiationTyMap, TyAliasInstantiationMap, TyCacheTrait,
-};
+use super::instantiation_ty_map::TyCacheTrait;
+use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, ObjectMappedTyLinks};
 use super::ty::{ObjectFlags, TyMapper, TypeFlags};
@@ -109,7 +108,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
         alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if !self.could_contain_ty_var(ty) {
             return ty;
@@ -124,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let id = TyInstantiationMap::create_ty_key(&(ty.id, alias_symbol, alias_ty_args));
+        let id = TyInstantiationMap::create_ty_key(&(ty.id, alias_symbol, alias_ty_arguments));
         let cached_index = self.find_active_mapper(mapper);
         if let Some(index) = cached_index {
             if let Some(cached) = self.activity_ty_mapper_caches[index].get(&id) {
@@ -135,7 +134,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.instantiation_count += 1;
-        let ret = self.instantiate(ty, mapper, alias_symbol, alias_ty_args);
+        let ret = self.instantiate(ty, mapper, alias_symbol, alias_ty_arguments);
 
         if let Some(index) = cached_index {
             let prev = self.activity_ty_mapper_caches[index].insert(id, ret);
@@ -172,27 +171,25 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
         alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         use ty::TyKind::*;
         match ty.kind {
             Param(_) => self.get_mapped_ty(mapper, ty),
-            Object(_) => self.get_object_ty_instantiation(ty, mapper),
-            Union(u) => self.instantiate_union_or_intersection(
+            Object(_) => {
+                self.get_object_ty_instantiation(ty, mapper, alias_symbol, alias_ty_arguments)
+            }
+            Union(_) => self.instantiate_union_or_intersection::<true>(
                 ty,
-                u.tys,
-                true,
                 mapper,
                 alias_symbol,
-                alias_ty_args,
+                alias_ty_arguments,
             ),
-            Intersection(i) => self.instantiate_union_or_intersection(
+            Intersection(_) => self.instantiate_union_or_intersection::<false>(
                 ty,
-                i.tys,
-                false,
                 mapper,
                 alias_symbol,
-                alias_ty_args,
+                alias_ty_arguments,
             ),
             Index(index) => {
                 let t = self.instantiate_ty(index.ty, Some(mapper));
@@ -211,19 +208,19 @@ impl<'cx> TyChecker<'cx> {
                     indexed.object_ty,
                     mapper,
                     alias_symbol,
-                    alias_ty_args,
+                    alias_ty_arguments,
                 );
                 let index_ty = self.instantiate_ty_with_alias(
                     indexed.index_ty,
                     mapper,
                     alias_symbol,
-                    alias_ty_args,
+                    alias_ty_arguments,
                 );
                 self.get_indexed_access_ty(object_ty, index_ty, Some(indexed.access_flags), None)
             }
             Cond(cond) => {
                 let mapper = self.combine_ty_mappers(cond.mapper, mapper);
-                self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_args)
+                self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_arguments)
             }
             Substitution(sub) => {
                 let new_base_ty = self.instantiate_ty(sub.base_ty, Some(mapper));
@@ -258,27 +255,47 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn instantiate_union_or_intersection(
+    fn instantiate_union_or_intersection<const IS_UNION: bool>(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        tys: ty::Tys<'cx>,
-        is_union: bool,
         mapper: &'cx dyn ty::TyMap<'cx>,
         alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        let origin = ty.kind.as_union().and_then(|u| u.origin);
+        let tys = if let Some(origin) = origin
+            && let Some(tys) = origin.kind.tys_of_union_or_intersection()
+        {
+            tys
+        } else {
+            ty.kind.tys_of_union_or_intersection().unwrap()
+        };
         let new_tys = self.instantiate_tys(tys, mapper);
-        if new_tys == tys {
+        if std::ptr::eq(new_tys, tys) && alias_symbol == ty.alias_symbol() {
             return ty;
         }
-        if is_union {
-            self.get_union_ty(new_tys, ty::UnionReduction::Lit, false, None, None)
+        let new_alias_symbol = alias_symbol.or_else(|| ty.alias_symbol());
+        let new_alias_ty_arguments = if alias_symbol.is_some() {
+            alias_ty_arguments
         } else {
+            ty.alias_ty_arguments()
+                .map(|tys| self.instantiate_tys(tys, mapper))
+        };
+        if !IS_UNION || origin.is_some_and(|origin| origin.flags.contains(TypeFlags::INTERSECTION))
+        {
             self.get_intersection_ty(
                 new_tys,
                 IntersectionFlags::None,
-                alias_symbol,
-                alias_ty_args,
+                new_alias_symbol,
+                new_alias_ty_arguments,
+            )
+        } else {
+            self.get_union_ty::<false>(
+                new_tys,
+                ty::UnionReduction::Lit,
+                new_alias_symbol,
+                new_alias_ty_arguments,
+                None,
             )
         }
     }
@@ -345,10 +362,10 @@ impl<'cx> TyChecker<'cx> {
                     self.instantiate_mapped_ty_template(
                         mapped_ty,
                         key,
-                        flags.intersects(ty::ElementFlags::OPTIONAL),
+                        flags.contains(ty::ElementFlags::OPTIONAL),
                         fixed_mapper,
                     )
-                } else if flags.intersects(ty::ElementFlags::VARIADIC) {
+                } else if flags.contains(ty::ElementFlags::VARIADIC) {
                     let mapper = self.prepend_ty_mapping(ty_var, ty, Some(mapper));
                     self.instantiate_ty(mapped_ty, Some(mapper))
                 } else {
@@ -362,12 +379,12 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
         let mapped_ty_decl = mapped_ty.kind.expect_object_mapped().decl;
         let modifiers = mapped_ty_decl.get_modifiers();
-        let new_element_flags = if modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL) {
+        let new_element_flags = if modifiers.contains(MappedTyModifiers::INCLUDE_OPTIONAL) {
             self.alloc(
                 element_flags
                     .iter()
                     .map(|f| {
-                        if f.intersects(ty::ElementFlags::REQUIRED) {
+                        if f.contains(ty::ElementFlags::REQUIRED) {
                             ty::ElementFlags::OPTIONAL
                         } else {
                             *f
@@ -375,12 +392,12 @@ impl<'cx> TyChecker<'cx> {
                     })
                     .collect::<Vec<_>>(),
             )
-        } else if modifiers.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL) {
+        } else if modifiers.contains(MappedTyModifiers::EXCLUDE_OPTIONAL) {
             self.alloc(
                 element_flags
                     .iter()
                     .map(|f| {
-                        if f.intersects(ty::ElementFlags::OPTIONAL) {
+                        if f.contains(ty::ElementFlags::OPTIONAL) {
                             ty::ElementFlags::REQUIRED
                         } else {
                             *f
@@ -606,6 +623,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let object_flags = ty.get_object_flags();
         if !object_flags.intersects(
@@ -773,7 +792,13 @@ impl<'cx> TyChecker<'cx> {
             let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
             let ty = if target.kind.is_object_reference() {
                 let ty = ty.kind.expect_object_reference();
-                self.create_deferred_ty_reference(ty.target, ty.node.unwrap(), Some(new_mapper))
+                self.create_deferred_ty_reference(
+                    ty.target,
+                    ty.node.unwrap(),
+                    Some(new_mapper),
+                    alias_symbol,
+                    alias_ty_arguments,
+                )
             } else if target.kind.is_object_mapped() {
                 self.instantiate_mapped_ty(target, new_mapper, object_flags)
             } else {
@@ -854,10 +879,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if ty
-            .flags
-            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
-        {
+        if ty.flags.intersects(
+            TypeFlags::PRIMITIVE
+                .union(TypeFlags::ANY_OR_UNKNOWN)
+                .union(TypeFlags::NEVER),
+        ) {
             ty
         } else if let Some(ty) = self.common_ty_links_arena[ty.links].get_permissive_instantiation()
         {
@@ -873,10 +899,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if ty
-            .flags
-            .intersects(TypeFlags::PRIMITIVE | TypeFlags::ANY_OR_UNKNOWN | TypeFlags::NEVER)
-        {
+        if ty.flags.intersects(
+            TypeFlags::PRIMITIVE
+                .union(TypeFlags::ANY_OR_UNKNOWN)
+                .union(TypeFlags::NEVER),
+        ) {
             ty
         } else if let Some(t) = self.common_ty_links_arena[ty.links].get_restrictive_instantiation()
         {
@@ -1105,11 +1132,11 @@ impl<'cx> TyChecker<'cx> {
                     || name == keyword::INTRINSIC_TYPE_CAPITALIZE
                     || name == keyword::INTRINSIC_TYPE_UNCAPITALIZE)
             {
-                if name == keyword::INTRINSIC_TYPE_NOINFER {
-                    todo!("get_no_infer_ty")
+                return if name == keyword::INTRINSIC_TYPE_NOINFER {
+                    self.get_no_infer_ty(ty_args[0])
                 } else {
-                    return self.get_string_mapping_ty(symbol, ty_args[0]);
-                }
+                    self.get_string_mapping_ty(symbol, ty_args[0])
+                };
             }
         }
         let id =

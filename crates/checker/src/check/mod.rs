@@ -98,6 +98,7 @@ use self::instantiation_ty_map::InstantiationTyMap;
 use self::instantiation_ty_map::TyAliasInstantiationMap;
 use self::instantiation_ty_map::TyInstantiationMap;
 use self::instantiation_ty_map::UnionMap;
+use self::instantiation_ty_map::UnionOfUnionTysKey;
 use self::instantiation_ty_map::{IndexedAccessTyMap, IntersectionMap, StringMappingTyMap};
 use self::instantiation_ty_map::{TyCacheTrait, TyKey};
 use self::links::NodeLinks;
@@ -184,6 +185,7 @@ pub struct TyChecker<'cx> {
     string_lit_tys: FxHashMap<Atom, &'cx ty::Ty<'cx>>,
     bigint_lit_tys: FxHashMap<(bool, Atom), &'cx ty::Ty<'cx>>,
     union_tys: UnionMap<'cx>,
+    union_of_union_tys: FxHashMap<UnionOfUnionTysKey<'cx>, &'cx ty::Ty<'cx>>,
     intersection_tys: IntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
     string_mapping_tys: StringMappingTyMap<'cx>,
@@ -533,21 +535,22 @@ impl<'cx> TyChecker<'cx> {
             diags,
             module_arena,
 
-            num_lit_tys: no_hashmap_with_capacity(1024 * 8),
-            string_lit_tys: fx_hashmap_with_capacity(1024 * 8),
+            num_lit_tys: no_hashmap_with_capacity(1024),
+            string_lit_tys: fx_hashmap_with_capacity(1024),
             bigint_lit_tys: fx_hashmap_with_capacity(512),
-            union_tys: UnionMap::new(1024 * 8),
-            intersection_tys: IntersectionMap::new(1024 * 8),
-            indexed_access_tys: IndexedAccessTyMap::new(1024 * 8),
-            string_mapping_tys: StringMappingTyMap::new(1024 * 8),
-            instantiation_ty_map: InstantiationTyMap::new(1024 * 16),
-            ty_alias_instantiation_map: TyAliasInstantiationMap::new(1024 * 16),
-            ty_instantiation_map: TyInstantiationMap::new(1024 * 16),
-            iteration_tys_map: no_hashmap_with_capacity(1024 * 4),
-            mark_tys: no_hashset_with_capacity(1024 * 4),
+            union_tys: UnionMap::new(1024),
+            union_of_union_tys: fx_hashmap_with_capacity(1024),
+            intersection_tys: IntersectionMap::new(1024),
+            indexed_access_tys: IndexedAccessTyMap::new(1024),
+            string_mapping_tys: StringMappingTyMap::new(1024),
+            instantiation_ty_map: InstantiationTyMap::new(1024),
+            ty_alias_instantiation_map: TyAliasInstantiationMap::new(1024),
+            ty_instantiation_map: TyInstantiationMap::new(1024),
+            iteration_tys_map: no_hashmap_with_capacity(1024),
+            mark_tys: no_hashset_with_capacity(1024),
 
             shared_flow_info: Vec::with_capacity(1024),
-            flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len() * 128),
+            flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
             flow_nodes,
             flow_in_nodes,
             last_flow_node: None,
@@ -701,10 +704,10 @@ impl<'cx> TyChecker<'cx> {
         }
         // TODO: lazy
         make_global!({
-            (boolean_ty,                    this.get_union_ty(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit, false, None, None)),
-            (string_or_number_ty,           this.get_union_ty(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, false, None, None)),
-            (string_number_symbol_ty,       this.get_union_ty(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit, false, None, None)),
-            (number_or_bigint_ty,           this.get_union_ty(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit, false, None, None)),
+            (boolean_ty,                    this.get_union_ty::<false>(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit, None, None, None)),
+            (string_or_number_ty,           this.get_union_ty::<false>(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, None, None, None)),
+            (string_number_symbol_ty,       this.get_union_ty::<false>(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit, None, None, None)),
+            (number_or_bigint_ty,           this.get_union_ty::<false>(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit, None, None, None)),
             (global_number_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,             this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_symbol_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
@@ -721,7 +724,7 @@ impl<'cx> TyChecker<'cx> {
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
-                                            this.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
+                                            this.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
                                         }),
             (any_fn_ty,                     this.create_anonymous_ty_with_resolved(None, ObjectFlags::NON_INFERRABLE_TYPE, this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (no_constraint_ty,              this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
@@ -734,7 +737,7 @@ impl<'cx> TyChecker<'cx> {
             (mark_sub_ty,                   this.create_param_ty(Symbol::ERR, None, false)),
             (mark_other_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
-            (template_constraint_ty,        this.get_union_ty(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, false, None, None)),
+            (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
@@ -747,10 +750,10 @@ impl<'cx> TyChecker<'cx> {
         });
 
         let unknown_union_ty = if this.config.strict_null_checks() {
-            this.get_union_ty(
+            this.get_union_ty::<false>(
                 &[this.undefined_ty, this.null_ty, unknown_empty_object_ty],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
@@ -1998,7 +2001,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                     })
                     .unwrap();
-                self.get_union_ty(tys, ty::UnionReduction::Subtype, false, None, None)
+                self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None)
             };
             let array_ty = self.create_array_ty(ty, false);
             self.create_array_literal_ty(array_ty)
@@ -2935,12 +2938,12 @@ impl<'cx> TyChecker<'cx> {
                     .union(SymbolFlags::TYPE_LITERAL)
                     .union(SymbolFlags::ENUM)
                     .union(SymbolFlags::VALUE_MODULE),
-            ) && !flags.intersects(SymbolFlags::CLASS)
+            ) && !flags.contains(SymbolFlags::CLASS)
                 && !self.ty_has_call_or_ctor_sigs(ty)
         } else {
             let object_flags = ty.get_object_flags();
             // TODO: reversed type
-            object_flags.intersects(ObjectFlags::OBJECT_REST_TYPE)
+            object_flags.contains(ObjectFlags::OBJECT_REST_TYPE)
         }
     }
 
@@ -3149,10 +3152,10 @@ impl<'cx> TyChecker<'cx> {
                     let b = if !facts.intersects(other_includes_facts)
                         && this.has_type_facts(t, other_facts)
                     {
-                        let empty_and_other_union = this.get_union_ty(
+                        let empty_and_other_union = this.get_union_ty::<false>(
                             &[this.empty_object_ty(), other_ty],
                             ty::UnionReduction::Lit,
-                            false,
+                            None,
                             None,
                             None,
                         );
@@ -3597,7 +3600,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let t = self.get_index_ty(t, IndexFlags::empty());
         v.push(t);
-        self.get_union_ty(&v, ty::UnionReduction::Lit, false, None, None)
+        self.get_union_ty::<false>(&v, ty::UnionReduction::Lit, None, None, None)
     }
 
     fn get_lower_bound_of_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -3670,14 +3673,14 @@ impl<'cx> TyChecker<'cx> {
             Some(if writing {
                 self.get_intersection_ty(&element_tys, IntersectionFlags::None, None, None)
             } else {
-                self.get_union_ty(
+                self.get_union_ty::<false>(
                     &element_tys,
                     if no_reductions {
                         ty::UnionReduction::None
                     } else {
                         ty::UnionReduction::Lit
                     },
-                    false,
+                    None,
                     None,
                     None,
                 )
@@ -3888,26 +3891,26 @@ impl<'cx> TyChecker<'cx> {
         if missing.is_empty() {
             ty
         } else if missing == TypeFlags::UNDEFINED {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[ty, self.undefined_ty],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
         } else if missing == TypeFlags::NULL {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[ty, self.null_ty],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
         } else {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[ty, self.undefined_ty, self.null_ty],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
@@ -3946,7 +3949,7 @@ impl<'cx> TyChecker<'cx> {
             };
 
         let super_ty_or_union = if literal_tys_with_same_base_ty(self, primary_tys) {
-            self.get_union_ty(primary_tys, ty::UnionReduction::Lit, false, None, None)
+            self.get_union_ty::<false>(primary_tys, ty::UnionReduction::Lit, None, None, None)
         } else {
             let candidate = self
                 .reduced_left(
@@ -4406,7 +4409,8 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .map(|t| self.get_index_ty_of_ty(t, info.key_ty).unwrap())
                     .collect::<Vec<_>>();
-                let val_ty = self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None);
+                let val_ty =
+                    self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
                 let index_info = self.alloc(ty::IndexInfo {
                     key_ty: info.key_ty,
                     val_ty,
@@ -4480,7 +4484,7 @@ impl<'cx> TyChecker<'cx> {
         if self
             .get_symbol_links(module_symbol)
             .get_exports_checked()
-            .is_some_and(|checked| checked)
+            .unwrap_or_default()
         {
             return;
         }
@@ -4494,7 +4498,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 let s = self.symbol(*symbol);
                 if s.flags
-                    .intersects(SymbolFlags::ALIAS.union(SymbolFlags::ENUM))
+                    .intersects(SymbolFlags::NAMESPACE.union(SymbolFlags::ENUM))
                 {
                     return None;
                 }
@@ -5426,6 +5430,18 @@ impl<'cx> TyChecker<'cx> {
         }
 
         facts
+    }
+
+    fn remove_ty(&mut self, ty: &'cx ty::Ty<'cx>, target_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.filter_type(ty, |_, t| t != target_ty)
+    }
+
+    fn remove_missing_ty(&mut self, ty: &'cx ty::Ty<'cx>, is_optional: bool) -> &'cx ty::Ty<'cx> {
+        if is_optional && self.config.exact_optional_property_types() {
+            self.remove_ty(ty, self.missing_ty)
+        } else {
+            ty
+        }
     }
 }
 

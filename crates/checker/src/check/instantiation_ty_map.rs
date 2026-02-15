@@ -98,6 +98,40 @@ impl<'cx> TyCacheTrait<'cx> for IntersectionMap<'cx> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub(super) struct UnionOfUnionTysKey<'cx> {
+    reduction: ty::UnionReduction,
+    a: ty::TyID,
+    b: ty::TyID,
+    alias_symbol: Option<SymbolID>,
+    alias_ty_arguments: Option<ty::Tys<'cx>>,
+}
+
+impl<'cx> UnionOfUnionTysKey<'cx> {
+    pub fn new(
+        reduction: ty::UnionReduction,
+        tys: &[&'cx ty::Ty<'cx>],
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
+    ) -> Self {
+        debug_assert!(tys.len() == 2);
+        let index = if tys[0].id.as_u32() < tys[1].id.as_u32() {
+            0
+        } else {
+            1
+        };
+        let a = tys[index].id;
+        let b = tys[1 - index].id;
+        Self {
+            reduction,
+            a,
+            b,
+            alias_symbol,
+            alias_ty_arguments,
+        }
+    }
+}
+
 pub(super) struct UnionMap<'cx> {
     inner: TyCache<'cx>,
 }

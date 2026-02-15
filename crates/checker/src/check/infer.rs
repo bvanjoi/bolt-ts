@@ -265,10 +265,10 @@ impl<'cx> TyChecker<'cx> {
             if object_literals.is_empty() {
                 candidates.to_vec()
             } else {
-                let lits = self.get_union_ty(
+                let lits = self.get_union_ty::<false>(
                     &object_literals,
                     ty::UnionReduction::Subtype,
-                    false,
+                    None,
                     None,
                     None,
                 );
@@ -327,10 +327,10 @@ impl<'cx> TyChecker<'cx> {
             .priority
             .is_some_and(|p| p.intersects(InferencePriority::PRIORITY_IMPLIES_COMBINATION))
         {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 base_candidates,
                 ty::UnionReduction::Subtype,
-                false,
+                None,
                 None,
                 None,
             )
@@ -1211,16 +1211,16 @@ impl<'cx> InferenceState<'cx, '_> {
             if targets.is_empty() {
                 return;
             }
-            target = self
-                .c
-                .get_union_ty(targets, ty::UnionReduction::Lit, false, None, None);
+            target =
+                self.c
+                    .get_union_ty::<false>(targets, ty::UnionReduction::Lit, None, None, None);
             if sources.is_empty() {
                 self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE);
                 return;
             }
-            source = self
-                .c
-                .get_union_ty(sources, ty::UnionReduction::Lit, false, None, None);
+            source =
+                self.c
+                    .get_union_ty::<false>(&sources, ty::UnionReduction::Lit, None, None, None);
         } else if target
             .kind
             .as_intersection()
@@ -1503,9 +1503,13 @@ impl<'cx> InferenceState<'cx, '_> {
                     .copied()
                     .collect::<Vec<_>>();
                 if !unmatched.is_empty() {
-                    let source =
-                        self.c
-                            .get_union_ty(&unmatched, ty::UnionReduction::Lit, false, None, None);
+                    let source = self.c.get_union_ty::<false>(
+                        &unmatched,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                    );
                     self.infer_from_tys(source, naked_type_variable.unwrap());
                     return;
                 }
@@ -1968,7 +1972,7 @@ impl<'cx> InferenceState<'cx, '_> {
                             && element_flags[start_len].intersects(ty::ElementFlags::VARIADIC)
                         {
                             let ends_in_optionals = target_tuple.element_flags[target_arity - 1]
-                                .intersects(ty::ElementFlags::OPTIONAL);
+                                .contains(ty::ElementFlags::OPTIONAL);
                             let source_slice = self.c.slice_tuple_ty(source, start_len, end_len);
                             self.infer_with_priority(
                                 source_slice,
@@ -1980,7 +1984,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                 },
                             );
                         } else if middle_length == 1
-                            && element_flags[start_len].intersects(ty::ElementFlags::REST)
+                            && element_flags[start_len].contains(ty::ElementFlags::REST)
                             && let Some(rest_ty) = self.c.get_element_ty_of_slice_of_tuple_ty(
                                 source,
                                 start_len,
@@ -2052,9 +2056,13 @@ impl<'cx> InferenceState<'cx, '_> {
                 }
 
                 if !props_tys.is_empty() {
-                    let u =
-                        self.c
-                            .get_union_ty(&props_tys, ty::UnionReduction::Lit, false, None, None);
+                    let u = self.c.get_union_ty::<false>(
+                        &props_tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                    );
                     self.infer_with_priority(u, target_info.val_ty, new_priority);
                 }
             }

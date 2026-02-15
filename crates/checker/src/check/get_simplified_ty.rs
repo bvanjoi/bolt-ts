@@ -75,10 +75,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_intersection_empty(&mut self, ty1: &'cx ty::Ty<'cx>, ty2: &'cx ty::Ty<'cx>) -> bool {
         let i = self.get_intersection_ty(&[ty1, ty2], IntersectionFlags::None, None, None);
-        let u = self.get_union_ty(
+        let u = self.get_union_ty::<false>(
             &[i, self.never_ty],
             ty::UnionReduction::Lit,
-            false,
+            None,
             None,
             None,
         );
@@ -109,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
             } else {
-                Some(self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None))
+                Some(self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None))
             };
         }
         None
@@ -133,7 +133,7 @@ impl<'cx> TyChecker<'cx> {
             if kind == SimplifiedKind::Writing {
                 self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
             } else {
-                self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
             }
         })
     }

@@ -40,7 +40,16 @@ impl<'cx> ObjectTyKind<'cx> {
 
     pub fn alias_ty_arguments(&self) -> Option<super::Tys<'cx>> {
         match self {
-            ObjectTyKind::Mapped(m) => m.alias_ty_arguments,
+            ObjectTyKind::Mapped(ty) => ty.alias_ty_arguments,
+            ObjectTyKind::Reference(ty) => ty.alias_ty_arguments,
+            _ => None,
+        }
+    }
+
+    pub fn alias_symbol(&self) -> Option<SymbolID> {
+        match self {
+            ObjectTyKind::Mapped(ty) => ty.alias_symbol,
+            ObjectTyKind::Reference(ty) => ty.alias_symbol,
             _ => None,
         }
     }
@@ -168,6 +177,8 @@ pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub node: Option<ast::NodeID>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
 }
 
 impl<'cx> ReferenceTy<'cx> {

@@ -366,7 +366,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let ty = if let Some(element_tys) = element_tys {
-            self.get_union_ty(element_tys, ty::UnionReduction::Lit, false, None, None)
+            self.get_union_ty::<false>(element_tys, ty::UnionReduction::Lit, None, None, None)
         } else {
             self.never_ty
         };
@@ -603,10 +603,10 @@ impl<'cx> TyChecker<'cx> {
         } else if self.is_type_any(false_constraint) {
             true_constraint
         } else {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[true_constraint, false_constraint],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
@@ -1286,10 +1286,10 @@ impl<'cx> TyChecker<'cx> {
         for (i, info) in infos.iter().enumerate() {
             if info.key_ty == new_info.key_ty {
                 let val_ty = if union {
-                    self.get_union_ty(
+                    self.get_union_ty::<false>(
                         &[info.val_ty, new_info.val_ty],
                         ty::UnionReduction::Lit,
-                        false,
+                        None,
                         None,
                         None,
                     )
@@ -1422,10 +1422,10 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_named_ty();
-                            this.get_union_ty(
+                            this.get_union_ty::<false>(
                                 &[old, prop_name_ty],
                                 ty::UnionReduction::Lit,
-                                false,
+                                None,
                                 None,
                                 None,
                             )
@@ -1435,10 +1435,10 @@ impl<'cx> TyChecker<'cx> {
 
                         let key_ty = {
                             let old = this.get_symbol_links(*existing_prop).expect_key_ty();
-                            this.get_union_ty(
+                            this.get_union_ty::<false>(
                                 &[old, key_ty],
                                 ty::UnionReduction::Lit,
-                                false,
+                                None,
                                 None,
                                 None,
                             )
@@ -1515,22 +1515,22 @@ impl<'cx> TyChecker<'cx> {
                 } else if this.is_valid_index_key_ty(prop_name_ty)
                     || prop_name_ty
                         .flags
-                        .intersects(TypeFlags::ANY | TypeFlags::ENUM)
+                        .intersects(TypeFlags::ANY.union(TypeFlags::ENUM))
                 {
                     let index_key_ty = if prop_name_ty
                         .flags
-                        .intersects(TypeFlags::ANY | TypeFlags::STRING)
+                        .intersects(TypeFlags::ANY.union(TypeFlags::STRING))
                     {
                         this.string_ty
                     } else if prop_name_ty
                         .flags
-                        .intersects(TypeFlags::NUMBER | TypeFlags::ENUM)
+                        .intersects(TypeFlags::NUMBER.union(TypeFlags::ENUM))
                     {
                         this.number_ty
                     } else {
                         prop_name_ty
                     };
-                    let prop_ty = {
+                    let val_ty = {
                         let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, key_ty);
                         this.instantiate_ty(template_ty, Some(mapper))
                     };
@@ -1542,7 +1542,7 @@ impl<'cx> TyChecker<'cx> {
                             && modifiers_index_info.is_some_and(|i| i.is_readonly));
                     let index_info = this.alloc(ty::IndexInfo {
                         key_ty: index_key_ty,
-                        val_ty: prop_ty,
+                        val_ty,
                         is_readonly,
                         symbol: Symbol::ERR,
                     });

@@ -310,10 +310,10 @@ impl<'cx> TyChecker<'cx> {
                     return Some(ty);
                 };
                 if ty.kind.is_union() && base_tys.len() == tys.len() {
-                    Some(checker.get_union_ty(
+                    Some(checker.get_union_ty::<false>(
                         &base_tys,
                         ty::UnionReduction::Lit,
-                        false,
+                        None,
                         None,
                         None,
                     ))

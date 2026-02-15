@@ -8,7 +8,7 @@ type Shape =
     | Rectangle
     | Circle;
 let shape: Shape = {
-//~^ ERROR: Type '{ kind: "sq"; x: number; y: number; }' is not assignable to type '{ kind: "sq"; size: number; } | { kind: "rt"; x: number; y: number; } | { kind: "cr"; radius: number; }'.
+//~^ ERROR: Type '{ kind: "sq"; x: number; y: number; }' is not assignable to type 'Shape'.
     kind: "sq",
     x: 12,
     y: 13,

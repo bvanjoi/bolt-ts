@@ -673,7 +673,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let ty = if is_union {
-                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit, false, None, None)
+                self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Lit, None, None, None)
             } else {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };
