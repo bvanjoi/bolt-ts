@@ -390,7 +390,7 @@ impl<'cx> TyChecker<'cx> {
                 return Some(*symbol);
             }
 
-            let fn_ty = if ty.id == self.any_fn_ty().id {
+            let fn_ty = if ty == self.any_fn_ty() {
                 Some(self.global_array_ty())
             } else if self
                 .get_ty_links(ty.id)

@@ -190,7 +190,9 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
                 always_strict,
             );
-            assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
+            debug_assert!(
+                !module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty()
+            );
             let p = ParseResultForGraph {
                 lib_references: lib_references(&p, atoms.clone(), *module_id),
                 diags: p.diags,

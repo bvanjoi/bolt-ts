@@ -304,7 +304,7 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    pub(super) fn filter<T: Copy>(
+    pub(super) fn filter<T>(
         &mut self,
         array: &'cx [&'cx T],
         f: impl Fn(&mut Self, &'cx T) -> bool,

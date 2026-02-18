@@ -616,7 +616,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             }
         });
-        let constraint = self.get_constraint_ty_from_mapped_ty(ty);
+        let constraint = self.get_constraint_ty_from_mapped_ty(m);
 
         if self.object_mapped_ty_links_arena[m.links]
             .get_named_ty()

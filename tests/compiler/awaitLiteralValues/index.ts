@@ -29,3 +29,7 @@ function awaitUndefined() {
     await undefined;
     //~^ ERROR: 'await' expressions are only allowed within async functions and at the top levels of modules.
 }
+
+async function asyncFunction(): Promise<number> {
+	return 2;
+}

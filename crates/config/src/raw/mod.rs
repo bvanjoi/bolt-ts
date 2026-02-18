@@ -43,6 +43,7 @@ with_option!(
     (strict, bool),
     (strict_null_checks, bool),
     (strict_function_types, bool),
+    (strict_bind_call_apply, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
     (no_implicit_returns, bool),
@@ -87,6 +88,11 @@ impl RawCompilerOptions {
         if get_strict_option_value(self.no_implicit_this) {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_THIS);
         }
+        if get_strict_option_value(self.strict_bind_call_apply) {
+            flags.insert(super::CompilerOptionFlags::STRICT_BIND_CALL_APPLY);
+        }
+        // TODO: delete
+        flags.insert(super::CompilerOptionFlags::STRICT_BIND_CALL_APPLY);
         if self.no_unchecked_indexed_access.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);
         }

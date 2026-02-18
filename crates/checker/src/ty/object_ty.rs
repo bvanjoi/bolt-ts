@@ -4,6 +4,7 @@ use bolt_ts_ty::ObjectFlags;
 use bolt_ts_utils::FxIndexMap;
 
 use super::super::check::SymbolInfo;
+use super::PromiseOrAwaitableTyLinksID;
 use super::TyChecker;
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
 use super::pprint::pprint_reference_ty;
@@ -50,6 +51,13 @@ impl<'cx> ObjectTyKind<'cx> {
         match self {
             ObjectTyKind::Mapped(ty) => ty.alias_symbol,
             ObjectTyKind::Reference(ty) => ty.alias_symbol,
+            _ => None,
+        }
+    }
+
+    pub fn promise_or_awaitable_ty_links(&self) -> Option<PromiseOrAwaitableTyLinksID<'cx>> {
+        match self {
+            ObjectTyKind::Reference(ty) => Some(ty.promise_or_awaitable_links),
             _ => None,
         }
     }
@@ -130,7 +138,7 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct TupleTy<'cx> {
     /// shape (an interface type)
     pub ty: &'cx Ty<'cx>,
@@ -172,13 +180,14 @@ impl<'cx> TupleTy<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub node: Option<ast::NodeID>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
+    pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
@@ -197,7 +206,7 @@ impl<'cx> ReferenceTy<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IndexInfo<'cx> {
     pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
@@ -213,7 +222,7 @@ impl PartialEq for &IndexInfo<'_> {
 
 pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct DeclaredMembers<'cx> {
     pub props: &'cx [SymbolID],
     pub index_infos: IndexInfos<'cx>,
@@ -221,7 +230,7 @@ pub struct DeclaredMembers<'cx> {
     pub call_sigs: super::Sigs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StructuredMembers<'cx> {
     pub members: &'cx FxIndexMap<SymbolName, SymbolID>,
     pub call_sigs: super::Sigs<'cx>,
@@ -230,7 +239,7 @@ pub struct StructuredMembers<'cx> {
     pub props: &'cx [SymbolID],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
     pub ty_params: Option<super::Tys<'cx>>,
@@ -449,7 +458,7 @@ impl<'cx> ObjectTyKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct AnonymousTy<'cx> {
     pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
@@ -460,7 +469,7 @@ pub struct AnonymousTy<'cx> {
     pub node: Option<ast::NodeID>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct SingleSigTy<'cx> {
     pub symbol: SymbolID,
     pub target: Option<&'cx Ty<'cx>>,
@@ -468,7 +477,7 @@ pub struct SingleSigTy<'cx> {
     pub outer_ty_params: Option<super::Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct MappedTy<'cx> {
     pub symbol: SymbolID,
     pub decl: &'cx ast::MappedTy<'cx>,
@@ -486,7 +495,7 @@ pub enum MappedTyNameTyKind {
     Remapping,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ReverseMappedTy<'cx> {
     pub source: &'cx Ty<'cx>,
     pub mapped_ty: &'cx Ty<'cx>,

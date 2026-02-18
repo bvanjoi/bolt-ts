@@ -350,9 +350,13 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let template_ty = self.get_template_ty_from_mapped_ty(mapped_ty.target.unwrap_or(ty));
+        let template_ty = self.get_template_ty_from_mapped_ty(
+            mapped_ty
+                .target
+                .map_or(mapped_ty, |t| t.kind.expect_object_mapped()),
+        );
         let mapper = {
-            let source = self.get_ty_param_from_mapped_ty(ty);
+            let source = self.get_ty_param_from_mapped_ty(mapped_ty);
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
@@ -519,8 +523,18 @@ impl<'cx> TyChecker<'cx> {
         let alias_symbol = self.get_alias_symbol_for_ty_node(node.id);
         let alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
         let symbol = self.final_res(node.id);
-        let ty = self.create_mapper_ty(symbol, node, alias_symbol, alias_ty_arguments);
-        self.get_constraint_ty_from_mapped_ty(ty);
+        let links = self.object_mapped_ty_links_arena.alloc(Default::default());
+        let mapped_ty = self.alloc(ty::MappedTy {
+            symbol,
+            decl: node,
+            alias_symbol,
+            alias_ty_arguments,
+            target: None,
+            mapper: None,
+            links,
+        });
+        let ty = self.create_object_ty(ty::ObjectTyKind::Mapped(mapped_ty), ObjectFlags::MAPPED);
+        self.get_constraint_ty_from_mapped_ty(mapped_ty);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -1203,7 +1217,7 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         has_default_ty_arguments: bool,
     ) -> bool {
-        assert!(self.p.node(node).is_ty());
+        debug_assert!(self.p.node(node).is_ty());
         self.get_alias_symbol_for_ty_node(node).is_some()
             || self.node_query(node.module()).is_resolved_by_ty_alias(node) && {
                 use bolt_ts_ast::Node::*;
@@ -1730,12 +1744,18 @@ impl<'cx> TyChecker<'cx> {
         let readonly = self
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
-        let target = if readonly {
-            self.global_readonly_array_ty()
+
+        let ty = if self.is_deferred_ty_reference_node(node.id, false) {
+            let target = if readonly {
+                self.global_readonly_array_ty()
+            } else {
+                self.global_array_ty()
+            };
+            self.create_deferred_ty_reference(target, node.id, None, None, None)
         } else {
-            self.global_array_ty()
+            let element_ty = self.get_ty_from_type_node(node.ele);
+            self.create_array_ty(element_ty, readonly)
         };
-        let ty = self.create_deferred_ty_reference(target, node.id, None, None, None);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -2266,20 +2286,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_ty_params_for_mapper(&mut self, sig: &'cx ty::Sig<'cx>) -> ty::Tys<'cx> {
-        let tys = self
-            .get_sig_links(sig.id)
-            .get_ty_params()
-            .unwrap_or_default()
-            .iter()
-            .map(|tp| {
-                if let Some(mapper) = self.param_ty_mapper(tp) {
-                    self.instantiate_ty(tp, Some(mapper))
-                } else {
-                    tp
-                }
-            })
-            .collect::<Vec<_>>();
-        self.alloc(tys)
+        let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
+            return self.empty_array();
+        };
+        self.same_map_tys(Some(ty_params), |this, tp, _| {
+            if let Some(mapper) = this.param_ty_mapper(tp) {
+                this.instantiate_ty(tp, Some(mapper))
+            } else {
+                tp
+            }
+        })
+        .unwrap()
     }
 
     pub(super) fn get_ty_of_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2338,7 +2355,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let ty_var = self.get_ty_param_from_mapped_ty(ty);
+        let m = ty.kind.expect_object_mapped();
+        let ty_var = self.get_ty_param_from_mapped_ty(m);
         fn is_distributive<'cx>(ty: &'cx ty::Ty<'cx>, ty_var: &'cx ty::Ty<'cx>) -> bool {
             if ty.flags.intersects(
                 TypeFlags::ANY_OR_UNKNOWN
@@ -2365,17 +2383,21 @@ impl<'cx> TyChecker<'cx> {
                 false
             }
         }
-        let ty = self.get_name_ty_from_mapped_ty(ty).unwrap_or(ty_var);
+        let ty = self.get_name_ty_from_mapped_ty(m).unwrap_or(ty_var);
         is_distributive(ty, ty_var)
     }
 
-    pub fn should_defer_index_ty(&mut self, ty: &'cx ty::Ty<'cx>, index_flags: IndexFlags) -> bool {
+    pub(super) fn should_defer_index_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        index_flags: IndexFlags,
+    ) -> bool {
         ty.flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || ty.kind.is_generic_tuple_type()
             || (self.is_generic_mapped_ty(ty)
                 && (!self.has_distributive_name_ty(ty)
                     || self.get_mapped_ty_name_ty_kind(ty) == ty::MappedTyNameTyKind::Remapping))
-            || ((index_flags.intersects(IndexFlags::NO_REDUCIBLE_CHECK))
+            || ((index_flags.contains(IndexFlags::NO_REDUCIBLE_CHECK))
                 && ty.kind.is_union()
                 && self.is_generic_reducible_ty(ty))
             || ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
@@ -2390,7 +2412,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         index_flags: IndexFlags,
     ) -> &'cx ty::Ty<'cx> {
-        if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
+        if index_flags.contains(IndexFlags::STRINGS_ONLY) {
             if let Some(ty) = self.get_ty_links(ty.id).get_resolved_string_index_ty() {
                 ty
             } else {
@@ -2486,7 +2508,7 @@ impl<'cx> TyChecker<'cx> {
             use bolt_ts_ast::Node::*;
             match self.p.node(node) {
                 ReferTy(_) => {
-                    let i = r.target.kind.expect_object_interface();
+                    let i = r.interface_target().unwrap().kind.expect_object_interface();
                     let local_args = self.get_effective_ty_args(node, i.local_ty_params.unwrap());
                     self.concatenate(i.outer_ty_params, local_args)
                 }
@@ -2508,7 +2530,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array()
         };
         let ty_args = if self.pop_ty_resolution().has_cycle() {
-            let i = r.target.kind.expect_object_interface();
+            let i = r.interface_target().unwrap().kind.expect_object_interface();
             // TODO: throw error
             self.concatenate(i.outer_ty_params, i.local_ty_params)
         } else if let Some(mapper) = r.mapper {

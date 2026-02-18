@@ -31,6 +31,7 @@ bitflags::bitflags! {
         const PRESERVE_SYMLINKS                         = 1 << 11;
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 12;
         const STRICT_PROPERTY_INITIALIZATION            = 1 << 13;
+        const STRICT_BIND_CALL_APPLY                    = 1 << 14;
     }
 }
 
@@ -128,5 +129,11 @@ impl NormalizedCompilerOptions {
     pub const fn strict_property_initialization(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::STRICT_PROPERTY_INITIALIZATION)
+    }
+
+    #[inline(always)]
+    pub const fn strict_bind_call_apply(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::STRICT_BIND_CALL_APPLY)
     }
 }

@@ -158,19 +158,22 @@ prefilled_atom_map!(
             IDENT_EVAL:                             ["eval", 99],
             IDENT_NON_NULLABLE:                     ["NonNullable", 100],
             IDENT_OMIT:                             ["Omit", 101],
-            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 102],
-            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 103],
-            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 104],
-            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 105],
-            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 106],
-            IDENT_PUSH:                             ["push", 107],
-            IDENT_UNSHIFT:                          ["unshift", 108],
+            IDENT_AWAITED:                          ["Awaited", 102],
+            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 103],
+            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 104],
+            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 105],
+            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 106],
+            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 107],
+            IDENT_PUSH:                             ["push", 108],
+            IDENT_UNSHIFT:                          ["unshift", 109],
+            IDENT_THEN:                             ["then", 110],
+            IDENT_PROMISE:                          ["Promise", 111]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 109]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 112]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 110]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 113]
         },
     }
 );

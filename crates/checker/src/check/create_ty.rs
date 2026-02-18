@@ -107,20 +107,30 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         mapper: Option<&'cx dyn ty::TyMap<'cx>>,
         mut alias_symbol: Option<SymbolID>,
-        alias_ty_arguments: Option<ty::Tys<'cx>>,
+        mut alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if alias_symbol.is_none() {
+            debug_assert!(alias_ty_arguments.is_none());
             alias_symbol = self.get_alias_symbol_for_ty_node(node);
-            // TODO: let local_alias_ty_arguments = self.get_ty_arguments_for
-            // TODO: alias_ty_arguments
+            let local_alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
+            alias_ty_arguments = if let Some(mapper) = mapper
+                && let Some(local_alias_ty_arguments) = local_alias_ty_arguments
+            {
+                Some(self.instantiate_tys(local_alias_ty_arguments, mapper))
+            } else {
+                local_alias_ty_arguments
+            }
         }
-        // TODO: mapper
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
         let ty = ty::ReferenceTy {
             target,
             node: Some(node),
             mapper,
             alias_symbol,
             alias_ty_arguments,
+            promise_or_awaitable_links,
         };
 
         self.create_object_ty(
@@ -242,12 +252,16 @@ impl<'cx> TyChecker<'cx> {
         resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
         let ty = ty::ReferenceTy {
             target,
             mapper: None,
             node: None,
             alias_symbol: None,
             alias_ty_arguments: None,
+            promise_or_awaitable_links,
         };
         if !flags.is_empty() {
             // TODO: delete branch
@@ -454,15 +468,21 @@ impl<'cx> TyChecker<'cx> {
             if flags.intersects(TypeFlags::INSTANTIABLE) {
                 includes |= TypeFlags::INCLUDES_INSTANTIABLE;
             }
+            let object_flags = ty.get_object_flags();
+            if flags.contains(TypeFlags::INTERSECTION)
+                && object_flags.contains(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+            {
+                includes |= TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE;
+            }
             if ty == self.wildcard_ty {
                 includes |= TypeFlags::INCLUDES_WILDCARD;
             }
+            if self.is_error(ty) {
+                includes |= TypeFlags::INCLUDES_ERROR;
+            }
 
             if !self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
-                if !ty
-                    .get_object_flags()
-                    .contains(ObjectFlags::CONTAINS_WIDENING_TYPE)
-                {
+                if !object_flags.contains(ObjectFlags::CONTAINS_WIDENING_TYPE) {
                     includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE;
                 }
             } else {
@@ -503,11 +523,8 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.global_array_ty()
         };
-        self.create_reference_ty(
-            target,
-            Some(self.alloc(vec![element_ty])),
-            ObjectFlags::empty(),
-        )
+        let resolved_ty_args = self.alloc(vec![element_ty]);
+        self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
     }
 
     fn remove_redundant_lit_tys(
@@ -715,6 +732,9 @@ impl<'cx> TyChecker<'cx> {
         }
         let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
         let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
         let union = self.alloc(ty::UnionTy {
             tys: self.alloc(tys),
             object_flags,
@@ -722,6 +742,7 @@ impl<'cx> TyChecker<'cx> {
             union_ty_links,
             alias_symbol,
             alias_ty_arguments,
+            promise_or_awaitable_links,
             origin,
         });
         let ty = self.new_ty(ty::TyKind::Union(union), flags);
@@ -766,7 +787,7 @@ impl<'cx> TyChecker<'cx> {
         element_flags: &'cx [ElementFlags],
         readonly: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
+        if element_flags.len() == 1 && element_flags[0].contains(ElementFlags::REST) {
             return if readonly {
                 self.global_readonly_array_ty()
             } else {
@@ -1145,7 +1166,7 @@ impl<'cx> TyChecker<'cx> {
             return self.never_ty;
         }
 
-        if includes.intersects(TypeFlags::ANY) {
+        if includes.contains(TypeFlags::ANY) {
             return if includes.intersects(TypeFlags::INCLUDES_WILDCARD) {
                 self.wildcard_ty
             } else if includes.intersects(TypeFlags::INCLUDES_ERROR) {
@@ -1321,12 +1342,16 @@ impl<'cx> TyChecker<'cx> {
             debug_assert!(flags == TypeFlags::UNION);
             let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
             let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
+            let promise_or_awaitable_links = self
+                .promise_or_awaitable_links_arena
+                .alloc(Default::default());
             let union = self.alloc(ty::UnionTy {
                 tys,
                 object_flags: ObjectFlags::empty(),
                 origin: None,
                 fresh_ty_links,
                 union_ty_links,
+                promise_or_awaitable_links,
                 alias_symbol: None,
                 alias_ty_arguments: None,
             });
@@ -1473,26 +1498,6 @@ impl<'cx> TyChecker<'cx> {
         } else {
             false
         }
-    }
-
-    pub(super) fn create_mapper_ty(
-        &mut self,
-        symbol: SymbolID,
-        decl: &'cx ast::MappedTy<'cx>,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_arguments: Option<ty::Tys<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
-        let links = self.object_mapped_ty_links_arena.alloc(Default::default());
-        let ty = self.alloc(ty::MappedTy {
-            symbol,
-            decl,
-            alias_symbol,
-            alias_ty_arguments,
-            target: None,
-            mapper: None,
-            links,
-        });
-        self.create_object_ty(ty::ObjectTyKind::Mapped(ty), ObjectFlags::MAPPED)
     }
 
     pub(super) fn create_string_mapping_ty(
@@ -1813,7 +1818,7 @@ impl<'cx> TyChecker<'cx> {
         yield_ty: &'cx ty::Ty<'cx>,
         return_ty: &'cx ty::Ty<'cx>,
         next_ty: &'cx ty::Ty<'cx>,
-    ) -> ty::IterationTys<'cx> {
+    ) -> &'cx ty::IterationTys<'cx> {
         const NEED_CACHED_TYPE_FLAGS: TypeFlags = TypeFlags::ANY
             .union(TypeFlags::NEVER)
             .union(TypeFlags::UNKNOWN)
@@ -1825,22 +1830,22 @@ impl<'cx> TyChecker<'cx> {
         {
             let id = create_iteration_tys_key(yield_ty, return_ty, next_ty);
             if let Some(tys) = self.iteration_tys_map.get(&id) {
-                return *tys;
+                return tys;
             }
-            let tys = ty::IterationTys {
+            let tys = self.alloc(ty::IterationTys {
                 yield_ty,
                 return_ty,
                 next_ty,
-            };
+            });
             let prev = self.iteration_tys_map.insert(id, tys);
             assert!(prev.is_none());
             tys
         } else {
-            ty::IterationTys {
+            self.alloc(ty::IterationTys {
                 yield_ty,
                 return_ty,
                 next_ty,
-            }
+            })
         }
     }
 

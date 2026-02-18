@@ -25,7 +25,6 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let fn_decl = self.p.node(id);
         let symbol = self.get_symbol_of_decl(id);
-        // TODO: check_sig_decl
         let first_fn_decl = self.binder.symbol(symbol).decls.as_ref().and_then(|decls| {
             decls
                 .iter()
@@ -35,10 +34,7 @@ impl<'cx> TyChecker<'cx> {
             self.check_fn_like_symbol(symbol);
         }
 
-        // TODO: use check_sig
-        if let Some(ty_params) = decl.ty_params() {
-            self.check_ty_params(ty_params);
-        }
+        self.check_sig_decl(id);
 
         for param in decl.params() {
             self.check_param_decl(param)

@@ -14,7 +14,7 @@ impl NodeID {
 }
 
 bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
+  #[derive(Clone, Copy, Debug, PartialEq, Eq)]
   pub struct FnFlags: u8 {
         const NORMAL          = 0;
         const GENERATOR       = 1 << 0;
@@ -562,12 +562,18 @@ impl<'cx> Node<'cx> {
             return FnFlags::INVALID;
         }
         let mut flags = FnFlags::NORMAL;
-        if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_elem() {
+        if matches!(
+            self,
+            Node::FnDecl(_) | Node::FnExpr(_) | Node::ClassMethodElem(_)
+        ) {
             // todo: check aster token
+            if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+                flags |= FnFlags::ASYNC;
+            }
         } else if self.as_arrow_fn_expr().is_some()
             && self.has_syntactic_modifier(self::ModifierKind::Async.into())
         {
-            flags |= FnFlags::GENERATOR;
+            flags |= FnFlags::ASYNC;
         }
 
         if self.fn_body().is_none() {
@@ -971,6 +977,11 @@ impl<'cx> Node<'cx> {
         (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_)))
             || e.expr.is_entity_name_expr()
             || e.expr.is_bindable_static_access_expr::<true>()
+    }
+
+    pub fn is_instance_of_expr(&self) -> bool {
+        self.as_bin_expr()
+            .is_some_and(|e| matches!(e.op.kind, super::BinOpKind::Instanceof))
     }
 }
 

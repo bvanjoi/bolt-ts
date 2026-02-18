@@ -175,15 +175,15 @@ impl<'cx> TyChecker<'cx> {
                 assert!(prev.is_none());
             }
         }
-        // TODO: this
+        let this_param = sig.this_param.map(|s| self.instantiate_symbol(s, mapper));
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
         });
-
         let sig = self.new_sig(ty::Sig {
             target: Some(sig),
             mapper: Some(mapper),
             params,
+            this_param,
             id: SigID::dummy(),
             ..*sig
         });
@@ -192,7 +192,6 @@ impl<'cx> TyChecker<'cx> {
             let prev = self.sig_links.insert(sig.id, links);
             debug_assert!(prev.is_none());
         }
-
         sig
     }
 
@@ -342,7 +341,13 @@ impl<'cx> TyChecker<'cx> {
             let base_ty_node = base_ty_node.unwrap();
             let span = base_ty_node.span;
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
-            base_ty = self.get_ty_from_class_or_interface_reference(span, ty_args, None, symbol);
+            base_ty = self.get_ty_from_class_or_interface_reference(
+                base_ty_node.id,
+                span,
+                ty_args,
+                None,
+                symbol,
+            );
         } else if base_ctor_ty.flags.intersects(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {
@@ -803,9 +808,10 @@ impl<'cx> TyChecker<'cx> {
             self.reverse_expanding_flags |= RecursionFlags::TARGET;
         }
         let ty = if self.reverse_expanding_flags != RecursionFlags::BOTH {
-            let index_ty = self.get_ty_param_from_mapped_ty(target);
+            let target_mapped_ty = target.kind.expect_object_mapped();
+            let index_ty = self.get_ty_param_from_mapped_ty(target_mapped_ty);
             let ty_param = self.get_indexed_access_ty(constraint_index_ty.ty, index_ty, None, None);
-            let template_ty = self.get_template_ty_from_mapped_ty(target);
+            let template_ty = self.get_template_ty_from_mapped_ty(target_mapped_ty);
             let inference =
                 self.create_inference_context(&[ty_param], None, InferenceFlags::empty());
             self.infer_tys(inference, source, template_ty, None, false);
@@ -829,7 +835,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::ReverseMappedTy<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let c = self.get_constraint_ty_from_mapped_ty(ty.mapped_ty);
+        let c = self.get_constraint_ty_from_mapped_ty(ty.mapped_ty.kind.expect_object_mapped());
         if !c
             .flags
             .intersects(TypeFlags::UNION.union(TypeFlags::INTERSECTION))
@@ -1322,9 +1328,10 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> ty::MappedTyNameTyKind {
-        let name_ty = self.get_name_ty_from_mapped_ty(ty);
+        let m = ty.kind.expect_object_mapped();
+        let name_ty = self.get_name_ty_from_mapped_ty(m);
         if let Some(name_ty) = name_ty {
-            let target = self.get_ty_param_from_mapped_ty(ty);
+            let target = self.get_ty_param_from_mapped_ty(m);
             if self.is_type_assignable_to(name_ty, target) {
                 ty::MappedTyNameTyKind::Filtering
             } else {
@@ -1349,27 +1356,25 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_modifiers_ty_from_mapped_ty(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        ty: &'cx ty::MappedTy<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let mapped_ty = ty.kind.expect_object_mapped();
-        if let Some(t) = self.object_mapped_ty_links_arena[mapped_ty.links].get_modifiers_ty() {
+        if let Some(t) = self.object_mapped_ty_links_arena[ty.links].get_modifiers_ty() {
             return t;
         }
-        let modifiers_ty = if self.is_mapped_ty_with_keyof_constraint_decl(mapped_ty) {
-            let ty_node = if let ast::TyKind::TyOp(t) = self
-                .get_constraint_decl_for_mapped_ty(mapped_ty)
-                .unwrap()
-                .kind
+        let modifiers_ty = if self.is_mapped_ty_with_keyof_constraint_decl(ty) {
+            let ty_node = if let ast::TyKind::TyOp(t) =
+                self.get_constraint_decl_for_mapped_ty(ty).unwrap().kind
             {
                 t.ty
             } else {
                 unimplemented!()
             };
             let t = self.get_ty_from_type_node(ty_node);
-            self.instantiate_ty(t, mapped_ty.mapper)
+            self.instantiate_ty(t, ty.mapper)
         } else {
-            let declare_ty = self.get_ty_from_mapped_ty_node(mapped_ty.decl);
-            let constraint = self.get_constraint_ty_from_mapped_ty(declare_ty);
+            let declare_ty = self.get_ty_from_mapped_ty_node(ty.decl);
+            let constraint =
+                self.get_constraint_ty_from_mapped_ty(declare_ty.kind.expect_object_mapped());
             let extended_constraint = if constraint.flags.intersects(ty::TypeFlags::TYPE_PARAMETER)
             {
                 self.get_constraint_of_ty_param(constraint)
@@ -1381,11 +1386,11 @@ impl<'cx> TyChecker<'cx> {
                     extended_constraint
                         .kind
                         .as_index_ty()
-                        .map(|index| self.instantiate_ty(index.ty, mapped_ty.mapper))
+                        .map(|index| self.instantiate_ty(index.ty, ty.mapper))
                 })
                 .unwrap_or(self.undefined_ty)
         };
-        self.object_mapped_ty_links_arena[mapped_ty.links].set_modifiers_ty(modifiers_ty);
+        self.object_mapped_ty_links_arena[ty.links].set_modifiers_ty(modifiers_ty);
         modifiers_ty
     }
 
@@ -1395,18 +1400,19 @@ impl<'cx> TyChecker<'cx> {
             .set_structured_members(placeholder);
 
         let mapped_ty = ty.kind.expect_object_mapped();
-        let ty_param = self.get_ty_param_from_mapped_ty(ty);
-        let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
+        let ty_param = self.get_ty_param_from_mapped_ty(mapped_ty);
+        let constraint_ty = self.get_constraint_ty_from_mapped_ty(mapped_ty);
         let (name_ty, should_link_prop_decls, template_ty) = {
             let target = mapped_ty.target.unwrap_or(ty);
-            let name_ty = self.get_name_ty_from_mapped_ty(target);
+            let target_mapped_ty = target.kind.expect_object_mapped();
+            let name_ty = self.get_name_ty_from_mapped_ty(target_mapped_ty);
             let should_link_prop_decls =
                 self.get_mapped_ty_name_ty_kind(target) != ty::MappedTyNameTyKind::Remapping;
-            let template_ty = self.get_template_ty_from_mapped_ty(target);
+            let template_ty = self.get_template_ty_from_mapped_ty(target_mapped_ty);
             (name_ty, should_link_prop_decls, template_ty)
         };
         let modifiers_ty = {
-            let ty = self.get_modifiers_ty_from_mapped_ty(ty);
+            let ty = self.get_modifiers_ty_from_mapped_ty(mapped_ty);
             self.get_apparent_ty(ty)
         };
         let template_modifier = mapped_ty.decl.get_modifiers();

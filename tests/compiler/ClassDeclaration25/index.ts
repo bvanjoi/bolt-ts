@@ -10,3 +10,9 @@ class List<U> implements IList<U> {
   next(): string;
   //~^ ERROR: Function implementation is missing or not immediately following the declaration.
 }
+
+class A<T> {}
+class B {
+  constructor(_: typeof A<number>) {}
+} 
+new B(A);

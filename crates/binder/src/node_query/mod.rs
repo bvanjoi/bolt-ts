@@ -967,4 +967,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             _ => node,
         }
     }
+
+    pub fn is_right_side_of_instance_expr(&self, node: ast::NodeID) -> bool {
+        let parent = match self.parent(node) {
+            Some(p) => p,
+            None => return false,
+        };
+        let ast::Node::BinExpr(n) = self.node(parent) else {
+            return false;
+        };
+        n.op.kind == ast::BinOpKind::Instanceof && n.right.id() == node
+    }
 }

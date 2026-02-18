@@ -83,7 +83,14 @@ links!(
     (template_ty, &'cx super::Ty<'cx>),
     (modifiers_ty, &'cx super::Ty<'cx>),
     (resolved_apparent_ty, &'cx super::Ty<'cx>),
-    (contains_error, bool),
+    (contains_error, bool)
 );
 
-links!(UnionTyLinks, (key_prop_name, SymbolName),);
+links!(UnionTyLinks, (key_prop_name, SymbolName));
+
+links!(
+    PromiseOrAwaitableTyLinks,
+    (promise_ty_of_promise_ctor, &'cx super::Ty<'cx>),
+    (promised_ty_of_promise, &'cx super::Ty<'cx>),
+    (awaited_ty_of_ty, &'cx super::Ty<'cx>),
+);

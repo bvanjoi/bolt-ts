@@ -583,7 +583,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mode: IterationUse,
         error_node: Option<ast::NodeID>,
-    ) -> ty::IterationTys<'cx> {
+    ) -> &'cx ty::IterationTys<'cx> {
         if self.is_type_any(ty) {
             return self.any_iteration_tys();
         }

@@ -399,7 +399,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         let mut result = true;
         let ty_args = self.get_effective_ty_args(node.id(), ty_params).unwrap();
-        assert_eq!(ty_params.len(), ty_args.len());
+        debug_assert_eq!(ty_params.len(), ty_args.len());
         let mapper = self.create_ty_mapper(ty_params, ty_args);
         for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
@@ -448,7 +448,7 @@ impl<'cx> TyChecker<'cx> {
             .binder
             .symbol(symbol)
             .flags
-            .intersects(SymbolFlags::TYPE_ALIAS)
+            .contains(SymbolFlags::TYPE_ALIAS)
         {
             self.get_symbol_links(symbol).get_ty_params()
         } else if let Some(reference) = ty.kind.as_object_reference() {

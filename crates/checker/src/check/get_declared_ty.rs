@@ -309,12 +309,16 @@ impl<'cx> TyChecker<'cx> {
                 local_ty_params,
                 Some(this_ty),
             );
+            let promise_or_awaitable_links = self
+                .promise_or_awaitable_links_arena
+                .alloc(Default::default());
             let ty = self.alloc(ty::ReferenceTy {
                 target,
                 mapper: None,
                 node: None,
                 alias_symbol: None,
                 alias_ty_arguments: None,
+                promise_or_awaitable_links,
             });
             let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
             assert!(!self.ty_links.contains_key(&ty.id));
@@ -395,6 +399,8 @@ impl<'cx> TyChecker<'cx> {
                             return if let Some(mut outer_ty_params) = outer_ty_params {
                                 outer_ty_params.extend(ty_params);
                                 Some(outer_ty_params)
+                            } else if ty_params.is_empty() {
+                                None
                             } else {
                                 Some(ty_params.to_vec())
                             };
@@ -415,7 +421,11 @@ impl<'cx> TyChecker<'cx> {
                         if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
                             outer_ty_params.extend(infer_ty_params);
                         };
-                        return Some(outer_ty_params);
+                        return if outer_ty_params.is_empty() {
+                            None
+                        } else {
+                            Some(outer_ty_params)
+                        };
                         // return if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
                         //     if infer_ty_params.is_empty() {
                         //         outer_ty_params

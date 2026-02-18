@@ -75,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
             true
         } else if let Some(object) = ty.kind.as_object() {
             // TODO: !isNonGenericTopLevelType(type)
-            if object.flags.intersects(ObjectFlags::REFERENCE) {
+            if object.flags.contains(ObjectFlags::REFERENCE) {
                 object.kind.as_reference().is_some_and(|r| r.node.is_some())
                     || self
                         .get_ty_arguments(ty)
@@ -318,7 +318,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(crate) fn get_homomorphic_ty_var(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        ty: &'cx ty::MappedTy<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         constraint_ty.kind.as_index_ty().and_then(|index_ty| {
@@ -448,10 +448,12 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let m = ty.kind.expect_object_mapped();
-        let source = self.get_ty_param_from_mapped_ty(ty);
+        let source = self.get_ty_param_from_mapped_ty(m);
         let template_mapper = self.append_ty_mapping(Some(mapper), source, key);
         let prop_ty = {
-            let template_ty = self.get_template_ty_from_mapped_ty(m.target.unwrap_or(ty));
+            let template_ty = self.get_template_ty_from_mapped_ty(
+                m.target.map_or(m, |t| t.kind.expect_object_mapped()),
+            );
             self.instantiate_ty(template_ty, Some(template_mapper))
         };
         let modifiers = m.decl.get_modifiers();
@@ -523,7 +525,8 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let Some(ty_var) = self.get_homomorphic_ty_var(ty) {
+        let m = ty.kind.expect_object_mapped();
+        if let Some(ty_var) = self.get_homomorphic_ty_var(m) {
             let mapped_ty_var = self.instantiate_ty(ty_var, Some(mapper));
             if ty_var != mapped_ty_var {
                 let mapped_ty_var = self.get_reduced_ty(mapped_ty_var);
@@ -547,7 +550,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
+        let constraint_ty = self.get_constraint_ty_from_mapped_ty(m);
         if self.instantiate_ty(constraint_ty, Some(mapper)) == self.wildcard_ty {
             self.wildcard_ty
         } else {
@@ -562,7 +565,7 @@ impl<'cx> TyChecker<'cx> {
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let map = ty.kind.expect_object_mapped();
-        let orig_ty_param = self.get_ty_param_from_mapped_ty(ty);
+        let orig_ty_param = self.get_ty_param_from_mapped_ty(map);
         let fresh_ty_param = self.clone_param_ty(orig_ty_param);
         let mapper = {
             let m = self.alloc(TyMapper::make_unary(orig_ty_param, fresh_ty_param));
@@ -821,7 +824,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
         alias_symbol: Option<SymbolID>,
-        alias_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let cond_ty = ty.kind.expect_cond_ty();
         let Some(outer_ty_params) = cond_ty.root.outer_ty_params else {
@@ -835,7 +838,7 @@ impl<'cx> TyChecker<'cx> {
             cond_ty.root.node.id,
             &ty_args,
             alias_symbol,
-            alias_ty_args,
+            alias_ty_arguments,
         );
         if let Some(instantiated) = self.instantiation_ty_map.get(key) {
             return instantiated;
@@ -857,14 +860,24 @@ impl<'cx> TyChecker<'cx> {
                 distribution_ty,
                 |this, t| {
                     let mapper = this.prepend_ty_mapping(check_ty, t, Some(new_mapper));
-                    Some(this.get_cond_ty(cond_ty.root, Some(mapper), alias_symbol, alias_ty_args))
+                    Some(this.get_cond_ty(
+                        cond_ty.root,
+                        Some(mapper),
+                        alias_symbol,
+                        alias_ty_arguments,
+                    ))
                 },
                 alias_symbol,
-                alias_ty_args,
+                alias_ty_arguments,
             )
             .unwrap()
         } else {
-            self.get_cond_ty(cond_ty.root, Some(new_mapper), alias_symbol, alias_ty_args)
+            self.get_cond_ty(
+                cond_ty.root,
+                Some(new_mapper),
+                alias_symbol,
+                alias_ty_arguments,
+            )
         };
         if !self.instantiation_ty_map.contain(key) {
             self.instantiation_ty_map.insert(key, ty);

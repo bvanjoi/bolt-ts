@@ -566,12 +566,26 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn get_this_arg_ty(&mut self, this_arg_node: Option<&'cx ast::Expr<'cx>>) -> &'cx ty::Ty<'cx> {
-        let Some(this_arg_node) = this_arg_node else {
+    pub(super) fn get_this_argument_ty(
+        &mut self,
+        this_argument_node: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(this_argument_node) = this_argument_node else {
             return self.void_ty;
         };
 
-        (self.check_expr(this_arg_node)) as _
+        let this_argument_ty = self.check_expr(this_argument_node);
+        let id = this_argument_node.id();
+        let span = this_argument_node.span();
+        if self
+            .node_query(span.module())
+            .is_right_side_of_instance_expr(id)
+        {
+            this_argument_ty
+        } else {
+            // TODO: chain
+            this_argument_ty
+        }
     }
 
     fn get_signature_applicability_error(
@@ -588,11 +602,11 @@ impl<'cx> TyChecker<'cx> {
         {
             let n = self.p.node(expr.id());
             if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
-                let n = n.expect_call_expr();
-                // TODO: get_this_argument_of_call;
-                let this_arg_ty = self.get_this_arg_ty(Some(n.expr));
-                let error_node = report_error.then(|| n.expr.id());
-                if !self.check_type_related_to(this_arg_ty, this_ty, relation, error_node) {
+                let this_argument_node = self.get_this_argument_of_call(expr);
+                let this_argument_ty = self.get_this_argument_ty(this_argument_node);
+                let error_node = report_error
+                    .then(|| this_argument_node.unwrap_or(n.expect_call_expr().expr).id());
+                if !self.check_type_related_to(this_argument_ty, this_ty, relation, error_node) {
                     return true;
                 }
             }
@@ -749,17 +763,13 @@ impl<'cx> TyChecker<'cx> {
                             InferenceFlags::empty(),
                         );
                         infer_ctx = Some(infer);
-                        ty_arg_tys = Some({
-                            let tys = self.infer_ty_args(
-                                expr,
-                                candidate,
-                                expr.args(),
-                                argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                                infer,
-                            );
-                            let mapper = self.inference(infer).non_fixing_mapper;
-                            self.instantiate_tys(tys, mapper)
-                        });
+                        ty_arg_tys = Some(self.infer_ty_args(
+                            expr,
+                            candidate,
+                            expr.args(),
+                            argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                            infer,
+                        ));
 
                         if self.inferences[infer.as_usize()]
                             .flags
@@ -788,17 +798,13 @@ impl<'cx> TyChecker<'cx> {
                 if !argument_check_mode.is_empty() {
                     argument_check_mode = CheckMode::empty();
                     if let Some(infer_ctx) = infer_ctx {
-                        let ty_arg_tys = {
-                            let tys = self.infer_ty_args(
-                                expr,
-                                candidate,
-                                expr.args(),
-                                argument_check_mode,
-                                infer_ctx,
-                            );
-                            let mapper = self.inference(infer_ctx).mapper;
-                            self.instantiate_tys(tys, mapper)
-                        };
+                        let ty_arg_tys = self.infer_ty_args(
+                            expr,
+                            candidate,
+                            expr.args(),
+                            argument_check_mode,
+                            infer_ctx,
+                        );
                         check_candidate =
                             self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
                     };

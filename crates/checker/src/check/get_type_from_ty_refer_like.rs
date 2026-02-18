@@ -189,6 +189,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_from_class_or_interface_reference(
         &mut self,
+        node: ast::NodeID,
         node_span: bolt_ts_span::Span,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         name: Option<&'cx ast::EntityName<'cx>>,
@@ -220,6 +221,14 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
 
+            if self.p.node(node).as_refer_ty().is_some_and(|n| {
+                let has_default_ty_arguments =
+                    n.ty_args.map(|tys| tys.list.len()) != ty_args.map(|tys| tys.list.len());
+                self.is_deferred_ty_reference_node(node, has_default_ty_arguments)
+            }) {
+                return self.create_deferred_ty_reference(ty, node, None, None, None);
+            }
+
             let resolved_ty_args = {
                 let self_ty_args = self.ty_args_from_ty_refer_node(ty_args);
                 let self_ty_args =
@@ -245,6 +254,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             return self.get_ty_from_class_or_interface_reference(
+                node.id(),
                 node.span(),
                 node.ty_args(),
                 Some(node.name()),

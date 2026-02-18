@@ -20,9 +20,11 @@ use super::check::TyChecker;
 
 pub use self::facts::{TYPEOF_NE_FACTS, typeof_ne_facts};
 pub use self::links::InterfaceTyLinksArena;
+pub use self::links::PromiseOrAwaitableTyLinks;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
 pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena};
+pub use self::links::{PromiseOrAwaitableTyLinksArena, PromiseOrAwaitableTyLinksID};
 pub use self::links::{UnionTyLinks, UnionTyLinksArena, UnionTyLinksID};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
@@ -45,7 +47,7 @@ impl TyID {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Ty<'cx> {
     pub id: TyID,
     pub kind: TyKind<'cx>,
@@ -170,6 +172,14 @@ impl<'cx> Ty<'cx> {
             Some(i)
         } else {
             None
+        }
+    }
+
+    pub fn promise_or_awaitable_ty_links(&self) -> Option<PromiseOrAwaitableTyLinksID<'cx>> {
+        match self.kind {
+            TyKind::Union(ty) => Some(ty.promise_or_awaitable_links),
+            TyKind::Object(ty) => ty.kind.promise_or_awaitable_ty_links(),
+            _ => None,
         }
     }
 }
@@ -399,7 +409,7 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn as_tuple(&self) -> Option<&'cx TupleTy<'cx>> {
-        if self.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+        if self.get_object_flags().contains(ObjectFlags::REFERENCE) {
             if let Some(refer) = self.kind.as_object_reference() {
                 return refer.target.kind.as_object_tuple();
             } else if let Some(tup) = self.kind.as_object_tuple() {
@@ -584,25 +594,25 @@ impl<'cx> TyKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct UniqueESSymbolTy {
     pub symbol: SymbolID,
     pub escape_name: SymbolName,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct TemplateLitTy<'cx> {
     pub texts: &'cx [Atom],
     pub tys: Tys<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StringMappingTy<'cx> {
     pub symbol: SymbolID,
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct CondTyRoot<'cx> {
     pub node: &'cx ast::CondTy<'cx>,
     pub check_ty: &'cx Ty<'cx>,
@@ -614,7 +624,7 @@ pub struct CondTyRoot<'cx> {
     pub alias_ty_args: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct CondTy<'cx> {
     pub root: &'cx CondTyRoot<'cx>,
     pub check_ty: &'cx Ty<'cx>,
@@ -643,7 +653,7 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IndexedAccessTy<'cx> {
     pub object_ty: &'cx self::Ty<'cx>,
     pub index_ty: &'cx self::Ty<'cx>,
@@ -652,18 +662,19 @@ pub struct IndexedAccessTy<'cx> {
     // alias_ty_arguments: Option<&'cx Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
     pub origin: Option<&'cx self::Ty<'cx>>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
     pub union_ty_links: UnionTyLinksID<'cx>,
+    pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IntersectionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
@@ -671,21 +682,21 @@ pub struct IntersectionTy<'cx> {
     pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StringLitTy<'cx> {
     pub val: Atom,
     pub symbol: Option<SymbolID>,
     pub links: FreshTyLinksID<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct BigIntLitTy<'cx> {
     pub neg: bool,
     pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
     pub offset: Option<usize>,
@@ -702,13 +713,13 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IndexTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,
     pub index_flags: IndexFlags,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IntrinsicTy {
     pub object_flags: ObjectFlags,
     pub name: Atom,
@@ -722,21 +733,21 @@ pub struct IntrinsicTy {
 ///                              // - `base_type` is `T`,
 ///                              // - `constraint` is `number`.
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct SubstitutionTy<'cx> {
     pub object_flags: ObjectFlags,
     pub base_ty: &'cx self::Ty<'cx>,
     pub constraint: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IterationTys<'cx> {
     pub yield_ty: &'cx self::Ty<'cx>,
     pub return_ty: &'cx self::Ty<'cx>,
     pub next_ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct EnumTy<'cx> {
     pub symbol: SymbolID,
     pub fresh_ty_links: FreshTyLinksID<'cx>,

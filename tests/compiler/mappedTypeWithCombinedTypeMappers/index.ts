@@ -18,14 +18,16 @@ declare const output: Meta<Input, boolean>;
 const shouldFail: { important: boolean } = output.x.children;
 //~^ ERROR: Type 'string' is not assignable to type '{ important: boolean; }'.
 
+{
+  type A<T> = { [KeyType in keyof T]: never };
+  type B<Source> = {[Key in keyof {}]: never } & Source;
+  type C<Source> = A<B<Source>>;
+  type AAA<TTT extends { [Key in keyof TTT]: never; }> = C<TTT>;
+  type BBBBB<TTTTT extends { a: never } & {[Key in keyof TTTTT]: Key;}> = C<TTTTT>;
+}
 
 {
-  type Simplify<T> = { [KeyType in keyof T]: never };
-  type SimpleMerge<Source> = {
-    [Key in keyof {}]: never;
-  } & Source;
-  type Merge<Source> =
-    Simplify<SimpleMerge<Source>>;
-  type AAA<TTT extends { [Key in keyof TTT]: never; }> = Merge<TTT>;
-  type BBBBB<TTTTT extends { a: never } & {[Key in keyof TTTTT]: Key;}> = Merge<TTTTT>;
+  type T2<E> = keyof {[Key in keyof E as number]: never}
+  type T1<C, D extends C> = never;
+  type T0<A> = T1<A, T2<A>>;
 }

@@ -366,7 +366,7 @@ impl<'cx> TyChecker<'cx> {
         this_arg: Option<&'cx ty::Ty<'cx>>,
         need_apparent_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+        if ty.get_object_flags().contains(ObjectFlags::REFERENCE) {
             let ty_args = self.get_ty_arguments(ty);
             let i = if let Some(t) = ty.as_tuple() {
                 t.ty.kind.expect_object_interface()
@@ -731,7 +731,15 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: rest
-        // TODO: this
+
+        if let Some(this_ty) = self.get_this_ty_of_sig(sig)
+            && self.could_contain_ty_var(this_ty)
+        {
+            let this_argument_node = self.get_this_argument_of_call(node);
+            let ty = self.get_this_argument_ty(this_argument_node);
+            self.infer_tys(inference, ty, this_ty, None, false);
+        }
+
         for (idx, arg) in args.iter().enumerate() {
             if !matches!(arg.kind, ast::ExprKind::Omit(_)) {
                 let param_ty = self.get_ty_at_pos(sig, idx);
@@ -748,6 +756,26 @@ impl<'cx> TyChecker<'cx> {
         }
         // TODO: rest_ty
         self.get_inferred_tys(inference)
+    }
+
+    pub(super) fn get_this_argument_of_call(
+        &mut self,
+        node: &impl r#trait::CallLike<'cx>,
+    ) -> Option<&'cx ast::Expr<'cx>> {
+        // TODO: binary
+        let n = self.p.node(node.id());
+        let expr = match n {
+            ast::Node::CallExpr(n) => n.expr,
+            ast::Node::TaggedTemplateExpr(n) => n.tag,
+            ast::Node::NewExpr(_) => return None,
+            _ => unreachable!(),
+        };
+        let callee = ast::Expr::skip_outer_expr(expr);
+        match callee.kind {
+            ast::ExprKind::PropAccess(n) => Some(n.expr),
+            ast::ExprKind::EleAccess(n) => Some(n.expr),
+            _ => None,
+        }
     }
 
     pub(super) fn infer_from_annotated_params_and_return(
@@ -1344,7 +1372,7 @@ impl<'cx> InferenceState<'cx, '_> {
             && let Some(target_refer) = target.kind.as_object_reference()
             && (source_refer.target == target_refer.target
                 || source.kind.is_array(self.c) && target.kind.is_array(self.c))
-            && !(source_refer.node.is_none() && target_refer.node.is_none())
+            && !(source_refer.node.is_some() && target_refer.node.is_some())
         {
             let source_tys = self.c.get_ty_arguments(source);
             let target_tys = self.c.get_ty_arguments(target);
@@ -1409,16 +1437,18 @@ impl<'cx> InferenceState<'cx, '_> {
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
     ) {
-        let s = self.c.get_constraint_ty_from_mapped_ty(source);
-        let t = self.c.get_constraint_ty_from_mapped_ty(target);
+        let source_mapped_ty = source.kind.expect_object_mapped();
+        let target_mapped_ty = target.kind.expect_object_mapped();
+        let s = self.c.get_constraint_ty_from_mapped_ty(source_mapped_ty);
+        let t = self.c.get_constraint_ty_from_mapped_ty(target_mapped_ty);
         self.infer_from_tys(s, t);
 
-        let s = self.c.get_template_ty_from_mapped_ty(source);
-        let t = self.c.get_template_ty_from_mapped_ty(target);
+        let s = self.c.get_template_ty_from_mapped_ty(source_mapped_ty);
+        let t = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
         self.infer_from_tys(s, t);
 
-        if let Some(source_name_ty) = self.c.get_name_ty_from_mapped_ty(source)
-            && let Some(target_name_ty) = self.c.get_name_ty_from_mapped_ty(target)
+        if let Some(source_name_ty) = self.c.get_name_ty_from_mapped_ty(source_mapped_ty)
+            && let Some(target_name_ty) = self.c.get_name_ty_from_mapped_ty(target_mapped_ty)
         {
             self.infer_from_tys(source_name_ty, target_name_ty);
         }
@@ -1799,7 +1829,7 @@ impl<'cx> InferenceState<'cx, '_> {
         if let Some(target_mapped_ty) = target.kind.as_object_mapped()
             && target_mapped_ty.decl.name_ty.is_none()
         {
-            let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target);
+            let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(target_mapped_ty);
             if self.infer_to_mapped_ty(source, target, target_mapped_ty, constraint_ty) {
                 return;
             }
@@ -2139,7 +2169,11 @@ impl<'cx> InferenceState<'cx, '_> {
         } else {
             usize::min(source_count, target_non_rest_count)
         };
-        // TODO: `source_this_ty`
+        if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source)
+            && let Some(target_this_ty) = self.c.get_this_ty_of_sig(target)
+        {
+            callback(self, source_this_ty, target_this_ty);
+        }
         for i in 0..param_count {
             let source_ty = self.c.get_ty_at_pos(source, i);
             let target_ty = self.c.get_ty_at_pos(target, i);

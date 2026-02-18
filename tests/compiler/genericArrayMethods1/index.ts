@@ -4,7 +4,8 @@ var x:string[] =  [0,1].slice(0);
 //~^ ERROR: Type 'number[]' is not assignable to type 'string[]'.
 
 {
-  let a0: [] = [];
+  const a0: [] = [];
+	const a1 = {} as boolean;
 }
 
 {
