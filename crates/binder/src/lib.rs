@@ -312,5 +312,6 @@ pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
                 }
             }
         }
+        ast::PropNameKind::BigIntLit(n) => Some(SymbolName::Atom(n.val.1)),
     }
 }

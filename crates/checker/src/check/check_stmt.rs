@@ -257,6 +257,18 @@ impl<'cx> TyChecker<'cx> {
         symbol
     }
 
+    pub(super) fn get_global_es_symbol_constructor_symbol(&mut self) -> Option<SymbolID> {
+        if let Some(symbol) = self.deferred_global_es_symbol_constructor_symbol.get() {
+            return *symbol;
+        }
+        let symbol = self.get_global_value_symbol(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS));
+        let res = self
+            .deferred_global_es_symbol_constructor_symbol
+            .set(symbol);
+        debug_assert!(res.is_ok());
+        symbol
+    }
+
     fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
         if let Some(symbol) = self.deferred_global_extract_symbol.get() {
             return *symbol;

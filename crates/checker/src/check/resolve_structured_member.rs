@@ -365,7 +365,7 @@ impl<'cx> TyChecker<'cx> {
         let readonly = ty.readonly;
         let element_tys = self.same_map_tys(ty.ty_params(), |this, t, i| {
             if ty.element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
-                this.get_indexed_access_ty(t, self.number_ty, None, None)
+                this.get_indexed_access_ty(t, self.number_ty, None, None, None, None)
             } else {
                 t
             }
@@ -593,54 +593,7 @@ impl<'cx> TyChecker<'cx> {
         );
     }
 
-    pub(super) fn get_default_constraint_of_cond_ty(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        let cond_ty = ty.kind.expect_cond_ty();
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_default_constraint() {
-            return ty;
-        }
-        let true_constraint = self.get_inferred_true_ty_from_cond_ty(ty, cond_ty);
-        let false_constraint = self.get_false_ty_from_cond_ty(ty, cond_ty);
-        let res = if self.is_type_any(true_constraint) {
-            false_constraint
-        } else if self.is_type_any(false_constraint) {
-            true_constraint
-        } else {
-            self.get_union_ty::<false>(
-                &[true_constraint, false_constraint],
-                ty::UnionReduction::Lit,
-                None,
-                None,
-                None,
-            )
-        };
-        self.get_mut_ty_links(ty.id)
-            .set_resolved_default_constraint(res);
-        res
-    }
-
-    pub(super) fn get_inferred_true_ty_from_cond_ty(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        cond_ty: &'cx ty::CondTy<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_inferred_true_ty() {
-            return ty;
-        }
-        let res = if let Some(m) = cond_ty.combined_mapper {
-            let ty = self.get_ty_from_type_node(cond_ty.root.node.true_ty);
-            self.instantiate_ty(ty, Some(m))
-        } else {
-            self.get_true_ty_from_cond_ty(ty, cond_ty)
-        };
-        self.get_mut_ty_links(ty.id)
-            .set_resolved_inferred_true_ty(res);
-        res
-    }
-
-    pub fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
+    pub(super) fn get_class_like_decl_of_symbol(&self, symbol: SymbolID) -> Option<ast::NodeID> {
         let decls = self.binder.symbol(symbol).decls.as_ref()?;
         decls
             .iter()
@@ -810,7 +763,14 @@ impl<'cx> TyChecker<'cx> {
         let ty = if self.reverse_expanding_flags != RecursionFlags::BOTH {
             let target_mapped_ty = target.kind.expect_object_mapped();
             let index_ty = self.get_ty_param_from_mapped_ty(target_mapped_ty);
-            let ty_param = self.get_indexed_access_ty(constraint_index_ty.ty, index_ty, None, None);
+            let ty_param = self.get_indexed_access_ty(
+                constraint_index_ty.ty,
+                index_ty,
+                None,
+                None,
+                None,
+                None,
+            );
             let template_ty = self.get_template_ty_from_mapped_ty(target_mapped_ty);
             let inference =
                 self.create_inference_context(&[ty_param], None, InferenceFlags::empty());
@@ -1114,11 +1074,12 @@ impl<'cx> TyChecker<'cx> {
             .flat_map(|ty| self.get_signatures_of_type(ty, SigKind::Constructor))
             .copied()
             .collect::<Vec<_>>();
+        let index_infos = self.get_union_index_infos(union.tys);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(FxIndexMap::default()),
             call_sigs: self.alloc(call_sigs),
             ctor_sigs: self.alloc(ctor_sigs),
-            index_infos: Default::default(),
+            index_infos,
             props: Default::default(),
         });
         self.get_mut_ty_links(ty.id).set_structured_members(m);
@@ -1367,7 +1328,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 t.ty
             } else {
-                unimplemented!()
+                unreachable!()
             };
             let t = self.get_ty_from_type_node(ty_node);
             self.instantiate_ty(t, ty.mapper)
@@ -1459,14 +1420,14 @@ impl<'cx> TyChecker<'cx> {
                             None
                         };
                         let is_optional = template_modifier
-                            .intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
-                            || !template_modifier.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
+                            .contains(MappedTyModifiers::INCLUDE_OPTIONAL)
+                            || !template_modifier.contains(MappedTyModifiers::EXCLUDE_OPTIONAL)
                                 && modifiers_prop.is_some_and(|m| {
                                     this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)
                                 });
                         let is_readonly = template_modifier
-                            .intersects(MappedTyModifiers::INCLUDE_READONLY)
-                            || !template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
+                            .contains(MappedTyModifiers::INCLUDE_READONLY)
+                            || !template_modifier.contains(MappedTyModifiers::EXCLUDE_READONLY)
                                 && modifiers_prop.is_some_and(|m| this.is_readonly_symbol(m));
                         let strip_optional = self.config.strict_null_checks()
                             && !is_optional
@@ -1600,7 +1561,7 @@ impl<'cx> TyChecker<'cx> {
         }
         if ty.kind.is_object() {
             let object_flags = ty.get_object_flags();
-            if object_flags.intersects(ObjectFlags::REFERENCE) {
+            if object_flags.contains(ObjectFlags::REFERENCE) {
                 self.resolve_reference_members(ty);
             } else if ty.kind.is_object_interface() {
                 self.resolve_interface_members(ty);

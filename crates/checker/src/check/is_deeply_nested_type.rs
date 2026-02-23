@@ -1,7 +1,6 @@
+use super::TyChecker;
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, ObjectFlags};
-
-use super::TyChecker;
 
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 
@@ -9,6 +8,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID};
 pub(super) enum RecursionId {
     Ty(ty::TyID),
     Symbol(SymbolID),
+    Node(bolt_ts_ast::NodeID),
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -30,8 +30,8 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         } else if let Some(cond) = ty.kind.as_cond_ty() {
-            //TODO: maybe use `cond.root_id`?
-            return RecursionId::Ty(cond.root.check_ty.id);
+            //TODO: maybe use `ptr(cond.root)`?
+            return RecursionId::Node(cond.root.node.id);
         }
         RecursionId::Ty(ty.id)
     }

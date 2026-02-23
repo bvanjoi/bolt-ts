@@ -16,6 +16,35 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::SymbolID;
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn instantiate_instantiable_tys(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::INSTANTIABLE) {
+            return self.instantiate_ty(ty, Some(mapper));
+        }
+        match ty.kind {
+            ty::TyKind::Union(u) => {
+                let tys = u
+                    .tys
+                    .iter()
+                    .map(|t| self.instantiate_instantiable_tys(t, mapper))
+                    .collect::<Vec<_>>();
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None)
+            }
+            ty::TyKind::Intersection(i) => {
+                let tys = i
+                    .tys
+                    .iter()
+                    .map(|t| self.instantiate_instantiable_tys(t, mapper))
+                    .collect::<Vec<_>>();
+                self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
+            }
+            _ => ty,
+        }
+    }
+
     pub fn instantiate_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -28,7 +57,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn instantiate_list<T: PartialEq + Copy>(
+    pub(super) fn instantiate_list<T: PartialEq + Copy>(
         &mut self,
         list: &'cx [T],
         mapper: &'cx dyn ty::TyMap<'cx>,
@@ -204,19 +233,24 @@ impl<'cx> TyChecker<'cx> {
                 self.get_string_mapping_ty(s.symbol, ty)
             }
             IndexedAccess(indexed) => {
-                let object_ty = self.instantiate_ty_with_alias(
-                    indexed.object_ty,
-                    mapper,
-                    alias_symbol,
-                    alias_ty_arguments,
-                );
-                let index_ty = self.instantiate_ty_with_alias(
-                    indexed.index_ty,
-                    mapper,
-                    alias_symbol,
-                    alias_ty_arguments,
-                );
-                self.get_indexed_access_ty(object_ty, index_ty, Some(indexed.access_flags), None)
+                let new_alias_symbol = alias_symbol.or_else(|| ty.alias_symbol());
+                let new_alias_ty_arguments = if alias_symbol.is_some() {
+                    alias_ty_arguments
+                } else {
+                    ty.alias_ty_arguments()
+                        .map(|tys| self.instantiate_tys(tys, mapper))
+                };
+                let object_ty =
+                    self.instantiate_ty_with_alias(indexed.object_ty, mapper, None, None);
+                let index_ty = self.instantiate_ty_with_alias(indexed.index_ty, mapper, None, None);
+                self.get_indexed_access_ty(
+                    object_ty,
+                    index_ty,
+                    Some(indexed.access_flags),
+                    None,
+                    new_alias_symbol,
+                    new_alias_ty_arguments,
+                )
             }
             Cond(cond) => {
                 let mapper = self.combine_ty_mappers(cond.mapper, mapper);
@@ -355,10 +389,8 @@ impl<'cx> TyChecker<'cx> {
             .map(|(i, ty)| {
                 let flags = element_flags[i];
                 if i < fixed_length {
-                    // TODO: use string literal type?
-                    // let val = self.atoms.insert_by_str(i.to_string().into());
-                    // let key = self.get_string_literal_type(val);
-                    let key = self.get_number_literal_type_from_number(i as f64);
+                    let val = self.atoms.atom(&i.to_string());
+                    let key = self.get_string_literal_type::<false>(val, None);
                     self.instantiate_mapped_ty_template(
                         mapped_ty,
                         key,
@@ -768,7 +800,7 @@ impl<'cx> TyChecker<'cx> {
                         .union(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES).complement()
                     | ObjectFlags::INSTANTIATED /* TODO: propagating for alias_ty_args */;
             if ty.flags.intersects(TypeFlags::OBJECT_FLAGS_TYPE)
-                && !object_flags.intersects(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
+                && !object_flags.contains(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED)
             {
                 let result_could_contain_ty_vars = ty_args
                     .iter()
@@ -882,7 +914,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.instantiation_ty_map.contain(key) {
             self.instantiation_ty_map.insert(key, ty);
         } else {
-            // cycle
+            // TODO: cycle
             self.instantiation_ty_map.r#override(key, ty);
         }
         ty
@@ -1138,17 +1170,15 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
         if ty == self.intrinsic_marker_ty {
             let name = self.symbol(symbol).name.expect_atom();
-            if ty_args.len() == 1
-                && (name == keyword::INTRINSIC_TYPE_NOINFER
-                    || name == keyword::INTRINSIC_TYPE_UPPERCASE
+            if ty_args.len() == 1 {
+                if name == keyword::INTRINSIC_TYPE_NOINFER {
+                    return self.get_no_infer_ty(ty_args[0]);
+                } else if name == keyword::INTRINSIC_TYPE_UPPERCASE
                     || name == keyword::INTRINSIC_TYPE_LOWERCASE
                     || name == keyword::INTRINSIC_TYPE_CAPITALIZE
-                    || name == keyword::INTRINSIC_TYPE_UNCAPITALIZE)
-            {
-                return if name == keyword::INTRINSIC_TYPE_NOINFER {
-                    self.get_no_infer_ty(ty_args[0])
-                } else {
-                    self.get_string_mapping_ty(symbol, ty_args[0])
+                    || name == keyword::INTRINSIC_TYPE_UNCAPITALIZE
+                {
+                    return self.get_string_mapping_ty(symbol, ty_args[0]);
                 };
             }
         }
@@ -1158,7 +1188,7 @@ impl<'cx> TyChecker<'cx> {
             return cache;
         }
         let ty_params = self.get_symbol_links(symbol).expect_ty_params();
-        let min_params_count = self.get_min_ty_arg_count(Some(ty_params));
+        let min_params_count = self.get_min_ty_arg_count_of_ty_params(ty_params);
         let ty_args = self.fill_missing_ty_args(Some(ty_args), Some(ty_params), min_params_count);
         let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
         let ty = self.instantiate_ty_with_alias(ty, mapper, alias_symbol, alias_ty_args);
@@ -1170,6 +1200,10 @@ impl<'cx> TyChecker<'cx> {
         let Some(ty_params) = ty_params else {
             return 0;
         };
+        self.get_min_ty_arg_count_of_ty_params(ty_params)
+    }
+
+    pub(super) fn get_min_ty_arg_count_of_ty_params(&self, ty_params: ty::Tys<'cx>) -> usize {
         let mut min = 0;
         for (i, param) in ty_params.iter().enumerate() {
             let param = param.kind.expect_param();

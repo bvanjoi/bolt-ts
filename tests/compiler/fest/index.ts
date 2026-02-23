@@ -185,11 +185,11 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
   const b3: TupleValues = {c: true};
 
   const b4: TupleValues = {};
-  //~^ ERROR: Type '{ }' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
   const b5: TupleValues = 1;
-  //~^ ERROR: Type 'number' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
   const b6: TupleValues = '2';
-  //~^ ERROR: Type 'string' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
 
   type AnyStringValues = ArrayValues<string[]>;
   const c0: AnyStringValues = '';
@@ -368,7 +368,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
   const b0: SimplifiedFunctionFail = (a: string) => a;
   const simplifiedFunctionPass: SimplifiedFunctionPass = (a: string) => a;
   const b1: SimplifiedFunctionPass = (a: number) => a;
-  //~^ ERROR: Type '(a: number) => number' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type '(a: number) => number' is not assignable to type 'SomeFunction'.
 
   // Should simplify interface deeply.
   type SomeNode = {
@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type '{
+    //~^ ERROR: Type 'mapped type' is not assignable to type 'MovableCollection'
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -918,7 +918,7 @@ type IsAny<T> = 0 extends 1 & NoInfer2<T> ? true : false;
   type OnlyAny<T extends IsAny<T> extends true ? any : never> = T;
   type B = OnlyAny<any>;
   type C = OnlyAny<string>;
-  //~^ ERROR: Type 'string' is not assignable to type 'never'.
+  //~^ ERROR: Type 'string' does not satisfy the constraint 'never'.
 }
 
 // ========= IsArrayReadonly =========
@@ -1039,11 +1039,11 @@ type Includes<Value extends readonly any[], Item> =
 
   // Value generic parameter is a string not an array.
   type A2 = Includes<'why a string?', 5>;
-  //~^ ERROR: Type '"why a string?"' is not assignable to type 'any[]'.
+  //~^ ERROR: Type '"why a string?"' does not satisfy the constraint 'any[]'.
 
   // Value generic parameter is an object not an array.
   type A3 = Includes<{key: 'value'}, 7>;
-  //~^ ERROR: Type '{ key: "value"; }' is missing the following properties from type 'any[]'
+  //~^ ERROR: Type '{ key: "value"; }' does not satisfy the constraint 'any[]'.
 }
 
 // =========== IsEqual ===========
@@ -1547,7 +1547,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T`
 	type Assignability1<T, _K extends keyof T> = unknown;
-	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>`
 	type Assignability2<T, _K extends KeysOfUnion<T>> = unknown;
@@ -1559,7 +1559,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `PropertyKey` should NOT be assignable to `KeysOfUnion<T>`
 	type Assignability4<T, _K extends KeysOfUnion<T>> = unknown;
-	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' is not assignable to type 'UnionToIntersection'.
+	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' does not satisfy the constraint 'UnionToIntersection'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability5<T extends Record<string, unknown>, _K extends KeysOfUnion<T>> = unknown;
@@ -1575,11 +1575,11 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability8<T extends Record<string, unknown>, _K extends keyof T> = unknown;
-	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `object`
 	type Assignability9<T extends object, _K extends keyof T> = unknown;
-	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 }
 
 // ======= LastArrayElement =======
@@ -2211,7 +2211,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const someFunction: SimplifiedFunction = {};
   
   const b0: SomeFunction = someFunction;
-  //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type 'mapped type' is not assignable to type 'SomeFunction'.
 
   const c0: Simplify<{ a: boolean, b: string } & { a: number }> = n();
   const c1: Simplify<{a?: string} & {c:number}> = {c: 42};
@@ -2530,9 +2530,9 @@ type TaggedUnion<
   };
 
   const b0: Union = fails;
-  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type
+  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type 'Union'.
   const b1: Union = failsToo;
-  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type
+  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'Union'.
 }
 
 // ================ Trim ================

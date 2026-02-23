@@ -384,7 +384,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         let body = self.lower_block_stmt(body);
         Some(
             self.nodes
-                .alloc_class_method_elem(n.span, modifiers, name, params, body),
+                .alloc_class_method_elem(n.span, modifiers, n.asterisk, name, params, body),
         )
     }
 
@@ -421,7 +421,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
         let f = self
             .nodes
-            .alloc_fn_decl(n.span, modifiers, name, params, graph);
+            .alloc_fn_decl(n.span, modifiers, n.asterisk, name, params, graph);
         Some(f)
     }
 
@@ -635,6 +635,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ast::PropNameKind::NumLit(n) => {
                 ir::PropName::NumLit(self.nodes.alloc_num_lit(n.span, n.val))
             }
+            ast::PropNameKind::BigIntLit(n) => {
+                ir::PropName::BigIntLit(self.nodes.alloc_bigint_lit(n.span, n.val.0, n.val.1))
+            }
             ast::PropNameKind::Computed(n) => {
                 let expr = self.lower_expr(n.expr);
                 ir::PropName::Computed(self.nodes.alloc_computed_prop_name(n.span, expr))
@@ -737,8 +740,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                             let params = self.lower_param_decls(n.params);
                             let body = self.lower_block_stmt(n.body);
                             Some(ir::ObjectLitMember::Method(
-                                self.nodes
-                                    .alloc_object_method_member(n.span, name, params, body),
+                                self.nodes.alloc_object_method_member(
+                                    n.span, n.asterisk, name, params, body,
+                                ),
                             ))
                         }
                         ast::ObjectMemberKind::SpreadAssignment(n) => {
@@ -776,7 +780,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                     self.add_stmt_to_basic_block(stmt, (graph, bb));
                 }
                 self.current = saved;
-                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, graph))
+                ir::Expr::Fn(
+                    self.nodes
+                        .alloc_fn_expr(n.span, n.asterisk, name, params, graph),
+                )
             }
             ExprKind::Class(n) => {
                 let name = n.name.map(|name| self.lower_ident(name));
@@ -877,6 +884,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ExprKind::Await(n) => {
                 let expr = self.lower_expr(n.expr);
                 ir::Expr::Await(self.nodes.alloc_await_expr(n.span, expr))
+            }
+            ExprKind::Yield(n) => {
+                let expr = n.expr.map(|expr| self.lower_expr(expr));
+                ir::Expr::Yield(self.nodes.alloc_yield_expr(n.span, n.asterisk, expr))
             }
         }
     }

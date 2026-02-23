@@ -1,5 +1,4 @@
 use bolt_ts_ast as ast;
-use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
@@ -545,6 +544,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             ModuleDecl(node) => self.bind_ns_decl(node),
+            ImportNamedSpec(node) => {
+                // import { prop_name as name } from 'xxx'
+                self.declare_symbol_and_add_to_symbol_table(
+                    SymbolName::Atom(node.name.name),
+                    node.id,
+                    SymbolFlags::ALIAS,
+                    SymbolFlags::ALIAS_EXCLUDES,
+                );
+            }
             ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
                 // import { name } from 'xxx'

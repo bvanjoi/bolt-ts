@@ -624,6 +624,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn walk_up_paren_exprs(&self, mut n: ast::NodeID) -> ast::NodeID {
+        loop {
+            let node = self.node(n);
+            if node.is_paren_expr()
+                && let Some(p) = self.parent(n)
+            {
+                n = p;
+            } else {
+                break n;
+            }
+        }
+    }
+
     pub fn walk_up_paren_tys_and_get_parent_and_child(
         &self,
         n: ast::NodeID,
@@ -977,5 +990,89 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return false;
         };
         n.op.kind == ast::BinOpKind::Instanceof && n.right.id() == node
+    }
+
+    pub fn is_optional_chain(&self, node: ast::NodeID) -> bool {
+        if !self
+            .node_flags(node)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            return false;
+        }
+        use ast::Node::*;
+        matches!(
+            self.node(node),
+            PropAccessExpr(_) | EleAccessExpr(_) | CallExpr(_) | NonNullExpr(_)
+        )
+    }
+
+    pub fn is_optional_chain_root(&self, node: ast::NodeID) -> bool {
+        if !self
+            .node_flags(node)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            return false;
+        }
+        use ast::Node::*;
+        match self.node(node) {
+            PropAccessExpr(n) => n.question_dot.is_some(),
+            EleAccessExpr(_) => {
+                // TODO: question dot
+                false
+            }
+            CallExpr(_) => {
+                // TODO: question dot
+                false
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_expression_of_optional_chain_root(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            return false;
+        }
+        use ast::Node::*;
+        match self.node(p) {
+            PropAccessExpr(n) => n.question_dot.is_some() && n.expr.id() == node,
+            EleAccessExpr(_) => {
+                // TODO: question dot && n.expr.id() == node
+                false
+            }
+            CallExpr(_) => {
+                // TODO: question dot && n.expr.id() == node
+                false
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_outermost_optional_chain(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return true;
+        };
+        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            return true;
+        }
+        use ast::Node::*;
+        match self.node(p) {
+            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
+            EleAccessExpr(_) => {
+                // TODO: question dot || n.expr.id() == node
+                false
+            }
+            CallExpr(_) => {
+                // TODO: question dot || n.expr.id() == node
+                false
+            }
+            NonNullExpr(_) => {
+                // TODO: question dot || n.expr.id() == node
+                false
+            }
+            _ => true,
+        }
     }
 }

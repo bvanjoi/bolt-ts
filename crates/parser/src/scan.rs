@@ -683,11 +683,20 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'?' => {
-                    let kind = if self.next_ch() == Some(b'.')
+                    let next_ch = self.next_ch();
+                    let kind = if next_ch == Some(b'.')
                         && self.next_next_ch().is_none_or(|c| !c.is_ascii_digit())
                     {
                         self.pos += 2;
                         TokenKind::QuestionDot
+                    } else if next_ch == Some(b'?') {
+                        if self.next_next_ch() == Some(b'=') {
+                            self.pos += 3;
+                            TokenKind::QuestionQuestionEq
+                        } else {
+                            self.pos += 2;
+                            TokenKind::QuestionQuestion
+                        }
                     } else {
                         self.pos += 1;
                         TokenKind::Question

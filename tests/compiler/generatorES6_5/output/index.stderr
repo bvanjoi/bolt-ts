@@ -1,0 +1,17 @@
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/generatorES6_5/index.ts:5:11]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/generatorES6_5/index.ts:5:15]
+ 5 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/generatorES6_5/index.ts:5:19]
+ 5 │ c
+   · ─
+   ╰────

@@ -51,6 +51,7 @@ impl<'cx> ObjectTyKind<'cx> {
         match self {
             ObjectTyKind::Mapped(ty) => ty.alias_symbol,
             ObjectTyKind::Reference(ty) => ty.alias_symbol,
+            ObjectTyKind::Anonymous(ty) => ty.alias_symbol,
             _ => None,
         }
     }
@@ -267,6 +268,7 @@ impl<'cx> ObjectTyKind<'cx> {
                         }
                         ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
                         ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
+                        ast::PropNameKind::BigIntLit(_) => todo!(),
                     }
                     res.push_str(&": ");
                     res.push_str(&self.print_binding(name, checker));
@@ -422,11 +424,9 @@ impl<'cx> ObjectTyKind<'cx> {
                         .iter()
                         .map(|(name, symbol)| {
                             let ty = checker.get_type_of_symbol(*symbol);
-                            format!(
-                                "{field_name}: {filed_ty}; ",
-                                filed_ty = ty.to_string(checker),
-                                field_name = checker.atoms.get(name.expect_atom()),
-                            )
+                            let field_ty = ty.to_string(checker);
+                            let field_name = name.to_string(&checker.atoms);
+                            format!("{field_name}: {field_ty}; ",)
                         })
                         .collect::<Vec<_>>()
                         .join("");
@@ -467,6 +467,8 @@ pub struct AnonymousTy<'cx> {
     pub fresh_ty_links: super::FreshTyLinksID<'cx>,
     /// exist for InstantiationExpressionType
     pub node: Option<ast::NodeID>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
 }
 
 #[derive(Debug)]

@@ -480,8 +480,8 @@ impl<'cx> TyChecker<'cx> {
                     ) {
                         let symbol = self.get_symbol_of_decl(prop.id);
                         let prop_ty = self.get_type_of_symbol(symbol);
-                        if !prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
-                            || prop_ty.contains_undefined_ty()
+                        if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
+                            || prop_ty.contains_undefined_ty())
                         {
                             if ctor.is_none_or(|ctor| {
                                 !self.is_prop_initialized_in_ctor(prop_name, prop_ty, ctor)

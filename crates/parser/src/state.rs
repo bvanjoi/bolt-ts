@@ -172,6 +172,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ctx: ParsingContext,
         mut ele: impl FnMut(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
+        let save_parsing_context = self.parsing_context;
+        self.parsing_context.insert(ctx);
         let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
             if self.is_list_element(ctx, false) {
@@ -183,6 +185,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             }
         }
+        self.parsing_context = save_parsing_context;
         self.alloc(list)
     }
 
@@ -406,6 +409,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert_eq!(
             res,
             self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
+        );
+        res
+    }
+
+    pub(super) fn in_yield_context(&self) -> bool {
+        let res = self.parse_context.contains(ParseContext::YIELD);
+        debug_assert_eq!(
+            res,
+            self.node_context_flags.contains(NodeFlags::YIELD_CONTEXT)
         );
         res
     }

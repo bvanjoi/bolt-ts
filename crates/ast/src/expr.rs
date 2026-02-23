@@ -55,6 +55,7 @@ impl<'cx> Expr<'cx> {
             JsxSelfClosingElem(n) => n.span,
             JsxFrag(n) => n.span,
             Delete(n) => n.span,
+            Yield(n) => n.span,
         }
     }
 
@@ -102,6 +103,7 @@ impl<'cx> Expr<'cx> {
             JsxFrag(n) => n.id,
             Delete(n) => n.id,
             Await(n) => n.id,
+            Yield(n) => n.id,
         }
     }
 
@@ -290,6 +292,7 @@ pub enum ExprKind<'cx> {
     Typeof(&'cx TypeofExpr<'cx>),
     Void(&'cx VoidExpr<'cx>),
     Await(&'cx AwaitExpr<'cx>),
+    Yield(&'cx YieldExpr<'cx>),
     As(&'cx AsExpr<'cx>),
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
@@ -465,6 +468,14 @@ pub struct AwaitExpr<'cx> {
 }
 
 #[derive(Debug, Clone)]
+pub struct YieldExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub asterisk: Option<Span>,
+    pub expr: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct VoidExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -614,6 +625,7 @@ pub enum AssignOp {
     BitOrEq,
     LogicalAndEq,
     LogicalOrEq,
+    NullishEq,
 }
 
 impl AssignOp {
@@ -634,12 +646,15 @@ impl AssignOp {
             BitOrEq => "|=",
             LogicalAndEq => "&&=",
             LogicalOrEq => "||=",
+            NullishEq => "??=",
         }
     }
 
     pub fn is_logical_or_coalescing_assign_op(&self) -> bool {
-        //  ??=
-        matches!(self, Self::LogicalAndEq)
+        matches!(
+            self,
+            Self::LogicalOrEq | Self::LogicalAndEq | Self::NullishEq
+        )
     }
 }
 
@@ -685,6 +700,7 @@ pub struct ClassExpr<'cx> {
 pub struct FnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub asterisk: Option<Span>,
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
@@ -751,6 +767,7 @@ pub enum BinOpKind {
     In,
     Satisfies,
     Exp,
+    Nullish,
     Comma,
 }
 
@@ -784,6 +801,7 @@ impl BinOpKind {
             BitXor => "^",
             Comma => ",",
             Exp => "**",
+            Nullish => "??",
         }
     }
 
@@ -792,8 +810,7 @@ impl BinOpKind {
     }
 
     pub fn is_logical_or_coalescing_op(self) -> bool {
-        // TODO: QuestionQuestion
-        self.is_logical_op()
+        self.is_logical_op() || self == Self::Nullish
     }
 
     pub fn is_shift_op(self) -> bool {
@@ -847,7 +864,7 @@ pub struct Lit<T> {
 }
 
 pub type NumLit = Lit<f64>;
-pub type BigIntLit = Lit<(bool, Atom)>;
+pub type BigIntLit = Lit<(/* neg */ bool, Atom)>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<Atom>;

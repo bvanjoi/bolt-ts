@@ -65,9 +65,11 @@ impl<'cx> TyChecker<'cx> {
                     .flags
                     .intersects(TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE))
                     && v == target.intrinsic_name().unwrap())
-                || (target.flags.intersects(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
-                || (target.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
-                    && self.is_ty_matched_by_template_lit_ty(source, target))
+                || (target.flags.contains(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
+                || target
+                    .kind
+                    .as_template_lit_ty()
+                    .is_some_and(|t| self.is_ty_matched_by_template_lit_ty(source, t))
         } else if let Some(s) = source.kind.as_template_lit_ty() {
             let texts = s.texts;
             texts.len() == 2

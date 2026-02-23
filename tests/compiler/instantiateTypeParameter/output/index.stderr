@@ -4,14 +4,26 @@
    · ───
    ╰────
 
+  × Expected '}'.
+   ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:5]
+ 4 │ var
+   · ───
+   ╰────
+
   × Type argument list cannot be empty.
    ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:13]
  4 │ <>
    · ──
    ╰────
 
-  × Type 'T' is not generic.
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:9:1]
+ 9 │ }
+   · ─
+   ╰────
+
+  × Cannot find name 'T'.
    ╭─[../../tests/compiler/instantiateTypeParameter/index.ts:4:12]
- 4 │ T<>
-   · ───
+ 4 │ T
+   · ─
    ╰────

@@ -224,6 +224,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
         match &node.kind {
             Ident(n) => self.visit_ident(n),
             StringLit { .. } => todo!(),
+            BigIntLit { .. } => todo!(),
             NumLit(n) => todo!(),
             Computed(n) => {
                 todo!()

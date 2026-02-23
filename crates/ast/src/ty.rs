@@ -390,6 +390,7 @@ pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
     PrivateIdent(&'cx PrivateIdent),
     StringLit { raw: &'cx StringLit, key: Atom },
+    BigIntLit(&'cx BigIntLit),
     NumLit(&'cx NumLit),
     Computed(&'cx ComputedPropName<'cx>),
 }
@@ -420,6 +421,7 @@ impl<'cx> PropNameKind<'cx> {
                 _ => None,
             },
             PropNameKind::PrivateIdent(private_ident) => Some(private_ident.name),
+            PropNameKind::BigIntLit(lit) => None,
         }
     }
 
@@ -430,6 +432,7 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::StringLit { raw, .. } => raw.id,
             PropNameKind::Computed(n) => n.id,
             PropNameKind::PrivateIdent(ident) => ident.id,
+            PropNameKind::BigIntLit(n) => n.id,
         }
     }
 
@@ -442,6 +445,7 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::PrivateIdent(ident) => {
                 format!("#{}", atoms.get(ident.name).to_string())
             }
+            PropNameKind::BigIntLit(lit) => todo!(),
         }
     }
     pub fn span(&self) -> Span {
@@ -451,6 +455,7 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::StringLit { raw, .. } => raw.span,
             PropNameKind::Computed(n) => n.span,
             PropNameKind::PrivateIdent(ident) => ident.span,
+            PropNameKind::BigIntLit(n) => n.span,
         }
     }
 }
@@ -512,6 +517,7 @@ pub struct SpreadAssignment<'cx> {
 pub struct ObjectMethodMember<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub asterisk: Option<Span>,
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,

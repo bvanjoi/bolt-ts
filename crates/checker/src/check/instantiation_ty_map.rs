@@ -350,3 +350,18 @@ impl<'cx> TyCacheTrait<'cx> for TyInstantiationMap<'cx> {
         &mut self.inner
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct SubstitutionKey {
+    base_ty: ty::TyID,
+    constraint: ty::TyID,
+}
+
+impl<'cx> SubstitutionKey {
+    pub fn new(base_ty: &'cx ty::Ty<'cx>, constraint: &'cx ty::Ty<'cx>) -> Self {
+        Self {
+            base_ty: base_ty.id,
+            constraint: constraint.id,
+        }
+    }
+}

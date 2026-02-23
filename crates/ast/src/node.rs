@@ -116,6 +116,7 @@ pub enum Node<'cx> {
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
     VoidExpr(&'cx super::VoidExpr<'cx>),
     AwaitExpr(&'cx super::AwaitExpr<'cx>),
+    YieldExpr(&'cx super::YieldExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
     AsExpr(&'cx super::AsExpr<'cx>),
     TyAssertionExpr(&'cx super::TyAssertion<'cx>),
@@ -706,6 +707,7 @@ impl<'cx> Node<'cx> {
     pub fn is_optional_decl(&self) -> bool {
         match self {
             Node::PropSignature(n) => n.question.is_some(),
+            Node::ClassPropElem(n) => n.question.is_some(),
             _ => false,
         }
     }
@@ -1161,6 +1163,7 @@ as_node!(
     (TypeofExpr, super::TypeofExpr<'cx>, typeof_expr),
     (VoidExpr, super::VoidExpr<'cx>, void_expr),
     (AwaitExpr, super::AwaitExpr<'cx>, await_expr),
+    (YieldExpr, super::YieldExpr<'cx>, yield_expr),
     (EleAccessExpr, super::EleAccessExpr<'cx>, ele_access_expr),
     (ClassCtor, super::ClassCtor<'cx>, class_ctor),
     (GetterDecl, super::GetterDecl<'cx>, getter_decl),

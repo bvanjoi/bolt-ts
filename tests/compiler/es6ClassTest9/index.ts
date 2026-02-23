@@ -2,6 +2,6 @@
 
 declare class foo();
 //~^ ERROR: Expected '{'.
-//~| ERROR: Identifier expected.
+//~| ERROR: Expected '}'.
+//~| ERROR: Expression expected.
 function foo() {}
-//~ ERROR: Expected '}'.

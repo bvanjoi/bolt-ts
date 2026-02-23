@@ -152,7 +152,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         name_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(idx) = self.get_indexed_access_ty_or_undefined(target, name_ty, None, None) {
+        if let Some(idx) =
+            self.get_indexed_access_ty_or_undefined(target, name_ty, None, None, None, None)
+        {
             return Some(idx);
         }
 
@@ -165,7 +167,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
         {
-            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
+            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None, None, None);
         }
 
         None
@@ -200,7 +202,7 @@ impl<'cx> TyChecker<'cx> {
             }
             let error_node = e.error_node;
             let Some(source_prop_ty) =
-                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None)
+                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None, None, None)
             else {
                 continue;
             };

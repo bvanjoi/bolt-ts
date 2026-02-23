@@ -4,3 +4,8 @@ enum E {
   0n = 0,
   //~^ ERROR: An enum member cannot have a numeric name.
 }
+
+enum E2 {
+  0 = 0,
+  //~^ ERROR: An enum member cannot have a numeric name.
+}

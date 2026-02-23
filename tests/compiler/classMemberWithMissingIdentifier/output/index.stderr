@@ -4,8 +4,14 @@
    · ─
    ╰────
 
+  × Expected '}'.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:4:12]
+ 4 │ {
+   · ─
+   ╰────
+
   × Declaration or statement expected.
-   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:6:1]
- 6 │ }
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:7:1]
+ 7 │ }
    · ─
    ╰────

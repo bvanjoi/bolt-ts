@@ -3,6 +3,7 @@
 interface Foo<T> {
     var x: T<>;
     //~^ ERROR: Property or signature expected.
+    //~| ERROR: Expected '}'.
     //~| ERROR: Type argument list cannot be empty.
-    //~| ERROR: Type 'T' is not generic.
-}
+    //~| ERROR: Cannot find name 'T'.
+} //~ERROR: Declaration or statement expected. 

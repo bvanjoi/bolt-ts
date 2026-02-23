@@ -162,6 +162,8 @@ impl<'cx> TyChecker<'cx> {
                 index_ty,
                 Some(access_flags),
                 Some(binding.id),
+                None,
+                None,
             )
             .unwrap_or(self.error_ty)
         } else {
@@ -225,6 +227,8 @@ impl<'cx> TyChecker<'cx> {
                 index_ty,
                 Some(access_flags),
                 Some(name),
+                None,
+                None,
             );
             // TODO: getFlowTypeOfDestructuring
             decl_ty
@@ -432,11 +436,17 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let decl_node = self.p.node(id);
+
         let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
 
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
-            let is_property = decl_node.is_prop_signature();
+            let is_property = match decl_node {
+                ast::Node::PropSignature(_) => true,
+                ast::Node::ClassPropElem(p) => p.modifiers.is_none(),
+                // TODO: js
+                _ => false,
+            };
             return Some(if is_property {
                 self.add_optionality::<true>(ty, is_optional)
             } else {

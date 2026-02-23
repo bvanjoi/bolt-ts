@@ -21,7 +21,7 @@ use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
 use super::utils::append_if_unique;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnumMemberValue {
     Number(f64),
     Str(Atom),

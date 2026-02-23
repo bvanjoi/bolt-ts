@@ -49,21 +49,26 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn try_parse_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
+    fn try_parse_paren_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+    ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         match self.is_paren_arrow_fn_expr() {
-            Tristate::True => self.parse_paren_arrow_fn_expr::<true>(),
+            Tristate::True => self.parse_paren_arrow_fn_expr::<true, true>(),
             Tristate::False => Ok(None),
-            Tristate::Unknown => {
-                self.try_parse(|this| this.p().parse_possible_paren_arrow_fn_expr())
-            }
+            Tristate::Unknown => self.try_parse(|this| {
+                this.p()
+                    .parse_possible_paren_arrow_fn_expr::<ALLOW_RETURN_TYPE_IN_ARROW_FN>()
+            }),
         }
     }
 
-    fn parse_possible_paren_arrow_fn_expr(&mut self) -> PResult<Option<&'cx ast::Expr<'cx>>> {
+    fn parse_possible_paren_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+    ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         // let start = self.token.start();
         // TODO: cache
 
-        self.parse_paren_arrow_fn_expr::<false>()
+        self.parse_paren_arrow_fn_expr::<false, ALLOW_RETURN_TYPE_IN_ARROW_FN>()
     }
 
     // TODO: put it into `parse_params`
@@ -110,7 +115,10 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_paren_arrow_fn_expr<const ALLOW_AMBIGUITY: bool>(
+    fn parse_paren_arrow_fn_expr<
+        const ALLOW_AMBIGUITY: bool,
+        const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool,
+    >(
         &mut self,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         let start = self.token.start();
@@ -204,10 +212,45 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
+    fn is_yield_expr(&mut self) -> bool {
+        if self.token.kind == TokenKind::Yield {
+            if self.in_yield_context() {
+                true
+            } else {
+                self.lookahead(Lookahead::next_token_is_ident_or_keyword_or_literal_on_same_line)
+            }
+        } else {
+            false
+        }
+    }
+
+    fn parse_yield_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+        debug_assert!(self.token.kind == TokenKind::Yield);
+        let start = self.token.start();
+        self.next_token(); // consume `yield`
+        let kind = if !self.has_preceding_line_break()
+            && (matches!(self.token.kind, TokenKind::Asterisk) || self.is_start_of_expr())
+        {
+            let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
+            let expr = self.parse_assign_expr_or_higher::<true>()?;
+            let span = self.new_span(start);
+            self.create_yield_expr(span, asterisk, Some(expr))
+        } else {
+            let span = self.new_span(start);
+            self.create_yield_expr(span, None, None)
+        };
+        Ok(self.alloc(ast::Expr {
+            kind: ast::ExprKind::Yield(kind),
+        }))
+    }
+
     pub(super) fn parse_assign_expr_or_higher<const ALLOW_RET_TY_IN_ARROW_FN: bool>(
         &mut self,
     ) -> PResult<&'cx ast::Expr<'cx>> {
-        if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr() {
+        if self.is_yield_expr() {
+            return self.parse_yield_expr();
+        }
+        if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>() {
             return Ok(expr);
         };
 
@@ -698,20 +741,26 @@ impl<'cx> ParserState<'cx, '_> {
         name: &'cx ast::PropName<'cx>,
         asterisk_token: Option<Token>,
     ) -> PResult<&'cx ast::ObjectMember<'cx>> {
-        // let is_generator = if asterisk_token.is_some() {
-        //     todo!()
-        // } else {
-
-        // };
+        let is_generator = if asterisk_token.is_some() {
+            SignatureFlags::YIELD
+        } else {
+            SignatureFlags::empty()
+        };
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         self.check_params(params, false);
         let ty = self.parse_ty_anno()?;
-        let body = self
-            .parse_fn_block_or_semi(SignatureFlags::empty())
-            .unwrap();
+        let body = self.parse_fn_block_or_semi(is_generator).unwrap();
         let span = self.new_span(start);
-        let node = self.create_object_method_member(span, name, ty_params, params, ty, body);
+        let node = self.create_object_method_member(
+            span,
+            asterisk_token.map(|t| t.span),
+            name,
+            ty_params,
+            params,
+            ty,
+            body,
+        );
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::Method(node),
         });
@@ -893,6 +942,17 @@ impl<'cx> ParserState<'cx, '_> {
         )
     }
 
+    pub(super) fn parse_bigint_lit(
+        &mut self,
+        neg: bool,
+        val: bolt_ts_atom::Atom,
+    ) -> &'cx ast::BigIntLit {
+        let lit = self.create_lit((neg, val), self.token.span);
+        self.nodes.insert(lit.id, ast::Node::BigIntLit(lit));
+        self.next_token();
+        lit
+    }
+
     fn parse_lit_expr(&mut self) -> &'cx ast::Expr<'cx> {
         use bolt_ts_ast::TokenKind::*;
         let kind = match self.token.kind {
@@ -903,9 +963,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             BigInt => {
                 let val = self.ident_token();
-                let lit = self.create_lit((false, val), self.token.span);
-                self.nodes.insert(lit.id, ast::Node::BigIntLit(lit));
-                self.next_token();
+                let lit = self.parse_bigint_lit(false, val);
                 ast::ExprKind::BigIntLit(lit)
             }
             False | True => {

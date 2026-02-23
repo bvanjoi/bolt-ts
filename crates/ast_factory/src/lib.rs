@@ -380,6 +380,7 @@ pub trait ASTFactory<'cx> {
         ty: Option<&'cx ast::Ty<'cx>>,
         init: Option<&'cx ast::Expr<'cx>>,
         excl: Option<ast::Token>,
+        question: Option<Span>,
     ) -> &'cx bolt_ts_ast::ClassPropElem<'cx> {
         let id = self.next_node_id();
         let prop = self.alloc(ast::ClassPropElem {
@@ -389,7 +390,7 @@ pub trait ASTFactory<'cx> {
             name,
             ty,
             init,
-            question: None,
+            question,
             excl: excl.map(|e| e.span),
         });
         self.insert_node(id, ast::Node::ClassPropElem(prop));
@@ -451,6 +452,7 @@ pub trait ASTFactory<'cx> {
     fn create_object_method_member(
         &mut self,
         span: Span,
+        asterisk: Option<Span>,
         name: &'cx ast::PropName<'cx>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
@@ -461,6 +463,7 @@ pub trait ASTFactory<'cx> {
         let node = self.alloc(ast::ObjectMethodMember {
             id,
             span,
+            asterisk,
             name,
             ty_params,
             params,
@@ -477,6 +480,7 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        asterisk: Option<Span>,
         name: &'cx ast::PropName<'cx>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
@@ -488,6 +492,7 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             modifiers,
+            asterisk,
             name,
             ty_params,
             params,
@@ -801,6 +806,25 @@ pub trait ASTFactory<'cx> {
             body,
         });
         self.insert_node(id, ast::Node::ArrowFnExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_yield_expr(
+        &mut self,
+        span: Span,
+        asterisk: Option<Span>,
+        expr: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ast::YieldExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::YieldExpr {
+            id,
+            span,
+            asterisk,
+            expr,
+        });
+        self.insert_node(id, ast::Node::YieldExpr(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

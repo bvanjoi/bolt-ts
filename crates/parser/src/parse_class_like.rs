@@ -23,6 +23,10 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
         s.next_token();
     }
 
+    if s.token.kind == TokenKind::Asterisk {
+        return true;
+    }
+
     if s.token.kind.is_lit_prop_name() {
         id_token = Some(s.token.kind);
         s.next_token();
@@ -137,9 +141,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         debug_assert!(self.token.kind == TokenKind::Class);
-        let start = self.token.start();
+        let old_awaited_context = self.in_await_context();
         let old_in_strict_mode = self.in_strict_mode;
         self.in_strict_mode = true;
+
+        let start = self.token.start();
         self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
         if let Some(name) = name {
@@ -191,11 +197,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
 
-        let elems = self.parse_class_members()?;
+        let elements = self.parse_class_members()?;
         self.in_strict_mode = old_in_strict_mode;
+        self.set_await_context(old_awaited_context);
         let span = self.new_span(start);
         Ok(mode.finish(
-            self, span, modifiers, name, ty_params, extends, implements, elems,
+            self, span, modifiers, name, ty_params, extends, implements, elements,
         ))
     }
 
@@ -292,7 +299,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
+        let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
         let name = self.parse_prop_name::<true>();
+        let question_token = self.parse_optional(TokenKind::Question);
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params();
@@ -305,12 +314,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             };
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);
-            let method =
-                self.create_class_method_elem(span, modifiers, name, ty_params, params, ty, body);
+            let method = self.create_class_method_elem(
+                span, modifiers, asterisk, name, ty_params, params, ty, body,
+            );
             self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Method(method),
             })
         } else {
+            debug_assert!(asterisk.is_none());
             // prop
             if let ast::PropNameKind::StringLit { raw, .. } = name.kind
                 && raw.val == keyword::KW_CONSTRUCTOR
@@ -334,7 +345,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     this.push_error(Box::new(error));
                 }
                 let span = this.new_span(start);
-                let prop = this.create_class_prop_elem(span, modifiers, name, ty, init, excl);
+                let prop = this.create_class_prop_elem(
+                    span,
+                    modifiers,
+                    name,
+                    ty,
+                    init,
+                    excl,
+                    question_token.map(|t| t.span),
+                );
                 this.parse_semi_after_prop_name();
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),

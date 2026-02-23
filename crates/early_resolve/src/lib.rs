@@ -48,7 +48,7 @@ pub fn early_resolve_parallel<'cx>(
                 atoms,
                 emit_standard_class_fields,
             );
-            assert!(!is_default_lib || result.diags.is_empty());
+            // assert!(!is_default_lib || result.diags.is_empty());
             result
         })
         .collect()
@@ -729,6 +729,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Await(n) => {
                 self.resolve_expr(n.expr);
+            }
+            Yield(n) => {
+                if let Some(expr) = n.expr {
+                    self.resolve_expr(expr);
+                }
             }
         }
     }

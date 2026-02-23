@@ -25,11 +25,11 @@ impl<'cx> TyChecker<'cx> {
                 .union(TypeFlags::STRING_MAPPING),
         ) {
             self.string_ty
-        } else if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
+        } else if ty.flags.contains(TypeFlags::NUMBER_LITERAL) {
             self.number_ty
-        } else if ty.flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+        } else if ty.flags.contains(TypeFlags::BIG_INT_LITERAL) {
             self.bigint_ty
-        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+        } else if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) {
             self.boolean_ty()
         } else if let Some(union) = ty.kind.as_union() {
             debug_assert!(ty.flags.contains(TypeFlags::UNION));

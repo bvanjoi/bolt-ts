@@ -1216,3 +1216,26 @@ pub(super) struct VariableXIsUsedBeforeBeingAssigned {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{x}' does not satisfy the constraint '{y}'.")]
+pub(super) struct TypeXDoesNotSatisfyTheConstraintY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Right operand of ?? is unreachable because the left operand is never nullish.")]
+pub(super) struct RightOperandOfIsUnreachableBecauseTheLeftOperandIsNeverNullish {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This expression is always nullish.")]
+pub(super) struct ThisExpressionIsAlwaysNullish {
+    #[label(primary)]
+    pub span: Span,
+}

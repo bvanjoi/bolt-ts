@@ -89,7 +89,7 @@ impl<'cx> TyChecker<'cx> {
                 .ty_args()
                 .map(|ty_args| ty_args.list.len())
                 .unwrap_or_default();
-            let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
+            let min_ty_arg_count = self.get_min_ty_arg_count_of_ty_params(ty_params);
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let ty = self.binder.symbol(symbol).name.to_string(&self.atoms);
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
@@ -201,7 +201,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if let Some(ty_params) = i.local_ty_params {
             let num_ty_args = ty_args.map(|args| args.list.len()).unwrap_or_default();
-            let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
+            let min_ty_arg_count = self.get_min_ty_arg_count_of_ty_params(ty_params);
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {

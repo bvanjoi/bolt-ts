@@ -94,3 +94,15 @@ links!(
     (promised_ty_of_promise, &'cx super::Ty<'cx>),
     (awaited_ty_of_ty, &'cx super::Ty<'cx>),
 );
+
+links!(
+    ConditionalLinks,
+    (resolved_default_constraint, &'cx super::Ty<'cx>),
+    (resolved_inferred_true_ty, &'cx super::Ty<'cx>),
+    (resolved_true_ty, &'cx super::Ty<'cx>),
+    (resolved_false_ty, &'cx super::Ty<'cx>),
+    (
+        resolved_constraint_of_distribute,
+        Option<&'cx super::Ty<'cx>>
+    ),
+);

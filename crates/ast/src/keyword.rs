@@ -166,14 +166,15 @@ prefilled_atom_map!(
             INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 107],
             IDENT_PUSH:                             ["push", 108],
             IDENT_UNSHIFT:                          ["unshift", 109],
-            IDENT_THEN:                             ["then", 110],
-            IDENT_PROMISE:                          ["Promise", 111]
+            IDENT_OPTIONAL:                         ["optional", 110],
+            IDENT_THEN:                             ["then", 111],
+            IDENT_PROMISE:                          ["Promise", 112]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 112]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 113]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 113]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 114]
         },
     }
 );

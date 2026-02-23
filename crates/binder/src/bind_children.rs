@@ -480,6 +480,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             StringLit { raw: n, .. } => self.bind(n.id),
             NumLit(n) => self.bind(n.id),
             Computed(n) => self.bind(n.id),
+            BigIntLit(n) => self.bind(n.id),
         }
     }
 
@@ -1245,6 +1246,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             AwaitExpr(n) => {
                 self.bind(n.expr.id());
             }
+            YieldExpr(n) => {
+                if let Some(expr) = n.expr {
+                    self.bind(expr.id());
+                }
+            }
             PrivateIdent(_) => {
                 // TODO:
             }
@@ -1475,9 +1481,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn is_top_level_logical_expr(&self, mut n: ast::NodeID) -> bool {
-        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| bin.op.kind
-            == BinOpKind::LogicalAnd
-            || bin.op.kind == BinOpKind::LogicalOr));
+        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| matches!(
+            bin.op.kind,
+            BinOpKind::LogicalAnd | BinOpKind::LogicalOr | BinOpKind::Nullish
+        )));
         let mut parent = self.parent_map.parent(n).unwrap();
         let mut parent_node = self.p.node(parent);
         while parent_node.is_paren_expr()
@@ -1573,10 +1580,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                         self.current_false_target.unwrap(),
                     );
                 }
-
                 return;
             }
-            // TODO: question question
+            BinOpKind::Nullish => {
+                if self.is_top_level_logical_expr(n.id) {
+                    bind_top_level_logical_expr::<false>(self, n);
+                } else {
+                    bind_logical_expr::<false>(
+                        self,
+                        n,
+                        self.current_true_target.unwrap(),
+                        self.current_false_target.unwrap(),
+                    );
+                }
+                return;
+            }
             BinOpKind::Comma => true,
             _ => false,
         };

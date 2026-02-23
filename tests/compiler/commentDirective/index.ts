@@ -49,3 +49,12 @@ let m: string = 42
 
 // @ts-expect-error // @ts-expect-error  @ts-expect-error
 let n: string = 42
+
+function o1<T extends string>(x: T) {}
+// @ts-expect-error
+o1<number>('42');
+
+type T<Type, Key extends keyof Type> = Key
+function o2<T>() {}
+// @ts-expect-error
+o2<T<{a: string}, 'd'>>();

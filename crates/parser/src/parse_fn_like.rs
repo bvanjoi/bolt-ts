@@ -19,6 +19,7 @@ pub(super) trait FnLike<'cx, 'p> {
         state: &mut ParserState<'cx, 'p>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        asterisk_token: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
@@ -46,6 +47,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         state: &mut ParserState<'cx, 'p>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        asterisk: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
@@ -61,6 +63,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             id,
             span,
             modifiers,
+            asterisk,
             name,
             ty_params,
             params,
@@ -90,6 +93,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         state: &mut ParserState<'cx, 'p>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        asterisk: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         params: ast::ParamsDecl<'cx>,
@@ -101,6 +105,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         let expr = state.alloc(ast::FnExpr {
             id,
             span,
+            asterisk,
             name,
             ty_params,
             params,
@@ -121,8 +126,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.do_outside_of_parse_context(
             ParseContext::CLASS_FIELD_DEFINITION.union(ParseContext::CLASS_STATIC_BLOCK),
             |this| {
+                debug_assert!(this.token.kind == TokenKind::Function);
                 let start = this.token.start();
-                this.expect(TokenKind::Function);
+                this.next_token(); // consume `function`
+                let asterisk_token = this.parse_optional(TokenKind::Asterisk).map(|t| t.span);
                 let name =
                     mode.parse_name(this, modifiers.map(|ms| ms.flags).unwrap_or_default())?;
                 let ty_params = this.parse_ty_params();
@@ -130,15 +137,30 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.check_params(params, false);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
                 let modifier_flags = modifiers.map(|ms| ms.flags);
+                let is_generator = asterisk_token.is_some();
                 let is_async = modifier_flags.is_some_and(|m| m.contains(ast::ModifierKind::Async));
-                let flags = if is_async {
-                    SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
-                } else {
-                    SignatureFlags::empty()
+                let flags = match (is_async, is_generator) {
+                    (true, true) => SignatureFlags::YIELD
+                        .union(SignatureFlags::ASYNC)
+                        .union(SignatureFlags::AWAIT),
+                    (true, false) => SignatureFlags::ASYNC.union(SignatureFlags::AWAIT),
+                    (false, true) => SignatureFlags::YIELD,
+                    (false, false) => SignatureFlags::empty(),
                 };
+
                 let body = this.parse_fn_block_or_semi(flags);
                 let span = this.new_span(start);
-                Ok(mode.finish(this, span, modifiers, name, ty_params, params, ret_ty, body))
+                Ok(mode.finish(
+                    this,
+                    span,
+                    modifiers,
+                    asterisk_token,
+                    name,
+                    ty_params,
+                    params,
+                    ret_ty,
+                    body,
+                ))
             },
         )
     }

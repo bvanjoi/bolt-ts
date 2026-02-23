@@ -331,9 +331,10 @@ pub fn visit_prop_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::PropName<'cx
     match n.kind {
         ast::PropNameKind::Ident(ident) => v.visit_ident(ident),
         ast::PropNameKind::StringLit { raw, .. } => v.visit_string_lit(raw),
-        ast::PropNameKind::NumLit(_) => {}
         ast::PropNameKind::Computed(expr) => v.visit_computed_prop_name(expr),
         ast::PropNameKind::PrivateIdent(n) => v.visit_private_ident(n),
+        ast::PropNameKind::NumLit(_) => {}
+        ast::PropNameKind::BigIntLit(_) => {}
     }
 }
 pub fn visit_computed_prop_name<'cx>(
@@ -376,11 +377,33 @@ pub fn visit_object_lit<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ObjectLit<'
                 v.visit_prop_name(node.name);
                 v.visit_expr(node.init);
             }
+            Method(node) => {
+                v.visit_object_method_member(node);
+            }
+            Shorthand(n) => v.visit_ident(n.name),
             _ => {
                 // TODO:
             }
         }
     }
+}
+pub fn visit_object_method_member<'cx>(
+    v: &mut impl Visitor<'cx>,
+    n: &'cx ast::ObjectMethodMember<'cx>,
+) {
+    v.visit_prop_name(n.name);
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    v.visit_block_stmt(n.body);
 }
 pub fn visit_try_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TryStmt<'cx>) {
     v.visit_block_stmt(n.try_block);
@@ -478,6 +501,7 @@ make_visitor!(
     (visit_var_decl, ast::VarDecl<'cx>),
     (visit_expr, ast::Expr<'cx>),
     (visit_object_lit, ast::ObjectLit<'cx>),
+    (visit_object_method_member, ast::ObjectMethodMember<'cx>),
     (visit_try_stmt, ast::TryStmt<'cx>),
     (visit_block_stmt, ast::BlockStmt<'cx>),
     (visit_expr_stmt, ast::ExprStmt<'cx>),
@@ -651,5 +675,6 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         JsxFrag(n) => todo!(),
         JsxElem(n) => todo!(),
         PrivateIdent(n) => todo!(),
+        YieldExpr(n) => todo!(),
     }
 }

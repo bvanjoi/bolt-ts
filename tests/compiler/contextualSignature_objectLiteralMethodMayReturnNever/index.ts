@@ -11,3 +11,7 @@ const d1 = { m() { } };
 
 let a1: never = d1.m();
 //~^ ERROR: Type 'void' is not assignable to type 'never'.
+
+const a2 = ({
+	f() {},
+});

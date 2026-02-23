@@ -4,9 +4,7 @@ class C {
 	constructor() {
 		static p1 = 0; // ERROR
     //~^ ERROR: Declaration or statement expected.
-    //~| ERROR: Cannot find name 'p1'.
+    //~| ERROR: '}' expected.
 		static m1() {} // ERROR
-    //~^ ERROR: Declaration or statement expected.
-    //~| ERROR: Cannot find name 'm1'.
 	}
-}
+}	//~ ERROR: Declaration or statement expected.

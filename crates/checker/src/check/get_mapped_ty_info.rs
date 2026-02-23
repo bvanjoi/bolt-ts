@@ -141,7 +141,7 @@ impl<'cx> TyChecker<'cx> {
             let is_optional = ty
                 .decl
                 .get_modifiers()
-                .intersects(bolt_ts_ast::MappedTyModifiers::INCLUDE_OPTIONAL);
+                .contains(bolt_ts_ast::MappedTyModifiers::INCLUDE_OPTIONAL);
             let t = self.add_optionality::<true>(decl_ty, is_optional);
             self.instantiate_ty(t, ty.mapper)
         } else {
@@ -149,5 +149,43 @@ impl<'cx> TyChecker<'cx> {
         };
         self.object_mapped_ty_links_arena[ty.links].set_template_ty(template_ty);
         template_ty
+    }
+
+    pub(super) fn get_apparent_ty_of_mapped_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let m = ty.kind.expect_object_mapped();
+        if let Some(resolved) =
+            self.object_mapped_ty_links_arena[m.links].get_resolved_apparent_ty()
+        {
+            return resolved;
+        }
+        let t = self.get_resolved_apparent_ty_of_mapped_ty(ty);
+        self.object_mapped_ty_links_arena[m.links].set_resolved_apparent_ty(t);
+        t
+    }
+
+    fn get_resolved_apparent_ty_of_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let m = ty.kind.expect_object_mapped();
+        let target = m.target.unwrap_or(ty);
+        let target_m = target.kind.expect_object_mapped();
+        let ty_var = self.get_homomorphic_ty_var(target_m);
+        if let Some(ty_var) = ty_var
+            && target_m.decl.name_ty.is_none()
+            && let modifier_ty = self.get_modifiers_ty_from_mapped_ty(m)
+            && let Some(base_constraint) = if self.is_generic_mapped_ty(modifier_ty) {
+                Some(self.get_apparent_ty_of_mapped_ty(modifier_ty))
+            } else {
+                self.get_base_constraint_of_ty(modifier_ty)
+            }
+            && self.every_type(base_constraint, |this, t| {
+                this.is_array_or_tuple(t) || this.is_array_or_tuple_intersection(t)
+            })
+        {
+            let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);
+            return self.instantiate_ty(target, Some(mapper));
+        }
+        ty
     }
 }

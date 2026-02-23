@@ -1,10 +1,12 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::FlowFlags;
+use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::Target;
 use bolt_ts_span::Span;
+use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
@@ -63,6 +65,13 @@ bitflags::bitflags! {
             | Self::YIELD_STAR_FLAG.bits();
         const GENERATOR_RETURN_TYPE = Self::ALLOWS_SYNC_ITERABLES_FLAG.bits();
         const ASYNC_GENERATOR_RETURN_TYPE = Self::ALLOWS_ASYNC_ITERABLES_FLAG.bits();
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    struct PredicateSemantics: u8 {
+        const ALWAYS        = 1 << 0;
+        const NEVER         = 1 << 1;
+        const SOMETIMES     = Self::ALWAYS.bits() | Self::NEVER.bits();
     }
 }
 
@@ -176,6 +185,66 @@ impl<'cx> TyChecker<'cx> {
         let l = self.check_expr(node.left);
         let r = self.check_expr(node.right);
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
+    }
+
+    fn get_syntactic_nullishness_semantics(&self, node: &'cx ast::Expr<'cx>) -> PredicateSemantics {
+        let node = ast::Expr::skip_outer_expr(node);
+        use ast::ExprKind::*;
+        match node.kind {
+            Await(_) | Call(_) | TaggedTemplate(_) | EleAccess(_) | New(_) | PropAccess(_)
+            | Yield(_) | This(_) => return PredicateSemantics::SOMETIMES,
+            Bin(n) => match n.op.kind {
+                ast::BinOpKind::LogicalOr | ast::BinOpKind::LogicalAnd => {
+                    return PredicateSemantics::SOMETIMES;
+                }
+                ast::BinOpKind::Comma | ast::BinOpKind::Nullish => {
+                    return self.get_syntactic_nullishness_semantics(n.right);
+                }
+                _ => PredicateSemantics::NEVER,
+            },
+            Assign(n) => match n.op {
+                ast::AssignOp::LogicalOrEq | ast::AssignOp::LogicalAndEq => {
+                    return PredicateSemantics::SOMETIMES;
+                }
+                ast::AssignOp::Eq | ast::AssignOp::NullishEq => {
+                    return self.get_syntactic_nullishness_semantics(n.right);
+                }
+                _ => PredicateSemantics::NEVER,
+            },
+            Cond(n) => {
+                self.get_syntactic_nullishness_semantics(n.when_true)
+                    | self.get_syntactic_nullishness_semantics(n.when_false)
+            }
+            NullLit(_) => PredicateSemantics::ALWAYS,
+            Ident(n) => {
+                if self.final_res(n.id) == Symbol::ERR {
+                    PredicateSemantics::ALWAYS
+                } else {
+                    PredicateSemantics::SOMETIMES
+                }
+            }
+            _ => PredicateSemantics::NEVER,
+        }
+    }
+
+    fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
+        debug_assert!(node.op.kind == ast::BinOpKind::Nullish);
+        let left_target = ast::Expr::skip_outer_expr(node.left);
+        let semantics = self.get_syntactic_nullishness_semantics(left_target);
+        if semantics != PredicateSemantics::SOMETIMES {
+            if semantics == PredicateSemantics::ALWAYS {
+                let error = errors::ThisExpressionIsAlwaysNullish {
+                    span: left_target.span(),
+                };
+                self.push_error(Box::new(error));
+            } else {
+                let error =
+                    errors::RightOperandOfIsUnreachableBecauseTheLeftOperandIsNeverNullish {
+                        span: left_target.span(),
+                    };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn check_bin_like_expr(
@@ -311,6 +380,16 @@ impl<'cx> TyChecker<'cx> {
             Comma => right_ty,
             BitXor => self.number_ty,
             Exp => self.number_ty,
+            Nullish => {
+                self.check_nullish_coalesce_op_left(node);
+                if self.has_type_facts(left_ty, TypeFacts::EQ_UNDEFINED_OR_NULL) {
+                    let a = self.get_non_nullable_ty(left_ty);
+                    let tys = &[a, right_ty];
+                    self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None)
+                } else {
+                    left_ty
+                }
+            }
         }
     }
 
@@ -388,6 +467,10 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 self.undefined_ty
             }
+            Yield(_) => {
+                // TODO:
+                self.undefined_ty
+            }
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
@@ -405,8 +488,7 @@ impl<'cx> TyChecker<'cx> {
             return self.boolean_ty();
         }
 
-        let links = self.get_node_links(expr.id());
-        let Some(symbol) = links.get_resolved_symbol() else {
+        let Some(symbol) = self.get_node_links(expr.id()).get_resolved_symbol() else {
             return self.boolean_ty();
         };
 
@@ -943,7 +1025,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_expr_with_contextual_ty(
         &mut self,
         expr: &'cx ast::Expr,
-        ctx_ty: &'cx ty::Ty<'cx>,
+        contextual_ty: &'cx ty::Ty<'cx>,
         inference: Option<InferenceContextId>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
@@ -957,17 +1039,28 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 CheckMode::empty()
             };
-        self.check_mode = Some(check_mode);
-        self.push_type_context(node, Some(ctx_ty), false);
+        self.push_type_context(node, Some(contextual_ty), false);
         self.push_inference_context(node, inference);
 
+        self.check_mode = Some(check_mode);
         let ty = self.check_expr(expr);
+        self.check_mode = old_check_mode;
+
+        // TODO: inference_context.intra_expr_inference_sites
+
+        let ret = if ty.maybe_type_of_kind(TypeFlags::LITERAL)
+            && let contextual_ty = self.instantiate_contextual_ty(Some(contextual_ty), node, None)
+            && self.is_literal_of_contextual_ty(ty, contextual_ty)
+        {
+            self.get_regular_ty_of_literal_ty(ty)
+        } else {
+            ty
+        };
 
         self.pop_type_context();
         self.pop_inference_context();
-        self.check_mode = old_check_mode;
 
-        ty
+        ret
     }
 
     pub(super) fn check_expr_cached(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
@@ -1353,6 +1446,8 @@ impl<'cx> TyChecker<'cx> {
                     | (ObjectFlags::OBJECT_LITERAL
                         .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)),
                 None,
+                None,
+                None,
             );
 
             let props = this.get_props_from_members(properties_table);
@@ -1527,6 +1622,7 @@ impl<'cx> TyChecker<'cx> {
             ),
             LogicalAndEq => todo!(),
             LogicalOrEq => todo!(),
+            NullishEq => todo!(),
         }
     }
 
@@ -1789,7 +1885,14 @@ impl<'cx> TyChecker<'cx> {
                 }
         };
 
-        self.get_indexed_access_ty(object_ty, index_ty, Some(access_flags), Some(node.id))
+        self.get_indexed_access_ty(
+            object_ty,
+            index_ty,
+            Some(access_flags),
+            Some(node.id),
+            None,
+            None,
+        )
     }
 
     pub fn check_computed_prop_name(

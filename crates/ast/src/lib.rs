@@ -32,6 +32,7 @@ pub enum DeclarationName<'cx> {
     Ident(&'cx Ident),
     PrivateIdent(&'cx PrivateIdent),
     NumLit(&'cx NumLit),
+    BigIntLit(&'cx BigIntLit),
     StringLit {
         raw: &'cx StringLit,
         key: bolt_ts_atom::Atom,
@@ -48,6 +49,7 @@ impl<'cx> DeclarationName<'cx> {
             NumLit(n) => DeclarationName::NumLit(n),
             Computed(n) => DeclarationName::Computed(n),
             PrivateIdent(n) => DeclarationName::PrivateIdent(n),
+            BigIntLit(n) => DeclarationName::BigIntLit(n),
         }
     }
 
@@ -96,6 +98,7 @@ impl<'cx> DeclarationName<'cx> {
             StringLit { raw, .. } => raw.span,
             Computed(n) => n.span,
             PrivateIdent(n) => n.span,
+            BigIntLit(n) => n.span,
         }
     }
 
@@ -107,6 +110,7 @@ impl<'cx> DeclarationName<'cx> {
             StringLit { raw, .. } => atoms.get(raw.val).to_string(),
             Computed(n) => todo!(),
             PrivateIdent(n) => todo!(),
+            BigIntLit(n) => todo!(),
         }
     }
 }

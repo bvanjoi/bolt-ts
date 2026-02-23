@@ -65,6 +65,7 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         match parent {
             VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id),
+            ParamDecl(parent) => self.get_contextual_ty_for_param_decl(parent, id),
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
             AssignExpr(parent) if id == parent.right.id() => {
@@ -330,12 +331,29 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_contextual_ty_for_param_decl(
+        &mut self,
+        parent: &'cx ast::ParamDecl<'cx>,
+        node: ast::NodeID,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
+        if parent.init.is_some()
+            && let Some(decl_ty) = parent.ty
+        {
+            // TODO: js
+            Some(self.get_ty_from_type_node(decl_ty))
+        } else {
+            None
+        }
+    }
+
     fn get_contextual_ty_for_var_decl(
         &mut self,
         parent: &'cx ast::VarDecl<'cx>,
         node: ast::NodeID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if parent.init.is_some_and(|init| init.id() == node)
+        debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
+        if parent.init.is_some()
             && let Some(decl_ty) = parent.ty
         {
             // TODO: js
@@ -351,6 +369,7 @@ impl<'cx> TyChecker<'cx> {
         node: ast::NodeID,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
             let name = parent.name;
@@ -389,7 +408,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_contextual_ty_for_element_expr(
+    pub(super) fn get_contextual_ty_for_element_expr(
         &mut self,
         ty: Option<&'cx ty::Ty<'cx>>,
         index: usize,
@@ -443,7 +462,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn get_ty_of_prop_of_contextual_ty(
+    pub(super) fn get_ty_of_prop_of_contextual_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
@@ -581,11 +600,11 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         if let Some(c) = constraint.kind.as_cond_ty() {
             let true_ty = {
-                let t = self.get_true_ty_from_cond_ty(constraint, c);
+                let t = self.get_true_ty_from_cond_ty(c);
                 self.get_reduced_ty(t)
             };
             let false_ty = {
-                let t = self.get_false_ty_from_cond_ty(constraint, c);
+                let t = self.get_false_ty_from_cond_ty(c);
                 self.get_actual_ty_variable(t)
             };
             true_ty.flags.intersects(TypeFlags::NEVER)

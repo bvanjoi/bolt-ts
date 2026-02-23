@@ -692,7 +692,7 @@ impl<'cx> TyChecker<'cx> {
             key,
         );
         let ty = self.get_ty_from_flow_ty(flow_ty);
-        if ty.flags.intersects(TypeFlags::NEVER) {
+        if ty.flags.contains(TypeFlags::NEVER) {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
@@ -754,6 +754,36 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn narrow_ty_optionality(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+        assume_present: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_matching_reference(refer, expr.id()) {
+            let facts = if assume_present {
+                TypeFacts::NE_UNDEFINED_OR_NULL
+            } else {
+                TypeFacts::EQ_UNDEFINED_OR_NULL
+            };
+            self.get_adjusted_ty_with_facts(ty, facts)
+        } else if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty)
+        {
+            self.narrow_ty_by_discriminant(access, ty, |this, t| {
+                let facts = if assume_present {
+                    TypeFacts::NE_UNDEFINED_OR_NULL
+                } else {
+                    TypeFacts::EQ_UNDEFINED_OR_NULL
+                };
+                this.get_ty_with_facts(t, facts)
+            })
+        } else {
+            ty
+        }
+    }
+
     fn narrow_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -763,6 +793,20 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::ExprKind::*;
+        let expr_id = expr.id();
+        if self
+            .node_query(expr_id.module())
+            .is_expression_of_optional_chain_root(expr_id)
+            || self.parent(expr_id).is_some_and(|p| {
+                self.p.node(p).as_bin_expr().is_some_and(|e| {
+                    matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr_id
+                })
+            })
+        {
+            // TODO: assignment nullish
+            return self.narrow_ty_optionality(ty, declared_ty, refer, expr, assume_true);
+        }
+
         if let Ident(node) = expr.kind
             && !self.is_matching_reference(refer, node.id)
             && let symbol = self.final_res(expr.id())
@@ -930,9 +974,12 @@ impl<'cx> TyChecker<'cx> {
         let Some(prop_name) = self.get_accessed_prop_name(access) else {
             return ty;
         };
-        let optional_chain = false; // TODO: is_optional_chain(access);
+        let access_id = access.id();
+        let optional_chain = self
+            .node_query(access_id.module())
+            .is_optional_chain(access_id);
         let remove_nullable = self.config.strict_null_checks()
-            && (optional_chain/* TODO: is_non_null_access */)
+            && (optional_chain || matches!(access.kind, ast::ExprKind::NonNull(_)))
             && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
         let Some(prop_ty) =
             self.get_ty_of_prop_of_ty(if remove_nullable { todo!() } else { ty }, prop_name)
@@ -1104,17 +1151,14 @@ impl<'cx> TyChecker<'cx> {
     fn get_reference_candidate(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
         let n = ast::Expr::skip_parens(expr);
         match n.kind {
-            ast::ExprKind::Assign(node) => {
-                match node.op {
-                    ast::AssignOp::Eq
-                    | ast::AssignOp::LogicalOrEq
-                    | ast::AssignOp::LogicalAndEq => {
-                        // TODO: `??=`
-                        self.get_reference_candidate(node.left)
-                    }
-                    _ => n,
-                }
-            }
+            ast::ExprKind::Assign(node) => match node.op {
+                ast::AssignOp::Eq
+                | ast::AssignOp::LogicalOrEq
+                | ast::AssignOp::LogicalAndEq
+                | ast::AssignOp::NullishEq => self.get_reference_candidate(node.left),
+                // TODO: comma
+                _ => n,
+            },
             _ => n,
         }
     }

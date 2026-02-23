@@ -46,6 +46,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::PropNameKind::PrivateIdent(n) => SymbolName::Atom(n.name),
                 ast::PropNameKind::StringLit { raw, .. } => SymbolName::Atom(raw.val),
                 ast::PropNameKind::NumLit(n) => SymbolName::EleNum(n.val.into()),
+                ast::PropNameKind::BigIntLit(n) => SymbolName::Atom(n.val.1),
                 ast::PropNameKind::Computed(_) => SymbolName::Computed,
             };
             let ty = self.get_ty_from_object_binding::<INCLUDE_PATTERN_IN_TY>(elem);

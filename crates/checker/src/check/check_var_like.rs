@@ -53,14 +53,12 @@ impl<'cx> TyChecker<'cx> {
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
                 );
-                if ty != init_ty {
-                    self.check_type_assignable_to_and_optionally_elaborate(
-                        init_ty,
-                        ty,
-                        Some(name_id),
-                        Some(init.id()),
-                    );
-                }
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    init_ty,
+                    ty,
+                    Some(name_id),
+                    Some(init.id()),
+                );
             }
 
             // TODO: ensure check once for the symbol

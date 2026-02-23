@@ -45,9 +45,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_fn_block(&mut self, flags: SignatureFlags) -> &'cx ast::BlockStmt<'cx> {
+        let saved_yield_context = self.in_yield_context();
         let saved_await_context = self.in_await_context();
-        let saved_labels = std::mem::take(&mut self.labels);
 
+        let saved_labels = std::mem::take(&mut self.labels);
+        self.set_yield_context(flags.contains(SignatureFlags::YIELD));
         self.set_await_context(flags.contains(SignatureFlags::AWAIT));
 
         let ret = self.do_outside_of_parse_context(
@@ -65,6 +67,7 @@ impl<'cx> ParserState<'cx, '_> {
         );
 
         self.labels = saved_labels;
+        self.set_yield_context(saved_yield_context);
         self.set_await_context(saved_await_context);
 
         ret
@@ -204,29 +207,28 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn is_start_of_left_hand_side_expr(&mut self) -> bool {
         use TokenKind::*;
-        if self.token.kind == TokenKind::Import {
-            self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
-        } else {
-            matches!(
-                self.token.kind,
-                This | Super
-                    | Null
-                    | True
-                    | False
-                    | Number
-                    | String
-                    | NoSubstitutionTemplate
-                    | LBrace
-                    | LBracket
-                    | LParen
-                    | Function
-                    | Class
-                    | New
-                    | Slash
-                    | SlashEq
-                    | Ident
-                    | TemplateHead
-            ) || self.is_ident()
+        match self.token.kind {
+            This
+            | Super
+            | Null
+            | True
+            | False
+            | Number
+            | BigInt
+            | String
+            | NoSubstitutionTemplate
+            | LBrace
+            | LBracket
+            | LParen
+            | Function
+            | Class
+            | New
+            | Slash
+            | SlashEq
+            | Ident
+            | TemplateHead => true,
+            Import => self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot),
+            _ => self.is_ident(),
         }
     }
 
@@ -361,9 +363,9 @@ impl<'cx> ParserState<'cx, '_> {
                 Some(ast::PropNameKind::NumLit(lit))
             }
             TokenKind::BigInt => {
-                todo!()
-                // let lit = self.parse_big_int_lit();
-                // ast::PropNameKind::BigIntLit(lit)
+                let val = self.ident_token();
+                let n = self.parse_bigint_lit(false, val);
+                Some(ast::PropNameKind::BigIntLit(n))
             }
             _ => None,
         };
@@ -552,7 +554,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_params_worker(
         &mut self,
         flags: SignatureFlags,
-        allow_ambiguity_name: bool,
+        allow_ambiguity: bool,
     ) -> ast::ParamsDecl<'cx> {
         let saved_yield_context = self
             .node_context_flags
@@ -566,7 +568,11 @@ impl<'cx> ParserState<'cx, '_> {
 
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
-            Self::parse_param(this, allow_ambiguity_name)
+            if allow_ambiguity {
+                Self::parse_param(this, allow_ambiguity)
+            } else {
+                Self::parse_param(this, false)
+            }
         });
         let has_error = self.diags.len() > old_error;
         if !has_error {

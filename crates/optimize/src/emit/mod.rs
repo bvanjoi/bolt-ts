@@ -253,6 +253,11 @@ impl<'ir> JSEmitter<'_, 'ir> {
             ir::PropName::PrivateIdent(n) => {
                 self.emit_private_ident(n);
             }
+            ir::PropName::BigIntLit(id) => {
+                let lit = self.nodes.get_bigint_lit(&id);
+                let content = self.emitter.atoms.get(lit.val().1);
+                self.emitter.print().p(content);
+            }
         }
     }
 
@@ -351,6 +356,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
         }
 
         self.emitter.print().p("function");
+        if f.asterisk().is_some() {
+            self.emitter.print().p("*");
+        }
         self.emitter.print().p_whitespace();
         if let Some(name) = f.name() {
             self.emit_ident(name);
@@ -620,6 +628,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
         {
             self.emitter.print().p("static");
             self.emitter.print().p_whitespace();
+        }
+        if elem.asterisk().is_some() {
+            self.emitter.print().p_asterisk();
         }
         self.emit_prop_name(elem.name());
         self.emit_params(elem.params());
@@ -910,6 +921,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         ir::PropName::NumLit(num) => this.emit_num_lit(num),
                         ir::PropName::Computed(_) => todo!(),
                         ir::PropName::PrivateIdent(_) => todo!(),
+                        ir::PropName::BigIntLit(n) => this.emit_bigint_lit(n),
                     }
                     this.emitter.content.p_r_bracket();
                     this.emitter.content.p_whitespace();
@@ -934,6 +946,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         ir::PropName::NumLit(num) => this.emit_num_lit(num),
                         ir::PropName::Computed(_) => todo!(),
                         ir::PropName::PrivateIdent(_) => todo!(),
+                        ir::PropName::BigIntLit(n) => this.emit_bigint_lit(n),
                     }
                 }
             },
@@ -1456,6 +1469,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_object_method_member(&mut self, method: ir::ObjectMethodMemberID) {
         let n = self.nodes.get_object_method_member(&method);
+        if n.asterisk().is_some() {
+            self.emitter.print().p_asterisk();
+        }
         self.emit_prop_name(n.name());
         self.emit_params(n.params());
         self.emitter.print().p_whitespace();
@@ -1592,6 +1608,18 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 self.emitter.print().p("await");
                 self.emitter.print().p_whitespace();
                 self.emit_expr(self.nodes.get_await_expr(&id).expr());
+            }
+            ir::Expr::Yield(id) => {
+                self.emitter.print().p("yield");
+                self.emitter.print().p_whitespace();
+                let n = self.nodes.get_yield_expr(&id);
+                if n.asterisk().is_some() {
+                    self.emitter.print().p_asterisk();
+                    self.emitter.print().p_whitespace();
+                }
+                if let Some(expr) = n.expr() {
+                    self.emit_expr(expr);
+                }
             }
         }
     }
@@ -1741,6 +1769,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_fn_expr(&mut self, f: ir::FnExprID) {
         let n = self.nodes.get_fn_expr(&f);
         self.emitter.print().p("function");
+        if n.asterisk().is_some() {
+            self.emitter.print().p("*");
+        }
         self.emitter.print().p_whitespace();
         if let Some(name) = n.name() {
             self.emit_ident(name);

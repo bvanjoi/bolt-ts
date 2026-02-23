@@ -169,6 +169,10 @@ pub enum TokenKind {
     CaretEq,
     /// `?.`
     QuestionDot,
+    /// `??`
+    QuestionQuestion,
+    /// `??=`
+    QuestionQuestionEq,
     /// `</`
     LessSlash,
     // =====
@@ -466,6 +470,7 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Caret => BitXor,
             TokenKind::AsteriskAsterisk => Exp,
             TokenKind::Comma => Comma,
+            TokenKind::QuestionQuestion => Nullish,
             _ => {
                 unreachable!("{:#?}", value)
             }
@@ -563,6 +568,7 @@ impl TokenKind {
     pub const fn prec(self) -> BinPrec {
         use TokenKind::*;
         match self {
+            QuestionQuestion => BinPrec::LogicalOr,
             Pipe => BinPrec::BitwiseOR,
             Caret => BinPrec::BitwiseXOR,
             Amp => BinPrec::BitwiseAND,
@@ -662,7 +668,7 @@ impl TokenKind {
     #[inline(always)]
     pub const fn is_lit_prop_name(self) -> bool {
         use TokenKind::*;
-        self.is_ident_or_keyword() || matches!(self, String | Number)
+        self.is_ident_or_keyword() || matches!(self, String | Number | BigInt)
     }
 
     #[inline(always)]
@@ -730,7 +736,7 @@ impl TokenKind {
 pub enum BinPrec {
     Invalid,
     Lowest,
-    /// `||`
+    /// `||` and `??`
     LogicalOr,
     /// `&&`
     LogicalAnd,

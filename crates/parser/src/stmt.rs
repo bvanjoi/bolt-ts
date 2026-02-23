@@ -411,7 +411,10 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
         let name = self.parse_prop_name::<false>();
-        if matches!(name.kind, ast::PropNameKind::NumLit(_)) {
+        if matches!(
+            name.kind,
+            ast::PropNameKind::BigIntLit(_) | ast::PropNameKind::NumLit(_)
+        ) {
             let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
             self.push_error(Box::new(error));
         }

@@ -2,9 +2,11 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::{MergeSymbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
-use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
+use bolt_ts_utils::{FxIndexMap, fx_hashset_with_capacity, fx_indexmap_with_capacity};
 
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
+
+use crate::check::get_declared_ty::EnumMemberValue;
 
 use super::create_ty::IntersectionFlags;
 use super::symbol_info::SymbolInfo;
@@ -23,6 +25,28 @@ pub(super) enum RelationKind {
     Enum,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub(super) struct EnumRelationKey {
+    source: SymbolID,
+    target: SymbolID,
+}
+
+pub(super) struct EnumRelationMap(FxHashMap<EnumRelationKey, RelationComparisonResult>);
+impl EnumRelationMap {
+    pub fn new() -> Self {
+        Self(FxHashMap::default())
+    }
+
+    pub fn get(&self, key: EnumRelationKey) -> Option<RelationComparisonResult> {
+        self.0.get(&key).copied()
+    }
+
+    pub fn insert(&mut self, key: EnumRelationKey, value: RelationComparisonResult) {
+        let prev = self.0.insert(key, value);
+        debug_assert!(prev.is_none())
+    }
+}
+
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub(super) struct SigCheckMode: u8 {
@@ -32,6 +56,18 @@ bitflags::bitflags! {
         const STRICT_ARITY          = 1 << 3;
         const STRICT_TOP_SIGNATURE  = 1 << 4;
         const CALLBACK              = Self::BIVARIANT_CALLBACK.bits() | Self::STRICT_CALLBACK.bits();
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub(super) struct RelationComparisonResult: u8 {
+        const SUCCEED               = 1 << 0;
+        const FAILED                = 1 << 1;
+        const REPORT_UNMEASURABLE   = 1 << 3;
+        const REPORT_UNRELIABLE     = 1 << 4;
+        const REPORT_MASK           = Self::REPORT_UNMEASURABLE.bits() | Self::REPORT_UNRELIABLE.bits();
+        const COMPLEXITY_OVERFLOW   = 1 << 5;
+        const STACK_DEPTH_OVERFLOW  = 1 << 6;
+        const OVERFLOW              = Self::COMPLEXITY_OVERFLOW.bits() | Self::STACK_DEPTH_OVERFLOW.bits();
     }
 }
 
@@ -56,6 +92,109 @@ impl<'cx> TyChecker<'cx> {
         } else {
             false
         }
+    }
+
+    fn is_enum_ty_related_to(
+        &mut self,
+        source: SymbolID,
+        target: SymbolID,
+        report_error: bool,
+    ) -> bool {
+        let s = self.symbol(source);
+        let t = self.symbol(target);
+        let source_symbol = if s.flags.contains(SymbolFlags::ENUM_MEMBER) {
+            s.parent.unwrap()
+        } else {
+            source
+        };
+        let target_symbol = if t.flags.contains(SymbolFlags::ENUM_MEMBER) {
+            t.parent.unwrap()
+        } else {
+            target
+        };
+        if source_symbol == target_symbol {
+            return true;
+        }
+        let s = self.symbol(source_symbol);
+        let t = self.symbol(target_symbol);
+        if s.name != t.name
+            || !s.flags.contains(SymbolFlags::REGULAR_ENUM)
+            || !t.flags.contains(SymbolFlags::REGULAR_ENUM)
+        {
+            return false;
+        }
+        let key = EnumRelationKey {
+            source: source_symbol,
+            target: target_symbol,
+        };
+        if report_error
+            && let Some(entry) = self.enum_relation.get(key)
+            && !entry.contains(RelationComparisonResult::FAILED)
+        {
+            return entry.contains(RelationComparisonResult::SUCCEED);
+        }
+        let target_enum_ty = self.get_type_of_symbol(target_symbol);
+        let source_enum_ty = self.get_type_of_symbol(source_symbol);
+        let source_props = self.get_props_of_ty(source_enum_ty);
+        for source_prop in source_props {
+            let source_name = self.symbol(*source_prop).name;
+            let target_prop = self.get_prop_of_ty(target_enum_ty, source_name);
+            let Some(target_prop) = target_prop else {
+                // TODO: report error
+                self.enum_relation
+                    .insert(key, RelationComparisonResult::FAILED);
+                return false;
+            };
+            if !self
+                .symbol(target_prop)
+                .flags
+                .contains(SymbolFlags::ENUM_MEMBER)
+            {
+                // TODO: report error
+                self.enum_relation
+                    .insert(key, RelationComparisonResult::FAILED);
+                return false;
+            }
+            let source_value = {
+                let n = self
+                    .symbol(*source_prop)
+                    .get_declaration_of_kind(|id| self.p.node(id).is_enum_member())
+                    .unwrap();
+                let enum_member = self.p.node(n).expect_enum_member();
+                self.get_enum_member_value(enum_member)
+            };
+            let target_value = {
+                let n = self
+                    .symbol(target_prop)
+                    .get_declaration_of_kind(|id| self.p.node(id).is_enum_member())
+                    .unwrap();
+                let enum_member = self.p.node(n).expect_enum_member();
+                self.get_enum_member_value(enum_member)
+            };
+            if source_value != target_value {
+                if !matches!(source_value, EnumMemberValue::Err)
+                    && !matches!(target_value, EnumMemberValue::Err)
+                {
+                    // TODO: report error
+                    self.enum_relation
+                        .insert(key, RelationComparisonResult::FAILED);
+                    return false;
+                }
+
+                if matches!(source_value, EnumMemberValue::Str(_))
+                    || matches!(target_value, EnumMemberValue::Str(_))
+                {
+                    // TODO: report error
+                    self.enum_relation
+                        .insert(key, RelationComparisonResult::FAILED);
+                    return false;
+                }
+            }
+        }
+
+        self.enum_relation
+            .insert(key, RelationComparisonResult::SUCCEED);
+        true
     }
 
     pub(super) fn is_simple_type_related_to(
@@ -85,13 +224,44 @@ impl<'cx> TyChecker<'cx> {
             || (t.contains(TypeFlags::UNKNOWN)
                 && !(relation == StrictSubtype && s.contains(TypeFlags::ANY)))
         {
-            true
+            return true;
         } else if t.contains(TypeFlags::NEVER) {
-            false
-        } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
-            || (s.intersects(TypeFlags::STRING_LIKE) && t.contains(TypeFlags::STRING))
+            return false;
+        } else if s.intersects(TypeFlags::STRING_LIKE) && t.contains(TypeFlags::STRING) {
+            return true;
+        } else if s.contains(TypeFlags::ENUM_LITERAL) && !t.contains(TypeFlags::ENUM_LITERAL) {
+            if let Some(source_s) = source.kind.as_string_lit()
+                && let Some(target_s) = target.kind.as_string_lit()
+                && source_s.val == target_s.val
+            {
+                return true;
+            }
+            if let Some(source_n) = source.kind.as_number_lit()
+                && let Some(target_n) = target.kind.as_number_lit()
+                && source_n.val == target_n.val
+            {
+                return true;
+            }
+        }
+
+        if let Some(source_e) = source.kind.as_enum()
+            && let Some(target_e) = target.kind.as_enum()
+            && self.symbol(source_e.symbol).name == self.symbol(target_e.symbol).name
+            && self.is_enum_ty_related_to(source_e.symbol, target_e.symbol, false)
+        // TODO: report_error
+        {
+            return true;
+        }
+
+        if s.contains(TypeFlags::ENUM_LITERAL) && t.contains(TypeFlags::ENUM_LITERAL) {
+            // TODO: union
+            // TODO: literal
+        }
+
+        if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
             || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.contains(TypeFlags::BIG_INT))
             || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.contains(TypeFlags::BOOLEAN))
+            || (s.intersects(TypeFlags::ES_SYMBOL_LIKE) && t.contains(TypeFlags::ES_SYMBOL))
             || (s.contains(TypeFlags::UNDEFINED)
                 && (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION)
                     || t.intersects(TypeFlags::UNDEFINED.union(TypeFlags::VOID))))
@@ -104,7 +274,7 @@ impl<'cx> TyChecker<'cx> {
                     && self.is_empty_anonymous_object_ty(source)
                     && !source
                         .get_object_flags()
-                        .intersects(ObjectFlags::FRESH_LITERAL)))
+                        .contains(ObjectFlags::FRESH_LITERAL)))
         {
             true
         } else if matches!(relation, Assignable | Comparable) {
@@ -358,11 +528,42 @@ impl<'cx> TyChecker<'cx> {
         if self.get_ty_links(ty.id).get_resolved_properties().is_none() {
             self.get_mut_ty_links(ty.id).set_resolved_properties(props);
         } else {
-            // cycle
+            // TODO: cycle
             self.get_mut_ty_links(ty.id)
                 .override_resolved_properties(props);
         }
         props
+    }
+
+    fn get_prop_of_members(
+        &mut self,
+        members: &FxIndexMap<SymbolName, SymbolID>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        if let Some(symbol) = members.get(&name) {
+            return Some(*symbol);
+        }
+        // TODO: remove following query
+        match name {
+            SymbolName::Atom(n) => {
+                let name = self.atom(n);
+                if let Ok(val) = name.parse()
+                    && let Some(symbol) = members.get(&SymbolName::EleNum(F64Represent::new(val)))
+                {
+                    return Some(*symbol);
+                }
+            }
+            SymbolName::EleNum(n) => {
+                // TODO: remove `.to_string()`
+                let name = n.val().to_string();
+                let name = self.atoms.atom(&name);
+                if let Some(symbol) = members.get(&SymbolName::Atom(name)) {
+                    return Some(*symbol);
+                }
+            }
+            _ => {}
+        }
+        None
     }
 
     pub(super) fn get_prop_of_ty(
@@ -374,20 +575,8 @@ impl<'cx> TyChecker<'cx> {
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
             let s = self.expect_ty_links(ty.id).expect_structured_members();
-            if let Some(symbol) = s.members.get(&name) {
-                return Some(*symbol);
-            } else if let Some(name) = name.as_atom()
-                && let name = self.atom(name)
-                && let Ok(num) = name.parse()
-                && let Some(symbol) = s.members.get(&SymbolName::EleNum(F64Represent::new(num)))
-            {
-                return Some(*symbol);
-            } else if let Some(num) = name.as_numeric()
-             // TODO: remove `.to_string()`
-                && let name = self.atoms.atom(&num.to_string())
-                && let Some(symbol) = s.members.get(&SymbolName::Atom(name))
-            {
-                return Some(*symbol);
+            if let Some(symbol) = self.get_prop_of_members(s.members, name) {
+                return Some(symbol);
             }
 
             let fn_ty = if ty == self.any_fn_ty() {
@@ -432,7 +621,7 @@ impl<'cx> TyChecker<'cx> {
         let prop = self.get_union_or_intersection_prop(ty, name)?;
         if !self
             .get_check_flags(prop)
-            .intersects(CheckFlags::READ_PARTIAL)
+            .contains(CheckFlags::READ_PARTIAL)
         {
             Some(prop)
         } else {
@@ -696,12 +885,8 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
         self.resolve_structured_type_members(ty);
-        let symbol = self
-            .expect_ty_links(ty.id)
-            .expect_structured_members()
-            .members
-            .get(&name)
-            .copied()?;
+        let s = self.expect_ty_links(ty.id).expect_structured_members();
+        let symbol = self.get_prop_of_members(s.members, name)?;
         self.symbol_is_value(symbol, false).then_some(symbol)
     }
 
@@ -746,7 +931,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: is_static_private_ident_property
             let target_prop_symbol = self.symbol(*target_prop);
             if require_optional_properties
-                || !(target_prop_symbol.flags.intersects(SymbolFlags::OPTIONAL)
+                || !(target_prop_symbol.flags.contains(SymbolFlags::OPTIONAL)
                     || self
                         .get_check_flags(*target_prop)
                         .intersects(CheckFlags::PARTIAL))

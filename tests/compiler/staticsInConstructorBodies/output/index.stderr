@@ -4,20 +4,21 @@
    · ──────
    ╰────
 
-  × Declaration or statement expected.
-   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:8:3]
- 8 │ static
+  × '}' expected.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:5:3]
+ 5 │ static
    · ──────
    ╰────
 
-  × Cannot find name 'p1'.
-   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:5:10]
- 5 │ p1
-   · ──
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:4:16]
+ 4 │ {
+   · ─
    ╰────
 
-  × Cannot find name 'm1'.
-   ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:8:10]
- 8 │ m1
-   · ──
-   ╰────
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/staticsInConstructorBodies/index.ts:10:1]
+ 10 │ }
+    · ─
+    ╰────

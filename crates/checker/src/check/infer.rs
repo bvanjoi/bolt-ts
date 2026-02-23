@@ -1,3 +1,4 @@
+use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
@@ -86,20 +87,17 @@ pub(super) struct InferenceContext<'cx> {
     pub mapper: &'cx fn_mapper::FixingMapper<'cx>,
     pub non_fixing_mapper: &'cx dyn ty::TyMap<'cx>,
     pub ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    pub outer_ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
 }
 
 impl<'cx> InferenceContext<'cx> {
     fn create(
         checker: &TyChecker<'cx>,
         id: InferenceContextId,
-        ty_params: &[&'cx ty::Ty<'cx>],
+        inferences: ThinVec<InferenceInfo<'cx>>,
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
     ) -> Self {
-        let inferences = ty_params
-            .iter()
-            .map(|ty_param| InferenceInfo::create(ty_param))
-            .collect::<thin_vec::ThinVec<_>>();
         let mapper = checker.making_inference_fixing_mapper(id, &inferences);
         let non_fixing_mapper = checker.making_inference_non_fixing_mapper(id, &inferences);
         Self {
@@ -107,6 +105,7 @@ impl<'cx> InferenceContext<'cx> {
             sig,
             flags,
             ret_mapper: None,
+            outer_ret_mapper: None,
             mapper,
             non_fixing_mapper,
         }
@@ -114,16 +113,46 @@ impl<'cx> InferenceContext<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub fn create_inference_context(
+    pub(super) fn create_inference_context(
         &mut self,
         ty_params: &[&'cx ty::Ty<'cx>],
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
     ) -> InferenceContextId {
         let id = InferenceContextId(self.inferences.len() as u32);
-        let inference = InferenceContext::create(self, id, ty_params, sig, flags);
+        let inferences = ty_params
+            .iter()
+            .map(|ty_param| InferenceInfo::create(ty_param))
+            .collect::<thin_vec::ThinVec<_>>();
+        let inference = InferenceContext::create(self, id, inferences, sig, flags);
         self.inferences.push(inference);
         id
+    }
+
+    pub(super) fn clone_inference_context(
+        &mut self,
+        context_id: InferenceContextId,
+        extra_flags: InferenceFlags,
+    ) -> InferenceContextId {
+        let inference_context = self.inference(context_id);
+        let inferences = inference_context.inferences.clone();
+        let id = InferenceContextId(self.inferences.len() as u32);
+        let inference = InferenceContext::create(
+            self,
+            id,
+            inferences,
+            inference_context.sig,
+            inference_context.flags | extra_flags,
+        );
+        self.inferences.push(inference);
+        id
+    }
+
+    pub(super) fn get_mapper_from_context(
+        &self,
+        inference: InferenceContextId,
+    ) -> Option<&'cx dyn ty::TyMap<'cx>> {
+        Some(self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>)
     }
 
     fn making_inference_fixing_mapper(
@@ -158,6 +187,14 @@ impl<'cx> TyChecker<'cx> {
         mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     ) {
         self.inferences[inference.as_usize()].ret_mapper = mapper;
+    }
+
+    fn set_inference_outer_ret_mapper(
+        &mut self,
+        inference: InferenceContextId,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) {
+        self.inferences[inference.as_usize()].outer_ret_mapper = Some(mapper);
     }
 
     pub(super) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
@@ -283,8 +320,8 @@ impl<'cx> TyChecker<'cx> {
             let ty_param = self.inference_info(inference, idx).ty_param;
             self.get_constraint_of_ty_param(ty_param)
                 .is_some_and(|constraint| {
-                    let t = if constraint.flags.intersects(TypeFlags::CONDITIONAL) {
-                        self.get_default_constraint_of_cond_ty(constraint)
+                    let t = if let Some(cond_ty) = constraint.kind.as_cond_ty() {
+                        self.get_default_constraint_of_cond_ty(cond_ty)
                     } else {
                         constraint
                     };
@@ -536,7 +573,7 @@ impl<'cx> TyChecker<'cx> {
         let is_in_javascript_file = self
             .inference(inference)
             .flags
-            .intersects(InferenceFlags::ANY_DEFAULT);
+            .contains(InferenceFlags::ANY_DEFAULT);
         self.set_inferred_ty_of_inference_info(
             inference,
             idx,
@@ -657,14 +694,14 @@ impl<'cx> TyChecker<'cx> {
             let inference_target_ty = self.get_ret_ty_of_sig(sig);
             if self.could_contain_ty_var(inference_target_ty) {
                 let outer_context = self.get_inference_context(node_id);
-                let is_from_binding_pattern = false;
+                let is_from_binding_pattern = false; // TODO: `is_from_binding_pattern`
                 if !is_from_binding_pattern {
-                    let outer_mapper =
-                        outer_context
-                            .and_then(|ctx| ctx.inference)
-                            .map(|inference| {
-                                self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>
-                            });
+                    let outer_mapper = outer_context
+                        .and_then(|ctx| ctx.inference)
+                        .map(|outer_context| {
+                            self.clone_inference_context(outer_context, InferenceFlags::NO_DEFAULT)
+                        })
+                        .and_then(|id| self.get_mapper_from_context(id));
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
                     let inference_source_ty =
                         if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
@@ -694,11 +731,27 @@ impl<'cx> TyChecker<'cx> {
                     self.inferences[inference.as_usize()].flags,
                 );
                 let ret_mapper = outer_context
-                    .and_then(|ctx| ctx.inference)
-                    .and_then(|ctx| self.inference(ctx).ret_mapper);
+                    .and_then(|outer_context| outer_context.inference)
+                    .and_then(|outer_context| {
+                        // create_outer_return_mapper
+                        if let Some(outer_ret_mapper) =
+                            self.inference(outer_context).outer_ret_mapper
+                        {
+                            Some(outer_ret_mapper)
+                        } else {
+                            let id = self
+                                .clone_inference_context(outer_context, InferenceFlags::empty());
+                            let mapper = self.inference(id).mapper;
+                            let ret = self
+                                .merge_ty_mappers(self.inference(outer_context).ret_mapper, mapper);
+                            self.set_inference_outer_ret_mapper(outer_context, ret);
+                            Some(ret)
+                        }
+                    });
                 let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
                 self.infer_tys(ret_ctx, ret_source_ty, inference_target_ty, None, false);
                 let ret_inference = self.inference(ret_ctx);
+                // clone_inferred_part_of_context
                 let ret_inferences = ret_inference
                     .inferences
                     .iter()
@@ -706,31 +759,51 @@ impl<'cx> TyChecker<'cx> {
                     .cloned()
                     .collect::<thin_vec::ThinVec<_>>();
                 if ret_inferences.is_empty() {
-                    drop(ret_inferences);
-                    self.set_inference_ret_mapper(ret_ctx, None);
+                    debug_assert!(self.inferences[inference.as_usize()].ret_mapper.is_none());
                 } else {
                     let id = InferenceContextId(self.inferences.len() as u32);
                     let mapper = self.making_inference_fixing_mapper(id, &ret_inferences);
                     let non_fixing_mapper =
                         self.making_inference_non_fixing_mapper(id, &ret_inferences);
-                    let inference = InferenceContext {
+                    let inference_context = InferenceContext {
                         inferences: ret_inferences,
                         sig: ret_inference.sig,
                         flags: ret_inference.flags,
                         ret_mapper: None,
+                        outer_ret_mapper: None,
                         mapper,
                         non_fixing_mapper,
                     };
                     self.set_inference_ret_mapper(
-                        ret_ctx,
-                        Some(inference.mapper as &'cx dyn ty::TyMap<'cx>),
+                        inference,
+                        Some(inference_context.mapper as &'cx dyn ty::TyMap<'cx>),
                     );
-                    self.inferences.push(inference);
+                    self.inferences.push(inference_context);
                 };
             }
         }
 
-        // TODO: rest
+        let arg_len = args.len();
+        let rest_ty = sig.get_non_array_rest_ty(self);
+        let arg_count = match rest_ty {
+            Some(_) => usize::min(sig.get_param_count(self) - 1, arg_len),
+            None => arg_len,
+        };
+        if let Some(rest_ty) = rest_ty
+            && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+        {
+            let info = self.inferences[inference.as_usize()]
+                .inferences
+                .iter_mut()
+                .find(|i| i.ty_param == rest_ty);
+            if let Some(info) = info {
+                info.implied_arity = args
+                    .iter()
+                    .skip(arg_count)
+                    .position(|arg| matches!(arg.kind, ast::ExprKind::SpreadElement(_)))
+                    .map_or(Some(arg_len - arg_count), |_| None)
+            }
+        }
 
         if let Some(this_ty) = self.get_this_ty_of_sig(sig)
             && self.could_contain_ty_var(this_ty)
@@ -754,8 +827,159 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        // TODO: rest_ty
+
+        if let Some(rest_ty) = rest_ty
+            && self.could_contain_ty_var(rest_ty)
+        {
+            let spared_ty = self.get_spared_argument_ty(
+                args,
+                arg_count,
+                arg_len,
+                rest_ty,
+                Some(inference),
+                check_mode,
+            );
+            self.infer_tys(inference, spared_ty, rest_ty, None, false);
+        }
+
         self.get_inferred_tys(inference)
+    }
+
+    fn is_mutable_array_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.is_mutable_array_or_tuple_ty(ty)
+            || ty
+                .flags
+                .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
+                && self.is_type_assignable_to(ty, self.any_array_ty())
+    }
+
+    fn is_mutable_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.kind.is_array(self) && !ty.is_readonly_array(self)
+            || ty.as_tuple().is_some_and(|t| !t.readonly)
+    }
+
+    fn get_mutable_array_or_tuple_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if let ty::TyKind::Union(u) = ty.kind {
+            self.map_union_ty(
+                ty,
+                u,
+                |this, t| Some(this.get_mutable_array_or_tuple_ty(t)),
+                false,
+            )
+            .unwrap()
+        } else if ty.flags.contains(TypeFlags::ANY) || {
+            let t = self.get_base_constraint_of_ty(ty).unwrap_or(ty);
+            self.is_mutable_array_or_tuple_ty(t)
+        } {
+            ty
+        } else if let Some(t) = ty.as_tuple() {
+            let element_types = self.get_element_tys(ty);
+            self.create_tuple_ty(element_types, Some(t.element_flags), t.readonly)
+        } else {
+            let element_types = self.alloc(vec![ty]);
+            let element_flags = self.alloc(vec![ty::ElementFlags::VARIADIC]);
+            self.create_tuple_ty(element_types, Some(element_flags), false)
+        }
+    }
+
+    pub(super) fn get_spared_argument_ty(
+        &mut self,
+        args: &[&'cx ast::Expr<'cx>],
+        index: usize,
+        arg_count: usize,
+        rest_ty: &'cx ty::Ty<'cx>,
+        context: Option<InferenceContextId>,
+        check_mode: CheckMode,
+    ) -> &'cx ty::Ty<'cx> {
+        let is_const_context = self.is_const_ty_variable(rest_ty);
+        if index >= arg_count - 1
+            && let Some(arg) = args.get(arg_count - 1)
+            && let ast::ExprKind::SpreadElement(spread) = arg.kind
+        {
+            // TODO: synthetic node
+            let spread_ty =
+                self.check_expr_with_contextual_ty(spread.expr, rest_ty, context, check_mode);
+            return if self.is_array_like_ty(spread_ty) {
+                self.get_mutable_array_or_tuple_ty(spread_ty)
+            } else {
+                self.check_iterated_ty_or_element_ty(
+                    IterationUse::SPREAD,
+                    spread_ty,
+                    self.undefined_ty,
+                    Some(spread.expr.id()),
+                )
+            };
+        }
+
+        let mut tys = vec![];
+        let mut flags = vec![];
+        // let mut names = vec![];
+        for i in index..arg_count {
+            let arg = args[i];
+            if let ast::ExprKind::SpreadElement(spread) = arg.kind {
+                // TODO: synthetic node
+                let spared_ty = self.check_expr(spread.expr);
+                if self.is_array_like_ty(spared_ty) {
+                    tys.push(spared_ty);
+                    flags.push(ty::ElementFlags::VARIADIC);
+                } else {
+                    let iterated_ty = self.check_iterated_ty_or_element_ty(
+                        IterationUse::SPREAD,
+                        spared_ty,
+                        self.undefined_ty,
+                        Some(spread.expr.id()),
+                    );
+                    tys.push(iterated_ty);
+                    flags.push(ty::ElementFlags::REST);
+                }
+            } else {
+                let element_index = i - index;
+                let contextual_ty = if rest_ty.is_tuple() {
+                    self.get_contextual_ty_for_element_expr(
+                        Some(rest_ty),
+                        element_index,
+                        Some(arg_count - index),
+                        None,
+                        None,
+                    )
+                    .unwrap_or(self.unknown_ty)
+                } else {
+                    let index_ty =
+                        self.get_number_literal_type::<false>(element_index.into(), None);
+                    self.get_indexed_access_ty(
+                        rest_ty,
+                        index_ty,
+                        Some(ty::AccessFlags::Contextual),
+                        None,
+                        None,
+                        None,
+                    )
+                };
+                let arg_ty =
+                    self.check_expr_with_contextual_ty(arg, contextual_ty, context, check_mode);
+                let has_primitive_contextual_ty = is_const_context
+                    || contextual_ty.maybe_type_of_kind(
+                        TypeFlags::PRIMITIVE
+                            .union(TypeFlags::INDEX)
+                            .union(TypeFlags::TEMPLATE_LITERAL)
+                            .union(TypeFlags::STRING_MAPPING),
+                    );
+                tys.push(if has_primitive_contextual_ty {
+                    self.get_regular_ty_of_literal_ty(arg_ty)
+                } else {
+                    self.get_widened_literal_ty(arg_ty)
+                });
+                flags.push(ty::ElementFlags::REQUIRED);
+            }
+            // TODO: synthetic node
+            // names.push(None);
+        }
+
+        let element_types = self.alloc(tys);
+        let element_flags = self.alloc(flags);
+        let readonly = is_const_context
+            && !self.some_type(rest_ty, |this, t| this.is_mutable_array_like_ty(t));
+        self.create_tuple_ty(element_types, Some(element_flags), readonly)
     }
 
     pub(super) fn get_this_argument_of_call(
@@ -867,7 +1091,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source_texts: &[bolt_ts_atom::Atom],
         source_tys: &[&'cx ty::Ty<'cx>],
-        target: &'cx ty::Ty<'cx>,
+        t: &'cx ty::TemplateLitTy<'cx>,
     ) -> Option<ty::Tys<'cx>> {
         let last_source_index = source_texts.len() - 1;
         let source_start_text = source_texts[0];
@@ -875,7 +1099,6 @@ impl<'cx> TyChecker<'cx> {
         let source_end_text = source_texts[last_source_index];
         let source_end_text_str = self.atoms.get(source_end_text);
 
-        let t = target.kind.expect_template_lit_ty();
         let target_texts = t.texts;
         let last_target_index = target_texts.len() - 1;
         let target_start_text = target_texts[0];
@@ -1015,49 +1238,56 @@ impl<'cx> TyChecker<'cx> {
     fn infer_tys_from_template_lit_ty(
         &mut self,
         source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::Ty<'cx>,
+        target_template_lit_ty: &'cx ty::TemplateLitTy<'cx>,
     ) -> Option<ty::Tys<'cx>> {
-        let t = target.kind.expect_template_lit_ty();
-        if let Some(s) = source.kind.as_string_lit() {
-            self.infer_from_lit_parts_to_template_lit(&[s.val], self.empty_array(), target)
-        } else if let Some(s) = source.kind.as_template_lit_ty() {
-            if self.array_is_equal(Some(s.texts), Some(t.texts)) {
-                let tys = s
-                    .tys
-                    .iter()
-                    .enumerate()
-                    .map(|(i, s)| {
-                        let s_base = self.get_base_constraint_or_ty(s);
-                        let t_base = self.get_base_constraint_or_ty(t.tys[i]);
-                        if self.is_type_assignable_to(s_base, t_base) {
-                            s
-                        } else {
-                            self.get_string_like_ty_for_ty(s)
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                Some(self.alloc(tys))
-            } else {
-                self.infer_from_lit_parts_to_template_lit(s.texts, s.tys, target)
+        match source.kind {
+            ty::TyKind::StringLit(s) => self.infer_from_lit_parts_to_template_lit(
+                &[s.val],
+                self.empty_array(),
+                target_template_lit_ty,
+            ),
+            ty::TyKind::TemplateLit(s) => {
+                if self.array_is_equal(Some(s.texts), Some(target_template_lit_ty.texts)) {
+                    let tys = s
+                        .tys
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| {
+                            let s_base = self.get_base_constraint_or_ty(s);
+                            let t_base =
+                                self.get_base_constraint_or_ty(target_template_lit_ty.tys[i]);
+                            if self.is_type_assignable_to(s_base, t_base) {
+                                s
+                            } else {
+                                self.get_string_like_ty_for_ty(s)
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    Some(self.alloc(tys))
+                } else {
+                    self.infer_from_lit_parts_to_template_lit(
+                        s.texts,
+                        s.tys,
+                        target_template_lit_ty,
+                    )
+                }
             }
-        } else {
-            None
+            _ => None,
         }
     }
 
     pub(super) fn is_ty_matched_by_template_lit_ty(
         &mut self,
         source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::Ty<'cx>,
+        target: &'cx ty::TemplateLitTy<'cx>,
     ) -> bool {
         let Some(inferences) = self.infer_tys_from_template_lit_ty(source, target) else {
             return false;
         };
-        let t = target.kind.expect_template_lit_ty();
         inferences
             .iter()
             .enumerate()
-            .all(|(i, r)| self.is_valid_ty_for_template_lit_placeholder(r, t.tys[i]))
+            .all(|(i, r)| self.is_valid_ty_for_template_lit_placeholder(r, target.tys[i]))
     }
 }
 
@@ -1145,15 +1375,15 @@ impl<'cx> InferenceState<'cx, '_> {
         if let Some(source_cond) = source.kind.as_cond_ty() {
             self.infer_from_tys(source_cond.check_ty, target_cond.check_ty);
             self.infer_from_tys(source_cond.extends_ty, target_cond.extends_ty);
-            let source_t = self.c.get_true_ty_from_cond_ty(source, source_cond);
-            let target_t = self.c.get_true_ty_from_cond_ty(target, target_cond);
+            let source_t = self.c.get_true_ty_from_cond_ty(source_cond);
+            let target_t = self.c.get_true_ty_from_cond_ty(target_cond);
             self.infer_from_tys(source_t, target_t);
-            let source_f = self.c.get_false_ty_from_cond_ty(source, source_cond);
-            let target_f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            let source_f = self.c.get_false_ty_from_cond_ty(source_cond);
+            let target_f = self.c.get_false_ty_from_cond_ty(target_cond);
             self.infer_from_tys(source_f, target_f);
         } else {
-            let t = self.c.get_true_ty_from_cond_ty(target, target_cond);
-            let f = self.c.get_false_ty_from_cond_ty(target, target_cond);
+            let t = self.c.get_true_ty_from_cond_ty(target_cond);
+            let f = self.c.get_false_ty_from_cond_ty(target_cond);
             let target_tys = self.c.alloc([t, f]);
             self.infer_to_multiple_tys_with_priority(
                 source,
@@ -1213,8 +1443,43 @@ impl<'cx> InferenceState<'cx, '_> {
             return;
         }
 
-        if source == target && source.kind.is_union_or_intersection() {
-            let tys = source.kind.tys_of_union_or_intersection().unwrap();
+        if source == self.c.wildcard_ty || source == self.c.blocked_string_ty {
+            let saved_propagation_ty = self.propagation_ty;
+            self.propagation_ty = Some(source);
+            self.infer_from_tys(target, target);
+            self.propagation_ty = saved_propagation_ty;
+            return;
+        }
+
+        if let Some(alias_symbol) = source.alias_symbol()
+            && let Some(target_alias_symbol) = target.alias_symbol()
+            && alias_symbol == target_alias_symbol
+        {
+            if let Some(source_alias_ty_arguments) = source.alias_ty_arguments() {
+                let target_alias_ty_arguments = target.alias_ty_arguments().unwrap();
+                let params = self
+                    .c
+                    .get_symbol_links(alias_symbol)
+                    .get_ty_params()
+                    .unwrap();
+                let min_params = self.c.get_min_ty_arg_count_of_ty_params(params);
+                let source_tys = self
+                    .c
+                    .fill_missing_ty_args(Some(source_alias_ty_arguments), Some(params), min_params)
+                    .unwrap();
+                let target_tys = self
+                    .c
+                    .fill_missing_ty_args(Some(target_alias_ty_arguments), Some(params), min_params)
+                    .unwrap();
+                let variances = self.c.get_alias_variances(alias_symbol);
+                self.infer_from_ty_arguments(source_tys, target_tys, variances);
+            }
+            return;
+        }
+
+        if source == target
+            && let Some(tys) = source.kind.tys_of_union_or_intersection()
+        {
             for t in tys {
                 self.infer_from_tys(t, t);
             }
@@ -1400,8 +1665,8 @@ impl<'cx> InferenceState<'cx, '_> {
             for ty in u.tys {
                 self.infer_from_tys(ty, target);
             }
-        } else if target.kind.is_template_lit_ty() {
-            self.infer_to_template_lit_ty(source, target)
+        } else if let Some(t) = target.kind.as_template_lit_ty() {
+            self.infer_to_template_lit_ty(source, t)
         } else {
             source = self.c.get_reduced_ty(source);
             if self.c.is_generic_mapped_ty(source) && self.c.is_generic_mapped_ty(target) {
@@ -1622,11 +1887,14 @@ impl<'cx> InferenceState<'cx, '_> {
         self.priority = saved_priority
     }
 
-    fn infer_to_template_lit_ty(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        let t = target.kind.expect_template_lit_ty();
+    fn infer_to_template_lit_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::TemplateLitTy<'cx>,
+    ) {
         let matches = self.c.infer_tys_from_template_lit_ty(source, target);
-        let tys = t.tys;
-        if matches.is_some() || t.texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {
+        let tys = target.tys;
+        if matches.is_some() || target.texts.iter().all(|t| *t == keyword::IDENT_EMPTY) {
             for i in 0..tys.len() {
                 let source = matches.map_or(self.c.never_ty, |m| m[i]);
                 let target = tys[i];
@@ -1688,10 +1956,8 @@ impl<'cx> InferenceState<'cx, '_> {
                                         } else if left.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
                                         {
                                             left
-                                        } else if right
-                                            .flags
-                                            .intersects(TypeFlags::TEMPLATE_LITERAL)
-                                            && this.is_ty_matched_by_template_lit_ty(source, right)
+                                        } else if let Some(r) = right.kind.as_template_lit_ty()
+                                            && this.is_ty_matched_by_template_lit_ty(source, r)
                                         {
                                             source
                                         } else if left.flags.intersects(TypeFlags::STRING_MAPPING) {
@@ -2165,7 +2431,7 @@ impl<'cx> InferenceState<'cx, '_> {
             target_count
         };
         let param_count = if source_rest_ty.is_some() {
-            target_count
+            target_non_rest_count
         } else {
             usize::min(source_count, target_non_rest_count)
         };
@@ -2180,7 +2446,10 @@ impl<'cx> InferenceState<'cx, '_> {
             callback(self, source_ty, target_ty);
         }
         if let Some(target_rest_ty) = target_rest_ty {
-            let readonly = false;
+            let readonly = self.c.is_const_ty_variable(target_rest_ty)
+                && !self
+                    .c
+                    .some_type(target_rest_ty, |this, t| this.is_mutable_array_like_ty(t));
             let rest_ty = self.c.get_rest_ty_at_pos(source, param_count, readonly);
             callback(self, rest_ty, target_rest_ty);
         }
@@ -2193,7 +2462,7 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_sig(&mut self, source: &'cx ty::Sig<'cx>, target: &'cx ty::Sig<'cx>) {
-        if !source.flags.intersects(SigFlags::IS_NON_INFERRABLE) {
+        if !source.flags.contains(SigFlags::IS_NON_INFERRABLE) {
             let save_bivariant = self.bivariant;
             let n = self.c.p.node(target.def_id());
             self.bivariant = self.bivariant
@@ -2204,7 +2473,7 @@ impl<'cx> InferenceState<'cx, '_> {
 
             self.apply_to_param_tys(source, target, |this, source, target| {
                 if this.c.config.strict_function_types()
-                    || this.priority.intersects(InferencePriority::ALWAYS_STRICT)
+                    || this.priority.contains(InferencePriority::ALWAYS_STRICT)
                 {
                     this.infer_from_contravariant_tys(source, target);
                 } else {

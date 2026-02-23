@@ -40,19 +40,19 @@
      · ──
      ╰────
 
-  × Type '{ }' is not assignable to type '2 | { c: true; } | "1"'.
+  × Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
      ╭─[../../tests/compiler/fest/index.ts:187:9]
  187 │ b4
      · ──
      ╰────
 
-  × Type 'number' is not assignable to type '2 | { c: true; } | "1"'.
+  × Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
      ╭─[../../tests/compiler/fest/index.ts:189:9]
  189 │ b5
      · ──
      ╰────
 
-  × Type 'string' is not assignable to type '2 | { c: true; } | "1"'.
+  × Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
      ╭─[../../tests/compiler/fest/index.ts:191:9]
  191 │ b6
      · ──
@@ -76,17 +76,13 @@
      · ───────
      ╰────
 
-  × Type '(a: number) => number' is not assignable to type '(type: string) =>
-  │ string'.
+  × Type '(a: number) => number' is not assignable to type 'SomeFunction'.
      ╭─[../../tests/compiler/fest/index.ts:370:9]
  370 │ b1
      · ──
      ╰────
 
-  × Type 'mapped type' is not assignable to type '{ position: MovablePosition;
-  │ top: { position: MovablePosition; size: { width: number; height:
-  │ number; }; }; left: { position: MovablePosition; size: { width: number;
-  │ height: number; }; }; }'.
+  × Type 'mapped type' is not assignable to type 'MovableCollection'.
      ╭─[../../tests/compiler/fest/index.ts:400:9]
  400 │ a0
      · ──
@@ -176,7 +172,7 @@
      · ─────
      ╰────
 
-  × Type 'string' is not assignable to type 'never'.
+  × Type 'string' does not satisfy the constraint 'never'.
      ╭─[../../tests/compiler/fest/index.ts:920:20]
  920 │ string
      · ──────
@@ -200,14 +196,13 @@
       · ─────────────────────────────────────────
       ╰────
 
-  × Type '"why a string?"' is not assignable to type 'any[]'.
+  × Type '"why a string?"' does not satisfy the constraint 'any[]'.
       ╭─[../../tests/compiler/fest/index.ts:1041:37]
  1041 │ ,
       · ─
       ╰────
 
-  × Type '{ key: "value"; }' is missing the following properties from type
-  │ 'any[]': length, concat, and 11 more.
+  × Type '{ key: "value"; }' does not satisfy the constraint 'any[]'.
       ╭─[../../tests/compiler/fest/index.ts:1045:22]
  1045 │ {key: 'value'}
       · ──────────────
@@ -303,26 +298,26 @@
       · ─────────
       ╰────
 
-  × Type 'UnionToIntersection' is not assignable to type 'T'.
+  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
       ╭─[../../tests/compiler/fest/index.ts:1550:36]
  1550 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
-  × Type 'symbol | number | string' is not assignable to type
+  × Type 'symbol | number | string' does not satisfy the constraint
   │ 'UnionToIntersection'.
       ╭─[../../tests/compiler/fest/index.ts:1562:36]
  1562 │ PropertyKey
       · ───────────
       ╰────
 
-  × Type 'UnionToIntersection' is not assignable to type 'T'.
+  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
       ╭─[../../tests/compiler/fest/index.ts:1578:68]
  1578 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
-  × Type 'UnionToIntersection' is not assignable to type 'T'.
+  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
       ╭─[../../tests/compiler/fest/index.ts:1582:51]
  1582 │ KeysOfUnion<T>
       · ──────────────
@@ -428,7 +423,7 @@
       · ──
       ╰────
 
-  × Type 'mapped type' is not assignable to type '(type: string) => string'.
+  × Type 'mapped type' is not assignable to type 'SomeFunction'.
       ╭─[../../tests/compiler/fest/index.ts:2213:9]
  2213 │ b0
       · ──
@@ -564,15 +559,13 @@
       · ──
       ╰────
 
-  × Type '{ tag: "num"; b: string; }' is not assignable to type 'mapped type &
-  │ { a: string; } | mapped type & { b: number; }'.
+  × Type '{ tag: "num"; b: string; }' is not assignable to type 'Union'.
       ╭─[../../tests/compiler/fest/index.ts:2532:9]
  2532 │ b0
       · ──
       ╰────
 
-  × Type '{ tag: "str"; b: number; }' is not assignable to type 'mapped type &
-  │ { a: string; } | mapped type & { b: number; }'.
+  × Type '{ tag: "str"; b: number; }' is not assignable to type 'Union'.
       ╭─[../../tests/compiler/fest/index.ts:2534:9]
  2534 │ b1
       · ──
@@ -663,14 +656,14 @@
       ╰────
 
   × Type '{ }' is missing the following properties from type 'UnknownArray':
-  │ length, concat, and 11 more.
+  │ length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2752:9]
  2752 │ b2
       · ──
       ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
-  │ 'UnknownArray': length, concat, and 11 more.
+  │ 'UnknownArray': length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2754:9]
  2754 │ b3
       · ──
@@ -683,7 +676,7 @@
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
-  │ 'UnknownArray': concat, join, and 10 more.
+  │ 'UnknownArray': concat, join, and 17 more.
       ╭─[../../tests/compiler/fest/index.ts:2758:9]
  2758 │ b5
       · ──

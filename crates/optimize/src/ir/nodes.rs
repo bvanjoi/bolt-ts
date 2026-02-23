@@ -96,6 +96,7 @@ decl_nodes!(
     tagged_template_expr: TaggedTemplateExpr,
     delete_expr: DeleteExpr,
     await_expr: AwaitExpr,
+    yield_expr: YieldExpr,
     num_lit: NumLit,
     bigint_lit: BigIntLit,
     bool_lit: BoolLit,
@@ -587,6 +588,7 @@ impl Nodes {
     pub fn alloc_fn_expr(
         &mut self,
         span: Span,
+        asterisk: Option<Span>,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
@@ -595,6 +597,7 @@ impl Nodes {
         let id = self.fn_expr_nodes.0.alloc(FnExpr {
             id: idx,
             span,
+            asterisk,
             name,
             params,
             body,
@@ -644,6 +647,7 @@ impl Nodes {
     pub fn alloc_object_method_member(
         &mut self,
         span: Span,
+        asterisk: Option<Span>,
         name: PropName,
         params: Vec<ParamDeclID>,
         body: BlockStmtID,
@@ -652,6 +656,7 @@ impl Nodes {
         let id = self.object_method_member_nodes.0.alloc(ObjectMethodMember {
             id: idx,
             span,
+            asterisk,
             name,
             params,
             body,
@@ -1166,6 +1171,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
+        asterisk: Option<Span>,
         name: PropName,
         params: Vec<ParamDeclID>,
         body: BlockStmtID,
@@ -1175,6 +1181,7 @@ impl Nodes {
             id: idx,
             span,
             modifiers,
+            asterisk,
             name,
             params,
             body,
@@ -1260,6 +1267,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
+        asterisk: Option<Span>,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
@@ -1268,6 +1276,7 @@ impl Nodes {
         let id = self.fn_decl_nodes.0.alloc(FnDecl {
             id: idx,
             span,
+            asterisk,
             modifiers,
             name,
             params,
@@ -1773,6 +1782,24 @@ impl Nodes {
         debug_assert_eq!(id, idx.0);
         idx
     }
+
+    #[inline]
+    pub fn alloc_yield_expr(
+        &mut self,
+        span: Span,
+        asterisk: Option<Span>,
+        expr: Option<Expr>,
+    ) -> YieldExprID {
+        let idx = YieldExprID(usize_into_idx(self.yield_expr_nodes.0.len()));
+        let id = self.yield_expr_nodes.0.alloc(YieldExpr {
+            id: idx,
+            span,
+            asterisk,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
 }
 
 #[derive(Debug)]
@@ -1802,6 +1829,25 @@ impl AwaitExpr {
         self.span
     }
     pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
+#[derive(Debug)]
+pub struct YieldExpr {
+    id: YieldExprID,
+    span: Span,
+    asterisk: Option<Span>,
+    expr: Option<Expr>,
+}
+impl YieldExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
+    }
+    pub fn expr(&self) -> Option<Expr> {
         self.expr
     }
 }
@@ -2438,6 +2484,7 @@ impl ClassExpr {
 pub struct FnExpr {
     id: FnExprID,
     span: Span,
+    asterisk: Option<Span>,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
@@ -2458,6 +2505,10 @@ impl FnExpr {
 
     pub fn body(&self) -> ir::GraphID {
         self.body
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 }
 
@@ -2504,6 +2555,7 @@ impl SpreadAssignment {
 pub struct ObjectMethodMember {
     id: ObjectMethodMemberID,
     span: Span,
+    asterisk: Option<Span>,
     name: PropName,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
@@ -2512,6 +2564,10 @@ pub struct ObjectMethodMember {
 impl ObjectMethodMember {
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 
     pub fn name(&self) -> PropName {
@@ -3504,6 +3560,7 @@ pub struct ClassMethodElem {
     id: ClassMethodElemID,
     span: Span,
     modifiers: Option<Modifiers>,
+    asterisk: Option<Span>,
     name: PropName,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
@@ -3520,6 +3577,10 @@ impl ClassMethodElem {
 
     pub fn name(&self) -> PropName {
         self.name
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 
     pub fn params(&self) -> &[ParamDeclID] {
@@ -3838,6 +3899,7 @@ pub struct FnDecl {
     id: FnDeclID,
     span: Span,
     modifiers: Option<Modifiers>,
+    asterisk: Option<Span>,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
@@ -3862,6 +3924,10 @@ impl FnDecl {
 
     pub fn body(&self) -> ir::GraphID {
         self.body
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 }
 
@@ -4071,6 +4137,7 @@ pub enum Expr {
     TaggedTemplate(TaggedTemplateExprID),
     Template(TemplateExprID),
     Await(AwaitExprID),
+    Yield(YieldExprID),
     Delete(DeleteExprID),
     SpreadElem(SpreadElementID),
     ArrowFn(ArrowFnExprID),
@@ -4096,6 +4163,7 @@ pub enum PropName {
     Ident(IdentID),
     PrivateIdent(PrivateIdentID),
     StringLit(StringLitID),
+    BigIntLit(BigIntLitID),
     NumLit(NumLitID),
     Computed(ComputedPropNameID),
 }

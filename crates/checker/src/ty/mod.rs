@@ -12,6 +12,7 @@ use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 pub use bolt_ts_ty::CheckFlags;
+pub use bolt_ts_ty::IndexFlags;
 pub use bolt_ts_ty::ObjectFlags;
 pub use bolt_ts_ty::TypeFacts;
 pub use bolt_ts_ty::TypeFlags;
@@ -19,6 +20,9 @@ pub use bolt_ts_ty::TypeFlags;
 use super::check::TyChecker;
 
 pub use self::facts::{TYPEOF_NE_FACTS, typeof_ne_facts};
+pub use self::links::ConditionalLinks;
+pub use self::links::ConditionalLinksArena;
+pub use self::links::ConditionalLinksID;
 pub use self::links::InterfaceTyLinksArena;
 pub use self::links::PromiseOrAwaitableTyLinks;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
@@ -633,6 +637,7 @@ pub struct CondTy<'cx> {
     pub combined_mapper: Option<&'cx dyn TyMap<'cx>>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
+    pub conditional_links: ConditionalLinksID<'cx>,
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -704,15 +709,12 @@ pub struct ParamTy<'cx> {
     pub is_this_ty: bool,
 }
 
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq)]
-    pub struct IndexFlags: u8 {
-        const STRINGS_ONLY          = 1 << 0;
-        const NO_INDEX_SIGNATURES   = 1 << 1;
-        const NO_REDUCIBLE_CHECK    = 1 << 2;
-    }
-}
-
+///```ts
+/// type A<B> = {
+/// [key in keyof B]: string
+///       //~~~~~~~ index type
+/// }
+/// ```
 #[derive(Debug)]
 pub struct IndexTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,

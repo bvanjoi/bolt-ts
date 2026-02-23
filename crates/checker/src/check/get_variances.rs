@@ -41,6 +41,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_alias_variances(&mut self, symbol: SymbolID) -> &'cx [VarianceFlags] {
+        let ty_params = self.get_symbol_links(symbol).get_ty_params();
+        self.get_variances_worker(symbol, ty_params)
+    }
+
     fn create_marker_ty(
         &mut self,
         symbol: SymbolID,

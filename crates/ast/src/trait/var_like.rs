@@ -19,6 +19,7 @@ impl<'cx> From<&crate::PropName<'cx>> for VarLikeName<'cx> {
             crate::PropNameKind::StringLit { raw, key } => VarLikeName::StringLit { raw, key },
             crate::PropNameKind::Computed(computed) => VarLikeName::Computed(computed),
             crate::PropNameKind::PrivateIdent(n) => VarLikeName::PrivateIdent(n),
+            crate::PropNameKind::BigIntLit(_) => unreachable!(),
         }
     }
 }

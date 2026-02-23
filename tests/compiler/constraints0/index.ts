@@ -14,7 +14,7 @@ interface C<T extends A> {
 
 var v1: C<A>; // should work
 var v2: C<B>; // should not work
-//~^ ERROR: Property 'a' is missing.
+//~^ ERROR: Type 'B' does not satisfy the constraint 'A'.
 
 var y = v1.x.a; // 'a' should be of type 'number'
 var y1: number = v1.x.a;

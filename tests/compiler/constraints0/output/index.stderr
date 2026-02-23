@@ -1,4 +1,4 @@
-  × Property 'a' is missing.
+  × Type 'B' does not satisfy the constraint 'A'.
     ╭─[../../tests/compiler/constraints0/index.ts:16:11]
  16 │ B
     · ─
