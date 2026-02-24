@@ -195,3 +195,49 @@ pub const FLATTENED_ALL_SUPPORTED_EXTENSIONS: &[Extension] = &[
     Extension::Dmts,
     Extension::Mjs,
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize, Default)]
+pub enum RawModuleResolution {
+    #[default]
+    #[serde(alias = "node")]
+    Node,
+    Node10,
+    Node16,
+    Node18,
+    Node20,
+    NodeNext,
+    Bundler,
+    Classic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NormalizedModuleResolution {
+    Node10,
+    Node16,
+    Node18,
+    Node20,
+    NodeNext,
+    Bundler,
+    Classic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModuleKind {
+    None = 0,
+    CommonJS = 1,
+    AMD = 2,
+    UMD = 3,
+    System = 4,
+
+    ES2015 = 5,
+    ES2020 = 6,
+    ES2022 = 7,
+    ESNext = 99,
+
+    Node16 = 100,
+    Node18 = 101,
+    Node20 = 102,
+    NodeNext = 199,
+
+    Preserve = 200,
+}

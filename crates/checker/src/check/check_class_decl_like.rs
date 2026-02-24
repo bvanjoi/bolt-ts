@@ -336,10 +336,7 @@ impl<'cx> TyChecker<'cx> {
                 'base_prop_check: for base_prop in base_properties {
                     let base = self.get_target_symbol(*base_prop);
                     let base_s = self.symbol(base);
-                    if base_s
-                        .flags
-                        .contains(bolt_ts_binder::SymbolFlags::PROTOTYPE)
-                    {
+                    if base_s.flags.contains(SymbolFlags::PROTOTYPE) {
                         continue;
                     }
                     let base_s_name = base_s.name;

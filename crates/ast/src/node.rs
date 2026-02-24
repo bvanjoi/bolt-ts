@@ -634,6 +634,7 @@ impl<'cx> Node<'cx> {
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         match self {
             Node::ClassCtor(n) => n.modifiers,
+            Node::CtorTy(n) => n.modifiers,
             Node::ClassMethodElem(n) => n.modifiers,
             Node::ClassPropElem(n) => n.modifiers,
             Node::GetterDecl(n) => n.modifiers,

@@ -1,4 +1,4 @@
-use crate::options::{OutDir, Target};
+use crate::options::{NormalizedModuleResolution, OutDir, Target};
 
 macro_rules! normalized_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
@@ -32,6 +32,7 @@ bitflags::bitflags! {
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 12;
         const STRICT_PROPERTY_INITIALIZATION            = 1 << 13;
         const STRICT_BIND_CALL_APPLY                    = 1 << 14;
+        const NO_DTS_RESOLUTION                         = 1 << 15;
     }
 }
 
@@ -56,6 +57,8 @@ normalized_option!(
     (allow_unused_labels, AllowUnusedLabels),
     (allow_unreachable_code, AllowUnreachableCode),
     (flags, CompilerOptionFlags),
+    (module_resolution, NormalizedModuleResolution),
+    (custom_conditions, Vec<String>)
 );
 
 normalized_option!(
@@ -135,5 +138,10 @@ impl NormalizedCompilerOptions {
     pub const fn strict_bind_call_apply(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::STRICT_BIND_CALL_APPLY)
+    }
+
+    #[inline(always)]
+    pub const fn no_dts_resolution(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_DTS_RESOLUTION)
     }
 }

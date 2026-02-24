@@ -555,12 +555,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
-        let expr = if self.token.kind == TokenKind::Import {
-            todo!()
-        } else if self.token.kind == TokenKind::Super {
-            self.parse_super_expr()?
-        } else {
-            self.parse_member_expr_or_higher()?
+        let expr = match self.token.kind {
+            TokenKind::Import => todo!(),
+            TokenKind::Super => self.parse_super_expr()?,
+            _ => self.parse_member_expr_or_higher()?,
         };
         self.parse_call_expr_rest(start as usize, expr)
     }

@@ -2100,6 +2100,55 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         result
     }
 
+    fn constructor_visibilities_are_compatible(
+        &mut self,
+        source: &'cx Sig<'cx>,
+        target: &'cx Sig<'cx>,
+        report_error: bool,
+    ) -> bool {
+        let Some(source_node_id) = source.node_id else {
+            return true;
+        };
+        let Some(target_node_id) = target.node_id else {
+            return true;
+        };
+        let source_accessibility = self
+            .c
+            .node_query(source_node_id.module())
+            .get_selected_syntactic_modifier_flags(
+                source_node_id,
+                ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+            );
+        let target_accessibility = self
+            .c
+            .node_query(target_node_id.module())
+            .get_selected_syntactic_modifier_flags(
+                target_node_id,
+                ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+            );
+        if target_accessibility == ast::ModifierKind::Private {
+            return true;
+        } else if target_accessibility == ast::ModifierKind::Protected
+            && source_accessibility != ast::ModifierKind::Private
+        {
+            return true;
+        } else if target_accessibility == ast::ModifierKind::Public
+            && source_accessibility == ast::ModifierKind::Public
+        {
+            return true;
+        } else if target_accessibility != ast::ModifierKind::Protected
+            && source_accessibility.is_empty()
+        {
+            return true;
+        }
+
+        if report_error {
+            // TODO:
+        }
+
+        false
+    }
+
     fn sigs_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -2121,9 +2170,16 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let target_sigs = self.c.get_signatures_of_type(target, kind);
 
         if kind == SigKind::Constructor && !source_sigs.is_empty() && !target_sigs.is_empty() {
-            let source_is_abstract = source_sigs[0].flags.intersects(SigFlags::ABSTRACT);
-            let target_is_abstract = target_sigs[0].flags.intersects(SigFlags::ABSTRACT);
+            let source_is_abstract = source_sigs[0].flags.contains(SigFlags::ABSTRACT);
+            let target_is_abstract = target_sigs[0].flags.contains(SigFlags::ABSTRACT);
             if source_is_abstract && !target_is_abstract {
+                return Ternary::FALSE;
+            }
+            if !self.constructor_visibilities_are_compatible(
+                source_sigs[0],
+                target_sigs[0],
+                report_error,
+            ) {
                 return Ternary::FALSE;
             }
         }

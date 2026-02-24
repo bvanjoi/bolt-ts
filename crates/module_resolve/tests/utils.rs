@@ -21,7 +21,7 @@ fn build_and_resolve(base_dir: &std::path::Path, target: &str) -> Result<String,
 
     let atoms = Arc::new(Mutex::new(atoms));
     let resolver = Resolver::new(fs.clone(), atoms.clone(), ResolveFlags::empty());
-    let ret = resolver.resolve(base_dir, target)?;
+    let ret = resolver.resolve_module_name(base_dir, target, bolt_ts_config::ModuleKind::Node16)?;
     drop(resolver);
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();

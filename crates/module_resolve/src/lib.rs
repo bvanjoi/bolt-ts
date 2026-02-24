@@ -1,27 +1,31 @@
 mod errors;
 mod from_dir;
 mod from_spec_node_modules_dir;
+mod get_conditions;
 mod normalize_join;
 mod package_json;
 mod parse_package_name;
+mod resolution_cache;
 mod resolution_kind_spec_loader;
 
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_config::Extension;
+use bolt_ts_config::{Extension, ModuleKind};
 use bolt_ts_fs::{CachedFileSystem, PathId};
 use bolt_ts_path::is_external_module_relative;
+use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::{NormalizePath, path_as_str};
-use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
-use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use self::errors::ResolveError;
-use self::normalize_join::normalize_join;
 pub use self::package_json::PackageJsonInfoContents;
+
+use self::normalize_join::normalize_join;
 use self::package_json::{PackageJsonInfo, PackageJsonInfoId};
+use self::resolution_cache::ModuleResolutionCache;
 
 pub type RResult<T> = Result<T, ResolveError>;
+
 pub const NODE_MODULES_FOLDER: &str = "node_modules";
 pub const COMMON_PACKAGE_FOLDERS: &[&str] =
     &[NODE_MODULES_FOLDER, "bower_components", "jspm_packages"];
@@ -41,16 +45,10 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct CacheKey {
-    base_dir: PathId,
-    target: Atom,
-}
-
 pub struct Resolver<FS: CachedFileSystem> {
     fs: Arc<Mutex<FS>>,
     atoms: Arc<Mutex<AtomIntern>>,
-    cache: Arc<Mutex<FxHashMap<CacheKey, RResult<PathId>>>>,
+    cache: ModuleResolutionCache,
     package_json_arena: Arc<Mutex<Vec<PackageJsonInfo>>>,
     package_json_cache: Arc<Mutex<nohash_hasher::IntMap<PathId, PackageJsonInfoId>>>,
     flags: ResolveFlags,
@@ -67,7 +65,8 @@ bitflags::bitflags! {
 struct Resolved {
     path: PathId,
 }
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, Copy)]
 struct SearchResult {
     resolved: Resolved,
     is_external_library_import: bool,
@@ -78,7 +77,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         Self {
             fs,
             atoms,
-            cache: Arc::new(Mutex::new(fx_hashmap_with_capacity(1024 * 8))),
+            cache: ModuleResolutionCache::new(),
             package_json_arena: Arc::new(Mutex::new(Vec::with_capacity(1024 * 8))),
             package_json_cache: Arc::new(Mutex::new(no_hashmap_with_capacity(1024 * 8))),
             flags,
@@ -91,20 +90,35 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         fs.file_exists(p, atoms)
     }
 
-    pub fn resolve(&self, base_dir: PathId, module_name: Atom) -> RResult<PathId> {
-        let cache_key = CacheKey {
-            base_dir,
-            target: module_name,
-        };
-        if let Some(cached) = self.cache.lock().unwrap().get(&cache_key) {
-            return *cached;
+    pub fn resolve_module_name(
+        &self,
+        directory: PathId,
+        module_name: Atom,
+        resolution_mode: ModuleKind,
+    ) -> RResult<PathId> {
+        if let Some(cached) =
+            self.cache
+                .get_from_directory_cache(module_name, resolution_mode, directory)
+        {
+            return cached;
         }
-        let resolved = self.try_resolve(base_dir, module_name);
+        let resolved = self.try_resolve(directory, module_name);
         let result = self.create_resolved_module_with_failed_lookup_locations_handing_symlink(
             module_name,
             resolved,
         );
-        self.cache.lock().unwrap().insert(cache_key, result);
+        if !self.cache.is_readonly() {
+            self.cache
+                .set_for_directory_cache(directory, module_name, resolution_mode, result);
+            if !is_external_module_relative(self.atoms.lock().unwrap().get(module_name)) {
+                self.cache.set_for_non_relative_name(
+                    directory,
+                    module_name,
+                    resolution_mode,
+                    result,
+                );
+            }
+        }
         result
     }
 
@@ -196,13 +210,10 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                 .file_name()
                 .is_none_or(|n| n.as_encoded_bytes() != NODE_MODULES_FOLDER.as_bytes())
             {
-                let cache_key = CacheKey {
-                    base_dir: base_dir_id,
-                    target: module_name_id,
-                };
-                if let Some(cached) = this.cache.lock().unwrap().get(&cache_key) {
-                    return *cached;
-                }
+                // this.cache.get_from_directory_cache(module_name_id, ext, base_dir_id);
+                // if let Some(cached) = this.cache.lock().unwrap().get(&cache_key) {
+                //     return *cached;
+                // }
                 if let Ok(res) = this.load_module_from_immediate_node_modules_dir(
                     ext,
                     base_dir_id,

@@ -243,3 +243,24 @@ type A<Options extends Required<O>> = B<Options['b']>;
   type IsPrimitive = [typeof s] extends [symbol] ? true : false;
   const a: IsPrimitive = true;
 }
+
+{
+  type AbstractConstructor = abstract new() => object;
+  function withBar(ctor: AbstractConstructor) {}
+  abstract class Bar {}
+  withBar(Bar);
+}
+
+// {
+// TODO:
+//   type AbstractConstructor = abstract new(...arguments_: any[]) => object;
+//   function withBar<T extends AbstractConstructor>(Ctor: T) {
+// 	  abstract class ExtendedBar extends Ctor {}
+// 	  return ExtendedBar;
+//   }
+//   abstract class Bar {
+// 	  abstract barMethod(): void;
+//   }
+
+//   class WrongConcreteExtendedBar extends withBar(Bar) {}
+// }

@@ -320,24 +320,24 @@ impl<'cx> TyChecker<'cx> {
 
     fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
         let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
-        if !(base_ctor_ty.kind.is_object() || base_ctor_ty.flags.intersects(TypeFlags::ANY)) {
+        let base_ctor_ty = self.get_apparent_ty(base_ctor_ty);
+        if !base_ctor_ty.flags.intersects(
+            TypeFlags::OBJECT
+                .union(TypeFlags::INTERSECTION)
+                .union(TypeFlags::ANY),
+        ) {
             return &[];
         }
         let base_ty_node = self.get_base_type_node_of_class(ty);
-        let original_base_ty = base_ctor_ty
-            .symbol()
-            .map(|symbol| self.get_declared_ty_of_symbol(symbol));
+        let base_ctor_ty_symbol = base_ctor_ty.symbol();
+        let original_base_ty =
+            base_ctor_ty_symbol.map(|symbol| self.get_declared_ty_of_symbol(symbol));
 
         let base_ty;
-        if base_ctor_ty.symbol().is_some()
-            && self
-                .binder
-                .symbol(base_ctor_ty.symbol().unwrap())
-                .flags
-                .intersects(SymbolFlags::CLASS)
+        if let Some(s) = base_ctor_ty_symbol
+            && self.binder.symbol(s).flags.contains(SymbolFlags::CLASS)
             && self.are_all_outer_parameters_applied(original_base_ty.unwrap())
         {
-            let symbol = base_ctor_ty.symbol().unwrap();
             let base_ty_node = base_ty_node.unwrap();
             let span = base_ty_node.span;
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
@@ -346,19 +346,30 @@ impl<'cx> TyChecker<'cx> {
                 span,
                 ty_args,
                 None,
-                symbol,
+                s,
             );
-        } else if base_ctor_ty.flags.intersects(TypeFlags::ANY) {
+        } else if base_ctor_ty.flags.contains(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {
-            // TODO:
+            // let base_ty_node = base_ty_node.unwrap();
+            // let ty_args = base_ty_node.expr_with_ty_args.ty_args;
+            // let ctors = self.get_instantiated_constructors_for_ty_args(
+            //     base_ctor_ty,
+            //     ty_args,
+            //     base_ty_node.id,
+            // );
+            // if ctors.is_empty() {
+            //     // TODO: error
+            //     return self.empty_array();
+            // }
+            // base_ty = self.get_ret_ty_of_sig(ctors[0]);
             base_ty = base_ctor_ty;
         }
         if base_ty == self.error_ty {
             return &[];
         }
 
-        (self.alloc([base_ty])) as _
+        self.alloc([base_ty])
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
@@ -379,6 +390,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
+        if !ty
+            .get_object_flags()
+            .intersects(ObjectFlags::CLASS_OR_INTERFACE.union(ObjectFlags::REFERENCE))
+        {
+            return self.empty_array();
+        }
         if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
             return tys;
         }
@@ -395,10 +412,10 @@ impl<'cx> TyChecker<'cx> {
             let id = ty.symbol().unwrap();
             let symbol = self.binder.symbol(id);
             let mut cycle_reported = false;
-            if symbol.flags.intersects(SymbolFlags::CLASS) {
+            if symbol.flags.contains(SymbolFlags::CLASS) {
                 let tys = self.resolve_base_tys_of_class(ty);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-            } else if symbol.flags.intersects(SymbolFlags::INTERFACE) {
+            } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
                 self.resolve_base_tys_of_interface(ty, &mut cycle_reported);
             } else {
                 unreachable!()
@@ -942,13 +959,13 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         assert!(
-            !symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL),
+            !symbol.flags.contains(SymbolFlags::OBJECT_LITERAL),
             "Object literal should be resolved during check"
         );
         // TODO: get_merged_symbol
         // let symbol_id = self.get_merged_symbol(symbol_id);
         // let symbol = self.symbol(symbol_id);
-        if symbol.flags.intersects(SymbolFlags::TYPE_LITERAL) {
+        if symbol.flags.contains(SymbolFlags::TYPE_LITERAL) {
             let placeholder = self.structure_members_placeholder;
             self.get_mut_ty_links(ty.id)
                 .set_structured_members(placeholder);
@@ -997,7 +1014,7 @@ impl<'cx> TyChecker<'cx> {
             ctor_sigs = self.empty_array();
             index_infos = self.empty_array();
             // TODO: `constructor_sigs`, `index_infos`
-        } else if symbol_flags.intersects(SymbolFlags::CLASS) {
+        } else if symbol_flags.contains(SymbolFlags::CLASS) {
             call_sigs = self.empty_array();
             if let Some(symbol) = self
                 .symbol(symbol_id)
@@ -1085,15 +1102,82 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).set_structured_members(m);
     }
 
+    fn find_mixins(&mut self, tys: ty::Tys<'cx>) -> Vec<bool> {
+        let ctor_ty_count = tys.iter().fold(0, |acc, t| {
+            if self
+                .get_signatures_of_type(t, SigKind::Constructor)
+                .is_empty()
+            {
+                acc
+            } else {
+                acc + 1
+            }
+        });
+        let mut count = 0;
+        let mut mixin_flags = tys
+            .iter()
+            .map(|ty| {
+                if self.is_mixin_constructor_ty(ty) {
+                    count += 1;
+                    true
+                } else {
+                    false
+                }
+            })
+            .collect::<Vec<_>>();
+        if ctor_ty_count > 0
+            && ctor_ty_count == count
+            && let Some(first_mixin_index) = mixin_flags.iter().position(|&is_mixin| is_mixin)
+        {
+            mixin_flags[first_mixin_index] = false;
+        }
+        mixin_flags
+    }
+
+    fn include_mixin_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        tys: ty::Tys<'cx>,
+        mixin_flags: &[bool],
+        index: usize,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut mixed_tys = Vec::with_capacity(tys.len());
+        for i in 0..tys.len() {
+            if i == index {
+                mixed_tys.push(ty);
+            } else if mixin_flags[i] {
+                let sigs = self.get_signatures_of_type(tys[i], SigKind::Constructor);
+                let sig = sigs[0];
+                let t = self.get_ret_ty_of_sig(sig);
+                mixed_tys.push(t);
+            }
+        }
+        self.get_intersection_ty(&mixed_tys, IntersectionFlags::None, None, None)
+    }
+
     fn resolve_intersection_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
-        let t = ty.kind.expect_intersection();
-        let mut call_sigs = Vec::with_capacity(t.tys.len());
-        // let ctor_sigs = Vec::with_capacity(t.tys.len());
-        let mut index_infos = Vec::with_capacity(t.tys.len());
-        // TODO: mixin
-        for i in 0..t.tys.len() {
-            let t = t.tys[i];
-            // let sigs = self.get_signatures_of_type(t, ty::SigKind::Call);
+        let i = ty.kind.expect_intersection();
+        let mut call_sigs = Vec::with_capacity(i.tys.len() / 2);
+        let mut ctor_sigs = Vec::with_capacity(i.tys.len() / 2);
+        let mut index_infos = Vec::with_capacity(i.tys.len());
+        let mixin_flags = self.find_mixins(i.tys);
+        let mixin_count = mixin_flags.iter().filter(|&&is_mixin| is_mixin).count();
+        for index in 0..i.tys.len() {
+            let t = i.tys[index];
+            if !mixin_flags[index] {
+                let sigs = self.get_signatures_of_type(t, ty::SigKind::Constructor);
+                if !sigs.is_empty() && mixin_count > 0 {
+                    for sig in sigs {
+                        let cloned = self.clone_sig(sig);
+                        let ret_ty = self.get_ret_ty_of_sig(cloned);
+                        let resolved_ret_ty =
+                            self.include_mixin_ty(ret_ty, i.tys, &mixin_flags, index);
+                        self.get_mut_sig_links(cloned.id)
+                            .override_resolved_ret_ty(resolved_ret_ty);
+                        self.append_sig(&mut ctor_sigs, cloned);
+                    }
+                }
+            }
 
             let sigs = self.get_signatures_of_type(t, ty::SigKind::Call);
             self.append_sigs(&mut call_sigs, sigs);
@@ -1109,7 +1193,11 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.alloc(call_sigs)
             },
-            ctor_sigs: self.empty_array(),
+            ctor_sigs: if ctor_sigs.is_empty() {
+                self.empty_array()
+            } else {
+                self.alloc(ctor_sigs)
+            },
             index_infos: if index_infos.is_empty() {
                 self.empty_array()
             } else {
@@ -1122,13 +1210,17 @@ impl<'cx> TyChecker<'cx> {
 
     fn append_sigs(&mut self, sigs: &mut Vec<&'cx ty::Sig<'cx>>, new_sigs: &[&'cx ty::Sig<'cx>]) {
         for new_sig in new_sigs {
-            if sigs.iter().all(|s| {
-                !self.compare_sigs_identical(s, new_sig, false, false, false, |this, s, t| {
-                    this.compare_types_identical(s, t)
-                }) != Ternary::FALSE
-            }) {
-                sigs.push(*new_sig);
-            }
+            self.append_sig(sigs, new_sig);
+        }
+    }
+
+    fn append_sig(&mut self, sigs: &mut Vec<&'cx ty::Sig<'cx>>, new_sig: &'cx ty::Sig<'cx>) {
+        if sigs.iter().all(|s| {
+            !self.compare_sigs_identical(s, new_sig, false, false, false, |this, s, t| {
+                this.compare_types_identical(s, t)
+            }) != Ternary::FALSE
+        }) {
+            sigs.push(new_sig);
         }
     }
 

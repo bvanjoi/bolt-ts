@@ -935,11 +935,10 @@ impl<'cx> TyChecker<'cx> {
         mut includes: TypeFlags,
         mut ty: &'cx ty::Ty<'cx>,
     ) -> TypeFlags {
-        let flags = ty.flags;
-        if flags.intersects(TypeFlags::INTERSECTION) {
-            let ty = ty.kind.expect_intersection();
-            return self.add_tys_to_intersection(set, includes, ty.tys);
+        if let Some(i) = ty.kind.as_intersection() {
+            return self.add_tys_to_intersection(set, includes, i.tys);
         }
+        let flags = ty.flags;
 
         if self.is_empty_anonymous_object_ty(ty) {
             if !includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT) {

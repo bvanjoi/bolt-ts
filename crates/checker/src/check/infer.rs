@@ -446,7 +446,11 @@ impl<'cx> TyChecker<'cx> {
                     this.get_ty_with_this_arg(ty, this_arg, need_apparent_ty)
                 })
                 .unwrap();
-            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+            if !std::ptr::eq(tys, i.tys) {
+                self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+            } else {
+                ty
+            }
         } else if need_apparent_ty {
             self.get_apparent_ty(ty)
         } else {

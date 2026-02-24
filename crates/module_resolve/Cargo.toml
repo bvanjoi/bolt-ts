@@ -14,6 +14,7 @@ bolt_ts_config = { path = "../config" }
 bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_path = { path = "../path" }
+dashmap = { version = "6.1.0" }
 
 [dev-dependencies]
 compile-test = { path = "../../tools/compile-test" }

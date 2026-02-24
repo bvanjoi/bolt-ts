@@ -1,4 +1,4 @@
-use bolt_ts_config::{NormalizedTsConfig, RawTsConfig};
+use bolt_ts_config::{NormalizedModuleResolution, NormalizedTsConfig, RawTsConfig};
 
 fn normalize(input: &str) -> NormalizedTsConfig {
     let raw: RawTsConfig = serde_json::from_str(input).unwrap();
@@ -120,4 +120,20 @@ fn test_use_define_for_class_fields() {
 }"#,
     );
     assert!(!c.compiler_options().use_define_for_class_fields());
+}
+
+#[test]
+fn test_module_resolution() {
+    let c = normalize(
+        r#"
+{
+  "compilerOptions": {
+      "moduleResolution": "node"
+  }
+}"#,
+    );
+    assert_eq!(
+        *c.compiler_options().module_resolution(),
+        NormalizedModuleResolution::Node10
+    );
 }

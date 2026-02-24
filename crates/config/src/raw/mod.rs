@@ -1,6 +1,7 @@
-use crate::{RawModule, RawTarget};
+use crate::NormalizedModuleResolution;
 
 use super::OutDir;
+use super::{RawModule, RawModuleResolution, RawTarget};
 
 macro_rules! with_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
@@ -56,7 +57,9 @@ with_option!(
     (allow_unreachable_code, bool),
     (preserve_symlinks, bool),
     (use_define_for_class_fields, bool),
-    (strict_property_initialization, bool)
+    (strict_property_initialization, bool),
+    (module_resolution, RawModuleResolution),
+    (custom_conditions, Vec<String>)
 );
 
 impl RawCompilerOptions {
@@ -131,12 +134,29 @@ impl RawCompilerOptions {
             None => super::AllowUnreachableCode::Warning,
         };
 
+        let module_resolution = match self.module_resolution {
+            Some(m) => match m {
+                RawModuleResolution::Node => NormalizedModuleResolution::Node10,
+                RawModuleResolution::Node10 => NormalizedModuleResolution::Node10,
+                RawModuleResolution::Node16 => NormalizedModuleResolution::Node16,
+                RawModuleResolution::Node18 => NormalizedModuleResolution::Node18,
+                RawModuleResolution::Node20 => NormalizedModuleResolution::Node20,
+                RawModuleResolution::NodeNext => NormalizedModuleResolution::NodeNext,
+                RawModuleResolution::Bundler => NormalizedModuleResolution::Bundler,
+                RawModuleResolution::Classic => NormalizedModuleResolution::Classic,
+            },
+            None => NormalizedModuleResolution::Node10,
+        };
+        let custom_conditions = self.custom_conditions.unwrap_or_default();
+
         super::NormalizedCompilerOptions {
             out_dir,
             target,
             flags,
             allow_unused_labels,
             allow_unreachable_code,
+            module_resolution,
+            custom_conditions,
         }
     }
 }

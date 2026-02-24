@@ -3,7 +3,7 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
-use bolt_ts_module_resolve::RResult;
+use bolt_ts_module_resolve::{RResult, ResolveError};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -97,10 +97,23 @@ pub fn build_graph<'cx>(
             debug_assert!(base_dir.is_normalized());
             let base_dir = PathId::get(base_dir, atoms.lock().as_mut().unwrap());
             let imports = std::mem::take(&mut parse_result.imports);
-            // TODO: filter imports
-            let deps = imports
+
+            let mut group =
+                fx_hashmap_with_capacity::<Atom, Vec<&'cx ast::Lit<Atom>>>(imports.len() / 2);
+            for item in imports {
+                let entry = group.entry(item.val);
+                entry.or_insert_with(Vec::new).push(item);
+            }
+            let deps: Vec<(ast::NodeID, Result<PathId, ResolveError>)> = group
                 .into_par_iter()
-                .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
+                .flat_map(|(atom, lits)| {
+                    let res = resolver.resolve_module_name(
+                        base_dir,
+                        atom,
+                        bolt_ts_config::ModuleKind::Node16,
+                    );
+                    lits.iter().map(|item| (item.id, res)).collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>();
             ResolvedModule {
                 id: module_id,

@@ -65,11 +65,11 @@ impl<'cx> Sig<'cx> {
     }
 
     pub const fn has_rest_param(&self) -> bool {
-        self.flags.intersects(SigFlags::HAS_REST_PARAMETER)
+        self.flags.contains(SigFlags::HAS_REST_PARAMETER)
     }
 
     pub const fn has_literal_tys(&self) -> bool {
-        self.flags.intersects(SigFlags::HAS_LITERAL_TYPES)
+        self.flags.contains(SigFlags::HAS_LITERAL_TYPES)
     }
 
     pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {

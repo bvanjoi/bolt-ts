@@ -1,5 +1,4 @@
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
@@ -119,6 +118,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_sig_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
+        let n = self.p.node(id);
+        // TODO: js
+        if n.is_fn_decl_like() {
+            return None;
+        }
         None
     }
 
@@ -504,6 +508,21 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
     }
     if has_rest_param {
         flags.insert(SigFlags::HAS_REST_PARAMETER);
+    }
+    match node {
+        ast::Node::CtorTy(n)
+            if n.modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract)) =>
+        {
+            flags |= SigFlags::ABSTRACT;
+        }
+        ast::Node::ClassCtor(n)
+            if n.modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract)) =>
+        {
+            flags |= SigFlags::ABSTRACT;
+        }
+        _ => {}
     }
     let params: &[SymbolID] = checker.alloc(params);
     let ret = match node {

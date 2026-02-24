@@ -3216,7 +3216,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_type_any(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        ty.flags.intersects(TypeFlags::ANY)
+        ty.flags.contains(TypeFlags::ANY)
     }
 
     fn recombine_unknown_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

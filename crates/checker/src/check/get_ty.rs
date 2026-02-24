@@ -120,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_ty_of_var_or_param_or_prop_worker(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let s = self.symbol(symbol);
         let flags = s.flags;
-        if flags.intersects(SymbolFlags::PROTOTYPE) {
+        if flags.contains(SymbolFlags::PROTOTYPE) {
             return self.get_ty_of_prototype_property(symbol);
         }
         let decl = s.value_decl.unwrap();
@@ -241,7 +241,8 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None);
 
         let s = self.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::CLASS) {
+        if s.flags.contains(SymbolFlags::CLASS) {
+            // TODO: use following as type:
             if let Some(base) = self.get_base_type_variable_of_class(symbol) {
                 self.get_intersection_ty(&[ty, base], IntersectionFlags::None, None, None)
             } else {
@@ -396,7 +397,16 @@ impl<'cx> TyChecker<'cx> {
     fn get_base_type_variable_of_class(&mut self, symbol: SymbolID) -> Option<&'cx Ty<'cx>> {
         let class_ty = self.get_declared_ty_of_symbol(symbol);
         let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
-        Some(base_ctor_ty)
+        if base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+            Some(base_ctor_ty)
+        } else if let Some(i) = base_ctor_ty.kind.as_intersection() {
+            i.tys
+                .iter()
+                .find(|ty| ty.flags.intersects(TypeFlags::TYPE_VARIABLE))
+                .copied()
+        } else {
+            None
+        }
     }
 
     pub(crate) fn get_ty_from_inference(
@@ -1992,7 +2002,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_ret_ty_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
-        self.get_sig_of_ty_tag(id).map(|_| unreachable!())
+        self.get_sig_of_ty_tag(id)
+            .map(|sig| self.get_ret_ty_of_sig(sig))
     }
 
     pub(super) fn get_ret_ty_from_anno(&mut self, id: ast::NodeID) -> Option<&'cx ty::Ty<'cx>> {
@@ -2194,7 +2205,7 @@ impl<'cx> TyChecker<'cx> {
             self.check_mode = old;
         } else if let ast::ArrowFnExprBody::Block(body) = body {
             let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
-                return if fn_flags.intersects(FnFlags::ASYNC) {
+                return if fn_flags.contains(FnFlags::ASYNC) {
                     todo!()
                 } else {
                     self.never_ty

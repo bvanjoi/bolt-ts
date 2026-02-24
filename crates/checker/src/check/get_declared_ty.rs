@@ -157,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn is_mixin_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_mixin_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
         if sigs.len() == 1 {
             let sig = sigs[0];
@@ -197,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
             return resolved_base_ctor_ty;
         }
         let symbol = ty.symbol().unwrap();
-        let decl = self.binder.symbol(symbol).decls.as_ref().unwrap()[0];
+        let decl = self.get_class_like_decl_of_symbol(symbol).unwrap();
         let Some(extends) = self.get_effective_base_type_node(decl) else {
             return self.undefined_ty;
         };
@@ -228,7 +228,7 @@ impl<'cx> TyChecker<'cx> {
                 .set_resolved_base_ctor_ty(error_ty);
             return self.error_ty;
         }
-        if !base_ctor_ty.flags.intersects(TypeFlags::ANY)
+        if !base_ctor_ty.flags.contains(TypeFlags::ANY)
             && base_ctor_ty != self.null_widening_ty
             && !self.is_constructor_ty(base_ctor_ty)
         {

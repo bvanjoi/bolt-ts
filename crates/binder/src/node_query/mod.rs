@@ -123,6 +123,14 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.get_combined_flags(id, |p, id| p.node_flags(id))
     }
 
+    pub fn get_selected_syntactic_modifier_flags(
+        &self,
+        id: ast::NodeID,
+        flags: enumflags2::BitFlags<ast::ModifierKind>,
+    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        self.get_effective_modifier_flags(id) & flags
+    }
+
     pub fn get_combined_modifier_flags(
         &self,
         id: ast::NodeID,
@@ -266,7 +274,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let n = self.node(id);
         let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
         let node_flags = self.node_flags(id);
-        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
+        if node_flags.contains(ast::NodeFlags::NESTED_NAMESPACE)
             || n.is_ident()
                 && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
         {

@@ -4,11 +4,10 @@ use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_fs::PathId;
 use bolt_ts_utils::path::NormalizePath;
 
-use crate::package_json::PackageJsonInfoId;
-
 use super::Extensions;
 use super::RResult;
 use super::normalize_join::normalize_join;
+use super::package_json::PackageJsonInfoId;
 use super::resolution_kind_spec_loader::ResolutionKindSpecLoader;
 
 struct Loader {
@@ -40,13 +39,13 @@ impl<FS: CachedFileSystem> super::Resolver<FS> {
         package_json: Option<PackageJsonInfoId>,
         only_record_failures: bool,
     ) -> RResult<PathId> {
-        if ((ext.intersects(Extensions::TypeScript)
+        if ((ext.contains(Extensions::TypeScript)
             && candidate.extension().is_some_and(|e| {
                 SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS
                     .iter()
                     .any(|t| t.as_str().as_bytes() == e.as_encoded_bytes())
             }))
-            || (ext.intersects(Extensions::Declaration)
+            || (ext.contains(Extensions::Declaration)
                 && candidate.extension().is_some_and(|e| {
                     SUPPORTED_DECLARATION_EXTENSIONS
                         .iter()
