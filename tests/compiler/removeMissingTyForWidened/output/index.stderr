@@ -21,3 +21,10 @@
  187 │ foo
      · ───
      ╰────
+
+  × Non-abstract class 'WrongConcreteExtendedBar' does not implement inherited
+  │ abstract member 'barMethod' from class 'ExtendedBar<typeof Bar> & Bar'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:264:3]
+ 264 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
+     · ──────────────────────────────────────────────────────
+     ╰────

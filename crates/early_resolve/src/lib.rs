@@ -84,6 +84,8 @@ fn early_resolve<'cx>(
     }
 }
 
+const MEANING_FOR_VALUE: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::EXPORT_VALUE);
+
 pub struct Resolver<'cx, 'r, 'atoms> {
     states: &'r [BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
@@ -188,12 +190,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Break(n) => {
                 if let Some(ident) = n.label {
-                    self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
+                    self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
                 }
             }
             Continue(n) => {
                 if let Some(ident) = n.label {
-                    self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
+                    self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
                 }
             }
             Try(_) => {}
@@ -273,7 +275,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     use ast::ExportSpecKind::*;
                     match spec.kind {
                         Shorthand(n) => {
-                            const MEANING: SymbolFlags = SymbolFlags::VALUE
+                            const MEANING: SymbolFlags = MEANING_FOR_VALUE
                                 .union(SymbolFlags::TYPE)
                                 .union(SymbolFlags::NAMESPACE);
                             self.resolve_symbol_by_ident(n.name, MEANING);
@@ -377,7 +379,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_entity_name(&mut self, name: &'cx ast::EntityName<'cx>, meaning: SymbolFlags) {
+    fn resolve_entity_name<const UNDER_TYPE_QUERY: bool>(
+        &mut self,
+        name: &'cx ast::EntityName<'cx>,
+        meaning: SymbolFlags,
+    ) {
         use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
@@ -391,26 +397,28 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     }
                 }
 
-                if meaning == SymbolFlags::VALUE {
+                if meaning == MEANING_FOR_VALUE {
                     self.resolve_value_by_ident(ident);
-                } else if meaning.contains(SymbolFlags::NAMESPACE) {
+                } else if meaning.intersects(SymbolFlags::NAMESPACE) {
                     self.resolve_symbol_by_ident(ident, meaning);
                 } else {
                     unreachable!()
                 }
             }
             Qualified(qualified) => {
-                self.resolve_entity_name(
-                    qualified.left,
-                    SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE),
-                );
+                let meaning = if UNDER_TYPE_QUERY {
+                    MEANING_FOR_VALUE
+                } else {
+                    SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE)
+                };
+                self.resolve_entity_name::<UNDER_TYPE_QUERY>(qualified.left, meaning);
                 // resolve the value of right in checker.
             }
         }
     }
 
     fn resolve_refer_ty(&mut self, refer: &'cx ast::ReferTy<'cx>) {
-        self.resolve_entity_name(refer.name, SymbolFlags::TYPE);
+        self.resolve_entity_name::<false>(refer.name, SymbolFlags::TYPE);
         if let Some(ty_args) = refer.ty_args {
             self.resolve_tys(ty_args.list);
         }
@@ -478,7 +486,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Typeof(n) => {
-                self.resolve_entity_name(n.name, SymbolFlags::VALUE);
+                self.resolve_entity_name::<true>(n.name, MEANING_FOR_VALUE);
                 if let Some(ty_args) = n.ty_args {
                     self.resolve_tys(ty_args.list);
                 }
@@ -947,7 +955,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         } else if is_prim_value_name(ident.name) {
             return;
         }
-        let res = self.resolve_symbol_by_ident(ident, SymbolFlags::VALUE);
+        let res = self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
         if res.symbol == Symbol::ERR {
             let name = self.atoms.get(ident.name).to_string();
             let mut error = errors::CannotFindName {
@@ -1110,7 +1118,7 @@ fn get_symbol(
         let flags = resolver.symbol(symbol).flags;
         if flags.intersects(meaning) {
             return Some(symbol);
-        } else if flags.intersects(SymbolFlags::ALIAS) {
+        } else if flags.contains(SymbolFlags::ALIAS) {
             // bound of parallel, handle this case in late_resolve
             return Some(symbol);
         }
@@ -1146,13 +1154,36 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     let mut location = resolver.parent(ident.id);
     let mut property_with_invalid_initializer = None;
 
-    while let Some(id) = location {
+    loop {
+        // TODO: if ident.name == keyword::KW_CONST && is_const_assertion
+        if let Some(id) = location {
+            let n = resolver.p.node(id);
+            if let Some(last) = last_location {
+                match n {
+                    ast::Node::ModuleDecl(decl) if decl.name.id() == last => {
+                        last_location = location;
+                        location = resolver.parent(id);
+                    }
+                    ast::Node::EnumDecl(decl) if decl.name.id == last => {
+                        last_location = location;
+                        location = resolver.parent(id);
+                    }
+                    _ => {}
+                }
+            }
+        } else {
+            break;
+        }
+        let Some(id) = location else {
+            break;
+        };
+
         if let Some(locals) = resolver.locals(id)
             && !resolver.p.get(id.module()).is_global_source_file(id)
             && let Some(symbol) = get_symbol(resolver, locals, key, meaning)
         {
             let res_flags = resolver.symbol(symbol).flags;
-            if res_flags.intersects(SymbolFlags::ALIAS) {
+            if res_flags.contains(SymbolFlags::ALIAS) {
                 // handle this case in late_resolve
                 return ResolvedResult {
                     symbol,
@@ -1172,11 +1203,11 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 })
             {
                 let flags = meaning.intersection(res_flags);
-                if flags.intersects(SymbolFlags::TYPE) {
+                if flags.contains(SymbolFlags::TYPE) {
                     // TODO:
                 }
                 if flags.intersects(SymbolFlags::VARIABLE)
-                    && res_flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                    && res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
                 {
                     let last = resolver.p.node(last_location.unwrap());
                     use_result = last.is_param_decl();
@@ -1194,7 +1225,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 };
             }
         }
-
         within_deferred_context |= resolver.get_is_deferred_context(id, last_location);
 
         let n = resolver.p.node(id);
@@ -1380,7 +1410,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         property_with_invalid_initializer,
                     };
                 }
-                if meaning.intersects(SymbolFlags::FUNCTION)
+                if meaning.contains(SymbolFlags::FUNCTION)
                     && f.name.is_some_and(|n| n.name == ident.name)
                 {
                     return ResolvedResult {
@@ -1407,7 +1437,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     }
 
     if let Some(symbol) = get_symbol(resolver, resolver.globals, key, meaning) {
-        assert!(!resolver.symbol(symbol).flags.intersects(SymbolFlags::ALIAS));
+        assert!(!resolver.symbol(symbol).flags.contains(SymbolFlags::ALIAS));
         return ResolvedResult {
             symbol,
             associated_declaration_for_containing_initializer_or_binding_name,

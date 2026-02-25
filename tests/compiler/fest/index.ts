@@ -2750,13 +2750,13 @@ type UnknownArray = readonly unknown[];
   const b0: UnknownArray = null;      // depend on `strictNullChecks`
   const b1: UnknownArray = undefined; // depend on `strictNullChecks`
   const b2: UnknownArray = {};
-  //~^ ERROR: Type '{ }' is missing the following properties from type 'UnknownArray'
+  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]'
   const b3: UnknownArray = {0: 1};
-  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'UnknownArray'
+  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]'
   const b4: UnknownArray = 1;
   //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
-  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'UnknownArray'
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
   //~| ERROR: Type 'DateConstructor' is not assignable to type 'UnknownArray'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;

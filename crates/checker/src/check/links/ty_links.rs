@@ -21,9 +21,11 @@ links!(
     (default, &'cx ty::Ty<'cx>),
     // reference type
     (literal_ty, &'cx ty::Ty<'cx>),
+    (cached_equivalent_base_ty, &'cx ty::Ty<'cx>),
     // indexed access type
     (reading_simplified_ty, &'cx ty::Ty<'cx>),
     (writing_simplified_ty, &'cx ty::Ty<'cx>),
     // object flags
     (could_contain_ty_variables, bool),
+    (identical_base_ty_constraint, bool)
 );

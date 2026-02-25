@@ -1,4 +1,6 @@
-class Red extends Color { //~ ERROR: Class 'Color' used before its declaration.
+class Red extends Color { 
+  //~^ ERROR: Class 'Color' used before its declaration.
+  //~| ERROR: Class 'Color' used before its declaration.
   public shade() { 
     var getHue = () => { return this.hue(); };
     return getHue() + " red"; 

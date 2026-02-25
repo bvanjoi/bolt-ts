@@ -6,7 +6,20 @@
 
 Advice: 
   ☞ Class 'TextBase' is defined here
-    ╭─[../../tests/compiler/classSideInheritance2/index.ts:16:7]
- 16 │ TextBase
+    ╭─[../../tests/compiler/classSideInheritance2/index.ts:17:7]
+ 17 │ TextBase
+    · ────────
+    ╰────
+
+  × Class 'TextBase' used before its declaration.
+   ╭─[../../tests/compiler/classSideInheritance2/index.ts:9:23]
+ 9 │ TextBase
+   · ────────
+   ╰────
+
+Advice: 
+  ☞ Class 'TextBase' is defined here
+    ╭─[../../tests/compiler/classSideInheritance2/index.ts:17:7]
+ 17 │ TextBase
     · ────────
     ╰────

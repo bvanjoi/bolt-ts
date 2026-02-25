@@ -61,8 +61,8 @@ pub trait SymbolInfo<'cx>: Sized {
         if id == Symbol::ERR {
             return Symbol::ERR;
         }
-        let s = self.get_merged_symbols();
         let symbols = &self.get_resolve_results()[id.module().as_usize()].symbols;
+        let s = self.get_merged_symbols();
         s.get_merged_symbol(id, symbols)
     }
 
@@ -369,7 +369,7 @@ impl<'cx> super::TyChecker<'cx> {
                 return Some(symbols);
             };
 
-            let mut nested_symbols = SymbolTable::new(128);
+            let mut nested_symbols = SymbolTable::new(32);
             let mut lookup_table = ExportCollisionTrackerTable(fx_hashmap_with_capacity(32));
             if let Some(decls) = decls_of_symbol(export_starts, this) {
                 for decl in decls.clone() {
@@ -748,9 +748,12 @@ impl<'cx> super::TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
     ) -> SymbolID {
-        // TODO: get merged symbol
+        if symbol == Symbol::ERR || symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            return symbol;
+        }
+        let symbol = self.get_merged_symbol(symbol);
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-        if s.flags.intersects(SymbolFlags::VALUE) {
+        if s.flags.contains(SymbolFlags::EXPORT_VALUE) {
             s.export_symbol.unwrap_or(symbol)
         } else {
             symbol

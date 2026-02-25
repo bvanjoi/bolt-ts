@@ -828,4 +828,13 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    #[inline]
+    fn create_omit_expr(&mut self, span: Span) -> &'cx ast::OmitExpr {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::OmitExpr { id, span: span });
+        self.insert_node(id, ast::Node::OmitExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

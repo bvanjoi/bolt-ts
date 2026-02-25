@@ -385,16 +385,24 @@ impl<'cx> TyChecker<'cx> {
 
                 for (error_node, member_info) in not_implemented_info {
                     if member_info.missed_props.len() == 1 {
-                        if let Some(error_node) = error_node
-                            && let decl = self.p.node(error_node)
-                            && decl.is_class_expr()
-                        {
-                            let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
-                                span: class.span(),
-                                member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
-                                class: base_ty.to_string(self),
-                            };
-                            self.push_error(Box::new(error));
+                        if let Some(error_node) = error_node {
+                            let decl = self.p.node(error_node);
+                            if decl.is_class_expr() {
+                                let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
+                                    span: class.span(),
+                                    member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
+                                    class: base_ty.to_string(self),
+                                };
+                                self.push_error(Box::new(error));
+                            } else {
+                                let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
+                                    span: class.span(),
+                                    non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
+                                    member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
+                                    abstract_class: base_ty.to_string(self),
+                                };
+                                self.push_error(Box::new(error));
+                            }
                         }
                     }
                 }

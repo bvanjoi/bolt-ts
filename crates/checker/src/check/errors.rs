@@ -827,6 +827,18 @@ pub(super) struct NonAbstractClassExpressionDoesNotImplementInheritedAbstractMem
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Non-abstract class '{non_abstract_class}' does not implement inherited abstract member '{member}' from class '{abstract_class}'."
+)]
+pub(super) struct NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
+    #[label(primary)]
+    pub span: Span,
+    pub non_abstract_class: String,
+    pub member: String,
+    pub abstract_class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.")]
 pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label(primary)]

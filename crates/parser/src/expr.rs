@@ -924,14 +924,9 @@ impl<'cx> ParserState<'cx, '_> {
             |this| match this.token.kind {
                 TokenKind::DotDotDot => this.parse_spread_element(),
                 TokenKind::Comma => {
-                    let id = this.next_node_id();
-                    let expr = this.alloc(ast::OmitExpr {
-                        id,
-                        span: this.token.span,
-                    });
-                    this.nodes.insert(id, ast::Node::OmitExpr(expr));
+                    let omit_expr = this.create_omit_expr(this.token.span);
                     let expr = this.alloc(ast::Expr {
-                        kind: ast::ExprKind::Omit(expr),
+                        kind: ast::ExprKind::Omit(omit_expr),
                     });
                     Ok(expr)
                 }

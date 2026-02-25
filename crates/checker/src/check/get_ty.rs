@@ -238,12 +238,11 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
-        let ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None);
+        let mut ty = self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None);
 
         let s = self.symbol(symbol);
         if s.flags.contains(SymbolFlags::CLASS) {
-            // TODO: use following as type:
-            if let Some(base) = self.get_base_type_variable_of_class(symbol) {
+            ty = if let Some(base) = self.get_base_type_variable_of_class(symbol) {
                 self.get_intersection_ty(&[ty, base], IntersectionFlags::None, None, None)
             } else {
                 ty
@@ -1357,22 +1356,22 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_ty_reference_arity(ty: &'cx ty::Ty<'cx>) -> usize {
-        assert!(ty.get_object_flags().intersects(ObjectFlags::REFERENCE));
-        if let Some(ty) = ty.kind.as_object_reference() {
-            let ty_params = if let Some(t) = ty.target.kind.as_object_tuple() {
-                t.ty_params()
-            } else if let Some(i) = ty.target.kind.as_object_interface() {
-                i.ty_params
-            } else if ty.target.kind.is_object_reference() {
-                return Self::get_ty_reference_arity(ty.target);
-            } else {
-                unreachable!()
-            };
-            ty_params.map_or(0, |ty_params| ty_params.len())
-        } else if let Some(tup) = ty.kind.as_object_tuple() {
-            tup.ty_params().map_or(0, |ty_params| ty_params.len())
-        } else {
-            unreachable!()
+        debug_assert!(ty.get_object_flags().contains(ObjectFlags::REFERENCE));
+        match ty.kind.expect_object().kind {
+            ty::ObjectTyKind::Reference(reference_ty) => {
+                let ty_params = if let Some(t) = reference_ty.target.kind.as_object_tuple() {
+                    t.ty_params()
+                } else if let Some(i) = reference_ty.target.kind.as_object_interface() {
+                    i.ty_params
+                } else if reference_ty.target.kind.is_object_reference() {
+                    return Self::get_ty_reference_arity(reference_ty.target);
+                } else {
+                    unreachable!()
+                };
+                ty_params.map_or(0, |ty_params| ty_params.len())
+            }
+            ty::ObjectTyKind::Tuple(tup) => tup.ty_params().map_or(0, |ty_params| ty_params.len()),
+            _ => unreachable!(),
         }
     }
 

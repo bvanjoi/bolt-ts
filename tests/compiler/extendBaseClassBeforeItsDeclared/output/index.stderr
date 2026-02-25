@@ -6,7 +6,20 @@
 
 Advice: 
   ☞ Class 'base' is defined here
-   ╭─[../../tests/compiler/extendBaseClassBeforeItsDeclared/index.ts:8:7]
- 8 │ base
+   ╭─[../../tests/compiler/extendBaseClassBeforeItsDeclared/index.ts:9:7]
+ 9 │ base
+   · ────
+   ╰────
+
+  × Class 'base' used before its declaration.
+   ╭─[../../tests/compiler/extendBaseClassBeforeItsDeclared/index.ts:5:23]
+ 5 │ base
+   · ────
+   ╰────
+
+Advice: 
+  ☞ Class 'base' is defined here
+   ╭─[../../tests/compiler/extendBaseClassBeforeItsDeclared/index.ts:9:7]
+ 9 │ base
    · ────
    ╰────

@@ -291,6 +291,7 @@ pub struct TyChecker<'cx> {
     empty_symbols: &'cx SymbolTable,
 
     enum_number_index_info: std::cell::OnceCell<&'cx ty::IndexInfo<'cx>>,
+    any_base_type_index_info: std::cell::OnceCell<&'cx ty::IndexInfo<'cx>>,
 
     any_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
@@ -620,6 +621,7 @@ impl<'cx> TyChecker<'cx> {
 
             is_inference_partially_blocked: false,
             enum_number_index_info: Default::default(),
+            any_base_type_index_info: Default::default(),
 
             number_or_bigint_ty: Default::default(),
             any_fn_ty: Default::default(),
@@ -775,6 +777,7 @@ impl<'cx> TyChecker<'cx> {
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
+            (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false })),
 
             (global_bigint_ty,              this.try_get_global_type(SymbolName::Atom(keyword::IDENT_BIGINT_CLASS)).unwrap_or(empty_object_ty)),
         });
@@ -2090,7 +2093,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn create_array_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if !ty.get_object_flags().intersects(ObjectFlags::REFERENCE) {
+        if !ty.get_object_flags().contains(ObjectFlags::REFERENCE) {
             ty
         } else if let Some(literal_ty) = self.get_ty_links(ty.id).get_literal_ty() {
             literal_ty
@@ -2348,21 +2351,23 @@ impl<'cx> TyChecker<'cx> {
             self.check_resolved_block_scoped_var(ident, symbol);
         }
 
-        let ty = self.get_type_of_symbol(symbol);
+        let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+
+        let ty = self.get_type_of_symbol(local_or_export_symbol);
         let assignment_kind = self
             .node_query(ident.id.module())
             .get_assignment_target_kind(ident.id);
 
-        if assignment_kind != AssignmentKind::None && symbol != Symbol::ERR {
-            let symbol = self.binder.symbol(symbol);
-            if !symbol.flags.intersects(SymbolFlags::VARIABLE) {
-                let ty = if symbol.flags.contains(SymbolFlags::CLASS) {
+        if assignment_kind != AssignmentKind::None && local_or_export_symbol != Symbol::ERR {
+            let flags = self.binder.symbol(local_or_export_symbol).flags;
+            if !flags.intersects(SymbolFlags::VARIABLE) {
+                let ty = if flags.contains(SymbolFlags::CLASS) {
                     "class"
-                } else if symbol.flags.contains(SymbolFlags::FUNCTION) {
+                } else if flags.contains(SymbolFlags::FUNCTION) {
                     "function"
-                } else if symbol.flags.intersects(SymbolFlags::ENUM) {
+                } else if flags.intersects(SymbolFlags::ENUM) {
                     "enum"
-                } else if symbol.flags.intersects(SymbolFlags::NAMESPACE) {
+                } else if flags.intersects(SymbolFlags::NAMESPACE) {
                     "namespace"
                 } else {
                     unreachable!()
@@ -2379,13 +2384,13 @@ impl<'cx> TyChecker<'cx> {
 
         let mut decl = if symbol == self.global_this_symbol {
             return ty;
-        } else if let Some(decl) = symbol.opt_decl(self.binder) {
+        } else if let Some(decl) = local_or_export_symbol.opt_decl(self.binder) {
             decl
         } else {
             return ty;
         };
 
-        let s = self.binder.symbol(symbol);
+        let s = self.binder.symbol(local_or_export_symbol);
         let is_alias = s.flags.contains(SymbolFlags::ALIAS);
 
         if s.flags.intersects(SymbolFlags::VARIABLE) {
@@ -2417,8 +2422,12 @@ impl<'cx> TyChecker<'cx> {
             .node(self.node_query(decl.module()).get_root_decl(decl))
             .is_param_decl();
         // let is_outer_variable = flow_container != decl_container;
-        let type_is_auto = ty == self.auto_ty;
-        let is_automatic_ty_is_non_null = type_is_auto;
+        let type_is_auto = ty == self.auto_ty || ty == self.auto_array_ty();
+        let is_automatic_ty_is_non_null = type_is_auto
+            && self
+                .p
+                .node(self.parent(ident.id).unwrap())
+                .is_non_null_expr();
 
         let is_never_initialized = if let Some(v) = self.p.node(immediate_decl).as_var_decl() {
             v.init.is_none()
@@ -2488,7 +2497,11 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
             return ty;
         }
-        flow_ty
+        if assignment_kind != AssignmentKind::None {
+            self.get_base_ty_of_literal_ty(flow_ty)
+        } else {
+            flow_ty
+        }
     }
 
     fn check_non_null_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -3898,9 +3911,51 @@ impl<'cx> TyChecker<'cx> {
         mut ty: &'cx ty::Ty<'cx>,
         kind: SimplifiedKind,
     ) -> &'cx ty::Ty<'cx> {
+        let should_normalize_intersection = |this: &mut Self, ty: &'cx ty::IntersectionTy<'cx>| {
+            let mut has_instantiable = false;
+            let mut has_nullable_or_empty = false;
+            for t in ty.tys {
+                has_instantiable |= t.flags.intersects(TypeFlags::INSTANTIABLE);
+                has_nullable_or_empty |=
+                    t.flags.intersects(TypeFlags::NULLABLE) || this.is_empty_anonymous_object_ty(t);
+                if has_instantiable && has_nullable_or_empty {
+                    return true;
+                }
+            }
+            false
+        };
         loop {
             let t = if self.is_fresh_literal_ty(ty) {
                 self.get_regular_ty(ty).unwrap()
+            } else if ty.kind.is_generic_tuple_type() {
+                // get normalized tuple type
+                let reduced = self.get_reduced_ty(ty);
+                if reduced != ty {
+                    reduced
+                } else if let Some(i) = ty.kind.as_intersection()
+                    && should_normalize_intersection(self, i)
+                    && let normalized_tys = self
+                        .same_map_tys(Some(i.tys), |this, t, _| this.get_normalized_ty(t, kind))
+                        .unwrap()
+                    && !std::ptr::eq(normalized_tys, i.tys)
+                {
+                    self.get_intersection_ty(normalized_tys, IntersectionFlags::None, None, None)
+                } else {
+                    ty
+                }
+            } else if ty.get_object_flags().contains(ObjectFlags::REFERENCE) {
+                let (node, target) = match ty.kind.expect_object().kind {
+                    ty::ObjectTyKind::Reference(t) => (t.node, t.target),
+                    ty::ObjectTyKind::Tuple(tup) => (None, tup.ty),
+                    _ => unreachable!(),
+                };
+                if node.is_some() {
+                    let type_arguments = self.get_ty_arguments(ty);
+                    self.create_reference_ty(target, Some(type_arguments), ObjectFlags::empty())
+                } else {
+                    self.get_single_base_for_non_augmenting_subtype(ty)
+                        .unwrap_or(ty)
+                }
             } else if let Some(s) = ty.kind.as_substitution_ty() {
                 if kind == SimplifiedKind::Writing {
                     s.base_ty
@@ -4732,6 +4787,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn enum_number_index_info(&self) -> &'cx ty::IndexInfo<'cx> {
         self.enum_number_index_info.get().unwrap()
+    }
+
+    fn any_base_type_index_info(&self) -> &'cx ty::IndexInfo<'cx> {
+        self.any_base_type_index_info.get().unwrap()
     }
 
     fn is_from_inference_block_source(&self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -5638,6 +5697,59 @@ impl<'cx> TyChecker<'cx> {
                 _ => false,
             }
         }
+    }
+
+    fn get_single_base_for_non_augmenting_subtype(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let links = self.get_ty_links(ty.id);
+        if let Some(_) = links.get_identical_base_ty_constraint() {
+            return links.get_cached_equivalent_base_ty();
+        }
+        self.get_mut_ty_links(ty.id)
+            .set_identical_base_ty_constraint(true);
+        // TODO: tuple
+        let reference_ty = ty.kind.as_object_reference()?;
+        let target = reference_ty.target;
+        let target_i = target.as_class_or_interface_ty()?;
+        if target.get_object_flags().contains(ObjectFlags::CLASS) {
+            if let Some(base_ty_node) = self.get_base_type_node_of_class(ty)
+                && !matches!(
+                    base_ty_node.expr_with_ty_args.expr.kind,
+                    ast::ExprKind::Ident(_) | ast::ExprKind::PropAccess(_)
+                )
+            {
+                return None;
+            }
+        }
+        let bases = self.get_base_tys(ty);
+        if bases.len() != 1 {
+            return None;
+        }
+        if !self.get_members_of_symbol(target_i.symbol).0.is_empty() {
+            return None;
+        }
+        let len = target_i.ty_params.map(|ty_params| ty_params.len());
+        let type_arguments = self.get_ty_arguments(ty);
+        let mut instantiated_base = if let Some(len) = len
+            && len > 0
+        {
+            let type_arguments = &type_arguments[0..len];
+            let mapper = self.create_ty_mapper(target_i.ty_params.unwrap(), type_arguments);
+            self.instantiate_ty(bases[0], Some(mapper))
+        } else {
+            bases[0]
+        };
+
+        if type_arguments.len() > len.unwrap_or(0) {
+            let last = type_arguments.last().copied();
+            instantiated_base = self.get_ty_with_this_arg(instantiated_base, last, false);
+        }
+
+        self.get_mut_ty_links(ty.id)
+            .set_cached_equivalent_base_ty(instantiated_base);
+        Some(instantiated_base)
     }
 }
 

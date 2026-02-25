@@ -370,7 +370,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             .node_query()
             .get_combined_modifier_flags(current)
             .intersects(ast::ModifierKind::Export);
-        if symbol_flags.intersects(SymbolFlags::ALIAS) {
+        if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
                 || n.as_shorthand_spec().is_some_and(|_| {
@@ -404,7 +404,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 || self
                     .p
                     .node_flags(container)
-                    .intersects(NodeFlags::EXPORT_CONTEXT))
+                    .contains(NodeFlags::EXPORT_CONTEXT))
         {
             if !self.p.node(container).has_locals()
                 || !self.locals.contains_key(&container)

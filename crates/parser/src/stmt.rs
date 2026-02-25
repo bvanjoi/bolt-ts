@@ -1171,19 +1171,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {
-        let start = self.token.start();
-        if self.token.kind == TokenKind::Comma {
-            let id = self.next_node_id();
-            let omit_expr = self.alloc(ast::OmitExpr {
-                id,
-                span: self.new_span(start),
-            });
-            self.nodes.insert(id, ast::Node::OmitExpr(omit_expr));
-            let elem = self.alloc(ast::ArrayBindingElem {
-                kind: ast::ArrayBindingElemKind::Omit(omit_expr),
-            });
-            Ok(elem)
+        let kind = if self.token.kind == TokenKind::Comma {
+            let omit_expr = self.create_omit_expr(self.token.span);
+            ast::ArrayBindingElemKind::Omit(omit_expr)
         } else {
+            let start = self.token.start();
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
             let name = self.parse_ident_or_pat()?;
             let init = self.parse_init()?;
@@ -1196,11 +1188,10 @@ impl<'cx> ParserState<'cx, '_> {
                 init,
             });
             self.nodes.insert(id, ast::Node::ArrayBinding(binding));
-            let elem = self.alloc(ast::ArrayBindingElem {
-                kind: ast::ArrayBindingElemKind::Binding(binding),
-            });
-            Ok(elem)
-        }
+            ast::ArrayBindingElemKind::Binding(binding)
+        };
+        let elem = self.alloc(ast::ArrayBindingElem { kind });
+        Ok(elem)
     }
 
     pub(super) fn check_strict_mode_eval_or_arguments_for_binding(

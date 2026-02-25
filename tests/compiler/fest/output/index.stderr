@@ -655,7 +655,7 @@
       · ──
       ╰────
 
-  × Type '{ }' is missing the following properties from type 'UnknownArray':
+  × Type '{ }' is missing the following properties from type 'unknown[]':
   │ length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2752:9]
  2752 │ b2
@@ -663,7 +663,7 @@
       ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
-  │ 'UnknownArray': length, concat, and 18 more.
+  │ 'unknown[]': length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2754:9]
  2754 │ b3
       · ──
@@ -676,7 +676,7 @@
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
-  │ 'UnknownArray': concat, join, and 17 more.
+  │ 'unknown[]': concat, join, and 17 more.
       ╭─[../../tests/compiler/fest/index.ts:2758:9]
  2758 │ b5
       · ──

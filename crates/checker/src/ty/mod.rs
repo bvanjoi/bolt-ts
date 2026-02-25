@@ -414,11 +414,12 @@ impl<'cx> Ty<'cx> {
 
     pub fn as_tuple(&self) -> Option<&'cx TupleTy<'cx>> {
         if self.get_object_flags().contains(ObjectFlags::REFERENCE) {
-            if let Some(refer) = self.kind.as_object_reference() {
-                return refer.target.kind.as_object_tuple();
-            } else if let Some(tup) = self.kind.as_object_tuple() {
-                return Some(tup);
-            }
+            let object_ty = self.kind.expect_object();
+            return match object_ty.kind {
+                ObjectTyKind::Tuple(ty) => Some(ty),
+                ObjectTyKind::Reference(ty) => ty.target.kind.as_object_tuple(),
+                _ => unreachable!(),
+            };
         };
         None
     }

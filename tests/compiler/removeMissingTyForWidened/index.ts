@@ -251,16 +251,31 @@ type A<Options extends Required<O>> = B<Options['b']>;
   withBar(Bar);
 }
 
-// {
-// TODO:
-//   type AbstractConstructor = abstract new(...arguments_: any[]) => object;
-//   function withBar<T extends AbstractConstructor>(Ctor: T) {
-// 	  abstract class ExtendedBar extends Ctor {}
-// 	  return ExtendedBar;
-//   }
-//   abstract class Bar {
-// 	  abstract barMethod(): void;
-//   }
+{
+  type AbstractConstructor = abstract new(...arguments_: any[]) => object;
+  function withBar<T extends AbstractConstructor>(Ctor: T) {
+	  abstract class ExtendedBar extends Ctor {}
+	  return ExtendedBar;
+  }
+  abstract class Bar {
+	  abstract barMethod(): void;
+  }
 
-//   class WrongConcreteExtendedBar extends withBar(Bar) {}
-// }
+  class WrongConcreteExtendedBar extends withBar(Bar) {}
+  //~^ ERROR: Non-abstract class 'WrongConcreteExtendedBar' does not implement inherited abstract member 'barMethod' from class 'ExtendedBar<typeof Bar> & Bar'.
+}
+
+{
+  class C {
+    constructor() {}
+  }
+
+  interface I<T0>  {
+    new(): T0;
+  }
+
+  function f<T1 extends C>(HousingType: I<T1>) {
+    class Building extends HousingType {}
+    const residence: T1 = new Building();
+  }
+}

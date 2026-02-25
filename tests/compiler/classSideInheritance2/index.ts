@@ -8,6 +8,7 @@ interface TextSpan {}
 
 class SubText extends TextBase {
       //~^ ERROR: Class 'TextBase' used before its declaration.
+      //~| ERROR: Class 'TextBase' used before its declaration.
       constructor(text: IText, span: TextSpan) {
           super();
       }

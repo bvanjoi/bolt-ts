@@ -292,7 +292,7 @@ impl<'cx> TyChecker<'cx> {
             .override_resolved_base_tys(resolved_tys);
     }
 
-    fn get_base_type_node_of_class(
+    pub(super) fn get_base_type_node_of_class(
         &self,
         i: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
@@ -351,19 +351,18 @@ impl<'cx> TyChecker<'cx> {
         } else if base_ctor_ty.flags.contains(TypeFlags::ANY) {
             base_ty = base_ctor_ty;
         } else {
-            // let base_ty_node = base_ty_node.unwrap();
-            // let ty_args = base_ty_node.expr_with_ty_args.ty_args;
-            // let ctors = self.get_instantiated_constructors_for_ty_args(
-            //     base_ctor_ty,
-            //     ty_args,
-            //     base_ty_node.id,
-            // );
-            // if ctors.is_empty() {
-            //     // TODO: error
-            //     return self.empty_array();
-            // }
-            // base_ty = self.get_ret_ty_of_sig(ctors[0]);
-            base_ty = base_ctor_ty;
+            let base_ty_node = base_ty_node.unwrap();
+            let ty_args = base_ty_node.expr_with_ty_args.ty_args;
+            let ctors = self.get_instantiated_constructors_for_ty_args(
+                base_ctor_ty,
+                ty_args,
+                base_ty_node.id,
+            );
+            if ctors.is_empty() {
+                // TODO: error
+                return self.empty_array();
+            }
+            base_ty = self.get_ret_ty_of_sig(ctors[0]);
         }
         if base_ty == self.error_ty {
             return &[];
@@ -496,7 +495,6 @@ impl<'cx> TyChecker<'cx> {
             };
             let props = self.get_props_of_ty(instantiated_base_ty);
             self.add_inherited_members(&mut members, props);
-            // TODO: instantiate them
             call_sigs.extend(
                 self.signatures_of_type(instantiated_base_ty, SigKind::Call)
                     .iter(),
@@ -505,12 +503,19 @@ impl<'cx> TyChecker<'cx> {
                 self.signatures_of_type(instantiated_base_ty, SigKind::Constructor)
                     .iter(),
             );
-            let inherited_index_infos = self
-                .index_infos_of_ty(instantiated_base_ty)
-                .iter()
-                .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
-                .collect::<Vec<_>>();
-            index_infos.extend(inherited_index_infos);
+            if instantiated_base_ty != self.any_ty {
+                let instantiated_index_infos = self
+                    .get_index_infos_of_ty(instantiated_base_ty)
+                    .into_iter()
+                    .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
+                    .collect::<Vec<_>>();
+                index_infos.extend(instantiated_index_infos);
+            } else if {
+                let key_ty = self.any_base_type_index_info().key_ty;
+                self.find_index_info(&index_infos, key_ty).is_none()
+            } {
+                index_infos.push(self.any_base_type_index_info());
+            }
         }
 
         let props = self.get_props_from_members(&members);
@@ -1169,11 +1174,13 @@ impl<'cx> TyChecker<'cx> {
                 if !sigs.is_empty() && mixin_count > 0 {
                     for sig in sigs {
                         let cloned = self.clone_sig(sig);
-                        let ret_ty = self.get_ret_ty_of_sig(cloned);
+                        let ret_ty = self.get_ret_ty_of_sig(sig);
                         let resolved_ret_ty =
                             self.include_mixin_ty(ret_ty, i.tys, &mixin_flags, index);
+                        // ensure signature links exist
+                        self.get_sig_links(cloned.id);
                         self.get_mut_sig_links(cloned.id)
-                            .override_resolved_ret_ty(resolved_ret_ty);
+                            .set_resolved_ret_ty(resolved_ret_ty);
                         self.append_sig(&mut ctor_sigs, cloned);
                     }
                 }

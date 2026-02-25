@@ -162,7 +162,8 @@ impl<'cx> TyChecker<'cx> {
         }
         let mut ty = if let Some(target) = sig.target {
             let ret_ty = self.get_ret_ty_of_sig(target);
-            self.instantiate_ty(ret_ty, sig.mapper)
+            let ret_ty = self.instantiate_ty(ret_ty, sig.mapper);
+            ret_ty
         } else if let Some(node_id) = sig.node_id {
             if let Some(ty) = self.get_ret_ty_from_anno(node_id) {
                 ty

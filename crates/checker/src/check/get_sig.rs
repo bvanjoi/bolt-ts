@@ -544,7 +544,7 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
         ast::Node::SetterDecl(_) => None,
         _ => unreachable!(),
     };
-    Sig {
+    ty::Sig {
         flags,
         this_param,
         params,

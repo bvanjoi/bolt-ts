@@ -309,6 +309,7 @@ impl<'cx> TyChecker<'cx> {
         outer_ty_params: Option<ty::Tys<'cx>>,
         local_ty_params: Option<ty::Tys<'cx>>,
         this_ty: Option<&'cx ty::Ty<'cx>>,
+        object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let links = self.interface_ty_links_arena.alloc(Default::default());
         let ty = ty::InterfaceTy {
@@ -319,10 +320,7 @@ impl<'cx> TyChecker<'cx> {
             this_ty,
             links,
         };
-        self.create_object_ty(
-            ty::ObjectTyKind::Interface(self.alloc(ty)),
-            ObjectFlags::empty(),
-        )
+        self.create_object_ty(ty::ObjectTyKind::Interface(self.alloc(ty)), object_flags)
     }
 
     pub(super) fn create_anonymous_ty(
@@ -895,8 +893,14 @@ impl<'cx> TyChecker<'cx> {
 
             const OBJECT_FLAGS: ObjectFlags = ObjectFlags::TUPLE.union(ObjectFlags::REFERENCE);
             let this_ty = this.create_param_ty(Symbol::ERR, None, true);
-            let ty =
-                this.create_interface_ty(Symbol::ERR, ty_params, None, ty_params, Some(this_ty));
+            let ty = this.create_interface_ty(
+                Symbol::ERR,
+                ty_params,
+                None,
+                ty_params,
+                Some(this_ty),
+                ObjectFlags::empty(),
+            );
             let declared_members = this.alloc(ty::DeclaredMembers {
                 props: this.alloc(props),
                 call_sigs: this.empty_array(),
