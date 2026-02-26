@@ -348,12 +348,14 @@ impl<'cx> TyChecker<'cx> {
                     class_decl: None,
                     min_args_count: 0,
                     node_id: None,
+                    composite_sigs: None,
+                    composite_kind: None,
                 });
                 let prev = self.sig_links.insert(
                     ret_only_sig.id,
                     super::SigLinks::default().with_resolved_ret_ty(ret_ty),
                 );
-                assert!(prev.is_none());
+                debug_assert!(prev.is_none());
                 let symbol = self.get_symbol_of_decl(node);
                 let call_sigs = self.alloc(vec![ret_only_sig]);
                 let ret_only_ty = self.create_anonymous_ty_with_resolved(

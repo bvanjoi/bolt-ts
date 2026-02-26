@@ -12,6 +12,12 @@ use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
+pub enum IterationTypeKind {
+    Yield,
+    Return,
+    Next,
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_widened_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         self.get_widened_ty_with_context(ty)
@@ -182,6 +188,25 @@ impl<'cx> TyChecker<'cx> {
             ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
         }
         ty
+    }
+
+    pub(super) fn get_widened_lit_like_ty_for_contextual_iteration_ty_if_needed(
+        &mut self,
+        ty: Option<&'cx ty::Ty<'cx>>,
+        contextual_sig_return_ty: Option<&'cx ty::Ty<'cx>>,
+        kind: IterationTypeKind,
+        is_async_generator: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(ty) = ty
+            && ty.is_unit()
+        {
+            let contextual_ty = contextual_sig_return_ty.and_then(|ty| {
+                self.get_iteration_ty_generator_fn_return_ty(kind, ty, is_async_generator)
+            });
+            Some(self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty))
+        } else {
+            ty
+        }
     }
 
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(

@@ -17,8 +17,8 @@ use super::type_predicate::TyPred;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
-        assert!(sig.id == SigID::dummy(), "TODO: hidden id");
-        let sig = sig.with_id(self.sigs.len());
+        debug_assert!(sig.id == SigID::dummy(), "TODO: hidden id");
+        let sig = sig.with_id(self.sigs.len() as u32);
         let s = self.alloc(sig);
         self.sigs.push(s);
         s
@@ -548,12 +548,14 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
         flags,
         this_param,
         params,
-        min_args_count,
+        min_args_count: min_args_count as u32,
         ret,
         node_id: Some(node.id()),
         target: None,
         mapper: None,
         id: SigID::dummy(),
         class_decl: None,
+        composite_sigs: None,
+        composite_kind: None,
     }
 }

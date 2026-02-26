@@ -728,8 +728,35 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn create_union_sigs(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        union_sigs: ty::Sigs<'cx>,
+    ) -> &'cx ty::Sig<'cx> {
+        let next = ty::Sig {
+            id: ty::SigID::dummy(),
+            flags: sig.flags & ty::SigFlags::PROPAGATING_FLAGS,
+            params: sig.params,
+            this_param: sig.this_param,
+            min_args_count: sig.min_args_count,
+            ret: sig.ret,
+            node_id: sig.node_id,
+            target: None,
+            mapper: None,
+            class_decl: sig.class_decl,
+            composite_sigs: Some(union_sigs),
+            composite_kind: Some(ty::TypeFlags::UNION),
+        };
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            let links = super::links::SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(next.id, links);
+            debug_assert!(prev.is_none());
+        }
+        self.new_sig(next)
+    }
+
     pub(super) fn get_contextual_sig(&mut self, id: ast::NodeID) -> Option<&'cx ty::Sig<'cx>> {
-        assert!(!self.p.node(id).is_class_method_elem());
+        debug_assert!(!self.p.node(id).is_class_method_elem());
         if let Some(ty_tag_sig) = self.get_sig_of_ty_tag(id) {
             return Some(ty_tag_sig);
         }
@@ -761,7 +788,8 @@ impl<'cx> TyChecker<'cx> {
                     return Some(sigs[0]);
                 } else {
                     // todo: self.create_union_sigs
-                    todo!()
+                    let sigs = self.alloc(sigs);
+                    self.create_union_sigs(sigs[0], sigs);
                 }
             }
         } else {

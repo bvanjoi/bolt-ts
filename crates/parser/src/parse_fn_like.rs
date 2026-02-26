@@ -9,6 +9,7 @@ use super::{PResult, ParserState};
 
 pub(super) trait FnLike<'cx, 'p> {
     type Node;
+    type Modifier;
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
@@ -18,7 +19,7 @@ pub(super) trait FnLike<'cx, 'p> {
         self,
         state: &mut ParserState<'cx, 'p>,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        modifiers: Self::Modifier,
         asterisk_token: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
@@ -31,6 +32,7 @@ pub(super) trait FnLike<'cx, 'p> {
 pub(super) struct ParseFnDecl;
 impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     type Node = &'cx ast::FnDecl<'cx>;
+    type Modifier = Option<&'cx ast::Modifiers<'cx>>;
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
@@ -46,7 +48,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
         self,
         state: &mut ParserState<'cx, 'p>,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        modifiers: Self::Modifier,
         asterisk: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
@@ -80,6 +82,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
 pub(super) struct ParseFnExpr;
 impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     type Node = &'cx ast::FnExpr<'cx>;
+    type Modifier = Option<&'cx ast::Modifier>;
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
@@ -92,7 +95,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         self,
         state: &mut ParserState<'cx, 'p>,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        async_modifier: Self::Modifier,
         asterisk: Option<Span>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
@@ -100,11 +103,11 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         ty: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
-        assert!(modifiers.is_none());
         let id = state.next_node_id();
         let expr = state.alloc(ast::FnExpr {
             id,
             span,
+            async_modifier,
             asterisk,
             name,
             ty_params,
@@ -118,10 +121,11 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
-    pub(super) fn parse_fn_decl_or_expr<Node>(
+    pub(super) fn parse_fn_decl_or_expr<Node, Modifier>(
         &mut self,
-        mode: impl FnLike<'cx, 'p, Node = Node>,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        mode: impl FnLike<'cx, 'p, Node = Node, Modifier = Modifier>,
+        modifiers: Modifier,
+        modifier_flags: enumflags2::BitFlags<ast::ModifierKind>,
     ) -> PResult<Node> {
         self.do_outside_of_parse_context(
             ParseContext::CLASS_FIELD_DEFINITION.union(ParseContext::CLASS_STATIC_BLOCK),
@@ -130,15 +134,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let start = this.token.start();
                 this.next_token(); // consume `function`
                 let asterisk_token = this.parse_optional(TokenKind::Asterisk).map(|t| t.span);
-                let name =
-                    mode.parse_name(this, modifiers.map(|ms| ms.flags).unwrap_or_default())?;
+                let name = mode.parse_name(this, modifier_flags)?;
                 let ty_params = this.parse_ty_params();
                 let params = this.parse_params();
                 this.check_params(params, false);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
-                let modifier_flags = modifiers.map(|ms| ms.flags);
                 let is_generator = asterisk_token.is_some();
-                let is_async = modifier_flags.is_some_and(|m| m.contains(ast::ModifierKind::Async));
+                let is_async = modifier_flags.contains(ast::ModifierKind::Async);
                 let flags = match (is_async, is_generator) {
                     (true, true) => SignatureFlags::YIELD
                         .union(SignatureFlags::ASYNC)

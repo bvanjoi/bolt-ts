@@ -700,6 +700,7 @@ pub struct ClassExpr<'cx> {
 pub struct FnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub async_modifier: Option<&'cx Modifier>,
     pub asterisk: Option<Span>,
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,

@@ -1,0 +1,12 @@
+  × Block-scoped variable 'o2' used before its declaration.
+    ╭─[../../tests/compiler/typeofUsedBeforeBlockScoped/index.ts:10:8]
+ 10 │ o2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'o2' is defined here
+    ╭─[../../tests/compiler/typeofUsedBeforeBlockScoped/index.ts:12:5]
+ 12 │ o2: typeof o
+    · ────────────
+    ╰────

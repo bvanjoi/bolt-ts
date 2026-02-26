@@ -513,7 +513,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         if min_arg_count.is_none() {
-            min_arg_count = Some(sig.min_args_count)
+            min_arg_count = Some(sig.min_args_count as usize)
         }
         let mut min_arg_count = min_arg_count.unwrap();
 
@@ -970,8 +970,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_candidate_for_overload_failure(n, &candidates, &args);
 
         for sig in &candidates {
-            if sig.min_args_count < min_required_params {
-                min_required_params = sig.min_args_count;
+            if (sig.min_args_count as usize) < min_required_params {
+                min_required_params = sig.min_args_count as usize;
             }
             // max_required_params = usize::max(max, sig.get_param_count(self));
             max_required_params = if sig.has_rest_param() {
@@ -1334,11 +1334,13 @@ impl<'cx> TyChecker<'cx> {
             node_id: candidates[0].node_id,
             params: self.alloc(params),
             this_param,
-            min_args_count,
+            min_args_count: min_args_count as u32,
             ret: None, // TODO:
             target: None,
             mapper: None,
             class_decl: None,
+            composite_sigs: None,
+            composite_kind: None,
         })
     }
 

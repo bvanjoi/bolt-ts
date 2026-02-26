@@ -82,6 +82,7 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashs
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
+use crate::check::get_widened_ty::IterationTypeKind;
 use crate::check::relation::EnumRelationMap;
 
 use self::check_expr::IterationUse;
@@ -771,9 +772,9 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
-            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
-            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
-            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None })),
+            (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
+            (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
+            (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
@@ -2216,10 +2217,14 @@ impl<'cx> TyChecker<'cx> {
         if decl.module() != used.id.module() {
             return true;
         }
+        let nq = self.node_query(decl.module());
+        if nq.is_in_type_query(used.id) {
+            return true;
+        }
+
         let used_span = used.span;
         let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo();
-        let nq = self.node_query(decl.module());
         let decl_container = nq.get_enclosing_blockscope_container(decl);
 
         if decl_pos < used_span.lo() {
@@ -2283,9 +2288,16 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_resolved_block_scoped_var(&mut self, ident: &'cx ast::Ident, id: SymbolID) {
+        debug_assert!(
+            self.symbol(id).flags.intersects(
+                SymbolFlags::BLOCK_SCOPED_VARIABLE
+                    .union(SymbolFlags::CLASS)
+                    .union(SymbolFlags::ENUM)
+            )
+        );
         let s = self.binder.symbol(id);
         let Some(decl) = s.opt_decl() else {
-            return;
+            unreachable!()
         };
 
         if !self
@@ -2341,17 +2353,16 @@ impl<'cx> TyChecker<'cx> {
             return self.get_type_of_symbol(symbol);
         }
 
+        let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
         // TODO: move into name resolution.
         // TODO: dont duplicate check more than once.
-        if self.symbol(symbol).flags.intersects(
-            SymbolFlags::CLASS
-                .union(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+        if self.symbol(local_or_export_symbol).flags.intersects(
+            SymbolFlags::BLOCK_SCOPED_VARIABLE
+                .union(SymbolFlags::CLASS)
                 .union(SymbolFlags::ENUM),
         ) {
-            self.check_resolved_block_scoped_var(ident, symbol);
+            self.check_resolved_block_scoped_var(ident, local_or_export_symbol);
         }
-
-        let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
 
         let ty = self.get_type_of_symbol(local_or_export_symbol);
         let assignment_kind = self
@@ -2843,6 +2854,125 @@ impl<'cx> TyChecker<'cx> {
                 .end_flow_node
                 .is_some_and(|n| self.is_reachable_flow_node(n)),
         }
+    }
+
+    fn get_yielded_ty_of_yield_expr(
+        &mut self,
+        n: &'cx ast::YieldExpr<'cx>,
+        expr_ty: &'cx ty::Ty<'cx>,
+        sent_ty: &'cx ty::Ty<'cx>,
+        is_async: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let error_node = n.expr.map(|expr| expr.id()).unwrap_or(n.id);
+        let yield_ty = if n.asterisk.is_some() {
+            let mode = if is_async {
+                IterationUse::ASYNC_YIELD_STAR
+            } else {
+                IterationUse::YIELD_STAR
+            };
+            self.check_iterated_ty_or_element_ty(mode, expr_ty, sent_ty, Some(error_node))
+        } else {
+            expr_ty
+        };
+        if !is_async {
+            Some(yield_ty)
+        } else {
+            // TODO: error_node
+            self.get_awaited_ty(yield_ty)
+        }
+    }
+
+    fn check_and_aggregate_yield_operand_tys(
+        &mut self,
+        f: ast::NodeID,
+        body: &'cx ast::BlockStmt<'cx>,
+        is_async: bool,
+    ) -> (Vec<&'cx ty::Ty<'cx>>, Vec<&'cx ty::Ty<'cx>>) {
+        let mut yield_tys = vec![];
+        let mut next_tys = vec![];
+
+        struct YieldExprVisitor<'a, 'cx> {
+            checker: &'a mut TyChecker<'cx>,
+            yield_tys: &'a mut Vec<&'cx ty::Ty<'cx>>,
+            next_tys: &'a mut Vec<&'cx ty::Ty<'cx>>,
+            is_async: bool,
+        }
+
+        impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for YieldExprVisitor<'a, 'cx> {
+            fn visit_yield_expr(&mut self, y: &'cx bolt_ts_ast::YieldExpr) {
+                // ======
+                let mut yield_expr_ty = if let Some(expr) = y.expr {
+                    let old_check_mode = self.checker.check_mode;
+                    self.checker.check_mode = if let Some(check_mode) = old_check_mode {
+                        Some(check_mode & !CheckMode::SKIP_GENERIC_FUNCTIONS)
+                    } else {
+                        None
+                    };
+                    let ret = self.checker.check_expr(expr);
+                    self.checker.check_mode = old_check_mode;
+                    ret
+                } else {
+                    self.checker.undefined_widening_ty
+                };
+                if y.expr
+                    .is_some_and(|expr| self.checker.is_const_context(expr.id()))
+                {
+                    yield_expr_ty = self.checker.get_regular_ty_of_literal_ty(yield_expr_ty)
+                }
+                if let Some(ty) = self.checker.get_yielded_ty_of_yield_expr(
+                    y,
+                    yield_expr_ty,
+                    self.checker.any_ty,
+                    self.is_async,
+                ) && !self.yield_tys.contains(&ty)
+                {
+                    self.yield_tys.push(ty);
+                }
+                let next_ty = if y.asterisk.is_some() {
+                    let mode = if self.is_async {
+                        IterationUse::ASYNC_YIELD_STAR
+                    } else {
+                        IterationUse::YIELD_STAR
+                    };
+                    let iteration_tys = self.checker.get_iteration_tys_of_iterable(
+                        yield_expr_ty,
+                        mode,
+                        y.expr.map(|e| e.id()),
+                    );
+                    Some(iteration_tys.next_ty)
+                } else {
+                    self.checker.get_contextual_ty(y.id, None)
+                };
+                if let Some(next_ty) = next_ty
+                    && !self.next_tys.contains(&next_ty)
+                {
+                    self.next_tys.push(next_ty);
+                }
+                // ======
+                let Some(expr) = y.expr else {
+                    return;
+                };
+                self.visit_expr(expr);
+            }
+
+            fn visit_enum_decl(&mut self, _: &'cx bolt_ts_ast::EnumDecl<'cx>) {}
+            fn visit_interface_decl(&mut self, _: &'cx bolt_ts_ast::InterfaceDecl<'cx>) {}
+            fn visit_module_decl(&mut self, _: &'cx bolt_ts_ast::ModuleDecl<'cx>) {}
+            fn visit_type_alias_decl(&mut self, _: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {}
+            // TODO: is_fn_like
+            // TODO: exclude type
+        }
+
+        let mut visitor = YieldExprVisitor {
+            checker: self,
+            yield_tys: &mut yield_tys,
+            next_tys: &mut next_tys,
+            is_async,
+        };
+
+        bolt_ts_ast_visitor::visit_block_stmt(&mut visitor, body);
+        drop(visitor);
+        (yield_tys, next_tys)
     }
 
     pub(super) fn check_and_aggregate_ret_expr_tys(
@@ -5750,6 +5880,44 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id)
             .set_cached_equivalent_base_ty(instantiated_base);
         Some(instantiated_base)
+    }
+
+    fn get_iteration_ty_generator_fn_return_ty(
+        &mut self,
+        kind: IterationTypeKind,
+        return_ty: &'cx ty::Ty<'cx>,
+        is_async_generator: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.is_type_any(return_ty) {
+            return None;
+        }
+
+        let iteration_tys =
+            self.get_iteration_tys_of_generator_fn_return_ty(return_ty, is_async_generator);
+        Some(match kind {
+            IterationTypeKind::Yield => iteration_tys.yield_ty,
+            IterationTypeKind::Return => iteration_tys.return_ty,
+            IterationTypeKind::Next => iteration_tys.next_ty,
+        })
+    }
+
+    fn get_iteration_tys_of_generator_fn_return_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        is_async_generator: bool,
+    ) -> &'cx ty::IterationTys<'cx> {
+        if self.is_type_any(ty) {
+            return self.any_iteration_tys();
+        }
+
+        let mode = if is_async_generator {
+            IterationUse::ASYNC_GENERATOR_RETURN_TYPE
+        } else {
+            IterationUse::GENERATOR_RETURN_TYPE
+        };
+
+        // TODO: resolver
+        self.get_iteration_tys_of_iterable(ty, mode, None)
     }
 }
 

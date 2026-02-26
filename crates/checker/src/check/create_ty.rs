@@ -14,9 +14,8 @@ use super::links::TyLinks;
 use super::relation::RelationKind;
 use super::symbol_info::SymbolInfo;
 use super::ty;
-use super::ty::{
-    CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
-};
+use super::ty::{CheckFlags, ElementFlags, IndexFlags};
+use super::ty::{ObjectFlags, TyID, TypeFlags, UnionReduction};
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, IntersectionMap, UnionMap};
 use super::{TyChecker, errors};
@@ -1952,5 +1951,15 @@ impl<'cx> TyChecker<'cx> {
                 ObjectFlags::REVERSE_MAPPED.union(ObjectFlags::ANONYMOUS),
             ))
         }
+    }
+
+    pub(super) fn create_generator_ty(
+        &mut self,
+        yield_ty: &'cx ty::Ty<'cx>,
+        return_ty: &'cx ty::Ty<'cx>,
+        next_ty: &'cx ty::Ty<'cx>,
+        is_async_generator: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        todo!()
     }
 }

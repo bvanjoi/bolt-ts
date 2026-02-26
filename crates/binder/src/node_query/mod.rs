@@ -482,15 +482,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
-        self.find_ancestor(id, |node| {
-            if node.is_typeof_expr() || node.is_typeof_ty() {
-                Some(true)
-            } else if node.is_ident() {
-                // TODO: qualified name
-                None
-            } else {
-                Some(false)
-            }
+        self.find_ancestor(id, |node| match node {
+            ast::Node::TypeofTy(_) => Some(true),
+            ast::Node::Ident(_) | ast::Node::QualifiedName(_) => None,
+            _ => Some(false),
         })
         .is_some()
     }

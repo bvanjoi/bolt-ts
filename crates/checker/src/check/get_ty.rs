@@ -1,5 +1,7 @@
 use std::ops::Not;
 
+use crate::check::get_widened_ty::IterationTypeKind;
+
 use super::create_ty::IntersectionFlags;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::symbol_info::SymbolInfo;
@@ -2189,83 +2191,166 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         };
         let fn_flags = n.fn_flags();
+        let is_generator = fn_flags.contains(FnFlags::GENERATOR);
+        let is_async = fn_flags.contains(FnFlags::ASYNC);
 
         let mut ret_ty = None;
-        let fallback_ret_ty = self.void_ty;
-        if let ast::ArrowFnExprBody::Expr(expr) = body {
-            let old = if let Some(check_mode) = self.check_mode {
-                let old = self.check_mode;
-                self.check_mode = Some(check_mode & CheckMode::SKIP_GENERIC_FUNCTIONS.not());
-                old
-            } else {
-                None
-            };
-            ret_ty = Some(self.check_expr_cached(expr));
-            self.check_mode = old;
-        } else if let ast::ArrowFnExprBody::Block(body) = body {
-            let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
-                return if fn_flags.contains(FnFlags::ASYNC) {
-                    todo!()
+        let mut fallback_ret_ty = self.void_ty;
+        let mut yield_ty = None;
+        let mut next_ty = None;
+        match body {
+            ast::ArrowFnExprBody::Expr(expr) => {
+                let old = if let Some(check_mode) = self.check_mode {
+                    let old = self.check_mode;
+                    self.check_mode = Some(check_mode & CheckMode::SKIP_GENERIC_FUNCTIONS.not());
+                    old
                 } else {
-                    self.never_ty
+                    None
                 };
-            };
-            if tys.is_empty() {
-                if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                    // TODO: unwrap_return_ty
-                    ret_ty = Some(
-                        if self.some_type(contextual_ret_ty, |_, t| {
-                            t.flags.contains(TypeFlags::UNDEFINED)
-                        }) {
-                            self.undefined_ty
-                        } else {
-                            self.void_ty
-                        },
-                    );
-                }
-            } else {
-                ret_ty = Some(self.get_union_ty::<false>(
-                    &tys,
-                    ty::UnionReduction::Subtype,
-                    None,
-                    None,
-                    None,
-                ))
+                ret_ty = Some(self.check_expr_cached(expr));
+                self.check_mode = old;
+                // TODO: is_const_context
+                // TODO: is_async
             }
-        } else {
-            todo!("is_generator")
-        };
+            ast::ArrowFnExprBody::Block(body) => {
+                if fn_flags.contains(FnFlags::GENERATOR) {
+                    match self.check_and_aggregate_ret_expr_tys(id, body) {
+                        Some(return_tys) if !return_tys.is_empty() => {
+                            self.get_union_ty::<false>(
+                                &return_tys,
+                                ty::UnionReduction::Subtype,
+                                None,
+                                None,
+                                None,
+                            );
+                        }
+                        None => {
+                            fallback_ret_ty = self.never_ty;
+                        }
+                        _ => {}
+                    };
+                    let (yield_tys, next_tys) =
+                        self.check_and_aggregate_yield_operand_tys(id, body, is_async);
+                    yield_ty = if yield_tys.is_empty() {
+                        None
+                    } else {
+                        Some(self.get_union_ty::<false>(
+                            &yield_tys,
+                            ty::UnionReduction::Subtype,
+                            None,
+                            None,
+                            None,
+                        ))
+                    };
+                    next_ty = if next_tys.is_empty() {
+                        None
+                    } else {
+                        Some(self.get_intersection_ty(
+                            &next_tys,
+                            IntersectionFlags::None,
+                            None,
+                            None,
+                        ))
+                    };
+                } else {
+                    let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
+                        return if fn_flags.contains(FnFlags::ASYNC) {
+                            todo!()
+                        } else {
+                            self.never_ty
+                        };
+                    };
+                    if tys.is_empty() {
+                        if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
+                            // TODO: unwrap_return_ty
+                            ret_ty = Some(
+                                if self.some_type(contextual_ret_ty, |_, t| {
+                                    t.flags.contains(TypeFlags::UNDEFINED)
+                                }) {
+                                    self.undefined_ty
+                                } else {
+                                    self.void_ty
+                                },
+                            );
+                        }
+                    } else {
+                        ret_ty = Some(self.get_union_ty::<false>(
+                            &tys,
+                            ty::UnionReduction::Subtype,
+                            None,
+                            None,
+                            None,
+                        ))
+                    }
+                }
+            }
+        }
 
-        if ret_ty.is_some() {
+        if ret_ty.is_some() || yield_ty.is_some() || next_ty.is_some() {
+            if let Some(yield_ty) = yield_ty {
+                self.report_errors_from_widening(id, yield_ty, Some(WideningKind::FunctionReturn));
+            }
             if let Some(ret_ty) = ret_ty {
                 self.report_errors_from_widening(id, ret_ty, Some(WideningKind::FunctionReturn));
             }
-            if let Some(ret_t) = ret_ty
-                && ret_t.is_unit()
+            if let Some(next_ty) = next_ty {
+                self.report_errors_from_widening(id, next_ty, Some(WideningKind::FunctionReturn));
+            }
+            if ret_ty.is_some_and(|ret_ty| ret_ty.is_unit())
+                || yield_ty.is_some_and(|yield_ty| yield_ty.is_unit())
+                || next_ty.is_some_and(|next_ty| next_ty.is_unit())
             {
                 let contextual_sig = self.get_contextual_sig_for_fn_like_decl(id);
                 let contextual_ty = contextual_sig.and_then(|sig| {
                     if sig == self.get_sig_from_decl(id) {
-                        // TODO: is_generator
-                        Some(ret_t)
+                        if is_generator { None } else { ret_ty }
                     } else {
                         let ret_t = self.get_ret_ty_of_sig(sig);
                         self.instantiate_contextual_ty(Some(ret_t), id, None)
                     }
                 });
-                ret_ty = self.get_widened_lit_like_ty_for_contextual_ty_if_needed(
-                    Some(ret_t),
-                    contextual_ty,
-                    false,
-                );
+                if is_generator {
+                    yield_ty = self.get_widened_lit_like_ty_for_contextual_iteration_ty_if_needed(
+                        yield_ty,
+                        contextual_ty,
+                        IterationTypeKind::Yield,
+                        is_async,
+                    );
+                    ret_ty = self.get_widened_lit_like_ty_for_contextual_iteration_ty_if_needed(
+                        ret_ty,
+                        contextual_ty,
+                        IterationTypeKind::Return,
+                        is_async,
+                    );
+                    next_ty = self.get_widened_lit_like_ty_for_contextual_iteration_ty_if_needed(
+                        next_ty,
+                        contextual_ty,
+                        IterationTypeKind::Next,
+                        is_async,
+                    );
+                } else {
+                    ret_ty = self.get_widened_lit_like_ty_for_contextual_ty_if_needed(
+                        ret_ty,
+                        contextual_ty,
+                        false,
+                    );
+                }
             }
         }
 
-        if let Some(ty) = ret_ty {
-            ret_ty = Some(self.get_widened_ty(ty));
-        }
+        yield_ty = yield_ty.map(|ty| self.get_widened_ty(ty));
+        ret_ty = ret_ty.map(|ty| self.get_widened_ty(ty));
+        next_ty = next_ty.map(|ty| self.get_widened_ty(ty));
 
-        ret_ty.unwrap_or(fallback_ret_ty)
+        if is_generator {
+            // TODO:
+            ret_ty.unwrap_or(fallback_ret_ty)
+        } else if is_async {
+            // TODO:
+            ret_ty.unwrap_or(fallback_ret_ty)
+        } else {
+            ret_ty.unwrap_or(fallback_ret_ty)
+        }
     }
 
     pub(super) fn get_ty_params_for_mapper(&mut self, sig: &'cx ty::Sig<'cx>) -> ty::Tys<'cx> {

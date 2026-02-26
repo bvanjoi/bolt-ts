@@ -151,12 +151,12 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn instantiate_sig(
+    fn instantiate_sig_worker(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         mut mapper: &'cx dyn ty::TyMap<'cx>,
         erase_ty_params: bool,
-    ) -> &'cx ty::Sig<'cx> {
+    ) -> (ty::Sig<'cx>, Option<ty::Tys<'cx>>) {
         let mut fresh_ty_params = None;
         if !erase_ty_params && let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
             let new_ty_params = ty_params
@@ -179,14 +179,31 @@ impl<'cx> TyChecker<'cx> {
         let params = self.instantiate_list(sig.params, mapper, |this, symbol, mapper| {
             this.instantiate_symbol(symbol, mapper)
         });
-        let sig = self.new_sig(ty::Sig {
+        let sig = ty::Sig {
+            id: SigID::dummy(),
             target: Some(sig),
             mapper: Some(mapper),
             params,
             this_param,
-            id: SigID::dummy(),
-            ..*sig
-        });
+            node_id: sig.node_id,
+            flags: sig.flags & SigFlags::PROPAGATING_FLAGS,
+            min_args_count: sig.min_args_count,
+            ret: sig.ret,
+            class_decl: sig.class_decl,
+            composite_sigs: None,
+            composite_kind: None,
+        };
+        (sig, fresh_ty_params)
+    }
+
+    pub(super) fn instantiate_sig(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+        erase_ty_params: bool,
+    ) -> &'cx ty::Sig<'cx> {
+        let (sig, fresh_ty_params) = self.instantiate_sig_worker(sig, mapper, erase_ty_params);
+        let sig = self.new_sig(sig);
         if let Some(fresh_ty_params) = fresh_ty_params {
             let links = SigLinks::default().with_ty_params(fresh_ty_params);
             let prev = self.sig_links.insert(sig.id, links);
@@ -623,7 +640,7 @@ impl<'cx> TyChecker<'cx> {
             .copied()
     }
 
-    fn clone_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Sig<'cx> {
+    pub(super) fn clone_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Sig<'cx> {
         let next = ty::Sig {
             id: SigID::dummy(),
             flags: sig.flags & SigFlags::PROPAGATING_FLAGS,
@@ -635,6 +652,8 @@ impl<'cx> TyChecker<'cx> {
             target: sig.target,
             mapper: sig.mapper,
             class_decl: sig.class_decl,
+            composite_sigs: sig.composite_sigs,
+            composite_kind: sig.composite_kind,
         };
         if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
             let links = SigLinks::default().with_ty_params(ty_params);
@@ -642,7 +661,6 @@ impl<'cx> TyChecker<'cx> {
             debug_assert!(prev.is_none());
         }
 
-        // TODO: composite_kind and composite_signatures
         self.new_sig(next)
     }
 
@@ -676,6 +694,8 @@ impl<'cx> TyChecker<'cx> {
                 mapper: None,
                 id: SigID::dummy(),
                 class_decl: decl,
+                composite_sigs: None,
+                composite_kind: None,
             });
             let links = SigLinks::default().with_resolved_ret_ty(class_ty);
             let links = if let Some(ty_params) = i.local_ty_params {
@@ -697,47 +717,54 @@ impl<'cx> TyChecker<'cx> {
                 let ty_param_count = base_sig_ty_params.map(|t| t.len()).unwrap_or_default();
                 if is_js || ty_arg_count >= min_ty_argument_count && ty_arg_count <= ty_param_count
                 {
-                    let sig = if ty_param_count > 0 {
+                    let (sig, fallback_ty_params) = if ty_param_count > 0 {
                         let ty_args = self.fill_missing_ty_args(
                             ty_args,
                             base_sig_ty_params,
                             min_ty_argument_count,
                         );
-                        self.create_sig_instantiation(base_sig, ty_args)
+                        let ty_params = self.get_ty_params_for_mapper(base_sig);
+                        let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
+                        let (mut sig, fresh_ty_params) =
+                            self.instantiate_sig_worker(base_sig, mapper, true);
+                        sig.flags = if is_abstract {
+                            sig.flags | SigFlags::ABSTRACT
+                        } else {
+                            sig.flags & !SigFlags::ABSTRACT
+                        };
+                        (self.new_sig(sig), fresh_ty_params)
                     } else {
-                        self.clone_sig(base_sig)
+                        let flags = if is_abstract {
+                            (base_sig.flags & SigFlags::PROPAGATING_FLAGS) | SigFlags::ABSTRACT
+                        } else {
+                            (base_sig.flags & SigFlags::PROPAGATING_FLAGS) & !SigFlags::ABSTRACT
+                        };
+                        let next = ty::Sig {
+                            id: SigID::dummy(),
+                            flags,
+                            params: base_sig.params,
+                            this_param: base_sig.this_param,
+                            min_args_count: base_sig.min_args_count,
+                            ret: base_sig.ret,
+                            node_id: base_sig.node_id,
+                            target: base_sig.target,
+                            mapper: base_sig.mapper,
+                            class_decl: base_sig.class_decl,
+                            composite_sigs: base_sig.composite_sigs,
+                            composite_kind: base_sig.composite_kind,
+                        };
+                        let ty_params = self.get_sig_links(base_sig.id).get_ty_params();
+                        (self.new_sig(next), ty_params)
                     };
-                    let links = if let Some(old) = self.sig_links.get(&sig.id) {
-                        assert!(old.get_resolved_ret_ty().is_none());
-                        old.with_resolved_ret_ty(class_ty)
-                    } else {
-                        SigLinks::default().with_resolved_ret_ty(class_ty)
-                    };
-                    let links = if let Some(ty_params) = i.local_ty_params {
+                    let links = SigLinks::default().with_resolved_ret_ty(class_ty);
+                    let ty_params = i.local_ty_params.or(fallback_ty_params);
+                    let links = if let Some(ty_params) = ty_params {
                         links.with_ty_params(ty_params)
                     } else {
                         links
                     };
-                    let sig = ty::Sig {
-                        id: ty::SigID::dummy(),
-                        flags: if is_abstract {
-                            sig.flags | SigFlags::ABSTRACT
-                        } else {
-                            sig.flags & !SigFlags::ABSTRACT
-                        },
-                        params: sig.params,
-                        this_param: sig.this_param,
-                        min_args_count: sig.min_args_count,
-                        ret: sig.ret,
-                        node_id: sig.node_id,
-                        target: sig.target,
-                        mapper: sig.mapper,
-                        class_decl: sig.class_decl,
-                    };
-
-                    let sig = self.new_sig(sig);
                     let prev = self.sig_links.insert(sig.id, links);
-                    assert!(prev.is_none());
+                    debug_assert!(prev.is_none());
                     res.push(sig);
                 }
             }

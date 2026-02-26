@@ -660,7 +660,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.any_ty)
     }
 
-    fn get_iteration_tys_of_iter(
+    pub(super) fn get_iteration_tys_of_iterable(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mode: IterationUse,
@@ -700,7 +700,7 @@ impl<'cx> TyChecker<'cx> {
         let possible_out_of_bounds = self.config.no_unchecked_indexed_access()
             && mode.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
-            let iteration_tys = self.get_iteration_tys_of_iter(
+            let iteration_tys = self.get_iteration_tys_of_iterable(
                 input_ty,
                 mode,
                 if uplevel_iteration { error_node } else { None },

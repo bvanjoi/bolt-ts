@@ -43,10 +43,10 @@ fn visit_binding<'cx>(v: &mut impl Visitor<'cx>, node: &'cx ast::Binding<'cx>) {
     use ast::BindingKind::*;
     match node.kind {
         Ident(n) => v.visit_ident(n),
-        ObjectPat(n) => {
+        ObjectPat(_) => {
             // TODO:
         }
-        ArrayPat(n) => {
+        ArrayPat(_) => {
             // TODO:
         }
     }
@@ -210,6 +210,11 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx ast::Ty<'cx>) {
     }
 }
 pub fn visit_this_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::ThisTy) {}
+pub fn visit_yield_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::YieldExpr<'cx>) {
+    if let Some(expr) = n.expr {
+        v.visit_expr(expr);
+    }
+}
 pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ReferTy<'cx>) {
     // TODO: name
     if let Some(ty_args) = n.ty_args {
@@ -522,7 +527,8 @@ make_visitor!(
     (visit_call_expr, ast::CallExpr<'cx>),
     (visit_prop_signature, ast::PropSignature<'cx>),
     (visit_method_signature, ast::MethodSignature<'cx>),
-    (visit_this_ty, ast::ThisTy)
+    (visit_this_ty, ast::ThisTy),
+    (visit_yield_expr, ast::YieldExpr)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

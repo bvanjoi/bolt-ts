@@ -1,0 +1,22 @@
+  × Cannot find name 'J'.
+    ╭─[../../tests/compiler/typeofSimple/index.ts:13:29]
+ 13 │ J
+    · ─
+    ╰────
+
+Advice: 
+  ☞ 'J' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeofSimple/index.ts:13:29]
+ 11 │ J { }
+    · ┬
+    · ╰── 'J' is defined here.
+ 12 │ 
+ 13 │ declare var numberJ: typeof J
+    ·                             ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/typeofSimple/index.ts:7:5]
+ 7 │ v3
+   · ──
+   ╰────

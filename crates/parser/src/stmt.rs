@@ -1265,7 +1265,8 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::FnDecl<'cx>> {
-        self.parse_fn_decl_or_expr(ParseFnDecl, modifiers)
+        let flags = modifiers.map(|m| m.flags).unwrap_or_default();
+        self.parse_fn_decl_or_expr(ParseFnDecl, modifiers, flags)
     }
 
     fn parse_if_stmt(&mut self) -> PResult<&'cx ast::IfStmt<'cx>> {

@@ -1,12 +1,12 @@
-use crate::SignatureFlags;
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-
+use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::state::LanguageVariant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
+
 use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
 use bolt_ts_ast::{self as ast, ModifierKind, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
@@ -104,7 +104,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_modifiers_for_arrow_function(&mut self) -> Option<&'cx ast::Modifier> {
+    fn parse_async_modifier(&mut self) -> Option<&'cx ast::Modifier> {
         if self.token.kind == TokenKind::Async {
             let span = self.token.span;
             self.next_token();
@@ -122,7 +122,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         let start = self.token.start();
-        let modifier = self.parse_modifiers_for_arrow_function();
+        let modifier = self.parse_async_modifier();
         debug_assert!(modifier.is_none_or(|m| m.kind == ast::ModifierKind::Async));
         let is_async = modifier.is_some();
         let signature_flags = if is_async {
@@ -138,7 +138,7 @@ impl<'cx> ParserState<'cx, '_> {
             if !ALLOW_AMBIGUITY {
                 return Err(());
             }
-            params = self.alloc([]);
+            params = &[];
         } else {
             params = self.parse_params_worker(signature_flags, ALLOW_AMBIGUITY);
             if !self.expect(TokenKind::RParen) && !ALLOW_AMBIGUITY {
@@ -1036,6 +1036,13 @@ impl<'cx> ParserState<'cx, '_> {
                     Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected)))
                 }
             }
+            Async => {
+                if !self.lookahead(Lookahead::next_token_is_function_kw_on_same_line) {
+                    Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected)))
+                } else {
+                    self.parse_fn_expr()
+                }
+            }
             _ => Ok(self.parse_ident(Some(errors::MissingIdentKind::ExpressionExpected))),
         }
     }
@@ -1176,7 +1183,12 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_fn_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        let f = self.parse_fn_decl_or_expr(ParseFnExpr, None)?;
+        let modifier = self.parse_async_modifier();
+        let f = self.parse_fn_decl_or_expr(
+            ParseFnExpr,
+            modifier,
+            modifier.map(|m| m.kind.into()).unwrap_or_default(),
+        )?;
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Fn(f),
         });
