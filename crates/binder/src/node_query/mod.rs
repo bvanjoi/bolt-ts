@@ -423,9 +423,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             } else {
                 match node {
                     FnDecl(_) | FnExpr(_) | ModuleDecl(_) | ClassPropElem(_)
-                    | ClassMethodElem(_) | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_)
-                    | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_)
-                    | PropSignature(_) => return id,
+                    | ClassMethodElem(_) | MethodSignature(_) | ClassCtor(_) | CtorSigDecl(_)
+                    | GetterDecl(_) | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_)
+                    | Program(_) | PropSignature(_) => return id,
                     _ => {}
                 }
             }

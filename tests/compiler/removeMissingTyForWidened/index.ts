@@ -279,3 +279,14 @@ type A<Options extends Required<O>> = B<Options['b']>;
     const residence: T1 = new Building();
   }
 }
+
+{
+  interface A {
+    f(): this
+  }
+  interface B {
+    f(): boolean
+  }
+  const a0: A extends B ? true : false = true;
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'
+}

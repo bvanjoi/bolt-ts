@@ -28,3 +28,9 @@
  264 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
      · ──────────────────────────────────────────────────────
      ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:290:9]
+ 290 │ a0
+     · ──
+     ╰────
