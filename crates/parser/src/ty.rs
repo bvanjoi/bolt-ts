@@ -222,7 +222,7 @@ impl<'cx> ParserState<'cx, '_> {
             let pos = self.token.start();
             let m = self.parse_modifier::<false, false>(false).unwrap();
             let span = self.new_span(pos);
-            let modifiers = self.alloc(vec![m]);
+            let modifiers = self.alloc([m]);
             let flags = ast::ModifierKind::Abstract.into();
             Some(self.create_modifiers(span, modifiers, flags))
         } else {

@@ -280,7 +280,7 @@ impl<'cx> Ty<'cx> {
             let ele = ele.to_string(checker);
             return format!("{ele}[]");
         } else if self == checker.boolean_ty() {
-            return keyword::IDENT_BOOLEAN_STR.to_string();
+            return "boolean".to_string();
         }
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),

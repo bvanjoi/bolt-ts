@@ -25,3 +25,11 @@ function f0() {
   let fn;
   `${f({class: fn})}`
 }
+
+const e0: `${true | ''}` = 42;
+//~^ ERROR: Type 'number' is not assignable to type '"" | "true"'.
+const e1: `${true | ''}` = 'true';
+const e2: `${true | ''}` = '';
+const e3: 'true' | '' = 'true';
+const e4: 'true' | '' = '';
+const e5: `${undefined | ''}` = 'undefined';

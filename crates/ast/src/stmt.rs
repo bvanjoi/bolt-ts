@@ -679,22 +679,22 @@ pub enum ModifierKind {
 impl std::fmt::Display for ModifierKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ModifierKind::Public => keyword::KW_PUBLIC_STR,
-            ModifierKind::Private => keyword::KW_PRIVATE_STR,
-            ModifierKind::Protected => keyword::KW_PROTECTED_STR,
-            ModifierKind::Readonly => keyword::KW_READONLY_STR,
+            ModifierKind::Public => "public",
+            ModifierKind::Private => "private",
+            ModifierKind::Protected => "protected",
+            ModifierKind::Readonly => "readonly",
             ModifierKind::Override => "override",
-            ModifierKind::Export => keyword::KW_EXPORT_STR,
-            ModifierKind::Abstract => keyword::KW_ABSTRACT_STR,
-            ModifierKind::Static => keyword::KW_STATIC_STR,
-            ModifierKind::Ambient => keyword::KW_DECLARE_STR,
-            ModifierKind::Default => keyword::KW_DEFAULT_STR,
-            ModifierKind::Const => keyword::KW_CONST_STR,
-            ModifierKind::Decorator => todo!(),
-            ModifierKind::Accessor => todo!(),
-            ModifierKind::Async => todo!(),
-            ModifierKind::In => todo!(),
-            ModifierKind::Out => todo!(),
+            ModifierKind::Export => "export",
+            ModifierKind::Abstract => "abstract",
+            ModifierKind::Static => "static",
+            ModifierKind::Ambient => "declare",
+            ModifierKind::Default => "default",
+            ModifierKind::Const => "const",
+            ModifierKind::Decorator => "decorator",
+            ModifierKind::Accessor => "accessor",
+            ModifierKind::Async => "async",
+            ModifierKind::In => "in",
+            ModifierKind::Out => "out",
         };
         write!(f, "{s}")
     }

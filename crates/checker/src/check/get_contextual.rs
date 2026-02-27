@@ -2,6 +2,7 @@ use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
 
+use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
 use super::ast;
@@ -129,14 +130,64 @@ impl<'cx> TyChecker<'cx> {
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let f = self.node_query(id.module()).get_containing_fn(id)?;
-        let contextual_return_ty = self.get_contextual_ret_ty(f, flags)?;
+        let mut contextual_return_ty = self.get_contextual_ret_ty(f, flags)?;
         let fn_flags = self.p.node(f).fn_flags();
         if fn_flags.contains(FnFlags::GENERATOR) {
-            todo!()
-        } else if fn_flags.contains(FnFlags::ASYNC) {
-            todo!()
+            let is_async_generator = fn_flags.contains(FnFlags::ASYNC);
+            if contextual_return_ty.flags.contains(TypeFlags::UNION) {
+                contextual_return_ty = self.filter_type(contextual_return_ty, |this, t| {
+                    this.get_iteration_ty_of_generator_fn_return_ty(
+                        IterationTypeKind::Return,
+                        t,
+                        is_async_generator,
+                    )
+                    .is_some()
+                });
+            }
+            let Some(iteration_ret_ty) = self.get_iteration_ty_of_generator_fn_return_ty(
+                IterationTypeKind::Return,
+                contextual_return_ty,
+                is_async_generator,
+            ) else {
+                return None;
+            };
+            contextual_return_ty = iteration_ret_ty;
+        }
+        if fn_flags.contains(FnFlags::ASYNC) {
+            return self
+                .map_ty(
+                    contextual_return_ty,
+                    |this, t| this.get_awaited_ty_no_alias(t),
+                    false,
+                )
+                .and_then(|contextual_await_ty| {
+                    let ty = self.create_promise_like_ty(contextual_await_ty);
+                    Some(self.get_union_ty::<false>(
+                        &[contextual_await_ty, ty],
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                    ))
+                });
         }
         Some(contextual_return_ty)
+    }
+
+    fn create_promise_like_ty(&mut self, mut promised_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let global_promise_ty = self.get_global_promise_ty::<true>();
+        if global_promise_ty != self.empty_generic_ty() {
+            let ty = self.unwrap_awaited_ty(promised_ty);
+            promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let resolved_ty_args = self.alloc([promised_ty]);
+            self.create_reference_ty(
+                global_promise_ty,
+                Some(resolved_ty_args),
+                ObjectFlags::empty(),
+            )
+        } else {
+            self.unknown_ty
+        }
     }
 
     fn get_contextual_ty_for_object_literal_ele(
@@ -215,12 +266,26 @@ impl<'cx> TyChecker<'cx> {
         {
             let ret_ty = self.get_ret_ty_of_sig(sig);
             let fn_flags = self.p.node(id).fn_flags();
-            if fn_flags.contains(FnFlags::GENERATOR) {
-                todo!()
+            return Some(if fn_flags.contains(FnFlags::GENERATOR) {
+                self.filter_type(ret_ty, |this, t| {
+                    t.flags.intersects(
+                        TypeFlags::ANY_OR_UNKNOWN
+                            .union(TypeFlags::VOID)
+                            .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
+                    ) || this
+                        .check_generator_instantiation_assignability_to_return_ty(t, fn_flags, None)
+                })
             } else if fn_flags.contains(FnFlags::ASYNC) {
-                todo!()
-            }
-            return Some(ret_ty);
+                self.filter_type(ret_ty, |this, t| {
+                    t.flags.intersects(
+                        TypeFlags::ANY_OR_UNKNOWN
+                            .union(TypeFlags::VOID)
+                            .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
+                    ) || this.get_awaited_ty_of_promise(t, None).is_none()
+                })
+            } else {
+                ret_ty
+            });
         }
 
         if self.node_query(id.module()).get_iife(id).is_some() {
@@ -806,5 +871,15 @@ impl<'cx> TyChecker<'cx> {
         } else {
             false
         }
+    }
+
+    pub(super) fn get_contextual_iteration_ty(
+        &mut self,
+        kind: IterationTypeKind,
+        fn_decl: ast::NodeID,
+        is_async: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let contextual_ret_ty = self.get_contextual_ret_ty(fn_decl, None)?;
+        self.get_iteration_ty_of_generator_fn_return_ty(kind, contextual_ret_ty, is_async)
     }
 }

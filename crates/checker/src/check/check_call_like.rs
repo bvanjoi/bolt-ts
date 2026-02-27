@@ -162,14 +162,10 @@ impl<'cx> TyChecker<'cx> {
         }
         let mut ty = if let Some(target) = sig.target {
             let ret_ty = self.get_ret_ty_of_sig(target);
-            let ret_ty = self.instantiate_ty(ret_ty, sig.mapper);
-            ret_ty
+            self.instantiate_ty(ret_ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {
-            if let Some(ty) = self.get_ret_ty_from_anno(node_id) {
-                ty
-            } else {
-                self.get_ret_ty_from_body(node_id)
-            }
+            self.get_ret_ty_from_anno(node_id)
+                .unwrap_or_else(|| self.get_ret_ty_from_body(node_id))
         } else {
             self.any_ty
         };
@@ -664,7 +660,7 @@ impl<'cx> TyChecker<'cx> {
                 let param_ty = self.get_ty_at_pos(sig, i);
                 let arg_ty = if self.p.node(expr.id()).is_tagged_template_expr() {
                     // TODO: wrap by `check_expr_with_contextual_ty`
-                    self.global_tpl_strings_array_ty()
+                    self.get_global_template_strings_array_ty()
                 } else {
                     self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode)
                 };

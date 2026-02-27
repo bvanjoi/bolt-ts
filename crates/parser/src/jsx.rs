@@ -271,7 +271,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             JsxTagName::Ns(self.create_jsx_ns_name(tag_name, name, span))
         } else if is_this {
             let span = self.new_span(start);
-            debug_assert!(span.lo() + keyword::KW_THIS_STR.len() as u32 == span.hi());
+            debug_assert!(span.lo() + "this".len() as u32 == span.hi());
             let this = self.create_this_expr(span);
             JsxTagName::This(this)
         } else {

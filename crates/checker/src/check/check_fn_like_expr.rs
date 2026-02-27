@@ -357,7 +357,7 @@ impl<'cx> TyChecker<'cx> {
                 );
                 debug_assert!(prev.is_none());
                 let symbol = self.get_symbol_of_decl(node);
-                let call_sigs = self.alloc(vec![ret_only_sig]);
+                let call_sigs = self.alloc([ret_only_sig]);
                 let ret_only_ty = self.create_anonymous_ty_with_resolved(
                     Some(symbol),
                     ty::ObjectFlags::NON_INFERRABLE_TYPE,

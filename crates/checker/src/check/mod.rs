@@ -29,6 +29,8 @@ mod get_context;
 mod get_contextual;
 mod get_declared_ty;
 mod get_effective_node;
+mod get_global;
+mod get_iteration_tys;
 mod get_mapped_ty_info;
 mod get_sig;
 mod get_simplified_ty;
@@ -58,14 +60,15 @@ mod symbol_info;
 mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
+mod unwrap_ty;
 pub mod utils;
 
 use std::fmt::Debug;
 
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_ast::{BinOp, pprint_ident};
+use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
@@ -82,8 +85,7 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashs
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::check::get_widened_ty::IterationTypeKind;
-use crate::check::relation::EnumRelationMap;
+use crate::check::get_iteration_tys::IterationTypeKind;
 
 use self::check_expr::IterationUse;
 use self::check_type_related_to::RecursionFlags;
@@ -111,6 +113,7 @@ pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
 pub use self::merge::merge_module_augmentation_list_for_global;
 use self::node_check_flags::NodeCheckFlags;
+use self::relation::EnumRelationMap;
 pub use self::resolve::ExpectedArgsCount;
 pub(crate) use self::symbol_info::SymbolInfo;
 use self::transient_symbol::create_transient_symbol;
@@ -120,7 +123,7 @@ use self::utils::contains_ty;
 
 use super::ty::TyMapper;
 use super::ty::{self, AccessFlags};
-use super::ty::{CheckFlags, IndexFlags, IterationTys, TYPEOF_NE_FACTS};
+use super::ty::{CheckFlags, IndexFlags, TYPEOF_NE_FACTS};
 use super::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
 
 bitflags::bitflags! {
@@ -315,12 +318,9 @@ pub struct TyChecker<'cx> {
     global_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_readonly_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    global_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_regexp_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    global_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    global_tpl_strings_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -335,11 +335,51 @@ pub struct TyChecker<'cx> {
     unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
 
+    deferred_global_typed_property_descriptor_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_template_strings_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_import_meta_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_import_meta_expression_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_import_call_optionals_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_import_attributes_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_es_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     deferred_global_promise_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    deferred_global_non_nullable_type_alias: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_promise_like_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_promise_constructor_like_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_iterable_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_iterator_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_generator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_iterable_iterator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_iterator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_async_disposable_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterable_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterator_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterable_iterator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_generator_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterator_yield_result_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_iterator_return_result_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_disposable_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_method_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_getter_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_setter_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_accessor_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_accessor_decorator_target_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_accessor_decorator_return_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    deferred_global_class_field_decorator_context_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+
+    deferred_global_builtin_iterator_tys: std::cell::OnceCell<ty::Tys<'cx>>,
+    deferred_global_builtin_async_iterator_tys: std::cell::OnceCell<ty::Tys<'cx>>,
+
     deferred_global_extract_symbol: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_omit_symbol: std::cell::OnceCell<Option<SymbolID>>,
     deferred_global_awaited_symbol: std::cell::OnceCell<Option<SymbolID>>,
     deferred_global_es_symbol_constructor_symbol: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_promise_constructor_symbol: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_non_nullable_type_alias: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_nan_symbol: std::cell::OnceCell<Option<SymbolID>>,
+    deferred_global_record_symbol: std::cell::OnceCell<Option<SymbolID>>,
 
     any_iteration_tys: std::cell::OnceCell<&'cx ty::IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
@@ -640,10 +680,7 @@ impl<'cx> TyChecker<'cx> {
             auto_array_ty: Default::default(),
             empty_ty_literal_ty: Default::default(),
             global_number_ty: Default::default(),
-            global_bigint_ty: Default::default(),
             global_string_ty: Default::default(),
-            global_symbol_ty: Default::default(),
-            global_tpl_strings_array_ty: Default::default(),
             global_boolean_ty: Default::default(),
             global_array_ty: Default::default(),
             global_readonly_array_ty: Default::default(),
@@ -661,11 +698,49 @@ impl<'cx> TyChecker<'cx> {
             any_iteration_tys: Default::default(),
             unknown_empty_object_ty: Default::default(),
 
+            deferred_global_typed_property_descriptor_ty: Default::default(),
+            deferred_global_template_strings_array_ty: Default::default(),
+            deferred_global_import_meta_ty: Default::default(),
+            deferred_global_import_meta_expression_ty: Default::default(),
+            deferred_global_import_call_optionals_ty: Default::default(),
+            deferred_global_import_attributes_ty: Default::default(),
+            deferred_global_es_symbol_ty: Default::default(),
             deferred_global_promise_ty: Default::default(),
+            deferred_global_promise_like_ty: Default::default(),
+            deferred_global_promise_constructor_like_ty: Default::default(),
+            deferred_global_async_iterable_ty: Default::default(),
+            deferred_global_async_iterator_ty: Default::default(),
+            deferred_global_async_iterator_object_ty: Default::default(),
+            deferred_global_async_disposable_ty: Default::default(),
+            deferred_global_async_iterable_iterator_ty: Default::default(),
+            deferred_global_async_generator_ty: Default::default(),
+            deferred_global_iterable_ty: Default::default(),
+            deferred_global_iterator_ty: Default::default(),
+            deferred_global_iterator_object_ty: Default::default(),
+            deferred_global_iterable_iterator_ty: Default::default(),
+            deferred_global_generator_ty: Default::default(),
+            deferred_global_iterator_yield_result_ty: Default::default(),
+            deferred_global_iterator_return_result_ty: Default::default(),
+            deferred_global_disposable_ty: Default::default(),
+            deferred_global_bigint_ty: Default::default(),
+            deferred_global_class_decorator_context_ty: Default::default(),
+            deferred_global_class_method_decorator_context_ty: Default::default(),
+            deferred_global_class_getter_decorator_context_ty: Default::default(),
+            deferred_global_class_setter_decorator_context_ty: Default::default(),
+            deferred_global_class_accessor_decorator_context_ty: Default::default(),
+            deferred_global_class_accessor_decorator_target_ty: Default::default(),
+            deferred_global_class_accessor_decorator_return_ty: Default::default(),
+            deferred_global_class_field_decorator_context_ty: Default::default(),
+            deferred_global_builtin_iterator_tys: Default::default(),
+            deferred_global_builtin_async_iterator_tys: Default::default(),
             deferred_global_extract_symbol: Default::default(),
-            deferred_global_non_nullable_type_alias: Default::default(),
+            deferred_global_omit_symbol: Default::default(),
             deferred_global_awaited_symbol: Default::default(),
             deferred_global_es_symbol_constructor_symbol: Default::default(),
+            deferred_global_promise_constructor_symbol: Default::default(),
+            deferred_global_non_nullable_type_alias: Default::default(),
+            deferred_global_nan_symbol: Default::default(),
+            deferred_global_record_symbol: Default::default(),
 
             no_ty_pred: Default::default(),
 
@@ -741,18 +816,16 @@ impl<'cx> TyChecker<'cx> {
             (string_or_number_ty,           this.get_union_ty::<false>(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, None, None, None)),
             (string_number_symbol_ty,       this.get_union_ty::<false>(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit, None, None, None)),
             (number_or_bigint_ty,           this.get_union_ty::<false>(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit, None, None, None)),
-            (global_number_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
-            (global_boolean_ty,             this.get_global_type(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
-            (global_symbol_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS))),
-            (global_string_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_STRING_CLASS))),
-            (global_array_ty,               this.get_global_type(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
-            (global_regexp_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_REGEXP_CLASS))),
-            (global_tpl_strings_array_ty,   this.get_global_type(SymbolName::Atom(keyword::IDENT_TEMPLATE_STRINGS_ARRAY_CLASS))),
-            (global_readonly_array_ty,      this.get_global_type(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
-            (global_object_ty,              this.get_global_type(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
-            (global_fn_ty,                  this.get_global_type(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
-            (global_callable_fn_ty,         if this.config.strict_bind_call_apply() { this.get_global_type(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
-            (global_newable_fn_ty,          if this.config.strict_bind_call_apply() { this.get_global_type(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
+            (global_number_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
+            (global_boolean_ty,             this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
+            (global_string_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_STRING_CLASS))),
+            (global_array_ty,               this.get_global_type::<1, true>(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
+            (global_regexp_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_REGEXP_CLASS))),
+            (global_readonly_array_ty,      this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
+            (global_object_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
+            (global_fn_ty,                  this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
+            (global_callable_fn_ty,         if this.config.strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
+            (global_newable_fn_ty,          if this.config.strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
             (any_array_ty,                  this.create_array_ty(this.any_ty, false)),
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
@@ -779,8 +852,6 @@ impl<'cx> TyChecker<'cx> {
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
             (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false })),
-
-            (global_bigint_ty,              this.try_get_global_type(SymbolName::Atom(keyword::IDENT_BIGINT_CLASS)).unwrap_or(empty_object_ty)),
         });
 
         let unknown_union_ty = if this.config.strict_null_checks() {
@@ -800,7 +871,8 @@ impl<'cx> TyChecker<'cx> {
 
         this.type_name.insert(boolean_ty.id, "boolean".to_string());
 
-        let iarguments = this.get_global_type(SymbolName::Atom(keyword::IDENT_IARGUMENTS_CLASS));
+        let iarguments =
+            this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_IARGUMENTS_CLASS));
         this.get_mut_symbol_links(arguments_symbol)
             .set_ty(iarguments);
 
@@ -938,13 +1010,13 @@ impl<'cx> TyChecker<'cx> {
         } else if flags.intersects(TypeFlags::NUMBER_LIKE) {
             self.global_number_ty()
         } else if flags.intersects(TypeFlags::BIG_INT_LIKE) {
-            self.global_bigint_ty()
+            self.get_global_bigint_ty()
         } else if flags.intersects(TypeFlags::STRING_LIKE) {
             self.global_string_ty()
         } else if flags.intersects(TypeFlags::BOOLEAN_LIKE) {
             self.global_boolean_ty()
         } else if flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
-            self.global_symbol_ty()
+            self.get_global_es_symbol_ty()
         } else if flags.contains(TypeFlags::NON_PRIMITIVE) {
             self.empty_object_ty()
         } else if flags.contains(TypeFlags::INDEX) {
@@ -2975,7 +3047,7 @@ impl<'cx> TyChecker<'cx> {
         (yield_tys, next_tys)
     }
 
-    pub(super) fn check_and_aggregate_ret_expr_tys(
+    fn check_and_aggregate_ret_expr_tys(
         &mut self,
         f: ast::NodeID,
         body: &'cx ast::BlockStmt<'cx>,
@@ -5882,42 +5954,50 @@ impl<'cx> TyChecker<'cx> {
         Some(instantiated_base)
     }
 
-    fn get_iteration_ty_generator_fn_return_ty(
+    fn check_generator_instantiation_assignability_to_return_ty(
         &mut self,
-        kind: IterationTypeKind,
         return_ty: &'cx ty::Ty<'cx>,
-        is_async_generator: bool,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        if self.is_type_any(return_ty) {
-            return None;
-        }
-
-        let iteration_tys =
-            self.get_iteration_tys_of_generator_fn_return_ty(return_ty, is_async_generator);
-        Some(match kind {
-            IterationTypeKind::Yield => iteration_tys.yield_ty,
-            IterationTypeKind::Return => iteration_tys.return_ty,
-            IterationTypeKind::Next => iteration_tys.next_ty,
-        })
+        fn_flags: FnFlags,
+        error_node: Option<ast::NodeID>,
+    ) -> bool {
+        let is_async = fn_flags.contains(FnFlags::ASYNC);
+        let generator_yield_ty = self
+            .get_iteration_ty_of_generator_fn_return_ty(
+                IterationTypeKind::Yield,
+                return_ty,
+                is_async,
+            )
+            .unwrap_or(self.any_ty);
+        let generator_return_ty = self
+            .get_iteration_ty_of_generator_fn_return_ty(
+                IterationTypeKind::Return,
+                return_ty,
+                is_async,
+            )
+            .unwrap_or(generator_yield_ty);
+        let generator_next_ty = self
+            .get_iteration_ty_of_generator_fn_return_ty(
+                IterationTypeKind::Next,
+                return_ty,
+                is_async,
+            )
+            .unwrap_or(self.unknown_ty);
+        let generator_instantiation = self.create_generator_ty(
+            generator_yield_ty,
+            generator_return_ty,
+            generator_next_ty,
+            is_async,
+        );
+        self.check_type_assignable_to(generator_instantiation, return_ty, error_node)
     }
 
-    fn get_iteration_tys_of_generator_fn_return_ty(
+    fn get_awaited_ty_of_promise(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        is_async_generator: bool,
-    ) -> &'cx ty::IterationTys<'cx> {
-        if self.is_type_any(ty) {
-            return self.any_iteration_tys();
-        }
-
-        let mode = if is_async_generator {
-            IterationUse::ASYNC_GENERATOR_RETURN_TYPE
-        } else {
-            IterationUse::GENERATOR_RETURN_TYPE
-        };
-
-        // TODO: resolver
-        self.get_iteration_tys_of_iterable(ty, mode, None)
+        error_node: Option<ast::NodeID>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let promised_ty = self.get_promised_ty_of_promise(ty)?;
+        self.get_awaited_ty(promised_ty)
     }
 }
 
@@ -5952,11 +6032,8 @@ global_ty!(
     no_constraint_ty,
     typeof_ty,
     global_number_ty,
-    global_bigint_ty,
     global_string_ty,
     global_boolean_ty,
-    global_symbol_ty,
-    global_tpl_strings_array_ty,
     global_array_ty,
     global_readonly_array_ty,
     any_readonly_array_ty,

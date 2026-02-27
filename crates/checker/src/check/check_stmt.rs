@@ -246,52 +246,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_global_awaited_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_awaited_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol(SymbolName::Atom(keyword::IDENT_AWAITED), 1, true);
-        let res = self.deferred_global_awaited_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
-    pub(super) fn get_global_es_symbol_constructor_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_es_symbol_constructor_symbol.get() {
-            return *symbol;
-        }
-        let symbol = self.get_global_value_symbol(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS));
-        let res = self
-            .deferred_global_es_symbol_constructor_symbol
-            .set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
-    fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_extract_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol(SymbolName::Atom(keyword::IDENT_EXTRACT), 2, true);
-        let res = self.deferred_global_extract_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
-    pub(super) fn get_global_promise_ty(&mut self) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.deferred_global_promise_ty.get() {
-            return ty;
-        }
-        self.try_get_global_type(SymbolName::Atom(keyword::IDENT_PROMISE))
-            .unwrap_or(self.empty_generic_ty())
-    }
-
     fn get_extract_string_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let extract_ty_alias = self.get_global_extract_symbol();
         if let Some(extract_ty_alias) = extract_ty_alias {
-            let ty_args = self.alloc(vec![ty, self.string_ty]);
+            let ty_args = self.alloc([ty, self.string_ty]);
             self.get_type_alias_instantiation(extract_ty_alias, ty_args, None, None)
         } else {
             self.string_ty
@@ -484,7 +442,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_awaited_ty_instantiation(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_awaited_ty_instantiation(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if ty.flags.contains(TypeFlags::CONDITIONAL) {
             let Some(awaited) = self.get_global_awaited_symbol() else {
                 return false;
@@ -531,17 +489,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         false
-    }
-
-    fn unwrap_awaited_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if let Some(u) = ty.kind.as_union() {
-            self.map_union_ty(ty, u, |this, t| Some(this.unwrap_awaited_ty(t)), false)
-                .unwrap()
-        } else if self.is_awaited_ty_instantiation(ty) {
-            ty.alias_ty_arguments().unwrap()[0]
-        } else {
-            ty
-        }
     }
 
     fn try_create_awaited_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
@@ -655,7 +602,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_promised_ty_of_promise(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+    pub(super) fn get_promised_ty_of_promise(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
         if self.is_type_any(ty) {
             return None;
         }
@@ -669,7 +619,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(cached);
         }
 
-        let promise_ty = self.get_global_promise_ty();
+        let promise_ty = self.get_global_promise_ty::<false>();
         if self.is_reference_to_ty(ty, promise_ty) {
             let promised_ty_of_promise = self.get_ty_arguments(ty)[0];
             if let Some(id) = id {
@@ -763,23 +713,6 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_at_pos(sig, 0)
         } else {
             fallback_ty
-        }
-    }
-
-    pub(super) fn unwrap_ret_ty(
-        &mut self,
-        ret_ty: &'cx ty::Ty<'cx>,
-        flags: ast::FnFlags,
-    ) -> &'cx ty::Ty<'cx> {
-        let is_generator = flags.contains(ast::FnFlags::GENERATOR);
-        let is_async = flags.contains(ast::FnFlags::ASYNC);
-        if is_generator {
-            todo!()
-        } else if is_async {
-            self.get_awaited_ty_no_alias(ret_ty)
-                .unwrap_or(self.error_ty)
-        } else {
-            ret_ty
         }
     }
 

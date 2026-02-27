@@ -76,10 +76,7 @@ macro_rules! prefilled_atom_map {
 
     };
     ( $owner: ident, $(($name:ident, [$lit:literal, $idx: literal])),* $(,)? ) => {
-        paste::paste! {
-            $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: Atom = Atom::new($idx);)*
-        }
+        $(pub const $name: Atom = Atom::new($idx);)*
         pub const $owner: &[(&str, Atom)] = &[$(($lit, $name),)*];
     }
 }

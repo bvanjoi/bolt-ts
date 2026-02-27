@@ -880,8 +880,8 @@ impl<'cx> TyChecker<'cx> {
             let element_types = self.get_element_tys(ty);
             self.create_tuple_ty(element_types, Some(t.element_flags), t.readonly)
         } else {
-            let element_types = self.alloc(vec![ty]);
-            let element_flags = self.alloc(vec![ty::ElementFlags::VARIADIC]);
+            let element_types = self.alloc([ty]);
+            let element_flags = self.alloc([ty::ElementFlags::VARIADIC]);
             self.create_tuple_ty(element_types, Some(element_flags), false)
         }
     }

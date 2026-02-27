@@ -168,13 +168,26 @@ prefilled_atom_map!(
             IDENT_UNSHIFT:                          ["unshift", 109],
             IDENT_OPTIONAL:                         ["optional", 110],
             IDENT_THEN:                             ["then", 111],
-            IDENT_PROMISE:                          ["Promise", 112]
+            IDENT_PROMISE:                          ["Promise", 112],
+            IDENT_ITERATOR:                         ["iterator", 113],
+            IDENT_ITERATOR_CLASS:                   ["Iterator", 114],
+            IDENT_ASYNC_ITERATOR:                   ["asyncIterator", 115],
+            IDENT_ASYNC_ITERATOR_CLASS:             ["AsyncIterator", 116],
+            IDENT_ASYNC_ITERABLE:                   ["AsyncIterable", 117],
+            IDENT_ASYNC_ITERABLE_ITERATOR:          ["AsyncIterableIterator", 118],
+            IDENT_READABLE_STREAM_ASYNC_ITERATOR:   ["ReadableStreamAsyncIterator", 119],
+            IDENT_ASYNC_ITERATOR_OBJECT:            ["AsyncIteratorObject", 120],
+            IDENT_ITERABLE:                         ["Iterable", 121],
+            IDENT_ITERABLE_ITERATOR:                ["IterableIterator", 122],
+            IDENT_ITERATOR_OBJECT:                  ["IterableIterator", 123],
+            IDENT_GENERATOR:                        ["Generator", 124],
+            IDENT_ASYNC_GENERATOR:                  ["AsyncGenerator", 125]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 113]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 126]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 114]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 127]
         },
     }
 );

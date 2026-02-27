@@ -3,3 +3,9 @@
  15 │ s
     · ─
     ╰────
+
+  × Type 'number' is not assignable to type '"" | "true"'.
+    ╭─[../../tests/compiler/templateLiteralConstantEvaluation/index.ts:29:7]
+ 29 │ e0
+    · ──
+    ╰────

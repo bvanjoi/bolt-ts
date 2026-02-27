@@ -421,7 +421,7 @@ impl<'cx> TyChecker<'cx> {
                     return old;
                 }
                 let base_ty = self.get_tuple_base_ty(t);
-                let tys = self.alloc(vec![base_ty]);
+                let tys = self.alloc([base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
                 return tys;
             }
@@ -893,7 +893,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty,
                     is_readonly: readonly_mask && index_info.is_readonly,
                 });
-                self.alloc(vec![index_info])
+                self.alloc([index_info])
             } else {
                 self.empty_array()
             };
@@ -1091,7 +1091,7 @@ impl<'cx> TyChecker<'cx> {
         {
             call_sigs = self.empty_array();
             ctor_sigs = self.empty_array();
-            index_infos = self.alloc(vec![self.enum_number_index_info()]);
+            index_infos = self.alloc([self.enum_number_index_info()]);
         } else {
             call_sigs = self.empty_array();
             ctor_sigs = self.empty_array();

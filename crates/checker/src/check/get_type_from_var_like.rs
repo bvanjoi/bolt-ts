@@ -321,11 +321,7 @@ impl<'cx> TyChecker<'cx> {
                 return source;
             }
 
-            let Some(omit_type_alias) = self.get_global_ty_alias_symbol(
-                bolt_ts_binder::SymbolName::Atom(keyword::IDENT_OMIT),
-                2,
-                true,
-            ) else {
+            let Some(omit_type_alias) = self.get_global_omit_symbol() else {
                 return self.error_ty;
             };
             let ty_args = self.alloc([source, omit_key_ty]);

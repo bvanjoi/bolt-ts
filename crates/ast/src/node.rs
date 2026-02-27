@@ -563,18 +563,24 @@ impl<'cx> Node<'cx> {
             return FnFlags::INVALID;
         }
         let mut flags = FnFlags::NORMAL;
-        if matches!(
-            self,
-            Node::FnDecl(_) | Node::FnExpr(_) | Node::ClassMethodElem(_)
-        ) {
-            // todo: check aster token
-            if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
-                flags |= FnFlags::ASYNC;
+        match self {
+            Node::FnDecl(super::FnDecl { asterisk, .. })
+            | Node::FnExpr(super::FnExpr { asterisk, .. })
+            | Node::ClassMethodElem(super::ClassMethodElem { asterisk, .. })
+            | Node::ObjectMethodMember(super::ObjectMethodMember { asterisk, .. }) => {
+                if asterisk.is_some() {
+                    flags |= FnFlags::GENERATOR;
+                }
+                if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+                    flags |= FnFlags::ASYNC;
+                }
             }
-        } else if self.as_arrow_fn_expr().is_some()
-            && self.has_syntactic_modifier(self::ModifierKind::Async.into())
-        {
-            flags |= FnFlags::ASYNC;
+            Node::ArrowFnExpr(_) => {
+                if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+                    flags |= FnFlags::ASYNC;
+                }
+            }
+            _ => {}
         }
 
         if self.fn_body().is_none() {

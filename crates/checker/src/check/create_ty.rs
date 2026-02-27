@@ -8,6 +8,9 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capac
 
 use super::SymbolLinks;
 use super::UnionOfUnionTysKey;
+use super::get_iteration_tys::AsyncIterationTysResolver;
+use super::get_iteration_tys::IterationTysResolver;
+use super::get_iteration_tys::SyncIterationTysResolver;
 use super::instantiation_ty_map::SubstitutionKey;
 use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
 use super::links::TyLinks;
@@ -527,7 +530,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.global_array_ty()
         };
-        let resolved_ty_args = self.alloc(vec![element_ty]);
+        let resolved_ty_args = self.alloc([element_ty]);
         self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
     }
 
@@ -1560,7 +1563,8 @@ impl<'cx> TyChecker<'cx> {
         texts: &[bolt_ts_atom::Atom],
         tys: &[&'cx ty::Ty<'cx>],
     ) -> &'cx ty::Ty<'cx> {
-        assert_eq!(texts.len(), tys.len() + 1);
+        debug_assert_eq!(texts.len(), tys.len() + 1);
+
         fn add_spans<'cx>(
             this: &mut TyChecker<'cx>,
             texts: &[bolt_ts_atom::Atom],
@@ -1571,24 +1575,34 @@ impl<'cx> TyChecker<'cx> {
         ) -> bool {
             for i in 0..tys.len() {
                 let t = tys[i];
-                if t.flags
-                    .intersects(TypeFlags::LITERAL | TypeFlags::NULL | TypeFlags::UNDEFINED)
-                {
-                    if let Some(s) = t.kind.as_string_lit() {
-                        text.push_str(this.atoms.get(s.val));
-                    } else if let Some(n) = t.kind.as_number_lit() {
-                        text.push_str(&n.val.val().to_string());
-                    } else if let Some(n) = t.kind.as_bigint_lit() {
-                        if n.neg {
-                            text.push('-');
+                if t.flags.intersects(
+                    TypeFlags::LITERAL
+                        .union(TypeFlags::NULL)
+                        .union(TypeFlags::UNDEFINED),
+                ) {
+                    match t.kind {
+                        ty::TyKind::StringLit(t) => {
+                            text.push_str(this.atoms.get(t.val));
                         }
-                        let s = this.atoms.get(n.val);
-                        text.push_str(s);
-                    } else if t
-                        .flags
-                        .intersects(TypeFlags::BOOLEAN_LITERAL | TypeFlags::NULLABLE)
-                    {
-                        // TODO:
+                        ty::TyKind::NumberLit(t) => {
+                            text.push_str(&t.val.val().to_string());
+                        }
+                        ty::TyKind::BigIntLit(t) => {
+                            if t.neg {
+                                text.push('-');
+                            }
+                            let s = this.atoms.get(t.val);
+                            text.push_str(s);
+                        }
+                        ty::TyKind::Intrinsic(i)
+                            if t.flags.intersects(
+                                TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE),
+                            ) =>
+                        {
+                            text.push_str(this.atoms.get(i.name));
+                        }
+
+                        _ => unreachable!(),
                     }
                     text.push_str(this.atoms.get(texts[i + 1]));
                 } else if let Some(template) = t.kind.as_template_lit_ty() {
@@ -1611,11 +1625,10 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(union_index) = tys
             .iter()
-            .position(|t| t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION))
+            .position(|t| t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION)))
         {
-            // TODO: check_cross_product_union
-            return self
-                .map_ty(
+            return if Self::check_cross_product_union(&tys) {
+                self.map_ty(
                     tys[union_index],
                     |this, t| {
                         let mut tys = tys.to_vec();
@@ -1624,7 +1637,10 @@ impl<'cx> TyChecker<'cx> {
                     },
                     false,
                 )
-                .unwrap();
+                .unwrap()
+            } else {
+                self.error_ty
+            };
         };
         if tys.contains(&self.wildcard_ty) {
             return self.wildcard_ty;
@@ -1960,6 +1976,60 @@ impl<'cx> TyChecker<'cx> {
         next_ty: &'cx ty::Ty<'cx>,
         is_async_generator: bool,
     ) -> &'cx ty::Ty<'cx> {
-        todo!()
+        if is_async_generator {
+            self.create_generator_ty_worker(yield_ty, return_ty, next_ty, AsyncIterationTysResolver)
+        } else {
+            self.create_generator_ty_worker(yield_ty, return_ty, next_ty, SyncIterationTysResolver)
+        }
+    }
+
+    fn create_generator_ty_worker(
+        &mut self,
+        mut yield_ty: &'cx ty::Ty<'cx>,
+        mut return_ty: &'cx ty::Ty<'cx>,
+        next_ty: &'cx ty::Ty<'cx>,
+        resolver: impl IterationTysResolver<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let global_generator_ty = resolver.get_global_generator_ty::<false>(self);
+        yield_ty = resolver
+            .resolve_iteration_ty(self, yield_ty, None)
+            .unwrap_or(self.unknown_ty);
+        return_ty = resolver
+            .resolve_iteration_ty(self, return_ty, None)
+            .unwrap_or(self.unknown_ty);
+        if global_generator_ty == self.empty_generic_ty() {
+            let global_iterable_iterator_ty =
+                resolver.get_global_iterable_iterator_ty::<false>(self);
+            if global_iterable_iterator_ty != self.empty_generic_ty() {
+                let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
+                self.create_reference_ty(
+                    global_iterable_iterator_ty,
+                    Some(ty_arguments),
+                    ObjectFlags::empty(),
+                )
+            } else {
+                // TODO: report error
+                self.empty_object_ty()
+            }
+        } else {
+            let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
+            self.create_reference_ty(
+                global_generator_ty,
+                Some(ty_arguments),
+                ObjectFlags::empty(),
+            )
+        }
+    }
+
+    fn create_ty_from_generic_global_ty(
+        &mut self,
+        generic_global_ty: &'cx ty::Ty<'cx>,
+        ty_arguments: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if generic_global_ty != self.empty_object_ty() {
+            self.create_reference_ty(generic_global_ty, Some(ty_arguments), ObjectFlags::empty())
+        } else {
+            self.empty_object_ty()
+        }
     }
 }

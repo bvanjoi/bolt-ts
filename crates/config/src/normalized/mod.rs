@@ -1,4 +1,4 @@
-use crate::options::{NormalizedModuleResolution, OutDir, Target};
+use super::options::{NormalizedModuleResolution, OutDir, Target};
 
 macro_rules! normalized_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
@@ -16,7 +16,7 @@ macro_rules! normalized_option {
 
 bitflags::bitflags! {
     #[derive(Debug)]
-    pub struct CompilerOptionFlags: u16 {
+    pub struct CompilerOptionFlags: u32 {
         const NO_EMIT                                   = 1 << 0;
         const DECLARATION                               = 1 << 1;
         const STRICT                                    = 1 << 2;
@@ -33,6 +33,7 @@ bitflags::bitflags! {
         const STRICT_PROPERTY_INITIALIZATION            = 1 << 13;
         const STRICT_BIND_CALL_APPLY                    = 1 << 14;
         const NO_DTS_RESOLUTION                         = 1 << 15;
+        const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 16;
     }
 }
 
@@ -143,5 +144,11 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn no_dts_resolution(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::NO_DTS_RESOLUTION)
+    }
+
+    #[inline(always)]
+    pub const fn strict_builtin_iteration_return(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::STRICT_BUILTIN_ITERATION_RETURN)
     }
 }

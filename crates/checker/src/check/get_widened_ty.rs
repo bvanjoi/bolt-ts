@@ -1,6 +1,7 @@
 use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
+use super::get_iteration_tys::IterationTypeKind;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::ObjectFlags;
@@ -11,12 +12,6 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
-
-pub enum IterationTypeKind {
-    Yield,
-    Return,
-    Next,
-}
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_widened_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -201,7 +196,7 @@ impl<'cx> TyChecker<'cx> {
             && ty.is_unit()
         {
             let contextual_ty = contextual_sig_return_ty.and_then(|ty| {
-                self.get_iteration_ty_generator_fn_return_ty(kind, ty, is_async_generator)
+                self.get_iteration_ty_of_generator_fn_return_ty(kind, ty, is_async_generator)
             });
             Some(self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty))
         } else {

@@ -1,8 +1,7 @@
 use std::ops::Not;
 
-use crate::check::get_widened_ty::IterationTypeKind;
-
 use super::create_ty::IntersectionFlags;
+use super::get_iteration_tys::IterationTypeKind;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, Ty, TyKind, TypeFlags};
@@ -1931,77 +1930,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_global_value_symbol(&self, name: SymbolName) -> Option<SymbolID> {
-        self.get_global_symbol(name, SymbolFlags::VALUE)
-    }
-
-    pub(super) fn get_global_ty_alias_symbol(
-        &mut self,
-        name: SymbolName,
-        arity: usize,
-        report_errors: bool,
-    ) -> Option<SymbolID> {
-        let Some(symbol) = self.get_global_symbol(name, SymbolFlags::TYPE) else {
-            if report_errors {
-                todo!()
-            }
-            return None;
-        };
-        self.get_declared_ty_of_symbol(symbol);
-        let ty_params_len = self
-            .get_symbol_links(symbol)
-            .get_ty_params()
-            .map_or(0, |ty_params| ty_params.len());
-        if ty_params_len != arity {
-            // TODO: error
-            None
-        } else {
-            Some(symbol)
-        }
-    }
-
-    fn get_global_symbol(&self, name: SymbolName, meaning: SymbolFlags) -> Option<SymbolID> {
-        let symbol = self.global_symbols.0.get(&name).copied()?;
-        if self.symbol(symbol).flags.intersects(meaning) {
-            Some(symbol)
-        } else {
-            None
-        }
-    }
-
-    pub(super) fn try_get_global_type(&mut self, name: SymbolName) -> Option<&'cx Ty<'cx>> {
-        let s = self.global_symbols.0.get(&name)?;
-        Some(self.get_declared_ty_of_symbol(*s))
-    }
-
-    pub(super) fn get_global_type(&mut self, name: SymbolName) -> &'cx Ty<'cx> {
-        let Some(ret) = self.try_get_global_type(name) else {
-            unreachable!("Global type '{}' not found", name.to_string(&self.atoms));
-        };
-        ret
-    }
-
-    pub(super) fn get_global_non_nullable_ty_instantiation(
-        &mut self,
-        t: &'cx ty::Ty<'cx>,
-    ) -> &'cx Ty<'cx> {
-        let symbol = self
-            .deferred_global_non_nullable_type_alias
-            .get_or_init(|| {
-                self.get_global_symbol(
-                    SymbolName::Atom(keyword::IDENT_NON_NULLABLE),
-                    SymbolFlags::TYPE_ALIAS,
-                )
-            });
-        if let Some(symbol) = symbol {
-            let tys = self.alloc([t]);
-            self.get_type_alias_instantiation(*symbol, tys, None, None)
-        } else {
-            let tys = &[t, self.empty_object_ty()];
-            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
-        }
-    }
-
     fn get_ret_ty_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
         self.get_sig_of_ty_tag(id)
             .map(|sig| self.get_ret_ty_of_sig(sig))
@@ -2213,16 +2141,16 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: is_async
             }
             ast::ArrowFnExprBody::Block(body) => {
-                if fn_flags.contains(FnFlags::GENERATOR) {
+                if is_generator {
                     match self.check_and_aggregate_ret_expr_tys(id, body) {
                         Some(return_tys) if !return_tys.is_empty() => {
-                            self.get_union_ty::<false>(
+                            ret_ty = Some(self.get_union_ty::<false>(
                                 &return_tys,
                                 ty::UnionReduction::Subtype,
                                 None,
                                 None,
                                 None,
-                            );
+                            ));
                         }
                         None => {
                             fallback_ret_ty = self.never_ty;
@@ -2336,15 +2264,23 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
             }
+
+            yield_ty = yield_ty.map(|ty| self.get_widened_ty(ty));
+            ret_ty = ret_ty.map(|ty| self.get_widened_ty(ty));
+            next_ty = next_ty.map(|ty| self.get_widened_ty(ty));
         }
 
-        yield_ty = yield_ty.map(|ty| self.get_widened_ty(ty));
-        ret_ty = ret_ty.map(|ty| self.get_widened_ty(ty));
-        next_ty = next_ty.map(|ty| self.get_widened_ty(ty));
-
         if is_generator {
-            // TODO:
-            ret_ty.unwrap_or(fallback_ret_ty)
+            let next_ty = next_ty.unwrap_or_else(|| {
+                self.get_contextual_iteration_ty(IterationTypeKind::Next, id, is_async)
+                    .unwrap_or(self.undefined_ty)
+            });
+            self.create_generator_ty(
+                yield_ty.unwrap_or(self.never_ty),
+                ret_ty.unwrap_or(fallback_ret_ty),
+                next_ty,
+                is_async,
+            )
         } else if is_async {
             // TODO:
             ret_ty.unwrap_or(fallback_ret_ty)

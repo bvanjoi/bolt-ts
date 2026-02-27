@@ -134,9 +134,9 @@ pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Interfa
     for member in n.members {
         use ast::ObjectTyMemberKind::*;
         match member.kind {
-            IndexSig(n) => {}
+            IndexSig(n) => v.visit_index_sig_decl(n),
             Prop(n) => v.visit_prop_signature(n),
-            Method(n) => {}
+            Method(n) => v.visit_method_signature(n),
             CallSig(n) => {}
             CtorSig(n) => {}
             Setter(n) => {}
@@ -365,6 +365,8 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Expr<'cx>) {
         ArrowFn(n) => v.visit_arrow_fn_expr(n),
         Bin(n) => v.visit_bin_expr(n),
         Call(n) => v.visit_call_expr(n),
+        Assign(n) => v.visit_assign_expr(n),
+        Yield(n) => v.visit_yield_expr(n),
         _ => {}
     }
 }
@@ -436,7 +438,10 @@ pub fn visit_bin_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::BinExpr<'cx>)
     v.visit_expr(n.right);
 }
 pub fn visit_string_lit<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::StringLit) {}
-pub fn visit_while_stmt<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::WhileStmt<'cx>) {}
+pub fn visit_while_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::WhileStmt<'cx>) {
+    v.visit_expr(n.expr);
+    v.visit_stmt(n.stmt);
+}
 pub fn visit_if_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::IfStmt<'cx>) {
     v.visit_expr(n.expr);
     v.visit_stmt(n.then);
@@ -452,6 +457,15 @@ pub fn visit_ty_param<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TyParam<'cx>)
     if let Some(default_ty) = n.default {
         v.visit_ty(default_ty)
     }
+}
+pub fn visit_ret_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::RetStmt<'cx>) {
+    if let Some(expr) = n.expr {
+        v.visit_expr(expr);
+    }
+}
+pub fn visit_assign_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::AssignExpr<'cx>) {
+    v.visit_expr(n.left);
+    v.visit_expr(n.right);
 }
 
 macro_rules! make_visitor {
@@ -528,7 +542,9 @@ make_visitor!(
     (visit_prop_signature, ast::PropSignature<'cx>),
     (visit_method_signature, ast::MethodSignature<'cx>),
     (visit_this_ty, ast::ThisTy),
-    (visit_yield_expr, ast::YieldExpr)
+    (visit_yield_expr, ast::YieldExpr),
+    (visit_ret_stmt, ast::RetStmt<'cx>),
+    (visit_assign_expr, ast::AssignExpr<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

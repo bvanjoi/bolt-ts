@@ -62,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let members = self.alloc(members);
         let index_infos = if let Some(string_index_info) = string_index_info {
-            self.alloc(vec![string_index_info])
+            self.alloc([string_index_info])
         } else {
             self.empty_array()
         };

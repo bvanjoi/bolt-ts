@@ -54,7 +54,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     .p
                     .node(self.symbols.get(*symbol_export).decls.as_ref().unwrap()[0])
                     .span(),
-                name: ast::keyword::IDENT_PROTOTYPE_STR.to_string(),
+                name: "prototype".to_string(),
                 original_span: c.name().map(|name| name.span).unwrap_or(c.span()),
             };
             self.push_error(Box::new(error));
