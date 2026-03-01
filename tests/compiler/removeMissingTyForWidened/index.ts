@@ -168,7 +168,7 @@ type A<Options extends Required<O>> = B<Options['b']>;
 	};
   type PG = Partial<G>;
 	type U = PG extends Partial<infer B>
-		? Partial<B> extends PG ? B :PG 
+		? Partial<B> extends PG ? B : PG 
 		: never;
 	function f(a: U) {
 		const b: G = a;
@@ -289,4 +289,26 @@ type A<Options extends Required<O>> = B<Options['b']>;
   }
   const a0: A extends B ? true : false = true;
   //~^ ERROR: Type 'boolean' is not assignable to type 'false'
+}
+
+{
+  type T1<A, B extends keyof A> = A extends Record<B, A[B]> ? 'a' : 'b';
+  type C = [string];
+  const a0: T1<C, keyof C> = 'a';
+}
+
+{
+  type N0<P> = P extends '.a' ? Array<N0<'a'>> : string;
+  type N1<F> = (
+    F extends unknown ? (f: F) => void : boolean 
+  ) extends ((g: infer G) => void)
+    ? G & F
+    : number;
+  type N2<Type> = {[TypeKey in keyof Type]: Type}
+  type T0 = N0<'.a'>;
+  type T1 = N1<T0>;
+  type T2 = N2<T1>;
+  function f(a: T2) {
+    const b: string[][] = a;
+  }
 }

@@ -284,7 +284,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 .c
                 .get_check_flags(target_prop)
                 .intersects(ty::CheckFlags::PARTIAL);
-        let effective_target = {
+        let effective_target_ty = {
             let t = self.c.get_non_missing_type_of_symbol(target_prop);
             self.c.add_optionality::<false>(t, target_is_optional)
         };
@@ -293,13 +293,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         } else {
             TypeFlags::ANY_OR_UNKNOWN
         };
-        if effective_target.flags.intersects(flags) {
+        if effective_target_ty.flags.intersects(flags) {
             return Ternary::TRUE;
         }
-        let effective_source = get_ty_of_source_prop(self, source_prop);
+        let effective_source_ty = get_ty_of_source_prop(self, source_prop);
         self.is_related_to(
-            effective_source,
-            effective_target,
+            effective_source_ty,
+            effective_target_ty,
             RecursionFlags::BOTH,
             report_error,
             intersection_state,
@@ -353,12 +353,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 .c
                 .symbol(source_prop)
                 .flags
-                .intersects(SymbolFlags::OPTIONAL)
+                .contains(SymbolFlags::OPTIONAL)
             && {
                 let target_prop_flags = self.c.symbol(target_prop).flags;
 
                 target_prop_flags.intersects(SymbolFlags::CLASS_MEMBER)
-                    && !target_prop_flags.intersects(SymbolFlags::OPTIONAL)
+                    && !target_prop_flags.contains(SymbolFlags::OPTIONAL)
             }
         {
             if report_error {
@@ -930,12 +930,59 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if let Some(unions) = target.kind.as_union()
-            && contains_ty(unions.tys, source)
-        {
-            return Ternary::TRUE;
+        if let Some(unions) = target.kind.as_union() {
+            if contains_ty(unions.tys, source) {
+                return Ternary::TRUE;
+            }
+            if self.relation != RelationKind::Comparable
+                && target
+                    .get_object_flags()
+                    .contains(ObjectFlags::PRIMITIVE_UNION)
+                && !source.flags.contains(TypeFlags::ENUM_LITERAL)
+                && source.flags.intersects(
+                    TypeFlags::STRING_LITERAL
+                        .union(TypeFlags::BOOLEAN_LITERAL)
+                        .union(TypeFlags::BIG_INT_LITERAL),
+                )
+                || matches!(
+                    self.relation,
+                    RelationKind::Subtype | RelationKind::StrictSubtype
+                ) && source.flags.contains(TypeFlags::NUMBER_LITERAL)
+            {
+                if let Some(primitive) = match source.kind {
+                    TyKind::StringLit(_) => Some(self.c.string_ty),
+                    TyKind::NumberLit(_) => Some(self.c.number_ty),
+                    TyKind::BigIntLit(_) => Some(self.c.bigint_ty),
+                    _ => None,
+                } && target_tys.contains(&primitive)
+                {
+                    return Ternary::TRUE;
+                }
+                let regular_ty = self.c.get_regular_ty(source);
+                if let Some(alternate_from) = if regular_ty.is_some_and(|r| r == source) {
+                    self.c.get_fresh_ty(source)
+                } else {
+                    regular_ty
+                } && target_tys.contains(&alternate_from)
+                {
+                    return Ternary::TRUE;
+                }
+                return Ternary::FALSE;
+            }
+
+            if let Some(m) = self.c.get_matching_union_constituent_for_ty(target) {
+                let related = self.is_related_to(
+                    source,
+                    m,
+                    RecursionFlags::TARGET,
+                    false,
+                    intersection_state,
+                );
+                if related != Ternary::FALSE {
+                    return related;
+                }
+            }
         }
-        // TODO:
 
         for ty in target_tys {
             let related = self.is_related_to(
@@ -949,6 +996,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return related;
             }
         }
+
+        // TODO: report error
 
         Ternary::FALSE
     }
@@ -1571,7 +1620,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
             if let Some(source_refer) = source.kind.as_object_reference()
                 && let Some(target_refer) = target.kind.as_object_reference()
-                && source_refer.target == target_refer.target
+                && let Some(source_interface) = source_refer.interface_target()
+                && let Some(target_interface) = target_refer.interface_target()
+                && source_interface == target_interface
                 && !source.is_tuple()
                 && !self.c.is_marker_ty(source)
                 && !self.c.is_marker_ty(target)
@@ -2185,9 +2236,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let source_object_flags = source.get_object_flags();
         let target_object_flags = target.get_object_flags();
-        if source_object_flags.contains(ObjectFlags::INSTANTIATED)
+        if (source_object_flags.contains(ObjectFlags::INSTANTIATED)
             && target_object_flags.contains(ObjectFlags::INSTANTIATED)
-            && source.symbol() == target.symbol()
+            && source.symbol() == target.symbol())
             || source.kind.as_object_reference().is_some_and(|s| {
                 target
                     .kind

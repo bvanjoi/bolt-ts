@@ -386,6 +386,8 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
         object_flags: ObjectFlags,
         node: Option<ast::NodeID>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         assert!(target.kind.is_object_anonymous());
         debug_assert!(
@@ -398,8 +400,8 @@ impl<'cx> TyChecker<'cx> {
             mapper: Some(mapper),
             fresh_ty_links: links,
             node,
-            alias_symbol: None,
-            alias_ty_arguments: None,
+            alias_symbol,
+            alias_ty_arguments,
         });
 
         self.create_object_ty(

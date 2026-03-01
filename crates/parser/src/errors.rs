@@ -622,3 +622,10 @@ pub(super) struct AnIndexSignatureCannotHaveARestParameter {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'yield' expression is only allowed in a generator body.")]
+pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
+    #[label(primary)]
+    pub span: Span,
+}

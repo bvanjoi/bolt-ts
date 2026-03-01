@@ -6,7 +6,6 @@ mod object_ty;
 mod pprint;
 mod sig;
 
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};

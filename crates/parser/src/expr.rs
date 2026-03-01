@@ -226,6 +226,12 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_yield_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Yield);
+        if !self.in_yield_context() {
+            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+        }
         let start = self.token.start();
         self.next_token(); // consume `yield`
         let kind = if !self.has_preceding_line_break()

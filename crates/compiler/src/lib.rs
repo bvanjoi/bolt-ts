@@ -475,38 +475,6 @@ pub fn eval_with_fs(
 
     let types_len = checker.ty_len();
 
-    let dts_output = if tsconfig
-        .compiler_options()
-        .flags()
-        .contains(CompilerOptionFlags::DECLARATION)
-    {
-        emit_declaration_parallel(&entries, &checker)
-    } else {
-        entries
-            .iter()
-            .filter_map(|&item| {
-                let is_default_lib = module_arena.get_module(item).is_default_lib();
-                if is_default_lib {
-                    None
-                } else {
-                    Some((item, "".to_string()))
-                }
-            })
-            .collect()
-    };
-    let js_output = optimize_and_js_emit(entries, checker);
-
-    let ir = js_output.ir;
-    let mut files = vec![];
-    for ((item, js_code), (item2, dts_code)) in js_output.files.into_iter().zip(dts_output) {
-        debug_assert!(
-            item == item2,
-            "id in js output: {item:#?}, id in dts output: {item2:#?}"
-        );
-        let output_file = OutputFile { js_code, dts_code };
-        files.push((item, output_file));
-    }
-
     debug_assert!({
         // each module should be created at most once
         let paths = module_arena
@@ -518,12 +486,52 @@ pub fn eval_with_fs(
         paths.len() == paths.iter().collect::<std::collections::HashSet<_>>().len()
     });
 
-    Output {
-        root,
-        module_arena,
-        diags,
-        files,
-        ir,
-        types_len,
+    let compiler_options = tsconfig.compiler_options().flags();
+    if !compiler_options.contains(CompilerOptionFlags::NO_EMIT) {
+        let dts_output = if compiler_options.contains(CompilerOptionFlags::DECLARATION) {
+            emit_declaration_parallel(&entries, &checker)
+        } else {
+            entries
+                .iter()
+                .filter_map(|&item| {
+                    let is_default_lib = module_arena.get_module(item).is_default_lib();
+                    if is_default_lib {
+                        None
+                    } else {
+                        Some((item, "".to_string()))
+                    }
+                })
+                .collect()
+        };
+        let js_output = optimize_and_js_emit(entries, checker);
+
+        let ir = js_output.ir;
+        let mut files = vec![];
+        for ((item, js_code), (item2, dts_code)) in js_output.files.into_iter().zip(dts_output) {
+            debug_assert!(
+                item == item2,
+                "id in js output: {item:#?}, id in dts output: {item2:#?}"
+            );
+            let output_file = OutputFile { js_code, dts_code };
+            files.push((item, output_file));
+        }
+        Output {
+            root,
+            module_arena,
+            diags,
+            files,
+            ir,
+            types_len,
+        }
+    } else {
+        drop(checker);
+        Output {
+            root,
+            module_arena,
+            diags,
+            files: Default::default(),
+            ir: Default::default(),
+            types_len,
+        }
     }
 }

@@ -339,7 +339,7 @@ impl<FS: CachedFileSystem> Resolver<FS> {
                 .lock()
                 .unwrap()
                 .insert(pkg_json_path_id, package_json);
-            assert!(prev.is_none());
+            debug_assert!(prev.is_none());
             Some(package_json)
         } else {
             None

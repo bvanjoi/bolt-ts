@@ -502,8 +502,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_ty_from_ident(&mut self, node: &ast::Ident) -> &'cx ty::Ty<'cx> {
-        let symbol = self.get_symbol_of_decl(node.id);
-        self.get_type_of_symbol(symbol)
+        let id = node.id;
+        let Some(symbol) = self.binder.get(id.module()).final_res.get(&id).copied() else {
+            return self.error_ty;
+        };
+        if symbol == Symbol::ERR {
+            self.error_ty
+        } else {
+            self.get_declared_ty_of_symbol(symbol)
+        }
     }
 
     fn get_ty_from_template_ty_node(&mut self, node: &'cx ast::TemplateLitTy<'cx>) -> &'cx Ty<'cx> {
@@ -756,11 +763,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: ast::NodeID,
     ) -> &'cx Ty<'cx> {
+        debug_assert!(Symbol::can_have_symbol(self.p.node(node)));
         if let Some(resolved_ty) = self.get_node_links(node).get_resolved_ty() {
             return resolved_ty;
         };
         let alias_symbol = self.get_alias_symbol_for_ty_node(node);
-        debug_assert!(Symbol::can_have_symbol(self.p.node(node)));
         let node_symbol = self.get_symbol_of_node(node);
         let res = if node_symbol.is_none_or(|node_symbol| {
             alias_symbol.is_none() && self.get_members_of_symbol(node_symbol).0.is_empty()

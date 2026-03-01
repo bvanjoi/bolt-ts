@@ -467,14 +467,15 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 self.undefined_ty
             }
-            Yield(_) => {
-                // TODO:
-                self.undefined_ty
-            }
+            Yield(n) => self.check_yield_expr(n),
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_yield_expr(&mut self, node: &'cx ast::YieldExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        self.undefined_ty
     }
 
     fn check_delete_expr(&mut self, node: &'cx ast::DeleteExpr<'cx>) -> &'cx ty::Ty<'cx> {

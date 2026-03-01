@@ -47,7 +47,7 @@ impl<'cx> TyChecker<'cx> {
             let constraint = if simplified == cond_ty.check_ty {
                 self.get_constraint_of_ty(simplified)
             } else {
-                None
+                Some(simplified)
             };
             if let Some(constraint) = constraint
                 && constraint != cond_ty.check_ty

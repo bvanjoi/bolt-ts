@@ -62,8 +62,10 @@ impl<'cx> TyChecker<'cx> {
         func: &impl r#trait::FnLike<'cx>,
         ret_ty: Option<&'cx ty::Ty<'cx>>,
     ) {
-        // TODO: unwrap_return_ty
-        let ty = ret_ty;
+        let fn_id = func.id();
+        let n = self.p.node(fn_id);
+        let fn_flags = n.fn_flags();
+        let ty = ret_ty.and_then(|ret_ty| self.unwrap_ret_ty(ret_ty, fn_flags));
         if ty.is_some_and(|ty| {
             ty.maybe_type_of_kind(ty::TypeFlags::VOID)
                 || ty
@@ -79,8 +81,6 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
 
-        let fn_id = func.id();
-        let n = self.p.node(fn_id);
         if n.is_method_signature() || !self.fn_has_implicit_return(fn_id) {
             return;
         }

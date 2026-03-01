@@ -4,17 +4,17 @@ pub fn is_prim_ty_name(name: Atom) -> bool {
     matches!(
         name,
         IDENT_ANY
-            | KW_NULL
+            | IDENT_UNKNOWN
             | IDENT_NUMBER
+            | IDENT_BIGINT
             | IDENT_STRING
             | IDENT_BOOLEAN
-            | IDENT_NEVER
-            | IDENT_UNKNOWN
-            | KW_UNDEFINED
-            | KW_VOID
             | IDENT_SYMBOL
             | IDENT_OBJECT
-            | IDENT_BIGINT
+            | KW_UNDEFINED
+            | KW_NULL
+            | IDENT_NEVER
+            | KW_VOID
     )
 }
 

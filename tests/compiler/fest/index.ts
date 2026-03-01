@@ -2780,9 +2780,9 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
 
   foo = [];
-  //~^ ERROR: Type 'undefined[]' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'undefined[]' is not assignable to type 'UnknownRecord'.
   foo = 42;
-  //~^ ERROR: Type 'number' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'number' is not assignable to type 'UnknownRecord'.
   foo = null; // Depends on `strictNullChecks`
 
   const b0: unknown = foo['bar'];

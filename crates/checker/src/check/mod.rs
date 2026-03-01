@@ -228,6 +228,7 @@ pub struct TyChecker<'cx> {
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
     fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
     union_ty_links_arena: ty::UnionTyLinksArena<'cx>,
+    constituent_map_for_union_ty: FxHashMap<TyID, FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>>,
     promise_or_awaitable_links_arena: ty::PromiseOrAwaitableTyLinksArena<'cx>,
     union_ty_constituent_map:
         nohash_hasher::IntMap<TyID, FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>>,
@@ -438,7 +439,7 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: &'cx mut MergedSymbols,
         global_symbols: &'cx mut GlobalSymbols,
     ) -> Self {
-        let cap = p.module_count() * 1024 * 64;
+        let cap = p.module_count() * 1024;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
         let mut transient_symbol_links = Vec::with_capacity(cap);
         let diags = Vec::with_capacity(p.module_count() * 32);
@@ -762,6 +763,7 @@ impl<'cx> TyChecker<'cx> {
             object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena::with_capacity(cap),
             conditional_links_arena: ty::ConditionalLinksArena::with_capacity(cap),
             union_ty_links_arena: ty::UnionTyLinksArena::with_capacity(cap),
+            constituent_map_for_union_ty: fx_hashmap_with_capacity(cap),
             promise_or_awaitable_links_arena: ty::PromiseOrAwaitableTyLinksArena::with_capacity(
                 cap,
             ),
@@ -3355,7 +3357,7 @@ impl<'cx> TyChecker<'cx> {
                 None
             }
         });
-        let map_by_key_prop = key_prop_name.map(|name| {});
+        let map_by_key_prop = key_prop_name.and_then(|name| self.map_tys_by_key_prop(tys, name));
         // TODO:
         // let map_by_key_prop = key_prop_name.map(|name| {
 
@@ -3364,7 +3366,12 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn map_tys_by_key_prop(&mut self) {
+    fn map_tys_by_key_prop(
+        &mut self,
+        tys: ty::Tys<'cx>,
+        key_prop_name: SymbolName,
+    ) -> Option<FxHashMap<SymbolID, &'cx ty::Ty<'cx>>> {
+        None
         // TODO:
     }
 
@@ -3384,8 +3391,7 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(ty.kind.is_union());
         let key_prop_name = self.get_key_prop_name(ty);
         let prop_ty = key_prop_name.and_then(|name| self.get_ty_of_prop_of_ty(ty, name));
-        // TODO: prop_ty.and_then(|ty| self.)
-        None
+        prop_ty.and_then(|prop_ty| self.get_constituent_ty_for_key_ty(ty, prop_ty))
     }
 
     fn empty_array<T>(&self) -> &'cx [T] {
@@ -3816,10 +3822,18 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         key_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let u = ty.kind.expect_union();
-        let ret = self.union_ty_links_arena[u.union_ty_links].get_key_prop_name()?;
+        debug_assert!(ty.kind.is_union());
+        let id = self.get_regular_ty_of_literal_ty(key_ty);
+        let result = self
+            .constituent_map_for_union_ty
+            .get(&ty.id)
+            .and_then(|map| map.get(id))?;
 
-        None
+        if self.unknown_ty.eq(result) {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     fn create_flow_ty(&self, ty: &'cx ty::Ty<'cx>, incomplete: bool) -> FlowTy<'cx> {
@@ -4583,7 +4597,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_distribution_dependent(&mut self, root: &ty::CondTyRoot<'cx>) -> bool {
         root.is_distributive
-            && (self.is_ty_param_possibly_referenced(root.check_ty, root.node.check_ty.id())
+            && (self.is_ty_param_possibly_referenced(root.check_ty, root.node.true_ty.id())
                 || self.is_ty_param_possibly_referenced(root.check_ty, root.node.false_ty.id()))
     }
 
@@ -4681,7 +4695,7 @@ impl<'cx> TyChecker<'cx> {
                     let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
                     bolt_ts_ast_visitor::visit_param_decl(&mut v, param);
                     v.contain_reference
-                }) || n.ty.is_none_or(|ty| {
+                }) || n.ty.is_some_and(|ty| {
                     let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
                     bolt_ts_ast_visitor::visit_ty(&mut v, ty);
                     v.contain_reference
@@ -4729,7 +4743,7 @@ impl<'cx> TyChecker<'cx> {
                     let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
                     bolt_ts_ast_visitor::visit_param_decl(&mut v, param);
                     v.contain_reference
-                }) || n.ty.is_none_or(|ty| {
+                }) || n.ty.is_some_and(|ty| {
                     let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
                     bolt_ts_ast_visitor::visit_ty(&mut v, ty);
                     v.contain_reference
@@ -4763,11 +4777,11 @@ impl<'cx> TyChecker<'cx> {
                 return true;
             };
             let Some(next) = self.parent(n) else {
-                break;
+                return true;
             };
             n = next;
         }
-        let n = self.p.node(n);
+        let n = self.p.node(node);
         let mut v = ContainReferenceVisitor::new(ty, self);
         bolt_ts_ast_visitor::visit_node(&mut v, &n);
         v.contain_reference

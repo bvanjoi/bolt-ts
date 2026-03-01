@@ -688,13 +688,13 @@
       · ──
       ╰────
 
-  × Type 'undefined[]' is not assignable to type 'Record'.
+  × Type 'undefined[]' is not assignable to type 'UnknownRecord'.
       ╭─[../../tests/compiler/fest/index.ts:2782:3]
  2782 │ foo
       · ───
       ╰────
 
-  × Type 'number' is not assignable to type 'Record'.
+  × Type 'number' is not assignable to type 'UnknownRecord'.
       ╭─[../../tests/compiler/fest/index.ts:2784:3]
  2784 │ foo
       · ───

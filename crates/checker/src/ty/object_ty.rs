@@ -43,6 +43,7 @@ impl<'cx> ObjectTyKind<'cx> {
         match self {
             ObjectTyKind::Mapped(ty) => ty.alias_ty_arguments,
             ObjectTyKind::Reference(ty) => ty.alias_ty_arguments,
+            ObjectTyKind::Anonymous(ty) => ty.alias_ty_arguments,
             _ => None,
         }
     }
@@ -439,7 +440,7 @@ impl<'cx> ObjectTyKind<'cx> {
             }
             ObjectTyKind::Interface(i) => checker
                 .atoms
-                .get(checker.binder.symbol(i.symbol).name.expect_atom())
+                .get(checker.symbol(i.symbol).name.expect_atom())
                 .to_string(),
             ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),

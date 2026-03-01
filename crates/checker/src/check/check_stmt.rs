@@ -3,7 +3,6 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
-use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_ty::TypeFacts;
@@ -722,7 +721,9 @@ impl<'cx> TyChecker<'cx> {
         ret_ty: &'cx ty::Ty<'cx>,
     ) -> bool {
         let flags = self.p.node(func).fn_flags();
-        let ty = self.unwrap_ret_ty(ret_ty, flags);
+        let Some(ty) = self.unwrap_ret_ty(ret_ty, flags) else {
+            return false;
+        };
         ty.maybe_type_of_kind(TypeFlags::VOID)
             || ty
                 .flags
@@ -762,7 +763,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 let fn_flags = self.p.node(container).fn_flags();
-                let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags);
+                let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
                 self.check_ret_expr(container, unwrapped_ret_ty, node.expr, expr_ty);
             }
         } else if self.config.no_implicit_returns()

@@ -245,10 +245,10 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         mapper: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> + Copy,
         alias_symbol: Option<SymbolID>,
-        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(u) = ty.kind.as_union()
-            && let Some(alias_symbol) = alias_symbol
+            && alias_symbol.is_some()
         {
             let tys: Vec<_> = u
                 .tys
@@ -258,8 +258,8 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.get_union_ty::<false>(
                 &tys,
                 ty::UnionReduction::Lit,
-                Some(alias_symbol),
-                alias_symbol_ty_args,
+                alias_symbol,
+                alias_ty_arguments,
                 None,
             ));
         }

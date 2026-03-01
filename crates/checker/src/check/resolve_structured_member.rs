@@ -502,9 +502,8 @@ impl<'cx> TyChecker<'cx> {
                 .to_vec();
         }
 
-        let this_arg = ty_params.last();
         for base_ty in base_tys {
-            let instantiated_base_ty = if let Some(this_arg) = this_arg {
+            let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
                 let ty = self.instantiate_ty(base_ty, mapper);
                 self.get_ty_with_this_arg(ty, Some(this_arg), false)
             } else {

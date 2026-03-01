@@ -132,16 +132,19 @@ pub fn visit_interface_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Interfa
     v.visit_ident(n.name);
     // TODO: node.extends
     for member in n.members {
-        use ast::ObjectTyMemberKind::*;
-        match member.kind {
-            IndexSig(n) => v.visit_index_sig_decl(n),
-            Prop(n) => v.visit_prop_signature(n),
-            Method(n) => v.visit_method_signature(n),
-            CallSig(n) => {}
-            CtorSig(n) => {}
-            Setter(n) => {}
-            Getter(n) => {}
-        }
+        visit_object_ty_member(v, member);
+    }
+}
+fn visit_object_ty_member<'cx>(v: &mut impl Visitor<'cx>, member: &'cx ast::ObjectTyMember<'cx>) {
+    use ast::ObjectTyMemberKind::*;
+    match member.kind {
+        IndexSig(n) => v.visit_index_sig_decl(n),
+        Prop(n) => v.visit_prop_signature(n),
+        Method(n) => v.visit_method_signature(n),
+        CallSig(n) => v.visit_call_sig_decl(n),
+        CtorSig(n) => v.visit_ctor_sig_decl(n),
+        Setter(n) => v.visit_setter_decl(n),
+        Getter(n) => v.visit_getter_decl(n),
     }
 }
 pub fn visit_prop_signature<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::PropSignature<'cx>) {
@@ -164,7 +167,7 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
     use ast::ClassElemKind::*;
     match elem.kind {
         Ctor(n) => {}
-        Prop(n) => {}
+        Prop(n) => v.visit_class_prop_elem(n),
         Method(n) => v.visit_class_method_elem(n),
         IndexSig(n) => v.visit_index_sig_decl(n),
         Getter(n) => {}
@@ -172,12 +175,34 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
         StaticBlockDecl(n) => {}
     }
 }
-pub fn visit_index_sig_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx ast::IndexSigDecl<'cx>) {}
-pub fn visit_class_method_elem<'cx>(
-    v: &mut impl Visitor<'cx>,
-    node: &'cx ast::ClassMethodElem<'cx>,
-) {
-    if let Some(body) = node.body {
+pub fn visit_index_sig_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx ast::IndexSigDecl<'cx>) {
+    v.visit_binding(node.key);
+    v.visit_ty(node.key_ty);
+    v.visit_ty(node.ty);
+}
+pub fn visit_class_prop_elem<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ClassPropElem<'cx>) {
+    v.visit_prop_name(n.name);
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(init) = n.init {
+        v.visit_expr(init);
+    }
+}
+pub fn visit_class_method_elem<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ClassMethodElem<'cx>) {
+    v.visit_prop_name(n.name);
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(body) = n.body {
         v.visit_block_stmt(body);
     }
 }
@@ -216,7 +241,7 @@ pub fn visit_yield_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::YieldExpr<'
     }
 }
 pub fn visit_refer_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ReferTy<'cx>) {
-    // TODO: name
+    v.visit_entity_name(n.name);
     if let Some(ty_args) = n.ty_args {
         for ty in ty_args.list {
             v.visit_ty(ty);
@@ -252,10 +277,63 @@ pub fn visit_ctor_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CtorTy<'cx>) {
     }
     v.visit_ty(n.ty);
 }
-pub fn visit_object_lit_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::ObjectLitTy<'cx>) {
-    // for prop in n.members {
-    //     v.visit_ty_element(prop);
-    // }
+pub fn visit_object_lit_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ObjectLitTy<'cx>) {
+    for prop in n.members {
+        use ast::ObjectTyMemberKind::*;
+        match prop.kind {
+            IndexSig(n) => v.visit_index_sig_decl(n),
+            Prop(n) => v.visit_prop_signature(n),
+            Method(n) => v.visit_method_signature(n),
+            CallSig(n) => v.visit_call_sig_decl(n),
+            CtorSig(n) => v.visit_ctor_sig_decl(n),
+            Setter(n) => v.visit_setter_decl(n),
+            Getter(n) => v.visit_getter_decl(n),
+        }
+    }
+}
+pub fn visit_call_sig_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CallSigDecl<'cx>) {
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+}
+pub fn visit_ctor_sig_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CtorSigDecl<'cx>) {
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+}
+pub fn visit_setter_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::SetterDecl<'cx>) {
+    v.visit_prop_name(n.name);
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(body) = n.body {
+        v.visit_block_stmt(body);
+    }
+}
+pub fn visit_getter_decl<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::GetterDecl<'cx>) {
+    v.visit_prop_name(n.name);
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    if let Some(body) = n.body {
+        v.visit_block_stmt(body);
+    }
 }
 pub fn visit_lit_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::LitTy) {
     // Literal types have no child nodes to visit
@@ -295,11 +373,15 @@ pub fn visit_typeof_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TypeofTy<'cx
     }
 }
 pub fn visit_mapped_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::MappedTy<'cx>) {
+    v.visit_ty_param(n.ty_param);
+    if let Some(name_ty) = n.name_ty {
+        v.visit_ty(name_ty);
+    }
     if let Some(ty) = n.ty {
         v.visit_ty(ty);
     }
-    if let Some(name_ty) = n.name_ty {
-        v.visit_ty(name_ty);
+    for member in n.members {
+        visit_object_ty_member(v, member);
     }
 }
 pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TyOp<'cx>) {
@@ -354,7 +436,8 @@ pub fn visit_entity_name<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::EntityName
     match n.kind {
         ast::EntityNameKind::Ident(node) => v.visit_ident(node),
         ast::EntityNameKind::Qualified(node) => {
-            // TODO:
+            v.visit_entity_name(node.left);
+            v.visit_ident(node.right);
         }
     }
 }
@@ -487,6 +570,7 @@ make_visitor!(
     (visit_interface_decl, ast::InterfaceDecl<'cx>),
     (visit_class_decl, ast::ClassDecl<'cx>),
     (visit_class_elem, ast::ClassElem<'cx>),
+    (visit_class_prop_elem, ast::ClassPropElem<'cx>),
     (visit_class_method_elem, ast::ClassMethodElem<'cx>),
     (visit_index_sig_decl, ast::IndexSigDecl<'cx>),
     (visit_entity_name, ast::EntityName<'cx>),
@@ -544,7 +628,11 @@ make_visitor!(
     (visit_this_ty, ast::ThisTy),
     (visit_yield_expr, ast::YieldExpr),
     (visit_ret_stmt, ast::RetStmt<'cx>),
-    (visit_assign_expr, ast::AssignExpr<'cx>)
+    (visit_assign_expr, ast::AssignExpr<'cx>),
+    (visit_call_sig_decl, ast::CallSigDecl<'cx>),
+    (visit_ctor_sig_decl, ast::CtorSigDecl<'cx>),
+    (visit_setter_decl, ast::SetterDecl<'cx>),
+    (visit_getter_decl, ast::GetterDecl<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
@@ -552,7 +640,7 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
     match node {
         Program(n) => v.visit_program(n),
         Modifier(n) => todo!(),
-        VarDecl(n) => todo!(),
+        VarDecl(n) => v.visit_var_decl(n),
         ParamDecl(n) => todo!(),
         ClassExtendsClause(n) => todo!(),
         ImportExportShorthandSpec(n) => todo!(),
@@ -587,12 +675,12 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         ModuleDecl(n) => todo!(),
         ClassCtor(n) => todo!(),
         ClassPropElem(n) => todo!(),
-        ClassMethodElem(n) => todo!(),
+        ClassMethodElem(n) => v.visit_class_method_elem(n),
         ClassStaticBlockDecl(n) => todo!(),
         GetterDecl(n) => todo!(),
         SetterDecl(n) => todo!(),
-        InterfaceDecl(n) => visit_interface_decl(v, n),
-        TypeAliasDecl(n) => visit_type_alias_decl(v, n),
+        InterfaceDecl(n) => v.visit_interface_decl(n),
+        TypeAliasDecl(n) => v.visit_type_alias_decl(n),
         InterfaceExtendsClause(n) => todo!(),
         ClassImplementsClause(n) => todo!(),
         BlockStmt(n) => todo!(),
@@ -653,33 +741,33 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         Ident(n) => todo!(),
         ComputedPropName(n) => todo!(),
         ExprWithTyArgs(n) => todo!(),
-        LitTy(n) => todo!(),
-        ReferTy(n) => todo!(),
-        ArrayTy(n) => todo!(),
-        IndexedAccessTy(n) => todo!(),
-        FnTy(n) => visit_fn_ty(v, n),
-        CtorTy(n) => todo!(),
-        ObjectLitTy(n) => todo!(),
-        TyParam(n) => todo!(),
-        IndexSigDecl(n) => todo!(),
+        LitTy(n) => v.visit_lit_ty(n),
+        ReferTy(n) => v.visit_refer_ty(n),
+        ArrayTy(n) => v.visit_array_ty(n),
+        IndexedAccessTy(n) => v.visit_indexed_access_ty(n),
+        FnTy(n) => v.visit_fn_ty(n),
+        CtorTy(n) => v.visit_ctor_ty(n),
+        ObjectLitTy(n) => v.visit_object_lit_ty(n),
+        TyParam(n) => v.visit_ty_param(n),
+        IndexSigDecl(n) => v.visit_index_sig_decl(n),
         CallSigDecl(n) => todo!(),
         CtorSigDecl(n) => todo!(),
-        PropSignature(n) => todo!(),
-        MethodSignature(n) => todo!(),
-        RestTy(n) => todo!(),
-        NamedTupleTy(n) => todo!(),
-        TupleTy(n) => todo!(),
-        CondTy(n) => todo!(),
-        IntersectionTy(n) => todo!(),
-        UnionTy(n) => todo!(),
-        TypeofTy(n) => todo!(),
-        MappedTy(n) => todo!(),
-        TyOp(n) => todo!(),
-        PredTy(n) => todo!(),
+        PropSignature(n) => v.visit_prop_signature(n),
+        MethodSignature(n) => v.visit_method_signature(n),
+        RestTy(n) => v.visit_rest_ty(n),
+        NamedTupleTy(n) => v.visit_named_tuple_ty(n),
+        TupleTy(n) => v.visit_tuple_ty(n),
+        CondTy(n) => v.visit_cond_ty(n),
+        IntersectionTy(n) => v.visit_intersection_ty(n),
+        UnionTy(n) => v.visit_union_ty(n),
+        TypeofTy(n) => v.visit_typeof_ty(n),
+        MappedTy(n) => v.visit_mapped_ty(n),
+        TyOp(n) => v.visit_ty_op_ty(n),
+        PredTy(n) => v.visit_pred_ty(n),
         ParenTy(n) => todo!(),
-        InferTy(n) => todo!(),
-        NullableTy(n) => todo!(),
-        TemplateLitTy(n) => todo!(),
+        InferTy(n) => v.visit_infer_ty(n),
+        NullableTy(n) => v.visit_nullable_ty(n),
+        TemplateLitTy(n) => v.visit_template_lit_ty(n),
         TemplateSpanTy(n) => todo!(),
         IntrinsicTy(n) => todo!(),
         ThisTy(n) => todo!(),

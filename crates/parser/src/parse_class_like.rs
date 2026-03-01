@@ -307,10 +307,15 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
             let ty = self.parse_ret_ty(true)?;
-            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
-                SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            let flags = if asterisk.is_some() {
+                SignatureFlags::YIELD
             } else {
                 SignatureFlags::empty()
+            };
+            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+                flags | SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            } else {
+                flags
             };
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);

@@ -54,10 +54,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
         let tsconfig = RawTsConfig::default()
             .with_compiler_options(compiler_options)
             .with_include_if_none(vec![file_name.to_string()])
-            .config_compiler_options(|c| {
-                c.with_no_emit(true)
-                    .with_out_dir(DEFAULT_OUTPUT.to_string())
-            });
+            .config_compiler_options(|c| c.with_out_dir(DEFAULT_OUTPUT.to_string()));
 
         let cwd = dir.normalize();
         let tsconfig = tsconfig.normalize();

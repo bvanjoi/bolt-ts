@@ -1,0 +1,5 @@
+  × A 'yield' expression is only allowed in a generator body.
+   ╭─[../../tests/compiler/yieldStringLiteral/index.ts:6:5]
+ 6 │ yield
+   · ─────
+   ╰────

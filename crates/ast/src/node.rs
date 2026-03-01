@@ -254,6 +254,16 @@ impl<'cx> Node<'cx> {
             Node::IntersectionTy(n) => TyKind::Intersection(n),
             Node::MappedTy(n) => TyKind::Mapped(n),
             Node::InferTy(n) => TyKind::Infer(n),
+            Node::TypeofTy(n) => TyKind::Typeof(n),
+            Node::TyOp(n) => TyKind::TyOp(n),
+            Node::CtorTy(n) => TyKind::Ctor(n),
+            Node::PredTy(n) => TyKind::Pred(n),
+            Node::ParenTy(n) => TyKind::Paren(n),
+            Node::IntrinsicTy(n) => TyKind::Intrinsic(n),
+            Node::NullableTy(n) => TyKind::Nullable(n),
+            Node::NamedTupleTy(n) => TyKind::NamedTuple(n),
+            Node::TemplateLitTy(n) => TyKind::TemplateLit(n),
+            Node::ThisTy(n) => TyKind::This(n),
             _ => return None,
         };
         Some(Ty { kind })

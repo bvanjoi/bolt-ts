@@ -140,7 +140,9 @@ impl<'cx> TyChecker<'cx> {
             let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
-            self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
+            let ret =
+                self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args);
+            ret
         } else if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
             ty
         } else {

@@ -714,10 +714,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn finalize_evolving_array_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty
-            .get_object_flags()
-            .intersects(ObjectFlags::EVOLVING_ARRAY)
-        {
+        if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
             todo!()
         } else {
             ty

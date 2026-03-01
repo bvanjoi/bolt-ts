@@ -818,23 +818,37 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         .unwrap()
     }
 
+    pub fn is_part_of_ty_expr_with_ty_arguments(&self, n: &'cx ast::ExprWithTyArgs<'cx>) -> bool {
+        let p = self.parent(n.id).unwrap();
+        match self.node(p) {
+            ast::Node::InterfaceExtendsClause(_) => true,
+            // TODO: js
+            _ => false,
+        }
+    }
+
     pub fn is_part_of_ty_node(&self, n: ast::NodeID) -> bool {
         let mut node = self.node(n);
         if node.is_ty() {
             return true;
         }
+        let Some(p) = self.parent(n) else {
+            return false;
+        };
         use ast::Node::*;
         match node {
             Ident(ident) if ident.name == keyword::KW_VOID => {
-                let p = self.parent(n).unwrap();
                 let p = self.node(p);
                 return !matches!(p, VoidExpr(_));
             }
             Ident(ident) if is_prim_ty_name(ident.name) => return true,
+            ExprWithTyArgs(n) => return self.is_part_of_ty_expr_with_ty_arguments(n),
+            TyParam(_) => {
+                return matches!(self.node(p), MappedTy(_) | InferTy(_));
+            }
             _ => (),
         }
         if let Ident(ident) = node {
-            let p = self.parent(n).unwrap();
             let p = self.node(p);
             if p.as_qualified_name()
                 .is_some_and(|p| std::ptr::eq(p.right, ident))
@@ -843,12 +857,42 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             {
                 node = p;
             }
-            assert!(node.is_ident() || node.is_qualified_name() || node.is_prop_access_expr());
+            debug_assert!(
+                node.is_ident() || node.is_qualified_name() || node.is_prop_access_expr()
+            );
         }
         match node {
-            Ident(_) | QualifiedName(_) | PropAccessExpr(_) => {
-                //TODO:
-                false
+            Ident(_) | QualifiedName(_) | PropAccessExpr(_) | ThisExpr(_) => {
+                match self.node(p) {
+                    ExprWithTyArgs(p) => self.is_part_of_ty_expr_with_ty_arguments(p),
+                    TyParam(p) => p.constraint.is_some_and(|c| c.id() == n),
+                    //TODO: js
+                    ClassPropElem(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    PropSignature(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ParamDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    VarDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    FnDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    FnExpr(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ArrowFnExpr(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ClassMethodElem(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ObjectMethodMember(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    GetterDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    CallSigDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    CtorSigDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    IndexSigDecl(p) => p.ty.id() == n,
+                    CallExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    NewExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    TaggedTemplateExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    TypeofTy(_) => false,
+                    //TODO: import type
+                    p_node => p_node.is_ty(),
+                }
             }
             _ => false,
         }

@@ -1,3 +1,4 @@
+use super::IterationTypeKind;
 use super::TyChecker;
 use super::ty;
 
@@ -8,16 +9,30 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ret_ty: &'cx ty::Ty<'cx>,
         flags: ast::FnFlags,
-    ) -> &'cx ty::Ty<'cx> {
+    ) -> Option<&'cx ty::Ty<'cx>> {
         let is_generator = flags.contains(ast::FnFlags::GENERATOR);
         let is_async = flags.contains(ast::FnFlags::ASYNC);
         if is_generator {
-            todo!()
+            let Some(ret_iteration_ty) = self.get_iteration_ty_of_generator_fn_return_ty(
+                IterationTypeKind::Return,
+                ret_ty,
+                is_async,
+            ) else {
+                return Some(self.error_ty);
+            };
+            if is_async {
+                let ty = self.unwrap_awaited_ty(ret_iteration_ty);
+                self.get_awaited_ty_no_alias(ty)
+            } else {
+                Some(ret_iteration_ty)
+            }
         } else if is_async {
-            self.get_awaited_ty_no_alias(ret_ty)
-                .unwrap_or(self.error_ty)
+            Some(
+                self.get_awaited_ty_no_alias(ret_ty)
+                    .unwrap_or(self.error_ty),
+            )
         } else {
-            ret_ty
+            Some(ret_ty)
         }
     }
 

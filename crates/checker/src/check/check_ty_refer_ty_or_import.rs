@@ -288,7 +288,7 @@ impl<'cx> TyChecker<'cx> {
             };
 
             if checker.pop_ty_resolution().has_cycle() {
-                if ty.flags.intersects(TypeFlags::TYPE_PARAMETER)
+                if ty.flags.contains(TypeFlags::TYPE_PARAMETER)
                     && let Some(decl) = checker.get_constraint_decl(ty)
                 {
                     let error = errors::TypeParameterXHasACircularConstraint {

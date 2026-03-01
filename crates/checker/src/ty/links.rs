@@ -86,7 +86,7 @@ links!(
     (contains_error, bool)
 );
 
-links!(UnionTyLinks, (key_prop_name, SymbolName));
+links!(UnionTyLinks, (key_prop_name, SymbolName),);
 
 links!(
     PromiseOrAwaitableTyLinks,
