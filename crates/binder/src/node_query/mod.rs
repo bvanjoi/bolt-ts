@@ -1122,4 +1122,31 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             _ => true,
         }
     }
+
+    pub fn expr_result_is_unused(&self, mut node: ast::NodeID) -> bool {
+        loop {
+            let p = match self.parent(node) {
+                Some(p) => p,
+                None => return false,
+            };
+            match self.node(p) {
+                ast::Node::ParenExpr(_) => node = p,
+                ast::Node::ExprStmt(_) | ast::Node::VoidExpr(_) => return true,
+                ast::Node::ForStmt(stmt) => {
+                    if stmt.init.is_some_and(|init| match init {
+                        ast::ForInitKind::Var(_) => false,
+                        ast::ForInitKind::Expr(expr) => expr.id() == node,
+                    }) {
+                        return true;
+                    }
+                    if stmt.incr.is_some_and(|incr| incr.id() == node) {
+                        return true;
+                    }
+                }
+                // TODO: command list
+                // TODO: comma
+                _ => return false,
+            }
+        }
+    }
 }

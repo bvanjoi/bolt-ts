@@ -141,6 +141,57 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(res.is_ok());
         symbol
     }
+
+    fn get_global_builtin_tys<const ARITY: u8>(
+        &mut self,
+        names: &[bolt_ts_atom::Atom],
+    ) -> Vec<&'cx ty::Ty<'cx>> {
+        let mut tys = vec![];
+        for name in names {
+            let name = SymbolName::Atom(*name);
+            let Some(global_ty) = self.try_get_global_type::<ARITY, false>(name) else {
+                continue;
+            };
+            tys.push(global_ty);
+        }
+        tys
+    }
+
+    pub(super) fn get_global_builtin_async_iterator_tys(&mut self) -> ty::Tys<'cx> {
+        if let Some(cached) = self.deferred_global_builtin_async_iterator_tys.get() {
+            return cached;
+        }
+        let ret =
+            self.get_global_builtin_tys::<1>(&[keyword::IDENT_READABLE_STREAM_ASYNC_ITERATOR]);
+        let ret = self.alloc(ret);
+        let r = self.deferred_global_builtin_async_iterator_tys.set(ret);
+        debug_assert!(r.is_ok());
+        ret
+    }
+
+    pub(super) fn get_global_builtin_iterator_tys(&mut self) -> ty::Tys<'cx> {
+        if let Some(cached) = self.deferred_global_builtin_iterator_tys.get() {
+            return cached;
+        }
+        let ret = self.get_global_builtin_tys::<1>(&[
+            keyword::IDENT_ASYNC_ITERATOR_CLASS,
+            keyword::IDENT_MAP_ITERATOR,
+            keyword::IDENT_SET_ITERATOR,
+            keyword::IDENT_STRING_ITERATOR,
+        ]);
+        let ret = self.alloc(ret);
+        let r = self.deferred_global_builtin_iterator_tys.set(ret);
+        debug_assert!(r.is_ok());
+        ret
+    }
+
+    pub(super) fn get_builtin_iterator_return_ty(&self) -> &'cx ty::Ty<'cx> {
+        if self.config.strict_builtin_iteration_return() {
+            self.undefined_ty
+        } else {
+            self.any_ty
+        }
+    }
 }
 
 macro_rules! deferred_global_ty0 {
@@ -206,7 +257,9 @@ deferred_global_ty0!(
     [async_iterable, ASYNC_ITERABLE, generic, 3],
     [async_iterable_iterator, ASYNC_ITERABLE_ITERATOR, generic, 3],
     [async_iterator_object, ASYNC_ITERATOR_OBJECT, generic, 3],
-    [async_generator, ASYNC_GENERATOR, generic, 3]
+    [async_generator, ASYNC_GENERATOR, generic, 3],
+    [iterator_yield_result, ITERATOR_YIELD_RESULT, generic, 1],
+    [iterator_return_result, ITERATOR_RETURN_RESULT, generic, 1]
 );
 
 deferred_global_ty1!(

@@ -2702,17 +2702,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let s = self
                     .c
                     .get_name_ty_from_mapped_ty(source_mapped_ty)
-                    .map(|n| self.c.instantiate_ty(n, Some(mapper)));
+                    .map(|n| self.c.instantiate_ty_worker(n, mapper));
                 let t = self
                     .c
                     .get_name_ty_from_mapped_ty(target_mapped_ty)
-                    .map(|n| self.c.instantiate_ty(n, Some(mapper)));
+                    .map(|n| self.c.instantiate_ty_worker(n, mapper));
                 if s == t {
                     return result & {
                         let s = self.c.get_template_ty_from_mapped_ty(source_mapped_ty);
-                        let s = self.c.instantiate_ty(s, Some(mapper));
+                        let s = self.c.instantiate_ty_worker(s, mapper);
                         let t = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
-                        let t = self.c.instantiate_ty(t, Some(mapper));
+                        let t = self.c.instantiate_ty_worker(t, mapper);
                         self.is_related_to(
                             s,
                             t,

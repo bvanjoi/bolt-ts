@@ -173,7 +173,8 @@ impl<'cx> TyChecker<'cx> {
                                 ty_params,
                                 ty_reference,
                             });
-                            let constraint = self.instantiate_ty(declared_constraint, Some(mapper));
+                            let constraint =
+                                self.instantiate_ty_worker(declared_constraint, mapper);
                             if constraint != ty_param {
                                 inferences.push(constraint);
                             }
@@ -219,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
             let constraint =
                 if let Some(target_constraint) = self.get_constraint_of_ty_param(target) {
                     let mapper = self.get_ty_links(ty_param.id).expect_param_ty_mapper();
-                    self.instantiate_ty(target_constraint, Some(mapper))
+                    self.instantiate_ty_worker(target_constraint, mapper)
                 } else {
                     self.no_constraint_ty()
                 };
@@ -455,7 +456,7 @@ impl<'cx> TyChecker<'cx> {
         for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
                 && result
-                && let target = self.instantiate_ty(constraint, Some(mapper))
+                && let target = self.instantiate_ty_worker(constraint, mapper)
                 && !self.check_type_assignable_to(ty_arg, target, None)
             {
                 if let Some(error_node) = node.ty_args().and_then(|ty_args| ty_args.list.get(idx)) {

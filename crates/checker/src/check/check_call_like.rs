@@ -672,7 +672,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 let check_arg_ty = if let Some(infer) = inference_context {
                     let mapper = self.inference(infer).non_fixing_mapper;
-                    self.instantiate_ty(regular_arg_ty, Some(mapper))
+                    self.instantiate_ty_worker(regular_arg_ty, mapper)
                 } else {
                     regular_arg_ty
                 };
@@ -728,7 +728,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let ty_arg = ty_arg_tys.unwrap()[i];
             let target = {
-                let ty = self.instantiate_ty(constraint, Some(mapper));
+                let ty = self.instantiate_ty_worker(constraint, mapper);
                 self.get_ty_with_this_arg(ty, Some(ty_arg), false)
             };
             if !self.check_type_assignable_to(

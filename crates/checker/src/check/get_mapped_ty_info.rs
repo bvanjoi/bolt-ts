@@ -21,7 +21,7 @@ impl<'cx> TyChecker<'cx> {
                 Some(name_ty) => {
                     let source = this.get_ty_param_from_mapped_ty(map);
                     let mapper = this.append_ty_mapping(map.mapper, source, key_ty);
-                    this.instantiate_ty(name_ty, Some(mapper))
+                    this.instantiate_ty_worker(name_ty, mapper)
                 }
                 None => key_ty,
             };
@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
             })
         {
             let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);
-            return self.instantiate_ty(target, Some(mapper));
+            return self.instantiate_ty_worker(target, mapper);
         }
         ty
     }

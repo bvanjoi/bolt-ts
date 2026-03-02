@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
             let base_constraint_mapper = self.create_ty_mapper(ty_params, targets);
             let base_constraints = ty_params
                 .iter()
-                .map(|ty| self.instantiate_ty(ty, Some(base_constraint_mapper)))
+                .map(|ty| self.instantiate_ty_worker(ty, base_constraint_mapper))
                 .collect::<Vec<_>>();
             let mut base_constraints: ty::Tys<'cx> = self.alloc(base_constraints);
             for _ in 0..ty_params.len() - 1 {

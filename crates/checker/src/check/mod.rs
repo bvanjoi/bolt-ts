@@ -85,8 +85,6 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashs
 use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::check::get_iteration_tys::IterationTypeKind;
-
 use self::check_expr::IterationUse;
 use self::check_type_related_to::RecursionFlags;
 use self::create_ty::IntersectionFlags;
@@ -96,6 +94,7 @@ use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
+use self::get_iteration_tys::IterationTypeKind;
 use self::get_simplified_ty::SimplifiedKind;
 use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
@@ -117,11 +116,11 @@ use self::relation::EnumRelationMap;
 pub use self::resolve::ExpectedArgsCount;
 pub(crate) use self::symbol_info::SymbolInfo;
 use self::transient_symbol::create_transient_symbol;
-use self::ty::typeof_ne_facts;
 use self::type_predicate::TyPred;
 use self::utils::contains_ty;
 
 use super::ty::TyMapper;
+use super::ty::typeof_ne_facts;
 use super::ty::{self, AccessFlags};
 use super::ty::{CheckFlags, IndexFlags, TYPEOF_NE_FACTS};
 use super::ty::{ElementFlags, ObjectFlags, Sig, SigFlags, SigID, TyID, TypeFacts, TypeFlags};
@@ -382,10 +381,17 @@ pub struct TyChecker<'cx> {
     deferred_global_nan_symbol: std::cell::OnceCell<Option<SymbolID>>,
     deferred_global_record_symbol: std::cell::OnceCell<Option<SymbolID>>,
 
-    any_iteration_tys: std::cell::OnceCell<&'cx ty::IterationTys<'cx>>,
     empty_array: &'cx [u8; 0],
-    never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
     structure_members_placeholder: &'cx ty::StructuredMembers<'cx>,
+    never_intersection_tys: nohash_hasher::IntMap<ty::TyID, bool>,
+
+    any_iteration_tys: std::cell::OnceCell<&'cx ty::IterationTys<'cx>>,
+    no_iteration_tys: std::cell::OnceCell<&'cx ty::IterationTys<'cx>>,
+    iteration_tys_of_iterable: nohash_hasher::IntMap<ty::TyID, &'cx ty::IterationTys<'cx>>,
+    iteration_tys_of_iterator: nohash_hasher::IntMap<ty::TyID, &'cx ty::IterationTys<'cx>>,
+    iteration_tys_of_async_iterable: nohash_hasher::IntMap<ty::TyID, &'cx ty::IterationTys<'cx>>,
+    iteration_tys_of_async_iterator: nohash_hasher::IntMap<ty::TyID, &'cx ty::IterationTys<'cx>>,
+    iteration_tys_of_iterator_result: nohash_hasher::IntMap<ty::TyID, &'cx ty::IterationTys<'cx>>,
 
     flow_loop_start: u32,
     flow_loop_nodes: Vec<FlowID>,
@@ -696,7 +702,15 @@ impl<'cx> TyChecker<'cx> {
             mark_sub_ty: Default::default(),
             mark_other_ty: Default::default(),
             template_constraint_ty: Default::default(),
+
             any_iteration_tys: Default::default(),
+            no_iteration_tys: Default::default(),
+            iteration_tys_of_iterable: Default::default(),
+            iteration_tys_of_iterator: Default::default(),
+            iteration_tys_of_async_iterable: Default::default(),
+            iteration_tys_of_async_iterator: Default::default(),
+            iteration_tys_of_iterator_result: Default::default(),
+
             unknown_empty_object_ty: Default::default(),
 
             deferred_global_typed_property_descriptor_ty: Default::default(),
@@ -847,6 +861,7 @@ impl<'cx> TyChecker<'cx> {
             (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
             (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
+            (no_iteration_tys,              this.alloc(ty::IterationTys {yield_ty: error_ty, return_ty: error_ty, next_ty: error_ty})),
             (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
@@ -947,6 +962,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn any_iteration_tys(&self) -> &'cx ty::IterationTys<'cx> {
         self.any_iteration_tys.get().copied().unwrap()
+    }
+
+    pub fn no_iteration_tys(&self) -> &'cx ty::IterationTys<'cx> {
+        self.no_iteration_tys.get().copied().unwrap()
     }
 
     pub fn array_variances(&self) -> &'cx [VarianceFlags] {
@@ -3013,7 +3032,7 @@ impl<'cx> TyChecker<'cx> {
                         mode,
                         y.expr.map(|e| e.id()),
                     );
-                    Some(iteration_tys.next_ty)
+                    iteration_tys.map(|tys| tys.next_ty)
                 } else {
                     self.checker.get_contextual_ty(y.id, None)
                 };
@@ -3418,7 +3437,10 @@ impl<'cx> TyChecker<'cx> {
         sources: ty::Tys<'cx>,
         targets: Option<ty::Tys<'cx>>,
     ) -> ty::ArrayTyMapper<'cx> {
-        assert!(sources.len() >= targets.map(|t| t.len()).unwrap_or_default());
+        assert!(
+            sources.len() >= targets.map(|t| t.len()).unwrap_or_default(),
+            "{sources:#?} {targets:#?}",
+        );
         let mut mapper = sources
             .iter()
             .enumerate()
@@ -4464,7 +4486,7 @@ impl<'cx> TyChecker<'cx> {
                 .map(|t| t.kind.expect_object_mapped())
                 .unwrap_or(mapped_ty);
             let template_ty = self.get_template_ty_from_mapped_ty(m);
-            self.instantiate_ty(template_ty, Some(template_mapper))
+            self.instantiate_ty_worker(template_ty, template_mapper)
         };
         // TODO: is_optional
         let is_optional = false;
@@ -5888,7 +5910,7 @@ impl<'cx> TyChecker<'cx> {
             |this, t| {
                 let source = this.get_ty_param_from_mapped_ty(target_ty);
                 let mapper = this.append_ty_mapping(target_ty.mapper, source, t);
-                let t = this.instantiate_ty(name_ty, Some(mapper));
+                let t = this.instantiate_ty_worker(name_ty, mapper);
                 mapped_keys.push(t);
             },
         );
@@ -5953,7 +5975,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let type_arguments = &type_arguments[0..len];
             let mapper = self.create_ty_mapper(target_i.ty_params.unwrap(), type_arguments);
-            self.instantiate_ty(bases[0], Some(mapper))
+            self.instantiate_ty_worker(bases[0], mapper)
         } else {
             bases[0]
         };
@@ -6012,6 +6034,11 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         let promised_ty = self.get_promised_ty_of_promise(ty)?;
         self.get_awaited_ty(promised_ty)
+    }
+
+    fn is_ty_usable_as_prop_name(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags
+            .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
     }
 }
 

@@ -567,7 +567,7 @@ impl<'cx> TyChecker<'cx> {
                         Some(mapper),
                         self.inference(inference).non_fixing_mapper,
                     );
-                    inferred_ty = Some(self.instantiate_ty(default_ty, Some(mapper)));
+                    inferred_ty = Some(self.instantiate_ty_worker(default_ty, mapper));
                 }
             }
         } else {
@@ -586,10 +586,8 @@ impl<'cx> TyChecker<'cx> {
 
         let i = self.inference_info(inference, idx);
         if let Some(constraint) = self.get_constraint_of_ty_param(i.ty_param) {
-            let instantiated_constraint = self.instantiate_ty(
-                constraint,
-                Some(self.inference(inference).non_fixing_mapper),
-            );
+            let mapper = self.inference(inference).non_fixing_mapper;
+            let instantiated_constraint = self.instantiate_ty_worker(constraint, mapper);
             if let Some(ty) = inferred_ty {
                 let constraint_with_this =
                     self.get_ty_with_this_arg(instantiated_constraint, Some(ty), false);

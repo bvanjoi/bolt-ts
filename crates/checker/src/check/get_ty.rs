@@ -360,7 +360,7 @@ impl<'cx> TyChecker<'cx> {
             let source = self.get_ty_param_from_mapped_ty(mapped_ty);
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
-        let prop_ty = self.instantiate_ty(template_ty, Some(mapper));
+        let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
         let ty = if self.config.strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
@@ -1560,7 +1560,7 @@ impl<'cx> TyChecker<'cx> {
                 };
             }
             let inferred_extends_ty = if let Some(combined_mapper) = combined_mapper {
-                self.instantiate_ty(root.extends_ty, Some(combined_mapper))
+                self.instantiate_ty_worker(root.extends_ty, combined_mapper)
             } else {
                 extends_ty
             };
@@ -2302,7 +2302,7 @@ impl<'cx> TyChecker<'cx> {
         };
         self.same_map_tys(Some(ty_params), |this, tp, _| {
             if let Some(mapper) = this.param_ty_mapper(tp) {
-                this.instantiate_ty(tp, Some(mapper))
+                this.instantiate_ty_worker(tp, mapper)
             } else {
                 tp
             }

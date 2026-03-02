@@ -11,6 +11,8 @@ use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
+use crate::check::IterationTypeKind;
+
 use super::ObjectFlags;
 use super::TyChecker;
 use super::ast;
@@ -475,7 +477,93 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_yield_expr(&mut self, node: &'cx ast::YieldExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        self.undefined_ty
+        let Some(func) = self.node_query(node.id.module()).get_containing_fn(node.id) else {
+            return self.any_ty;
+        };
+
+        let f_node = self.p.node(func);
+        let fn_flags = f_node.fn_flags();
+        if !fn_flags.contains(ast::FnFlags::GENERATOR) {
+            // TODO: delay error
+            return self.any_ty;
+        };
+        let is_async = fn_flags.contains(ast::FnFlags::ASYNC);
+        if node.asterisk.is_some() {
+            // TODO: check external emit helpers
+        }
+
+        let mut ret_ty = self.get_ret_ty_from_anno(func);
+        if let Some(ty) = ret_ty
+            && ty.kind.is_union()
+        {
+            ret_ty = Some(self.filter_type(ty, |this, t| {
+                this.check_generator_instantiation_assignability_to_return_ty(t, fn_flags, None)
+            }));
+        }
+        let iteration_tys = ret_ty
+            .and_then(|ret_ty| self.get_iteration_tys_of_generator_fn_return_ty(ret_ty, is_async));
+        let signature_yield_ty = iteration_tys.map_or(self.any_ty, |tys| tys.yield_ty);
+        let signature_next_ty = iteration_tys.map_or(self.any_ty, |tys| tys.next_ty);
+        let yield_expr_ty = if let Some(expr) = node.expr {
+            self.check_expr(expr)
+        } else {
+            self.undefined_widening_ty
+        };
+        let yield_ty =
+            self.get_yielded_ty_of_yield_expr(node, yield_expr_ty, signature_next_ty, is_async);
+        if let Some(yield_ty) = yield_ty
+            && let Some(ret_ty) = ret_ty
+        {
+            self.check_type_assignable_to_and_optionally_elaborate(
+                yield_ty,
+                ret_ty,
+                Some(node.expr.map_or(node.id, |expr| expr.id())),
+                node.expr.map(|expr| expr.id()),
+            );
+        }
+
+        if node.asterisk.is_some() {
+            let iteration_use = if is_async {
+                IterationUse::ASYNC_YIELD_STAR
+            } else {
+                IterationUse::YIELD_STAR
+            };
+            return self
+                .get_iteration_ty_of_iterable(
+                    iteration_use,
+                    IterationTypeKind::Return,
+                    yield_expr_ty,
+                    node.expr.map(|expr| expr.id()),
+                )
+                .unwrap_or(self.any_ty);
+        } else if let Some(ret_ty) = ret_ty {
+            return self
+                .get_iteration_ty_of_generator_fn_return_ty(
+                    IterationTypeKind::Next,
+                    ret_ty,
+                    is_async,
+                )
+                .unwrap_or(self.any_ty);
+        }
+        if let Some(ty) = self.get_contextual_iteration_ty(IterationTypeKind::Next, func, is_async)
+        {
+            if self.config.no_implicit_any()
+                && !self
+                    .node_query(node.id.module())
+                    .expr_result_is_unused(node.id)
+            {
+                let contextual_ty = self.get_contextual_ty(node.id, None);
+                if contextual_ty.is_none_or(|contextual_ty| self.is_type_any(contextual_ty)) {
+                    let error = errors::YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainingGeneratorLacksAReturnTypeAnnotation {
+                        span: node.span
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            return ty;
+        }
+
+        self.any_ty
     }
 
     fn check_delete_expr(&mut self, node: &'cx ast::DeleteExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -659,26 +747,6 @@ impl<'cx> TyChecker<'cx> {
         }
         self.get_iterated_ty_or_elem_ty(mode, input_ty, send_ty, error_node, true)
             .unwrap_or(self.any_ty)
-    }
-
-    pub(super) fn get_iteration_tys_of_iterable(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        mode: IterationUse,
-        error_node: Option<ast::NodeID>,
-    ) -> &'cx ty::IterationTys<'cx> {
-        if self.is_type_any(ty) {
-            return self.any_iteration_tys();
-        }
-
-        // TODO: more case:
-
-        // if !ty.flags.intersects(TypeFlags::UNION) {}
-
-        // let cache_key = if mode.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-        // } else {
-        // };
-        self.any_iteration_tys()
     }
 
     fn get_iterated_ty_or_elem_ty(

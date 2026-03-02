@@ -1251,3 +1251,13 @@ pub(super) struct ThisExpressionIsAlwaysNullish {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'yield' expression implicitly results in an 'any' type because its containing generator lacks a return-type annotation."
+)]
+pub(super) struct YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainingGeneratorLacksAReturnTypeAnnotation
+{
+    #[label(primary)]
+    pub span: Span,
+}

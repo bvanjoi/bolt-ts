@@ -590,11 +590,12 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
     ) -> bool {
         ty.get_object_flags().contains(ObjectFlags::REFERENCE) && {
+            // TODO: Tuple?
             let Some(object_ty) = ty.kind.as_object() else {
                 unreachable!()
             };
             match object_ty.kind {
-                ty::ObjectTyKind::Interface(t) => true,
+                ty::ObjectTyKind::Interface(_) => true,
                 ty::ObjectTyKind::Reference(t) => t.target == ty,
                 _ => unreachable!(),
             }

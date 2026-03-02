@@ -23,7 +23,7 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if ty.flags.intersects(TypeFlags::INSTANTIABLE) {
-            return self.instantiate_ty(ty, Some(mapper));
+            return self.instantiate_ty_worker(ty, mapper);
         }
         match ty.kind {
             ty::TyKind::Union(u) => {
@@ -52,10 +52,19 @@ impl<'cx> TyChecker<'cx> {
         mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(mapper) = mapper {
-            self.instantiate_ty_with_alias(ty, mapper, None, None)
+            self.instantiate_ty_worker(ty, mapper)
         } else {
             ty
         }
+    }
+
+    #[inline]
+    pub fn instantiate_ty_worker(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.instantiate_ty_with_alias(ty, mapper, None, None)
     }
 
     pub(super) fn instantiate_list<T: PartialEq + Copy>(
@@ -89,7 +98,7 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> ty::Tys<'cx> {
         self.instantiate_list(tys, mapper, |this, item, mapper| {
-            this.instantiate_ty(item, Some(mapper))
+            this.instantiate_ty_worker(item, mapper)
         })
     }
 
@@ -174,7 +183,7 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
-    pub(super) fn instantiate_ty_with_alias(
+    fn instantiate_ty_with_alias(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
@@ -263,7 +272,7 @@ impl<'cx> TyChecker<'cx> {
                 alias_ty_arguments,
             ),
             Index(index) => {
-                let t = self.instantiate_ty(index.ty, Some(mapper));
+                let t = self.instantiate_ty_worker(index.ty, mapper);
                 self.get_index_ty(t, ty::IndexFlags::empty())
             }
             TemplateLit(lit) => {
@@ -271,7 +280,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_template_lit_ty(lit.texts, tys)
             }
             StringMapping(s) => {
-                let ty = self.instantiate_ty(s.ty, Some(mapper));
+                let ty = self.instantiate_ty_worker(s.ty, mapper);
                 self.get_string_mapping_ty(s.symbol, ty)
             }
             IndexedAccess(indexed) => {
@@ -299,11 +308,11 @@ impl<'cx> TyChecker<'cx> {
                 self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_arguments)
             }
             Substitution(sub) => {
-                let new_base_ty = self.instantiate_ty(sub.base_ty, Some(mapper));
+                let new_base_ty = self.instantiate_ty_worker(sub.base_ty, mapper);
                 if ty.is_no_infer_ty() {
                     return self.get_no_infer_ty(new_base_ty);
                 }
-                let new_constraint = self.instantiate_ty(sub.constraint, Some(mapper));
+                let new_constraint = self.instantiate_ty_worker(sub.constraint, mapper);
                 if new_base_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
                     && self.is_generic_ty(new_constraint)
                 {
@@ -445,11 +454,11 @@ impl<'cx> TyChecker<'cx> {
                     )
                 } else if flags.contains(ty::ElementFlags::VARIADIC) {
                     let mapper = self.prepend_ty_mapping(ty_var, ty, Some(mapper));
-                    self.instantiate_ty(mapped_ty, Some(mapper))
+                    self.instantiate_ty_worker(mapped_ty, mapper)
                 } else {
                     let target = self.create_array_ty(ty, false);
                     let mapper = self.prepend_ty_mapping(ty_var, target, Some(mapper));
-                    let t = self.instantiate_ty(mapped_ty, Some(mapper));
+                    let t = self.instantiate_ty_worker(mapped_ty, mapper);
                     self.get_element_ty_of_array_ty(t)
                         .unwrap_or(self.unknown_ty)
                 }
@@ -532,7 +541,7 @@ impl<'cx> TyChecker<'cx> {
             let template_ty = self.get_template_ty_from_mapped_ty(
                 m.target.map_or(m, |t| t.kind.expect_object_mapped()),
             );
-            self.instantiate_ty(template_ty, Some(template_mapper))
+            self.instantiate_ty_worker(template_ty, template_mapper)
         };
         let modifiers = m.decl.get_modifiers();
         let strict_null_checks = self.config.strict_null_checks();
@@ -607,7 +616,7 @@ impl<'cx> TyChecker<'cx> {
 
         let m = ty.kind.expect_object_mapped();
         if let Some(ty_var) = self.get_homomorphic_ty_var(m) {
-            let mapped_ty_var = self.instantiate_ty(ty_var, Some(mapper));
+            let mapped_ty_var = self.instantiate_ty_worker(ty_var, mapper);
             if ty_var != mapped_ty_var {
                 let mapped_ty_var = self.get_reduced_ty(mapped_ty_var);
                 return self
@@ -631,7 +640,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(m);
-        if self.instantiate_ty(constraint_ty, Some(mapper)) == self.wildcard_ty {
+        if self.instantiate_ty_worker(constraint_ty, mapper) == self.wildcard_ty {
             self.wildcard_ty
         } else {
             self.instantiate_anonymous_for_mapped_ty(
@@ -701,15 +710,15 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let r = ty.kind.expect_object_reverse_mapped();
-        let inner_mapped_ty = self.instantiate_ty(r.mapped_ty, Some(mapper));
+        let inner_mapped_ty = self.instantiate_ty_worker(r.mapped_ty, mapper);
         if !inner_mapped_ty.kind.is_object_mapped() {
             return ty;
         };
-        let inner_index_ty = self.instantiate_ty(r.constraint_ty, Some(mapper));
+        let inner_index_ty = self.instantiate_ty_worker(r.constraint_ty, mapper);
         if !inner_index_ty.kind.is_index_ty() {
             return ty;
         };
-        let s = self.instantiate_ty(r.source, Some(mapper));
+        let s = self.instantiate_ty_worker(r.source, mapper);
         self.infer_ty_for_homomorphic_map_ty(s, inner_mapped_ty, inner_index_ty)
             .unwrap_or(ty)
     }
@@ -1327,7 +1336,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
                         let mapper = self.create_ty_mapper(ty_params, targets);
-                        self.instantiate_ty(default_ty, Some(mapper))
+                        self.instantiate_ty_worker(default_ty, mapper)
                     }
                 } else {
                     base_default_ty
@@ -1368,7 +1377,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(target) = param.target {
             let target_default = self.get_resolved_ty_param_default(target);
             let mapper = self.ty_links[&ty.id].get_param_ty_mapper().unwrap();
-            let default_ty = self.instantiate_ty(target_default, Some(mapper));
+            let default_ty = self.instantiate_ty_worker(target_default, mapper);
             self.get_mut_ty_links(ty.id).set_default(default_ty);
             default_ty
         } else {

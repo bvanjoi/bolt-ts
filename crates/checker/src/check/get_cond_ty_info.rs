@@ -101,7 +101,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let res = if let Some(m) = cond_ty.combined_mapper {
             let ty = self.get_ty_from_type_node(cond_ty.root.node.true_ty);
-            self.instantiate_ty(ty, Some(m))
+            self.instantiate_ty_worker(ty, m)
         } else {
             self.get_true_ty_from_cond_ty(cond_ty)
         };

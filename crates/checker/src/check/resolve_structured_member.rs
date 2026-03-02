@@ -144,7 +144,7 @@ impl<'cx> TyChecker<'cx> {
         info: &'cx ty::IndexInfo<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::IndexInfo<'cx> {
-        let ty = self.instantiate_ty(info.val_ty, Some(mapper));
+        let ty = self.instantiate_ty_worker(info.val_ty, mapper);
         self.alloc(ty::IndexInfo {
             val_ty: ty,
             ..*info
@@ -869,7 +869,7 @@ impl<'cx> TyChecker<'cx> {
             self.alloc([a, b])
         };
         let mapper = self.create_ty_mapper(sources, targets);
-        self.instantiate_ty(instantiable, Some(mapper))
+        self.instantiate_ty_worker(instantiable, mapper)
     }
 
     fn resolve_reverse_mapped_ty_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -1286,21 +1286,21 @@ impl<'cx> TyChecker<'cx> {
                     || ({
                         let s = self
                             .get_constraint_of_ty_param(s)
-                            .map(|s| self.instantiate_ty(s, Some(mapper)))
+                            .map(|s| self.instantiate_ty_worker(s, mapper))
                             .unwrap_or(self.unknown_ty);
                         let t = self
                             .get_constraint_of_ty_param(t)
-                            .map(|t| self.instantiate_ty(t, Some(mapper)))
+                            .map(|t| self.instantiate_ty_worker(t, mapper))
                             .unwrap_or(self.unknown_ty);
                         compare_tys(self, s, t) != Ternary::FALSE
                     }) && {
                         let s = self
                             .get_default_ty_from_ty_param(s)
-                            .map(|s| self.instantiate_ty(s, Some(mapper)))
+                            .map(|s| self.instantiate_ty_worker(s, mapper))
                             .unwrap_or(self.unknown_ty);
                         let t = self
                             .get_default_ty_from_ty_param(t)
-                            .map(|t| self.instantiate_ty(t, Some(mapper)))
+                            .map(|t| self.instantiate_ty_worker(t, mapper))
                             .unwrap_or(self.unknown_ty);
                         compare_tys(self, s, t) != Ternary::FALSE
                     })
@@ -1624,7 +1624,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let val_ty = {
                         let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, key_ty);
-                        this.instantiate_ty(template_ty, Some(mapper))
+                        this.instantiate_ty_worker(template_ty, mapper)
                     };
                     let modifiers_index_info =
                         this.get_applicable_index_info(modifiers_ty, prop_name_ty);
@@ -1644,7 +1644,7 @@ impl<'cx> TyChecker<'cx> {
         let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
             let prop_name_ty = if let Some(name_ty) = name_ty {
                 let mapper = this.append_ty_mapping(mapped_ty.mapper, ty_param, key_ty);
-                this.instantiate_ty(name_ty, Some(mapper))
+                this.instantiate_ty_worker(name_ty, mapper)
             } else {
                 key_ty
             };

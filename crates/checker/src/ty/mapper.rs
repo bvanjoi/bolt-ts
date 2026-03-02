@@ -66,7 +66,7 @@ impl<'cx> TyMap<'cx> for CompositeTyMapper<'cx> {
     fn get_mapped_ty(&self, ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> &'cx Ty<'cx> {
         let t1 = self.mapper1.get_mapped_ty(ty, checker);
         if t1 != ty {
-            checker.instantiate_ty(t1, Some(self.mapper2))
+            checker.instantiate_ty_worker(t1, self.mapper2)
         } else {
             self.mapper2.get_mapped_ty(t1, checker)
         }
