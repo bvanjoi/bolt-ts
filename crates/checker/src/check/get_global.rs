@@ -174,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
             return cached;
         }
         let ret = self.get_global_builtin_tys::<1>(&[
-            keyword::IDENT_ASYNC_ITERATOR_CLASS,
+            keyword::IDENT_ARRAY_ITERATOR,
             keyword::IDENT_MAP_ITERATOR,
             keyword::IDENT_SET_ITERATOR,
             keyword::IDENT_STRING_ITERATOR,

@@ -1,3 +1,12 @@
+{
+  function f(d) {
+    var a = d;
+  }
+  var a0 = true;
+  async function* e() {
+    yield true;
+  }
+}
 var syncFactory = function* () {
   var name = '';
   while (!name) {

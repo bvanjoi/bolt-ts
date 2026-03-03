@@ -3,6 +3,20 @@
 //@compiler-options: target=esnext
 // https://github.com/microsoft/TypeScript/issues/42439
 
+{
+  type C<A> = A extends Iterable<infer B> ? B : never;
+  type R1<T> = T extends () => infer R ? R : false;
+  function f(d: C<R1<typeof e>>) {
+    const a: never = d;
+  }
+
+  type R0<T> = T extends () => infer R ? true : false;
+  const a0: R0<typeof e> = true;
+  async function * e() {
+	  yield true;
+  }
+}
+
 type SyncSequenceFactory = () => Generator<string, string, string>;
 
 type AsyncSequenceFactory = () => AsyncGenerator<string, string, string>;

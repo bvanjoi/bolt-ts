@@ -179,23 +179,24 @@ prefilled_atom_map!(
             IDENT_ASYNC_ITERATOR_OBJECT:            ["AsyncIteratorObject", 120],
             IDENT_ITERABLE:                         ["Iterable", 121],
             IDENT_ITERABLE_ITERATOR:                ["IterableIterator", 122],
-            IDENT_ITERATOR_OBJECT:                  ["IterableIterator", 123],
+            IDENT_ITERATOR_OBJECT:                  ["IteratorObject", 123],
             IDENT_GENERATOR:                        ["Generator", 124],
             IDENT_ASYNC_GENERATOR:                  ["AsyncGenerator", 125],
-            IDENT_MAP_ITERATOR:                     ["MapIterator", 126],
-            IDENT_SET_ITERATOR:                     ["SetIterator", 127],
-            IDENT_STRING_ITERATOR:                  ["StringIterator", 128],
-            IDENT_NEXT:                             ["next", 129],
-            IDENT_ITERATOR_YIELD_RESULT:            ["IteratorYieldResult", 130],
-            IDENT_ITERATOR_RETURN_RESULT:           ["IteratorReturnResult", 131],
-            IDENT_DONE:                             ["done", 132],
-            IDENT_VALUE:                            ["value", 133],
+            IDENT_ARRAY_ITERATOR:                   ["ArrayIterator", 126],
+            IDENT_MAP_ITERATOR:                     ["MapIterator", 127],
+            IDENT_SET_ITERATOR:                     ["SetIterator", 128],
+            IDENT_STRING_ITERATOR:                  ["StringIterator", 129],
+            IDENT_NEXT:                             ["next", 130],
+            IDENT_ITERATOR_YIELD_RESULT:            ["IteratorYieldResult", 131],
+            IDENT_ITERATOR_RETURN_RESULT:           ["IteratorReturnResult", 132],
+            IDENT_DONE:                             ["done", 133],
+            IDENT_VALUE:                            ["value", 134],
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 134]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 135]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 135]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 136]
         },
     }
 );

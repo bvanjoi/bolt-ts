@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/yieldExpression1/index.ts:12:5]
+ 12 │ yield
+    · ─────
+    ╰────

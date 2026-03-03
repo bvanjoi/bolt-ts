@@ -97,7 +97,7 @@ impl<'cx> IterationTysResolver<'cx> for AsyncIterationTysResolver {
         &self,
         c: &mut TyChecker<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        c.get_global_iterable_iterator_ty::<REPORT_ERROR>()
+        c.get_global_async_iterable_iterator_ty::<REPORT_ERROR>()
     }
 
     fn get_global_iterator_object_ty<const REPORT_ERROR: bool>(
@@ -972,14 +972,18 @@ impl<'cx> TyChecker<'cx> {
             );
             if !std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
                 if mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
-                    let iteration_tys = self.get_async_from_sync_iteration_tys(iteration_tys, error_node);
+                    let iteration_tys =
+                        self.get_async_from_sync_iteration_tys(iteration_tys, error_node);
                     return if no_cache {
                         iteration_tys
                     } else {
-                        AsyncIterationTysResolver
-                            .set_iteration_tys_of_iterable_cached(self, ty, iteration_tys);
+                        AsyncIterationTysResolver.set_iteration_tys_of_iterable_cached(
+                            self,
+                            ty,
+                            iteration_tys,
+                        );
                         iteration_tys
-                    }
+                    };
                 } else {
                     return iteration_tys;
                 }

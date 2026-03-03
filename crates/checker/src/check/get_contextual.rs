@@ -1,4 +1,5 @@
 use bolt_ts_ast::FnFlags;
+use bolt_ts_binder::AssignmentDeclarationKind;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
 
@@ -21,32 +22,6 @@ bitflags::bitflags! {
         const COMPLETIONS           = 1 << 2;
         const SKIP_BINDING_PATTERNS = 1 << 3;
     }
-}
-
-enum AssignmentDeclarationKind {
-    None,
-    /// `exports.name = expr`
-    /// `module.exports.name = expr`
-    ExportsProperty,
-    /// `module.exports = expr`
-    ModuleExports,
-    /// `className.prototype.name = expr`
-    PrototypeProperty,
-    /// `this.name = expr`
-    ThisProperty,
-    // `F.name = expr`
-    Property,
-    // `F.prototype = { ... }`
-    Prototype,
-    // `Object.defineProperty(x, 'name', { value: any, writable?: boolean (false by default) });`
-    // `Object.defineProperty(x, 'name', { get: Function, set: Function });`
-    // `Object.defineProperty(x, 'name', { get: Function });`
-    // `Object.defineProperty(x, 'name', { set: Function });`
-    ObjectDefinePropertyValue,
-    // `Object.defineProperty(exports || module.exports, 'name', ...);`
-    ObjectDefinePropertyExports,
-    // `Object.defineProperty(Foo.prototype, 'name', ...);`
-    ObjectDefinePrototypeProperty,
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -295,64 +270,14 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_assignment_declaration_prop_access_kind(
-        &mut self,
-        access: ast::NodeID,
-    ) -> AssignmentDeclarationKind {
-        let access_node = self.p.node(access);
-        let expr = match access_node {
-            ast::Node::PropAccessExpr(n) => n.expr,
-            ast::Node::EleAccessExpr(n) => n.expr,
-            _ => unreachable!(),
-        };
-        if matches!(expr.kind, ast::ExprKind::This(_)) {
-            return AssignmentDeclarationKind::ThisProperty;
-        }
-        // TODO: module_exports
-        if expr.is_bindable_static_name_expr::<true>() {
-            if expr.is_prototype_access() {
-                return AssignmentDeclarationKind::PrototypeProperty;
-            }
-            // TODO: exportsProperty
-
-            if access_node.is_bindable_static_name_expr::<true>()
-                || access_node
-                    .as_ele_access_expr()
-                    .is_some_and(|ele| ele.is_dynamic_name())
-            {
-                return AssignmentDeclarationKind::Property;
-            }
-        }
-        AssignmentDeclarationKind::None
-    }
-
-    fn get_assignment_declaration_kind_for_assign_expr(
-        &mut self,
-        expr: &'cx ast::AssignExpr<'cx>,
-    ) -> AssignmentDeclarationKind {
-        if expr.op != ast::AssignOp::Eq
-            || !expr.left.kind.is_access_expr()
-            || self
-                .p
-                .node(
-                    self.node_query(expr.id.module())
-                        .get_right_most_assigned_expr(expr.id),
-                )
-                .is_void_zero_expr()
-        {
-            AssignmentDeclarationKind::None
-        } else {
-            // TODO: prototype
-            self.get_assignment_declaration_prop_access_kind(expr.left.id())
-        }
-    }
-
     fn get_contextual_ty_for_assign(
         &mut self,
         parent: &'cx ast::AssignExpr<'cx>,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let kind = self.get_assignment_declaration_kind_for_assign_expr(parent);
+        let kind = self
+            .node_query(parent.id.module())
+            .get_assignment_declaration_kind_for_assign_expr(parent);
         match kind {
             AssignmentDeclarationKind::None | AssignmentDeclarationKind::ThisProperty => {
                 let lhs_symbol = self.get_symbol_for_expr(parent.left.id());
@@ -718,6 +643,16 @@ impl<'cx> TyChecker<'cx> {
         Some(self.substitute_indexed_mapped_ty(ty, property_name_ty))
     }
 
+    fn discriminate_contextual_ty_by_object_members(
+        &mut self,
+        n: &'cx ast::ObjectLit<'cx>,
+        contextual_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let u = contextual_ty.kind.expect_union();
+        // TODO:
+        contextual_ty
+    }
+
     pub(super) fn get_apparent_ty_of_contextual_ty(
         &mut self,
         node: ast::NodeID,
@@ -733,19 +668,29 @@ impl<'cx> TyChecker<'cx> {
             !(flags.contains(ContextFlags::NO_CONSTRAINTS)
                 && instantiated_ty.kind.is_type_variable())
         }) {
-            let apparent_ty = self.map_ty(
-                instantiated_ty,
-                |this, t| {
-                    if t.get_object_flags().contains(ObjectFlags::MAPPED) {
-                        Some(t)
-                    } else {
-                        Some(this.get_apparent_ty(t))
-                    }
-                },
-                true,
-            );
-            // TODO: union
-            return apparent_ty;
+            let apparent_ty = self
+                .map_ty(
+                    instantiated_ty,
+                    |this, t| {
+                        Some(if t.get_object_flags().contains(ObjectFlags::MAPPED) {
+                            t
+                        } else {
+                            this.get_apparent_ty(t)
+                        })
+                    },
+                    true,
+                )
+                .unwrap();
+            return if apparent_ty.kind.is_union() {
+                if let Some(n) = self.p.node(node).as_object_lit() {
+                    Some(self.discriminate_contextual_ty_by_object_members(n, apparent_ty))
+                } else {
+                    // TODO: is_jsx_attribute
+                    Some(apparent_ty)
+                }
+            } else {
+                Some(apparent_ty)
+            };
         }
         None
     }

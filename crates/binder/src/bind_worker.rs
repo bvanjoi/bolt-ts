@@ -2,7 +2,11 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
+use crate::Symbol;
+
+use super::AssignmentDeclarationKind;
 use super::BinderState;
+use super::argument_name_from_element_access_node;
 use super::create::DeclareSymbolProperty;
 use super::node_query::ModuleInstanceState;
 use super::symbol::SymbolFlags;
@@ -603,8 +607,138 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ThisTy(_) => {
                 self.seen_this_keyword = true;
             }
+            AssignExpr(n) => {
+                let special_kind = self
+                    .node_query()
+                    .get_assignment_declaration_kind_for_assign_expr(n);
+                match special_kind {
+                    AssignmentDeclarationKind::Property => self.bind_special_prop_assignment(n),
+                    _ => {
+                        // TODO
+                    }
+                }
+            }
             _ => {}
         }
+    }
+
+    fn bind_special_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
+        if node.left.is_bindable_static_name_expr::<false>() {
+            self.bind_static_prop_assignment(node.left);
+        }
+    }
+
+    fn bind_static_prop_assignment(&mut self, node: &'cx ast::Expr<'cx>) {
+        match node.kind {
+            ast::ExprKind::EleAccess(n) => {
+                let node_id = node.id();
+                // self.parent_map.insert(n.expr.id(), node_id);
+                let Some(key_name) = argument_name_from_element_access_node(n) else {
+                    return;
+                };
+                self.bind_prop_assignment::<false, false>(n.expr, key_name, node_id);
+            }
+            ast::ExprKind::Ident(_) => unreachable!(),
+            _ => {}
+        }
+    }
+
+    fn bind_prop_assignment<const IS_PROTOTYPE_PROPERTY: bool, const CONTAINER_IS_CLASS: bool>(
+        &mut self,
+        prop_name: &'cx ast::Expr<'cx>,
+        key_name: SymbolName,
+        prop_access: ast::NodeID,
+    ) -> Option<SymbolID> {
+        let namespace_symbol = self.lookup_symbol_for_prop_access(
+            prop_name.id(),
+            self.block_scope_container
+                .unwrap_or(self.container.unwrap()),
+        );
+        self.bind_potentially_new_expando_member_to_namespace::<IS_PROTOTYPE_PROPERTY>(
+            prop_access,
+            namespace_symbol,
+            key_name,
+        )
+    }
+
+    fn lookup_symbol_for_prop_access(
+        &self,
+        node: ast::NodeID,
+        lookup_container: ast::NodeID,
+    ) -> Option<SymbolID> {
+        let n = self.p.node(node);
+        let symbol = match n {
+            ast::Node::Ident(ident) => {
+                return self.lookup_symbol_for_name(lookup_container, SymbolName::Atom(ident.name));
+            }
+            ast::Node::EleAccessExpr(p) => {
+                self.lookup_symbol_for_prop_access(p.expr.id(), self.container.unwrap())
+            }
+            ast::Node::PropAccessExpr(p) => {
+                // TODO:
+                return None;
+            }
+            _ => unreachable!(),
+        }?;
+        let exports = self.symbols.get(symbol).exports.as_ref()?;
+        let name = match n {
+            ast::Node::EleAccessExpr(p) => argument_name_from_element_access_node(p)?,
+            _ => unreachable!(),
+        };
+        exports.0.get(&name).copied()
+    }
+
+    fn lookup_symbol_for_name(&self, container: ast::NodeID, name: SymbolName) -> Option<SymbolID> {
+        let c = self.p.node(container);
+        if c.has_locals()
+            && let Some(local) = self
+                .locals
+                .get(&container)
+                .and_then(|locals| locals.0.get(&name).copied())
+        {
+            return Some(self.symbols.get(local).export_symbol.unwrap_or(local));
+        }
+
+        //TODO: source file level
+
+        if Symbol::can_have_symbol(self.p.node(container)) {
+            let symbol = self.final_res.get(&container)?;
+            let exports = self.symbols.get(*symbol).exports.as_ref()?;
+            return exports.0.get(&name).copied();
+        }
+
+        None
+    }
+
+    fn bind_potentially_new_expando_member_to_namespace<const IS_PROTOTYPE_PROPERTY: bool>(
+        &mut self,
+        decl: ast::NodeID,
+        namespace_symbol: Option<SymbolID>,
+        key_name: SymbolName,
+    ) -> Option<SymbolID> {
+        let namespace_symbol = namespace_symbol?;
+        if !self.symbols.get(namespace_symbol).is_expando_symbol() {
+            return None;
+        }
+
+        let location = if IS_PROTOTYPE_PROPERTY {
+            SymbolTableLocation::symbol_members(namespace_symbol)
+        } else {
+            SymbolTableLocation::symbol_exports(namespace_symbol)
+        };
+
+        let includes = SymbolFlags::METHOD;
+        let excludes = SymbolFlags::METHOD_EXCLUDES;
+
+        Some(self.declare_symbol(
+            Some(key_name),
+            location,
+            Some(namespace_symbol),
+            decl,
+            includes | SymbolFlags::ASSIGNMENT,
+            excludes & !SymbolFlags::ASSIGNMENT,
+            DeclareSymbolProperty::empty(),
+        ))
     }
 
     fn update_strict_mode_statement_list(&mut self, stmts: ast::Stmts<'cx>) {

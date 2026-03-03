@@ -1,0 +1,11 @@
+  × Type 'number' is not assignable to type 'X<number>'.
+    ╭─[../../tests/compiler/wrappedRecursiveGenericType/index.ts:17:1]
+ 17 │ x.a.b.val
+    · ─────────
+    ╰────
+
+  × Type 'number' is not assignable to type 'X<number>'.
+    ╭─[../../tests/compiler/wrappedRecursiveGenericType/index.ts:19:1]
+ 19 │ x.a.b.a.val
+    · ───────────
+    ╰────

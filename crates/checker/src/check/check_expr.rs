@@ -512,11 +512,11 @@ impl<'cx> TyChecker<'cx> {
         let yield_ty =
             self.get_yielded_ty_of_yield_expr(node, yield_expr_ty, signature_next_ty, is_async);
         if let Some(yield_ty) = yield_ty
-            && let Some(ret_ty) = ret_ty
+            && ret_ty.is_some()
         {
             self.check_type_assignable_to_and_optionally_elaborate(
                 yield_ty,
-                ret_ty,
+                signature_yield_ty,
                 Some(node.expr.map_or(node.id, |expr| expr.id())),
                 node.expr.map(|expr| expr.id()),
             );
@@ -547,20 +547,20 @@ impl<'cx> TyChecker<'cx> {
         }
         if let Some(ty) = self.get_contextual_iteration_ty(IterationTypeKind::Next, func, is_async)
         {
-            if self.config.no_implicit_any()
-                && !self
-                    .node_query(node.id.module())
-                    .expr_result_is_unused(node.id)
-            {
-                let contextual_ty = self.get_contextual_ty(node.id, None);
-                if contextual_ty.is_none_or(|contextual_ty| self.is_type_any(contextual_ty)) {
-                    let error = errors::YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainingGeneratorLacksAReturnTypeAnnotation {
+            return ty;
+        }
+        if self.config.no_implicit_any()
+            && !self
+                .node_query(node.id.module())
+                .expr_result_is_unused(node.id)
+        {
+            let contextual_ty = self.get_contextual_ty(node.id, None);
+            if contextual_ty.is_none_or(|contextual_ty| self.is_type_any(contextual_ty)) {
+                let error = errors::YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainingGeneratorLacksAReturnTypeAnnotation {
                         span: node.span
                     };
-                    self.push_error(Box::new(error));
-                }
+                self.push_error(Box::new(error));
             }
-            return ty;
         }
 
         self.any_ty
@@ -1911,7 +1911,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_ele_access_expr(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        let expr_ty = self.check_expr(node.expr);
+        if self
+            .p
+            .node_flags(node.id)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            // TODO: check_element_access_chain
+        }
+        let expr_ty = self.check_non_null_expr(node.expr);
         let assign_kind = self
             .node_query(node.id.module())
             .get_assignment_target_kind(node.id);
@@ -1954,14 +1961,19 @@ impl<'cx> TyChecker<'cx> {
                 }
         };
 
-        self.get_indexed_access_ty(
-            object_ty,
-            index_ty,
-            Some(access_flags),
-            Some(node.id),
-            None,
-            None,
-        )
+        let indexed_access_ty = self
+            .get_indexed_access_ty_or_undefined(
+                object_ty,
+                index_ty,
+                Some(access_flags),
+                Some(node.id),
+                None,
+                None,
+            )
+            .unwrap_or(self.error_ty);
+
+        // TODO: flow
+        indexed_access_ty
     }
 
     pub fn check_computed_prop_name(

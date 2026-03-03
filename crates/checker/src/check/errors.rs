@@ -1261,3 +1261,21 @@ pub(super) struct YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainin
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Element implicitly has an 'any' type because index expression is not of type 'number'.")]
+pub(super) struct ElementImplicitlyHasAnAnyTypeBecauseIndexExpressionIsNotOfTypeNumber {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Element implicitly has an 'any' type because expression of type '{x}' can't be used to index type '{y}'."
+)]
+pub(super) struct ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUsedToIndexTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

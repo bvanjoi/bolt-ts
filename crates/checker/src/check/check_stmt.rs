@@ -596,7 +596,7 @@ impl<'cx> TyChecker<'cx> {
             };
             match object_ty.kind {
                 ty::ObjectTyKind::Interface(_) => true,
-                ty::ObjectTyKind::Reference(t) => t.target == ty,
+                ty::ObjectTyKind::Reference(t) => t.target == target,
                 _ => unreachable!(),
             }
         }

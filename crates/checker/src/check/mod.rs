@@ -1644,14 +1644,14 @@ impl<'cx> TyChecker<'cx> {
 
     fn type_has_static_prop(
         &mut self,
-        prop_node: &'cx ast::Ident,
+        name: bolt_ts_atom::Atom,
         containing_ty: &'cx ty::Ty<'cx>,
     ) -> bool {
         let Some(symbol) = containing_ty.symbol() else {
             return false;
         };
         let ty = self.get_type_of_symbol(symbol);
-        let name = SymbolName::Atom(prop_node.name);
+        let name = SymbolName::Atom(name);
         let Some(prop) = self.get_prop_of_ty(ty, name) else {
             return false;
         };
@@ -1676,7 +1676,7 @@ impl<'cx> TyChecker<'cx> {
 
         let missing_prop = pprint_ident(prop_node, &self.atoms);
 
-        if self.type_has_static_prop(prop_node, containing_ty) {
+        if self.type_has_static_prop(prop_node.name, containing_ty) {
             let mut error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
                 prop: missing_prop,
@@ -2111,8 +2111,23 @@ impl<'cx> TyChecker<'cx> {
         self.push_cached_contextual_type(lit.id);
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
         let is_const_context = self.is_const_context(lit.id);
-        let is_tuple_context = if let Some(contextual_ty) = contextual_ty {
-            self.some_type(contextual_ty, |this, ty| this.is_tuple_like(ty))
+        let in_tuple_context = if let Some(contextual_ty) = contextual_ty {
+            self.some_type(contextual_ty, |this, ty| {
+                if this.is_tuple_like(ty) {
+                    true
+                } else if this.is_generic_mapped_ty(ty) {
+                    let m = ty.kind.expect_object_mapped();
+                    this.get_name_ty_from_mapped_ty(m).is_none()
+                        && this
+                            .get_homomorphic_ty_var(
+                                m.target
+                                    .map_or(m, |target| target.kind.expect_object_mapped()),
+                            )
+                            .is_some()
+                } else {
+                    false
+                }
+            })
         } else {
             false
         };
@@ -2142,13 +2157,28 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let ty = self.check_expr_for_mutable_location(elem);
                 element_types.push(self.add_optionality::<true>(ty, has_omitted_expr));
-                element_flags.push(ElementFlags::REQUIRED);
+                let flags = if has_omitted_expr {
+                    ElementFlags::OPTIONAL
+                } else {
+                    ElementFlags::REQUIRED
+                };
+                element_flags.push(flags);
+                if in_tuple_context
+                    && self.check_mode.is_some_and(|check_mode| {
+                        check_mode.contains(CheckMode::INFERENTIAL)
+                            && !check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
+                    })
+                    && self.is_context_sensitive(elem.id())
+                {
+                    let inference = self.get_inference_context(lit.id).unwrap();
+                    // TODO: add_intra_expression_inference_site
+                }
             }
         }
 
         self.pop_type_context();
 
-        if force_tuple || is_const_context || is_tuple_context {
+        if force_tuple || is_const_context || in_tuple_context {
             let element_types = self.alloc(element_types);
             let element_flags = self.alloc(element_flags);
             let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
@@ -3422,6 +3452,7 @@ impl<'cx> TyChecker<'cx> {
         sources: ty::Tys<'cx>,
         targets: ty::Tys<'cx>,
     ) -> &'cx ty::TyMapper<'cx> {
+        debug_assert!(sources.len() >= targets.len(), "{sources:#?} {targets:#?}",);
         let mapper = if sources.len() == 1 {
             let target = targets.first().copied().unwrap_or(self.any_ty);
             ty::TyMapper::make_unary(sources[0], target)
@@ -3914,7 +3945,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_tuple_like(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.is_tuple()
-            || (ty.kind.is_array(self)
+            || (self.is_array_like_ty(ty)
                 && self
                     .get_ty_of_prop_of_ty(ty, SymbolName::Atom(keyword::IDENT_LENGTH))
                     .is_some_and(|length_ty| {
@@ -3922,6 +3953,9 @@ impl<'cx> TyChecker<'cx> {
                             t.flags.intersects(TypeFlags::NUMBER_LITERAL)
                         })
                     }))
+            || self
+                .get_prop_of_ty(ty, SymbolName::EleNum((0.).into()))
+                .is_some()
     }
 
     fn for_each_mapped_ty_prop_key_ty_and_index_sig_key_ty(

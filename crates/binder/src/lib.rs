@@ -315,3 +315,41 @@ pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
         ast::PropNameKind::BigIntLit(n) => Some(SymbolName::Atom(n.val.1)),
     }
 }
+
+fn argument_name_from_element_access_node<'cx>(
+    node: &'cx ast::EleAccessExpr<'cx>,
+) -> Option<SymbolName> {
+    use bolt_ts_ast::ExprKind::*;
+    match node.arg.kind {
+        StringLit(n) => Some(SymbolName::Atom(n.val)),
+        NoSubstitutionTemplateLit(n) => Some(SymbolName::Atom(n.val)),
+        NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
+        _ => None,
+    }
+}
+
+pub enum AssignmentDeclarationKind {
+    None,
+    /// `exports.name = expr`
+    /// `module.exports.name = expr`
+    ExportsProperty,
+    /// `module.exports = expr`
+    ModuleExports,
+    /// `className.prototype.name = expr`
+    PrototypeProperty,
+    /// `this.name = expr`
+    ThisProperty,
+    // `F.name = expr`
+    Property,
+    // `F.prototype = { ... }`
+    Prototype,
+    // `Object.defineProperty(x, 'name', { value: any, writable?: boolean (false by default) });`
+    // `Object.defineProperty(x, 'name', { get: Function, set: Function });`
+    // `Object.defineProperty(x, 'name', { get: Function });`
+    // `Object.defineProperty(x, 'name', { set: Function });`
+    ObjectDefinePropertyValue,
+    // `Object.defineProperty(exports || module.exports, 'name', ...);`
+    ObjectDefinePropertyExports,
+    // `Object.defineProperty(Foo.prototype, 'name', ...);`
+    ObjectDefinePrototypeProperty,
+}

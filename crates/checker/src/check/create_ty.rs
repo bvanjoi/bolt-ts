@@ -294,10 +294,11 @@ impl<'cx> TyChecker<'cx> {
                 self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
             assert!(!self.ty_links.contains_key(&ty.id));
             if let Some(resolved_ty_args) = resolved_ty_args {
-                self.ty_links.insert(
+                let prev = self.ty_links.insert(
                     ty.id,
                     TyLinks::default().with_resolved_ty_args(resolved_ty_args),
                 );
+                debug_assert!(prev.is_none());
             }
             self.instantiation_ty_map.insert(id, ty);
             ty

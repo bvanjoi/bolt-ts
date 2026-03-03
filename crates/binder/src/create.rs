@@ -1,3 +1,5 @@
+use crate::symbol::Container;
+
 use super::SymbolTable;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
@@ -258,17 +260,35 @@ impl BinderState<'_, '_, '_> {
                 container.members.as_mut()
             }
         }
+        fn inner_symbol<'a>(
+            this: &'a mut BinderState,
+            container: SymbolID,
+            is_export: bool,
+        ) -> Option<&'a mut SymbolTable> {
+            let container = this.symbols.get_mut(container);
+            if is_export {
+                container.exports.as_mut()
+            } else {
+                container.members.as_mut()
+            }
+        }
         use super::symbol::SymbolTableLocationKind;
         match location.kind {
-            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false),
-            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true),
+            SymbolTableLocationKind::SymbolMember => match location.container {
+                Container::Node(node) => inner(self, node, false),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, false),
+            },
+            SymbolTableLocationKind::SymbolExports => match location.container {
+                Container::Node(node) => inner(self, node, true),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, true),
+            },
             SymbolTableLocationKind::ContainerLocals => {
                 assert!(
-                    self.p.node(location.container).has_locals(),
+                    self.p.node(location.container.expect_node()).has_locals(),
                     "{:#?}",
-                    self.p.node(location.container)
+                    self.p.node(location.container.expect_node())
                 );
-                self.locals.get_mut(&location.container)
+                self.locals.get_mut(&location.container.expect_node())
             }
         }
     }
@@ -291,13 +311,33 @@ impl BinderState<'_, '_, '_> {
             };
             assert!(prev.is_none());
         }
+        fn inner_symbol(
+            this: &mut BinderState,
+            container: SymbolID,
+            is_export: bool,
+            table: SymbolTable,
+        ) {
+            let container = this.symbols.get_mut(container);
+            let prev = if is_export {
+                container.exports.replace(table)
+            } else {
+                container.members.replace(table)
+            };
+            assert!(prev.is_none());
+        }
         use super::symbol::SymbolTableLocationKind;
         match location.kind {
-            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false, table),
-            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true, table),
+            SymbolTableLocationKind::SymbolMember => match location.container {
+                Container::Node(node) => inner(self, node, false, table),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, false, table),
+            },
+            SymbolTableLocationKind::SymbolExports => match location.container {
+                Container::Node(node) => inner(self, node, true, table),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, true, table),
+            },
             SymbolTableLocationKind::ContainerLocals => {
-                assert!(self.p.node(location.container).has_locals());
-                let prev = self.locals.insert(location.container, table);
+                assert!(self.p.node(location.container.expect_node()).has_locals());
+                let prev = self.locals.insert(location.container.expect_node(), table);
                 assert!(prev.is_none());
             }
         }

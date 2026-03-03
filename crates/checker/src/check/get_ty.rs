@@ -1021,7 +1021,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if !index_ty.flags.contains(TypeFlags::NULLABLE)
+        if !index_ty.flags.intersects(TypeFlags::NULLABLE)
             && self.is_type_assignable_to_kind(
                 index_ty,
                 TypeFlags::STRING_LIKE
@@ -1042,10 +1042,95 @@ impl<'cx> TyChecker<'cx> {
             if let Some(index_info) = index_info {
                 return Some(index_info.val_ty);
             }
-            if access_expr.is_some() && !self.is_const_enum_object_ty(object_ty) {
+            if let Some(access_expr) = access_expr
+                && !self.is_const_enum_object_ty(object_ty)
+            {
+                let no_implicit_any = self.config.no_implicit_any();
+                if object_ty
+                    .get_object_flags()
+                    .contains(ObjectFlags::OBJECT_LITERAL)
+                {
+                    if no_implicit_any
+                        && index_ty
+                            .flags
+                            .intersects(TypeFlags::STRING_LITERAL.union(TypeFlags::NUMBER_LITERAL))
+                    {
+                        let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
+                            span: self.p.node(access_expr).span(),
+                            prop: self.print_ty(index_ty).to_string(),
+                            ty: self.print_ty(object_ty).to_string(),
+                            related: vec![],
+                        });
+                        self.push_error(error);
+                        return Some(self.undefined_ty);
+                    } else if index_ty
+                        .flags
+                        .intersects(TypeFlags::NUMBER.union(TypeFlags::STRING))
+                    {
+                        let mut tys = self
+                            .properties_of_ty(object_ty)
+                            .iter()
+                            .map(|p| self.get_type_of_symbol(*p))
+                            .collect::<Vec<_>>();
+                        tys.push(self.undefined_ty);
+                        return Some(self.get_union_ty::<false>(
+                            &tys,
+                            ty::UnionReduction::Lit,
+                            None,
+                            None,
+                            None,
+                        ));
+                    }
+                }
+
+                if object_ty
+                    .symbol()
+                    .is_some_and(|symbol| symbol == self.global_this_symbol)
+                    && let Some(prop_name) = prop_name
+                    && self
+                        .symbol(self.global_this_symbol)
+                        .exports
+                        .as_ref()
+                        .is_some_and(|exports| {
+                            exports.0.get(&prop_name).is_some_and(|&m| {
+                                self.symbol(m).flags.contains(SymbolFlags::BLOCK_SCOPED)
+                            })
+                        })
+                {
+                    let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
+                        span: self.p.node(access_expr).span(),
+                        prop: self.print_ty(index_ty).to_string(),
+                        ty: self.print_ty(object_ty).to_string(),
+                        related: vec![],
+                    });
+                    self.push_error(error);
+                } else if no_implicit_any
+                    && !access_flags.contains(AccessFlags::SUPPRESS_NO_IMPLICIT_ANY_ERROR)
+                {
+                    if self.get_index_ty_of_ty(object_ty, self.number_ty).is_some() {
+                        let error = Box::new(
+                            errors::ElementImplicitlyHasAnAnyTypeBecauseIndexExpressionIsNotOfTypeNumber {
+                                span: self.p.node(access_expr).span(),
+                            },
+                        );
+                        self.push_error(error);
+                    } else {
+                        let error = Box::new(
+                            errors::ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUsedToIndexTypeY {
+                                span: self.p.node(access_expr).span(),
+                                x: self.print_ty(index_ty).to_string(),
+                                y: self.print_ty(object_ty).to_string(),
+                            },
+                        );
+                        self.push_error(error);
+                    }
+                }
+
                 return None;
             }
         }
+
+        // TODO: js
 
         if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expr(access_node);

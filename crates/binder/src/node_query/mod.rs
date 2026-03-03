@@ -1,6 +1,8 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::{self, is_prim_ty_name};
 
+use crate::AssignmentDeclarationKind;
+
 use super::container_flags::{ContainerFlags, container_flags_for_node};
 use super::{AccessKind, ParentMap};
 
@@ -1147,6 +1149,54 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: comma
                 _ => return false,
             }
+        }
+    }
+
+    fn get_assignment_declaration_prop_access_kind(
+        &self,
+        access: ast::NodeID,
+    ) -> AssignmentDeclarationKind {
+        let access_node = self.node(access);
+        let expr = match access_node {
+            ast::Node::PropAccessExpr(n) => n.expr,
+            ast::Node::EleAccessExpr(n) => n.expr,
+            _ => unreachable!(),
+        };
+        if matches!(expr.kind, ast::ExprKind::This(_)) {
+            return AssignmentDeclarationKind::ThisProperty;
+        }
+        // TODO: module_exports
+        if expr.is_bindable_static_name_expr::<true>() {
+            if expr.is_prototype_access() {
+                return AssignmentDeclarationKind::PrototypeProperty;
+            }
+            // TODO: exportsProperty
+
+            if access_node.is_bindable_static_name_expr::<true>()
+                || access_node
+                    .as_ele_access_expr()
+                    .is_some_and(|ele| ele.is_dynamic_name())
+            {
+                return AssignmentDeclarationKind::Property;
+            }
+        }
+        AssignmentDeclarationKind::None
+    }
+
+    pub fn get_assignment_declaration_kind_for_assign_expr(
+        &self,
+        expr: &'cx ast::AssignExpr<'cx>,
+    ) -> AssignmentDeclarationKind {
+        if expr.op != ast::AssignOp::Eq
+            || !expr.left.kind.is_access_expr()
+            || self
+                .node(self.get_right_most_assigned_expr(expr.id))
+                .is_void_zero_expr()
+        {
+            AssignmentDeclarationKind::None
+        } else {
+            // TODO: prototype
+            self.get_assignment_declaration_prop_access_kind(expr.left.id())
         }
     }
 }

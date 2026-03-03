@@ -306,6 +306,9 @@ impl Symbol {
                 .is_some_and(|ns| ns.block.is_none())
         })
     }
+    pub fn is_expando_symbol(&self) -> bool {
+        self.flags.contains(SymbolFlags::FUNCTION)
+    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);
@@ -416,8 +419,21 @@ impl Symbols {
 pub type GlobalSymbols = SymbolTable;
 
 #[derive(Debug, Clone, Copy)]
+pub enum Container {
+    Node(NodeID),
+    Symbol(SymbolID),
+}
+impl Container {
+    pub fn expect_node(&self) -> NodeID {
+        match self {
+            Container::Node(id) => *id,
+            Container::Symbol(_) => panic!("Expected a Node container, found a Symbol container"),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
 pub(super) struct SymbolTableLocation {
-    pub(super) container: bolt_ts_ast::NodeID,
+    pub(super) container: Container,
     pub(super) kind: SymbolTableLocationKind,
 }
 
@@ -431,19 +447,31 @@ pub(super) enum SymbolTableLocationKind {
 impl SymbolTableLocation {
     pub(super) fn locals(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
             kind: SymbolTableLocationKind::ContainerLocals,
         }
     }
     pub(super) fn members(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
             kind: SymbolTableLocationKind::SymbolMember,
         }
     }
     pub(super) fn exports(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
+            kind: SymbolTableLocationKind::SymbolExports,
+        }
+    }
+    pub(super) fn symbol_members(container: SymbolID) -> Self {
+        Self {
+            container: Container::Symbol(container),
+            kind: SymbolTableLocationKind::SymbolMember,
+        }
+    }
+    pub(super) fn symbol_exports(container: SymbolID) -> Self {
+        Self {
+            container: Container::Symbol(container),
             kind: SymbolTableLocationKind::SymbolExports,
         }
     }
