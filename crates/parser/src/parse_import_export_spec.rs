@@ -161,7 +161,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         *check_ident_is_keyword = self.token.kind.is_keyword() && !self.token.kind.is_ident();
         *check_ident_start = self.token.start();
         *check_ident_end = self.token.end();
-        let is_ident = self.token.kind.is_ident();
+        let is_ident = self.token.kind.is_ident() || *check_ident_is_keyword;
         self.create_ident(is_ident, None)
     }
 

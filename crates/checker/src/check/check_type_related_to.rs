@@ -1598,6 +1598,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
         } else {
+            if !matches!(
+                self.relation,
+                RelationKind::Subtype | RelationKind::StrictSubtype
+            ) && target.kind.as_object_mapped().is_some_and(|m| {
+                m.decl
+                    .get_modifiers()
+                    .contains(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
+            }) && self.c.is_empty_object_ty(source)
+            {
+                return Ternary::TRUE;
+            }
             if self.c.is_generic_mapped_ty(target) {
                 if self.c.is_generic_mapped_ty(source) {
                     result = self.mapped_ty_related_to(source, target, report_error);

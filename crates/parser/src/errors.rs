@@ -629,3 +629,10 @@ pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Unexpected keyword or identifier.")]
+pub(super) struct UnexpectedKeywordOrIdentifier {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -430,17 +430,6 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(member)
     }
 
-    fn try_parse_semi(&mut self) -> PResult<bool> {
-        if !self.can_parse_semi() {
-            Ok(false)
-        } else if self.token.kind == TokenKind::Semi {
-            self.next_token();
-            Ok(true)
-        } else {
-            Ok(true)
-        }
-    }
-
     fn parse_throw_stmt(&mut self) -> PResult<&'cx ast::ThrowStmt<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Throw);
         let start = self.token.start();
@@ -460,7 +449,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let span = self.new_span(start);
         let node = self.create_throw_stmt(span, expr);
-        if !self.try_parse_semi()? {
+        if !self.try_parse_semi() {
             todo!()
         }
         Ok(node)

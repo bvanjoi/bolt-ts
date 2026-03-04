@@ -324,4 +324,13 @@ type A<Options extends Required<O>> = B<Options['b']>;
   const a1: {0: string} = ['a'];
   a1[1];
   //~^ ERROR: Element implicitly has an 'any' type because expression of type '1' can't be used to index type '{ 0: string; }'.
+  a1[0];
+  a1['0'];
+}
+
+{
+  type T0 ={
+		[Key in keyof []]?: string
+	}
+	const a: T0 = {};
 }

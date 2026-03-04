@@ -280,11 +280,11 @@ pub struct ModuleDecl<'cx> {
 }
 
 impl ModuleDecl<'_> {
-    pub fn is_ambient(&self) -> bool {
+    pub const fn is_ambient(&self) -> bool {
         matches!(self.name, ModuleName::StringLit(_)) || self.is_global_scope_argument()
     }
 
-    pub fn is_global_scope_argument(&self) -> bool {
+    pub const fn is_global_scope_argument(&self) -> bool {
         self.is_global_argument
     }
 }
@@ -994,6 +994,8 @@ pub enum ExportSpecKind<'cx> {
 /// ```txt
 /// export { a as b } from 'xxx'
 ///          ^^^^^^
+/// //       |    | -> name
+/// //       | -> prop_name
 /// export { 'a' as b } from 'c'
 ///          ^^^^^^^^
 /// export { 'a' as 'b' } from 'c'

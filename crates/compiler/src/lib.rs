@@ -16,6 +16,7 @@ use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
 use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
+use bolt_ts_checker::check::MergeModuleAugmentationResult;
 use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig};
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, read_file_with_encoding};
@@ -355,10 +356,22 @@ pub fn eval_with_fs(
         .collect::<Vec<_>>();
 
     let MergeGlobalSymbolResult {
-        mut bind_list,
+        bind_list,
         merged_symbols,
         global_symbols,
     } = bolt_ts_binder::merge_global_symbol(&p, &atoms, bind_list, &module_arena);
+    let MergeModuleAugmentationResult {
+        mut bind_list,
+        mut merged_symbols,
+        mut global_symbols,
+    } = bolt_ts_checker::check::merge_module_augmentation_list_for_global(
+        &p,
+        &atoms,
+        bind_list,
+        &module_arena,
+        global_symbols,
+        merged_symbols,
+    );
 
     let (flow_nodes, flow_in_nodes) = bind_list
         .iter_mut()
@@ -427,17 +440,7 @@ pub fn eval_with_fs(
 
     // ==== type check ====
     let ty_arena = bolt_ts_arena::bumpalo::Bump::with_capacity(1024 * 1024);
-    let merged_res = bolt_ts_checker::check::merge_module_augmentation_list_for_global(
-        &p,
-        &atoms,
-        binder.bind_results,
-        &module_arena,
-        global_symbols,
-        merged_symbols,
-    );
-    let mut binder = bolt_ts_binder::Binder::new(merged_res.bind_list);
-    let mut merged_symbols = merged_res.merged_symbols;
-    let mut global_symbols = merged_res.global_symbols;
+    let mut binder = bolt_ts_binder::Binder::new(binder.bind_results);
     let mut checker = bolt_ts_checker::check::TyChecker::new(
         &ty_arena,
         &p,

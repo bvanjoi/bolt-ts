@@ -811,7 +811,7 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (v, key_value) = self.scan_string(ch, false);
+                    let (v, key_value) = self.scan_string::<false>(ch);
                     let len = v.len();
                     let atom = self
                         .atoms
@@ -1231,16 +1231,15 @@ impl ParserState<'_, '_> {
         value_chars
     }
 
-    pub(super) fn scan_string(
+    pub(super) fn scan_string<const IS_JSX_ATTRIBUTE_STRING: bool>(
         &mut self,
         quote: u8,
-        jsx_attribute_string: bool,
     ) -> (Vec<u8>, Vec<u8>) {
         assert_eq!(self.ch_unchecked(), quote);
         self.pos += 1;
-        let mut v = Vec::with_capacity(32);
+        let mut v = Vec::with_capacity(4);
         let mut prev = 0;
-        let mut key = Vec::with_capacity(32);
+        let mut key = Vec::with_capacity(4);
         loop {
             if self.pos >= self.end() {
                 self.token_flags |= TokenFlags::UNTERMINATED;
@@ -1253,7 +1252,7 @@ impl ParserState<'_, '_> {
             if ch == quote {
                 self.pos += 1;
                 break;
-            } else if ch == b'\\' && !jsx_attribute_string {
+            } else if ch == b'\\' && !IS_JSX_ATTRIBUTE_STRING {
                 let t = self.scan_escape_sequence(
                     EscapeSequenceScanningFlags::STRING
                         .union(EscapeSequenceScanningFlags::REPORT_ERRORS),
@@ -1268,6 +1267,17 @@ impl ParserState<'_, '_> {
             } else {
                 key.pop();
             }
+
+            if (ch == b'\n' || ch == b'\r') && !IS_JSX_ATTRIBUTE_STRING {
+                v.push(ch);
+                self.pos += 1;
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                self.push_error(Box::new(errors::UnterminatedStringLiteral {
+                    span: Span::new(self.token.end(), self.pos as u32, self.module_id),
+                }));
+                break;
+            }
+
             self.pos += 1;
             v.push(ch);
             prev = ch;
@@ -1678,7 +1688,7 @@ impl ParserState<'_, '_> {
         let ch = self.ch();
         match self.ch() {
             Some(b'\'') | Some(b'"') => {
-                let (value, _) = self.scan_string(unsafe { ch.unwrap_unchecked() }, true);
+                let (value, _) = self.scan_string::<true>(unsafe { ch.unwrap_unchecked() });
                 self.token_value = Some(TokenValue::Ident {
                     value: self
                         .atoms

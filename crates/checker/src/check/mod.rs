@@ -110,6 +110,7 @@ use self::instantiation_ty_map::{TyCacheTrait, TyKey};
 use self::links::NodeLinks;
 pub use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
+pub use self::merge::MergeModuleAugmentationResult;
 pub use self::merge::merge_module_augmentation_list_for_global;
 use self::node_check_flags::NodeCheckFlags;
 use self::relation::EnumRelationMap;

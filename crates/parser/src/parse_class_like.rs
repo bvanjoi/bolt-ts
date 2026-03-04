@@ -335,7 +335,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.push_error(Box::new(error));
             }
             self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
-                let excl = if !this.has_preceding_line_break() {
+                let excl = if question_token.is_none() && !this.has_preceding_line_break() {
                     this.parse_optional(TokenKind::Excl)
                 } else {
                     None
@@ -359,7 +359,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     excl,
                     question_token.map(|t| t.span),
                 );
-                this.parse_semi_after_prop_name();
+                this.parse_semi_after_prop_name(name.span());
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),
                 }))

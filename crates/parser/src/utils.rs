@@ -435,7 +435,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
-        let has_seen_static_modifier = false;
+        let mut has_seen_static_modifier = false;
         let has_leading_modifier = false;
         let has_trailing_decorator = false;
         let mut flags = ast::ModifierKind::empty();
@@ -447,6 +447,9 @@ impl<'cx> ParserState<'cx, '_> {
             else {
                 break;
             };
+            if m.kind == ast::ModifierKind::Static {
+                has_seen_static_modifier = true;
+            }
             flags.insert(m.kind);
             list.push(m);
 
@@ -501,9 +504,28 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_ident(is_ident, None)
     }
 
+    pub(super) fn try_parse_semi(&mut self) -> bool {
+        if !self.can_parse_semi() {
+            false
+        } else {
+            if self.token.kind == TokenKind::Semi {
+                self.next_token();
+            }
+            true
+        }
+    }
+
     #[inline(always)]
-    pub(super) fn parse_semi_after_prop_name(&mut self) {
-        self.parse_semi();
+    pub(super) fn parse_semi_after_prop_name(&mut self, node_span: Span) {
+        if self.try_parse_semi() {
+            return;
+        }
+        self.parse_error_for_missing_semicolon_after(node_span);
+    }
+
+    fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
+        let error = errors::UnexpectedKeywordOrIdentifier { span: node_span };
+        self.push_error(Box::new(error));
     }
 
     pub(super) fn is_implements_clause(&mut self) -> bool {

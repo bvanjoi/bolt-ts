@@ -4,6 +4,12 @@
    · ─
    ╰────
 
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:4:12]
+ 4 │ {
+   · ─
+   ╰────
+
   × Expected '}'.
    ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:4:12]
  4 │ {
@@ -11,7 +17,7 @@
    ╰────
 
   × Declaration or statement expected.
-   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:7:1]
- 7 │ }
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier/index.ts:8:1]
+ 8 │ }
    · ─
    ╰────

@@ -84,6 +84,9 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atom.get(atom)
     }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        &self.atom
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -96,6 +99,7 @@ pub enum SymbolTableLocation {
 
 pub trait MergeSymbol<'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str;
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern;
 
     fn global_loc() -> SymbolTableLocation {
         SymbolTableLocation::Global
@@ -173,7 +177,7 @@ pub trait MergeSymbol<'cx> {
                 self.get_merged_symbols()
                     .get_merged_symbol(source_symbol, symbols)
             };
-            // TODO: parent
+            // TODO: module_parent
             self.get_mut_symbol_table_by_location(target)
                 .0
                 .insert(id, merged);

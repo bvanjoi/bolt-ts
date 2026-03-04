@@ -7,10 +7,10 @@ mod resolve_class_like;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, NodeFlags};
+use bolt_ts_ast::{keyword, pprint_ident};
 use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID};
 use bolt_ts_binder::{SymbolName, SymbolTable, Symbols};
 use bolt_ts_parser::ParsedMap;
@@ -48,7 +48,7 @@ pub fn early_resolve_parallel<'cx>(
                 atoms,
                 emit_standard_class_fields,
             );
-            // assert!(!is_default_lib || result.diags.is_empty());
+            assert!(!is_default_lib || result.diags.is_empty());
             result
         })
         .collect()
@@ -280,8 +280,18 @@ impl<'cx> Resolver<'cx, '_, '_> {
                                 .union(SymbolFlags::NAMESPACE);
                             self.resolve_symbol_by_ident(n.name, MEANING);
                         }
-                        Named(_) => {
-                            // TODO
+                        Named(n) => {
+                            const MEANING: SymbolFlags = MEANING_FOR_VALUE
+                                .union(SymbolFlags::TYPE)
+                                .union(SymbolFlags::NAMESPACE);
+                            match n.prop_name.kind {
+                                ast::ModuleExportNameKind::Ident(ident) => {
+                                    self.resolve_symbol_by_ident(ident, MEANING)
+                                }
+                                ast::ModuleExportNameKind::StringLit(_) => {
+                                    todo!()
+                                }
+                            };
                         }
                     }
                 }

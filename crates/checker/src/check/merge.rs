@@ -1,4 +1,4 @@
-use bolt_ts_binder::set_value_declaration;
+use bolt_ts_binder::{BinderResult, set_value_declaration};
 use bolt_ts_binder::{
     MergeSymbol, MergedSymbols, ResolveResult, SymbolFlags, SymbolID, SymbolName, SymbolTable,
 };
@@ -10,7 +10,7 @@ use super::resolve_external_module_name;
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p ParsedMap<'cx>,
     pub atoms: &'p bolt_ts_atom::AtomIntern,
-    pub bind_list: Vec<ResolveResult>,
+    pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
 }
@@ -62,22 +62,25 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
     }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        &self.atoms
+    }
 }
 
-pub struct MergeModuleAugmentationResult {
-    pub bind_list: Vec<ResolveResult>,
+pub struct MergeModuleAugmentationResult<'cx> {
+    pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
 }
 
-pub fn merge_module_augmentation_list_for_global(
-    parser: &ParsedMap,
+pub fn merge_module_augmentation_list_for_global<'cx>(
+    parser: &ParsedMap<'cx>,
     atoms: &bolt_ts_atom::AtomIntern,
-    bind_list: Vec<ResolveResult>,
+    bind_list: Vec<BinderResult<'cx>>,
     module_arena: &ModuleArena,
     global_symbols: SymbolTable,
     merged_symbols: MergedSymbols,
-) -> MergeModuleAugmentationResult {
+) -> MergeModuleAugmentationResult<'cx> {
     let mut c = MergeModuleAugmentation {
         p: parser,
         bind_list,
@@ -168,6 +171,9 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
 
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
+    }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        &self.atoms
     }
 }
 

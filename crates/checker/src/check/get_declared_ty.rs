@@ -393,15 +393,36 @@ impl<'cx> TyChecker<'cx> {
             let node = self.p.node(id);
             use bolt_ts_ast::Node::*;
             match node {
+                MappedTy(n) => {
+                    let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
+                    let symbol = self.get_symbol_of_decl(n.ty_param.id);
+                    let ty = self.get_declared_ty_of_ty_param(symbol);
+                    return if let Some(mut outer_ty_params) = outer_ty_params {
+                        outer_ty_params.push(ty);
+                        Some(outer_ty_params)
+                    } else {
+                        Some(vec![ty])
+                    };
+                }
+                CondTy(n) => {
+                    let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
+                    let mut outer_ty_params = outer_ty_params.unwrap_or_default();
+                    if let Some(infer_ty_params) = self.get_infer_ty_params(n) {
+                        outer_ty_params.extend(infer_ty_params);
+                    };
+                    return if outer_ty_params.is_empty() {
+                        None
+                    } else {
+                        Some(outer_ty_params)
+                    };
+                }
                 ClassDecl(_) | ClassExpr(_) | InterfaceDecl(_) | CallSigDecl(_)
                 | MethodSignature(_) | FnTy(_) | CtorSigDecl(_) | FnDecl(_)
-                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) | MappedTy(_)
-                | CondTy(_) => {
+                | ClassMethodElem(_) | ArrowFnExpr(_) | TypeAliasDecl(_) => {
                     let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
-                    if (node.is_fn_expr()
+                    if node.is_fn_expr()
                         || node.is_arrow_fn_expr()
-                        || self.p.is_object_lit_method(id))
-                        && self.is_context_sensitive(id)
+                        || (self.p.is_object_lit_method(id)) && self.is_context_sensitive(id)
                     {
                         let symbol = self.get_symbol_of_decl(id);
                         let ty = self.get_type_of_symbol(symbol);
@@ -420,39 +441,6 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
 
-                    if let Some(mapped) = node.as_mapped_ty() {
-                        let symbol = self.get_symbol_of_decl(mapped.ty_param.id);
-                        let ty = self.get_declared_ty_of_ty_param(symbol);
-                        return if let Some(mut outer_ty_params) = outer_ty_params {
-                            outer_ty_params.push(ty);
-                            Some(outer_ty_params)
-                        } else {
-                            Some(vec![ty])
-                        };
-                    } else if let Some(cond) = node.as_cond_ty() {
-                        let mut outer_ty_params = outer_ty_params.unwrap_or_default();
-                        if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
-                            outer_ty_params.extend(infer_ty_params);
-                        };
-                        return if outer_ty_params.is_empty() {
-                            None
-                        } else {
-                            Some(outer_ty_params)
-                        };
-                        // return if let Some(infer_ty_params) = self.get_infer_ty_params(cond) {
-                        //     if infer_ty_params.is_empty() {
-                        //         outer_ty_params
-                        //     } else if let Some(mut outer_ty_params) = outer_ty_params {
-                        //         outer_ty_params.extend(infer_ty_params);
-                        //         Some(outer_ty_params)
-                        //     } else {
-                        //         Some(infer_ty_params.to_vec())
-                        //     }
-                        // } else {
-                        //     outer_ty_params
-                        // };
-                    }
-
                     let mut outer_ty_params = outer_ty_params.unwrap_or_default();
                     self.append_ty_params(
                         &mut outer_ty_params,
@@ -469,12 +457,13 @@ impl<'cx> TyChecker<'cx> {
                             outer_ty_params.push(this_ty);
                         }
                     }
-                    if outer_ty_params.is_empty() {
-                        return None;
+                    return if outer_ty_params.is_empty() {
+                        None
                     } else {
-                        return Some(outer_ty_params);
-                    }
+                        Some(outer_ty_params)
+                    };
                 }
+                // TODO: js
                 _ => (),
             };
         }
