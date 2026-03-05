@@ -1257,6 +1257,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    // TODO: duplicate `TypeRelatedChecker::compare_sigs_identical`
     pub(super) fn compare_sigs_identical(
         &mut self,
         mut source: &'cx ty::Sig<'cx>,
@@ -1343,7 +1344,7 @@ impl<'cx> TyChecker<'cx> {
         result
     }
 
-    fn is_matching_sig(
+    pub(super) fn is_matching_sig(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,

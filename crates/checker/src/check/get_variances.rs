@@ -111,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
                 VarianceFlags::COVARIANT
             } else {
                 VarianceFlags::INVARIANT
-            } | if self.is_type_assignable_to(ty_with_sub, ty_with_super) {
+            } | if self.is_type_assignable_to(ty_with_super, ty_with_sub) {
                 VarianceFlags::CONTRAVARIANT
             } else {
                 VarianceFlags::INVARIANT

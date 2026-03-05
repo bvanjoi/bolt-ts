@@ -332,5 +332,9 @@ type A<Options extends Required<O>> = B<Options['b']>;
   type T0 ={
 		[Key in keyof []]?: string
 	}
-	const a: T0 = {};
+	const a0: T0 = {};
+  const a1: (<G>() => G extends [{a:1}] & [{a:1}] & G ? 1 : 2) extends //~ERROR: Type 'boolean' is not assignable to type 'true'.
+	(<G>() => G extends [{a:1}] & G ? 1 : 2)
+		? true
+		: false = false
 }

@@ -1516,12 +1516,9 @@ impl<'cx> InferenceState<'cx, '_> {
             source =
                 self.c
                     .get_union_ty::<false>(&sources, ty::UnionReduction::Lit, None, None, None);
-        } else if target
-            .kind
-            .as_intersection()
-            .is_some_and(|i| !i.tys.iter().all(|t| self.c.is_non_generic_object_ty(t)))
+        } else if let Some(i) = target.kind.as_intersection()
+            && !i.tys.iter().all(|t| self.c.is_non_generic_object_ty(t))
         {
-            let t = target.kind.expect_intersection();
             if !source.kind.is_union() {
                 let sources = if let Some(s) = source.kind.as_intersection() {
                     s.tys
@@ -1529,7 +1526,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     self.c.alloc([source])
                 };
                 let (sources, targets) =
-                    self.infer_from_matching_tys(sources, t.tys, |this, s, t| {
+                    self.infer_from_matching_tys(sources, i.tys, |this, s, t| {
                         this.c.is_type_identical_to(s, t)
                     });
                 if sources.is_empty() || targets.is_empty() {

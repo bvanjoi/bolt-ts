@@ -41,3 +41,9 @@
  325 │ a1[1]
      · ─────
      ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:336:9]
+ 336 │ a1
+     · ──
+     ╰────

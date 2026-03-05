@@ -148,7 +148,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             } else if source.flags.intersects(TypeFlags::SINGLETON) {
                 Ternary::TRUE
             } else {
-                self.recur_ty_related_to(
+                self.recursive_ty_related_to(
                     source,
                     target,
                     false,
@@ -247,7 +247,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
                 return Ternary::FALSE;
             }
-            return self.recur_ty_related_to(
+            return self.recursive_ty_related_to(
                 source,
                 target,
                 report_error,
@@ -264,9 +264,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
     ) -> RelationKey {
+        let mut source = source.id;
+        let mut target = target.id;
+        if relation == RelationKind::Identity && source.as_u32() > target.as_u32() {
+            std::mem::swap(&mut source, &mut target);
+        }
         RelationKey {
-            source: source.id,
-            target: target.id,
+            source: source,
+            target: target,
             relation,
         }
     }
@@ -1879,7 +1884,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         res
     }
 
-    fn recur_ty_related_to(
+    fn recursive_ty_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -1892,6 +1897,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // already being compared.
             return Ternary::MAYBE;
         }
+
+        let saved_expanding_flags = self.expanding_flags;
 
         if recursion_flags.contains(RecursionFlags::SOURCE) {
             self.source_stack.push(source);
@@ -1925,6 +1932,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.source_stack.pop();
         }
 
+        self.expanding_flags = saved_expanding_flags;
         self.maybe_keys_set.remove(&key);
         res
     }
@@ -2137,15 +2145,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let mut result = Ternary::TRUE;
         for i in 0..source_sigs.len() {
-            let related = self.c.compare_sigs_identical(
+            let related = self.compare_sigs_identical(
                 source_sigs[i],
                 target_sigs[i],
                 false,
                 false,
                 false,
                 |this, s, t| {
-                    let mut c = TypeRelatedChecker::new(this, relation, error_node);
-                    c.is_related_to(
+                    this.is_related_to(
                         s,
                         t,
                         RecursionFlags::BOTH,
@@ -2159,6 +2166,96 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
             result &= related
         }
+        result
+    }
+
+    fn compare_sigs_identical(
+        &mut self,
+        mut source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        partial_match: bool,
+        ignore_this_tys: bool,
+        ignore_return_tys: bool,
+        compare_tys: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> Ternary {
+        if source == target {
+            return Ternary::TRUE;
+        } else if !self.c.is_matching_sig(source, target, partial_match) {
+            return Ternary::FALSE;
+        }
+        let source_ty_params = self.c.get_sig_links(source.id).get_ty_params();
+        let target_ty_params = self.c.get_sig_links(target.id).get_ty_params();
+        if source_ty_params.map(|t| t.len()) != target_ty_params.map(|t| t.len()) {
+            return Ternary::FALSE;
+        }
+        if let Some(target_ty_params) = target_ty_params {
+            let source_ty_params = source_ty_params.unwrap();
+            let mapper = self.c.create_ty_mapper(source_ty_params, target_ty_params);
+            for i in 0..target_ty_params.len() {
+                let s = source_ty_params[i];
+                let t = target_ty_params[i];
+                if !(s == t
+                    || ({
+                        let s = self
+                            .c
+                            .get_constraint_of_ty_param(s)
+                            .map(|s| self.c.instantiate_ty_worker(s, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        let t = self
+                            .c
+                            .get_constraint_of_ty_param(t)
+                            .map(|t| self.c.instantiate_ty_worker(t, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        compare_tys(self, s, t) != Ternary::FALSE
+                    }) && {
+                        let s = self
+                            .c
+                            .get_default_ty_from_ty_param(s)
+                            .map(|s| self.c.instantiate_ty_worker(s, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        let t = self
+                            .c
+                            .get_default_ty_from_ty_param(t)
+                            .map(|t| self.c.instantiate_ty_worker(t, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        compare_tys(self, s, t) != Ternary::FALSE
+                    })
+                {
+                    return Ternary::FALSE;
+                }
+            }
+            source = self.c.instantiate_sig(source, mapper, true);
+        }
+
+        let mut result = Ternary::TRUE;
+        if !ignore_this_tys {
+            // TODO:
+        }
+
+        let target_len = target.get_param_count(self.c);
+        for i in 0..target_len {
+            let s = self.c.get_ty_at_pos(source, i);
+            let t = self.c.get_ty_at_pos(target, i);
+            let related = compare_tys(self, t, s);
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related;
+        }
+
+        if !ignore_return_tys {
+            let source_ty_pred = self.c.get_ty_predicate_of_sig(source);
+            let target_ty_pred = self.c.get_ty_predicate_of_sig(target);
+            result &= if source_ty_pred.is_some() || target_ty_pred.is_some() {
+                // TODO:
+                Ternary::TRUE
+            } else {
+                let source_ret_ty = self.c.get_ret_ty_of_sig(source);
+                let target_ret_ty = self.c.get_ret_ty_of_sig(target);
+                compare_tys(self, source_ret_ty, target_ret_ty)
+            }
+        }
+
         result
     }
 
@@ -2612,8 +2709,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if self.c.is_readonly_symbol(source) != self.c.is_readonly_symbol(target) {
             return Ternary::FALSE;
         }
-        let s = self.c.get_type_of_symbol(source);
-        let t = self.c.get_type_of_symbol(target);
+        let s = self.c.get_non_missing_type_of_symbol(source);
+        let t = self.c.get_non_missing_type_of_symbol(target);
         compare(self, s, t, false)
     }
 
