@@ -57,7 +57,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_type_query(&mut self, n: &'cx ast::TypeofTy<'cx>) {
-        self.get_ty_from_type_query(n);
+        self.get_ty_from_typeof_node(n);
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {

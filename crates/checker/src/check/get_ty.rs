@@ -787,7 +787,10 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
-    fn get_ty_from_typeof_node(&mut self, node: &'cx ast::TypeofTy<'cx>) -> &'cx Ty<'cx> {
+    pub(super) fn get_ty_from_typeof_node(
+        &mut self,
+        node: &'cx ast::TypeofTy<'cx>,
+    ) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
@@ -2645,17 +2648,5 @@ impl<'cx> TyChecker<'cx> {
         } else {
             t.is_unit()
         }
-    }
-
-    pub(super) fn get_ty_from_type_query(
-        &mut self,
-        node: &'cx ast::TypeofTy<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
-            return ty;
-        }
-        let ty = self.check_expr_with_ty_args(node);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
-        ty
     }
 }

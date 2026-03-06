@@ -336,19 +336,20 @@ impl<'cx> TyChecker<'cx> {
 
         let primitive_constraint = has_primitive_constraint;
 
-        let i = self.inference_info(inference, idx);
-
         // for case:
         // `function foo<T>(a: T, b: T): void`
         // the call `foo('a', 'b')` should widen `'a'` and `'b'` into
         // string type rather than string literal type.
-        let widen_literal_tys = !primitive_constraint
-            && i.top_level
-            && (i.is_fixed || !self.is_ty_param_at_top_level_in_ret_top(sig, i.ty_param));
+        let widen_literal_tys = |this: &mut Self| {
+            let i = this.inference_info(inference, idx);
+            !primitive_constraint
+                && i.top_level
+                && (i.is_fixed || !this.is_ty_param_at_top_level_in_ret_top(sig, i.ty_param))
+        };
 
         let base_candidates = if primitive_constraint {
             candidates
-        } else if widen_literal_tys {
+        } else if widen_literal_tys(self) {
             candidates
                 .iter()
                 .map(|c| self.get_widened_literal_ty(c))
@@ -1555,7 +1556,15 @@ impl<'cx> InferenceState<'cx, '_> {
             // TODO: is_from_inference_block_source
 
             if let Some(idx) = self.get_inference_info_for_ty(target) {
+                if source
+                    .get_object_flags()
+                    .contains(ObjectFlags::NON_INFERRABLE_TYPE)
+                    || source == self.c.non_inferrable_any_ty
+                {
+                    return;
+                }
                 let info = self.c.inference_info(self.inference, idx);
+
                 if !info.is_fixed {
                     let candidate = self.propagation_ty.unwrap_or(source);
                     if info.priority.is_none() || self.priority < info.priority.unwrap() {
