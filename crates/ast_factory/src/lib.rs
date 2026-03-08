@@ -837,4 +837,96 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    #[inline]
+    fn create_call_expr(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        args: ast::Exprs<'cx>,
+    ) -> &'cx ast::CallExpr<'cx> {
+        let id = self.next_node_id();
+        let call = self.alloc(ast::CallExpr {
+            id,
+            span,
+            ty_args,
+            question: None,
+            expr,
+            args,
+        });
+        self.insert_node(id, ast::Node::CallExpr(call));
+        self.insert_node_flags(id, self.node_context_flags());
+        call
+    }
+
+    #[inline]
+    fn create_call_chain(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+        question: Option<Span>,
+        args: ast::Exprs<'cx>,
+    ) -> &'cx ast::CallExpr<'cx> {
+        let id = self.next_node_id();
+        let call = self.alloc(ast::CallExpr {
+            id,
+            span,
+            ty_args,
+            question,
+            expr,
+            args,
+        });
+        self.insert_node(id, ast::Node::CallExpr(call));
+        self.insert_node_flags(
+            id,
+            self.node_context_flags() | ast::NodeFlags::OPTIONAL_CHAIN,
+        );
+        call
+    }
+
+    #[inline]
+    fn create_element_access_expr(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        arg: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::EleAccessExpr<'cx> {
+        let id = self.next_node_id();
+        let expr = self.alloc(ast::EleAccessExpr {
+            id,
+            span,
+            expr,
+            question: None,
+            arg,
+        });
+        self.insert_node(id, ast::Node::EleAccessExpr(expr));
+        self.insert_node_flags(id, self.node_context_flags());
+        expr
+    }
+
+    #[inline]
+    fn create_element_access_expr_chain(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        question: Option<Span>,
+        arg: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::EleAccessExpr<'cx> {
+        let id = self.next_node_id();
+        let expr = self.alloc(ast::EleAccessExpr {
+            id,
+            span,
+            expr,
+            question,
+            arg,
+        });
+        self.insert_node(id, ast::Node::EleAccessExpr(expr));
+        self.insert_node_flags(
+            id,
+            self.node_context_flags() | ast::NodeFlags::OPTIONAL_CHAIN,
+        );
+        expr
+    }
 }

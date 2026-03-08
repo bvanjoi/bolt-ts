@@ -2540,19 +2540,18 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     fn infer_from_props(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
-        for target_prop in self.c.get_props_of_ty(target) {
+        let remove_missing_ty = |this: &mut Self, s: bolt_ts_binder::SymbolID| {
+            let is_optional = this.c.symbol(s).flags.contains(SymbolFlags::OPTIONAL);
+            let t = this.c.get_type_of_symbol(s);
+            this.c.remove_missing_ty(t, is_optional)
+        };
+        for &target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
                 .c
-                .get_prop_of_ty(source, self.c.symbol(*target_prop).name)
+                .get_prop_of_ty(source, self.c.symbol(target_prop).name)
             {
-                let s = {
-                    // TODO: remove_missing
-                    self.c.get_type_of_symbol(source_prop)
-                };
-                let t = {
-                    // TODO: remove_missing
-                    self.c.get_type_of_symbol(*target_prop)
-                };
+                let s = remove_missing_ty(self, source_prop);
+                let t = remove_missing_ty(self, target_prop);
                 self.infer_from_tys(s, t);
             }
         }

@@ -11,8 +11,7 @@ use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
-use crate::check::IterationTypeKind;
-
+use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
 use super::ast;
@@ -431,7 +430,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_class_like_decl(class);
                 self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
             }
-            EleAccess(node) => self.check_ele_access_expr(node),
+            EleAccess(node) => self.check_element_access_expr(node),
             PropAccess(node) => self.check_prop_access_expr(node),
             Typeof(n) => {
                 self.check_expr(n.expr);
@@ -465,15 +464,24 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 self.undefined_ty
             }
-            Await(_) => {
-                // TODO:
-                self.undefined_ty
-            }
+            Await(n) => self.check_await_expr(n),
             Yield(n) => self.check_yield_expr(n),
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_await_expr(&mut self, node: &'cx ast::AwaitExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        let operand_ty = self.check_expr(node.expr);
+        let awaited_ty = self.check_awaited_ty(operand_ty, true, node.id, |this| {});
+        if awaited_ty == operand_ty
+            && !self.is_error(awaited_ty)
+            && !operand_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
+        {
+            // TODO:
+        }
+        awaited_ty
     }
 
     fn check_yield_expr(&mut self, node: &'cx ast::YieldExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -764,20 +772,40 @@ impl<'cx> TyChecker<'cx> {
             }
             return None;
         }
-        let uplevel_iteration = *self.config.target() >= Target::ES2015;
-        let downlevel_iteration = false; // !uplevel_iteration && false;
+        let iterable_exists = self.get_global_iterable_ty::<false>() != self.empty_object_ty();
+        let uplevel_iteration = iterable_exists && *self.config.target() >= Target::ES2015;
+        let downlevel_iteration = !uplevel_iteration; // TODO: config.downlevel_iteration;
         let possible_out_of_bounds = self.config.no_unchecked_indexed_access()
-            && mode.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
+            && mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
             let iteration_tys = self.get_iteration_tys_of_iterable(
                 input_ty,
                 mode,
                 if uplevel_iteration { error_node } else { None },
             );
-            // if check_assignability {}
-            // if iteration_tys || uplevel_iteration {
-            //     return if possible_out_of_bounds {};
-            // }
+            if check_assignability && let Some(iteration_tys) = iteration_tys {
+                let diag = if mode.contains(IterationUse::FOR_OF_FLAG) {
+                    true
+                } else if mode.contains(IterationUse::SPREAD_FLAG) {
+                    true
+                } else if mode.contains(IterationUse::DESTRUCTURING_FLAG) {
+                    true
+                } else if mode.contains(IterationUse::YIELD_STAR_FLAG) {
+                    true
+                } else {
+                    false
+                };
+                if diag {
+                    self.check_type_assignable_to(send_ty, iteration_tys.next_ty, error_node);
+                }
+            }
+            if iteration_tys.is_some() || uplevel_iteration {
+                return if possible_out_of_bounds {
+                    iteration_tys.map(|tys| self.include_undefined_in_index_sig(tys.yield_ty))
+                } else {
+                    iteration_tys.map(|tys| tys.yield_ty)
+                };
+            }
         }
 
         let array_ty = input_ty;
@@ -1254,7 +1282,7 @@ impl<'cx> TyChecker<'cx> {
                     let member_symbol = self.get_symbol_of_decl(member.id());
                     let ty = match member.kind {
                         Shorthand(n) => self.check_ident(n.name),
-                        PropAssignment(n) => self.check_object_prop_member(n),
+                        PropAssignment(n) => self.check_object_prop_assignment(n),
                         Method(n) => self.check_object_method_member(n),
                         _ => unreachable!(),
                     };
@@ -1910,15 +1938,22 @@ impl<'cx> TyChecker<'cx> {
         self.number_ty
     }
 
-    fn check_ele_access_expr(&mut self, node: &'cx ast::EleAccessExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        if self
-            .p
-            .node_flags(node.id)
-            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
-        {
-            // TODO: check_element_access_chain
-        }
-        let expr_ty = self.check_non_null_expr(node.expr);
+    fn check_element_access_chain(
+        &mut self,
+        node: &'cx ast::EleAccessExpr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let expr_ty = self.check_expr(node.expr);
+        let non_optional_ty = self.get_optional_expression_ty(expr_ty, node.expr);
+        let non_optional_expr_ty = self.check_non_null_type(non_optional_ty, node.expr.id());
+        let ty = self.check_element_access_expr_worker(node, non_optional_expr_ty);
+        self.propagate_optional_ty_marker(ty, node.id, non_optional_ty == expr_ty)
+    }
+
+    fn check_element_access_expr_worker(
+        &mut self,
+        node: &'cx ast::EleAccessExpr<'cx>,
+        expr_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         let assign_kind = self
             .node_query(node.id.module())
             .get_assignment_target_kind(node.id);
@@ -1974,6 +2009,22 @@ impl<'cx> TyChecker<'cx> {
 
         // TODO: flow
         indexed_access_ty
+    }
+
+    fn check_element_access_expr(
+        &mut self,
+        node: &'cx ast::EleAccessExpr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if self
+            .p
+            .node_flags(node.id)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            self.check_element_access_chain(node)
+        } else {
+            let expr_ty = self.check_non_null_expr(node.expr);
+            self.check_element_access_expr_worker(node, expr_ty)
+        }
     }
 
     pub fn check_computed_prop_name(

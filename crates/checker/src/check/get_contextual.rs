@@ -539,20 +539,21 @@ impl<'cx> TyChecker<'cx> {
                 Some(true),
             )
         {
-            return Some(rest_ty);
+            Some(rest_ty)
+        } else {
+            let index_infos = self.get_index_infos_of_structured_ty(ty);
+            let key_ty = name_ty.unwrap_or_else(|| {
+                if let Some(atom) = name.as_atom() {
+                    self.get_string_literal_type_from_string(atom)
+                } else if let Some(n) = name.as_numeric() {
+                    self.get_number_literal_type_from_number(n)
+                } else {
+                    unreachable!()
+                }
+            });
+            self.find_applicable_index_info(index_infos, key_ty)
+                .map(|t| t.val_ty)
         }
-        let index_infos = self.get_index_infos_of_structured_ty(ty);
-        let key_ty = name_ty.unwrap_or_else(|| {
-            if let Some(atom) = name.as_atom() {
-                self.get_string_literal_type_from_string(atom)
-            } else if let Some(n) = name.as_numeric() {
-                self.get_number_literal_type_from_number(n)
-            } else {
-                unreachable!()
-            }
-        });
-        self.find_applicable_index_info(index_infos, key_ty)
-            .map(|t| t.val_ty)
     }
 
     fn get_ty_of_concrete_prop_of_contextual_ty(
@@ -797,7 +798,6 @@ impl<'cx> TyChecker<'cx> {
                 if sigs.len() == 1 {
                     return Some(sigs[0]);
                 } else {
-                    // todo: self.create_union_sigs
                     let sigs = self.alloc(sigs);
                     self.create_union_sigs(sigs[0], sigs);
                 }

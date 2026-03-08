@@ -12,11 +12,9 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         let block_scope_kind = node_query
             .get_combined_node_flags(self.id)
             .intersection(NodeFlags::BLOCK_SCOPED);
-        block_scope_kind.intersects(
-            NodeFlags::CONST
-                .union(NodeFlags::USING)
-                .union(NodeFlags::AWAIT_USING),
-        )
+        block_scope_kind == ast::NodeFlags::CONST
+            || block_scope_kind == ast::NodeFlags::USING
+            || block_scope_kind == ast::NodeFlags::AWAIT_USING
     }
 }
 

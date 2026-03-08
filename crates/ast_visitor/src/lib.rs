@@ -224,7 +224,7 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx ast::Ty<'cx>) {
         Intersection(n) => v.visit_intersection_ty(n),
         Typeof(n) => v.visit_typeof_ty(n),
         Mapped(n) => v.visit_mapped_ty(n),
-        TyOp(n) => v.visit_ty_op_ty(n),
+        TypeOp(n) => v.visit_ty_op_ty(n),
         Pred(n) => v.visit_pred_ty(n),
         Paren(n) => v.visit_paren_ty(n),
         Infer(n) => v.visit_infer_ty(n),
@@ -384,7 +384,7 @@ pub fn visit_mapped_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::MappedTy<'cx
         visit_object_ty_member(v, member);
     }
 }
-pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TyOp<'cx>) {
+pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TypeOp<'cx>) {
     v.visit_ty(n.ty);
 }
 pub fn visit_pred_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::PredTy<'cx>) {
@@ -592,7 +592,7 @@ make_visitor!(
     (visit_intersection_ty, ast::IntersectionTy<'cx>),
     (visit_typeof_ty, ast::TypeofTy<'cx>),
     (visit_mapped_ty, ast::MappedTy<'cx>),
-    (visit_ty_op_ty, ast::TyOp<'cx>),
+    (visit_ty_op_ty, ast::TypeOp<'cx>),
     (visit_ty_param, ast::TyParam<'cx>),
     (visit_pred_ty, ast::PredTy<'cx>),
     (visit_paren_ty, ast::ParenTy<'cx>),

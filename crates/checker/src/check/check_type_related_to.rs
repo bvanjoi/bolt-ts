@@ -1,16 +1,16 @@
 use std::borrow::Cow;
 
-use bolt_ts_ty::TypeFacts;
-use rustc_hash::FxHashSet;
-
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::IDENT_LENGTH;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
-use bolt_ts_utils::fx_hashset_with_capacity;
+use bolt_ts_ty::TypeFacts;
+use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
+use rustc_hash::FxHashSet;
 
 use super::errors;
 use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
+use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, Ty, TyKind, TypeFlags};
@@ -49,25 +49,29 @@ impl<'cx> TyChecker<'cx> {
             error_node.is_some(),
             IntersectionState::empty(),
         );
+        // if c.overflow {
+        //     let key = self.get_relation_key::<false>(
+        //         source,
+        //         target,
+        //         IntersectionState::empty(),
+        //         relation,
+        //     );
+        //     // TODO: ensure prev is none
+        //     self.relations.insert(key, RelationComparisonResult::FAILED);
+        // }
         result != Ternary::FALSE
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct RelationKey {
-    source: ty::TyID,
-    target: ty::TyID,
-    relation: RelationKind,
 }
 
 pub(super) struct TypeRelatedChecker<'cx, 'checker> {
     pub(super) c: &'checker mut TyChecker<'cx>,
     relation: RelationKind,
-    maybe_keys_set: FxHashSet<RelationKey>,
+    maybe_keys_set: FxIndexSet<RelationKey<'cx>>,
     expanding_flags: RecursionFlags,
     source_stack: Vec<&'cx ty::Ty<'cx>>,
     target_stack: Vec<&'cx ty::Ty<'cx>>,
     error_node: Option<ast::NodeID>,
+    overflow: bool,
 }
 
 impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
@@ -79,11 +83,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         TypeRelatedChecker {
             c,
             relation,
-            maybe_keys_set: fx_hashset_with_capacity(32),
+            maybe_keys_set: fx_indexset_with_capacity(32),
             expanding_flags: RecursionFlags::empty(),
             source_stack: Vec::with_capacity(32),
             target_stack: Vec::with_capacity(32),
             error_node,
+            overflow: false,
         }
     }
 
@@ -257,23 +262,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         Ternary::FALSE
-    }
-
-    fn get_relation_key(
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
-        relation: RelationKind,
-    ) -> RelationKey {
-        let mut source = source.id;
-        let mut target = target.id;
-        if relation == RelationKind::Identity && source.as_u32() > target.as_u32() {
-            std::mem::swap(&mut source, &mut target);
-        }
-        RelationKey {
-            source: source,
-            target: target,
-            relation,
-        }
     }
 
     fn is_property_symbol_ty_related(
@@ -814,13 +802,21 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let TyKind::Union(s) = source.kind else {
-            unreachable!()
-        };
+        debug_assert!(source.flags.contains(TypeFlags::UNION));
+        let source_union = source.kind.expect_union();
         let mut result = Ternary::TRUE;
-        // TODO: getUndefinedStrippedTargetIfNeeded
-        let undefined_stripped_target = target;
-        let source_tys = s.tys;
+        let undefined_stripped_target = {
+            // get_undefined_stripped_target_if_needed;
+            let target_union = target.kind.as_union();
+            if !source_union.tys[0].flags.contains(TypeFlags::UNDEFINED)
+                && target_union.is_some_and(|u| u.tys[0].flags.contains(TypeFlags::UNDEFINED))
+            {
+                self.c.extract_tys_of_kind(target, !TypeFlags::UNDEFINED)
+            } else {
+                target
+            }
+        };
+        let source_tys = source_union.tys;
         for (i, source_ty) in source_tys.iter().enumerate() {
             if let Some(target_union) = undefined_stripped_target.kind.as_union()
                 && source_tys.len() >= target_union.tys.len()
@@ -1892,7 +1888,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
     ) -> Ternary {
-        let key = Self::get_relation_key(source, target, self.relation);
+        let key =
+            self.c
+                .get_relation_key::<false>(source, target, intersection_state, self.relation);
+        // let maybe_start = self.maybe_keys_set.len();
         if !self.maybe_keys_set.insert(key) {
             // already being compared.
             return Ternary::MAYBE;
@@ -1933,7 +1932,40 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         self.expanding_flags = saved_expanding_flags;
-        self.maybe_keys_set.remove(&key);
+        let prev = self.maybe_keys_set.pop();
+        debug_assert!(prev.is_some());
+
+        // let reset_maybe_stack = |this: &mut Self, mark_all_as_succeeded: bool| {
+        //     debug_assert!(maybe_start < this.maybe_keys_set.len());
+        //     let mut pop_count = this.maybe_keys_set.len() - maybe_start;
+        //     while pop_count > 0 {
+        //         let Some(prev) = this.maybe_keys_set.pop() else {
+        //             unreachable!()
+        //         };
+        //         pop_count -= 1;
+        //         if mark_all_as_succeeded {
+        //             // TODO: ensure prev is none
+        //             this.c
+        //                 .relations
+        //                 .insert(prev, RelationComparisonResult::SUCCEEDED);
+        //         }
+        //     }
+        // };
+
+        // if res == Ternary::TRUE || (self.source_stack.is_empty() && self.target_stack.is_empty()) {
+        //     if res == Ternary::TRUE || res == Ternary::MAYBE {
+        //         reset_maybe_stack(self, true);
+        //     } else {
+        //         reset_maybe_stack(self, false);
+        //     }
+        // } else if res == Ternary::FALSE {
+        //     // TODO: ensure prev is none
+        //     self.c
+        //         .relations
+        //         .insert(key, RelationComparisonResult::FAILED);
+        //     reset_maybe_stack(self, false);
+        // }
+
         res
     }
 
@@ -2114,6 +2146,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let Some(source_info) = self.c.get_index_info_of_ty(source, target_info.key_ty) else {
                 return Ternary::FALSE;
             };
+            if source_info.is_readonly != target_info.is_readonly {
+                return Ternary::FALSE;
+            }
             let source_val_ty = source_info.val_ty;
             if self.is_related_to(
                 source_val_ty,
@@ -2125,7 +2160,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             {
                 return Ternary::FALSE;
             }
-            // TODO: source_info.is_readonly != target_info.is_readonly then return false
         }
         Ternary::TRUE
     }
@@ -2501,7 +2535,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut result = Ternary::TRUE;
         let target_count = target.get_param_count(self.c);
         let source_has_more_params = !self.c.has_effective_rest_param(target)
-            && (if check_mode.intersects(SigCheckMode::STRICT_ARITY) {
+            && (if check_mode.contains(SigCheckMode::STRICT_ARITY) {
                 self.c.has_effective_rest_param(source)
                     || source.get_param_count(self.c) > target_count
             } else {

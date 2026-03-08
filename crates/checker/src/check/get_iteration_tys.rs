@@ -77,7 +77,7 @@ pub(super) trait IterationTysResolver<'cx>: Copy {
 #[derive(Clone, Copy)]
 pub(super) struct AsyncIterationTysResolver;
 impl<'cx> IterationTysResolver<'cx> for AsyncIterationTysResolver {
-    const ITERATOR_SYMBOL_NAME: Atom = keyword::IDENT_ITERATOR;
+    const ITERATOR_SYMBOL_NAME: Atom = keyword::IDENT_ASYNC_ITERATOR;
 
     fn get_global_iterator_ty<const REPORT_ERROR: bool>(
         &self,
@@ -620,7 +620,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_prop_of_ty(ty, name)
         });
         if let Some(unique_ty) = unique_ty
-            && self.is_ty_usable_as_prop_name(unique_ty)
+            && unique_ty.useable_as_prop_name()
         {
             self.get_prop_name_from_ty(unique_ty)
         } else {
@@ -656,7 +656,7 @@ impl<'cx> TyChecker<'cx> {
                 .filter(|sig| self.get_min_arg_count(sig) == 0)
                 .collect::<Vec<_>>()
         });
-        if valid_sigs.as_ref().is_none_or(|sigs| !sigs.is_empty()) {
+        if valid_sigs.as_ref().is_none_or(|sigs| sigs.is_empty()) {
             if let Some(error_node) = error_node
                 && let Some(all_sigs) = all_sigs
                 && !all_sigs.is_empty()
@@ -876,7 +876,19 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_reference_to_some_ty(&self, ty: &'cx ty::Ty<'cx>, target: ty::Tys<'cx>) -> bool {
+    fn is_reference_to_some_ty(&self, ty: &'cx ty::Ty<'cx>, targets: ty::Tys<'cx>) -> bool {
+        if !ty.get_object_flags().contains(ty::ObjectFlags::REFERENCE) {
+            return false;
+        }
+        for target in targets {
+            // TODO: tuple?
+            let Some(t) = ty.kind.as_object_reference() else {
+                unreachable!()
+            };
+            if t.target.eq(target) {
+                return true;
+            }
+        }
         false
     }
 

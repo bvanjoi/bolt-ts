@@ -219,7 +219,7 @@ impl<'cx> TyChecker<'cx> {
         mapper: impl Fn(&mut Self, &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> + Copy,
         no_reduction: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if ty.flags.intersects(ty::TypeFlags::NEVER) {
+        if ty.flags.contains(ty::TypeFlags::NEVER) {
             Some(self.never_ty)
         } else if let Some(u) = ty.kind.as_union() {
             self.map_union_ty(ty, u, mapper, no_reduction)

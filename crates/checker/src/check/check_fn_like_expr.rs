@@ -302,7 +302,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_awaited_ty(ret_ty, false, ret_ty_error_location.id(), |_| {});
     }
 
-    fn check_awaited_ty(
+    pub(super) fn check_awaited_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         with_alias: bool,

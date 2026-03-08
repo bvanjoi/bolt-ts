@@ -127,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         if target
             .flags
-            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NEVER)
+            .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NEVER))
         {
             return false;
         }
@@ -197,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
             else {
                 continue;
             };
-            if target_prop_ty.flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            if target_prop_ty.flags.contains(TypeFlags::INDEXED_ACCESS) {
                 continue;
             }
             let error_node = e.error_node;

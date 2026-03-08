@@ -608,7 +608,7 @@ impl<'cx> ParserState<'cx, '_> {
         if self
             .node_flags_map
             .get(n.id())
-            .intersects(ast::NodeFlags::OPTIONAL_CHAIN)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
         {
             return true;
         }
@@ -621,7 +621,7 @@ impl<'cx> ParserState<'cx, '_> {
                 if self
                     .node_flags_map
                     .get(expr.id())
-                    .intersects(ast::NodeFlags::OPTIONAL_CHAIN)
+                    .contains(ast::NodeFlags::OPTIONAL_CHAIN)
                 {
                     break;
                 }
@@ -630,7 +630,7 @@ impl<'cx> ParserState<'cx, '_> {
             if self
                 .node_flags_map
                 .get(expr.id())
-                .intersects(ast::NodeFlags::OPTIONAL_CHAIN)
+                .contains(ast::NodeFlags::OPTIONAL_CHAIN)
             {
                 while let ast::ExprKind::NonNull(non_null) = n.kind {
                     let flags = self
@@ -656,23 +656,6 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::Expr<'cx>> {
         loop {
             expr = self.parse_member_expr_rest(start, expr, true)?;
-            let create_call_expr = |this: &mut Self,
-                                    e: &'cx ast::Expr<'cx>,
-                                    ty_args: Option<&'cx ast::Tys<'cx>>,
-                                    args: ast::Exprs<'cx>| {
-                let id = this.next_node_id();
-                let call = this.alloc(ast::CallExpr {
-                    id,
-                    span: this.new_span(start as u32),
-                    ty_args,
-                    expr: e,
-                    args,
-                });
-                this.nodes.insert(id, ast::Node::CallExpr(call));
-                this.alloc(ast::Expr {
-                    kind: ast::ExprKind::Call(call),
-                })
-            };
             let mut ty_args = None;
             let question_dot = self.parse_optional(TokenKind::QuestionDot);
             if question_dot.is_some() {
@@ -696,11 +679,16 @@ impl<'cx> ParserState<'cx, '_> {
                     expr = expr_with_ty_args.expr;
                 }
                 let args = self.parse_args();
-                if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
-                    todo!("call chain")
+                let span = self.new_span(start as u32);
+                let call_expr = if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
+                    let question = question_dot.map(|question| question.span);
+                    self.create_call_chain(span, expr, ty_args, question, args)
                 } else {
-                    expr = create_call_expr(self, expr, ty_args, args);
+                    self.create_call_expr(span, expr, ty_args, args)
                 };
+                expr = self.alloc(ast::Expr {
+                    kind: ast::ExprKind::Call(call_expr),
+                });
                 continue;
             }
 
@@ -1291,19 +1279,14 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_expr()?
         };
         self.expect(TokenKind::RBracket);
-        let ele = if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
-            todo!()
+        let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
+        let expr = NoParenRule.paren_left_side_of_access(expr, false);
+        let span = self.new_span(start as u32);
+        let ele = if is_optional_chain {
+            self.create_element_access_expr_chain(span, expr, question_dot, arg)
         } else {
-            let expr = NoParenRule.paren_left_side_of_access(expr, false);
-            let id = self.next_node_id();
-            self.alloc(ast::EleAccessExpr {
-                id,
-                span: self.new_span(start as u32),
-                expr,
-                arg,
-            })
+            self.create_element_access_expr(span, expr, arg)
         };
-        self.nodes.insert(ele.id, ast::Node::EleAccessExpr(ele));
         Ok(ele)
     }
 

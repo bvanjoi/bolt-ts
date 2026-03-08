@@ -17,6 +17,8 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::{self, CallLike};
 use bolt_ts_binder::SymbolID;
 use bolt_ts_span::Span;
+use bolt_ts_utils::FxIndexMap;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 use bolt_ts_utils::no_hashset_with_capacity;
 
 pub(super) trait CallLikeExpr<'cx>: r#trait::CallLike<'cx> {
@@ -353,12 +355,12 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
 
-            return self.resolve_call(expr, ctor_sigs, None);
+            return self.resolve_call(expr, ctor_sigs, None, SigFlags::empty());
         }
 
         let call_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Call);
         if !call_sigs.is_empty() {
-            let sig = self.resolve_call(expr, call_sigs, None);
+            let sig = self.resolve_call(expr, call_sigs, None, SigFlags::empty());
             return sig;
         }
 
@@ -411,7 +413,7 @@ impl<'cx> TyChecker<'cx> {
                         base_ty_node.expr_with_ty_args.ty_args,
                         base_ty_node.id,
                     );
-                    return self.resolve_call(expr, base_ctors, None);
+                    return self.resolve_call(expr, base_ctors, None, SigFlags::empty());
                 }
             }
 
@@ -419,8 +421,25 @@ impl<'cx> TyChecker<'cx> {
             return self.any_sig();
         }
 
+        let call_chain_flags;
         let callee = expr.callee();
-        let func_ty = self.check_expr(callee);
+        let mut func_ty = self.check_expr(callee);
+        if self.p.is_call_chain(expr.id()) {
+            let non_optional_ty = self.get_optional_expression_ty(func_ty, callee);
+            call_chain_flags = if non_optional_ty == func_ty {
+                SigFlags::empty()
+            } else if self
+                .node_query(expr.id().module())
+                .is_outermost_optional_chain(expr.id())
+            {
+                SigFlags::IS_OUTER_CALL_CHAIN
+            } else {
+                SigFlags::IS_INNER_CALL_CHAIN
+            };
+            func_ty = non_optional_ty;
+        } else {
+            call_chain_flags = SigFlags::empty();
+        }
         let func_ty =
             self.check_non_null_ty_with_reporter(func_ty, callee.id(), |this, _, facts| {
                 let error: bolt_ts_errors::BoxedDiag;
@@ -485,7 +504,7 @@ impl<'cx> TyChecker<'cx> {
             return self.unknown_sig();
         }
 
-        self.resolve_call(expr, call_sigs, None)
+        self.resolve_call(expr, call_sigs, None, call_chain_flags)
     }
 
     pub(super) fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {
@@ -875,11 +894,58 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn reorder_candidates(
+        &mut self,
+        sigs: &[&'cx Sig<'cx>],
+        result: &mut Vec<&'cx Sig<'cx>>,
+        call_chain_flags: SigFlags,
+    ) {
+        debug_assert!(result.len() == 0);
+        debug_assert!(result.capacity() == sigs.len());
+        let (sigs_with_literal_tys, sigs_without_literal_tys): (Vec<_>, Vec<_>) = sigs
+            .iter()
+            .partition::<Vec<&'cx ty::Sig<'cx>>, _>(|sig| sig.has_literal_tys());
+        let get_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
+            if call_chain_flags.is_empty() {
+                sig
+            } else {
+                this.get_optional_call_sig(sig, call_chain_flags)
+            }
+        };
+        for sig in sigs_with_literal_tys {
+            let sig = get_sig(self, sig);
+            result.push(sig);
+        }
+
+        let mut group_by_parent_node_id: FxIndexMap<ast::NodeID, Vec<&'cx ty::Sig<'cx>>> =
+            fx_indexmap_with_capacity(0);
+        let mut no_node_id_sigs = vec![];
+        for sig in sigs_without_literal_tys {
+            let Some(decl) = sig.node_id else {
+                no_node_id_sigs.push(get_sig(self, sig));
+                continue;
+            };
+            let parent = self.parent(decl).unwrap();
+            let vector = group_by_parent_node_id.entry(parent).or_default();
+            vector.push(get_sig(self, sig));
+        }
+        for list in group_by_parent_node_id.values().rev() {
+            for sig in list {
+                result.push(sig);
+            }
+        }
+        for sig in no_node_id_sigs {
+            result.push(sig);
+        }
+        debug_assert!(result.len() == sigs.len());
+    }
+
     fn resolve_call(
         &mut self,
         n: &impl CallLikeExpr<'cx>,
         candidates: Sigs<'cx>,
         candidates_out_array: Option<Sigs<'cx>>,
+        call_chain_flags: SigFlags,
     ) -> &'cx Sig<'cx> {
         debug_assert!(!candidates.is_empty());
 
@@ -900,14 +966,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: cache
-        let mut candidates = candidates.to_vec();
-        candidates.sort_by_key(|sig| {
-            if sig.has_literal_tys() {
-                std::cmp::Ordering::Less
-            } else {
-                std::cmp::Ordering::Greater
-            }
-        });
+        let mut result = Vec::with_capacity(candidates.len());
+        self.reorder_candidates(candidates, &mut result, call_chain_flags);
+        let candidates = result;
 
         let args = self.get_effective_call_args(n);
 

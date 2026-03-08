@@ -1017,6 +1017,12 @@ pub struct Binding<'cx> {
     pub kind: BindingKind<'cx>,
 }
 
+impl<'cx> Binding<'cx> {
+    pub fn id(&self) -> NodeID {
+        self.kind.id()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum BindingKind<'cx> {
     Ident(&'cx Ident),

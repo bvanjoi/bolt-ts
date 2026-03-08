@@ -161,7 +161,7 @@ pub enum Node<'cx> {
     UnionTy(&'cx super::UnionTy<'cx>),
     TypeofTy(&'cx super::TypeofTy<'cx>),
     MappedTy(&'cx super::MappedTy<'cx>),
-    TyOp(&'cx super::TyOp<'cx>),
+    TyOp(&'cx super::TypeOp<'cx>),
     PredTy(&'cx super::PredTy<'cx>),
     ParenTy(&'cx super::ParenTy<'cx>),
     InferTy(&'cx super::InferTy<'cx>),
@@ -255,7 +255,7 @@ impl<'cx> Node<'cx> {
             Node::MappedTy(n) => TyKind::Mapped(n),
             Node::InferTy(n) => TyKind::Infer(n),
             Node::TypeofTy(n) => TyKind::Typeof(n),
-            Node::TyOp(n) => TyKind::TyOp(n),
+            Node::TyOp(n) => TyKind::TypeOp(n),
             Node::CtorTy(n) => TyKind::Ctor(n),
             Node::PredTy(n) => TyKind::Pred(n),
             Node::ParenTy(n) => TyKind::Paren(n),
@@ -516,6 +516,8 @@ impl<'cx> Node<'cx> {
                 | ModuleDecl(_)
                 | ArrayBinding(_)
                 | ObjectBindingElem(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
         )
     }
 
@@ -1002,6 +1004,26 @@ impl<'cx> Node<'cx> {
         self.as_bin_expr()
             .is_some_and(|e| matches!(e.op.kind, super::BinOpKind::Instanceof))
     }
+
+    pub fn get_expando_init(&self, is_prototype_assignment: bool) -> Option<super::ExprKind<'cx>> {
+        match self {
+            Node::CallExpr(n) => {
+                let e = super::Expr::skip_parens(n.expr);
+                if matches!(e.kind, super::ExprKind::Fn(_) | super::ExprKind::ArrowFn(_)) {
+                    Some(super::ExprKind::Call(n))
+                } else {
+                    None
+                }
+            }
+            Node::FnExpr(n) => Some(super::ExprKind::Fn(n)),
+            Node::ClassExpr(n) => Some(super::ExprKind::Class(n)),
+            Node::ArrowFnExpr(n) => Some(super::ExprKind::ArrowFn(n)),
+            Node::ObjectLit(n) if n.members.is_empty() || is_prototype_assignment => {
+                Some(super::ExprKind::ObjectLit(n))
+            }
+            _ => None,
+        }
+    }
 }
 
 macro_rules! as_node {
@@ -1244,7 +1266,7 @@ as_node!(
     (ContinueStmt, super::ContinueStmt<'cx>, continue_stmt),
     (SuperExpr, super::SuperExpr, super_expr),
     (MappedTy, super::MappedTy<'cx>, mapped_ty),
-    (TyOp, super::TyOp<'cx>, ty_op),
+    (TyOp, super::TypeOp<'cx>, ty_op),
     (TryStmt, super::TryStmt<'cx>, try_stmt),
     (CatchClause, super::CatchClause<'cx>, catch_clause),
     (DoWhileStmt, super::DoWhileStmt<'cx>, do_stmt),

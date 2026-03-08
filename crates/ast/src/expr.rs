@@ -396,6 +396,27 @@ impl<'cx> ExprKind<'cx> {
             _ => None,
         }
     }
+
+    pub fn get_expando_init(
+        &'cx self,
+        is_prototype_assignment: bool,
+    ) -> Option<&'cx super::ExprKind<'cx>> {
+        match self {
+            ExprKind::Call(n) => {
+                let e = super::Expr::skip_parens(n.expr);
+                if matches!(e.kind, super::ExprKind::Fn(_) | super::ExprKind::ArrowFn(_)) {
+                    Some(self)
+                } else {
+                    None
+                }
+            }
+            ExprKind::Fn(_) => Some(self),
+            ExprKind::Class(_) => Some(self),
+            ExprKind::ArrowFn(_) => Some(self),
+            ExprKind::ObjectLit(n) if n.members.is_empty() || is_prototype_assignment => Some(self),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -509,6 +530,7 @@ pub struct EleAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub question: Option<Span>,
     pub arg: &'cx Expr<'cx>,
 }
 
@@ -907,6 +929,7 @@ pub struct CallExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
+    pub question: Option<Span>,
     pub args: Exprs<'cx>,
 }
 

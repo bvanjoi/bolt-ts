@@ -40,3 +40,34 @@ pub fn pprint_entity_name(name: &super::EntityName, atoms: &AtomIntern) -> Strin
 pub fn debug_ident(ident: &super::Ident, atoms: &AtomIntern) -> String {
     format!("{}({})", pprint_ident(ident, atoms), ident.span)
 }
+
+pub fn pprint_prop_access_expr(n: &super::PropAccessExpr, atoms: &AtomIntern) -> String {
+    let mut ret = String::new();
+    ret.push_str(&match n.expr.kind {
+        super::ExprKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::ExprKind::PropAccess(expr) => pprint_prop_access_expr(expr, atoms),
+        _ => unreachable!(),
+    });
+    ret.push('.');
+    ret.push_str(&pprint_ident(n.name, atoms));
+    ret
+}
+
+pub fn pprint_elem_access_expr(n: &super::EleAccessExpr, atoms: &AtomIntern) -> String {
+    let mut ret = String::new();
+    ret.push_str(&match n.expr.kind {
+        super::ExprKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::ExprKind::PropAccess(expr) => pprint_prop_access_expr(expr, atoms),
+        super::ExprKind::EleAccess(expr) => pprint_elem_access_expr(expr, atoms),
+        _ => unreachable!(),
+    });
+    ret.push('[');
+    ret.push_str(&match n.arg.kind {
+        super::ExprKind::Ident(ident) => pprint_ident(ident, atoms),
+        super::ExprKind::NumLit(expr) => expr.val.to_string(),
+        super::ExprKind::StringLit(expr) => atoms.get(expr.val).to_string(),
+        _ => unreachable!(),
+    });
+    ret.push(']');
+    ret
+}

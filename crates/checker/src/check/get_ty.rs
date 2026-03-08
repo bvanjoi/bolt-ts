@@ -17,7 +17,7 @@ use bolt_ts_binder::{AssignmentKind, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum WideningKind {
+pub(super) enum WideningKind {
     Normal,
     FunctionReturn,
     GeneratorNext,
@@ -169,7 +169,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(ty) = node.ty_anno() {
                 self.get_ty_from_type_node(ty)
             } else {
-                self.check_object_prop_member(n)
+                self.check_object_prop_assignment(n)
             }
             // TODO: jsx
         } else if let Some(n) = node.as_shorthand_spec() {
@@ -449,7 +449,7 @@ impl<'cx> TyChecker<'cx> {
             Union(node) => self.get_ty_from_union_ty_node(node),
             Typeof(node) => self.get_ty_from_typeof_node(node),
             Intersection(node) => self.get_ty_from_intersection_ty_node(node),
-            TyOp(node) => self.get_ty_from_ty_op(node),
+            TypeOp(node) => self.get_ty_from_type_op(node),
             Pred(node) => {
                 if node.asserts.is_some() {
                     self.void_ty
@@ -643,7 +643,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_ty_op(&mut self, node: &'cx ast::TyOp<'cx>) -> &'cx Ty<'cx> {
+    fn get_ty_from_type_op(&mut self, node: &'cx ast::TypeOp<'cx>) -> &'cx Ty<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
@@ -674,18 +674,11 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn is_var_const(&self, node: ast::NodeID) -> bool {
-        self.node_query(node.module())
-            .get_combined_node_flags(node)
-            .intersection(ast::NodeFlags::BLOCK_SCOPED)
-            == ast::NodeFlags::CONST
-    }
-
     fn is_valid_es_symbol_decl(&self, node: ast::NodeID) -> bool {
         let n = self.p.node(node);
         if let Some(n) = n.as_var_decl() {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
-                && self.is_var_const(node)
+                && self.node_query(node.module()).is_var_const(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
         } else if n.is_class_prop_elem() || n.is_object_prop_assignment() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
@@ -981,7 +974,18 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     self.get_type_of_symbol(prop)
                 };
-                return Some(prop_ty);
+                return Some(
+                    if let Some(access_expr) = access_expr
+                        && self
+                            .node_query(access_expr.module())
+                            .get_assignment_target_kind(access_expr)
+                            != AssignmentKind::Definite
+                    {
+                        self.get_flow_ty_of_reference(access_expr, prop_ty, None, None, None)
+                    } else {
+                        prop_ty
+                    },
+                );
             }
         }
 
@@ -1043,8 +1047,30 @@ impl<'cx> TyChecker<'cx> {
                 .get_applicable_index_info(object_ty, index_ty)
                 .or_else(|| self.get_index_info_of_ty(object_ty, self.string_ty));
             if let Some(index_info) = index_info {
-                return Some(index_info.val_ty);
+                return Some(
+                    if access_flags.contains(AccessFlags::INCLUDE_UNDEFINED)
+                        && !object_ty.symbol().is_some_and(|object_symbol| {
+                            self.symbol(object_symbol).flags.intersects(
+                                SymbolFlags::REGULAR_ENUM.union(SymbolFlags::CONST_ENUM),
+                            ) && index_ty.symbol().is_some_and(|index_symbol| {
+                                index_ty.flags.contains(TypeFlags::ENUM_LITERAL)
+                                    && self
+                                        .get_parent_of_symbol(index_symbol)
+                                        .is_some_and(|p| p == object_symbol)
+                            })
+                        })
+                    {
+                        let tys = &[index_info.val_ty, self.missing_ty];
+                        self.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None)
+                    } else {
+                        index_info.val_ty
+                    },
+                );
             }
+            if index_ty.flags.contains(TypeFlags::NEVER) {
+                return Some(self.never_ty);
+            }
+            // TODO: javascript literal
             if let Some(access_expr) = access_expr
                 && !self.is_const_enum_object_ty(object_ty)
             {
@@ -1208,7 +1234,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_indexed_access_ty_or_undefined(
         &mut self,
         mut object_ty: &'cx Ty<'cx>,
-        index_ty: &'cx Ty<'cx>,
+        mut index_ty: &'cx Ty<'cx>,
         access_flags: Option<AccessFlags>,
         access_node: Option<ast::NodeID>,
         alias_symbol: Option<SymbolID>,
@@ -1218,7 +1244,25 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.wildcard_ty);
         }
         object_ty = self.get_reduced_ty(object_ty);
-        let access_flags = access_flags.unwrap_or(AccessFlags::empty());
+        let mut access_flags = access_flags.unwrap_or(AccessFlags::empty());
+
+        if self.is_string_index_sig_only_ty(object_ty)
+            && !index_ty.flags.intersects(TypeFlags::NULLABLE)
+            && self.is_type_assignable_to_kind(
+                index_ty,
+                TypeFlags::STRING.union(TypeFlags::NUMBER),
+                false,
+            )
+        {
+            index_ty = self.string_ty;
+        }
+
+        if self.config.no_unchecked_indexed_access()
+            && access_flags.contains(AccessFlags::EXPRESSION_POSITION)
+        {
+            access_flags |= AccessFlags::INCLUDE_UNDEFINED;
+        }
+
         let is_generic_index = if self.is_generic_index_ty(index_ty) {
             true
         } else if access_node.is_some_and(|n| !self.p.node(n).is_indexed_access_ty()) {
@@ -1399,16 +1443,21 @@ impl<'cx> TyChecker<'cx> {
                 _ => break,
             }
         }
-        parent
-            .and_then(|node_id| {
-                // TODO: is_js_doc_ty_alias
-                self.p.node(node_id).is_type_alias_decl().then_some(node_id)
-            })
-            .map(|node_id| {
-                let symbol = self.final_res(node_id);
-                debug_assert!(self.binder.symbol(symbol).flags == SymbolFlags::TYPE_ALIAS);
-                symbol
-            })
+        let parent = parent?;
+        // TODO: is_js_doc_ty_alias
+        let alias_decl = self.p.node(parent).is_type_alias_decl().then_some(parent)?;
+        let symbol = self.final_res(alias_decl);
+        debug_assert!({
+            let s = self.binder.symbol(symbol);
+            // The reason why we don't use `s.flags == SymbolFlags::TYPE_ALIAS` is that
+            // the symbol maybe alias a function type:
+            // ```
+            // type A = number | string;
+            // declare function A(): A;
+            // ```
+            s.flags.contains(SymbolFlags::TYPE_ALIAS)
+        });
+        Some(symbol)
     }
 
     pub(super) fn get_ty_args_for_alias_symbol(
@@ -2175,7 +2224,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn report_implicit_any(
+    pub(super) fn report_implicit_any(
         &mut self,
         decl: ast::NodeID,
         ty: &'cx ty::Ty<'cx>,
@@ -2190,7 +2239,8 @@ impl<'cx> TyChecker<'cx> {
                 let no_implicit_any = self.config.no_implicit_any();
                 let decl_name = self.p.node(decl).name();
                 if no_implicit_any && decl_name.is_none() {
-                    // TODO:
+                    // TODO: REPORT_ERROR
+                    return;
                 }
                 if !no_implicit_any {
                 } else if widening_kind.is_some_and(|k| k == WideningKind::GeneratorYield) {
@@ -2567,16 +2617,16 @@ impl<'cx> TyChecker<'cx> {
             self.get_index_ty_for_mapped_ty(ty, index_flags)
         } else if ty == self.wildcard_ty {
             self.wildcard_ty
-        } else if ty.flags.intersects(TypeFlags::UNKNOWN) {
+        } else if ty.flags.contains(TypeFlags::UNKNOWN) {
             self.never_ty
         } else if ty.flags.intersects(TypeFlags::ANY.union(TypeFlags::NEVER)) {
             self.string_number_symbol_ty()
         } else {
-            let include = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+            let include = if index_flags.contains(IndexFlags::NO_INDEX_SIGNATURES) {
                 TypeFlags::STRING_LITERAL
             } else {
                 TypeFlags::STRING_LIKE
-            } | if index_flags.intersects(IndexFlags::STRINGS_ONLY) {
+            } | if index_flags.contains(IndexFlags::STRINGS_ONLY) {
                 TypeFlags::empty()
             } else {
                 TypeFlags::NUMBER_LIKE.union(TypeFlags::ES_SYMBOL_LIKE)

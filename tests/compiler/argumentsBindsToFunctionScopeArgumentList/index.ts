@@ -11,3 +11,8 @@ function foo(a) {
     //~^ ERROR: Type 'number' is not assignable to type 'IArguments'.
     //~| ERROR: Invalid use of 'arguments' in strict mode.
 }
+
+function f() {
+    const a = new Map<string, number>();
+    [...a.entries()];
+}

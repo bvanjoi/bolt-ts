@@ -185,6 +185,18 @@ impl<'cx> Ty<'cx> {
             _ => None,
         }
     }
+
+    pub fn is_non_deferred_ty_reference(&self) -> bool {
+        if !self.get_object_flags().contains(ObjectFlags::REFERENCE) {
+            return false;
+        }
+        let object_ty = self.kind.expect_object();
+        match object_ty.kind {
+            ObjectTyKind::Reference(n) => n.node.is_none(),
+            ObjectTyKind::Tuple(_) => true,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

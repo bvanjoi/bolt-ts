@@ -9,7 +9,6 @@ use super::ty::AccessFlags;
 use super::ty::Ty;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;

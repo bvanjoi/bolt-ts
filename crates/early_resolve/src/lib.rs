@@ -7,10 +7,10 @@ mod resolve_class_like;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, NodeFlags};
-use bolt_ts_ast::{keyword, pprint_ident};
 use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID};
 use bolt_ts_binder::{SymbolName, SymbolTable, Symbols};
 use bolt_ts_parser::ParsedMap;
@@ -510,7 +510,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_ty(ty);
                 }
             }
-            TyOp(n) => {
+            TypeOp(n) => {
                 self.resolve_ty(n.ty);
             }
             Pred(n) => {

@@ -94,8 +94,6 @@ impl RawCompilerOptions {
         if get_strict_option_value(self.strict_bind_call_apply) {
             flags.insert(super::CompilerOptionFlags::STRICT_BIND_CALL_APPLY);
         }
-        // TODO: delete
-        flags.insert(super::CompilerOptionFlags::STRICT_BIND_CALL_APPLY);
         if self.no_unchecked_indexed_access.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNCHECKED_INDEXED_ACCESS);
         }

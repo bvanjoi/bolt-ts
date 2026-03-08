@@ -1,5 +1,12 @@
 use std::borrow::Cow;
 
+use bolt_ts_ast as ast;
+use bolt_ts_ast::MappedTyModifiers;
+use bolt_ts_ast::keyword;
+use bolt_ts_binder::{SymbolFlags, SymbolID};
+use bolt_ts_ty::TypeFacts;
+use thin_vec::thin_vec;
+
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
@@ -9,12 +16,6 @@ use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
 use super::{InstantiationTyMap, StringMappingTyMap, TyChecker};
 use super::{TyInstantiationMap, errors};
-
-use bolt_ts_ast as ast;
-use bolt_ts_ast::MappedTyModifiers;
-use bolt_ts_ast::keyword;
-use bolt_ts_binder::{SymbolFlags, SymbolID};
-use thin_vec::thin_vec;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn instantiate_instantiable_tys(
@@ -546,16 +547,15 @@ impl<'cx> TyChecker<'cx> {
         let modifiers = m.decl.get_modifiers();
         let strict_null_checks = self.config.strict_null_checks();
         if strict_null_checks
-            && modifiers.intersects(MappedTyModifiers::INCLUDE_OPTIONAL)
-            && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED | TypeFlags::VOID)
+            && modifiers.contains(MappedTyModifiers::INCLUDE_OPTIONAL)
+            && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
             self.get_optional_ty::<true>(prop_ty)
         } else if strict_null_checks
-            && modifiers.intersects(MappedTyModifiers::EXCLUDE_OPTIONAL)
+            && modifiers.contains(MappedTyModifiers::EXCLUDE_OPTIONAL)
             && is_optional
         {
-            // TODO: self.get_ty_with_facts
-            prop_ty
+            self.get_ty_with_facts(prop_ty, TypeFacts::NE_UNDEFINED)
         } else {
             prop_ty
         }

@@ -47,3 +47,9 @@
  336 │ a1
      · ──
      ╰────
+
+  × Type '"other value"' is not assignable to type '"some value"'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:344:9]
+ 344 │ c
+     · ─
+     ╰────

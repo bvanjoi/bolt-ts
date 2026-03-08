@@ -2,13 +2,14 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::{MergeSymbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
-use bolt_ts_utils::{FxIndexMap, fx_hashset_with_capacity, fx_indexmap_with_capacity};
+use bolt_ts_utils::{FxIndexMap, FxIndexSet};
+use bolt_ts_utils::{fx_indexmap_with_capacity, fx_indexset_with_capacity};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
-use crate::check::get_declared_ty::EnumMemberValue;
-
+use super::check_type_related_to::IntersectionState;
 use super::create_ty::IntersectionFlags;
+use super::get_declared_ty::EnumMemberValue;
 use super::symbol_info::SymbolInfo;
 use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use super::ty::{Ty, TyKind};
@@ -29,6 +30,32 @@ pub(super) enum RelationKind {
 pub(super) struct EnumRelationKey {
     source: SymbolID,
     target: SymbolID,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GenericItemKey<'cx> {
+    Target(ty::TyID),
+    ParamIndex(u32),
+    SubParams(&'cx [GenericItemKey<'cx>]),
+    ParamTy(ty::TyID),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RelationKey<'cx> {
+    Normal {
+        source: ty::TyID,
+        target: ty::TyID,
+        relation: RelationKind,
+        has_intersection_state: bool,
+    },
+    Generic {
+        source: &'cx [GenericItemKey<'cx>],
+        target: &'cx [GenericItemKey<'cx>],
+        // TODO: merge `relation`, `has_constraint_marker` and `has_intersection_state` into flags
+        relation: RelationKind,
+        has_constraint_marker: bool,
+        has_intersection_state: bool,
+    },
 }
 
 pub(super) struct EnumRelationMap(FxHashMap<EnumRelationKey, RelationComparisonResult>);
@@ -60,7 +87,7 @@ bitflags::bitflags! {
 
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub(super) struct RelationComparisonResult: u8 {
-        const SUCCEED               = 1 << 0;
+        const SUCCEEDED             = 1 << 0;
         const FAILED                = 1 << 1;
         const REPORT_UNMEASURABLE   = 1 << 3;
         const REPORT_UNRELIABLE     = 1 << 4;
@@ -131,7 +158,7 @@ impl<'cx> TyChecker<'cx> {
             && let Some(entry) = self.enum_relation.get(key)
             && !entry.contains(RelationComparisonResult::FAILED)
         {
-            return entry.contains(RelationComparisonResult::SUCCEED);
+            return entry.contains(RelationComparisonResult::SUCCEEDED);
         }
         let target_enum_ty = self.get_type_of_symbol(target_symbol);
         let source_enum_ty = self.get_type_of_symbol(source_symbol);
@@ -193,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.enum_relation
-            .insert(key, RelationComparisonResult::SUCCEED);
+            .insert(key, RelationComparisonResult::SUCCEEDED);
         true
     }
 
@@ -380,7 +407,15 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if source.kind.is_object() && target.kind.is_object() {
-            // TODO: cache
+            // let key = self.get_relation_key::<false>(
+            //     source,
+            //     target,
+            //     IntersectionState::empty(),
+            //     relation,
+            // );
+            // if let Some(related) = self.relations.get(&key) {
+            //     return related.contains(RelationComparisonResult::SUCCEEDED);
+            // }
         }
 
         if source.kind.is_structured_or_instantiable()
@@ -650,7 +685,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut prop_flags = SymbolFlags::empty();
         let mut single_prop = None;
-        let mut prop_set: Option<FxHashSet<_>> = None;
+        let mut prop_set: Option<FxIndexSet<_>> = None;
         let mut index_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
         let mut synthetic_flags = CheckFlags::SYNTHETIC_METHOD;
@@ -689,7 +724,7 @@ impl<'cx> TyChecker<'cx> {
                         if let Some(prop_set) = &mut prop_set {
                             prop_set.insert(prop);
                         } else {
-                            let mut t = fx_hashset_with_capacity(tys.len());
+                            let mut t = fx_indexset_with_capacity(tys.len());
                             t.insert(single_prop);
                             t.insert(prop);
                             prop_set = Some(t);
@@ -968,5 +1003,110 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
     ) -> bool {
         self.is_type_related_to(source, target, RelationKind::Assignable)
+    }
+
+    fn is_unconstrained_ty_param(&mut self, ty: &'cx Ty<'cx>) -> bool {
+        ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+            && self.get_constraint_of_ty_param(ty).is_none()
+    }
+
+    pub(super) fn get_relation_key<const IGNORE_CONSTRAINTS: bool>(
+        &mut self,
+        mut source: &'cx ty::Ty<'cx>,
+        mut target: &'cx ty::Ty<'cx>,
+        intersection_state: IntersectionState,
+        relation: RelationKind,
+    ) -> RelationKey<'cx> {
+        if relation == RelationKind::Identity && source.id.as_u32() > target.id.as_u32() {
+            std::mem::swap(&mut source, &mut target);
+            debug_assert!(source.id.as_u32() <= target.id.as_u32());
+        }
+        let has_intersection_state = !intersection_state.is_empty();
+        if self.is_ty_reference_with_generic_arguments(source)
+            && self.is_ty_reference_with_generic_arguments(target)
+        {
+            fn get_ty_reference_id<'cx, const IGNORE_CONSTRAINTS: bool>(
+                this: &mut TyChecker<'cx>,
+                ty: &'cx ty::Ty<'cx>,
+                depth: u8,
+                has_constraint_marker: &mut bool,
+                ty_params: &mut Vec<&'cx ty::Ty<'cx>>,
+            ) -> &'cx [GenericItemKey<'cx>] {
+                debug_assert!(ty.get_object_flags().contains(ObjectFlags::REFERENCE));
+                debug_assert!(!this.get_ty_arguments(ty).is_empty());
+                let object_ty = ty.kind.expect_object();
+                let target = match object_ty.kind {
+                    ty::ObjectTyKind::Reference(t) => t.target,
+                    ty::ObjectTyKind::Tuple(_) => ty,
+                    _ => unreachable!(),
+                };
+                let mut result = vec![];
+                result.push(GenericItemKey::Target(target.id));
+                for t in this.get_ty_arguments(ty) {
+                    if t.flags.contains(TypeFlags::TYPE_PARAMETER) {
+                        if IGNORE_CONSTRAINTS || this.is_unconstrained_ty_param(t) {
+                            let index = match ty_params.iter().position(|ty_param| ty_param == t) {
+                                Some(index) => index,
+                                None => {
+                                    let len = ty_params.len();
+                                    ty_params.push(t);
+                                    len
+                                }
+                            };
+                            result.push(GenericItemKey::ParamIndex(index as u32));
+                            continue;
+                        }
+                        *has_constraint_marker = true;
+                    } else if depth < 4 && this.is_ty_reference_with_generic_arguments(t) {
+                        let subs =
+                            GenericItemKey::SubParams(get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                                this,
+                                t,
+                                depth + 1,
+                                has_constraint_marker,
+                                ty_params,
+                            ));
+                        result.push(subs);
+                        continue;
+                    }
+                    result.push(GenericItemKey::ParamTy(t.id));
+                }
+                this.alloc(result)
+            }
+
+            let mut has_constraint_marker = false;
+            let mut ty_params = vec![];
+            let source = get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                self,
+                source,
+                0,
+                &mut has_constraint_marker,
+                &mut ty_params,
+            );
+            let target = get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                self,
+                target,
+                0,
+                &mut has_constraint_marker,
+                &mut ty_params,
+            );
+
+            if has_constraint_marker == true {
+                // get generic ty reference relation key
+                return RelationKey::Generic {
+                    source,
+                    target,
+                    relation,
+                    has_intersection_state,
+                    has_constraint_marker,
+                };
+            }
+        }
+        RelationKey::Normal {
+            source: source.id,
+            target: target.id,
+            relation,
+            has_intersection_state,
+        }
     }
 }

@@ -114,6 +114,42 @@ pub trait SymbolInfo<'cx>: Sized {
 }
 
 impl<'cx> super::TyChecker<'cx> {
+    pub(super) fn get_late_bound_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        if s.flags.contains(SymbolFlags::CLASS) && matches!(s.name, SymbolName::Computed) {
+            let parent = s.parent;
+
+            if self.get_symbol_links(symbol).get_late_symbol().is_none() {
+                if self.symbol(symbol).decls.clone().is_some_and(|decls| {
+                    decls
+                        .into_iter()
+                        .any(|decl| self.has_late_bindable_name(decl))
+                }) {
+                    let parent = parent.map(|parent| self.get_merged_symbol(parent)).unwrap();
+                    if self.symbol(symbol).decls.as_ref().is_some_and(|decls| {
+                        decls
+                            .iter()
+                            .any(|decl| self.p.node(*decl).has_static_modifier())
+                    }) {
+                        self.get_exports_of_symbol(parent);
+                    } else {
+                        self.get_members_of_symbol(parent);
+                    };
+                }
+            }
+            self.get_mut_symbol_links(symbol).set_late_symbol(symbol);
+        }
+        Some(symbol)
+    }
+
+    pub(super) fn get_parent_of_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        let p = s
+            .parent
+            .and_then(|parent| self.get_late_bound_symbol(parent));
+        p.map(|id| self.get_merged_symbol(id))
+    }
+
     // TODO: return `Option<&'cx SymbolTable>`
     pub(super) fn members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(m) = self.get_symbol_links(symbol).get_members() {
@@ -185,7 +221,7 @@ impl<'cx> super::TyChecker<'cx> {
         self.get_mut_symbol_links(symbol)
             .set_alias_target(Symbol::RESOLVING);
         let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-        assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {s:#?}");
+        assert!(s.flags.contains(SymbolFlags::ALIAS), "symbol: {s:#?}");
         let node = s.get_decl_of_alias_symbol(self.p()).unwrap_or_else(|| {
             let decls = s
                 .decls
@@ -745,7 +781,7 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn get_export_symbol_of_value_symbol_if_exported(
-        &mut self,
+        &self,
         symbol: SymbolID,
     ) -> SymbolID {
         if symbol == Symbol::ERR || symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
@@ -768,7 +804,7 @@ impl<'cx> super::TyChecker<'cx> {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
-        name.is_late_bindable_ast()
+        name.is_dynamic_name()
     }
 
     fn has_late_bindable_name(&mut self, id: ast::NodeID) -> bool {

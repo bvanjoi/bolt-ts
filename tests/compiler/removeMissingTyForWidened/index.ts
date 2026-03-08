@@ -338,3 +338,43 @@ type A<Options extends Required<O>> = B<Options['b']>;
 		? true
 		: false = false
 }
+
+{
+  type C = (string[] & ['some value']) extends [infer F] ? F : false;
+  const c: C = "other value";
+  //~^ ERROR: Type '"other value"' is not assignable to type '"some value"'.
+}
+
+{
+  type A<T> = {[Key in keyof T]: never}[keyof T];
+  function f(a: A<{}>) {
+    const b: never = a;
+  }
+
+  type R<T> = {
+    [P in keyof T]-?: T[P];
+  };
+
+  function f0(a: R<[number?]>) {
+    const b: [number] = a;
+  } 
+}
+
+{
+  type A<E, F> =
+    (<G>() => G extends E ? 1 : 2) extends
+    (<G>() => G extends F ? 1 : 2)
+    ? true
+    : false;
+
+  type C = keyof [number];
+  type B = keyof {
+      [
+        D in C as (A<{ [K0 in D]: boolean }, { readonly [K1 in D]: boolean } > extends false ? never: D)
+      ]: never
+  };
+
+  function f(b: B) {
+	  const c: never = b;
+  }
+}

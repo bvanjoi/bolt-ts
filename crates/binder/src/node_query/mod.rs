@@ -18,7 +18,7 @@ pub enum ModuleInstanceState {
     ConstEnumOnly = 2,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum AssignmentKind {
     None,
     Definite,
@@ -1065,14 +1065,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         use ast::Node::*;
         match self.node(node) {
             PropAccessExpr(n) => n.question_dot.is_some(),
-            EleAccessExpr(_) => {
-                // TODO: question dot
-                false
-            }
-            CallExpr(_) => {
-                // TODO: question dot
-                false
-            }
+            EleAccessExpr(n) => n.question.is_some(),
+            CallExpr(n) => n.question.is_some(),
             _ => false,
         }
     }
@@ -1087,41 +1081,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         use ast::Node::*;
         match self.node(p) {
             PropAccessExpr(n) => n.question_dot.is_some() && n.expr.id() == node,
-            EleAccessExpr(_) => {
-                // TODO: question dot && n.expr.id() == node
-                false
-            }
-            CallExpr(_) => {
-                // TODO: question dot && n.expr.id() == node
-                false
-            }
+            EleAccessExpr(n) => n.question.is_some() && n.expr.id() == node,
+            CallExpr(n) => n.question.is_some() && n.expr.id() == node,
             _ => false,
-        }
-    }
-
-    pub fn is_outermost_optional_chain(&self, node: ast::NodeID) -> bool {
-        let Some(p) = self.parent(node) else {
-            return true;
-        };
-        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
-            return true;
-        }
-        use ast::Node::*;
-        match self.node(p) {
-            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
-            EleAccessExpr(_) => {
-                // TODO: question dot || n.expr.id() == node
-                false
-            }
-            CallExpr(_) => {
-                // TODO: question dot || n.expr.id() == node
-                false
-            }
-            NonNullExpr(_) => {
-                // TODO: question dot || n.expr.id() == node
-                false
-            }
-            _ => true,
         }
     }
 
@@ -1198,5 +1160,57 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             // TODO: prototype
             self.get_assignment_declaration_prop_access_kind(expr.left.id())
         }
+    }
+
+    pub fn is_outermost_optional_chain(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return true;
+        };
+        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            return true;
+        }
+        use ast::Node::*;
+        match self.node(p) {
+            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
+            EleAccessExpr(n) => n.question.is_some() || n.expr.id() == node,
+            CallExpr(n) => n.question.is_some() || n.expr.id() == node,
+            NonNullExpr(_) => {
+                // TODO: question dot || n.expr.id() == node
+                false
+            }
+            _ => true,
+        }
+    }
+
+    pub fn is_mutable_local_variable_declaration(&self, decl: &'cx ast::VarDecl<'cx>) -> bool {
+        let p = self.parent(decl.id).unwrap();
+        self.node_flags(p).contains(ast::NodeFlags::LET)
+            && !(self
+                .get_combined_modifier_flags(decl.id)
+                .contains(ast::ModifierKind::Export)
+                || (match self.node(p) {
+                    ast::Node::VarStmt(_) => {
+                        let parent_parent = self.parent(p).unwrap();
+                        self.parent(parent_parent).is_none()
+                    }
+                    ast::Node::CatchClause(_)
+                    | ast::Node::ForInStmt(_)
+                    | ast::Node::ForOfStmt(_) => false,
+                    _ => unreachable!(),
+                }))
+    }
+
+    pub fn is_var_const(&self, node: ast::NodeID) -> bool {
+        let block_scope_kind = self
+            .get_combined_node_flags(node)
+            .intersection(ast::NodeFlags::BLOCK_SCOPED);
+        block_scope_kind == ast::NodeFlags::CONST
+            || block_scope_kind == ast::NodeFlags::USING
+            || block_scope_kind == ast::NodeFlags::AWAIT_USING
+    }
+
+    pub fn is_in_js_file(&self, node: ast::NodeID) -> bool {
+        self.node_flags(node)
+            .contains(ast::NodeFlags::JAVASCRIPT_FILE)
     }
 }

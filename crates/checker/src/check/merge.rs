@@ -1,7 +1,5 @@
 use bolt_ts_binder::{BinderResult, set_value_declaration};
-use bolt_ts_binder::{
-    MergeSymbol, MergedSymbols, ResolveResult, SymbolFlags, SymbolID, SymbolName, SymbolTable,
-};
+use bolt_ts_binder::{MergeSymbol, MergedSymbols, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleArena;
 

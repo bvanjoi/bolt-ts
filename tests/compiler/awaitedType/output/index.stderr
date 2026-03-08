@@ -1,0 +1,23 @@
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/awaitedType/index.ts:27:12]
+ 27 │ Awaited<BadPromise>
+    · ───────────────────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/awaitedType/index.ts:32:12]
+ 32 │ Awaited<BadPromise1>
+    · ────────────────────
+    ╰────
+
+  × Tuple type '[number]' of length '1' has no element at index '1'.
+     ╭─[../../tests/compiler/awaitedType/index.ts:243:28]
+ 243 │ 1
+     · ─
+     ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+     ╭─[../../tests/compiler/awaitedType/index.ts:245:11]
+ 245 │ r0
+     · ──
+     ╰────

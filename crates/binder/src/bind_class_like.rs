@@ -6,13 +6,16 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
 
 impl<'cx> BinderState<'cx, '_, '_> {
-    pub(super) fn bind_prop_or_method_or_access(
+    pub(super) fn bind_prop_or_method_or_access<const BIND_FLOW_NODE: bool>(
         &mut self,
         decl_id: ast::NodeID,
         name: &'cx ast::PropName<'cx>,
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
+        if BIND_FLOW_NODE && let Some(current_flow) = self.current_flow {
+            self.flow_nodes.insert_flow_of_node(decl_id, current_flow);
+        }
         if self.node_query().has_dynamic_name(decl_id) {
             self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
         } else {

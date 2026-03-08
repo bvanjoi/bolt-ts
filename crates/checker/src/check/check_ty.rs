@@ -20,7 +20,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(n.false_ty);
             }
             ObjectLit(n) => self.check_object_lit_ty(n),
-            TyOp(n) => self.check_ty_op(n),
+            TypeOp(n) => self.check_ty_op(n),
             Tuple(n) => self.check_tuple_ty(n),
             Fn(n) => {
                 // TODO: check_signature_decl
@@ -115,7 +115,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_tuple_node(n);
     }
 
-    fn check_ty_op(&mut self, n: &'cx ast::TyOp<'cx>) {
+    fn check_ty_op(&mut self, n: &'cx ast::TypeOp<'cx>) {
         self.check_ty(n.ty);
     }
 
@@ -135,7 +135,7 @@ impl<'cx> TyChecker<'cx> {
             match &prop.kind {
                 IndexSig(n) => self.check_index_sig_decl(n),
                 Prop(_) => (),
-                Method(_) => (),
+                Method(n) => self.check_method_sig(n),
                 CallSig(_) => (),
                 CtorSig(_) => (),
                 Setter(_) => (),
@@ -146,6 +146,10 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
         self.check_index_constraints(ty, false);
         // TODO: duplicate index signatures check
+    }
+
+    fn check_method_sig(&mut self, n: &'cx ast::MethodSignature<'cx>) {
+        self.check_fn_like_decl(n);
     }
 
     fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {

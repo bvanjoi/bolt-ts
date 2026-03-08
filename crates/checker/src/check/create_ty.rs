@@ -855,11 +855,11 @@ impl<'cx> TyChecker<'cx> {
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
                         let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
-                            | if flag.intersects(ElementFlags::OPTIONAL) {
+                            | (if flag.contains(ElementFlags::OPTIONAL) {
                                 SymbolFlags::OPTIONAL
                             } else {
                                 SymbolFlags::empty()
-                            };
+                            });
                         let property = this.create_transient_symbol(
                             name,
                             symbol_flags,

@@ -1044,7 +1044,6 @@ impl<'cx> TyChecker<'cx> {
             call_sigs = self.get_sigs_of_symbol(symbol_id);
             ctor_sigs = self.empty_array();
             index_infos = self.empty_array();
-            // TODO: `constructor_sigs`, `index_infos`
         } else if symbol_flags.contains(SymbolFlags::CLASS) {
             call_sigs = self.empty_array();
             if let Some(symbol) = self
@@ -1249,9 +1248,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn append_sig(&mut self, sigs: &mut Vec<&'cx ty::Sig<'cx>>, new_sig: &'cx ty::Sig<'cx>) {
         if sigs.iter().all(|s| {
-            !self.compare_sigs_identical(s, new_sig, false, false, false, |this, s, t| {
+            self.compare_sigs_identical(s, new_sig, false, false, false, |this, s, t| {
                 this.compare_types_identical(s, t)
-            }) != Ternary::FALSE
+            }) == Ternary::FALSE
         }) {
             sigs.push(new_sig);
         }
@@ -1434,7 +1433,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::MappedTy<'cx>,
     ) -> bool {
         let constraint_decl = self.get_constraint_decl_for_mapped_ty(ty).unwrap();
-        if let ast::TyKind::TyOp(t) = constraint_decl.kind {
+        if let ast::TyKind::TypeOp(t) = constraint_decl.kind {
             t.op == ast::TyOpKind::Keyof
         } else {
             false
@@ -1449,7 +1448,7 @@ impl<'cx> TyChecker<'cx> {
             return t;
         }
         let modifiers_ty = if self.is_mapped_ty_with_keyof_constraint_decl(ty) {
-            let ty_node = if let ast::TyKind::TyOp(t) =
+            let ty_node = if let ast::TyKind::TypeOp(t) =
                 self.get_constraint_decl_for_mapped_ty(ty).unwrap().kind
             {
                 t.ty
@@ -1630,9 +1629,9 @@ impl<'cx> TyChecker<'cx> {
                     let modifiers_index_info =
                         this.get_applicable_index_info(modifiers_ty, prop_name_ty);
                     let is_readonly = template_modifier
-                        .intersects(MappedTyModifiers::INCLUDE_READONLY)
-                        || !(template_modifier.intersects(MappedTyModifiers::EXCLUDE_READONLY)
-                            && modifiers_index_info.is_some_and(|i| i.is_readonly));
+                        .contains(MappedTyModifiers::INCLUDE_READONLY)
+                        || !template_modifier.contains(MappedTyModifiers::EXCLUDE_READONLY)
+                            && modifiers_index_info.is_some_and(|i| i.is_readonly);
                     let index_info = this.alloc(ty::IndexInfo {
                         key_ty: index_key_ty,
                         val_ty,

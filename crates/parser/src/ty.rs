@@ -341,7 +341,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token();
         let ty = self.parse_ty_op_or_higher()?;
         let id = self.next_node_id();
-        let ty = self.alloc(ast::TyOp {
+        let ty = self.alloc(ast::TypeOp {
             id,
             span: self.new_span(start),
             op,
@@ -349,7 +349,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.nodes.insert(id, ast::Node::TyOp(ty));
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::TyOp(ty),
+            kind: ast::TyKind::TypeOp(ty),
         });
         Ok(ty)
     }

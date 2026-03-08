@@ -29,7 +29,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intersection(n) => n.span,
             TyKind::Typeof(n) => n.span,
             TyKind::Mapped(n) => n.span,
-            TyKind::TyOp(n) => n.span,
+            TyKind::TypeOp(n) => n.span,
             TyKind::Ctor(n) => n.span,
             TyKind::Pred(n) => n.span,
             TyKind::Lit(n) => n.span,
@@ -57,7 +57,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intersection(n) => n.id,
             TyKind::Typeof(n) => n.id,
             TyKind::Mapped(n) => n.id,
-            TyKind::TyOp(n) => n.id,
+            TyKind::TypeOp(n) => n.id,
             TyKind::Ctor(n) => n.id,
             TyKind::Pred(n) => n.id,
             TyKind::Lit(n) => n.id,
@@ -147,7 +147,7 @@ pub enum TyKind<'cx> {
     Intersection(&'cx IntersectionTy<'cx>),
     Typeof(&'cx TypeofTy<'cx>),
     Mapped(&'cx MappedTy<'cx>),
-    TyOp(&'cx TyOp<'cx>),
+    TypeOp(&'cx TypeOp<'cx>),
     Pred(&'cx PredTy<'cx>),
     Paren(&'cx ParenTy<'cx>),
     Infer(&'cx InferTy<'cx>),
@@ -622,7 +622,7 @@ pub enum TyOpKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct TyOp<'cx> {
+pub struct TypeOp<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub op: TyOpKind,

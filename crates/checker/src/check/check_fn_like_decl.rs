@@ -40,7 +40,8 @@ impl<'cx> TyChecker<'cx> {
             self.check_param_decl(param)
         }
 
-        if let Some(body) = r#trait::FnDeclLike::body(decl) {
+        let body = r#trait::FnDeclLike::body(decl);
+        if let Some(body) = body {
             self.check_block(body)
         }
 
@@ -48,12 +49,16 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty(ty);
         }
 
-        if {
-            let n = self.p.node(id);
-            !(n.is_ctor_sig_decl() || n.is_ctor_ty() || n.is_class_ctor())
-        } {
-            let ret_ty = self.get_ret_ty_from_anno(id);
-            self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, ret_ty);
+        use ast::Node::*;
+        if !matches!(self.p.node(id), CtorSigDecl(_) | CtorTy(_) | ClassCtor(_)) {
+            let return_ty = self.get_ret_ty_from_anno(id);
+            self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, return_ty);
+        }
+
+        if self.get_effective_ret_type_node(id).is_none() {
+            if body.is_none() {
+                self.report_implicit_any(id, self.any_ty, None);
+            }
         }
     }
 

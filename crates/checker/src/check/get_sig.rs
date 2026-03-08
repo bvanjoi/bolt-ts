@@ -3,6 +3,8 @@ use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
+use crate::check::links::SigLinks;
+
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
@@ -22,6 +24,62 @@ impl<'cx> TyChecker<'cx> {
         let s = self.alloc(sig);
         self.sigs.push(s);
         s
+    }
+
+    fn create_optional_call_sig(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        call_chain_flags: SigFlags,
+    ) -> &'cx Sig<'cx> {
+        let new = ty::Sig {
+            id: SigID::dummy(),
+            flags: sig.flags | call_chain_flags,
+            params: sig.params,
+            this_param: sig.this_param,
+            min_args_count: sig.min_args_count,
+            ret: sig.ret,
+            node_id: sig.node_id,
+            target: sig.target,
+            mapper: sig.mapper,
+            class_decl: sig.class_decl,
+            composite_sigs: sig.composite_sigs,
+            composite_kind: sig.composite_kind,
+        };
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            let links = SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(new.id, links);
+            debug_assert!(prev.is_none());
+        }
+
+        self.new_sig(new)
+    }
+
+    pub(super) fn get_optional_call_sig(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        call_chain_flags: SigFlags,
+    ) -> &'cx Sig<'cx> {
+        if sig.flags.intersection(SigFlags::CALL_CHAIN_FLAGS) == call_chain_flags {
+            return sig;
+        }
+        if call_chain_flags.contains(SigFlags::IS_INNER_CALL_CHAIN) {
+            if let Some(cached) = self.get_sig_links(sig.id).get_inner_optional_call_sig() {
+                return cached;
+            };
+            let new = self.create_optional_call_sig(sig, call_chain_flags);
+            self.get_mut_sig_links(sig.id)
+                .set_inner_optional_call_sig(new);
+            new
+        } else {
+            debug_assert!(call_chain_flags.contains(SigFlags::IS_OUTER_CALL_CHAIN),);
+            if let Some(cached) = self.get_sig_links(sig.id).get_outer_optional_call_sig() {
+                return cached;
+            };
+            let new = self.create_optional_call_sig(sig, call_chain_flags);
+            self.get_mut_sig_links(sig.id)
+                .set_outer_optional_call_sig(new);
+            new
+        }
     }
 
     fn get_ty_params_from_decl(&mut self, decl: ast::NodeID) -> Option<ty::Tys<'cx>> {

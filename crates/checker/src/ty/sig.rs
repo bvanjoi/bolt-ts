@@ -9,7 +9,7 @@ use super::ast;
 use bolt_ts_binder::SymbolID;
 
 bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct SigFlags: u8 {
         const HAS_REST_PARAMETER = 1 << 0;
         const HAS_LITERAL_TYPES = 1 << 1;

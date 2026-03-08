@@ -19,8 +19,8 @@ impl<'cx> TyChecker<'cx> {
         let mut add_member_for_key_ty = |this: &mut Self, key_ty: &'cx ty::Ty<'cx>| {
             let prop_name_ty = match name_ty {
                 Some(name_ty) => {
-                    let source = this.get_ty_param_from_mapped_ty(map);
-                    let mapper = this.append_ty_mapping(map.mapper, source, key_ty);
+                    let ty_param = this.get_ty_param_from_mapped_ty(map);
+                    let mapper = this.append_ty_mapping(map.mapper, ty_param, key_ty);
                     this.instantiate_ty_worker(name_ty, mapper)
                 }
                 None => key_ty,
@@ -180,7 +180,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_base_constraint_of_ty(modifier_ty)
             }
             && self.every_type(base_constraint, |this, t| {
-                this.is_array_or_tuple(t) || this.is_array_or_tuple_intersection(t)
+                this.is_array_or_tuple(t) || this.is_array_or_tuple_or_intersection(t)
             })
         {
             let mapper = self.prepend_ty_mapping(ty_var, base_constraint, m.mapper);

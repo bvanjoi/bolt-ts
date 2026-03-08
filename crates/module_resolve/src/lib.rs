@@ -384,7 +384,8 @@ impl<FS: CachedFileSystem> Resolver<FS> {
         assert_eq!(
             save_len,
             candidate.as_os_str().len(),
-            "The candidate path should not change length when checking for files."
+            "The candidate path should not change length when checking for files, but actually changed to {:?}",
+            candidate.display(),
         );
         self.load_node_module_from_dir(ext, candidate, only_record_failures, true)
     }

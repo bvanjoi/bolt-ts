@@ -1,0 +1,53 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:21:9]
+ 21 │ a0
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:24:9]
+ 24 │ a2
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:26:9]
+ 26 │ a3
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:49:9]
+ 49 │ a0
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:52:9]
+ 52 │ a2
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:54:9]
+ 54 │ a3
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:67:9]
+ 67 │ a0
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:92:9]
+ 92 │ a0
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/genericSignatureInheritance/index.ts:105:9]
+ 105 │ a0
+     · ──
+     ╰────
