@@ -34,6 +34,7 @@ bitflags::bitflags! {
         const STRICT_BIND_CALL_APPLY                    = 1 << 14;
         const NO_DTS_RESOLUTION                         = 1 << 15;
         const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 16;
+        const NO_UNUSED_LOCALS                          = 1 << 17;
     }
 }
 
@@ -150,5 +151,10 @@ impl NormalizedCompilerOptions {
     pub const fn strict_builtin_iteration_return(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::STRICT_BUILTIN_ITERATION_RETURN)
+    }
+
+    #[inline(always)]
+    pub const fn no_unused_locals(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_UNUSED_LOCALS)
     }
 }

@@ -1,0 +1,17 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty6/index.ts:10:11]
+ 10 │ d
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty6/index.ts:18:11]
+ 18 │ d
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty6/index.ts:29:11]
+ 29 │ d
+    · ─
+    ╰────

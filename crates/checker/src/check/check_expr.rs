@@ -2007,8 +2007,15 @@ impl<'cx> TyChecker<'cx> {
             )
             .unwrap_or(self.error_ty);
 
-        // TODO: flow
-        indexed_access_ty
+        let prop_symbol = self.get_node_links(node.id).get_resolved_symbol();
+        self.get_flow_type_of_prop_access_expr(
+            node.id,
+            prop_symbol,
+            indexed_access_ty,
+            Some(node.arg.id()),
+            self.check_mode,
+        )
+        // TODO: check_indexed_access_index_ty
     }
 
     fn check_element_access_expr(

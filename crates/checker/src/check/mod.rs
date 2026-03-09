@@ -1862,7 +1862,7 @@ impl<'cx> TyChecker<'cx> {
             && !n
                 .expr_of_access_expr()
                 .is_some_and(|n| n.kind.is_access_expr())
-            && !self.is_block_scoped_name_declared_before_use(value_decl, right)
+            && !self.is_block_scoped_name_declared_before_use(value_decl, right.id, right.span)
             && !((value_decl_node.is_class_method_elem()
                 || value_decl_node.is_object_method_member())
                 && self
@@ -2271,20 +2271,21 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_used_in_fn_or_instance_prop(
         &self,
-        used: &'cx ast::Ident,
+        used_id: ast::NodeID,
+        used_span: bolt_ts_span::Span,
         decl: ast::NodeID,
         decl_container: ast::NodeID,
     ) -> bool {
-        assert_eq!(used.id.module(), decl.module());
-        self.node_query(used.id.module())
-            .find_ancestor(used.id, |current| {
+        assert_eq!(used_id.module(), decl.module());
+        self.node_query(used_id.module())
+            .find_ancestor(used_id, |current| {
                 let current_id = current.id();
                 if current_id == decl_container {
                     return Some(false);
                 } else if current.is_fn_like() {
                     return Some(true);
                 } else if current.is_class_static_block_decl() {
-                    return Some(self.p.node(decl).span().lo() < used.span.lo());
+                    return Some(self.p.node(decl).span().lo() < used_span.lo());
                 }
 
                 let parent_node = self.p.node(self.parent(current_id)?);
@@ -2301,8 +2302,8 @@ impl<'cx> TyChecker<'cx> {
                             return Some(true);
                         } else if let Some(prop_decl) = n.as_class_prop_elem()
                             && let Some(usage_class) = self
-                                .node_query(used.id.module())
-                                .get_containing_class(used.id)
+                                .node_query(used_id.module())
+                                .get_containing_class(used_id)
                             && let Some(decl_class) =
                                 self.node_query(decl.module()).get_containing_class(decl)
                             && usage_class == decl_class
@@ -2349,8 +2350,8 @@ impl<'cx> TyChecker<'cx> {
                         if !is_decl_instance_prop {
                             return Some(true);
                         } else if let Some(usage_class) = self
-                            .node_query(used.id.module())
-                            .get_containing_class(used.id)
+                            .node_query(used_id.module())
+                            .get_containing_class(used_id)
                             && let Some(decl_class) =
                                 self.node_query(decl.module()).get_containing_class(decl)
                             && usage_class != decl_class
@@ -2367,18 +2368,18 @@ impl<'cx> TyChecker<'cx> {
     fn is_block_scoped_name_declared_before_use(
         &self,
         decl: ast::NodeID,
-        used: &'cx ast::Ident,
+        used_id: ast::NodeID,
+        used_span: bolt_ts_span::Span,
     ) -> bool {
         use ast::Node::*;
-        if decl.module() != used.id.module() {
+        if decl.module() != used_id.module() {
             return true;
         }
         let nq = self.node_query(decl.module());
-        if nq.is_in_type_query(used.id) {
+        if nq.is_in_type_query(used_id) {
             return true;
         }
 
-        let used_span = used.span;
         let decl_span = self.p.node(decl).span();
         let decl_pos = decl_span.lo();
         let decl_container = nq.get_enclosing_blockscope_container(decl);
@@ -2388,9 +2389,9 @@ impl<'cx> TyChecker<'cx> {
             return match n {
                 VarDecl(decl) => !self
                     .node_query(decl.id.module())
-                    .is_immediately_used_in_init_or_block_scoped_var(decl, used.id, decl_container),
+                    .is_immediately_used_in_init_or_block_scoped_var(decl, used_id, decl_container),
                 ObjectBindingElem(_) => {
-                    match nq.find_ancestor(used.id, |n| n.is_object_binding_elem().then_some(true))
+                    match nq.find_ancestor(used_id, |n| n.is_object_binding_elem().then_some(true))
                     {
                         Some(error_binding_element) => {
                             n.span().lo() < self.p.node(error_binding_element).span().lo() || {
@@ -2407,12 +2408,12 @@ impl<'cx> TyChecker<'cx> {
                             let decl = nq
                                 .find_ancestor(decl, |n| n.is_var_decl().then_some(true))
                                 .unwrap();
-                            self.is_block_scoped_name_declared_before_use(decl, used)
+                            self.is_block_scoped_name_declared_before_use(decl, used_id, used_span)
                         }
                     }
                 }
                 ArrayBinding(_) => {
-                    match nq.find_ancestor(used.id, |n| n.is_array_binding().then_some(true)) {
+                    match nq.find_ancestor(used_id, |n| n.is_array_binding().then_some(true)) {
                         Some(error_binding_element) => {
                             n.span().lo() < self.p.node(error_binding_element).span().lo() || {
                                 nq.find_ancestor(error_binding_element, |n| {
@@ -2428,7 +2429,7 @@ impl<'cx> TyChecker<'cx> {
                             let decl = nq
                                 .find_ancestor(decl, |n| n.is_var_decl().then_some(true))
                                 .unwrap();
-                            self.is_block_scoped_name_declared_before_use(decl, used)
+                            self.is_block_scoped_name_declared_before_use(decl, used_id, used_span)
                         }
                     }
                 }
@@ -2436,7 +2437,7 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
-        if self.is_used_in_fn_or_instance_prop(used, decl, decl_container) {
+        if self.is_used_in_fn_or_instance_prop(used_id, used_span, decl, decl_container) {
             return true;
         }
 
@@ -2460,7 +2461,7 @@ impl<'cx> TyChecker<'cx> {
             .p
             .node_flags(decl)
             .contains(bolt_ts_ast::NodeFlags::AMBIENT)
-            && !self.is_block_scoped_name_declared_before_use(decl, ident)
+            && !self.is_block_scoped_name_declared_before_use(decl, ident.id, ident.span)
         {
             let (decl_span, kind) = match self.p.node(decl) {
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
@@ -3027,13 +3028,13 @@ impl<'cx> TyChecker<'cx> {
             "fn_has_implicit_return: {:#?}",
             self.p.node(f)
         );
-        let n = self.get_flow_in_node_of_node(f);
         use bolt_ts_binder::FlowInNode::*;
-        match n {
-            Noop => false,
-            FnLike(f) => f
-                .end_flow_node
-                .is_some_and(|n| self.is_reachable_flow_node(n)),
+        if let FnLike(n) = self.get_flow_in_node_of_node(f)
+            && let Some(n) = n.end_flow_node
+        {
+            self.is_reachable_flow_node(n)
+        } else {
+            false
         }
     }
 
@@ -3766,7 +3767,9 @@ impl<'cx> TyChecker<'cx> {
                     .is_this_in_type_query(source)
                 {
                     t.is_this_expr()
-                } else if let Some(t_ident) = t.as_ident() {
+                } else if let Some(t_ident) = t.as_ident()
+                    && !keyword::is_prim_value_name(t_ident.name)
+                {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
                 } else if let Some(t_v) = t.as_var_decl() {
                     match t_v.name.kind {
@@ -5660,12 +5663,15 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn try_get_name_from_entity_name_expr(&mut self, n: &'cx ast::Expr<'cx>) -> Option<SymbolName> {
-        let symbol = match n.kind {
-            ast::ExprKind::Ident(n) => self.final_res(n.id),
-            ast::ExprKind::PropAccess(n) => self.resolve_qualified_name_like::<true, false>(
-                n.expr.id(),
-                n.name,
-                SymbolFlags::VALUE,
+        let (id, symbol) = match n.kind {
+            ast::ExprKind::Ident(n) => (n.id, self.final_res(n.id)),
+            ast::ExprKind::PropAccess(n) => (
+                n.id,
+                self.resolve_qualified_name_like::<true, false>(
+                    n.expr.id(),
+                    n.name,
+                    SymbolFlags::VALUE,
+                ),
             ),
             _ => unreachable!(),
         };
@@ -5685,8 +5691,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if decl_node.has_only_expr_init()
-            && let ast::ExprKind::Ident(n) = n.kind
-            && self.is_block_scoped_name_declared_before_use(decl, n)
+            && self.is_block_scoped_name_declared_before_use(decl, id, n.span())
         {
             if let Some(init) = decl_node.initializer() {
                 let init_ty = match self.p.node(self.parent(decl).unwrap()) {

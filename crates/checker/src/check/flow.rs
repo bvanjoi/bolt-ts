@@ -925,10 +925,28 @@ impl<'cx> TyChecker<'cx> {
         }
         let value_ty = self.get_ty_of_expr(value);
         let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
-        if value_ty.flags.contains(TypeFlags::NULLABLE) {
+        if value_ty.flags.intersects(TypeFlags::NULLABLE) {
             if !self.config.strict_null_checks() {
                 return ty;
             }
+            let facts = if double_equals {
+                if assume_true {
+                    TypeFacts::EQ_UNDEFINED_OR_NULL
+                } else {
+                    TypeFacts::NE_UNDEFINED_OR_NULL
+                }
+            } else if value_ty.flags.contains(TypeFlags::NULL) {
+                if assume_true {
+                    TypeFacts::EQ_NULL
+                } else {
+                    TypeFacts::NE_NULL
+                }
+            } else if assume_true {
+                TypeFacts::EQ_UNDEFINED
+            } else {
+                TypeFacts::NE_UNDEFINED
+            };
+            return self.get_adjusted_ty_with_facts(ty, facts);
         }
 
         if assume_true {
@@ -1637,13 +1655,17 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_reachable_flow_node(&mut self, id: FlowID) -> bool {
-        let result = self._is_reachable_flow_node(id, false);
+        let result = self.is_reachable_flow_node_worker(id, false);
         self.last_flow_node = Some(id);
         self.last_flow_reachable = result;
         result
     }
 
-    fn _is_reachable_flow_node(&mut self, mut flow: FlowID, mut no_cache_check: bool) -> bool {
+    fn is_reachable_flow_node_worker(
+        &mut self,
+        mut flow: FlowID,
+        mut no_cache_check: bool,
+    ) -> bool {
         loop {
             if self.last_flow_node.is_some_and(|l| l == flow) {
                 return self.last_flow_reachable;
@@ -1655,7 +1677,7 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(reachable) = self.flow_node_reachable.get(&flow).copied() {
                         return reachable;
                     } else {
-                        let reachable = self._is_reachable_flow_node(flow, true);
+                        let reachable = self.is_reachable_flow_node_worker(flow, true);
                         self.flow_node_reachable.insert(flow, reachable);
                         return reachable;
                     }
@@ -1666,7 +1688,13 @@ impl<'cx> TyChecker<'cx> {
             match &f.kind {
                 FlowNodeKind::Assign(n) => flow = n.antecedent,
                 FlowNodeKind::Cond(n) => flow = n.antecedent,
-                // TODO: handle other kinds
+                FlowNodeKind::Switch(n) => {
+                    let antecedent = n.antecedent;
+                    if n.clause_start == n.clause_end && self.is_exhaustive_switch_stmt(n.node) {
+                        return false;
+                    }
+                    flow = antecedent;
+                }
                 _ => return !flags.contains(FlowFlags::UNREACHABLE),
             }
         }
@@ -1757,17 +1785,16 @@ impl<'cx> TyChecker<'cx> {
         error_node: Option<ast::NodeID>,
         check_mode: Option<super::CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let n = match self.p.node(n) {
-            ast::Node::PropAccessExpr(n) => n,
+        let (id, expr) = match self.p.node(n) {
+            ast::Node::PropAccessExpr(n) => (n.id, n.expr),
+            ast::Node::EleAccessExpr(n) => (n.id, n.expr),
             ast::Node::QualifiedName(_) => {
                 // TODO:
                 return prop_ty;
             }
             n => unreachable!("n: {n:#?}"),
         };
-        let assignment_kind = self
-            .node_query(n.id.module())
-            .get_assignment_target_kind(n.id);
+        let assignment_kind = self.node_query(id.module()).get_assignment_target_kind(id);
         if assignment_kind == AssignmentKind::Definite {
             let is_optional =
                 prop.is_some_and(|prop| self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL));
@@ -1792,12 +1819,12 @@ impl<'cx> TyChecker<'cx> {
             // TODO: self.get_flow_ty_of_property
             return prop_ty;
         }
-        let prop_ty = self.get_narrow_ty_for_reference(prop_ty, n.id, check_mode);
+        let prop_ty = self.get_narrow_ty_for_reference(prop_ty, id, check_mode);
         let mut assume_uninitialized = false;
         let strict_null_checks = self.config.strict_null_checks();
         if strict_null_checks
             && self.config.strict_property_initialization()
-            && let ast::ExprKind::This(n) = n.expr.kind
+            && let ast::ExprKind::This(n) = expr.kind
         {
             let decl = prop.map(|prop| self.symbol(prop).value_decl);
             // TODO:
@@ -1818,7 +1845,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             prop_ty
         };
-        let flow_ty = self.get_flow_ty_of_reference(n.id, prop_ty, Some(init_ty), None, None);
+        let flow_ty = self.get_flow_ty_of_reference(id, prop_ty, Some(init_ty), None, None);
         if assume_uninitialized
             && !prop_ty.contains_undefined_ty()
             && flow_ty.contains_undefined_ty()

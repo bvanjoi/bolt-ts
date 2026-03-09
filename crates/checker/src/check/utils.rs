@@ -234,7 +234,7 @@ impl<'cx> TyChecker<'cx> {
         tys: ty::Tys<'cx>,
     ) -> bool {
         if let Some(u) = source.kind.as_union() {
-            !u.tys.iter().any(|t| tys.contains(t))
+            u.tys.iter().all(|t| tys.contains(t))
         } else {
             tys.contains(&source)
         }

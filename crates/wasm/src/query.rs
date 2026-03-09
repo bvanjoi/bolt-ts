@@ -11,11 +11,6 @@ pub struct Diag {
     msg: String,
 }
 
-struct CFG {
-    entry_graph: usize,
-}
-
-type CFGMap = IndexMap<String, bolt_ts_optimize::LoweringResult>;
 type OutputFiles = IndexMap<String, String>;
 
 #[wasm_bindgen]
@@ -24,7 +19,6 @@ pub struct JsQuery {
 
     diags: std::cell::OnceCell<Vec<Diag>>,
     output_files: std::cell::OnceCell<OutputFiles>,
-    cfg_map: std::cell::OnceCell<CFGMap>,
 }
 
 impl JsQuery {
@@ -33,7 +27,6 @@ impl JsQuery {
             db,
             diags: std::cell::OnceCell::new(),
             output_files: std::cell::OnceCell::new(),
-            cfg_map: std::cell::OnceCell::new(),
         }
     }
 }

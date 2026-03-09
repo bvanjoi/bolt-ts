@@ -49,8 +49,6 @@ with_option!(
     (no_implicit_this, bool),
     (no_implicit_returns, bool),
     (no_unchecked_indexed_access, bool),
-    (target, RawTarget),
-    (module, RawModule),
     (always_strict, bool),
     (exact_optional_property_types, bool),
     (allow_unused_labels, bool),
@@ -58,6 +56,9 @@ with_option!(
     (preserve_symlinks, bool),
     (use_define_for_class_fields, bool),
     (strict_property_initialization, bool),
+    (no_unused_locals, bool),
+    (target, RawTarget),
+    (module, RawModule),
     (module_resolution, RawModuleResolution),
     (custom_conditions, Vec<String>)
 );
@@ -111,6 +112,9 @@ impl RawCompilerOptions {
         }
         if self.no_implicit_returns.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_IMPLICIT_RETURNS);
+        }
+        if self.no_unused_locals.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_UNUSED_LOCALS);
         }
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),

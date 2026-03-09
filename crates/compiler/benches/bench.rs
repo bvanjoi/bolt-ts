@@ -5,7 +5,12 @@ const BENCH_CASE_DIR_NAME: &str = "benchmarks";
 
 fn clone_bench_repo() -> std::path::PathBuf {
     let repo_path = std::env::temp_dir().join("typescript-compiler-bench");
-    git2::Repository::clone(BENCH_REPO, &repo_path).unwrap();
+    std::process::Command::new("git")
+        .arg("clone")
+        .arg(BENCH_REPO)
+        .arg(&repo_path)
+        .status()
+        .expect("Failed to clone bench repo");
     println!("temp bench dir: {:?}", &repo_path);
     assert!(repo_path.join(BENCH_CASE_DIR_NAME).is_dir());
     repo_path

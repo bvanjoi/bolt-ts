@@ -66,6 +66,8 @@ pub fn pprint_elem_access_expr(n: &super::EleAccessExpr, atoms: &AtomIntern) -> 
         super::ExprKind::Ident(ident) => pprint_ident(ident, atoms),
         super::ExprKind::NumLit(expr) => expr.val.to_string(),
         super::ExprKind::StringLit(expr) => atoms.get(expr.val).to_string(),
+        super::ExprKind::PropAccess(expr) => pprint_prop_access_expr(expr, atoms),
+        super::ExprKind::EleAccess(expr) => pprint_elem_access_expr(expr, atoms),
         _ => unreachable!(),
     });
     ret.push(']');
