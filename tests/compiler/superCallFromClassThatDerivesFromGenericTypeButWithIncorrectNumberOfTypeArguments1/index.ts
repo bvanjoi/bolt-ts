@@ -1,5 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/superCallFromClassThatDerivesFromGenericTypeButWithIncorrectNumberOfTypeArguments1.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+
 class A<T1, T2> {
     constructor(private map: (value: T1) => T2) {
 

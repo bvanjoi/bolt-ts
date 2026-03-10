@@ -1,0 +1,17 @@
+  × Type 'D' is not assignable to type 'C'.
+    ╭─[../../tests/compiler/typeMatch1/index.ts:23:1]
+ 23 │ x6
+    · ──
+    ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/typeMatch1/index.ts:25:1]
+ 25 │ x6
+    · ──
+    ╰────
+
+  × Operator '==' cannot be applied to types 'typeof C' and 'typeof D'.
+    ╭─[../../tests/compiler/typeMatch1/index.ts:27:1]
+ 27 │ C==D
+    · ────
+    ╰────

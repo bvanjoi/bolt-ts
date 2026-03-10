@@ -671,16 +671,8 @@ impl<'cx> ParserState<'cx, '_> {
         self.has_export_decl = true;
         let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
-        let id = self.next_node_id();
-        let node = self.alloc(ast::ExportAssign {
-            id,
-            span: self.new_span(start),
-            expr,
-            modifiers,
-            is_export_equals: IS_EXPORT_EQUALS,
-        });
-        self.nodes.insert(id, ast::Node::ExportAssign(node));
-        Ok(node)
+        let span = self.new_span(start);
+        Ok(self.create_export_assign::<IS_EXPORT_EQUALS>(span, modifiers, expr))
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {

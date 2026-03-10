@@ -904,7 +904,9 @@ impl<'cx> ExportDecl<'cx> {
 }
 
 /// ```txt
-/// export default expr;
+/// export default expr
+/// // or
+/// export = expr
 /// ```
 #[derive(Debug, Clone)]
 pub struct ExportAssign<'cx> {

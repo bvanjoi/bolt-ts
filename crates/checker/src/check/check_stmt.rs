@@ -55,15 +55,6 @@ impl<'cx> TyChecker<'cx> {
         self.check_stmt(node.stmt);
     }
 
-    fn is_type_equality_comparable_to(
-        &mut self,
-        source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::Ty<'cx>,
-    ) -> bool {
-        target.flags.contains(TypeFlags::NULLABLE)
-            || self.is_type_related_to(source, target, super::relation::RelationKind::Comparable)
-    }
-
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
         let expr_ty = self.check_expr(node.expr);

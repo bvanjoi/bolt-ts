@@ -70,7 +70,8 @@
      · ─
      ╰────
 
-  × Object literal may only specify known properties, and 'b' does not exist.
+  × Object literal may only specify known properties, and 'b' does not exist
+  │ in type 'ConditionalPick'.
      ╭─[../../tests/compiler/fest/index.ts:332:70]
  332 │ b: '42'
      · ───────

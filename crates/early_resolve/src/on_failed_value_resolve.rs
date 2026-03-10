@@ -129,6 +129,37 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
+    pub(super) fn on_failed_to_resolve_namespace_symbol(
+        &mut self,
+        ident: &'cx ast::Ident,
+        res: &ResolvedResult,
+        mut error: errors::CannotFindName,
+    ) -> errors::CannotFindName {
+        if let Some(e) = self.check_using_type_as_namespace(ident) {
+            error.errors.push(e);
+        }
+
+        error
+    }
+
+    fn check_using_type_as_namespace(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::CannotFindNameHelperKind> {
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+        if symbol != Symbol::ERR {
+            let node = self.symbol(symbol).decls.as_ref().unwrap()[0];
+            let n = self.p.node(node);
+            let span = n.name().map_or(n.span(), |name| name.span());
+            let error = errors::CannotFindNameHelperKind::CannotUseTypeAsNamespace(
+                errors::CannotUseTypeAsNamespace { span },
+            );
+            return Some(error);
+        }
+
+        None
+    }
+
     pub(super) fn on_failed_to_resolve_type_symbol(
         &mut self,
         ident: &'cx ast::Ident,

@@ -356,7 +356,7 @@ impl<'cx> TyChecker<'cx> {
             && self.are_all_outer_parameters_applied(original_base_ty.unwrap())
         {
             let base_ty_node = base_ty_node.unwrap();
-            let span = base_ty_node.span;
+            let span = base_ty_node.expr_with_ty_args.span;
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
             base_ty = self.get_ty_from_class_or_interface_reference(
                 base_ty_node.id,

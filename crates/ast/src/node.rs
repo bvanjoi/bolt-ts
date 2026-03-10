@@ -297,6 +297,13 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
                 crate::ModuleName::StringLit(_) => None,
             },
+            ExportAssign(n) => {
+                if let ExprKind::Ident(ident) = n.expr.kind {
+                    Some(DeclarationName::Ident(ident))
+                } else {
+                    None
+                }
+            }
             ImportExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }

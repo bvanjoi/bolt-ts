@@ -248,6 +248,58 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn report_operator_error_unless(
+        &mut self,
+        left_ty: &'cx ty::Ty<'cx>,
+        right_ty: &'cx ty::Ty<'cx>,
+        error_span: Span,
+        op: ast::BinOp,
+        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy,
+    ) -> bool {
+        if !f(self, left_ty, right_ty) {
+            self.report_operator_error(left_ty, right_ty, error_span, op, Some(f));
+            true
+        } else {
+            false
+        }
+    }
+
+    fn report_operator_error(
+        &mut self,
+        left_ty: &'cx ty::Ty<'cx>,
+        right_ty: &'cx ty::Ty<'cx>,
+        error_span: Span,
+        op: ast::BinOp,
+        f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
+    ) {
+        let would_work_with_await = false;
+
+        let mut effective_left_ty = left_ty;
+        let mut effective_right_ty = right_ty;
+        if !would_work_with_await && let Some(f) = f {
+            let get_base_tys_if_unrelated = |this: &mut Self| {
+                let left_base = this.get_base_ty_of_literal_ty(left_ty);
+                let right_base = this.get_base_ty_of_literal_ty(right_ty);
+                if !f(this, left_base, right_base) {
+                    Some((left_base, right_base))
+                } else {
+                    None
+                }
+            };
+            if let Some((l, r)) = get_base_tys_if_unrelated(self) {
+                effective_left_ty = l;
+                effective_right_ty = r;
+            }
+        }
+        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
+            span: error_span,
+            op: op.kind.to_string(),
+            ty1: effective_left_ty.to_string(self),
+            ty2: effective_right_ty.to_string(self),
+        };
+        self.push_error(Box::new(error));
+    }
+
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
@@ -331,8 +383,24 @@ impl<'cx> TyChecker<'cx> {
                     left_ty
                 }
             }
-            EqEq => self.boolean_ty(),
-            EqEqEq => self.boolean_ty(),
+            EqEq | EqEqEq | NEq | NEqEq => {
+                if !self
+                    .check_mode
+                    .is_some_and(|check_mode| check_mode.contains(CheckMode::TYPE_ONLY))
+                {
+                    self.report_operator_error_unless(
+                        left_ty,
+                        right_ty,
+                        node.span,
+                        op,
+                        |this, left, right| {
+                            this.is_type_equality_comparable_to(left, right)
+                                || this.is_type_equality_comparable_to(right, left)
+                        },
+                    );
+                }
+                self.boolean_ty()
+            }
             Less | LessEq | Great | GreatEq => {
                 if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
                 {
@@ -344,28 +412,36 @@ impl<'cx> TyChecker<'cx> {
                         let t = self.check_non_null_type(right_ty, right.id());
                         self.get_base_ty_of_literal_ty_for_comparison(t)
                     };
-                    self.report_op_error_unless(left_ty, right_ty, op.span, op, |this, l, r| {
-                        if this.is_type_any(l) || this.is_type_any(r) {
-                            true
-                        } else {
-                            let left_assignable_to_number =
-                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
-                            let right_assignable_to_number =
-                                this.is_type_assignable_to(l, this.number_or_bigint_ty());
-                            left_assignable_to_number && right_assignable_to_number
-                                || !left_assignable_to_number && !right_assignable_to_number && {
-                                    this.is_type_related_to(
-                                        l,
-                                        r,
-                                        relation::RelationKind::Comparable,
-                                    ) || this.is_type_related_to(
-                                        r,
-                                        l,
-                                        relation::RelationKind::Comparable,
-                                    )
-                                }
-                        }
-                    });
+                    self.report_operator_error_unless(
+                        left_ty,
+                        right_ty,
+                        op.span,
+                        op,
+                        |this, l, r| {
+                            if this.is_type_any(l) || this.is_type_any(r) {
+                                true
+                            } else {
+                                let left_assignable_to_number =
+                                    this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                                let right_assignable_to_number =
+                                    this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                                left_assignable_to_number && right_assignable_to_number
+                                    || !left_assignable_to_number
+                                        && !right_assignable_to_number
+                                        && {
+                                            this.is_type_related_to(
+                                                l,
+                                                r,
+                                                relation::RelationKind::Comparable,
+                                            ) || this.is_type_related_to(
+                                                r,
+                                                l,
+                                                relation::RelationKind::Comparable,
+                                            )
+                                        }
+                            }
+                        },
+                    );
                 }
                 self.boolean_ty()
             }
@@ -376,8 +452,7 @@ impl<'cx> TyChecker<'cx> {
             Instanceof => self.check_instanceof_expr(left, left_ty, right, right_ty),
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
-            NEq => self.boolean_ty(),
-            NEqEq => self.boolean_ty(),
+
             Comma => right_ty,
             BitXor => self.number_ty,
             Exp => self.number_ty,

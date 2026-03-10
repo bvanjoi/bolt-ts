@@ -141,7 +141,7 @@ impl BinderState<'_, '_, '_> {
                             };
                             Box::new(errors::DuplicateIdentifier {
                                 span,
-                                name: self.atoms.get(name.expect_atom()).to_string(),
+                                name: name.to_string(self.atoms),
                                 original_span: old_decl
                                     .name()
                                     .map(|name| name.span())

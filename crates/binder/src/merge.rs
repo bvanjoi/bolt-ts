@@ -164,11 +164,11 @@ pub trait MergeSymbol<'cx> {
         unidirectional: bool,
     ) {
         // TODO: can we delete clone?
-        for (id, source_symbol) in self.get_symbol_table_by_location(source).0.clone() {
+        for (name, source_symbol) in self.get_symbol_table_by_location(source).0.clone() {
             let target_symbol = self
                 .get_symbol_table_by_location(target)
                 .0
-                .get(&id)
+                .get(&name)
                 .copied();
             let merged = if let Some(target_symbol) = target_symbol {
                 self.merge_symbol(target_symbol, source_symbol, unidirectional)
@@ -180,7 +180,7 @@ pub trait MergeSymbol<'cx> {
             // TODO: module_parent
             self.get_mut_symbol_table_by_location(target)
                 .0
-                .insert(id, merged);
+                .insert(name, merged);
         }
     }
 

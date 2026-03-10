@@ -397,29 +397,32 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::EntityNameKind::*;
         match name.kind {
             Ident(ident) => {
-                if meaning.contains(SymbolFlags::TYPE) {
-                    let report = meaning == SymbolFlags::TYPE;
-                    let res = self.resolve_type_by_ident(ident, report);
-                    if res != Symbol::ERR || report {
-                        let prev = self.final_res.insert(ident.id, res);
-                        assert!(prev.is_none());
-                        return;
-                    }
-                }
-
                 if meaning == MEANING_FOR_VALUE {
                     self.resolve_value_by_ident(ident);
-                } else if meaning.intersects(SymbolFlags::NAMESPACE) {
-                    self.resolve_symbol_by_ident(ident, meaning);
+                } else if meaning == SymbolFlags::NAMESPACE {
+                    let res = self.resolve_symbol_by_ident(ident, meaning);
+                    if res.symbol == Symbol::ERR {
+                        let name = self.atoms.get(ident.name).to_string();
+                        let error = errors::CannotFindName {
+                            span: ident.span,
+                            name,
+                            errors: vec![],
+                        };
+                        let error = self.on_failed_to_resolve_namespace_symbol(ident, &res, error);
+                        self.push_error(Box::new(error));
+                    }
                 } else {
-                    unreachable!()
+                    debug_assert!(meaning == SymbolFlags::TYPE);
+                    let res = self.resolve_type_by_ident(ident, true);
+                    let prev = self.final_res.insert(ident.id, res);
+                    debug_assert!(prev.is_none());
                 }
             }
             Qualified(qualified) => {
                 let meaning = if UNDER_TYPE_QUERY {
                     MEANING_FOR_VALUE
                 } else {
-                    SymbolFlags::NAMESPACE.union(SymbolFlags::TYPE)
+                    SymbolFlags::NAMESPACE
                 };
                 self.resolve_entity_name::<UNDER_TYPE_QUERY>(qualified.left, meaning);
                 // resolve the value of right in checker.

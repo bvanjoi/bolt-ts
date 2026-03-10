@@ -20,7 +20,7 @@ impl SymbolName {
             SymbolName::Missing => "__container".to_string(),
             SymbolName::Resolving => "__container".to_string(),
             SymbolName::ExportStar => "__container".to_string(),
-            SymbolName::ExportEquals => "__container".to_string(),
+            SymbolName::ExportEquals => "export =".to_string(),
             SymbolName::ExportDefault => "__container".to_string(),
             SymbolName::Computed => "__container".to_string(),
             SymbolName::ParamIdx(_) => "__container".to_string(),

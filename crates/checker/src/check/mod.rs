@@ -78,7 +78,7 @@ use bolt_ts_config::NormalizedCompilerOptions;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::ParsedMap;
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::ModuleID;
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
@@ -2859,58 +2859,6 @@ impl<'cx> TyChecker<'cx> {
             let base_constraint = self.get_base_constraint_or_ty(ty);
             base_constraint.maybe_type_of_kind(kind)
         }
-    }
-
-    fn report_op_error_unless(
-        &mut self,
-        left_ty: &'cx ty::Ty<'cx>,
-        right_ty: &'cx ty::Ty<'cx>,
-        error_span: Span,
-        op: BinOp,
-        f: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy,
-    ) -> bool {
-        if !f(self, left_ty, right_ty) {
-            self.report_op_error(left_ty, right_ty, error_span, op, Some(f));
-            true
-        } else {
-            false
-        }
-    }
-
-    fn report_op_error(
-        &mut self,
-        left_ty: &'cx ty::Ty<'cx>,
-        right_ty: &'cx ty::Ty<'cx>,
-        error_span: Span,
-        op: BinOp,
-        f: Option<impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> bool + Copy>,
-    ) {
-        let would_work_with_await = false;
-
-        let mut effective_left_ty = left_ty;
-        let mut effective_right_ty = right_ty;
-        if !would_work_with_await && let Some(f) = f {
-            let get_base_tys_if_unrelated = |this: &mut Self| {
-                let left_base = this.get_base_ty_of_literal_ty(left_ty);
-                let right_base = this.get_base_ty_of_literal_ty(right_ty);
-                if !f(this, left_base, right_base) {
-                    Some((left_base, right_base))
-                } else {
-                    None
-                }
-            };
-            if let Some((l, r)) = get_base_tys_if_unrelated(self) {
-                effective_left_ty = l;
-                effective_right_ty = r;
-            }
-        }
-        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-            span: error_span,
-            op: op.kind.to_string(),
-            ty1: effective_left_ty.to_string(self),
-            ty2: effective_right_ty.to_string(self),
-        };
-        self.push_error(Box::new(error));
     }
 
     fn check_instanceof_expr(
@@ -6257,6 +6205,15 @@ impl<'cx> TyChecker<'cx> {
         } else {
             false
         }
+    }
+
+    fn is_type_equality_comparable_to(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        target.flags.intersects(TypeFlags::NULLABLE)
+            || self.is_type_related_to(source, target, self::relation::RelationKind::Comparable)
     }
 }
 

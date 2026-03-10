@@ -14,9 +14,9 @@ class ActionB extends Action {
 
 var x1: Action[] = [
   { id: 2, trueness: false },
-  //~^ ERROR: Object literal may only specify known properties, and 'trueness' does not exist.
+  //~^ ERROR: Object literal may only specify known properties, and 'trueness' does not exist in type 'Action'.
   { id: 3, name: "three" }
-  //~^ ERROR: Object literal may only specify known properties, and 'name' does not exist.
+  //~^ ERROR: Object literal may only specify known properties, and 'name' does not exist in type 'Action'.
 ]
 
 var x2: Action[] = [
@@ -33,9 +33,9 @@ var x3: Action[] = [
 var z1: { id: number }[] =
   [
       { id: 2, trueness: false },
-      //~^ ERROR: Object literal may only specify known properties, and 'trueness' does not exist.
+      //~^ ERROR: Object literal may only specify known properties, and 'trueness' does not exist in type '{ id: number; }'. 
       { id: 3, name: "three" }
-      //~^ ERROR: Object literal may only specify known properties, and 'name' does not exist.
+      //~^ ERROR: Object literal may only specify known properties, and 'name' does not exist in type '{ id: number; }'.
   ]
 
 var z2: { id: number }[] =

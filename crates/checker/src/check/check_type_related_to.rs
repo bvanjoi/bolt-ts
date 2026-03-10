@@ -2793,9 +2793,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     if report_error && let Some(name) = name.as_atom() {
                         let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
                         let field = self.c.atoms.get(name).to_string();
+                        let ty = target_ty.to_string(self.c);
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                             span,
                             field,
+                            ty,
                         };
                         self.c.push_error(Box::new(error));
                     }

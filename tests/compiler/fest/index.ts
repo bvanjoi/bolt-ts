@@ -330,7 +330,7 @@ type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Conditi
   const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
   const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
   const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
-  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist.
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick'.
 }
 
 // ========== ConditionalSimplify ==========

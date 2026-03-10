@@ -107,11 +107,14 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Object literal may only specify known properties, and '{field}' does not exist.")]
+#[error(
+    "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
+)]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     #[label(primary)]
     pub span: Span,
     pub field: String,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

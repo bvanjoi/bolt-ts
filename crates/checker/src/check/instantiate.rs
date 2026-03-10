@@ -1333,11 +1333,9 @@ impl<'cx> TyChecker<'cx> {
                 let dest = std::ptr::addr_of_mut!(result[i]);
                 let param = ty_params[i];
                 let ty = if let Some(default_ty) = self.get_default_ty_from_ty_param(param) {
-                    {
-                        let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
-                        let mapper = self.create_ty_mapper(ty_params, targets);
-                        self.instantiate_ty_worker(default_ty, mapper)
-                    }
+                    let targets = unsafe { std::slice::from_raw_parts(result.as_ptr(), len) };
+                    let mapper = self.create_ty_mapper(ty_params, targets);
+                    self.instantiate_ty_worker(default_ty, mapper)
                 } else {
                     base_default_ty
                 };

@@ -1,0 +1,6 @@
+  × Object literal may only specify known properties, and 'Moo' does not exist
+  │ in type 'ITextWriter2'.
+    ╭─[../../tests/compiler/typeInfer1/index.ts:16:5]
+ 16 │ Moo: function() { return "cow"; }
+    · ─────────────────────────────────
+    ╰────

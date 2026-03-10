@@ -4,20 +4,18 @@ use bolt_ts_ast::pprint_entity_name;
 use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait;
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::{
-    MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
-    SymbolTable, Symbols,
-};
+use bolt_ts_binder::{MergeSymbol, MergedSymbols, ResolveResult, Symbol};
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols};
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::TyChecker;
 use super::resolve_external_module_name;
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
 use super::ty;
 use super::ty::CheckFlags;
 use super::{SymbolLinks, errors};
-use crate::check::TyChecker;
 
 fn symbol_of_resolve_results(
     resolve_results: &[ResolveResult],
@@ -104,7 +102,7 @@ pub trait SymbolInfo<'cx>: Sized {
         }
     }
 
-    fn symbol(&self, symbol: SymbolID) -> &Symbol {
+    fn symbol(&self, symbol: SymbolID) -> &bolt_ts_binder::Symbol {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
             self.get_transient_symbols().get(symbol)
         } else {
@@ -586,35 +584,6 @@ impl<'cx> super::TyChecker<'cx> {
             })
     }
 
-    fn check_and_report_error_for_using_type_as_namespace(
-        &mut self,
-        error_location: &'cx ast::Ident,
-        name: Atom,
-        meaning: SymbolFlags,
-    ) {
-        if meaning == SymbolFlags::NAMESPACE {
-            let symbol = self.resolve_symbol_by_ident(error_location);
-            if symbol == Symbol::ERR {
-                // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
-                todo!()
-            }
-            let parent = self.parent(error_location.id).unwrap();
-            if let Some(q) = self.p.node(parent).as_qualified_name()
-                && let ty = self.get_declared_ty_of_symbol(symbol)
-                && let Some(prop_ty) = self.get_prop_of_ty(ty, SymbolName::Atom(q.right.name))
-            {
-                assert!(q.left.id() == error_location.id);
-                let error = errors::CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanToRetrieveTheTypeOfThePropertyInX {
-                    span: q.span,
-                    name: self.atom(name).to_string(),
-                    prop_name: self.atom(q.right.name).to_string(),
-                };
-                self.push_error(Box::new(error));
-            }
-            // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
-        }
-    }
-
     fn pprint_entity_name_like(&self, left: ast::Node<'_>, right: &'cx ast::Ident) -> String {
         let mut ret = match left {
             ast::Node::Ident(ident) => pprint_ident(ident, &self.atoms),
@@ -707,7 +676,6 @@ impl<'cx> super::TyChecker<'cx> {
         } else if flags.contains(SymbolFlags::ALIAS) {
             self.resolve_alias(symbol)
         } else {
-            self.check_and_report_error_for_using_type_as_namespace(n, n.name, meaning);
             Symbol::ERR
         }
     }

@@ -929,4 +929,24 @@ pub trait ASTFactory<'cx> {
         );
         expr
     }
+
+    #[inline]
+    fn create_export_assign<const IS_EXPORT_EQUALS: bool>(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ExportAssign<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExportAssign {
+            id,
+            span,
+            expr,
+            modifiers,
+            is_export_equals: IS_EXPORT_EQUALS,
+        });
+        self.insert_node(id, ast::Node::ExportAssign(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

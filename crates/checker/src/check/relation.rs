@@ -891,7 +891,7 @@ impl<'cx> TyChecker<'cx> {
                 .with_deferral_parent(containing_ty)
                 .with_deferral_constituents(prop_tys);
             if let Some(write_tys) = write_tys {
-                links.with_deferral_constituents(self.alloc(write_tys))
+                links.with_deferral_write_constituents(self.alloc(write_tys))
             } else {
                 links
             }

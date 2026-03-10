@@ -1,0 +1,11 @@
+  × Cannot find name 'M'.
+    ╭─[../../tests/compiler/primaryExpressionMods/index.ts:11:8]
+ 11 │ M
+    · ─
+    ╰────
+
+  × Cannot find name 'm'.
+    ╭─[../../tests/compiler/primaryExpressionMods/index.ts:16:8]
+ 16 │ m
+    · ─
+    ╰────

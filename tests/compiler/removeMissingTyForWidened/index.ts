@@ -378,3 +378,8 @@ type A<Options extends Required<O>> = B<Options['b']>;
 	  const c: never = b;
   }
 }
+
+{
+  type C = {a: 'b'} | {a: 'b'} | ({c: 'b'} & {a?: 'b'});
+  const c: C = {a: 'b'};
+}
