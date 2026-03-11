@@ -8,22 +8,24 @@ use bolt_ts_ast::{Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 
 impl<'cx> ParserState<'cx, '_> {
-    fn should_parse_ret_ty(&mut self, is_colon: bool, is_ty: bool) -> bool {
-        if !is_colon {
+    fn should_parse_ret_ty<const IS_COLON: bool, const IS_TY: bool>(&mut self) -> bool {
+        if !IS_COLON {
             self.expect(TokenKind::EqGreat);
             true
         } else if self.parse_optional(TokenKind::Colon).is_some() {
             true
-        } else if is_ty && self.token.kind == TokenKind::EqGreat {
+        } else if IS_TY && self.token.kind == TokenKind::EqGreat {
             todo!()
         } else {
             false
         }
     }
 
-    pub fn parse_ret_ty(&mut self, is_colon: bool) -> PResult<Option<&'cx ast::Ty<'cx>>> {
-        if self.should_parse_ret_ty(is_colon, false) {
-            self.parse_ty_or_ty_pred().map(Some)
+    pub(super) fn parse_return_ty<const IS_COLON: bool, const IS_TY: bool>(
+        &mut self,
+    ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+        if self.should_parse_ret_ty::<IS_COLON, IS_TY>() {
+            self.parse_ty_or_ty_predicate().map(Some)
         } else {
             Ok(None)
         }
@@ -84,7 +86,6 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == expect {
             let mut tys = vec![ty];
-            // self.parent_map.r#override(ty.id(), parent);
             while self.parse_optional(expect).is_some() {
                 if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY>()? {
                     tys.push(ty);
@@ -134,7 +135,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_union_or_intersection_ty::<true>(Self::parse_intersection_ty)
     }
 
-    fn parse_ty_pred_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
+    fn parse_ty_predicate_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
         let id = self.create_ident(true, None);
         if self.token.kind == TokenKind::Is && !self.has_preceding_line_break() {
             self.next_token();
@@ -149,36 +150,22 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token();
         let ty = self.parse_ty()?;
         let name = ast::PredTyName::This(this_ty);
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::PredTy {
-            id,
-            span: self.new_span(start),
-            asserts: None,
-            name,
-            ty: Some(ty),
-        });
-        self.nodes.insert(id, ast::Node::PredTy(ty));
+        let span = self.new_span(start);
+        let ty = self.create_type_predicate(span, None, name, Some(ty));
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Pred(ty),
         });
         Ok(ty)
     }
 
-    pub(super) fn parse_ty_or_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    pub(super) fn parse_ty_or_ty_predicate(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.token.kind.is_ident() {
             let start = self.token.start();
-            if let Ok(Some(name)) = self.try_parse(|l| l.p().parse_ty_pred_prefix()) {
+            if let Ok(Some(name)) = self.try_parse(|l| l.p().parse_ty_predicate_prefix()) {
                 let ty = self.parse_ty()?;
-                let id = self.next_node_id();
+                let span = self.new_span(start);
                 let name = ast::PredTyName::Ident(name);
-                let ty = self.alloc(ast::PredTy {
-                    id,
-                    span: self.new_span(start),
-                    asserts: None,
-                    name,
-                    ty: Some(ty),
-                });
-                self.nodes.insert(id, ast::Node::PredTy(ty));
+                let ty = self.create_type_predicate(span, None, name, Some(ty));
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Pred(ty),
                 });
@@ -238,7 +225,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         self.check_params(params, false);
-        let ty = self.parse_ret_ty(false)?.unwrap();
+        let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let ty = if is_ctor_ty {
             let id = self.next_node_id();
             let ctor_ty = self.alloc(ast::CtorTy {
@@ -299,15 +286,8 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let name = self.create_ident(true, None);
         let constraint = self.try_parse(|l| l.p().try_parse_constraint_of_infer_ty())?;
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::TyParam {
-            id,
-            span: self.new_span(start),
-            name,
-            constraint,
-            default: None,
-        });
-        self.nodes.insert(id, ast::Node::TyParam(ty));
+        let span = self.new_span(start);
+        let ty = self.create_type_parameter(span, None, name, constraint, None);
         Ok(ty)
     }
 
@@ -444,7 +424,6 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind != TokenKind::Dot {
             return entity;
         }
-        // self.parent_map.r#override(name.id, id);
         while self.parse_optional(TokenKind::Dot).is_some() {
             if self.token.kind == TokenKind::Less {
                 break;
@@ -665,15 +644,8 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::PredTy {
-            id,
-            span: self.new_span(pos),
-            name,
-            ty,
-            asserts: Some(assert_modifier),
-        });
-        self.nodes.insert(id, ast::Node::PredTy(ty));
+        let span = self.new_span(pos);
+        let ty = self.create_type_predicate(span, Some(assert_modifier), name, ty);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Pred(ty),
         });
@@ -830,15 +802,8 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.create_ident(true, None);
         self.expect(TokenKind::In);
         let constraint = self.parse_ty()?;
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::TyParam {
-            id,
-            span: self.new_span(start),
-            name,
-            constraint: Some(constraint),
-            default: None,
-        });
-        self.nodes.insert(id, ast::Node::TyParam(ty));
+        let span = self.new_span(start);
+        let ty = self.create_type_parameter(span, None, name, Some(constraint), None);
         Ok(ty)
     }
 
@@ -959,7 +924,7 @@ impl<'cx> ParserState<'cx, '_> {
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
             self.check_params(params, false);
-            let ty = self.parse_ret_ty(true)?;
+            let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
             ast::ObjectTyMemberKind::Method(sig)
@@ -1000,7 +965,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         self.check_params(params, false);
-        let ty = self.parse_ret_ty(true)?;
+        let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);
         let kind = if IS_CALL {

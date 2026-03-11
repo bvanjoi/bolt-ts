@@ -1282,3 +1282,26 @@ pub(super) struct ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUse
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'super' must be called before accessing a property of 'super' in the constructor of a derived class."
+)]
+pub(super) struct SuperMustBeCalledBeforeAccessingAPropertyOfSuperInTheConstructorOfADerivedClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'super' cannot be referenced in constructor arguments.")]
+pub(super) struct SuperCannotBeReferencedInConstructorArguments {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A 'this' type is available only in a non-static member of a class or interface.")]
+pub(super) struct AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface {
+    #[label(primary)]
+    pub span: Span,
+}

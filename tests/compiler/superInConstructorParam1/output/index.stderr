@@ -1,0 +1,18 @@
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/superInConstructorParam1/index.ts:12:19]
+ 12 │ super
+    · ─────
+    ╰────
+
+  × 'super' cannot be referenced in constructor arguments.
+    ╭─[../../tests/compiler/superInConstructorParam1/index.ts:12:19]
+ 12 │ super
+    · ─────
+    ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/superInConstructorParam1/index.ts:12:3]
+ 12 │ constructor
+    · ───────────
+    ╰────

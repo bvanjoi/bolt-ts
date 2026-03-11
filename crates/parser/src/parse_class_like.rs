@@ -306,7 +306,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             // method
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
-            let ty = self.parse_ret_ty(true)?;
+            let ty = self.parse_return_ty::<true, false>()?;
             let flags = if asterisk.is_some() {
                 SignatureFlags::YIELD
             } else {
@@ -399,7 +399,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ty_params = this.p().parse_ty_params();
                 let params = this.p().parse_params();
                 this.p().check_params(params, true);
-                let ret = this.p().parse_ret_ty(true)?;
+                let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
                 } else {

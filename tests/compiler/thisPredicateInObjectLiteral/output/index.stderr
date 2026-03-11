@@ -1,0 +1,6 @@
+  × A 'this' type is available only in a non-static member of a class or
+  │ interface.
+    ╭─[../../tests/compiler/thisPredicateInObjectLiteral/index.ts:15:28]
+ 15 │ this
+    · ────
+    ╰────

@@ -404,47 +404,30 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn ret_ty(&self) -> Option<&'cx super::Ty<'cx>> {
-        macro_rules! dot_ty {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(n.ty),)*
-                    _ => None,
-                }
-            };
+        match self {
+            Node::FnTy(n) => Some(n.ty),
+            Node::IndexSigDecl(n) => Some(n.ty),
+            Node::CtorTy(n) => Some(n.ty),
+            Node::FnDecl(n) => n.ty,
+            Node::FnExpr(n) => n.ty,
+            Node::ArrowFnExpr(n) => n.ty,
+            Node::ClassCtor(n) => n.ret,
+            Node::CtorSigDecl(n) => n.ty,
+            Node::ClassMethodElem(n) => n.ty,
+            Node::ObjectMethodMember(n) => n.ty,
+            Node::MethodSignature(n) => n.ty,
+            Node::CallSigDecl(n) => n.ty,
+            Node::GetterDecl(n) => n.ty,
+            // TODO: delete?
+            Node::VarDecl(n) => n.ty,
+            // TODO: delete?
+            Node::ParamDecl(n) => n.ty,
+            // TODO: delete?
+            Node::PropSignature(n) => n.ty,
+            // TODO: delete?
+            Node::ClassPropElem(n) => n.ty,
+            _ => None,
         }
-
-        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl, CtorTy) {
-            return Some(ty);
-        }
-
-        macro_rules! dot_ty_with_option {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.ty,)*
-                    _ => None,
-                }
-            };
-        }
-
-        dot_ty_with_option!(
-            CallSigDecl,
-            CtorSigDecl,
-            FnDecl,
-            MethodSignature,
-            ClassMethodElem,
-            FnExpr,
-            ArrowFnExpr,
-            VarDecl,
-            ParamDecl,
-            PropSignature,
-            ClassPropElem,
-            // TypePredicate,
-            // ParenTy
-            // TypeOp,
-            // Mapped,
-            // AssertionExpr
-            GetterDecl,
-        )
     }
 
     pub fn ty_anno(&self) -> Option<&'cx super::Ty<'cx>> {

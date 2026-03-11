@@ -299,8 +299,20 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_const_modifier(&mut self) -> Option<&'cx ast::Modifier> {
+        if self.token.kind == TokenKind::Const {
+            let span = self.token.span;
+            self.next_token();
+            let kind = ast::ModifierKind::Const;
+            Some(self.create_modifier(span, kind))
+        } else {
+            None
+        }
+    }
+
     fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
+        let const_modifier = self.parse_const_modifier();
         let name = self.parse_binding_ident();
         let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
             if self.is_start_of_ty(false) || !self.is_start_of_expr() {
@@ -316,16 +328,9 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let ty_param = self.alloc(ast::TyParam {
-            id,
-            span: self.new_span(start),
-            name,
-            constraint,
-            default,
-        });
-        self.nodes.insert(id, ast::Node::TyParam(ty_param));
-        Ok(ty_param)
+        let span = self.new_span(start);
+        let const_modifier = const_modifier.map(|m| m.span);
+        Ok(self.create_type_parameter(span, const_modifier, name, constraint, default))
     }
 
     pub(super) fn parse_ident(
@@ -826,8 +831,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn has_preceding_line_break(&self) -> bool {
-        self.token_flags
-            .intersects(TokenFlags::PRECEDING_LINE_BREAK)
+        self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
@@ -970,7 +974,7 @@ impl<'cx> ParserState<'cx, '_> {
             }));
         }
         // TODO: assert params.is_none
-        let ty = self.parse_ret_ty(true)?;
+        let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
@@ -1009,7 +1013,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             params
         };
-        let ty = self.parse_ret_ty(true)?;
+        let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();

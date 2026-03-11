@@ -149,7 +149,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.check_params(params, false);
 
         // let has_ret_colon = self.token.kind == TokenKind::Colon;
-        let ty = self.parse_ret_ty(true)?;
+        let ty = self.parse_return_ty::<true, false>()?;
         if !ALLOW_AMBIGUITY && !matches!(self.token.kind, TokenKind::EqGreat | TokenKind::LBrace) {
             return Err(());
         }
@@ -741,7 +741,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
         self.check_params(params, false);
-        let ty = self.parse_ty_anno()?;
+        let ty = self.parse_return_ty::<true, false>()?;
         let body = self.parse_fn_block_or_semi(is_generator).unwrap();
         let span = self.new_span(start);
         let node = self.create_object_method_member(

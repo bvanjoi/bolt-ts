@@ -69,6 +69,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_pred_ty(&mut self, n: &'cx ast::PredTy<'cx>) {
+        let Some(parent) = self.parent(n.id) else {
+            unreachable!()
+        };
+        let sig = self.get_sig_from_decl(parent);
+        let Some(ty_predicate) = self.get_ty_predicate_of_sig(sig) else {
+            return;
+        };
         if let Some(ty) = n.ty {
             self.check_ty(ty);
         }

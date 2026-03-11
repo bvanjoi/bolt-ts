@@ -949,4 +949,48 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    #[inline]
+    fn create_type_parameter(
+        &mut self,
+        span: Span,
+        const_modifier: Option<Span>,
+        name: &'cx ast::Ident,
+        constraint: Option<&'cx ast::Ty<'cx>>,
+        default: Option<&'cx ast::Ty<'cx>>,
+    ) -> &'cx ast::TyParam<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::TyParam {
+            id,
+            span,
+            const_modifier,
+            name,
+            constraint,
+            default,
+        });
+        self.insert_node(id, ast::Node::TyParam(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_type_predicate(
+        &mut self,
+        span: Span,
+        asserts: Option<Span>,
+        name: ast::PredTyName<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+    ) -> &'cx ast::PredTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::PredTy {
+            id,
+            span,
+            asserts,
+            name,
+            ty,
+        });
+        self.insert_node(id, ast::Node::PredTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

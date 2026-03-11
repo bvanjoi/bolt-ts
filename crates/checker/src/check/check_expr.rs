@@ -763,6 +763,15 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let container = container.unwrap();
+        let immediate_container = immediate_container.unwrap();
+        if !is_call_expr && self.p.node(immediate_container).is_class_ctor() {
+            self.check_this_before_super(node.id, node.span, container, |this, span| {
+                let error =
+                    errors::SuperMustBeCalledBeforeAccessingAPropertyOfSuperInTheConstructorOfADerivedClass { span };
+                this.push_error(Box::new(error));
+            });
+        }
+
         let node_check_flags;
         if is_call_expr || self.p.node(container).is_static() {
             node_check_flags = NodeCheckFlags::SUPER_STATIC;
@@ -791,6 +800,23 @@ impl<'cx> TyChecker<'cx> {
         let Some(base_class_ty) = self.get_base_tys(class_ty).first() else {
             return self.error_ty;
         };
+
+        if self.p.node(container).is_class_ctor()
+            && let nq = self.node_query(node.id.module())
+            && let Some(_) = nq.find_ancestor(node.id, |n| {
+                if n.is_fn_decl_like() {
+                    Some(false)
+                } else if n.is_param_decl() && self.parent(n.id()).is_some_and(|p| p == container) {
+                    Some(true)
+                } else {
+                    None
+                }
+            })
+        {
+            let error = errors::SuperCannotBeReferencedInConstructorArguments { span: node.span };
+            self.push_error(Box::new(error));
+            return self.error_ty;
+        }
 
         if node_check_flags == NodeCheckFlags::SUPER_STATIC {
             self.get_base_constructor_type_of_class(class_ty)
@@ -1103,11 +1129,12 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_this_before_super(
         &mut self,
-        expr: &'cx ast::ThisExpr,
-        container: &'cx ast::ClassCtor,
+        expr_id: ast::NodeID,
+        expr_span: Span,
+        container_id: ast::NodeID,
         push_error: impl FnOnce(&mut Self, bolt_ts_span::Span),
     ) {
-        let containing_class_decl = self.parent(container.id).unwrap();
+        let containing_class_decl = self.parent(container_id).unwrap();
         let has_base_ty_node = match self.p.node(containing_class_decl) {
             ast::Node::ClassDecl(c) => c.extends.is_some(),
             ast::Node::ClassExpr(c) => c.extends.is_some(),
@@ -1115,10 +1142,10 @@ impl<'cx> TyChecker<'cx> {
         };
         if has_base_ty_node
             && !self.class_decl_extends_null(containing_class_decl)
-            && let Some(flow) = self.get_flow_node_of_node(expr.id)
+            && let Some(flow) = self.get_flow_node_of_node(expr_id)
             && !self.is_post_super_flow_node(flow, false)
         {
-            push_error(self, expr.span);
+            push_error(self, expr_span);
         }
     }
 
@@ -1132,8 +1159,8 @@ impl<'cx> TyChecker<'cx> {
         let mut captured_by_arrow_fn = false;
         let this_in_computed_prop_name = false;
 
-        if let Some(ctor) = container.as_class_ctor() {
-            self.check_this_before_super(expr, ctor, |this, span| {
+        if container.is_class_ctor() {
+            self.check_this_before_super(expr.id, expr.span, container_id, |this, span| {
                 let error =
                     errors::SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
                         span,

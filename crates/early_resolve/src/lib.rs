@@ -413,7 +413,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     }
                 } else {
                     debug_assert!(meaning == SymbolFlags::TYPE);
-                    let res = self.resolve_type_by_ident(ident, true);
+                    let res = self.resolve_type_by_ident(ident);
                     let prev = self.final_res.insert(ident.id, res);
                     debug_assert!(prev.is_none());
                 }
@@ -996,7 +996,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_type_by_ident(&mut self, ident: &'cx ast::Ident, report: bool) -> SymbolID {
+    fn resolve_type_by_ident(&mut self, ident: &'cx ast::Ident) -> SymbolID {
         if ident.name == keyword::IDENT_EMPTY {
             // delay bug
             return Symbol::ERR;
@@ -1010,7 +1010,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE);
         let mut symbol = res.symbol;
 
-        if symbol == Symbol::ERR && report {
+        if symbol == Symbol::ERR {
             let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotFindName {
                 span: ident.span,
@@ -1019,7 +1019,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             };
             let error = self.on_failed_to_resolve_type_symbol(ident, &res, error);
             self.push_error(Box::new(error));
-        } else if symbol != Symbol::ERR {
+        } else {
             self.on_success_resolved_type_symbol(ident, &mut symbol);
         };
         symbol

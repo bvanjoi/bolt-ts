@@ -594,6 +594,7 @@ pub struct ClassPropElem<'cx> {
 pub struct TyParam<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub const_modifier: Option<Span>,
     pub name: &'cx Ident,
     pub constraint: Option<&'cx self::Ty<'cx>>,
     pub default: Option<&'cx self::Ty<'cx>>,
