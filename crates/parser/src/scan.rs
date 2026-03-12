@@ -1117,9 +1117,9 @@ impl ParserState<'_, '_> {
             b'\n' => vec![],
             // TODO: more case
             _ => {
-                if flags.intersects(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
-                    || flags.intersects(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
-                        && !flags.intersects(EscapeSequenceScanningFlags::ANNEX_B)
+                if flags.contains(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
+                    || flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                        && !flags.contains(EscapeSequenceScanningFlags::ANNEX_B)
                         && is_ascii_identifier_start(ch)
                 {
                     todo!("error handle")
@@ -1243,8 +1243,9 @@ impl ParserState<'_, '_> {
         loop {
             if self.pos >= self.end() {
                 self.token_flags |= TokenFlags::UNTERMINATED;
+                let start = self.pos - v.len();
                 self.push_error(Box::new(errors::UnterminatedStringLiteral {
-                    span: Span::new(self.token.end(), self.pos as u32, self.module_id),
+                    span: Span::new(start as u32, self.pos as u32, self.module_id),
                 }));
                 break;
             }

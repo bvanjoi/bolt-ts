@@ -1610,8 +1610,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(parent) = self.parent(container_id) {
-            let p = self.p.node(parent);
-            if p.is_class_like() {
+            if self.p.node(parent).is_class_like() {
                 let symbol = self.get_symbol_of_decl(parent);
                 let this_ty = if container.is_static() {
                     self.get_type_of_symbol(symbol)
@@ -1625,6 +1624,17 @@ impl<'cx> TyChecker<'cx> {
                     // TODO: get_flow_type_reference
                 };
                 return Some(this_ty);
+            }
+        }
+
+        if container.is_program() {
+            let container = self.p.get(node.module());
+            if container.commonjs_module_indicator.is_some() {
+                todo!()
+            } else if container.external_module_indicator.is_some() {
+                return Some(self.undefined_ty);
+            } else if include_global_this {
+                // TODO: return Some(self.get_type_of_symbol(self.global_this_symbol));
             }
         }
         None
@@ -1977,7 +1987,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn remove_optional_ty_worker(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    fn remove_optional_ty_marker(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if self.config.strict_null_checks() {
             self.remove_ty(ty, self.optional_ty)
         } else {
@@ -1996,7 +2006,7 @@ impl<'cx> TyChecker<'cx> {
         if nq.is_expression_of_optional_chain_root(expr_id) {
             self.get_non_nullable_ty(expr_ty)
         } else if nq.is_optional_chain(expr_id) {
-            self.remove_optional_ty_worker(expr_ty)
+            self.remove_optional_ty_marker(expr_ty)
         } else {
             expr_ty
         }
@@ -2781,6 +2791,7 @@ impl<'cx> TyChecker<'cx> {
 
         let name = match n {
             ast::Node::Ident(ident) => self.atoms.get(ident.name).to_string(),
+            ast::Node::ThisExpr(_) => "this".to_string(),
             ast::Node::PropAccessExpr(n) => pprint_prop_access_expr(n, &self.atoms),
             ast::Node::EleAccessExpr(n) => pprint_elem_access_expr(n, &self.atoms),
             _ => {

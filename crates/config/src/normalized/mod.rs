@@ -35,6 +35,7 @@ bitflags::bitflags! {
         const NO_DTS_RESOLUTION                         = 1 << 15;
         const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 16;
         const NO_UNUSED_LOCALS                          = 1 << 17;
+        const NO_UNUSED_PARAMETERS                      = 1 << 18;
     }
 }
 
@@ -156,5 +157,11 @@ impl NormalizedCompilerOptions {
     #[inline(always)]
     pub const fn no_unused_locals(&self) -> bool {
         self.flags.contains(CompilerOptionFlags::NO_UNUSED_LOCALS)
+    }
+
+    #[inline(always)]
+    pub const fn no_unused_parameters(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::NO_UNUSED_PARAMETERS)
     }
 }

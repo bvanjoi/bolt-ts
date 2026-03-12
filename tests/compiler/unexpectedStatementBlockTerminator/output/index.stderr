@@ -1,0 +1,5 @@
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/unexpectedStatementBlockTerminator/index.ts:8:1]
+ 8 │ case
+   · ────
+   ╰────

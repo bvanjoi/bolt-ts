@@ -1157,7 +1157,7 @@ impl<'cx> TyChecker<'cx> {
         let mut container = self.p.node(container_id);
 
         let mut captured_by_arrow_fn = false;
-        let this_in_computed_prop_name = false;
+        let mut this_in_computed_prop_name = false;
 
         if container.is_class_ctor() {
             self.check_this_before_super(expr.id, expr.span, container_id, |this, span| {
@@ -1169,16 +1169,22 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
+        let nq = self.node_query(container_id.module());
         loop {
             if container.is_arrow_fn_expr() {
-                container_id = self.node_query(container_id.module()).get_this_container(
-                    container_id,
-                    false,
-                    !this_in_computed_prop_name,
-                );
+                container_id =
+                    nq.get_this_container(container_id, false, !this_in_computed_prop_name);
                 container = self.p.node(container_id);
                 captured_by_arrow_fn = true;
             }
+
+            if container.is_computed_prop_name() {
+                container_id = nq.get_this_container(container_id, !captured_by_arrow_fn, false);
+                container = self.p.node(container_id);
+                this_in_computed_prop_name = true;
+                continue;
+            }
+
             break;
         }
 

@@ -1,0 +1,5 @@
+  × Unterminated string literal.
+   ╭─[../../tests/compiler/unterminatedStringLiteralWithBackslash1/index.ts:3:3]
+ 3 │  //~ERROR: Unterminated string literal.
+   · ───────────────────────────────────────
+   ╰────

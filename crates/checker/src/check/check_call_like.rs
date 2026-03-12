@@ -630,13 +630,16 @@ impl<'cx> TyChecker<'cx> {
         let this_argument_ty = self.check_expr(this_argument_node);
         let id = this_argument_node.id();
         let span = this_argument_node.span();
-        if self
-            .node_query(span.module())
-            .is_right_side_of_instance_expr(id)
-        {
-            this_argument_ty
+        let nq = self.node_query(span.module());
+        if nq.is_right_side_of_instance_expr(id) {
+            return this_argument_ty;
+        }
+        let p = self.parent(id).unwrap();
+        if nq.is_optional_chain_root(p) {
+            self.get_non_nullable_ty(this_argument_ty)
+        } else if nq.is_optional_chain(p) {
+            self.remove_optional_ty_marker(this_argument_ty)
         } else {
-            // TODO: chain
             this_argument_ty
         }
     }
@@ -713,6 +716,30 @@ impl<'cx> TyChecker<'cx> {
                 {
                     has_error = true
                 }
+            }
+        }
+        if let Some(rest_ty) = rest_type {
+            let spared_ty =
+                self.get_spared_argument_ty(args, arg_count, args.len(), rest_ty, None, check_mode);
+            let rest_arg_count = args.len() - arg_count;
+            let error_node = if !report_error {
+                None
+            } else if rest_arg_count == 0 {
+                Some(expr.id())
+            } else if rest_arg_count == 1 {
+                Some(self.get_effective_check_node(args[arg_count].id()))
+            } else {
+                // TODO: synthetic
+                None
+            };
+            if !self.check_type_related_to(spared_ty, rest_ty, relation, error_node) {
+                let error = errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
+                    span: expr.span(),
+                    arg_ty: self.print_ty(spared_ty).to_string(),
+                    param_ty: self.print_ty(rest_ty).to_string(),
+                };
+                self.push_error(Box::new(error));
+                has_error = true;
             }
         }
         has_error

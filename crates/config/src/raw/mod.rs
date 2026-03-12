@@ -57,6 +57,7 @@ with_option!(
     (use_define_for_class_fields, bool),
     (strict_property_initialization, bool),
     (no_unused_locals, bool),
+    (no_unused_parameters, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -115,6 +116,9 @@ impl RawCompilerOptions {
         }
         if self.no_unused_locals.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNUSED_LOCALS);
+        }
+        if self.no_unused_parameters.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_UNUSED_PARAMETERS);
         }
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),

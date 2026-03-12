@@ -895,7 +895,8 @@ impl<'cx> TyChecker<'cx> {
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
         let is_const_context = self.is_const_ty_variable(rest_ty);
-        if index >= arg_count - 1
+        if arg_count > 0
+            && index >= arg_count - 1
             && let Some(arg) = args.get(arg_count - 1)
             && let ast::ExprKind::SpreadElement(spread) = arg.kind
         {
