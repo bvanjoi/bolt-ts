@@ -206,7 +206,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `catch`
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
-            let v = self.parse_var_decl(VarDeclarationContext::empty())?;
+            let v = self.parse_var_decl::<false>(VarDeclarationContext::empty())?;
             self.expect(TokenKind::RParen);
             Some(v)
         } else {
@@ -302,7 +302,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
                 .union(VarDeclarationContext::FOR);
                 // TODO: `using` and `await`
-                Some(ast::ForInitKind::Var(self.parse_var_decl_list(ctx)))
+                Some(ast::ForInitKind::Var(self.parse_var_decl_list::<true>(ctx)))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -634,7 +634,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
-            Import => ast::StmtKind::Import(self.parse_import_decl()),
+            Import => self.parse_import_decl(),
             Export => {
                 let start = self.token.start();
                 self.next_token(); // consume `export`
@@ -756,7 +756,36 @@ impl<'cx> ParserState<'cx, '_> {
         ns
     }
 
-    fn parse_import_decl(&mut self) -> &'cx ast::ImportDecl<'cx> {
+    fn parse_import_equals_declaration(
+        &mut self,
+        start: u32,
+        name: &'cx ast::Ident,
+        is_type_only: bool,
+    ) -> &'cx ast::ImportEqualsDecl<'cx> {
+        self.expect(TokenKind::Eq);
+        // parse module reference
+        let module_reference = if self.token.kind == TokenKind::Ident
+            && self.ident_token() == keyword::IDENT_REQUIRE
+            && self.lookahead(Lookahead::next_token_is_lparen)
+        {
+            // parse external module reference
+            self.next_token(); // consume `require`
+            self.expect(TokenKind::LParen);
+            let module_spec = self.parse_module_spec();
+            self.expect(TokenKind::RParen);
+            let span = self.new_span(start);
+            let kind = self.create_external_module_reference(span, module_spec);
+            ast::ModuleReferenceKind::ExternalModuleReference(kind)
+        } else {
+            let kind = self.parse_entity_name::<false>();
+            ast::ModuleReferenceKind::EntityName(kind)
+        };
+        self.parse_semi();
+        let span = self.new_span(start);
+        self.create_import_equals_declaration(span, name, is_type_only, module_reference)
+    }
+
+    fn parse_import_decl(&mut self) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
         let start = self.token.start();
         self.next_token(); // consume `import`
@@ -784,8 +813,12 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        if name.is_some() && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From) {
-            todo!("import_eq_decl")
+        if let Some(name) = name
+            && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From)
+        {
+            // TODO: is_type_only
+            let decl = self.parse_import_equals_declaration(start, name, false);
+            return ast::StmtKind::ImportEquals(decl);
         }
 
         let clause = self.try_parse_import_clause(name, after_import_pos as usize, is_type_only);
@@ -794,7 +827,8 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_semi();
 
         let span = self.new_span(start);
-        self.create_import_decl(span, clause, module)
+        let decl = self.create_import_decl(span, clause, module);
+        ast::StmtKind::Import(decl)
     }
 
     fn try_parse_import_clause(
@@ -1002,7 +1036,7 @@ impl<'cx> ParserState<'cx, '_> {
         if self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
             ctx.insert(VarDeclarationContext::AMBIENT);
         }
-        let list = self.parse_var_decl_list(ctx);
+        let list = self.parse_var_decl_list::<false>(ctx);
         if list.is_empty() {
             let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
@@ -1215,7 +1249,10 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_var_decl(&mut self, ctx: VarDeclarationContext) -> PResult<&'cx ast::VarDecl<'cx>> {
+    fn parse_var_decl<const ALLOW_EXCLAMATION: bool>(
+        &mut self,
+        ctx: VarDeclarationContext,
+    ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat()?;
         if self.in_strict_mode
@@ -1223,6 +1260,18 @@ impl<'cx> ParserState<'cx, '_> {
         {
             self.check_strict_mode_eval_or_arguments(name);
         }
+
+        let excl = if ALLOW_EXCLAMATION
+            && matches!(name.kind, ast::BindingKind::Ident(_))
+            && matches!(self.token.kind, TokenKind::Excl)
+            && !self.has_preceding_line_break()
+        {
+            let t = self.parse_token_node();
+            debug_assert!(t.kind == TokenKind::Excl);
+            Some(t.span)
+        } else {
+            None
+        };
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         if ctx.init_should_exit() && init.is_none() {
@@ -1230,15 +1279,22 @@ impl<'cx> ParserState<'cx, '_> {
             self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
         }
         let span = self.new_span(start);
-        Ok(self.create_var_decl(span, name, ty, init, ctx))
+        Ok(self.create_var_decl(span, name, excl, ty, init, ctx))
     }
 
-    fn parse_var_decl_list(&mut self, ctx: VarDeclarationContext) -> VarDecls<'cx> {
+    fn parse_var_decl_list<const IN_FOR_STMT_INITIALIZER: bool>(
+        &mut self,
+        ctx: VarDeclarationContext,
+    ) -> VarDecls<'cx> {
         use ast::TokenKind::*;
         debug_assert!(matches!(self.token.kind, Let | Const | Var));
         self.next_token();
         self.parse_delimited_list::<false, _>(ParsingContext::VARIABLE_DECLARATIONS, |this| {
-            this.parse_var_decl(ctx)
+            if IN_FOR_STMT_INITIALIZER {
+                this.parse_var_decl::<false>(ctx)
+            } else {
+                this.parse_var_decl::<true>(ctx)
+            }
         })
     }
 

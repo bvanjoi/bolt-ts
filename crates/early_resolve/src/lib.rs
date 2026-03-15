@@ -224,6 +224,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_stmt(n.stmt);
             }
             Switch(n) => self.resolve_switch_stmt(n),
+            ImportEquals(n) => {
+                if let ast::ModuleReferenceKind::EntityName(n) = n.module_reference {
+                    self.resolve_entity_name::<false>(n, MEANING_FOR_VALUE);
+                }
+            }
         };
     }
 

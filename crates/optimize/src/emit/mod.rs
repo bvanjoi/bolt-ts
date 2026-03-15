@@ -967,6 +967,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emit_string_lit(n.module());
     }
 
+    fn emit_import_equals_decl(&mut self, n: ir::ImportEqualsDeclID) {
+        // TODO:
+    }
+
     fn emit_import_clause(&mut self, clause: ir::ImportClauseID) {
         let clause = self.nodes.get_import_clause(&clause);
         if let Some(name) = clause.name() {
@@ -1042,6 +1046,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
             Module(id) => self.emit_module_decl(id),
             Enum(id) => self.emit_enum_decl(id),
             Import(id) => self.emit_import_decl(id),
+            ImportEquals(id) => self.emit_import_equals_decl(id),
             Export(id) => self.emit_export_decl(id),
             For(id) => self.emit_for_stmt(id),
             ForOf(id) => self.emit_for_of_stmt(id),

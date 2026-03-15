@@ -1,32 +1,36 @@
-use bolt_ts_config::{ModuleKind, NormalizedModuleResolution};
+use bolt_ts_config::NormalizedModuleResolution;
+
+use super::ResolutionMode;
+use super::ResolverOptions;
 
 pub(crate) fn get_conditions<'a>(
-    module_resolution: NormalizedModuleResolution,
-    custom_conditions: impl Iterator<Item = &'a str>,
-    no_dts_resolution: bool,
-    resolution_mode: Option<ModuleKind>,
+    options: &ResolverOptions,
+    resolution_mode: Option<ResolutionMode>,
 ) -> Vec<String> {
     let resolution_mode = match resolution_mode {
         Some(mode) => Some(mode),
-        None => match module_resolution {
-            NormalizedModuleResolution::Bundler => Some(ModuleKind::ESNext),
+        None => match options.module_resolution {
+            NormalizedModuleResolution::Bundler => Some(ResolutionMode::ESNext),
             NormalizedModuleResolution::Node10 => return vec![],
             _ => None,
         },
     };
 
-    let mut conditions = if resolution_mode == Some(ModuleKind::ESNext) {
+    let mut conditions = if resolution_mode == Some(ResolutionMode::ESNext) {
         vec!["import".to_string()]
     } else {
         vec!["require".to_string()]
     };
-    if !no_dts_resolution {
+    if !options.flags.no_dts_resolution() {
         conditions.push("types".to_string());
     };
-    if !matches!(module_resolution, NormalizedModuleResolution::Bundler) {
+    if !matches!(
+        options.module_resolution,
+        NormalizedModuleResolution::Bundler
+    ) {
         conditions.push("node".to_string());
     }
-    for condition in custom_conditions {
+    for condition in options.custom_conditions {
         conditions.push(condition.to_string());
     }
     conditions
@@ -34,51 +38,64 @@ pub(crate) fn get_conditions<'a>(
 
 #[test]
 fn test_get_conditions() {
+    use super::ResolveFlags;
     let conditions = get_conditions(
-        NormalizedModuleResolution::Bundler,
-        [].into_iter(),
-        false,
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Bundler,
+            flags: ResolveFlags::empty(),
+            custom_conditions: &[],
+        },
         None,
     );
     assert_eq!(conditions, ["import", "types"]);
 
     let conditions = get_conditions(
-        NormalizedModuleResolution::Node10,
-        [].into_iter(),
-        false,
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Node10,
+            flags: ResolveFlags::empty(),
+            custom_conditions: &[],
+        },
         None,
     );
     assert!(conditions.is_empty());
 
     let conditions = get_conditions(
-        NormalizedModuleResolution::Node10,
-        [].into_iter(),
-        true,
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Node10,
+            flags: ResolveFlags::NO_DTS_RESOLUTION,
+            custom_conditions: &[],
+        },
         None,
     );
     assert!(conditions.is_empty());
 
     let conditions = get_conditions(
-        NormalizedModuleResolution::Node10,
-        ["abc"].into_iter(),
-        true,
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Node10,
+            flags: ResolveFlags::NO_DTS_RESOLUTION,
+            custom_conditions: &["abc".to_string()],
+        },
         None,
     );
     assert!(conditions.is_empty());
 
     let conditions = get_conditions(
-        NormalizedModuleResolution::Node10,
-        [].into_iter(),
-        false,
-        Some(ModuleKind::ES2022),
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Node10,
+            flags: ResolveFlags::empty(),
+            custom_conditions: &[],
+        },
+        Some(ResolutionMode::ESNext),
     );
-    assert_eq!(conditions, ["require", "types", "node"]);
+    assert_eq!(conditions, ["import", "types", "node"]);
 
     let conditions = get_conditions(
-        NormalizedModuleResolution::Node10,
-        ["abc"].into_iter(),
-        false,
-        Some(ModuleKind::ES2022),
+        &ResolverOptions {
+            module_resolution: NormalizedModuleResolution::Node10,
+            flags: ResolveFlags::empty(),
+            custom_conditions: &["abc".to_string()],
+        },
+        Some(ResolutionMode::ESNext),
     );
-    assert_eq!(conditions, ["require", "types", "node", "abc"]);
+    assert_eq!(conditions, ["import", "types", "node", "abc"]);
 }

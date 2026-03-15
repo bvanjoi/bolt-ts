@@ -71,6 +71,7 @@ decl_nodes!(
     setter_decl: SetterDecl,
     enum_decl: EnumDecl,
     import_decl: ImportDecl,
+    import_equals_decl: ImportEqualsDecl,
     export_decl: ExportDecl,
     export_assign: ExportAssign,
 
@@ -969,6 +970,17 @@ impl Nodes {
     }
 
     #[inline]
+    pub fn alloc_import_equals_decl(&mut self, span: Span) -> ImportEqualsDeclID {
+        let idx = ImportEqualsDeclID(usize_into_idx(self.import_equals_decl_nodes.0.len()));
+        let id = self
+            .import_equals_decl_nodes
+            .0
+            .alloc(ImportEqualsDecl { id: idx, span });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
     pub fn alloc_import_named_spec(
         &mut self,
         span: Span,
@@ -1227,7 +1239,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
-        name: IdentID,
+        name: Option<IdentID>,
         extends: Option<ClassExtendsClauseID>,
         elems: Vec<ClassElem>,
     ) -> ClassDeclID {
@@ -1236,7 +1248,7 @@ impl Nodes {
             id: idx,
             span,
             modifiers,
-            name: Some(name),
+            name,
             extends,
             elems,
         });
@@ -3236,6 +3248,18 @@ impl ImportDecl {
 }
 
 #[derive(Debug)]
+pub struct ImportEqualsDecl {
+    id: ImportEqualsDeclID,
+    span: Span,
+}
+
+impl ImportEqualsDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+#[derive(Debug)]
 pub struct ImportClause {
     id: ImportClauseID,
     span: Span,
@@ -4101,6 +4125,7 @@ pub enum Stmt {
     Module(ModuleDeclID),
     Enum(EnumDeclID),
     Import(ImportDeclID),
+    ImportEquals(ImportEqualsDeclID),
     Export(ExportDeclID),
     ExportAssign(ExportAssignID),
     Labeled(LabeledStmtID),

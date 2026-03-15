@@ -41,6 +41,7 @@ pub enum StmtKind<'cx> {
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
+    ImportEquals(&'cx ImportEqualsDecl<'cx>),
     Export(&'cx ExportDecl<'cx>),
     ExportAssign(&'cx ExportAssign<'cx>),
     Try(&'cx TryStmt<'cx>),
@@ -82,6 +83,7 @@ impl Stmt<'_> {
             Debugger(n) => n.id,
             Labeled(n) => n.id,
             Switch(n) => n.id,
+            ImportEquals(n) => n.id,
         }
     }
 

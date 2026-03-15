@@ -1,0 +1,23 @@
+  × Type parameter 'T' has a circular constraint.
+   ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:5:19]
+ 5 │ T
+   · ─
+   ╰────
+
+  × Property 'foo' does not exist on type 'T'.
+   ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:9:19]
+ 9 │ foo
+   · ───
+   ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:11:17]
+ 11 │ new x(123)
+    · ──────────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:14:17]
+ 14 │ x()
+    · ───
+    ╰────

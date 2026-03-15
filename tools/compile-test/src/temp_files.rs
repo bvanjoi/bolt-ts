@@ -48,7 +48,8 @@ fn test_build_tmpdir() {
       "./a": "",
       "./b": "symlink:./",
       "./c": "symlink:./a",
-      "./d/e/f/g": ""
+      "./d/e/f/g": "",
+      "./h/": "",
     }));
     let tmp_a = tmp.join("./a");
     assert!(tmp_a.is_file());
@@ -63,4 +64,7 @@ fn test_build_tmpdir() {
     assert!(realpath(&tmp_c) == realpath(&tmp_a));
     let tmp_g = tmp.join("./d/e/f/g");
     assert!(tmp_g.is_file());
+    let tmp_h = tmp.join("./h");
+    assert!(tmp_h.is_dir());
+    assert_eq!(std::fs::read_dir(&tmp_h).unwrap().count(), 0);
 }

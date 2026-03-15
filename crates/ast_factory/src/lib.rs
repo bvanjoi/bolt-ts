@@ -586,6 +586,7 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         name: &'cx ast::Binding<'cx>,
+        excl: Option<Span>,
         ty: Option<&'cx ast::Ty<'cx>>,
         init: Option<&'cx ast::Expr<'cx>>,
         ctx: VarDeclarationContext,
@@ -595,6 +596,7 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             name,
+            excl,
             ty,
             init,
         });
@@ -990,6 +992,42 @@ pub trait ASTFactory<'cx> {
             ty,
         });
         self.insert_node(id, ast::Node::PredTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_import_equals_declaration(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+        is_type_only: bool,
+        module_reference: ast::ModuleReferenceKind<'cx>,
+    ) -> &'cx ast::ImportEqualsDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ImportEqualsDecl {
+            id,
+            span,
+            is_type_only,
+            name,
+            module_reference,
+        });
+        self.insert_node(id, ast::Node::ImportEqualsDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_external_module_reference(
+        &mut self,
+        span: Span,
+        module_spec: &'cx ast::StringLit,
+    ) -> &'cx ast::ExternalModuleReference<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExternalModuleReference {
+            id,
+            span,
+            module_spec,
+        });
+        self.insert_node(id, ast::Node::ExternalModuleReference(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

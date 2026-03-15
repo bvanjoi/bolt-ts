@@ -592,20 +592,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             ModuleDecl(node) => self.bind_ns_decl(node),
-            ImportNamedSpec(node) => {
-                // import { prop_name as name } from 'xxx'
-                self.declare_symbol_and_add_to_symbol_table(
-                    SymbolName::Atom(node.name.name),
-                    node.id,
-                    SymbolFlags::ALIAS,
-                    SymbolFlags::ALIAS_EXCLUDES,
-                );
-            }
-            ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
+            ImportEqualsDecl(ast::ImportEqualsDecl { id, name, .. })
+            | ImportNamedSpec(ast::ImportNamedSpec { id, name, .. })
+            | ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
-                // import { name } from 'xxx'
-                // import * as name from 'xxx'
-                // export { name } from 'xxx'
+                // importEqualsDeclaration:
+                //  - import name = xxx
+                //  - import name = xxx.yyy
+                // ImportNamedSpec:
+                //  - import { prop_name as name } from 'xxx'
+                // ImportExportShorthandSpec:
+                //  - import { name } from 'xxx'
+                //  - export { name } from 'xxx'
+                // NsImport:
+                //  - import * as name from 'xxx'
                 let name = SymbolName::Atom(name.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,

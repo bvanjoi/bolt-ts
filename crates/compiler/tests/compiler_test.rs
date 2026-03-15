@@ -51,9 +51,15 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
             serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
 
         debug_assert!(file_name == "index.ts" || file_name == "index.tsx");
+
+        let default_include = if file_name == "index.ts" {
+            vec!["./*.ts".to_string()]
+        } else {
+            vec![file_name.to_string()]
+        };
         let tsconfig = RawTsConfig::default()
             .with_compiler_options(compiler_options)
-            .with_include_if_none(vec![file_name.to_string()])
+            .with_include_if_none(default_include)
             .config_compiler_options(|c| c.with_out_dir(DEFAULT_OUTPUT.to_string()));
 
         let cwd = dir.normalize();

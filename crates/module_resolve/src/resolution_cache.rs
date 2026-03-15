@@ -1,14 +1,15 @@
 use bolt_ts_atom::Atom;
-use bolt_ts_config::ModuleKind;
 use bolt_ts_fs::PathId;
 use dashmap::DashMap;
 
 use super::RResult;
+use super::ResolutionMode;
+use super::package_json::PackageJsonInfoCache;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct RedirectCacheKey {
     module_name: Atom,
-    resolution_mode: ModuleKind,
+    resolution_mode: Option<ResolutionMode>,
 }
 
 pub struct ModeAwareCache<V>(DashMap<RedirectCacheKey, V>);
@@ -16,14 +17,14 @@ impl<V: Copy> ModeAwareCache<V> {
     pub fn new() -> Self {
         Self(DashMap::new())
     }
-    pub fn get(&self, module_name: Atom, resolution_mode: ModuleKind) -> Option<V> {
+    pub fn get(&self, module_name: Atom, resolution_mode: Option<ResolutionMode>) -> Option<V> {
         let key = RedirectCacheKey {
             module_name,
             resolution_mode,
         };
         self.0.get(&key).map(|v| *v)
     }
-    pub fn set(&self, module_name: Atom, resolution_mode: ModuleKind, value: V) {
+    pub fn set(&self, module_name: Atom, resolution_mode: Option<ResolutionMode>, value: V) {
         let key = RedirectCacheKey {
             module_name,
             resolution_mode,
@@ -74,6 +75,7 @@ pub struct ModuleResolutionCache {
     directory_to_module_name_map: CacheWithRedirects<PathId, ModeAwareCache<RResult<PathId>>>,
     module_name_to_directory_map:
         CacheWithRedirects<RedirectCacheKey, PerNonRelativeNameCache<RResult<PathId>>>,
+    package_json_cache: PackageJsonInfoCache,
 }
 
 impl ModuleResolutionCache {
@@ -82,6 +84,7 @@ impl ModuleResolutionCache {
             is_readonly: false,
             directory_to_module_name_map: CacheWithRedirects::new(),
             module_name_to_directory_map: CacheWithRedirects::new(),
+            package_json_cache: PackageJsonInfoCache::new(),
         }
     }
 
@@ -92,7 +95,7 @@ impl ModuleResolutionCache {
     pub fn get_from_directory_cache(
         &self,
         module_name: Atom,
-        resolution_mode: ModuleKind,
+        resolution_mode: Option<ResolutionMode>,
         directory: PathId,
     ) -> Option<RResult<PathId>> {
         self.directory_to_module_name_map
@@ -105,7 +108,7 @@ impl ModuleResolutionCache {
         &self,
         directory: PathId,
         module_name: Atom,
-        resolution_mode: ModuleKind,
+        resolution_mode: Option<ResolutionMode>,
         result: RResult<PathId>,
     ) {
         // TODO: get_or_create
@@ -120,7 +123,7 @@ impl ModuleResolutionCache {
         &self,
         directory: PathId,
         module_name: Atom,
-        resolution_mode: ModuleKind,
+        resolution_mode: Option<ResolutionMode>,
         result: RResult<PathId>,
     ) {
         // TODO: get_or_create
@@ -134,5 +137,9 @@ impl ModuleResolutionCache {
             })
             .or_insert_with(PerNonRelativeNameCache::new);
         entry.set(directory, result);
+    }
+
+    pub fn package_json_cache(&self) -> &PackageJsonInfoCache {
+        &self.package_json_cache
     }
 }

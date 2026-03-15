@@ -12,6 +12,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
         Block(node) => v.visit_block_stmt(node),
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
+        ImportEquals(node) => {}
         Interface(node) => v.visit_interface_decl(node),
         Expr(node) => v.visit_expr_stmt(node),
         Var(node) => v.visit_var_stmt(node),
@@ -786,5 +787,7 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         JsxElem(n) => todo!(),
         PrivateIdent(n) => todo!(),
         YieldExpr(n) => todo!(),
+        ImportEqualsDecl(n) => todo!(),
+        ExternalModuleReference(n) => todo!(),
     }
 }

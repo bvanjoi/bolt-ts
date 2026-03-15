@@ -3,7 +3,6 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::pprint_entity_name;
 use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait;
-use bolt_ts_atom::Atom;
 use bolt_ts_binder::{MergeSymbol, MergedSymbols, ResolveResult, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName, SymbolTable, Symbols};
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
@@ -230,7 +229,7 @@ impl<'cx> super::TyChecker<'cx> {
                 .collect::<Vec<_>>();
             panic!("spans of decls: {decls:#?}");
         });
-        let target = self.get_target_of_alias_decl(node, false);
+        let target = self.get_target_of_alias_decl::<false>(node);
         if self
             .get_symbol_links(symbol)
             .get_alias_target()
@@ -244,10 +243,9 @@ impl<'cx> super::TyChecker<'cx> {
         self.get_symbol_links(symbol).expect_alias_target()
     }
 
-    pub(super) fn get_target_of_alias_decl(
+    pub(super) fn get_target_of_alias_decl<const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         node: bolt_ts_ast::NodeID,
-        dont_recur_resolve: bool,
     ) -> Option<SymbolID> {
         let p = self.p();
         use bolt_ts_ast::Node::*;
@@ -255,23 +253,73 @@ impl<'cx> super::TyChecker<'cx> {
             .union(SymbolFlags::TYPE)
             .union(SymbolFlags::NAMESPACE);
         match p.node(node) {
-            ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, dont_recur_resolve),
+            ImportEqualsDecl(n) => {
+                Some(self.get_target_of_import_equals_decl::<DONT_RESOLVE_ALIAS>(n))
+            }
+            ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS),
             ImportExportShorthandSpec(_)
                 if p.node(self.parent(node).unwrap()).is_import_clause() =>
             {
-                get_target_of_import_named_spec(self, node, dont_recur_resolve)
+                get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS)
             }
             ImportExportShorthandSpec(_) => {
                 assert!(p.node(self.parent(node).unwrap()).is_specs_export());
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
             }
             ExportNamedSpec(_) => {
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
             }
-            NsImport(n) => get_target_of_ns_import(self, n, dont_recur_resolve),
-            ImportClause(n) => get_target_of_import_clause(self, n, dont_recur_resolve),
-            ExportAssign(n) => get_target_of_export_assignment(self, n, dont_recur_resolve),
+            NsImport(n) => get_target_of_ns_import(self, n, DONT_RESOLVE_ALIAS),
+            ImportClause(n) => get_target_of_import_clause(self, n, DONT_RESOLVE_ALIAS),
+            ExportAssign(n) => get_target_of_export_assignment(self, n, DONT_RESOLVE_ALIAS),
             _ => todo!(),
+        }
+    }
+
+    fn get_target_of_import_equals_decl<const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        n: &'cx ast::ImportEqualsDecl<'cx>,
+    ) -> SymbolID {
+        match n.module_reference {
+            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                // TODO:
+                Symbol::ERR
+            }
+            ast::ModuleReferenceKind::EntityName(n) => {
+                self.get_symbol_of_part_of_right_hand_side_of_import_equals::<DONT_RESOLVE_ALIAS>(n)
+            }
+        }
+        // TODO: check_and_report
+    }
+
+    fn get_symbol_of_part_of_right_hand_side_of_import_equals<const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        entity: &'cx ast::EntityName<'cx>,
+    ) -> SymbolID {
+        let mut entity_id = entity.id();
+        if let ast::EntityNameKind::Ident(n) = entity.kind
+            && self
+                .node_query(n.id.module())
+                .is_right_side_of_qualified_name_or_prop_access(n.id)
+        {
+            entity_id = self.parent(n.id).unwrap();
+        }
+
+        let entity_node = self.p.node(entity_id);
+        if let ast::Node::Ident(n) = entity_node
+            && let Some(parent_id) = self.parent(entity_id)
+            && self.p.node(parent_id).is_qualified_name()
+        {
+            self.resolve_ident::<false, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
+        } else {
+            debug_assert!(
+                self.parent(entity_id)
+                    .is_some_and(|p| { self.p.node(p).is_import_equals_decl() })
+            );
+            let meaning = SymbolFlags::VALUE
+                .union(SymbolFlags::TYPE)
+                .union(SymbolFlags::NAMESPACE);
+            self.resolve_entity_name::<false, DONT_RESOLVE_ALIAS>(entity, meaning)
         }
     }
 

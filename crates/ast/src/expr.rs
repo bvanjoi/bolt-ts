@@ -899,6 +899,7 @@ pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Binding<'cx>,
+    pub excl: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }
@@ -986,4 +987,26 @@ pub struct DeleteExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportEqualsDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub is_type_only: bool,
+    pub module_reference: ModuleReferenceKind<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalModuleReference<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub module_spec: &'cx StringLit,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleReferenceKind<'cx> {
+    EntityName(&'cx EntityName<'cx>),
+    ExternalModuleReference(&'cx ExternalModuleReference<'cx>),
 }

@@ -1634,7 +1634,7 @@ impl<'cx> TyChecker<'cx> {
             } else if container.external_module_indicator.is_some() {
                 return Some(self.undefined_ty);
             } else if include_global_this {
-                // TODO: return Some(self.get_type_of_symbol(self.global_this_symbol));
+                return Some(self.get_type_of_symbol(self.global_this_symbol));
             }
         }
         None
@@ -1792,6 +1792,10 @@ impl<'cx> TyChecker<'cx> {
                 None
             };
             let Some(index_info) = index_info else {
+                if left_ty.symbol() == Some(self.global_this_symbol) {
+                    // TODO: report error
+                    return self.any_ty;
+                }
                 if name
                     .as_atom()
                     .is_some_and(|atom| atom != keyword::IDENT_EMPTY)

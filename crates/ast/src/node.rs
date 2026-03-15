@@ -81,6 +81,8 @@ pub enum Node<'cx> {
     ThrowStmt(&'cx super::ThrowStmt<'cx>),
     EnumDecl(&'cx super::EnumDecl<'cx>),
     ImportDecl(&'cx super::ImportDecl<'cx>),
+    ImportEqualsDecl(&'cx super::ImportEqualsDecl<'cx>),
+    ExternalModuleReference(&'cx super::ExternalModuleReference<'cx>),
     ExportDecl(&'cx super::ExportDecl<'cx>),
     ExportAssign(&'cx super::ExportAssign<'cx>),
     ForStmt(&'cx super::ForStmt<'cx>),
@@ -498,6 +500,7 @@ impl<'cx> Node<'cx> {
                 | TyParam(_)
                 | NsImport(_)
                 | ImportExportShorthandSpec(_)
+                | ImportEqualsDecl(_)
                 | ExportNamedSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
@@ -1239,6 +1242,16 @@ as_node!(
     ),
     (ImportClause, super::ImportClause<'cx>, import_clause),
     (ImportDecl, super::ImportDecl<'cx>, import_decl),
+    (
+        ExternalModuleReference,
+        super::ExternalModuleReference<'cx>,
+        external_module_reference
+    ),
+    (
+        ImportEqualsDecl,
+        super::ImportEqualsDecl<'cx>,
+        import_equals_decl
+    ),
     (NsExport, super::NsExport<'cx>, ns_export),
     (
         ExportNamedSpec,

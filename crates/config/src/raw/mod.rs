@@ -1,7 +1,8 @@
-use crate::NormalizedModuleResolution;
-
 use super::OutDir;
-use super::{RawModule, RawModuleResolution, RawTarget};
+use super::normalized::get_module;
+use super::normalized::get_module_resolution;
+use super::normalized::get_resolve_json_module;
+use super::normalized::get_target;
 
 macro_rules! with_option {
     ($s: ident, $(($option: ident, $ty: ty)),* $(,)?) => {
@@ -26,7 +27,7 @@ macro_rules! with_option {
                     pub fn [<config_ $option>](mut self, f: impl FnOnce($ty) -> $ty) -> Self {
                         self.$option = match self.$option {
                             Some(c) => Some(f(c)),
-                            None => Some(f(Default::default())),
+                            None => unreachable!(),
                         };
                         self
                     }
@@ -58,6 +59,7 @@ with_option!(
     (strict_property_initialization, bool),
     (no_unused_locals, bool),
     (no_unused_parameters, bool),
+    (resolve_json_module, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -66,10 +68,8 @@ with_option!(
 
 impl RawCompilerOptions {
     pub fn normalize(self) -> super::NormalizedCompilerOptions {
-        let out_dir = self.out_dir.map_or(OutDir::default(), OutDir::Custom);
-        let target = self.target.unwrap_or_default().into();
-
         let mut flags = super::CompilerOptionFlags::empty();
+        let target = get_target(self.target);
         if self.no_emit.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_EMIT);
         }
@@ -140,20 +140,14 @@ impl RawCompilerOptions {
             None => super::AllowUnreachableCode::Warning,
         };
 
-        let module_resolution = match self.module_resolution {
-            Some(m) => match m {
-                RawModuleResolution::Node => NormalizedModuleResolution::Node10,
-                RawModuleResolution::Node10 => NormalizedModuleResolution::Node10,
-                RawModuleResolution::Node16 => NormalizedModuleResolution::Node16,
-                RawModuleResolution::Node18 => NormalizedModuleResolution::Node18,
-                RawModuleResolution::Node20 => NormalizedModuleResolution::Node20,
-                RawModuleResolution::NodeNext => NormalizedModuleResolution::NodeNext,
-                RawModuleResolution::Bundler => NormalizedModuleResolution::Bundler,
-                RawModuleResolution::Classic => NormalizedModuleResolution::Classic,
-            },
-            None => NormalizedModuleResolution::Node10,
-        };
         let custom_conditions = self.custom_conditions.unwrap_or_default();
+        let out_dir = self.out_dir.map_or(OutDir::default(), OutDir::Custom);
+        let module = get_module(self.module, target);
+        let module_resolution = get_module_resolution(self.module_resolution, module);
+
+        if get_resolve_json_module(self.resolve_json_module, module, module_resolution) {
+            flags.insert(super::CompilerOptionFlags::RESOLVE_JSON_MODULE);
+        }
 
         super::NormalizedCompilerOptions {
             out_dir,
@@ -161,6 +155,7 @@ impl RawCompilerOptions {
             flags,
             allow_unused_labels,
             allow_unreachable_code,
+            module,
             module_resolution,
             custom_conditions,
         }
@@ -185,4 +180,92 @@ impl RawTsConfig {
             compiler_options,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize, Default)]
+pub enum RawModuleResolution {
+    #[default]
+    #[serde(alias = "node")]
+    Node,
+    #[serde(alias = "node10")]
+    Node10,
+    #[serde(alias = "node16")]
+    Node16,
+    #[serde(alias = "nodeNext")]
+    NodeNext,
+    #[serde(alias = "bundler")]
+    Bundler,
+    #[serde(alias = "classic")]
+    Classic,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum RawTarget {
+    #[serde(alias = "es3")]
+    ES3,
+    #[default]
+    #[serde(alias = "es5")]
+    ES5,
+    #[serde(alias = "es6")]
+    ES6,
+    #[serde(alias = "es2015")]
+    ES2015,
+    #[serde(alias = "es2016")]
+    ES2016,
+    #[serde(alias = "es2017")]
+    ES2017,
+    #[serde(alias = "es2018")]
+    ES2018,
+    #[serde(alias = "es2019")]
+    ES2019,
+    #[serde(alias = "es2020")]
+    ES2020,
+    #[serde(alias = "es2021")]
+    ES2021,
+    #[serde(alias = "es2022")]
+    ES2022,
+    #[serde(alias = "es2023")]
+    ES2023,
+    #[serde(alias = "es2024")]
+    ES2024,
+    #[serde(alias = "es2025")]
+    ES2025,
+    #[serde(alias = "esnext")]
+    ESNext,
+    #[serde(alias = "json")]
+    JSON,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum RawModule {
+    #[serde(alias = "none")]
+    None,
+    #[serde(alias = "commonjs")]
+    CommonJS,
+    #[serde(alias = "amd")]
+    AMD,
+    #[serde(alias = "umd")]
+    UMD,
+    #[serde(alias = "system")]
+    System,
+    #[serde(alias = "es6")]
+    ES6,
+    #[serde(alias = "es2015")]
+    ES2015,
+    #[serde(alias = "es2020")]
+    ES2020,
+    #[serde(alias = "es2022")]
+    ES2022,
+    #[serde(alias = "esnext")]
+    ESNext,
+    #[serde(alias = "node16")]
+    Node16,
+    #[serde(alias = "node18")]
+    Node18,
+    #[serde(alias = "node20")]
+    Node20,
+    #[serde(alias = "nodenext")]
+    NodeNext,
+    #[serde(alias = "preserve")]
+    Preserve,
 }

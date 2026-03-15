@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/trailingCommaInHeterogenousArrayLiteral1/index.ts:9:26]
+ 9 │ "hi"
+   · ────
+   ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/trailingCommaInHeterogenousArrayLiteral1/index.ts:11:26]
+ 11 │ "hi"
+    · ────
+    ╰────

@@ -60,10 +60,11 @@ impl<'cx> Nodes<'cx> {
         let node = self.get(id);
         use ast::Node::*;
         match node {
-            ImportNamedSpec(_) |  // `import { a as b } from 'xxx'`
-            ImportExportShorthandSpec(_) |    // `export { spec }` or `import { spec } from 'xxx'`
-            ExportNamedSpec(_) |  // `export { a as b }`
-            NsImport(_)           // `import * as ns from 'xxx'`
+            ImportEqualsDecl(_) |
+            ImportNamedSpec(_) |                // `import { a as b } from 'xxx'`
+            ImportExportShorthandSpec(_) |      // `export { spec }` or `import { spec } from 'xxx'`
+            ExportNamedSpec(_) |                // `export { a as b }`
+            NsImport(_)                         // `import * as ns from 'xxx'`
             => true,
             ImportClause(n) => n.name.is_some(), // `import a from 'xxx'`
             ExportAssign(n) => n.is_aliasable(),

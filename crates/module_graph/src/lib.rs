@@ -3,6 +3,7 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
+use bolt_ts_module_resolve::ResolveFlags;
 use bolt_ts_module_resolve::{RResult, ResolveError};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::{ModuleArena, ModuleID};
@@ -63,12 +64,20 @@ pub fn build_graph<'cx>(
 ) -> ModuleGraph {
     let fs = Arc::new(Mutex::new(fs));
     let always_strict = options.compiler_options().always_strict();
-    let flags = if options.compiler_options().preserve_symlinks() {
-        bolt_ts_module_resolve::ResolveFlags::PRESERVE_SYMLINKS
-    } else {
-        bolt_ts_module_resolve::ResolveFlags::empty()
+    // resolve
+    let mut flags = ResolveFlags::empty();
+    if options.compiler_options().preserve_symlinks() {
+        flags.insert(ResolveFlags::PRESERVE_SYMLINKS);
     };
-    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone(), flags);
+    if options.compiler_options().no_dts_resolution() {
+        flags.insert(ResolveFlags::NO_DTS_RESOLUTION);
+    }
+    if options.compiler_options().resolve_json_module() {
+        flags.insert(ResolveFlags::RESOLVE_JSON_MODULE);
+    }
+
+    let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
+
     let mut resolved = fx_hashmap_with_capacity(2048);
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {
@@ -104,13 +113,24 @@ pub fn build_graph<'cx>(
                 let entry = group.entry(item.val);
                 entry.or_insert_with(Vec::new).push(item);
             }
+            let module_resolution = *options.compiler_options().module_resolution();
             let deps: Vec<(ast::NodeID, Result<PathId, ResolveError>)> = group
                 .into_par_iter()
                 .flat_map(|(atom, lits)| {
-                    let res = resolver.resolve_module_name(
-                        base_dir,
+                    let containing_file = bolt_ts_module_resolve::ContainingFile::new(base_dir);
+                    let options = bolt_ts_module_resolve::ResolverOptions {
+                        module_resolution,
+                        custom_conditions: options.compiler_options().custom_conditions(),
+                        flags,
+                    };
+                    let res = bolt_ts_module_resolve::Resolver::resolve_module_name(
                         atom,
-                        bolt_ts_config::ModuleKind::Node16,
+                        containing_file,
+                        options,
+                        &cache,
+                        &atoms,
+                        &fs,
+                        None,
                     );
                     lits.iter().map(|item| (item.id, res)).collect::<Vec<_>>()
                 })

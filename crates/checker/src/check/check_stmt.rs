@@ -34,6 +34,9 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             ForOf(node) => self.check_for_of_stmt(node),
             Import(node) => self.check_import_decl(node),
+            ImportEquals(node) => {
+                self.check_import_equals_decl(node);
+            }
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
@@ -207,6 +210,10 @@ impl<'cx> TyChecker<'cx> {
         };
         // TODO: more checks
         true
+    }
+
+    fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
+        self.check_import_binding(node.id);
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {

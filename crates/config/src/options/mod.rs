@@ -5,95 +5,58 @@ pub enum OutDir {
     Custom(String),
 }
 
-#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
-pub enum RawTarget {
-    #[default]
-    #[serde(alias = "es5")]
-    ES5,
-    #[serde(alias = "es6")]
-    ES6,
-    #[serde(alias = "es2015")]
-    ES2015,
-    #[serde(alias = "es2016")]
-    ES2016,
-    #[serde(alias = "es2017")]
-    ES2017,
-    #[serde(alias = "es2018")]
-    ES2018,
-    #[serde(alias = "es2019")]
-    ES2019,
-    #[serde(alias = "es2020")]
-    ES2020,
-    #[serde(alias = "es2021")]
-    ES2021,
-    #[serde(alias = "es2022")]
-    ES2022,
-    #[serde(alias = "es2023")]
-    ES2023,
-    #[serde(alias = "es2024")]
-    ES2024,
-    #[serde(alias = "esnext")]
-    ESNext,
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Target {
+    ES3 = 0,
+    ES5 = 1,
+    ES2015 = 2,
+    ES2016 = 3,
+    ES2017 = 4,
+    ES2018 = 5,
+    ES2019 = 6,
+    ES2020 = 7,
+    ES2021 = 8,
+    ES2022 = 9,
+    ES2023 = 10,
+    ES2024 = 11,
+    ES2025 = 12,
+    ESNext = 99,
+    JSON = 100,
+}
+
+impl Target {
+    pub const fn latest() -> Self {
+        Self::ESNext
+    }
+    pub const fn latest_standard() -> Self {
+        Self::ES2025
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, PartialOrd)]
-pub enum Target {
-    #[default]
-    ES5,
-    ES2015,
-    ES2016,
-    ES2017,
-    ES2018,
-    ES2019,
-    ES2020,
-    ES2021,
-    ES2022,
-    ES2023,
-    ES2024,
-    ES2025,
-    ESNext,
-}
-
-impl From<RawTarget> for Target {
-    fn from(val: RawTarget) -> Self {
-        match val {
-            RawTarget::ES5 => Target::ES5,
-            RawTarget::ES2015 | RawTarget::ES6 => Target::ES2015,
-            _ => unsafe { std::mem::transmute::<u8, Target>(val as u8 - 1) },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
-pub enum RawModule {
-    #[default]
-    #[serde(alias = "commonjs")]
-    CommonJS,
-    #[serde(alias = "esnext")]
-    ESNext,
-}
-
-impl From<RawModule> for Module {
-    fn from(val: RawModule) -> Self {
-        match val {
-            RawModule::CommonJS => Module::CommonJS,
-            RawModule::ESNext => Module::ESNext,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd)]
 pub enum Module {
     #[default]
-    CommonJS,
-    ESNext,
+    None = 0,
+    CommonJS = 1,
+    AMD = 2,
+    UMD = 3,
+    System = 4,
+    ES2015 = 5,
+    ES2020 = 6,
+    ES2022 = 7,
+    ESNext = 99,
+    Node16 = 100,
+    Node18 = 101,
+    Node20 = 102,
+    NodeNext = 199,
+    Preserve = 200,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Extension {
     Ts,
     Tsx,
-    DTs,
+    Dts,
     Js,
     Jsx,
     Json,
@@ -111,7 +74,7 @@ impl Extension {
         match self {
             Extension::Ts => "ts",
             Extension::Tsx => "tsx",
-            Extension::DTs => "d.ts",
+            Extension::Dts => "d.ts",
             Extension::Js => "js",
             Extension::Jsx => "jsx",
             Extension::Json => "json",
@@ -129,7 +92,7 @@ impl Extension {
         match self {
             Extension::Ts => ".ts",
             Extension::Tsx => ".tsx",
-            Extension::DTs => ".d.ts",
+            Extension::Dts => ".d.ts",
             Extension::Js => ".js",
             Extension::Jsx => ".jsx",
             Extension::Json => ".json",
@@ -142,10 +105,41 @@ impl Extension {
             Extension::Empty => "",
         }
     }
+
+    pub fn extension_of_file_name(filename: &std::ffi::OsStr) -> Extension {
+        let bytes = filename.as_encoded_bytes();
+        debug_assert!(bytes.contains(&b'.'));
+        for extension in &EXTENSIONS_TO_REMOVE {
+            if bytes.ends_with(extension.as_str_with_dot().as_bytes()) {
+                return *extension;
+            }
+        }
+        Extension::Empty
+    }
+
+    pub fn file_extension_is(path: &std::path::Path, extension: Extension) -> bool {
+        let bytes = path.as_os_str().as_encoded_bytes();
+        bytes.ends_with(extension.as_str_with_dot().as_bytes())
+    }
 }
 
+pub const EXTENSIONS_TO_REMOVE: [Extension; 12] = [
+    Extension::Dts,
+    Extension::Dmts,
+    Extension::Dcts,
+    Extension::Mjs,
+    Extension::Mts,
+    Extension::Cjs,
+    Extension::Cts,
+    Extension::Ts,
+    Extension::Js,
+    Extension::Tsx,
+    Extension::Jsx,
+    Extension::Json,
+];
+
 pub const SUPPORTED_TS_EXTENSIONS: &[&[Extension]] = &[
-    &[Extension::Ts, Extension::Tsx, Extension::DTs],
+    &[Extension::Ts, Extension::Tsx, Extension::Dts],
     &[Extension::Cts, Extension::Dcts],
     &[Extension::Mts, Extension::Dmts],
 ];
@@ -158,12 +152,12 @@ pub const SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS: &[Extension] = &[
 ];
 
 pub const SUPPORTED_DECLARATION_EXTENSIONS: &[Extension] =
-    &[Extension::DTs, Extension::Dcts, Extension::Dmts];
+    &[Extension::Dts, Extension::Dcts, Extension::Dmts];
 
 pub const FLATTENED_SUPPORTED_TS_EXTENSIONS: &[Extension] = &[
     Extension::Ts,
     Extension::Tsx,
-    Extension::DTs,
+    Extension::Dts,
     Extension::Cts,
     Extension::Dcts,
     Extension::Mts,
@@ -174,7 +168,7 @@ pub const ALL_SUPPORTED_EXTENSIONS: &[&[Extension]] = &[
     &[
         Extension::Ts,
         Extension::Tsx,
-        Extension::DTs,
+        Extension::Dts,
         Extension::Js,
         Extension::Jsx,
     ],
@@ -185,7 +179,7 @@ pub const ALL_SUPPORTED_EXTENSIONS: &[&[Extension]] = &[
 pub const FLATTENED_ALL_SUPPORTED_EXTENSIONS: &[Extension] = &[
     Extension::Ts,
     Extension::Tsx,
-    Extension::DTs,
+    Extension::Dts,
     Extension::Js,
     Extension::Jsx,
     Extension::Cts,
@@ -196,48 +190,11 @@ pub const FLATTENED_ALL_SUPPORTED_EXTENSIONS: &[Extension] = &[
     Extension::Mjs,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize, Default)]
-pub enum RawModuleResolution {
-    #[default]
-    #[serde(alias = "node")]
-    Node,
-    Node10,
-    Node16,
-    Node18,
-    Node20,
-    NodeNext,
-    Bundler,
-    Classic,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum NormalizedModuleResolution {
-    Node10,
-    Node16,
-    Node18,
-    Node20,
-    NodeNext,
-    Bundler,
-    Classic,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModuleKind {
-    None = 0,
-    CommonJS = 1,
-    AMD = 2,
-    UMD = 3,
-    System = 4,
-
-    ES2015 = 5,
-    ES2020 = 6,
-    ES2022 = 7,
-    ESNext = 99,
-
-    Node16 = 100,
-    Node18 = 101,
-    Node20 = 102,
-    NodeNext = 199,
-
-    Preserve = 200,
+pub enum NormalizedModuleResolution {
+    Classic = 1,
+    Node10 = 2,
+    Node16 = 3,
+    NodeNext = 99,
+    Bundler = 100,
 }

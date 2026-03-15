@@ -91,6 +91,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             StmtKind::Throw(n) => Some(Stmt::Throw(self.lower_throw_stmt(n))),
             StmtKind::Enum(n) => Some(Stmt::Enum(self.lower_enum_decl(n))),
             StmtKind::Import(n) => Some(Stmt::Import(self.lower_import_decl(n))),
+            StmtKind::ImportEquals(n) => Some(Stmt::ImportEquals(self.lower_import_equals_decl(n))),
             StmtKind::Export(n) => Some(Stmt::Export(self.lower_export_stmt(n))),
             StmtKind::ExportAssign(n) => Some(Stmt::ExportAssign(self.lower_export_assign(n))),
             StmtKind::Try(n) => Some(Stmt::Try(self.lower_try_stmt(n))),
@@ -215,6 +216,13 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_import_decl(n.span, clause, module)
     }
 
+    fn lower_import_equals_decl(
+        &mut self,
+        n: &'cx ast::ImportEqualsDecl<'cx>,
+    ) -> ir::ImportEqualsDeclID {
+        self.nodes.alloc_import_equals_decl(n.span)
+    }
+
     fn lower_import_clause(&mut self, n: &'cx ast::ImportClause<'cx>) -> ir::ImportClauseID {
         let name = n.name.map(|n| self.lower_ident(n));
         let kind = n.kind.map(|k| match k {
@@ -300,8 +308,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         {
             return None;
         }
-        let Some(name) = n.name else { todo!() };
-        let name = self.lower_ident(name);
+        let name = n.name.map(|name| self.lower_ident(name));
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let extends = n.extends.map(|e| self.lower_class_extends_clause(e));
         let elems = self.lower_class_elems(n.elems);

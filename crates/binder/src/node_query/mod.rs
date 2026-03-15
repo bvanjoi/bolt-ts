@@ -1041,6 +1041,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         n.op.kind == ast::BinOpKind::Instanceof && n.right.id() == node
     }
 
+    pub fn is_right_side_of_qualified_name_or_prop_access(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        match self.node(parent) {
+            ast::Node::QualifiedName(n) => n.right.id == node,
+            ast::Node::PropAccessExpr(n) => n.name.id == node,
+            // TODO: meta_property
+            _ => return false,
+        }
+    }
+
     pub fn is_optional_chain(&self, node: ast::NodeID) -> bool {
         if !self
             .node_flags(node)

@@ -28,7 +28,8 @@ fn match_files(
         .iter()
         .map(|s| {
             // TODO: join means we need to compare more the prefix part
-            path.join(s)
+            let p = path.join(s);
+            p.normalize()
         })
         .collect::<Vec<_>>();
     let include = include
@@ -40,7 +41,8 @@ fn match_files(
         .iter()
         .map(|s| {
             // TODO: join means we need to compare more the prefix part
-            path.join(s)
+            let p = path.join(s);
+            p.normalize()
         })
         .collect::<Vec<_>>();
     let exclude = exclude

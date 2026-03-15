@@ -3,9 +3,10 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 use rustc_hash::FxHashMap;
 
-use crate::CachedFileSystem;
-use crate::errors::FsResult;
-use crate::tree::FSTree;
+use super::CachedFileSystem;
+use super::PathId;
+use super::errors::FsResult;
+use super::tree::FSTree;
 
 pub struct LocalFS {
     tree: FSTree,
@@ -163,11 +164,11 @@ impl CachedFileSystem for LocalFS {
         atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> FsResult<crate::PathId> {
         debug_assert!(p.is_normalized());
-        if !self.is_symlink(p, atoms) {
-            let p = crate::path::PathId::new(p, atoms);
-            return Err(crate::errors::FsError::NotASymlink(p));
-        }
-        self.tree.read_symlink(p, atoms).map(|atom| atom.into())
+        // TODO: optimize
+        let Ok(p) = std::fs::canonicalize(p) else {
+            unreachable!()
+        };
+        Ok(PathId::new(&p, atoms))
     }
 
     fn read_dir(

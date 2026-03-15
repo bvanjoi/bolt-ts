@@ -369,15 +369,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let has_export_modifier = self
             .node_query()
             .get_combined_modifier_flags(current)
-            .intersects(ast::ModifierKind::Export);
+            .contains(ast::ModifierKind::Export);
         if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
                 || n.as_shorthand_spec().is_some_and(|_| {
                     let parent = self.parent_map.parent(current).unwrap();
                     self.p.node(parent).is_specs_export()
-                }) {
-                // TODO: is_import_eq_decl && has_export_modifier
+                })
+                || (n.is_import_equals_decl() && has_export_modifier)
+            {
                 let table = SymbolTableLocation::exports(container);
                 // let parent = self.final_res[&container];
                 let parent = None;
@@ -1253,6 +1254,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             PrivateIdent(_) => {
                 // TODO:
+            }
+            ImportEqualsDecl(n) => {
+                self.bind(n.name.id);
+                match n.module_reference {
+                    ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                        self.bind(n.id);
+                    }
+                    ast::ModuleReferenceKind::EntityName(n) => self.bind_entity_name(n),
+                }
+            }
+            ExternalModuleReference(n) => {
+                self.bind(n.module_spec.id);
             }
         }
         // TODO: bind_js_doc

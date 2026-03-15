@@ -12,6 +12,8 @@ pub trait NormalizePath {
     fn normalize(&self) -> PathBuf;
     fn is_normalized(&self) -> bool;
     fn need_trailing_slash(&self) -> bool;
+    fn is_normalized_without_trailing_slash(&self) -> bool;
+    fn is_normalized_with_trailing_slash(&self) -> bool;
 }
 
 impl NormalizePath for std::path::Path {
@@ -52,10 +54,18 @@ impl NormalizePath for std::path::Path {
 
     fn need_trailing_slash(&self) -> bool {
         let bytes = self.as_os_str().as_encoded_bytes();
-        bytes != b"/"
+        bytes != [SLASH]
             && bytes
                 .last()
                 .is_some_and(|c| matches!(*c, SLASH | BACKSLASH | b'.'))
+    }
+
+    fn is_normalized_without_trailing_slash(&self) -> bool {
+        self.is_normalized() && self.as_os_str().as_encoded_bytes().last() != Some(&SLASH)
+    }
+
+    fn is_normalized_with_trailing_slash(&self) -> bool {
+        self.is_normalized() && self.as_os_str().as_encoded_bytes().last() == Some(&SLASH)
     }
 }
 
