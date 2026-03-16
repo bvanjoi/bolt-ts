@@ -5,6 +5,7 @@ use bolt_ts_fs::PathId;
 use bolt_ts_utils::path::NormalizePath;
 
 use super::Extensions;
+use super::ModuleResolutionCache;
 use super::ModuleResolutionState;
 use super::RResult;
 use super::load_module_from_file;
@@ -26,6 +27,7 @@ impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a
         candidate: &mut std::path::PathBuf,
         only_record_failures: bool,
         state: &ModuleResolutionState<'a, 'options, FS>,
+        cache: &ModuleResolutionCache,
     ) -> RResult<PathId> {
         load_filename_from_package_json_field(
             ext,
@@ -33,6 +35,7 @@ impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a
             self.package_json,
             only_record_failures,
             state,
+            cache,
         )
     }
 }
@@ -43,6 +46,7 @@ fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
     package_json: Option<PackageJsonPath>,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
+    cache: &'a ModuleResolutionCache,
 ) -> RResult<PathId> {
     if ((ext.contains(Extensions::TypeScript)
         && candidate.extension().is_some_and(|e| {
@@ -66,6 +70,7 @@ fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
         only_record_failures,
         state,
         package_json,
+        cache,
     )
 }
 
@@ -75,21 +80,20 @@ pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFil
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
     package_json: Option<PackageJsonPath>,
+    cache: &'a ModuleResolutionCache,
 ) -> RResult<PathId> {
     debug_assert!(candidate.is_normalized());
     let mut package_file: Option<std::path::PathBuf> = None;
     if let Some(package_json) = package_json {
-        let package_directory = state
-            .cache
+        let package_directory = cache
             .package_json_cache()
             .package_json_directory(package_json);
         if package_directory == PathId::get(candidate, state.atoms.lock().as_mut().unwrap()) {
             // TODO: is_config_lookup
             if ext.contains(Extensions::Declaration)
-                && let Some(p) = state
-                    .cache
+                && let Some(p) = cache
                     .package_json_cache()
-                    .read_package_json_types_filed(package_json, package_directory, &state.atoms)
+                    .read_package_json_types_filed(package_json, state.atoms)
             {
                 package_file = Some(p)
             }
@@ -120,6 +124,7 @@ pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFil
             &mut package_file,
             only_record_failures_for_package_file.unwrap(),
             state,
+            cache,
         )
     }) {
         return Ok(package_file_result);

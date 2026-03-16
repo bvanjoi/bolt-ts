@@ -1,7 +1,5 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_fs::PathId;
@@ -12,7 +10,7 @@ use super::normalize_join;
 
 pub struct PackageJsonInfo {
     package_directory: PathId,
-    contents: PackageJsonInfoContents,
+    contents: Arc<PackageJsonInfoContents>,
 }
 
 impl PackageJsonInfo {
@@ -25,7 +23,7 @@ impl PackageJsonInfo {
     pub fn new(package_directory: PathId, contents: PackageJsonInfoContents) -> Self {
         Self {
             package_directory,
-            contents,
+            contents: Arc::new(contents),
         }
     }
 }
@@ -35,6 +33,13 @@ pub struct PackageJsonInfoContents {
     name: Option<String>,
     types: Option<String>,
     typings: Option<String>,
+    exports: Option<serde_json::Value>,
+}
+
+impl PackageJsonInfoContents {
+    pub fn exports(&self) -> Option<&serde_json::Value> {
+        self.exports.as_ref()
+    }
 }
 
 pub struct PackageJsonInfoCache {
@@ -73,7 +78,6 @@ impl PackageJsonInfoCache {
         &self,
         package_json: PackageJsonPath,
         filed: Field,
-        base_directory: PathId,
         atoms: &Arc<Mutex<AtomIntern>>,
     ) -> Option<PathBuf> {
         let Some(json) = self.map.get(&package_json.0) else {
@@ -88,7 +92,7 @@ impl PackageJsonInfoCache {
             return None;
         }
         let mut atoms = atoms.lock().unwrap();
-        let base = atoms.get(base_directory.into());
+        let base = atoms.get(json.package_directory.into());
         let base = std::path::Path::new(base);
         let p = normalize_join(base, filename);
         drop(json);
@@ -101,13 +105,10 @@ impl PackageJsonInfoCache {
     pub fn read_package_json_types_filed(
         &self,
         package_json: PackageJsonPath,
-        base_directory: PathId,
         atoms: &Arc<Mutex<AtomIntern>>,
     ) -> Option<PathBuf> {
-        self.read_package_json_path_field(package_json, Field::Typings, base_directory, atoms)
-            .or_else(|| {
-                self.read_package_json_path_field(package_json, Field::Types, base_directory, atoms)
-            })
+        self.read_package_json_path_field(package_json, Field::Typings, atoms)
+            .or_else(|| self.read_package_json_path_field(package_json, Field::Types, atoms))
     }
 
     pub fn package_json_directory(&self, package_json: PackageJsonPath) -> PathId {
@@ -115,6 +116,13 @@ impl PackageJsonInfoCache {
             .get(&package_json.0)
             .map(|info| info.package_directory())
             .unwrap()
+    }
+
+    pub fn read_package_json(&self, package_json: PackageJsonPath) -> Arc<PackageJsonInfoContents> {
+        let Some(json) = self.map.get(&package_json.0) else {
+            unreachable!()
+        };
+        json.contents.clone()
     }
 }
 

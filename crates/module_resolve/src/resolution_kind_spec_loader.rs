@@ -1,5 +1,6 @@
 use bolt_ts_fs::PathId;
 
+use super::ModuleResolutionCache;
 use super::{Extensions, ModuleResolutionState, RResult};
 
 pub trait ResolutionKindSpecLoader<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> {
@@ -9,5 +10,6 @@ pub trait ResolutionKindSpecLoader<'a, 'options, FS: bolt_ts_fs::CachedFileSyste
         candidate: &mut std::path::PathBuf,
         only_record_failures: bool,
         state: &ModuleResolutionState<'a, 'options, FS>,
+        cache: &ModuleResolutionCache,
     ) -> RResult<PathId>;
 }

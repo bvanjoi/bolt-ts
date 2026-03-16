@@ -181,16 +181,15 @@ fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
         options,
         atoms,
         fs,
-        cache,
         is_config_lookup,
         candidate_is_from_package_json_field: false,
-        resolved_package_directory: false,
+        resolved_package_directory: std::cell::Cell::new(false),
         failed_lookup_locations: vec![],
         affecting_locations: vec![],
         request_containing_directory: containing_directory,
     };
     let resolved = if options.module_resolution == NormalizedModuleResolution::Node10 {
-        try_resolve(module_name, containing_directory, &state, features)
+        try_resolve(module_name, containing_directory, &state, features, cache)
         // TODO:
         // let priority_extensions = ext & Extensions::TypeScript.union(Extensions::Declaration);
         // let secondary_extensions = ext & !Extensions::TypeScript.union(Extensions::Declaration);
@@ -198,7 +197,7 @@ fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
         //     try_resolve(module_name, containing_directory)
         // } else if
     } else {
-        try_resolve(module_name, containing_directory, &state, features)
+        try_resolve(module_name, containing_directory, &state, features, cache)
     };
 
     create_resolved_module_with_failed_lookup_locations_handing_symlink(
@@ -213,6 +212,7 @@ fn try_resolve<'a, 'options, FS: CachedFileSystem>(
     containing_directory: PathId,
     state: &ModuleResolutionState<'a, 'options, FS>,
     features: NodeResolutionFeatures,
+    cache: &ModuleResolutionCache,
 ) -> RResult<SearchResult> {
     let atoms = state.atoms.lock().unwrap();
     debug_assert!(Path::new(atoms.get(containing_directory.into())).is_normalized());
@@ -233,6 +233,7 @@ fn try_resolve<'a, 'options, FS: CachedFileSystem>(
             module_name,
             containing_directory,
             state,
+            cache,
         );
         if ext.contains(Extensions::Declaration) {
             // TODO:
@@ -257,6 +258,7 @@ fn try_resolve<'a, 'options, FS: CachedFileSystem>(
             candidate,
             false,
             state,
+            cache,
         )?;
         let resolved = Resolved { path: ret };
         Ok(SearchResult {

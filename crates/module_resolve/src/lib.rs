@@ -10,6 +10,7 @@ mod package_json;
 mod parse_package_name;
 mod resolution_cache;
 mod resolution_kind_spec_loader;
+mod semver;
 
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::{Extension, Module, NormalizedModuleResolution};
@@ -212,6 +213,7 @@ fn node_load_module_by_relative_name<'a, 'options, FS: CachedFileSystem>(
     mut candidate: PathBuf,
     mut only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
+    cache: &ModuleResolutionCache,
 ) -> RResult<PathId> {
     debug_assert!(candidate.is_normalized());
     let save_len = candidate.as_os_str().len();
@@ -248,7 +250,7 @@ fn node_load_module_by_relative_name<'a, 'options, FS: CachedFileSystem>(
         "The candidate path should not change length when checking for files, but actually changed to {:?}",
         candidate.display(),
     );
-    load_node_module_from_directory(ext, candidate, only_record_failures, true, state)
+    load_node_module_from_directory(ext, candidate, only_record_failures, true, state, cache)
 }
 
 fn load_node_module_from_directory<'a, 'options, FS: CachedFileSystem>(
@@ -257,10 +259,11 @@ fn load_node_module_from_directory<'a, 'options, FS: CachedFileSystem>(
     only_record_failures: bool,
     consider_pkg_json: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
+    cache: &'a ModuleResolutionCache,
 ) -> RResult<PathId> {
     let package_json = if consider_pkg_json {
         let pkg_dir = PathId::get(&candidate, state.atoms.lock().as_mut().unwrap());
-        get_pkg_json_info(pkg_dir, only_record_failures, state)
+        get_pkg_json_info(pkg_dir, only_record_failures, state, cache)
     } else {
         None
     };
@@ -270,6 +273,7 @@ fn load_node_module_from_directory<'a, 'options, FS: CachedFileSystem>(
         only_record_failures,
         state,
         package_json,
+        cache,
     )
 }
 fn is_file<FS: CachedFileSystem>(
@@ -419,6 +423,7 @@ fn load_module_from_nearest_node_modules_directory<'a, 'options, FS: CachedFileS
     module_name: Atom,
     directory: PathId,
     state: &ModuleResolutionState<'a, 'options, FS>,
+    cache: &ModuleResolutionCache,
 ) -> RResult<PathId> {
     load_module_from_nearest_node_modules_directory_worker(
         ext,
@@ -426,6 +431,7 @@ fn load_module_from_nearest_node_modules_directory<'a, 'options, FS: CachedFileS
         directory,
         state,
         false,
+        cache,
     )
 }
 
@@ -435,6 +441,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
     base_dir: PathId,
     state: &ModuleResolutionState<'a, 'options, FS>,
     types_scope_only: bool,
+    cache: &ModuleResolutionCache,
 ) -> RResult<PathId> {
     let mode = if state.features.is_empty() {
         None
@@ -452,6 +459,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
         base_dir_id: PathId,
         module_name_id: Atom,
         types_scope_only: bool,
+        cache: &ModuleResolutionCache,
     ) -> Option<PathId> {
         let base_dir = Path::new(state.atoms.lock().unwrap().get(base_dir_id.into()));
         debug_assert!(base_dir.is_normalized());
@@ -469,6 +477,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
                 base_dir_id,
                 state,
                 types_scope_only,
+                cache,
             ) {
                 return Some(res);
             }
@@ -487,6 +496,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
                 parent_id,
                 module_name_id,
                 types_scope_only,
+                cache,
             )
         } else {
             None
@@ -502,6 +512,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
             base_dir,
             module_name,
             types_scope_only,
+            cache,
         )
     {
         return Ok(ret);
@@ -517,6 +528,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
             base_dir,
             module_name,
             types_scope_only,
+            cache,
         )
     {
         return Ok(ret);
@@ -531,6 +543,7 @@ fn load_module_from_immediate_node_modules_directory<'a, 'options, FS: CachedFil
     dir_id: PathId,
     state: &ModuleResolutionState<'a, 'options, FS>,
     types_scope_only: bool,
+    cache: &'a ModuleResolutionCache,
 ) -> RResult<PathId> {
     let dir = Path::new(state.atoms.lock().unwrap().get(dir_id.into()));
     let node_modules_folder = dir.join(NODE_MODULES_FOLDER);
@@ -553,6 +566,7 @@ fn load_module_from_immediate_node_modules_directory<'a, 'options, FS: CachedFil
             node_modules_folder_id,
             node_module_folder_exists,
             state,
+            cache,
         )
     {
         return Ok(pkg);
@@ -585,6 +599,7 @@ fn get_pkg_json_info<'a, 'options, FS: CachedFileSystem>(
     package_directory: PathId,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
+    cache: &ModuleResolutionCache,
 ) -> Option<PackageJsonPath> {
     let pkg_dir = Path::new(state.atoms.lock().unwrap().get(package_directory.into()));
     debug_assert!(pkg_dir.is_normalized());
@@ -595,7 +610,7 @@ fn get_pkg_json_info<'a, 'options, FS: CachedFileSystem>(
         debug_assert!(!pkg_json_path.exists());
         return None;
     }
-    if let Some(existing) = state.cache.package_json_cache().get(pkg_json_path_id) {
+    if let Some(existing) = cache.package_json_cache().get(pkg_json_path_id) {
         return Some(existing);
     }
 
@@ -614,7 +629,7 @@ fn get_pkg_json_info<'a, 'options, FS: CachedFileSystem>(
             .get(package_json_content);
         let contents: PackageJsonInfoContents = serde_json::from_str(c).unwrap();
         let package_directory = PathId::get(pkg_dir, state.atoms.lock().as_mut().unwrap());
-        let package_json_path = state.cache.package_json_cache().insert_package_json(
+        let package_json_path = cache.package_json_cache().insert_package_json(
             pkg_json_path_id,
             PackageJsonInfo::new(package_directory, contents),
             &state.atoms,
@@ -690,7 +705,6 @@ struct ModuleResolutionState<'a, 'options, FS: CachedFileSystem> {
     options: &'a ResolverOptions<'options>,
     atoms: &'a Arc<Mutex<AtomIntern>>,
     fs: &'a Arc<Mutex<FS>>,
-    cache: &'a ModuleResolutionCache,
     failed_lookup_locations: Vec<PathId>,
     affecting_locations: Vec<PathId>,
     features: NodeResolutionFeatures,
@@ -698,5 +712,5 @@ struct ModuleResolutionState<'a, 'options, FS: CachedFileSystem> {
     request_containing_directory: PathId,
     is_config_lookup: bool,
     candidate_is_from_package_json_field: bool,
-    resolved_package_directory: bool,
+    resolved_package_directory: std::cell::Cell<bool>,
 }
