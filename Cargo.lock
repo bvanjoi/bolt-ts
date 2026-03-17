@@ -416,6 +416,7 @@ dependencies = [
  "bolt_ts_config",
  "bolt_ts_fs",
  "bolt_ts_path",
+ "bolt_ts_semver",
  "bolt_ts_utils",
  "compile-test",
  "dashmap 6.1.0",
@@ -508,6 +509,10 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
 ]
+
+[[package]]
+name = "bolt_ts_semver"
+version = "0.1.0"
 
 [[package]]
 name = "bolt_ts_span"

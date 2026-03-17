@@ -10,7 +10,6 @@ mod package_json;
 mod parse_package_name;
 mod resolution_cache;
 mod resolution_kind_spec_loader;
-mod semver;
 
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_config::{Extension, Module, NormalizedModuleResolution};
@@ -560,7 +559,7 @@ fn load_module_from_immediate_node_modules_directory<'a, 'options, FS: CachedFil
         .dir_exists(&node_modules_folder, state.atoms.lock().as_mut().unwrap());
 
     if !types_scope_only
-        && let Ok(pkg) = load_module_from_spec_node_modules_directory(
+        && let Some(Ok(pkg)) = load_module_from_spec_node_modules_directory(
             ext,
             module_name,
             node_modules_folder_id,
@@ -658,7 +657,7 @@ fn load_module_from_file<'a, 'options, FS: CachedFileSystem>(
 }
 
 fn load_module_from_file_no_implicit_extensions<'a, 'options, FS: CachedFileSystem>(
-    candidate: &mut PathBuf,
+    candidate: &mut std::path::PathBuf,
     ext: Extensions,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,

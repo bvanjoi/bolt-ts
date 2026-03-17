@@ -11,5 +11,5 @@ pub trait ResolutionKindSpecLoader<'a, 'options, FS: bolt_ts_fs::CachedFileSyste
         only_record_failures: bool,
         state: &ModuleResolutionState<'a, 'options, FS>,
         cache: &ModuleResolutionCache,
-    ) -> RResult<PathId>;
+    ) -> Option<RResult<PathId>>;
 }

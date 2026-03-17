@@ -9,6 +9,7 @@ use super::ModuleResolutionCache;
 use super::ModuleResolutionState;
 use super::RResult;
 use super::load_module_from_file;
+use super::load_module_from_file_no_implicit_extensions;
 use super::normalize_join::normalize_join;
 use super::package_json::PackageJsonPath;
 use super::resolution_kind_spec_loader::ResolutionKindSpecLoader;
@@ -27,27 +28,25 @@ impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a
         candidate: &mut std::path::PathBuf,
         only_record_failures: bool,
         state: &ModuleResolutionState<'a, 'options, FS>,
-        cache: &ModuleResolutionCache,
-    ) -> RResult<PathId> {
+        _: &ModuleResolutionCache,
+    ) -> Option<RResult<PathId>> {
         load_filename_from_package_json_field(
             ext,
             candidate,
             self.package_json,
             only_record_failures,
             state,
-            cache,
         )
     }
 }
 
-fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
+pub(super) fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
     ext: Extensions,
-    candidate: &mut std::path::Path,
+    candidate: &mut std::path::PathBuf,
     package_json: Option<PackageJsonPath>,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
-    cache: &'a ModuleResolutionCache,
-) -> RResult<PathId> {
+) -> Option<RResult<PathId>> {
     if ((ext.contains(Extensions::TypeScript)
         && candidate.extension().is_some_and(|e| {
             SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS
@@ -62,16 +61,9 @@ fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
             })))
         && let Ok(result) = try_file(candidate, only_record_failures, state)
     {
-        return Ok(result);
+        return Some(Ok(result));
     }
-    load_node_module_from_directory_worker(
-        ext,
-        candidate,
-        only_record_failures,
-        state,
-        package_json,
-        cache,
-    )
+    load_module_from_file_no_implicit_extensions(candidate, ext, only_record_failures, state)
 }
 
 pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFileSystem>(
@@ -117,7 +109,7 @@ pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFil
             .lock()
             .unwrap()
             .dir_exists(candidate, state.atoms.lock().as_mut().unwrap());
-    if let Some(Ok(package_file_result)) = package_file.map(|mut package_file| {
+    if let Some(Ok(package_file_result)) = package_file.and_then(|mut package_file| {
         let loader = Loader { package_json };
         loader.loader(
             ext,

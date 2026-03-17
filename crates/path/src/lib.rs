@@ -1,4 +1,5 @@
 mod combine_paths;
+mod get_path_components;
 mod get_root_length;
 mod path_is_relative;
 

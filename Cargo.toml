@@ -20,6 +20,7 @@ members = [
   "crates/optimize",
   "crates/parser",
   "crates/path",
+  "crates/semver",
   "crates/tracing",
   "crates/ty",
   "crates/wasm",

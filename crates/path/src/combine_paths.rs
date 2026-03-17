@@ -1,6 +1,7 @@
 use crate::{ensure_trailing_directory_separator, get_root_length};
 
 pub fn combine_paths(path: &str, paths: &[&str]) -> String {
+    // TODO: remove redundant alloc if paths if only one.
     let mut valid_path_index = None;
     for (i, relative_path) in paths.iter().enumerate() {
         if get_root_length(relative_path) != 0 {
