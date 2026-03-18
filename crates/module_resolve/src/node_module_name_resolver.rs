@@ -19,6 +19,7 @@ use super::Resolved;
 use super::ResolverOptions;
 use super::SearchResult;
 use super::create_resolved_module_with_failed_lookup_locations_handing_symlink;
+use super::get_conditions::Conditions;
 use super::get_conditions::get_conditions;
 use super::get_node_resolution_features::get_node_resolution_features;
 use super::load_module_from_nearest_node_modules_directory;
@@ -33,7 +34,7 @@ pub(super) fn node_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
     atoms: &'a Arc<Mutex<AtomIntern>>,
     fs: &'a Arc<Mutex<FS>>,
     cache: &'a ModuleResolutionCache,
-    conditions: Option<Vec<String>>,
+    conditions: Option<Conditions<'options>>,
     is_config_lookup: bool,
 ) -> RResult<PathId> {
     let ext = if is_config_lookup {
@@ -82,7 +83,7 @@ pub(super) fn node_next_module_name_resolver_worker<'a, 'options, FS: CachedFile
     fs: &'a Arc<Mutex<FS>>,
     cache: &'a ModuleResolutionCache,
     resolution_mode: Option<ResolutionMode>,
-    conditions: Option<Vec<String>>,
+    conditions: Option<Conditions<'options>>,
 ) -> RResult<PathId> {
     let esm_mode = if resolution_mode.is_some_and(|mode| mode == ResolutionMode::ESNext) {
         NodeResolutionFeatures::ESM_MODE
@@ -120,7 +121,7 @@ pub(super) fn bundler_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
     atoms: &'a Arc<Mutex<AtomIntern>>,
     fs: &'a Arc<Mutex<FS>>,
     cache: &'a ModuleResolutionCache,
-    conditions: Option<Vec<String>>,
+    conditions: Option<Conditions<'options>>,
 ) -> RResult<PathId> {
     let mut ext = if options.flags.no_dts_resolution() {
         Extensions::ImplementationFiles
@@ -157,7 +158,7 @@ fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
     cache: &'a ModuleResolutionCache,
     ext: Extensions,
     is_config_lookup: bool,
-    conditions: Option<Vec<String>>,
+    conditions: Option<Conditions<'options>>,
 ) -> RResult<PathId> {
     let conditions = match conditions {
         Some(conditions) => conditions,

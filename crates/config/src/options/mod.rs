@@ -51,6 +51,11 @@ pub enum Module {
     NodeNext = 199,
     Preserve = 200,
 }
+impl Module {
+    pub fn is_non_node_esm(self) -> bool {
+        Self::ES2015 <= self && self <= Self::ES2022 || self == Self::ESNext
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Extension {
@@ -106,11 +111,9 @@ impl Extension {
         }
     }
 
-    pub fn extension_of_file_name(filename: &std::ffi::OsStr) -> Extension {
-        let bytes = filename.as_encoded_bytes();
-        debug_assert!(bytes.contains(&b'.'));
+    pub fn extension_of_file_name(filename: &[u8]) -> Extension {
         for extension in &EXTENSIONS_TO_REMOVE {
-            if bytes.ends_with(extension.as_str_with_dot().as_bytes()) {
+            if filename.ends_with(extension.as_str_with_dot().as_bytes()) {
                 return *extension;
             }
         }
@@ -120,6 +123,10 @@ impl Extension {
     pub fn file_extension_is(path: &std::path::Path, extension: Extension) -> bool {
         let bytes = path.as_os_str().as_encoded_bytes();
         bytes.ends_with(extension.as_str_with_dot().as_bytes())
+    }
+
+    pub fn is_one_of(&self, extensions: &[Extension]) -> bool {
+        extensions.contains(self)
     }
 }
 
@@ -190,11 +197,18 @@ pub const FLATTENED_ALL_SUPPORTED_EXTENSIONS: &[Extension] = &[
     Extension::Mjs,
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NormalizedModuleResolution {
     Classic = 1,
     Node10 = 2,
     Node16 = 3,
     NodeNext = 99,
     Bundler = 100,
+}
+
+impl NormalizedModuleResolution {
+    pub fn supports_package_json_exports_and_imports(self) -> bool {
+        (self >= NormalizedModuleResolution::Node16 && self <= NormalizedModuleResolution::NodeNext)
+            || self == NormalizedModuleResolution::Bundler
+    }
 }

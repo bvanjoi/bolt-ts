@@ -14,9 +14,12 @@ fn build_fs(atoms: &mut bolt_ts_atom::AtomIntern) -> bolt_ts_fs::LocalFS {
 fn build_and_resolve(
     file: &std::path::Path,
     target: &str,
-    module_resolution: bolt_ts_config::NormalizedModuleResolution,
+    options: &bolt_ts_config::NormalizedCompilerOptions,
 ) -> Result<String, ResolveError> {
-    use bolt_ts_module_resolve::ContainingFile;
+    use bolt_ts_config::Extension;
+    use bolt_ts_module_resolve::{ContainingFile, get_resolution_mode_for_usage_location};
+
+    let file_ext = Extension::extension_of_file_name(file.as_os_str().as_encoded_bytes());
 
     let mut atoms = bolt_ts_atom::AtomIntern::prefill(&[]);
     let fs = build_fs(&mut atoms);
@@ -28,14 +31,22 @@ fn build_and_resolve(
 
     let atoms = Arc::new(Mutex::new(atoms));
     let containing_file = ContainingFile::new(base_dir);
+    let resolution_mode = get_resolution_mode_for_usage_location(file_ext, Some(&options));
     let options = bolt_ts_module_resolve::ResolverOptions {
-        module_resolution,
-        custom_conditions: &[],
+        module_resolution: *options.module_resolution(),
+        custom_conditions: options.custom_conditions(),
         flags: ResolveFlags::empty(),
     };
     let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
-    let ret =
-        Resolver::resolve_module_name(target, containing_file, options, &cache, &atoms, &fs, None)?;
+    let ret = Resolver::resolve_module_name(
+        target,
+        containing_file,
+        options,
+        &cache,
+        &atoms,
+        &fs,
+        resolution_mode,
+    )?;
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
     Ok(atoms.get(ret.into()).to_string())
@@ -48,11 +59,11 @@ fn should_eq_worker(
     from: &std::path::Path,
     target: &str,
     expected: std::path::PathBuf,
-    module_resolution: bolt_ts_config::NormalizedModuleResolution,
+    options: &bolt_ts_config::NormalizedCompilerOptions,
 ) {
     use bolt_ts_utils::path::NormalizePath;
 
-    let ret = build_and_resolve(&from, target, module_resolution).unwrap();
+    let ret = build_and_resolve(&from, target, options).unwrap();
     assert!(std::path::PathBuf::from(&ret).is_normalized());
     let expected = expected.normalize();
     assert_eq!(ret, expected.to_string_lossy());
@@ -61,18 +72,27 @@ fn should_eq_worker(
 #[cfg(test)]
 #[allow(dead_code)]
 pub fn should_eq(from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
-    let m = bolt_ts_config::NormalizedModuleResolution::Node16;
-    should_eq_worker(from, target, expected, m);
+    let options = serde_json::json!({
+        "compilerOptions": {
+            "moduleResolution": "node16"
+        }
+    });
+    let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
+    let options = options.normalize();
+    should_eq_worker(from, target, expected, &options);
 }
 
 #[cfg(test)]
 #[allow(dead_code)]
 pub fn should_not_found(from: &std::path::Path, target: &str) {
-    let res = build_and_resolve(
-        from,
-        target,
-        bolt_ts_config::NormalizedModuleResolution::Node16,
-    );
+    let options = serde_json::json!({
+        "compilerOptions": {
+            "moduleResolution": "node16"
+        }
+    });
+    let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
+    let options = options.normalize();
+    let res = build_and_resolve(from, target, &options);
     assert!(matches!(res, Err(ResolveError::NotFound(_))))
 }
 
@@ -98,8 +118,9 @@ impl Project {
 
     #[cfg(test)]
     #[allow(dead_code)]
+    #[track_caller]
     pub fn should_eq(&self, from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
-        let module_resolution = *self.tsconfig.compiler_options().module_resolution();
-        should_eq_worker(from, target, expected, module_resolution);
+        let options = self.tsconfig.compiler_options();
+        should_eq_worker(from, target, expected, options);
     }
 }

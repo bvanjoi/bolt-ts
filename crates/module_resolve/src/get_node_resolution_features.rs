@@ -18,7 +18,10 @@ pub(super) fn get_node_resolution_features(options: &ResolverOptions) -> NodeRes
         _ => {}
     }
 
-    // match options.flags.resolve_package_json_exports() {
+    // match options
+    //     .flags
+    //     .contains(ResolveFlags::RESOLVE_PACKAGE_JSON_EXPORTS)
+    // {
     //     true => {
     //         flags |= NodeResolutionFeatures::EXPORTS;
     //     }
@@ -27,7 +30,10 @@ pub(super) fn get_node_resolution_features(options: &ResolverOptions) -> NodeRes
     //     }
     // }
 
-    // match options.flags.resolve_package_json_imports() {
+    // match options
+    //     .flags
+    //     .contains(ResolveFlags::RESOLVE_PACKAGE_JSON_IMPORTS)
+    // {
     //     true => {
     //         flags |= NodeResolutionFeatures::IMPORTS;
     //     }

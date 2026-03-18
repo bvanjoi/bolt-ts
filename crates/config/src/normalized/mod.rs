@@ -41,7 +41,10 @@ bitflags::bitflags! {
         const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 16;
         const PRESERVE_SYMLINKS                         = 1 << 17;
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 18;
+
         const RESOLVE_JSON_MODULE                       = 1 << 19;
+        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 20;
+        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 21;
     }
 }
 
@@ -177,6 +180,26 @@ impl NormalizedCompilerOptions {
         self.flags
             .contains(CompilerOptionFlags::RESOLVE_JSON_MODULE)
     }
+
+    #[inline(always)]
+    pub const fn resolve_package_json_exports(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::RESOLVE_PACKAGE_JSON_EXPORTS)
+    }
+
+    #[inline(always)]
+    pub const fn resolve_package_json_imports(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::RESOLVE_PACKAGE_JSON_IMPORTS)
+    }
+
+    pub fn import_syntax_affects_module_resolution(&self) -> bool {
+        let module_resolution = self.module_resolution();
+        (NormalizedModuleResolution::Node16 <= *module_resolution
+            && *module_resolution <= NormalizedModuleResolution::NodeNext)
+            || self.resolve_package_json_exports()
+            || self.resolve_package_json_imports()
+    }
 }
 
 pub(super) fn get_target(target: Option<RawTarget>) -> Target {
@@ -273,6 +296,42 @@ pub(super) fn get_resolve_json_module(
         true
     } else {
         module_resolution == NormalizedModuleResolution::Bundler
+    }
+}
+
+pub(super) fn get_resolve_package_json_exports(
+    resolve_package_json_exports: Option<bool>,
+    module_resolution: NormalizedModuleResolution,
+) -> bool {
+    if !module_resolution.supports_package_json_exports_and_imports() {
+        return false;
+    }
+    if let Some(custom) = resolve_package_json_exports {
+        return custom;
+    }
+    match module_resolution {
+        NormalizedModuleResolution::Node16
+        | NormalizedModuleResolution::NodeNext
+        | NormalizedModuleResolution::Bundler => true,
+        _ => false,
+    }
+}
+
+pub(super) fn get_resolve_package_json_imports(
+    resolve_package_json_imports: Option<bool>,
+    module_resolution: NormalizedModuleResolution,
+) -> bool {
+    if !module_resolution.supports_package_json_exports_and_imports() {
+        return false;
+    }
+    if let Some(custom) = resolve_package_json_imports {
+        return custom;
+    }
+    match module_resolution {
+        NormalizedModuleResolution::Node16
+        | NormalizedModuleResolution::NodeNext
+        | NormalizedModuleResolution::Bundler => true,
+        _ => false,
     }
 }
 

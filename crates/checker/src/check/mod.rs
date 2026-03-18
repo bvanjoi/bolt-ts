@@ -5070,6 +5070,9 @@ impl<'cx> TyChecker<'cx> {
                         d.is_not_overload() && d.is_not_accessor() && !d.is_interface_decl()
                     })
                     .count();
+                if s.flags.contains(SymbolFlags::TYPE_ALIAS) && exported_declarations_count <= 2 {
+                    return None;
+                }
                 if exported_declarations_count <= 1 {
                     return None;
                 }

@@ -1,7 +1,10 @@
+use crate::normalized::get_resolve_package_json_imports;
+
 use super::OutDir;
 use super::normalized::get_module;
 use super::normalized::get_module_resolution;
 use super::normalized::get_resolve_json_module;
+use super::normalized::get_resolve_package_json_exports;
 use super::normalized::get_target;
 
 macro_rules! with_option {
@@ -60,6 +63,8 @@ with_option!(
     (no_unused_locals, bool),
     (no_unused_parameters, bool),
     (resolve_json_module, bool),
+    (resolve_package_json_exports, bool),
+    (resolve_package_json_imports, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -147,6 +152,14 @@ impl RawCompilerOptions {
 
         if get_resolve_json_module(self.resolve_json_module, module, module_resolution) {
             flags.insert(super::CompilerOptionFlags::RESOLVE_JSON_MODULE);
+        }
+
+        if get_resolve_package_json_exports(self.resolve_package_json_exports, module_resolution) {
+            flags.insert(super::CompilerOptionFlags::RESOLVE_PACKAGE_JSON_EXPORTS);
+        }
+
+        if get_resolve_package_json_imports(self.resolve_package_json_imports, module_resolution) {
+            flags.insert(super::CompilerOptionFlags::RESOLVE_PACKAGE_JSON_IMPORTS);
         }
 
         super::NormalizedCompilerOptions {

@@ -81,10 +81,24 @@ pub struct ParseResult<'cx> {
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
-    pub imports: Vec<&'cx ast::StringLit>,
+    pub imports: Vec<ImportInfo<'cx>>,
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     lib_reference_directives: Vec<FileReference>,
+}
+
+pub enum ImportKind {
+    Import,
+    ImportTypeOnly,
+    Export,
+    ExportTypeOnly,
+    // TODO: JSDoc
+    // TODO: require, ImportCall
+    // TODO: ImportEquals
+}
+pub struct ImportInfo<'cx> {
+    pub module_name: &'cx ast::StringLit,
+    // pub kind: ImportKind,
 }
 
 pub struct ParseResultForGraph<'cx> {
@@ -98,7 +112,7 @@ pub struct ParseResultForGraph<'cx> {
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
-    pub imports: Vec<&'cx ast::StringLit>,
+    pub imports: Vec<ImportInfo<'cx>>,
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     pub lib_references: Vec<PathBuf>,
@@ -294,7 +308,7 @@ fn collect_deps<'cx>(
     is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
     atoms: Arc<Mutex<AtomIntern>>,
-) -> CollectDepsResult<'cx> {
+) -> CollectDepsResult {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
         is_declaration,
@@ -318,13 +332,13 @@ struct CollectDepsVisitor<'cx> {
     is_external_module_file: bool,
     atoms: Arc<Mutex<AtomIntern>>,
 
-    imports: Vec<&'cx ast::StringLit>,
+    imports: Vec<ImportInfo<'cx>>,
     module_augmentations: Vec<ast::NodeID>,
     ambient_modules: Vec<Atom>,
 }
 
 struct CollectDepsResult<'cx> {
-    imports: Vec<&'cx ast::StringLit>,
+    imports: Vec<ImportInfo<'cx>>,
     module_augmentations: Vec<ast::NodeID>,
     ambient_modules: Vec<Atom>,
 }
@@ -339,7 +353,7 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
                 if n.is_ambient()
                     && (self.in_ambient_module
                         || n.modifiers
-                            .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Ambient))
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
                         || self.is_declaration)
                 {
                     let name = match n.name {
@@ -376,12 +390,15 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
             _ => return,
         };
         if let Some(module_name) = module_name
-            && (!self.in_ambient_module
-                || !bolt_ts_path::is_external_module_relative(
+            && !(self.in_ambient_module
+                && bolt_ts_path::is_external_module_relative(
                     self.atoms.lock().unwrap().get(module_name.val),
                 ))
         {
-            self.imports.push(module_name);
+            self.imports.push(ImportInfo {
+                module_name: module_name,
+                // kind: todo!(),
+            });
         }
         // TODO: use_uri_style_node_core_modules
     }

@@ -30,20 +30,14 @@ impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a
         state: &ModuleResolutionState<'a, 'options, FS>,
         _: &ModuleResolutionCache,
     ) -> Option<RResult<PathId>> {
-        load_filename_from_package_json_field(
-            ext,
-            candidate,
-            self.package_json,
-            only_record_failures,
-            state,
-        )
+        load_filename_from_package_json_field(ext, candidate, None, only_record_failures, state)
     }
 }
 
 pub(super) fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
     ext: Extensions,
     candidate: &mut std::path::PathBuf,
-    package_json: Option<PackageJsonPath>,
+    package_json_value: Option<&str>,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
 ) -> Option<RResult<PathId>> {

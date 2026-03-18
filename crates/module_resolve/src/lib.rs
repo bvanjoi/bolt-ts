@@ -12,7 +12,7 @@ mod resolution_cache;
 mod resolution_kind_spec_loader;
 
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_config::{Extension, Module, NormalizedModuleResolution};
+use bolt_ts_config::{Extension, Module, NormalizedCompilerOptions, NormalizedModuleResolution};
 use bolt_ts_fs::{CachedFileSystem, PathId};
 use bolt_ts_path::is_external_module_relative;
 use bolt_ts_utils::path::{NormalizePath, path_as_str};
@@ -22,6 +22,7 @@ use std::sync::{Arc, Mutex};
 pub use self::errors::ResolveError;
 use self::from_dir::load_node_module_from_directory_worker;
 use self::from_spec_node_modules_dir::load_module_from_spec_node_modules_directory;
+use self::get_conditions::Conditions;
 use self::get_conditions::get_conditions;
 use self::node_module_name_resolver::bundler_module_name_resolver;
 use self::node_module_name_resolver::node_module_name_resolver;
@@ -56,6 +57,8 @@ bitflags::bitflags! {
         const PRESERVE_SYMLINKS     = 1 << 0;
         const NO_DTS_RESOLUTION     = 1 << 1;
         const RESOLVE_JSON_MODULE   = 1 << 2;
+        const RESOLVE_PACKAGE_JSON_EXPORTS = 1 << 3;
+        const RESOLVE_PACKAGE_JSON_IMPORTS = 1 << 4;
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -336,7 +339,31 @@ fn try_adding_extension<'a, 'options, FS: CachedFileSystem>(
         result
     }
 
+    if !only_record_failures {
+        // TODO:
+    }
+
     match origin_extension {
+        "cjs" | "cts" | "d.cts" => {
+            if ext.contains(Extensions::TypeScript)
+                && let Ok(p) = try_extension(candidate, Extension::Cts, only_record_failures, state)
+            {
+                return Ok(p);
+            } else if ext.contains(Extensions::Declaration)
+                && let Ok(p) =
+                    try_extension(candidate, Extension::Dcts, only_record_failures, state)
+            {
+                return Ok(p);
+            } else if ext.contains(Extensions::JavaScript)
+                && let Ok(p) = try_extension(candidate, Extension::Cjs, only_record_failures, state)
+            {
+                return Ok(p);
+            }
+            Err(ResolveError::NotFound(PathId::get(
+                candidate,
+                state.atoms.lock().as_mut().unwrap(),
+            )))
+        }
         "ts" | "d.ts" | "js" | "" => {
             let resolved_using_ts_ext = matches!(origin_extension, "ts" | "d.ts");
             if ext.contains(Extensions::TypeScript)
@@ -481,7 +508,6 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
                 return Some(res);
             }
         }
-        let base_dir = Path::new(state.atoms.lock().unwrap().get(base_dir_id.into()));
         if let Some(parent) = base_dir.parent() {
             debug_assert!(parent.is_normalized());
             let parent_id = PathId::get(parent, state.atoms.lock().as_mut().unwrap());
@@ -667,7 +693,7 @@ fn load_module_from_file_no_implicit_extensions<'a, 'options, FS: CachedFileSyst
     if !filename.as_encoded_bytes().contains(&b'.') {
         return None;
     }
-    let candidate_ext = Extension::extension_of_file_name(filename);
+    let candidate_ext = Extension::extension_of_file_name(filename.as_encoded_bytes());
     debug_assert!(Extension::file_extension_is(candidate, candidate_ext));
     let save_len = candidate.as_os_str().len();
     remove_extension(candidate, candidate_ext);
@@ -707,9 +733,63 @@ struct ModuleResolutionState<'a, 'options, FS: CachedFileSystem> {
     failed_lookup_locations: Vec<PathId>,
     affecting_locations: Vec<PathId>,
     features: NodeResolutionFeatures,
-    conditions: Vec<String>,
+    conditions: Conditions<'a>,
     request_containing_directory: PathId,
     is_config_lookup: bool,
     candidate_is_from_package_json_field: bool,
     resolved_package_directory: std::cell::Cell<bool>,
+}
+
+pub fn get_resolution_mode_for_usage_location(
+    file_ext: Extension,
+    options: Option<&NormalizedCompilerOptions>,
+) -> Option<ResolutionMode> {
+    if let Some(options) = options
+        && options.import_syntax_affects_module_resolution()
+    {
+        get_emit_syntax_for_usage_location_worker(file_ext, options)
+    } else {
+        None
+    }
+}
+
+fn get_emit_syntax_for_usage_location_worker(
+    file_ext: Extension,
+    options: &NormalizedCompilerOptions,
+) -> Option<ResolutionMode> {
+    let mode = get_emit_module_format_of_file(file_ext, options);
+    if mode == bolt_ts_config::Module::CommonJS {
+        Some(ResolutionMode::CommonJS)
+    } else if mode == bolt_ts_config::Module::Preserve || mode.is_non_node_esm() {
+        Some(ResolutionMode::ESNext)
+    } else {
+        None
+    }
+}
+
+fn get_emit_module_format_of_file(
+    file_ext: Extension,
+    options: &NormalizedCompilerOptions,
+) -> bolt_ts_config::Module {
+    get_implied_node_format_for_emit(file_ext, options).unwrap_or(*options.module())
+}
+
+fn get_implied_node_format_for_emit(
+    file_ext: Extension,
+    options: &NormalizedCompilerOptions,
+) -> Option<bolt_ts_config::Module> {
+    let module_kind = *options.module();
+    if bolt_ts_config::Module::Node16 <= module_kind
+        && module_kind <= bolt_ts_config::Module::NodeNext
+    {
+        // TODO: implied_node_format
+        todo!()
+    }
+    // TODO: package_json
+    if file_ext.is_one_of(&[Extension::Cjs, Extension::Cts]) {
+        return Some(bolt_ts_config::Module::CommonJS);
+    } else if file_ext.is_one_of(&[Extension::Mjs, Extension::Mts]) {
+        return Some(bolt_ts_config::Module::ESNext);
+    }
+    None
 }

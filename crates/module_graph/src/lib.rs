@@ -1,11 +1,12 @@
 mod errors;
 
-use bolt_ts_ast::{self as ast};
+use bolt_ts_ast::{self as ast, ModuleName};
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_config::{Extension, NormalizedCompilerOptions};
 use bolt_ts_fs::PathId;
-use bolt_ts_module_resolve::ResolveFlags;
-use bolt_ts_module_resolve::{RResult, ResolveError};
-use bolt_ts_parser::ParsedMap;
+use bolt_ts_module_resolve::{RResult, ResolveError, get_resolution_mode_for_usage_location};
+use bolt_ts_module_resolve::{ResolutionMode, ResolveFlags};
+use bolt_ts_parser::{ImportInfo, ParsedMap};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
@@ -75,6 +76,12 @@ pub fn build_graph<'cx>(
     if options.compiler_options().resolve_json_module() {
         flags.insert(ResolveFlags::RESOLVE_JSON_MODULE);
     }
+    if options.compiler_options().resolve_package_json_exports() {
+        flags.insert(ResolveFlags::RESOLVE_PACKAGE_JSON_EXPORTS);
+    }
+    if options.compiler_options().resolve_package_json_imports() {
+        flags.insert(ResolveFlags::RESOLVE_PACKAGE_JSON_IMPORTS);
+    }
 
     let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
 
@@ -102,6 +109,8 @@ pub fn build_graph<'cx>(
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);
             debug_assert!(file_path.is_normalized());
+            let file_ext =
+                Extension::extension_of_file_name(file_path.as_os_str().as_encoded_bytes());
             let base_dir = file_path.parent().unwrap();
             debug_assert!(base_dir.is_normalized());
             let base_dir = PathId::get(base_dir, atoms.lock().as_mut().unwrap());
@@ -110,14 +119,18 @@ pub fn build_graph<'cx>(
             let mut group =
                 fx_hashmap_with_capacity::<Atom, Vec<&'cx ast::Lit<Atom>>>(imports.len() / 2);
             for item in imports {
-                let entry = group.entry(item.val);
-                entry.or_insert_with(Vec::new).push(item);
+                // TODO: the key should not only depend on the module name, but also the resolution mode
+                let entry = group.entry(item.module_name.val);
+                entry.or_insert_with(Vec::new).push(item.module_name);
             }
+            let resolution_mode =
+                get_resolution_mode_for_usage_location(file_ext, Some(options.compiler_options()));
             let module_resolution = *options.compiler_options().module_resolution();
             let deps: Vec<(ast::NodeID, Result<PathId, ResolveError>)> = group
                 .into_par_iter()
                 .flat_map(|(atom, lits)| {
                     let containing_file = bolt_ts_module_resolve::ContainingFile::new(base_dir);
+
                     let options = bolt_ts_module_resolve::ResolverOptions {
                         module_resolution,
                         custom_conditions: options.compiler_options().custom_conditions(),
@@ -130,7 +143,7 @@ pub fn build_graph<'cx>(
                         &cache,
                         &atoms,
                         &fs,
-                        None,
+                        resolution_mode,
                     );
                     lits.iter().map(|item| (item.id, res)).collect::<Vec<_>>()
                 })
