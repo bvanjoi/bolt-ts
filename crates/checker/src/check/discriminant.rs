@@ -21,7 +21,15 @@ impl<'cx> TyChecker<'cx> {
             || n.is_object_method_member()
         {
             if let ast::ExprKind::Ident(n) = expr.kind {
-                // TODO:
+                let symbol = self.final_res(n.id);
+                let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+                if let Some(declaration) = self.symbol(symbol).value_decl
+                    && self.parent(declaration) == Some(refer)
+                {
+                    // TODO: !declaration.init()
+                    // TODO: !declaration.dot_dot_dot_token
+                    // TODO: return Some(declaration);
+                }
             }
         } else if let ast::ExprKind::PropAccess(ast::PropAccessExpr { expr: target, .. })
         | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr: target, .. }) = expr.kind

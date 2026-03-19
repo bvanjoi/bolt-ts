@@ -307,6 +307,7 @@ dependencies = [
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_binder",
+ "bolt_ts_config",
  "bolt_ts_errors",
  "bolt_ts_middle",
  "bolt_ts_parser",

@@ -2507,6 +2507,80 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_narrowed_ty_of_symbol(
+        &mut self,
+        symbol: SymbolID,
+        location: &'cx ast::Ident,
+    ) -> &'cx ty::Ty<'cx> {
+        let ty = self.get_type_of_symbol(symbol);
+        if let Some(declaration) = self.symbol(symbol).value_decl {
+            let use_declaration = match self.p.node(declaration) {
+                ast::Node::ObjectBindingElem(n) if n.init.is_none() && n.dotdotdot.is_none() => {
+                    let parent = self.parent(declaration).unwrap();
+                    if self.p.node(parent).expect_object_pat().elems.len() >= 2 {
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+            if use_declaration {
+                let root_declaration = self
+                    .node_query(declaration.module())
+                    .get_root_decl(declaration);
+                let root_node = self.p.node(root_declaration);
+                if ((root_node.is_var_decl()
+                    && self
+                        .node_query(root_declaration.module())
+                        .get_combined_node_flags(root_declaration)
+                        .intersects(ast::NodeFlags::CONSTANT))
+                    || root_node.is_param_decl())
+                    && let flags = self.get_node_links(declaration).flags()
+                    && !flags.contains(NodeCheckFlags::IN_CHECK_IDENTIFIER)
+                {
+                    self.get_mut_node_links(declaration)
+                        .override_flags(flags | NodeCheckFlags::IN_CHECK_IDENTIFIER);
+                    let parent = self.parent(declaration).unwrap();
+                    let parent_ty = match self.p.node(declaration) {
+                        ast::Node::ObjectBindingElem(n) => {
+                            let object_pat = self.p.node(parent).expect_object_pat();
+                            self.get_ty_for_object_binding_elem(n, object_pat)
+                        }
+                        _ => unreachable!(),
+                    };
+                    let parent_ty_constraint = parent_ty.map(|ty| {
+                        self.map_ty(
+                            ty,
+                            |this, ty| Some(this.get_base_constraint_or_ty(ty)),
+                            false,
+                        )
+                        .unwrap()
+                    });
+                    self.get_mut_node_links(declaration).override_flags(flags);
+                    if let Some(parent_ty_constraint) = parent_ty_constraint
+                        && parent_ty_constraint.flags.contains(TypeFlags::UNION)
+                    {
+                        // TODO: !(root_node.is_param_decl() && is_some_symbol_assigned)
+                        let flow_node = self.get_flow_node_of_node(location.id);
+                        let narrow_ty = self.get_flow_ty_of_reference(
+                            parent,
+                            parent_ty_constraint,
+                            Some(parent_ty_constraint),
+                            None,
+                            flow_node,
+                        );
+                        if narrow_ty.flags.contains(TypeFlags::NEVER) {
+                            return self.never_ty;
+                        }
+                        // TODO:
+                    }
+                }
+            }
+        }
+        ty
+    }
+
     fn check_ident(&mut self, ident: &'cx ast::Ident) -> &'cx ty::Ty<'cx> {
         match ident.name {
             keyword::KW_UNDEFINED => return self.undefined_widening_ty,
@@ -2535,7 +2609,7 @@ impl<'cx> TyChecker<'cx> {
             self.check_resolved_block_scoped_var(ident, local_or_export_symbol);
         }
 
-        let ty = self.get_type_of_symbol(local_or_export_symbol);
+        let ty = self.get_narrowed_ty_of_symbol(local_or_export_symbol, ident);
         let assignment_kind = self
             .node_query(ident.id.module())
             .get_assignment_target_kind(ident.id);
@@ -5988,7 +6062,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_switch_clause_tys(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> ty::Tys<'cx> {
+    pub(super) fn get_switch_clause_tys(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> ty::Tys<'cx> {
         if let Some(tys) = self.get_node_links(n.id).get_switch_tys() {
             return tys;
         }

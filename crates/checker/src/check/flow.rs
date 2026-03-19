@@ -1,7 +1,6 @@
 use std::cell::OnceCell;
 
-use crate::check::ContextFlags;
-
+use super::ContextFlags;
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
@@ -214,6 +213,16 @@ impl<'cx> TyChecker<'cx> {
                     flow_container,
                     key,
                 );
+            } else if flags.contains(FlowFlags::SWITCH_CLAUSE) {
+                ty = self.get_ty_at_flow_switch_clause(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
             } else if flags.contains(FlowFlags::START) {
                 let FlowNodeKind::Start(start) = &n.kind else {
                     unreachable!()
@@ -270,6 +279,127 @@ impl<'cx> TyChecker<'cx> {
                 self.shared_flow_info.push((shared_flow, ty));
             }
             return ty;
+        }
+    }
+
+    fn get_ty_at_flow_switch_clause(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let FlowNodeKind::Switch(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let expr = ast::Expr::skip_parens(n.node.expr);
+        let flow_ty = self.get_ty_at_flow_node(
+            n.antecedent,
+            refer,
+            shared_flow_start,
+            declared_ty,
+            init_ty,
+            flow_container,
+            key,
+        );
+        let mut ty = self.get_ty_from_flow_ty(flow_ty);
+        if self.is_matching_reference(refer, expr.id()) {
+            // TODO:
+        } else if let ast::ExprKind::Typeof(expr) = expr.kind
+            && self.is_matching_reference(refer, expr.expr.id())
+        {
+            // TODO:
+        } else if let ast::ExprKind::BoolLit(lit) = expr.kind
+            && lit.val
+        {
+            // TODO:
+        } else {
+            if self.config.strict_null_checks() {
+                // TODO:
+            }
+            if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty) {
+                ty = self.narrow_ty_by_switch_on_discriminant_prop(ty, access, flow)
+            }
+        }
+        self.create_flow_ty(ty, flow_ty.is_incomplete())
+    }
+
+    fn narrow_ty_by_switch_on_discriminant_prop(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        access: &'cx ast::Expr<'cx>,
+        flow: FlowID,
+    ) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Switch(_) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        self.narrow_ty_by_discriminant(access, ty, |this, t| {
+            this.narrow_ty_by_switch_discriminant(t, flow)
+        })
+    }
+
+    fn narrow_ty_by_switch_discriminant(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        flow: FlowID,
+    ) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Switch(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let clause_start = n.clause_start;
+        let clause_end = n.clause_end;
+        let switch_tys = self.get_switch_clause_tys(n.node);
+        if switch_tys.is_empty() {
+            return ty;
+        }
+        let clause_tys = &switch_tys[clause_start as usize..=clause_end as usize];
+        let has_default_clause = clause_start == clause_end || clause_tys.contains(&self.never_ty);
+        if ty.flags.contains(TypeFlags::UNKNOWN) && !has_default_clause {
+            // TODO:
+        }
+        let discriminant_ty =
+            self.get_union_ty::<false>(clause_tys, ty::UnionReduction::Lit, None, None, None);
+        let case_ty = if discriminant_ty.flags.contains(TypeFlags::NEVER) {
+            self.never_ty
+        } else {
+            // TODO:
+            let t = self.filter_type(ty, |this, t| this.are_types_comparable(discriminant_ty, t));
+            self.replace_primitives_with_literals(t, discriminant_ty)
+        };
+        if !has_default_clause {
+            case_ty
+        } else {
+            let default_ty = self.filter_type(ty, |this, t| {
+                !(this.is_unit_like_ty(t)
+                    && switch_tys.iter().any(|t1| {
+                        if !t1.is_unit() {
+                            return false;
+                        }
+                        let t2 = if t1.flags.contains(TypeFlags::UNDEFINED) {
+                            this.undefined_ty
+                        } else {
+                            let t = this.extract_unit_ty(t1);
+                            this.get_regular_ty_of_literal_ty(t)
+                        };
+                        this.are_types_comparable(t1, t2)
+                    }))
+            });
+            if case_ty.flags.contains(TypeFlags::NEVER) {
+                default_ty
+            } else if default_ty.flags.contains(TypeFlags::NEVER) {
+                case_ty
+            } else {
+                self.get_union_ty::<false>(
+                    &[case_ty, default_ty],
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                )
+            }
         }
     }
 

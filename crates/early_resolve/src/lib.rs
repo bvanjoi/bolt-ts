@@ -4,6 +4,7 @@ mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
+use bolt_ts_config::Target;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -31,12 +32,12 @@ pub fn early_resolve_parallel<'cx>(
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
     emit_standard_class_fields: bool,
+    options: &'cx bolt_ts_config::NormalizedCompilerOptions,
 ) -> Vec<EarlyResolveResult> {
     modules
         .into_par_iter()
         .map(|m| {
             let module_id = m.id();
-            let is_default_lib = m.is_default_lib();
             let root = p.root(module_id);
             let result = early_resolve(
                 states,
@@ -47,8 +48,9 @@ pub fn early_resolve_parallel<'cx>(
                 merged,
                 atoms,
                 emit_standard_class_fields,
+                options,
             );
-            assert!(!is_default_lib || result.diags.is_empty());
+            assert!(!m.is_default_lib() || result.diags.is_empty());
             result
         })
         .collect()
@@ -63,6 +65,7 @@ fn early_resolve<'cx>(
     merged: &'cx MergedSymbols,
     atoms: &'cx bolt_ts_atom::AtomIntern,
     emit_standard_class_fields: bool,
+    options: &'cx bolt_ts_config::NormalizedCompilerOptions,
 ) -> EarlyResolveResult {
     let final_res = fx_hashmap_with_capacity(states[module_id.as_usize()].final_res.len());
     let mut resolver = Resolver {
@@ -75,6 +78,7 @@ fn early_resolve<'cx>(
         merged,
         atoms,
         emit_standard_class_fields,
+        options,
     };
     resolver.resolve_program(root);
     let diags = std::mem::take(&mut resolver.diags);
@@ -96,6 +100,7 @@ pub struct Resolver<'cx, 'r, 'atoms> {
     merged: &'cx MergedSymbols,
     atoms: &'atoms bolt_ts_atom::AtomIntern,
     emit_standard_class_fields: bool,
+    options: &'cx bolt_ts_config::NormalizedCompilerOptions,
 }
 
 impl<'cx> Resolver<'cx, '_, '_> {
@@ -1402,6 +1407,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     }
                 }
             }
+            ArrowFnExpr(_) if *resolver.options.target() >= Target::ES2015 => {}
             ArrowFnExpr(_) | ClassMethodElem(_) | ClassCtor(_) | GetterDecl(_) | SetterDecl(_)
             | FnDecl(_) => {
                 if meaning.intersects(SymbolFlags::VARIABLE)

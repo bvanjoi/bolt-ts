@@ -91,6 +91,9 @@ impl<'cx> TyChecker<'cx> {
                             }
                         }
                     }
+                    for stmt in n.stmts {
+                        self.check_stmt(stmt);
+                    }
                 }
             }
         }

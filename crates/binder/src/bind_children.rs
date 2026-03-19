@@ -1322,6 +1322,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_case_block(&mut self, n: &'cx ast::CaseBlock<'cx>) {
+        let p = self.parent_map.parent(n.id).unwrap();
+        let p = self.p.node(p).expect_switch_stmt();
+        let is_narrowing_switch = matches!(p.expr.kind, ast::ExprKind::BoolLit(lit) if lit.val)
+            || self.is_narrowable_expression(p.expr);
         let mut fallthrough_flow = self.unreachable_flow_node;
 
         for i in 0..n.clauses.len() {
@@ -1330,8 +1334,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             // TODO:
             // }
             let prev_case_label = self.flow_nodes.create_branch_label();
-            self.flow_nodes
-                .add_antecedent(prev_case_label, self.pre_switch_case_flow.unwrap());
+            let antecedent = if is_narrowing_switch {
+                self.create_flow_switch_clause(
+                    self.pre_switch_case_flow.unwrap(),
+                    p,
+                    clause_start as u8,
+                    (i + 1) as u8,
+                )
+            } else {
+                self.pre_switch_case_flow.unwrap()
+            };
+            self.flow_nodes.add_antecedent(prev_case_label, antecedent);
             self.flow_nodes
                 .add_antecedent(prev_case_label, fallthrough_flow);
             self.current_flow = Some(self.finish_flow_label(prev_case_label));

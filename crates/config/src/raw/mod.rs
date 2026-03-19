@@ -1,10 +1,9 @@
-use crate::normalized::get_resolve_package_json_imports;
-
 use super::OutDir;
 use super::normalized::get_module;
 use super::normalized::get_module_resolution;
 use super::normalized::get_resolve_json_module;
 use super::normalized::get_resolve_package_json_exports;
+use super::normalized::get_resolve_package_json_imports;
 use super::normalized::get_target;
 
 macro_rules! with_option {

@@ -229,7 +229,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
     ) -> FlowID {
         self.flow_nodes.set_flow_node_referenced(antecedent);
         let node = FlowNode {
-            flags: FlowFlags::ASSIGNMENT,
+            flags: FlowFlags::SWITCH_CLAUSE,
             kind: FlowNodeKind::Switch(FlowSwitchClause {
                 node,
                 clause_start,

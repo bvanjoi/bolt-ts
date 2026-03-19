@@ -366,7 +366,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn get_ty_for_object_binding_elem(
+    pub(super) fn get_ty_for_object_binding_elem(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,

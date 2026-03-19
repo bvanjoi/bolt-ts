@@ -397,6 +397,7 @@ pub fn eval_with_fs(
         &merged_symbols,
         &atoms,
         emit_standard_class_fields,
+        options,
     );
 
     let states = module_arena

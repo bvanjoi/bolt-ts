@@ -910,4 +910,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             _ => false,
         }
     }
+
+    pub(super) fn is_narrowable_expression(&self, expr: &ast::Expr<'_>) -> bool {
+        use ast::ExprKind::*;
+        match expr.kind {
+            Ident(_) | This(_) | Super(_) => true,
+            // TODo:
+            _ => false,
+        }
+    }
 }
