@@ -193,7 +193,7 @@ impl<'cx> TyChecker<'cx> {
         {
             Some(prop_ty)
         } else if let Some(name) = element.name() {
-            let name_ty = self.get_lit_ty_from_prop_name(&name);
+            let name_ty = self.get_literal_ty_from_prop_name(&name);
             self.map_ty(
                 ty,
                 |this, t| {

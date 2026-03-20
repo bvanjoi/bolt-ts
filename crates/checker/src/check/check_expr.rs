@@ -858,6 +858,23 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.any_ty)
     }
 
+    fn report_ty_not_iterable_error(
+        &mut self,
+        error_node: ast::NodeID,
+        ty: &'cx ty::Ty<'cx>,
+        allow_async_iterables: bool,
+    ) {
+        if allow_async_iterables {
+            todo!()
+        } else {
+            let error = errors::TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+                span: self.p.node(error_node).span(),
+                ty: self.print_ty(ty).to_string(),
+            };
+            self.push_error(Box::new(error));
+        };
+    }
+
     fn get_iterated_ty_or_elem_ty(
         &mut self,
         mode: IterationUse,
@@ -866,10 +883,10 @@ impl<'cx> TyChecker<'cx> {
         error_node: Option<ast::NodeID>,
         check_assignability: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let allow_async_iterables = mode.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
+        let allow_async_iterables = mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_ty == self.never_ty {
             if let Some(error_node) = error_node {
-                // TODO: report
+                self.report_ty_not_iterable_error(error_node, input_ty, allow_async_iterables);
             }
             return None;
         }
@@ -886,12 +903,16 @@ impl<'cx> TyChecker<'cx> {
             );
             if check_assignability && let Some(iteration_tys) = iteration_tys {
                 let diag = if mode.contains(IterationUse::FOR_OF_FLAG) {
+                    // TODO: diag_message
                     true
                 } else if mode.contains(IterationUse::SPREAD_FLAG) {
+                    // TODO: diag_message
                     true
                 } else if mode.contains(IterationUse::DESTRUCTURING_FLAG) {
+                    // TODO: diag_message
                     true
                 } else if mode.contains(IterationUse::YIELD_STAR_FLAG) {
+                    // TODO: diag_message
                     true
                 } else {
                     false

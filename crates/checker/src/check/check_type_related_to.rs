@@ -2010,7 +2010,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let props = self.c.get_props_of_ty(source);
         for prop in props {
             // TODO: ignore jsx
-            let lit_ty = self.c.get_lit_ty_from_prop(
+            let lit_ty = self.c.get_literal_ty_from_prop(
                 *prop,
                 TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                 false,

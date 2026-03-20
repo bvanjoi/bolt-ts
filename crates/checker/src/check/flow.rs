@@ -330,18 +330,18 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty_by_switch_on_discriminant_prop(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        access: &'cx ast::Expr<'cx>,
+        access: ast::NodeID,
         flow: FlowID,
     ) -> &'cx ty::Ty<'cx> {
         let FlowNodeKind::Switch(_) = &self.flow_node(flow).kind else {
             unreachable!()
         };
         self.narrow_ty_by_discriminant(access, ty, |this, t| {
-            this.narrow_ty_by_switch_discriminant(t, flow)
+            this.narrow_ty_by_switch_on_discriminant(t, flow)
         })
     }
 
-    fn narrow_ty_by_switch_discriminant(
+    fn narrow_ty_by_switch_on_discriminant(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         flow: FlowID,
@@ -355,7 +355,7 @@ impl<'cx> TyChecker<'cx> {
         if switch_tys.is_empty() {
             return ty;
         }
-        let clause_tys = &switch_tys[clause_start as usize..=clause_end as usize];
+        let clause_tys = &switch_tys[clause_start as usize..clause_end as usize];
         let has_default_clause = clause_start == clause_end || clause_tys.contains(&self.never_ty);
         if ty.flags.contains(TypeFlags::UNKNOWN) && !has_default_clause {
             // TODO:
@@ -1180,7 +1180,7 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty_by_discriminant_prop(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        access: &'cx ast::Expr<'cx>,
+        access: ast::NodeID,
         refer: ast::NodeID,
         op: ast::BinOpKind,
         value: &'cx ast::Expr<'cx>,
@@ -1205,19 +1205,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn narrow_ty_by_discriminant(
         &mut self,
-        access: &'cx ast::Expr<'cx>,
+        access: ast::NodeID,
         ty: &'cx ty::Ty<'cx>,
         narrow_ty: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let Some(prop_name) = self.get_accessed_prop_name(access) else {
             return ty;
         };
-        let access_id = access.id();
-        let optional_chain = self
-            .node_query(access_id.module())
-            .is_optional_chain(access_id);
+        let optional_chain = self.node_query(access.module()).is_optional_chain(access);
         let remove_nullable = self.config.strict_null_checks()
-            && (optional_chain || matches!(access.kind, ast::ExprKind::NonNull(_)))
+            && (optional_chain || matches!(self.p.node(access), ast::Node::NonNullExpr(_)))
             && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
         let Some(prop_ty) =
             self.get_ty_of_prop_of_ty(if remove_nullable { todo!() } else { ty }, prop_name)

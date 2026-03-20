@@ -1609,7 +1609,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_cond_ty(
+    pub(super) fn get_cond_ty<const FORCE_CONSTRAINT: bool>(
         &mut self,
         mut root: &'cx ty::CondTyRoot<'cx>,
         mut mapper: Option<&'cx dyn ty::TyMap<'cx>>,
@@ -1711,7 +1711,17 @@ impl<'cx> TyChecker<'cx> {
                         !self.is_type_assignable_to(source, target)
                     })
                 {
-                    if check_ty.flags.contains(TypeFlags::ANY) {
+                    if check_ty.flags.contains(TypeFlags::ANY)
+                        || (FORCE_CONSTRAINT
+                            && !inferred_extends_ty.flags.contains(TypeFlags::NEVER)
+                            && {
+                                let ty = self.get_permissive_instantiation(inferred_extends_ty);
+                                self.some_type(ty, |this, ty| {
+                                    let target = this.get_permissive_instantiation(check_ty);
+                                    this.is_type_assignable_to(ty, target)
+                                })
+                            })
+                    {
                         let ty = self.get_ty_from_type_node(root.node.true_ty);
                         let ty = self.instantiate_ty(ty, mapper);
                         extra_tys.push(ty);
@@ -1855,7 +1865,7 @@ impl<'cx> TyChecker<'cx> {
             alias_symbol,
             alias_ty_args,
         });
-        let ty = self.get_cond_ty(root, None, alias_symbol, alias_ty_args);
+        let ty = self.get_cond_ty::<false>(root, None, alias_symbol, alias_ty_args);
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
         ty
     }
@@ -2483,7 +2493,7 @@ impl<'cx> TyChecker<'cx> {
         let mut property_tys = self
             .get_props_of_ty(ty)
             .iter()
-            .map(|prop| self.get_lit_ty_from_prop(*prop, include, false))
+            .map(|prop| self.get_literal_ty_from_prop(*prop, include, false))
             .collect::<Vec<_>>();
         let index_key_tys = self.get_index_infos_of_ty(ty).iter().map(|info| {
             if !std::ptr::eq(info, &self.enum_number_index_info())

@@ -2333,7 +2333,7 @@ impl<'cx> InferenceState<'cx, '_> {
                 let source_props = self.c.get_props_of_ty(source);
                 let mut props_tys = Vec::with_capacity(source_props.len());
                 for prop in source_props {
-                    let lit = self.c.get_lit_ty_from_prop(
+                    let lit = self.c.get_literal_ty_from_prop(
                         *prop,
                         TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                         false,

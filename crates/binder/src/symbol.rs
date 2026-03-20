@@ -7,7 +7,7 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
-    ParamIdx(u32),
+    ParamIndex(u32),
     ESSymbol {
         escaped_name: Atom,
         symbol_id: SymbolID,

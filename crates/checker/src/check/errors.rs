@@ -1305,3 +1305,11 @@ pub(super) struct AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface 
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
+pub(super) struct TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}

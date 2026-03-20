@@ -13,7 +13,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
-    ) -> Option<&'cx ast::Expr<'cx>> {
+    ) -> Option<ast::NodeID> {
         let n = self.p.node(refer);
         if n.is_array_pat()
             || n.is_object_pat()
@@ -26,16 +26,28 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(declaration) = self.symbol(symbol).value_decl
                     && self.parent(declaration) == Some(refer)
                 {
-                    // TODO: !declaration.init()
-                    // TODO: !declaration.dot_dot_dot_token
-                    // TODO: return Some(declaration);
+                    let use_declaration = match self.p.node(declaration) {
+                        ast::Node::ObjectBindingElem(n)
+                            if n.init.is_none() && n.dotdotdot.is_none() =>
+                        {
+                            true
+                        }
+                        // TODO: array binding element
+                        ast::Node::ParamDecl(n) if n.init.is_none() && n.dotdotdot.is_none() => {
+                            true
+                        }
+                        _ => false,
+                    };
+                    if use_declaration {
+                        return Some(declaration);
+                    }
                 }
             }
         } else if let ast::ExprKind::PropAccess(ast::PropAccessExpr { expr: target, .. })
         | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr: target, .. }) = expr.kind
         {
             if self.is_matching_reference(refer, target.id()) {
-                return Some(expr);
+                return Some(expr.id());
             }
         } else if let ast::ExprKind::Ident(ident) = expr.kind {
             // TODO:
@@ -50,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::Expr<'cx>,
         computed_ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ast::Expr<'cx>> {
+    ) -> Option<ast::NodeID> {
         if (declared_ty.flags.contains(ty::TypeFlags::UNION)
             || computed_ty.flags.contains(ty::TypeFlags::UNION))
             && let Some(access) = self.get_candidate_discriminant_prop_access(refer, expr)

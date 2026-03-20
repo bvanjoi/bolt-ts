@@ -1228,12 +1228,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassStaticBlockDecl(n) => {
                 self.bind(n.body.id);
             }
-            CaseClause(n) => {
-                self.bind(n.expr.id());
-                for stmt in n.stmts {
-                    self.bind(stmt.id());
-                }
-            }
+            CaseClause(n) => self.bind_case_clause(n),
             DefaultClause(n) => {
                 for stmt in n.stmts {
                     self.bind(stmt.id());
@@ -1270,6 +1265,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn bind_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) {
+        let saved_current_flow = self.current_flow;
+        debug_assert!(self.pre_switch_case_flow.is_some());
+        self.current_flow = self.pre_switch_case_flow;
+        self.bind(n.expr.id());
+        self.current_flow = saved_current_flow;
+        for stmt in n.stmts {
+            self.bind(stmt.id());
+        }
     }
 
     fn is_assignment_target(&self, n: ast::NodeID) -> bool {

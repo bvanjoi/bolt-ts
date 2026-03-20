@@ -353,3 +353,8 @@ pub enum AssignmentDeclarationKind {
     // `Object.defineProperty(Foo.prototype, 'name', ...);`
     ObjectDefinePrototypeProperty,
 }
+
+pub fn param_index_in_parameter_list(param: ast::NodeID, list: ast::ParamsDecl) -> SymbolName {
+    let index = list.iter().position(|p| p.id == param).unwrap();
+    SymbolName::ParamIndex(index as u32)
+}

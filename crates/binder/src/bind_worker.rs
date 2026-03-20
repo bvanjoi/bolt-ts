@@ -8,6 +8,7 @@ use super::Symbol;
 use super::argument_name_from_element_access_node;
 use super::create::DeclareSymbolProperty;
 use super::node_query::ModuleInstanceState;
+use super::param_index_in_parameter_list;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
@@ -268,12 +269,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(n.id, symbol);
             }
             ArrayPat(_) | ObjectPat(_) => {
-                let idx = {
-                    let p = self.node_query().parent(n.id).unwrap();
-                    let params = self.p.node(p).params().unwrap();
-                    params.iter().position(|p| p.id == n.id).unwrap()
-                };
-                let name = SymbolName::ParamIdx(idx as u32);
+                let p = self.node_query().parent(n.id).unwrap();
+                let params = self.p.node(p).params().unwrap();
+                let name = param_index_in_parameter_list(n.id, params);
                 let symbol =
                     self.bind_anonymous_decl(n.id, SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
                 self.create_final_res(n.id, symbol);
@@ -900,8 +898,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Ident(_) | This(_) | Super(_) => true,
             PropAccess(n) => self.is_narrowable_reference(n.expr),
             Paren(n) => self.is_narrowable_reference(n.expr),
-            NonNull(n) => self.is_narrowable_reference(n.expr),
             EleAccess(n) => self.ele_access_is_narrowable_reference(n),
+            NonNull(n) => self.is_narrowable_reference(n.expr),
             Bin(_) => {
                 // TODO: n.op.kind == Comma
                 false
@@ -911,12 +909,50 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn is_narrowable_expression(&self, expr: &ast::Expr<'_>) -> bool {
+    pub(super) fn is_narrowable_expression(&self, expr: &'cx ast::Expr<'cx>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {
             Ident(_) | This(_) | Super(_) => true,
-            // TODo:
+            PropAccess(_) | EleAccess(_) => self.contains_narrowable_reference(expr),
+            Paren(n) => {
+                // TODO: return false if expr is js
+                self.is_narrowable_expression(n.expr)
+            }
+            Call(n) => self.has_narrowable_argument(n),
+            // TODO: other case
             _ => false,
+        }
+    }
+
+    fn has_narrowable_argument(&self, expr: &'cx ast::CallExpr<'cx>) -> bool {
+        for argument in expr.args {
+            if self.contains_narrowable_reference(argument) {
+                return true;
+            }
+        }
+
+        match expr.expr.kind {
+            ast::ExprKind::PropAccess(n) if self.contains_narrowable_reference(n.expr) => true,
+            _ => false,
+        }
+    }
+
+    fn contains_narrowable_reference(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+        self.is_narrowable_reference(expr) || {
+            let nq = self.node_query();
+            if !nq
+                .node_flags(expr.id())
+                .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+            {
+                return false;
+            }
+            match expr.kind {
+                ast::ExprKind::PropAccess(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::EleAccess(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::Call(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::NonNull(n) => self.contains_narrowable_reference(n.expr),
+                _ => false,
+            }
         }
     }
 }

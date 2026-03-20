@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
                     return None;
                 }
                 let s = self.get_symbol_of_decl(member.id());
-                let ty = self.get_lit_ty_from_prop(
+                let ty = self.get_literal_ty_from_prop(
                     s,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     false,

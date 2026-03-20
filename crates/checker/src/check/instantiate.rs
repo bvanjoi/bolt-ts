@@ -306,7 +306,12 @@ impl<'cx> TyChecker<'cx> {
             }
             Cond(cond) => {
                 let mapper = self.combine_ty_mappers(cond.mapper, mapper);
-                self.get_cond_ty_instantiation(ty, mapper, alias_symbol, alias_ty_arguments)
+                self.get_cond_ty_instantiation::<false>(
+                    ty,
+                    mapper,
+                    alias_symbol,
+                    alias_ty_arguments,
+                )
             }
             Substitution(sub) => {
                 let new_base_ty = self.instantiate_ty_worker(sub.base_ty, mapper);
@@ -935,7 +940,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_cond_ty_instantiation(
+    pub(super) fn get_cond_ty_instantiation<const FORCE_CONSTRAINT: bool>(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
@@ -976,7 +981,7 @@ impl<'cx> TyChecker<'cx> {
                 distribution_ty,
                 |this, t| {
                     let mapper = this.prepend_ty_mapping(check_ty, t, Some(new_mapper));
-                    Some(this.get_cond_ty(
+                    Some(this.get_cond_ty::<FORCE_CONSTRAINT>(
                         cond_ty.root,
                         Some(mapper),
                         alias_symbol,
@@ -988,7 +993,7 @@ impl<'cx> TyChecker<'cx> {
             )
             .unwrap()
         } else {
-            self.get_cond_ty(
+            self.get_cond_ty::<FORCE_CONSTRAINT>(
                 cond_ty.root,
                 Some(new_mapper),
                 alias_symbol,

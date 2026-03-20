@@ -61,7 +61,7 @@ mod transient_symbol;
 mod type_assignable;
 mod type_predicate;
 mod unwrap_ty;
-pub mod utils;
+mod utils;
 
 use std::fmt::Debug;
 
@@ -70,6 +70,7 @@ use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr}
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_binder::param_index_in_parameter_list;
 use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery, prop_name};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
@@ -108,7 +109,7 @@ use self::instantiation_ty_map::UnionOfUnionTysKey;
 use self::instantiation_ty_map::{IndexedAccessTyMap, IntersectionMap, StringMappingTyMap};
 use self::instantiation_ty_map::{TyCacheTrait, TyKey};
 use self::links::NodeLinks;
-pub use self::links::SymbolLinks;
+use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
 pub use self::merge::MergeModuleAugmentationResult;
 pub use self::merge::merge_module_augmentation_list_for_global;
@@ -1188,7 +1189,7 @@ impl<'cx> TyChecker<'cx> {
         // }
     }
 
-    fn get_lit_ty_from_prop_name(
+    fn get_literal_ty_from_prop_name(
         &mut self,
         prop_name: &ast::PropNameKind<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -1277,7 +1278,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_lit_ty_from_prop(
+    fn get_literal_ty_from_prop(
         &mut self,
         prop: SymbolID,
         include: TypeFlags,
@@ -1323,7 +1324,7 @@ impl<'cx> TyChecker<'cx> {
                                         ast::PropName { kind }
                                     })
                             })
-                            .map(|name| self.get_lit_ty_from_prop_name(&name.kind))
+                            .map(|name| self.get_literal_ty_from_prop_name(&name.kind))
                             .or_else(|| {
                                 if let Some(num) = symbol_name.as_numeric() {
                                     let atom = self.atoms.atom(num.to_string().as_str());
@@ -1353,7 +1354,7 @@ impl<'cx> TyChecker<'cx> {
         }
         for prop in self.properties_of_object_type(ty) {
             if !(is_static_index && self.symbol(*prop).flags.intersects(SymbolFlags::PROTOTYPE)) {
-                let prop_name_ty = self.get_lit_ty_from_prop(
+                let prop_name_ty = self.get_literal_ty_from_prop(
                     *prop,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     true,
@@ -2542,13 +2543,7 @@ impl<'cx> TyChecker<'cx> {
                     self.get_mut_node_links(declaration)
                         .override_flags(flags | NodeCheckFlags::IN_CHECK_IDENTIFIER);
                     let parent = self.parent(declaration).unwrap();
-                    let parent_ty = match self.p.node(declaration) {
-                        ast::Node::ObjectBindingElem(n) => {
-                            let object_pat = self.p.node(parent).expect_object_pat();
-                            self.get_ty_for_object_binding_elem(n, object_pat)
-                        }
-                        _ => unreachable!(),
-                    };
+                    let parent_ty = self.get_ty_for_binding_element_parent(parent);
                     let parent_ty_constraint = parent_ty.map(|ty| {
                         self.map_ty(
                             ty,
@@ -4129,7 +4124,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let props = self.get_props_of_ty(ty);
         for prop in props {
-            let prop = self.get_lit_ty_from_prop(*prop, include, false);
+            let prop = self.get_literal_ty_from_prop(*prop, include, false);
             cb(self, prop)
         }
         if ty.flags.contains(TypeFlags::ANY) {
@@ -4180,7 +4175,7 @@ impl<'cx> TyChecker<'cx> {
                 && constraint != c.check_ty
             {
                 let mapper = self.prepend_ty_mapping(c.root.check_ty, constraint, c.mapper);
-                self.get_cond_ty_instantiation(ty, mapper, None, None)
+                self.get_cond_ty_instantiation::<false>(ty, mapper, None, None)
             } else {
                 ty
             }
@@ -5754,12 +5749,31 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn get_accessed_prop_name(&mut self, access: &'cx ast::Expr<'cx>) -> Option<SymbolName> {
-        match access.kind {
-            ast::ExprKind::PropAccess(n) => Some(SymbolName::Atom(n.name.name)),
-            ast::ExprKind::EleAccess(n) => self.try_get_element_access_name(n),
-            // TODO: binding
-            // TODO: is_param
+    fn get_accessed_prop_name(&mut self, access: ast::NodeID) -> Option<SymbolName> {
+        match self.p.node(access) {
+            ast::Node::PropAccessExpr(n) => Some(SymbolName::Atom(n.name.name)),
+            ast::Node::EleAccessExpr(n) => self.try_get_element_access_name(n),
+            ast::Node::ParamDecl(_) => {
+                let parent = self.parent(access).unwrap();
+                let params = self.p.node(parent).params().unwrap();
+                Some(param_index_in_parameter_list(access, params))
+            }
+            ast::Node::ObjectBindingElem(n) => {
+                // let parent = self.parent(access).unwrap();
+                // let pat = self.p.node(parent).expect_object_pat();
+                self.get_literal_prop_name(&n.name.name())
+            }
+            // TODO: array binding
+            _ => None,
+        }
+    }
+
+    fn get_literal_prop_name(&mut self, name: &ast::PropNameKind<'cx>) -> Option<SymbolName> {
+        let ty = self.get_literal_ty_from_prop_name(name);
+        match ty.kind {
+            ty::TyKind::StringLit(lit) => Some(SymbolName::Atom(lit.val)),
+            ty::TyKind::NumberLit(lit) => Some(SymbolName::EleNum(lit.val)),
+            ty::TyKind::BigIntLit(lit) => todo!(),
             _ => None,
         }
     }

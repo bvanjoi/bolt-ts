@@ -55,7 +55,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_for_binding_element_parent(&mut self, pat_id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
+    pub(super) fn get_ty_for_binding_element_parent(
+        &mut self,
+        pat_id: ast::NodeID,
+    ) -> Option<&'cx Ty<'cx>> {
         debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
         let parent_id = self.parent(pat_id).unwrap();
         let parent_node = self.p.node(parent_id);
@@ -116,14 +119,12 @@ impl<'cx> TyChecker<'cx> {
                 })
                 .unwrap()
         };
-        let fallback_element_ty = |this: &mut Self| {
-            this.check_iterated_ty_or_element_ty(
-                mode,
-                parent_parent_ty,
-                this.undefined_ty,
-                Some(parent.id),
-            )
-        };
+        let element_ty = self.check_iterated_ty_or_element_ty(
+            mode,
+            parent_parent_ty,
+            self.undefined_ty,
+            Some(parent.id),
+        );
         let element_ty = if has_dotdotdot {
             let base_constraint = self
                 .map_ty(
@@ -151,7 +152,6 @@ impl<'cx> TyChecker<'cx> {
                 )
                 .unwrap()
             } else {
-                let element_ty = fallback_element_ty(self);
                 self.create_array_ty(element_ty, false)
             }
         } else if self.is_array_like_ty(parent_parent_ty) {
@@ -166,7 +166,7 @@ impl<'cx> TyChecker<'cx> {
             )
             .unwrap_or(self.error_ty)
         } else {
-            fallback_element_ty(self)
+            element_ty
         };
 
         // TODO: widen
@@ -217,7 +217,7 @@ impl<'cx> TyChecker<'cx> {
                     self.get_string_literal_type_from_string(ident.name)
                 }
                 ast::ObjectBindingName::Prop { prop_name, .. } => {
-                    self.get_lit_ty_from_prop_name(&prop_name.kind)
+                    self.get_literal_ty_from_prop_name(&prop_name.kind)
                 }
             };
             let name = binding.name.name().id();
@@ -275,7 +275,7 @@ impl<'cx> TyChecker<'cx> {
         let mut omit_key_ty = {
             let props = props
                 .iter()
-                .map(|prop| self.get_lit_ty_from_prop_name(prop))
+                .map(|prop| self.get_literal_ty_from_prop_name(prop))
                 .collect::<Vec<_>>();
             self.get_union_ty::<false>(&props, ty::UnionReduction::Lit, None, None, None)
         };
@@ -284,7 +284,7 @@ impl<'cx> TyChecker<'cx> {
         let mut unsparedable_to_rest_keys = vec![];
 
         for &prop in self.get_props_of_ty(source) {
-            let lit_ty_from_property = self.get_lit_ty_from_prop(
+            let lit_ty_from_property = self.get_literal_ty_from_prop(
                 prop,
                 ty::TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                 false,
@@ -366,7 +366,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    pub(super) fn get_ty_for_object_binding_elem(
+    fn get_ty_for_object_binding_elem(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,

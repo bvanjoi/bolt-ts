@@ -54,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 let mapper =
                     self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
-                let instantiated = self.get_cond_ty_instantiation(ty, mapper, None, None);
+                let instantiated = self.get_cond_ty_instantiation::<true>(ty, mapper, None, None);
                 self.conditional_links_arena[id]
                     .set_resolved_constraint_of_distribute(Some(instantiated));
                 return Some(instantiated);
