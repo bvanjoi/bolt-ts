@@ -48,9 +48,10 @@ export function FileTabs({
 	}
 
 	return (
-		<div className="flex items-center gap-1">
+		<div className='flex items-center gap-1'>
 			{files.map(file => (
-				<div
+				<button
+					type='button'
 					key={file.id}
 					className={`group flex items-center gap-1 px-3 py-1 text-sm cursor-pointer rounded transition-colors ${
 						activeFileId === file.id
@@ -62,14 +63,13 @@ export function FileTabs({
 				>
 					{editingId === file.id ? (
 						<input
-							type="text"
+							type='text'
 							value={editName}
 							onChange={e => setEditName(e.target.value)}
 							onBlur={() => handleBlur(file.id)}
 							onKeyDown={e => handleKeyDown(e, file.id)}
 							onClick={e => e.stopPropagation()}
-							className="w-20 px-1 text-sm bg-white border border-[#ccc] rounded outline-none"
-							autoFocus
+							className='w-20 px-1 text-sm bg-white border border-[#ccc] rounded outline-none'
 						/>
 					) : (
 						<>
@@ -85,13 +85,13 @@ export function FileTabs({
 							)}
 						</>
 					)}
-				</div>
+				</button>
 			))}
 			<button
-				type="button"
+				type='button'
 				onClick={onAdd}
-				className="p-1 text-[#666] hover:text-[#222] hover:bg-[#eee] rounded transition-colors"
-				title="Add file"
+				className='p-1 text-[#666] hover:text-[#222] hover:bg-[#eee] rounded transition-colors'
+				title='Add file'
 			>
 				<Plus size={16} />
 			</button>

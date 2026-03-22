@@ -7,7 +7,7 @@ export function DeleteIcon_ID_IS_SAME_WHEN_CLICK() {
 	return (
 		<>
 			<DeleteIcon
-				deleteId="id"
+				deleteId='id'
 				handleDelete={(_, id) => {
 					if (id !== 'id') {
 						throw new Error('Unexpected id')
@@ -15,7 +15,7 @@ export function DeleteIcon_ID_IS_SAME_WHEN_CLICK() {
 					setCount(count + 1)
 				}}
 			/>
-			<div id="count">{count}</div>
+			<div id='count'>{count}</div>
 		</>
 	)
 }

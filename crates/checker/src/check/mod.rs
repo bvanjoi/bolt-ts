@@ -35,6 +35,7 @@ mod get_mapped_ty_info;
 mod get_sig;
 mod get_simplified_ty;
 mod get_symbol;
+mod get_syntactic_semantics;
 mod get_this_ty;
 mod get_ty;
 mod get_type_from_ty_refer_like;

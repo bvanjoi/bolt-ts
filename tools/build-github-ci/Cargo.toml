@@ -1,0 +1,12 @@
+[package]
+name = "build-github-ci"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_yaml = "0.9.33"
+indexmap = { workspace = true }
+project-root = { workspace = true }
+
+[dev-dependencies]
+expect-test = { workspace = true }

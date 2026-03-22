@@ -570,7 +570,6 @@ impl<'cx> Node<'cx> {
         let mut flags = FnFlags::NORMAL;
         match self {
             Node::FnDecl(super::FnDecl { asterisk, .. })
-            | Node::FnExpr(super::FnExpr { asterisk, .. })
             | Node::ClassMethodElem(super::ClassMethodElem { asterisk, .. })
             | Node::ObjectMethodMember(super::ObjectMethodMember { asterisk, .. }) => {
                 if asterisk.is_some() {
@@ -580,8 +579,20 @@ impl<'cx> Node<'cx> {
                     flags |= FnFlags::ASYNC;
                 }
             }
-            Node::ArrowFnExpr(_) => {
-                if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+            Node::FnExpr(super::FnExpr {
+                asterisk,
+                async_modifier,
+                ..
+            }) => {
+                if asterisk.is_some() {
+                    flags |= FnFlags::GENERATOR;
+                }
+                if async_modifier.is_some() {
+                    flags |= FnFlags::ASYNC;
+                }
+            }
+            Node::ArrowFnExpr(n) => {
+                if n.async_modifier.is_some() {
                     flags |= FnFlags::ASYNC;
                 }
             }

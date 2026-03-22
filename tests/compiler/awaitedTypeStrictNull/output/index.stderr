@@ -1,0 +1,11 @@
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/awaitedTypeStrictNull/index.ts:27:12]
+ 27 │ Awaited<BadPromise>
+    · ───────────────────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/awaitedTypeStrictNull/index.ts:32:12]
+ 32 │ Awaited<BadPromise1>
+    · ────────────────────
+    ╰────

@@ -8,7 +8,7 @@ test('`DeleteIcon` - click is means handle delete', async ({ mount, page }) => {
 	expect(await page.locator('#count').textContent()).toBe('1')
 })
 
-test.only('`DeleteIcon` - tailwind classname', async ({ mount, page }) => {
+test('`DeleteIcon` - tailwind classname', async ({ mount, page }) => {
 	await mount(<DeleteIcon_ID_IS_SAME_WHEN_CLICK />)
 	const button = page.locator('button')
 	await button.hover()

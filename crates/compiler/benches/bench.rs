@@ -65,9 +65,9 @@ fn setup() -> Vec<Case> {
 static CASES: std::sync::LazyLock<Vec<Case>> = std::sync::LazyLock::new(setup);
 
 fn compile(input_dir: std::path::PathBuf) {
-    debug_assert!(input_dir.is_dir(), "'{input_dir:#?}' not found.",);
+    assert!(input_dir.is_dir(), "'{input_dir:#?}' not found.",);
     let tsconfig_path = input_dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
-    debug_assert!(tsconfig_path.is_file());
+    assert!(tsconfig_path.is_file());
     let tsconfig = {
         let s = std::fs::read_to_string(tsconfig_path).unwrap();
         let raw: bolt_ts_config::RawTsConfig = serde_json::from_str(&s).unwrap();
@@ -99,10 +99,10 @@ fn compile(input_dir: std::path::PathBuf) {
     assert!(output.diags.is_empty());
 }
 
-#[divan::bench(args = CASES.clone().into_iter())]
+#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 20)]
 fn bench_compile(bencher: divan::Bencher, case: &Case) {
     bencher.bench(|| {
-        compile(case.dir.clone());
+        divan::black_box(compile(case.dir.clone()));
     });
 }
 

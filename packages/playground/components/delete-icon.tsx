@@ -9,12 +9,12 @@ interface DeleteIconProps<T> {
 export function DeleteIcon<T>(props: DeleteIconProps<T>) {
 	return (
 		<button
-			type="button"
+			type='button'
 			onClick={e => {
 				e.stopPropagation()
 				props.handleDelete(e, props.deleteId)
 			}}
-			className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#ddd] rounded transition-opacity hover:cursor-pointer"
+			className='opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[#ddd] rounded transition-opacity hover:cursor-pointer'
 		>
 			<X size={12} />
 		</button>

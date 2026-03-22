@@ -2035,4 +2035,56 @@ impl<'cx> TyChecker<'cx> {
             self.empty_object_ty()
         }
     }
+
+    pub(super) fn create_promise_return_ty(
+        &mut self,
+        node_id: ast::NodeID,
+        promised_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let promise_ty = self.create_promise_ty(promised_ty);
+        if promise_ty == self.unknown_ty {
+            // TODO: error
+            self.error_ty
+        } else if self.get_global_promise_constructor_symbol().is_none() {
+            // TODO: error
+            promise_ty
+        } else {
+            promise_ty
+        }
+    }
+
+    pub(super) fn create_promise_like_ty(
+        &mut self,
+        mut promised_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let global_promise_like_ty = self.get_global_promise_like_ty::<true>();
+        if global_promise_like_ty != self.empty_generic_ty() {
+            let ty = self.unwrap_awaited_ty(promised_ty);
+            promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let resolved_ty_args = self.alloc([promised_ty]);
+            self.create_reference_ty(
+                global_promise_like_ty,
+                Some(resolved_ty_args),
+                ObjectFlags::empty(),
+            )
+        } else {
+            self.unknown_ty
+        }
+    }
+
+    pub(super) fn create_promise_ty(&mut self, promised_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let global_promise_ty = self.get_global_promise_ty::<true>();
+        if global_promise_ty != self.empty_generic_ty() {
+            let ty = self.unwrap_awaited_ty(promised_ty);
+            let promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let resolved_ty_args = self.alloc([promised_ty]);
+            self.create_reference_ty(
+                global_promise_ty,
+                Some(resolved_ty_args),
+                ObjectFlags::empty(),
+            )
+        } else {
+            self.unknown_ty
+        }
+    }
 }

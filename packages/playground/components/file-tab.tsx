@@ -1,8 +1,9 @@
 import { clsx } from 'clsx'
 import type { ReactNode } from 'react'
+import React from 'react'
 
 export function FilenameDisplay(props: { filename: string }) {
-	return <span className="font-mono text-xs">{props.filename}</span>
+	return <span className='font-mono text-xs'>{props.filename}</span>
 }
 
 type FileTabProps = {
@@ -20,7 +21,7 @@ export function FileTab(props: FileTabProps) {
 	const { filename: fileName, isActive, isEditing } = props
 	return (
 		<button
-			type="button"
+			type='button'
 			key={fileName}
 			className={clsx(
 				'group flex items-center gap-1 px-3 py-1 text-sm cursor-pointer rounded transition-colors',
@@ -41,7 +42,7 @@ export function FileTab(props: FileTabProps) {
 		>
 			{isEditing ? (
 				// <FileTabInput filename={fileName} value="" />
-				<></>
+				<React.Fragment />
 			) : (
 				<>
 					<FilenameDisplay filename={fileName} />

@@ -119,18 +119,6 @@ impl<'cx> TyChecker<'cx> {
         symbol
     }
 
-    pub(super) fn get_global_es_symbol_constructor_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_es_symbol_constructor_symbol.get() {
-            return *symbol;
-        }
-        let symbol = self.get_global_value_symbol(SymbolName::Atom(keyword::IDENT_SYMBOL_CLASS));
-        let res = self
-            .deferred_global_es_symbol_constructor_symbol
-            .set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
     pub(super) fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
         if let Some(symbol) = self.deferred_global_extract_symbol.get() {
             return *symbol;
@@ -246,8 +234,34 @@ macro_rules! deferred_global_ty1 {
     };
 }
 
+macro_rules! deferred_global_constructor_symbol {
+    (
+        $(
+            [$name: ident, $ident_name: ident]
+        ),*
+        $(,)?) => {
+        impl<'cx> TyChecker<'cx> {
+            $(
+                paste::paste! {
+                    pub(super) fn [<get_global_ $name _constructor_symbol>](&mut self) -> Option<SymbolID> {
+                        if let Some(symbol) = self.[<deferred_global_ $name _constructor_symbol>].get() {
+                            return *symbol;
+                        }
+                        let name = SymbolName::Atom(keyword::[<IDENT_ $ident_name>]);
+                        let symbol = self.get_global_value_symbol(name);
+                        let res = self.[<deferred_global_ $name _constructor_symbol>].set(symbol);
+                        debug_assert!(res.is_ok());
+                        symbol
+                    }
+                }
+            )*
+        }
+    };
+}
+
 deferred_global_ty0!(
     [promise, PROMISE, generic, 1],
+    [promise_like, PROMISE_LIKE, generic, 1],
     [iterator, ITERATOR, generic, 3],
     [iterable, ITERABLE, generic, 3],
     [iterable_iterator, ITERABLE_ITERATOR, generic, 3],
@@ -273,3 +287,5 @@ deferred_global_ty1!(
         true
     ],
 );
+
+deferred_global_constructor_symbol!([es_symbol, SYMBOL_CLASS], [promise, PROMISE]);

@@ -1313,3 +1313,33 @@ pub(super) struct TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An expression of type 'void' cannot be tested for truthiness.")]
+pub(super) struct AnExpressionOfTypeVoidCannotBeTestedForTruthiness {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This kind of expression is always truthy.")]
+pub(super) struct ThisKindOfExpressionIsAlwaysTruthy {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This kind of expression is always falsy.")]
+pub(super) struct ThisKindOfExpressionIsAlwaysFalsy {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}' implicitly has an '{y}' return type, but a better type may be inferred from usage.")]
+pub(super) struct XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsage {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

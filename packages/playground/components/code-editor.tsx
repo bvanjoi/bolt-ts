@@ -11,11 +11,11 @@ interface CodeEditorProps {
 export function CodeEditor({ value, language, onChange }: CodeEditorProps) {
 	return (
 		<Editor
-			height="100%"
+			height='100%'
 			language={language}
 			value={value}
 			onChange={onChange}
-			theme="vs"
+			theme='vs'
 			options={{
 				minimap: { enabled: false },
 				fontSize: 14,

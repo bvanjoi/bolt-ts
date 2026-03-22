@@ -2253,6 +2253,13 @@ impl<'cx> TyChecker<'cx> {
                     return;
                 }
                 if !no_implicit_any {
+                    // let error =
+                    //     errors::XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsage {
+                    //         span: self.p.node(decl).span(),
+                    //         x: decl_name.unwrap().to_string(&self.atoms),
+                    //         y: ty_as_string,
+                    //     };
+                    // self.push_error(Box::new(error));
                 } else if widening_kind.is_some_and(|k| k == WideningKind::GeneratorYield) {
                     todo!()
                 } else {
@@ -2290,10 +2297,16 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     None
                 };
-                ret_ty = Some(self.check_expr_cached(expr));
+                let mut ty = self.check_expr_cached(expr);
                 self.check_mode = old;
-                // TODO: is_const_context
-                // TODO: is_async
+                if self.is_const_context(expr.id()) {
+                    ty = self.get_regular_ty_of_literal_ty(ty);
+                }
+                if is_async {
+                    let awaited_ty = self.check_awaited_ty(ty, false, id, |_| todo!());
+                    ty = self.unwrap_awaited_ty(awaited_ty);
+                }
+                ret_ty = Some(ty);
             }
             ast::ArrowFnExprBody::Block(body) => {
                 if is_generator {
@@ -2337,8 +2350,8 @@ impl<'cx> TyChecker<'cx> {
                     };
                 } else {
                     let Some(tys) = self.check_and_aggregate_ret_expr_tys(id, body) else {
-                        return if fn_flags.contains(FnFlags::ASYNC) {
-                            todo!()
+                        return if is_async {
+                            self.create_promise_return_ty(id, self.never_ty)
                         } else {
                             self.never_ty
                         };
@@ -2437,8 +2450,8 @@ impl<'cx> TyChecker<'cx> {
                 is_async,
             )
         } else if is_async {
-            // TODO:
-            ret_ty.unwrap_or(fallback_ret_ty)
+            let ty = ret_ty.unwrap_or(fallback_ret_ty);
+            self.create_promise_ty(ty)
         } else {
             ret_ty.unwrap_or(fallback_ret_ty)
         }

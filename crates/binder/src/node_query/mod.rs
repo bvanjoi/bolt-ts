@@ -439,7 +439,6 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         mut id: ast::NodeID,
         stop_on_functions: bool,
     ) -> Option<ast::NodeID> {
-        use ast::Node::*;
         loop {
             let parent = self.parent(id)?;
             id = parent;

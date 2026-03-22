@@ -22,40 +22,41 @@ export function OutputPanel({ result }: OutputPanelProps) {
 		switch (activeTab) {
 			case 'output':
 				return (
-					<pre className="p-4 text-sm font-mono text-[#222] whitespace-pre-wrap">
+					<pre className='p-4 text-sm font-mono text-[#222] whitespace-pre-wrap'>
 						{result.output || '(no output)'}
 					</pre>
 				)
 			case 'ast':
 				return (
-					<pre className="p-4 text-sm font-mono text-[#222] whitespace-pre-wrap overflow-auto">
+					<pre className='p-4 text-sm font-mono text-[#222] whitespace-pre-wrap overflow-auto'>
 						{result.ast || '(compile to see AST)'}
 					</pre>
 				)
 			case 'errors':
 				return result.errors.length > 0 ? (
-					<div className="p-4 space-y-2">
-						{result.errors.map((error, i) => (
+					<div className='p-4 space-y-2'>
+						{result.errors.map(error => (
 							<div
-								key={i}
-								className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700 font-mono"
+								key={error}
+								className='p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700 font-mono'
 							>
 								{error}
 							</div>
 						))}
 					</div>
 				) : (
-					<div className="p-4 text-sm text-[#999]">No errors</div>
+					<div className='p-4 text-sm text-[#999]'>No errors</div>
 				)
 		}
 	}
 
 	return (
-		<div className="h-full flex flex-col">
-			<div className="flex items-center justify-between px-2 py-1 bg-[#f5f5f5] border-b border-[#e5e5e5]">
-				<div className="flex items-center gap-1">
+		<div className='h-full flex flex-col'>
+			<div className='flex items-center justify-between px-2 py-1 bg-[#f5f5f5] border-b border-[#e5e5e5]'>
+				<div className='flex items-center gap-1'>
 					{tabs.map(tab => (
 						<button
+							type='button'
 							key={tab.id}
 							onClick={() => setActiveTab(tab.id)}
 							className={`flex items-center gap-1.5 px-3 py-1 text-sm rounded transition-colors ${
@@ -66,18 +67,18 @@ export function OutputPanel({ result }: OutputPanelProps) {
 						>
 							{tab.label}
 							{tab.badge && (
-								<span className="px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">
+								<span className='px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full'>
 									{tab.badge}
 								</span>
 							)}
 						</button>
 					))}
 				</div>
-				<span className="text-xs text-[#999] uppercase tracking-wide pr-2">
+				<span className='text-xs text-[#999] uppercase tracking-wide pr-2'>
 					Output
 				</span>
 			</div>
-			<div className="flex-1 overflow-auto bg-white">{renderContent()}</div>
+			<div className='flex-1 overflow-auto bg-white'>{renderContent()}</div>
 		</div>
 	)
 }

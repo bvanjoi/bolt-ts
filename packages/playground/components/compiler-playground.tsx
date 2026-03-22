@@ -90,9 +90,9 @@ export function CompilerPlayground() {
 		// Simulate compilation with mock AST generation
 		await new Promise(r => setTimeout(r, 300))
 
-		const allCode = files
-			.map(f => `// === ${f.name} ===\n${f.content}`)
-			.join('\n\n')
+		// const allCode = files
+		// 	.map(f => `// === ${f.name} ===\n${f.content}`)
+		// 	.join('\n\n')
 
 		try {
 			// Mock AST generation
@@ -116,7 +116,7 @@ export function CompilerPlayground() {
 				const fn = new Function('console', files[0].content)
 				fn(mockConsole)
 				output = logs.join('\n') || '(no output)'
-			} catch (e) {
+			} catch (_) {
 				output = '(evaluation skipped)'
 			}
 
@@ -137,20 +137,21 @@ export function CompilerPlayground() {
 	}, [files])
 
 	return (
-		<div className="h-screen flex flex-col bg-[#fafafa]">
+		<div className='h-screen flex flex-col bg-[#fafafa]'>
 			{/* Header */}
-			<header className="flex items-center justify-between px-4 py-3 border-b border-[#e5e5e5] bg-white">
-				<div className="flex items-center gap-3">
-					<div className="flex items-center gap-2">
-						<span className="text-xl font-bold text-[#222]">⚡</span>
-						<span className="text-xl font-bold text-[#222]">Compiler</span>
+			<header className='flex items-center justify-between px-4 py-3 border-b border-[#e5e5e5] bg-white'>
+				<div className='flex items-center gap-3'>
+					<div className='flex items-center gap-2'>
+						<span className='text-xl font-bold text-[#222]'>⚡</span>
+						<span className='text-xl font-bold text-[#222]'>Compiler</span>
 					</div>
-					<span className="text-sm text-[#666]">Playground</span>
+					<span className='text-sm text-[#666]'>Playground</span>
 				</div>
 				<button
+					type='button'
 					onClick={handleCompile}
 					disabled={isCompiling}
-					className="flex items-center gap-2 px-4 py-1.5 bg-[#222] text-white text-sm font-medium rounded hover:bg-[#333] disabled:opacity-50 transition-colors"
+					className='flex items-center gap-2 px-4 py-1.5 bg-[#222] text-white text-sm font-medium rounded hover:bg-[#333] disabled:opacity-50 transition-colors'
 				>
 					<Play size={14} />
 					{isCompiling ? 'Compiling...' : 'Compile'}
@@ -158,10 +159,10 @@ export function CompilerPlayground() {
 			</header>
 
 			{/* Main Content */}
-			<div className="flex-1 flex min-h-0">
+			<div className='flex-1 flex min-h-0'>
 				{/* Left Panel - Editor */}
-				<div className="flex-1 flex flex-col border-r border-[#e5e5e5]">
-					<div className="flex items-center justify-between px-2 py-1 bg-[#f5f5f5] border-b border-[#e5e5e5]">
+				<div className='flex-1 flex flex-col border-r border-[#e5e5e5]'>
+					<div className='flex items-center justify-between px-2 py-1 bg-[#f5f5f5] border-b border-[#e5e5e5]'>
 						<FileTabs
 							files={files}
 							activeFileId={activeFileId}
@@ -170,11 +171,11 @@ export function CompilerPlayground() {
 							onRemove={handleRemoveFile}
 							onRename={handleRenameFile}
 						/>
-						<span className="text-xs text-[#999] uppercase tracking-wide pr-2">
+						<span className='text-xs text-[#999] uppercase tracking-wide pr-2'>
 							Input
 						</span>
 					</div>
-					<div className="flex-1">
+					<div className='flex-1'>
 						<CodeEditor
 							value={activeFile.content}
 							language={activeFile.language}
@@ -184,10 +185,10 @@ export function CompilerPlayground() {
 				</div>
 
 				{/* Divider */}
-				<div className="w-[3px] bg-[#f5c518]" />
+				<div className='w-[3px] bg-[#f5c518]' />
 
 				{/* Right Panel - Output */}
-				<div className="flex-1 flex flex-col">
+				<div className='flex-1 flex flex-col'>
 					<OutputPanel result={result} />
 				</div>
 			</div>

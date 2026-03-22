@@ -1,7 +1,7 @@
+use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::FlowFlags;
-use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::Target;
@@ -14,9 +14,9 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
-use super::ast;
 use super::errors;
 use super::flow::flow_loop_ctx_len;
+use super::get_syntactic_semantics::PredicateSemantics;
 use super::node_check_flags::NodeCheckFlags;
 use super::relation;
 use super::symbol_info::SymbolInfo;
@@ -68,12 +68,7 @@ bitflags::bitflags! {
         const ASYNC_GENERATOR_RETURN_TYPE = Self::ALLOWS_ASYNC_ITERABLES_FLAG.bits();
     }
 
-    #[derive(Clone, Copy, Debug, PartialEq)]
-    struct PredicateSemantics: u8 {
-        const ALWAYS        = 1 << 0;
-        const NEVER         = 1 << 1;
-        const SOMETIMES     = Self::ALWAYS.bits() | Self::NEVER.bits();
-    }
+
 }
 
 impl<'cx> TyChecker<'cx> {
@@ -186,46 +181,6 @@ impl<'cx> TyChecker<'cx> {
         let l = self.check_expr(node.left);
         let r = self.check_expr(node.right);
         self.check_bin_like_expr(node, node.op, node.left, l, node.right, r)
-    }
-
-    fn get_syntactic_nullishness_semantics(&self, node: &'cx ast::Expr<'cx>) -> PredicateSemantics {
-        let node = ast::Expr::skip_outer_expr(node);
-        use ast::ExprKind::*;
-        match node.kind {
-            Await(_) | Call(_) | TaggedTemplate(_) | EleAccess(_) | New(_) | PropAccess(_)
-            | Yield(_) | This(_) => return PredicateSemantics::SOMETIMES,
-            Bin(n) => match n.op.kind {
-                ast::BinOpKind::LogicalOr | ast::BinOpKind::LogicalAnd => {
-                    return PredicateSemantics::SOMETIMES;
-                }
-                ast::BinOpKind::Comma | ast::BinOpKind::Nullish => {
-                    return self.get_syntactic_nullishness_semantics(n.right);
-                }
-                _ => PredicateSemantics::NEVER,
-            },
-            Assign(n) => match n.op {
-                ast::AssignOp::LogicalOrEq | ast::AssignOp::LogicalAndEq => {
-                    return PredicateSemantics::SOMETIMES;
-                }
-                ast::AssignOp::Eq | ast::AssignOp::NullishEq => {
-                    return self.get_syntactic_nullishness_semantics(n.right);
-                }
-                _ => PredicateSemantics::NEVER,
-            },
-            Cond(n) => {
-                self.get_syntactic_nullishness_semantics(n.when_true)
-                    | self.get_syntactic_nullishness_semantics(n.when_false)
-            }
-            NullLit(_) => PredicateSemantics::ALWAYS,
-            Ident(n) => {
-                if self.final_res(n.id) == Symbol::ERR {
-                    PredicateSemantics::ALWAYS
-                } else {
-                    PredicateSemantics::SOMETIMES
-                }
-            }
-            _ => PredicateSemantics::NEVER,
-        }
     }
 
     fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
@@ -367,6 +322,7 @@ impl<'cx> TyChecker<'cx> {
                 self.number_ty
             }
             LogicalAnd => {
+                self.check_truthiness_of_ty(left_ty, left);
                 if self.has_type_facts(left_ty, ty::TypeFacts::TRUTHY) {
                     left_ty
                 } else {
@@ -374,6 +330,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             LogicalOr => {
+                self.check_truthiness_of_ty(left_ty, left);
                 if self.has_type_facts(left_ty, ty::TypeFacts::FALSY) {
                     let left_ty = self.remove_definitely_falsy_tys(left_ty);
                     let left_ty = self.get_non_nullable_ty(left_ty);
@@ -1089,9 +1046,31 @@ impl<'cx> TyChecker<'cx> {
         ret
     }
 
-    pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr) -> &'cx ty::Ty<'cx> {
-        // TODO: check truthiness of ty
-        self.check_expr(expr)
+    pub(super) fn check_truthiness_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty = self.check_expr(expr);
+        self.check_truthiness_of_ty(ty, expr)
+    }
+
+    fn check_truthiness_of_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.flags.contains(TypeFlags::VOID) {
+            let error =
+                errors::AnExpressionOfTypeVoidCannotBeTestedForTruthiness { span: expr.span() };
+            self.push_error(Box::new(error));
+        } else {
+            let semantics = self.get_syntactic_truthy_semantics(expr);
+            if semantics == PredicateSemantics::ALWAYS {
+                let error = errors::ThisKindOfExpressionIsAlwaysTruthy { span: expr.span() };
+                self.push_error(Box::new(error));
+            } else if semantics != PredicateSemantics::SOMETIMES {
+                let error = errors::ThisKindOfExpressionIsAlwaysFalsy { span: expr.span() };
+                self.push_error(Box::new(error));
+            }
+        }
+        ty
     }
 
     fn is_post_super_flow_node(

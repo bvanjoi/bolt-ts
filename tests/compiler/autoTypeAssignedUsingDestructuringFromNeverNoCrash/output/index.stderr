@@ -1,0 +1,6 @@
+  × Type 'never' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/autoTypeAssignedUsingDestructuringFromNeverNoCrash/index.ts:13:3]
+ 13 │ [file]
+    · ──────
+    ╰────

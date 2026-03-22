@@ -15,12 +15,10 @@ pub struct TempDir(std::path::PathBuf);
 
 impl TempDir {
     pub fn join(&self, path: &str) -> std::path::PathBuf {
-        let TempDir(ref p) = *self;
-        p.join(path)
+        self.0.join(path)
     }
 
     pub fn path(&self) -> &std::path::Path {
-        let TempDir(ref p) = *self;
-        p
+        self.0.as_path()
     }
 }

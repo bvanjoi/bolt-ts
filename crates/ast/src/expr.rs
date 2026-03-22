@@ -828,7 +828,7 @@ impl BinOpKind {
         }
     }
 
-    fn is_logical_op(self) -> bool {
+    pub fn is_logical_op(self) -> bool {
         matches!(self, Self::LogicalOr | Self::LogicalAnd)
     }
 
