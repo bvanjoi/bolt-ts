@@ -1,4 +1,6 @@
-use crate::compile_single_input;
+mod utils;
+
+use self::utils::compile_single_input;
 
 #[test]
 fn white_space_trimming() {
@@ -10,10 +12,10 @@ if (true) {
 "#
     .trim_ascii();
 
-    let mut db = compile_single_input(CODE);
-    db.goto_marker("err");
-    db.edit_insert("\n");
-    db.verify_current_file_content_is(
+    let mut t = compile_single_input(CODE);
+    t.goto_marker("err");
+    t.edit_insert("\n");
+    t.verify_current_file_content_is(
         r#"
 if (true) {     
   //    
@@ -35,17 +37,17 @@ let templateTail = `/*    ${1 + 2}    /*4*/`;
 "#
     .trim_ascii();
 
-    let mut db = compile_single_input(CODE);
-    db.goto_marker("1");
-    db.edit_insert("\n");
-    db.goto_marker("2");
-    db.edit_insert("\n");
-    db.goto_marker("3");
-    db.edit_insert("\n");
-    db.goto_marker("4");
-    db.edit_insert("\n");
+    let mut t = compile_single_input(CODE);
+    t.goto_marker("1");
+    t.edit_insert("\n");
+    t.goto_marker("2");
+    t.edit_insert("\n");
+    t.goto_marker("3");
+    t.edit_insert("\n");
+    t.goto_marker("4");
+    t.edit_insert("\n");
 
-    db.verify_current_file_content_is(
+    t.verify_current_file_content_is(
         r#"
 let noSubTemplate = `/*    
 `;
@@ -70,10 +72,10 @@ bar     \
 "#
     .trim_ascii();
 
-    let mut db = compile_single_input(CODE);
-    db.goto_marker("1");
-    db.edit_insert(";");
-    db.verify_current_file_content_is(
+    let mut t = compile_single_input(CODE);
+    t.goto_marker("1");
+    t.edit_insert(";");
+    t.verify_current_file_content_is(
         r#"
 let t = "foo \
 bar     \   

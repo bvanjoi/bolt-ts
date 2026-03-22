@@ -1,7 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/awaitedType.ts`, Apache-2.0 License
 
 //@compiler-options: target=esnext
-//@compiler-options: strictNullChecks=true
+//@compiler-options: strictNullChecks
 
 type T1 = Awaited<number>;
 type T2 = Awaited<Promise<number>>;

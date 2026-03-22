@@ -347,6 +347,8 @@ dependencies = [
  "bolt_ts_libs",
  "bolt_ts_optimize",
  "bolt_ts_span",
+ "indexmap",
+ "serde_json",
  "tokio",
  "tower-lsp",
 ]

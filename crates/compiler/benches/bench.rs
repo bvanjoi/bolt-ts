@@ -99,7 +99,7 @@ fn compile(input_dir: std::path::PathBuf) {
     assert!(output.diags.is_empty());
 }
 
-#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 20)]
+#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 10)]
 fn bench_compile(bencher: divan::Bencher, case: &Case) {
     bencher.bench(|| {
         divan::black_box(compile(case.dir.clone()));

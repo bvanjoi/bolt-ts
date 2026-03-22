@@ -2,7 +2,7 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
-//@compiler-options: alwaysStrict=true
+//@compiler-options: alwaysStrict
 
 var arguments = 10;
 //~^ ERROR: Invalid use of 'arguments' in strict mode.
