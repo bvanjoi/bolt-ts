@@ -1031,4 +1031,12 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    fn create_semi_class_elem(&mut self, span: Span) -> &'cx ast::ClassSemiElem {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ClassSemiElem { id, span });
+        self.insert_node(id, ast::Node::ClassSemiElem(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

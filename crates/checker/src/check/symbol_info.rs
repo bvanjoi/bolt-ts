@@ -939,6 +939,7 @@ impl<'cx> super::TyChecker<'cx> {
                         links,
                         None,
                         None,
+                        Some(parent),
                     );
                     vac.insert(s);
                     s
@@ -967,6 +968,7 @@ impl<'cx> super::TyChecker<'cx> {
             links,
             s.decls.clone(),
             s.value_decl,
+            s.parent,
         );
         let symbols = if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
             &mut self.binder.bind_results.last_mut().unwrap().symbols
@@ -995,6 +997,7 @@ impl<'cx> super::TyChecker<'cx> {
                         SymbolName::Index,
                         SymbolFlags::TRANSIENT,
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE),
+                        None,
                         None,
                         None,
                     ),

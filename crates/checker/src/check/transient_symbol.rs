@@ -22,6 +22,7 @@ impl<'cx> TyChecker<'cx> {
         links: crate::check::SymbolLinks<'cx>,
         decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
+        parent: Option<SymbolID>,
     ) -> SymbolID {
         debug_assert!(flags.contains(SymbolFlags::TRANSIENT));
         let symbol = Symbol {
@@ -31,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
             value_decl: value_declaration,
             members: None,
             exports: None,
-            parent: None,
+            parent,
             merged_id: None,
             export_symbol: None,
             const_enum_only_module: None,
@@ -61,6 +62,7 @@ impl<'cx> TyChecker<'cx> {
             links,
             None,
             s.value_decl,
+            s.parent,
         )
     }
 

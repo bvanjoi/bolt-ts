@@ -1223,31 +1223,31 @@ impl<'cx> TyChecker<'cx> {
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
             this: &TyChecker<'cx>,
-            s: &Symbol,
+            decls: &[ast::NodeID],
             f: impl Fn(ast::Node<'cx>) -> bool,
         ) -> Option<ast::NodeID> {
-            s.decls
-                .as_ref()
-                .and_then(|decls| decls.iter().find(|id| f(this.p.node(**id))).copied())
+            decls.iter().find(|id| f(this.p.node(**id))).copied()
         }
         if let Some(value_declaration) = s.value_decl {
-            let decl = is_write
-                .then(|| find_decls(self, s, |n| n.is_setter_decl()))
-                .flatten()
-                .or_else(|| {
-                    if s.flags.intersects(SymbolFlags::GET_ACCESSOR) {
-                        find_decls(self, s, |n| n.is_getter_decl())
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or(value_declaration);
+            let decl = if is_write
+                && let Some(decls) = s.decls.as_ref()
+                && let Some(decl) = find_decls(self, decls, |n| n.is_setter_decl())
+            {
+                decl
+            } else if s.flags.contains(SymbolFlags::GET_ACCESSOR)
+                && let Some(decls) = s.decls.as_ref()
+                && let Some(decl) = find_decls(self, decls, |n| n.is_getter_decl())
+            {
+                decl
+            } else {
+                value_declaration
+            };
             let flags = self
                 .node_query(decl.module())
                 .get_combined_modifier_flags(decl);
             return if let Some(p) = s.parent
                 && let p = self.symbol(p)
-                && p.flags.intersects(SymbolFlags::CLASS)
+                && p.flags.contains(SymbolFlags::CLASS)
             {
                 flags
             } else {
@@ -1257,21 +1257,21 @@ impl<'cx> TyChecker<'cx> {
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
             let access_modifier: enumflags2::BitFlags<_> =
-                if check_flags.intersects(CheckFlags::CONTAINS_PRIVATE) {
+                if check_flags.contains(CheckFlags::CONTAINS_PRIVATE) {
                     ast::ModifierKind::Private
-                } else if check_flags.intersects(CheckFlags::CONTAINS_PUBLIC) {
+                } else if check_flags.contains(CheckFlags::CONTAINS_PUBLIC) {
                     ast::ModifierKind::Public
                 } else {
                     ast::ModifierKind::Protected
                 }
                 .into();
-            let static_modifier = if check_flags.intersects(CheckFlags::CONTAINS_STATIC) {
+            let static_modifier = if check_flags.contains(CheckFlags::CONTAINS_STATIC) {
                 ast::ModifierKind::Static.into()
             } else {
                 ast::ModifierKind::empty()
             };
             static_modifier | access_modifier
-        } else if s.flags.intersects(SymbolFlags::PROPERTY) {
+        } else if s.flags.contains(SymbolFlags::PROPERTY) {
             use ast::ModifierKind;
             enumflags2::make_bitflags!(ModifierKind::{Public | Static})
         } else {
@@ -1446,43 +1446,19 @@ impl<'cx> TyChecker<'cx> {
             })
             .flatten()
             .collect::<Vec<_>>();
-        self.get_or_create_ty_from_sig(sig, Some(self.alloc(outer_ty_params)))
+        self.get_or_create_ty_from_sig(sig)
     }
 
-    fn get_or_create_ty_from_sig(
-        &mut self,
-        sig: &'cx ty::Sig<'cx>,
-        outer_ty_params: Option<ty::Tys<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
+    fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
         //TODO: cache `isolated_sig_ty`
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
-        if let Some(node_id) = sig.node_id {
-            // decls in symbol
-        }
-        let symbol = self.create_transient_symbol(
-            SymbolName::Fn,
-            SymbolFlags::FUNCTION.union(SymbolFlags::TRANSIENT),
-            SymbolLinks::default(),
-            Default::default(), // TODO: use sig.decls
-            None,               // TODO: use sig.value_decl
-        );
-        let outer_ty_params: Option<ty::Tys<'cx>> = if let Some(outer_ty_params) = outer_ty_params {
-            Some(outer_ty_params)
-        } else if let Some(id) = sig.node_id
-            && let Some(ty_params) = self.get_outer_ty_params::<true>(id)
-        {
-            Some(self.alloc(ty_params))
-        } else {
-            None
-        };
         let ty = self.create_single_sig_ty(ty::SingleSigTy {
-            symbol,
+            symbol: sig.node_id.map(|node_id| self.final_res(node_id)),
             target: None,
             mapper: None,
-            outer_ty_params,
         });
         let prev = self.ty_links.insert(
             ty.id,
@@ -5087,7 +5063,7 @@ impl<'cx> TyChecker<'cx> {
                 links
             };
             let decls = self.symbol(prop).decls.clone();
-            self.create_transient_symbol(name, flags, links, decls, None)
+            self.create_transient_symbol(name, flags, links, decls, None, None)
         }
     }
 

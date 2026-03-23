@@ -69,6 +69,7 @@ pub enum Node<'cx> {
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
+    ClassSemiElem(&'cx super::ClassSemiElem),
     ClassStaticBlockDecl(&'cx super::ClassStaticBlockDecl<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
@@ -1164,6 +1165,7 @@ as_node!(
         super::ClassStaticBlockDecl<'cx>,
         class_static_block_decl
     ),
+    (ClassSemiElem, super::ClassSemiElem, class_semi_elem),
     (
         ClassMethodElem,
         super::ClassMethodElem<'cx>,

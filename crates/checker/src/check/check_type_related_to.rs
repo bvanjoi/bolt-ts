@@ -325,6 +325,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
                 return Ternary::FALSE;
             }
+        } else if target_prop_flags.contains(ast::ModifierKind::Protected) {
+            // TODO:
+        } else if source_prop_flags.contains(ast::ModifierKind::Protected) {
+            if report_error {
+                // TODO:
+            }
+            return Ternary::FALSE;
         }
 
         let related = self.is_property_symbol_ty_related(

@@ -423,13 +423,25 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start();
 
-        if self.token.kind == TokenKind::Static
-            && self.lookahead(|l| {
-                l.p().next_token();
-                l.p().token.kind == TokenKind::LBrace
-            })
-        {
-            return self.parse_class_static_block_decl();
+        let token = self.token.kind;
+        match token {
+            TokenKind::Semi => {
+                self.next_token();
+                let span = self.new_span(start);
+                let elem = self.create_semi_class_elem(span);
+                return Ok(self.alloc(ast::ClassElem {
+                    kind: ast::ClassElemKind::Semi(elem),
+                }));
+            }
+            TokenKind::Static
+                if self.lookahead(|l| {
+                    l.p().next_token();
+                    l.p().token.kind == TokenKind::LBrace
+                }) =>
+            {
+                return self.parse_class_static_block_decl();
+            }
+            _ => {}
         }
 
         let modifiers = self.parse_modifiers::<false, true>(true);

@@ -452,6 +452,7 @@ pub enum ClassElemKind<'cx> {
     Getter(&'cx GetterDecl<'cx>),
     Setter(&'cx SetterDecl<'cx>),
     StaticBlockDecl(&'cx ClassStaticBlockDecl<'cx>),
+    Semi(&'cx ClassSemiElem),
 }
 
 #[derive(Debug, Clone)]
@@ -470,7 +471,7 @@ impl<'cx> ClassElemKind<'cx> {
             Setter(n) => n.modifiers,
             Getter(n) => n.modifiers,
             Method(n) => n.modifiers,
-            Ctor(_) | StaticBlockDecl(_) => None,
+            Semi(_) | Ctor(_) | StaticBlockDecl(_) => None,
         }
     }
     pub fn is_static(&self) -> bool {
@@ -488,6 +489,7 @@ impl<'cx> ClassElemKind<'cx> {
             Getter(n) => n.id,
             Setter(n) => n.id,
             StaticBlockDecl(n) => n.id,
+            Semi(n) => n.id,
         }
     }
 
@@ -497,7 +499,8 @@ impl<'cx> ClassElemKind<'cx> {
             ClassElemKind::Method(n) => Some(n.name),
             ClassElemKind::Getter(n) => Some(n.name),
             ClassElemKind::Setter(n) => Some(n.name),
-            ClassElemKind::IndexSig(_)
+            ClassElemKind::Semi(_)
+            | ClassElemKind::IndexSig(_)
             | ClassElemKind::Ctor(_)
             | ClassElemKind::StaticBlockDecl(_) => None,
         }
@@ -590,6 +593,12 @@ pub struct ClassPropElem<'cx> {
     pub excl: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassSemiElem {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]

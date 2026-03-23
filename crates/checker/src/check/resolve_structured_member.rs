@@ -106,16 +106,14 @@ impl<'cx> TyChecker<'cx> {
             .with_ty_mapper(mapper)
             .with_target(symbol);
         let s = self.symbol(symbol);
-        let name = s.name;
-        let flags = s.flags;
         let decls = s.decls.clone();
-        let value_declaration = s.value_decl;
         self.create_transient_symbol(
-            name,
-            flags | SymbolFlags::TRANSIENT,
+            s.name,
+            s.flags | SymbolFlags::TRANSIENT,
             links,
             decls,
-            value_declaration,
+            s.value_decl,
+            s.parent,
         )
     }
 
@@ -944,7 +942,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let inferred_prop = self.create_transient_symbol(name, flags, links, decls, value_decl);
+            let inferred_prop = self.create_transient_symbol(name, flags, links, decls, None, None);
             members.0.insert(name, inferred_prop);
         }
 
@@ -1599,6 +1597,7 @@ impl<'cx> TyChecker<'cx> {
                             symbol_flags,
                             links,
                             declarations,
+                            None,
                             None,
                         );
                         let prev = members.insert(symbol_name, symbol);

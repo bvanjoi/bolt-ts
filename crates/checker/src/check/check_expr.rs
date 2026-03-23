@@ -1396,18 +1396,16 @@ impl<'cx> TyChecker<'cx> {
                     };
                     object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                     let member_s = self.binder.symbol(member_symbol);
-                    let declarations = member_s.decls.clone();
-                    let value_declaration = member_s.value_decl;
                     let name = member_s.name;
-                    let flags = member_s.flags;
                     let prop = self.create_transient_symbol(
                         name,
-                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT) | flags,
+                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT) | member_s.flags,
                         SymbolLinks::default()
                             .with_target(member_symbol)
                             .with_ty(ty),
-                        declarations,
-                        value_declaration,
+                        member_s.decls.clone(),
+                        member_s.value_decl,
+                        member_s.parent,
                     );
                     push_properties_table(
                         self,
@@ -1771,7 +1769,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 links
             };
-            let result = self.create_transient_symbol(name, FLAGS, links, decls, None);
+            let result = self.create_transient_symbol(name, FLAGS, links, decls, None, None);
             let prev = members.insert(name, result);
             assert!(prev.is_none());
         }

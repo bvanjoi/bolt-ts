@@ -868,6 +868,7 @@ impl<'cx> TyChecker<'cx> {
                                 .with_check_flags(check_flags),
                             None,
                             None,
+                            None,
                         );
                         props.push(property);
                     }
@@ -891,6 +892,7 @@ impl<'cx> TyChecker<'cx> {
                 SymbolLinks::default()
                     .with_ty(ty)
                     .with_check_flags(check_flags),
+                None,
                 None,
                 None,
             );
@@ -1822,7 +1824,8 @@ impl<'cx> TyChecker<'cx> {
                             links = links.with_name_ty(name_ty);
                         }
                         // TODO: left_spread, right_spread, declarations
-                        let result = self.create_transient_symbol(name, flags, links, None, None);
+                        let result =
+                            self.create_transient_symbol(name, flags, links, None, None, None);
                         occ.insert(result);
                     }
                 }

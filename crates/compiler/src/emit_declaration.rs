@@ -89,6 +89,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
                         Getter(n) => todo!(),
                         Setter(n) => todo!(),
                         StaticBlockDecl(n) => todo!(),
+                        Semi(_) => {}
                     }
                 },
                 |this, _| {

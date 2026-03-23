@@ -57,6 +57,7 @@ impl<'cx> TyChecker<'cx> {
                 links,
                 None,
                 None,
+                None,
             );
             members.insert(name, symbol);
         }

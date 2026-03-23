@@ -117,6 +117,7 @@ fn get_instantiated_ty_part<'cx>(
                 links,
                 None,
                 None,
+                None,
             );
             return checker.create_anonymous_ty_with_resolved(
                 Some(symbol),

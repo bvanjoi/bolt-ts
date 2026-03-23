@@ -151,6 +151,7 @@ impl<'cx> TyChecker<'cx> {
                 Getter(n) => Some(n.name.id()),
                 Setter(n) => Some(n.name.id()),
                 StaticBlockDecl(_) => None,
+                Semi(_) => None,
             };
 
             let declared_prop = member_name
@@ -515,6 +516,7 @@ impl<'cx> TyChecker<'cx> {
                 StaticBlockDecl(n) => {
                     self.check_block(n.body);
                 }
+                Semi(_) => {}
             }
         }
     }

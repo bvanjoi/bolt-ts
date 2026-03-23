@@ -174,6 +174,7 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
         Getter(n) => {}
         Setter(n) => {}
         StaticBlockDecl(n) => {}
+        Semi(_) => {}
     }
 }
 pub fn visit_index_sig_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx ast::IndexSigDecl<'cx>) {
@@ -789,5 +790,6 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         YieldExpr(n) => todo!(),
         ImportEqualsDecl(n) => todo!(),
         ExternalModuleReference(n) => todo!(),
+        ClassSemiElem(n) => {}
     }
 }

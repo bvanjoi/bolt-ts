@@ -1262,6 +1262,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExternalModuleReference(n) => {
                 self.bind(n.module_spec.id);
             }
+            ClassSemiElem(n) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

@@ -349,6 +349,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 Some(ir::ClassElem::StaticBlock(self.lower_class_static_block(n)))
             }
             ast::ClassElemKind::IndexSig(_) => None,
+            ast::ClassElemKind::Semi(_) => None,
         }
     }
 
