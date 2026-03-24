@@ -1926,9 +1926,27 @@ impl<'cx> TyChecker<'cx> {
                     return false;
                 }
             }
+
+            if !flags.contains(ast::ModifierKind::Static)
+                && let prop_symbol = self.symbol(prop)
+                && let Some(decls) = prop_symbol.decls.as_ref()
+                && decls.iter().any(|decl| {
+                    self.node_query(decl.module())
+                        .is_class_instance_property(*decl)
+                })
+            {
+                if let Some(error_node) = error_node {
+                    let error = errors::AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+                        span: self.p.node(error_node).span(),
+                        field: prop_symbol.name.to_string(&self.atoms),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                return false;
+            }
         }
 
-        if flags.intersects(ast::ModifierKind::Private) {
+        if flags.contains(ast::ModifierKind::Private) {
             // TODO: use parent symbol to find the class
             let p = self.parent(loc).unwrap();
             if self

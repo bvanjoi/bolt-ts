@@ -1223,4 +1223,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node_flags(node)
             .contains(ast::NodeFlags::JAVASCRIPT_FILE)
     }
+
+    pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
+        // TODO: js
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        let parent_node = self.node(parent);
+        let node = self.node(node);
+        parent_node.is_class_like()
+            && node.is_class_prop_elem()
+            && !node.has_syntactic_modifier(ast::ModifierKind::Accessor.into())
+    }
 }

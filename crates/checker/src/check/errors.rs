@@ -1343,3 +1343,11 @@ pub(super) struct XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsag
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{field}' defined by the parent class is not accessible in the child class via super.")]
+pub(super) struct AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+    #[label(primary)]
+    pub span: Span,
+    pub field: String,
+}

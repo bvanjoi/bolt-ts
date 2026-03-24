@@ -1,0 +1,6 @@
+  × 'field' defined by the parent class is not accessible in the child class
+  │ via super.
+    ╭─[../../tests/compiler/classFieldSuperNotAccessible/index.ts:11:9]
+ 11 │ super.field
+    · ───────────
+    ╰────
