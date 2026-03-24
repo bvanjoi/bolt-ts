@@ -1557,7 +1557,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn skip_generic_fn(&mut self, node: ast::NodeID, check_mode: CheckMode) {
-        if check_mode.intersects(CheckMode::INFERENTIAL) {
+        if check_mode.contains(CheckMode::INFERENTIAL) {
             let context = self.get_inference_context(node).unwrap();
             let inference = context.inference.unwrap();
             self.config_inference_flags(inference, |flags| {
@@ -1572,6 +1572,8 @@ impl<'cx> TyChecker<'cx> {
         include_global_this: bool,
         container_id: Option<ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: in_js
+
         let container_id = container_id.unwrap_or_else(|| {
             self.node_query(node.module())
                 .get_this_container(node, false, false)
@@ -1583,7 +1585,7 @@ impl<'cx> TyChecker<'cx> {
                 .or_else(|| self.get_contextual_this_param_ty(container_id));
 
             if let Some(this_ty) = this_ty {
-                return Some(this_ty);
+                return Some(self.get_flow_ty_of_reference(node, this_ty, None, None, None));
             }
         }
 

@@ -1,0 +1,5 @@
+  × Property 'smaller' does not exist on type '{ big: true; }'.
+    ╭─[../../tests/compiler/controlFlowAnalysisOnBareThisKeyword/index.ts:10:14]
+ 10 │ smaller
+    · ───────
+    ╰────

@@ -1,13 +1,16 @@
 use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::AssignmentDeclarationKind;
+use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
+use bolt_ts_ty::CheckFlags;
 
 use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
+use super::links;
 use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::MappedTyNameTyKind;
@@ -702,12 +705,268 @@ impl<'cx> TyChecker<'cx> {
             .get_signatures_of_type(ty, ty::SigKind::Call)
             .iter()
             .filter(|sig| !self.is_arity_smaller(sig, id))
+            .copied()
             .collect::<Vec<_>>();
-        if sigs.is_empty() {
-            // TODO: get_intersected_sigs
-            None
-        } else {
+        if sigs.len() == 1 {
             Some(sigs[0])
+        } else {
+            self.get_intersected_sigs(&sigs)
+        }
+    }
+
+    fn compare_ty_params_identical(
+        &mut self,
+        source: Option<ty::Tys<'cx>>,
+        target: Option<ty::Tys<'cx>>,
+    ) -> bool {
+        let Some(sources) = source else { return true };
+        let Some(targets) = target else { return true };
+        if sources.len() != targets.len() {
+            return false;
+        }
+
+        let mapper = self.create_ty_mapper(targets, sources);
+        for (source, target) in sources.iter().zip(targets.iter()) {
+            if source == target {
+                continue;
+            }
+            let source = self
+                .get_constraint_from_ty_param(source)
+                .unwrap_or(self.unknown_ty);
+            let target = self
+                .get_constraint_from_ty_param(target)
+                .unwrap_or(self.unknown_ty);
+            let target = self.instantiate_ty(target, Some(mapper));
+            if !self.is_type_identical_to(source, target) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn get_parameter_name_at_position(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        pos: usize,
+        override_rest_ty: Option<&'cx ty::Ty<'cx>>,
+    ) -> SymbolName {
+        let param_count = sig.params.len() - if sig.has_rest_param() { 1 } else { 0 };
+        if pos < param_count {
+            return self.symbol(sig.params[pos]).name;
+        }
+        let rest_param = sig.params.get(param_count).copied().unwrap_or(Symbol::ERR);
+        let rest_ty = override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(rest_param));
+        if let Some(tuple_ty) = rest_ty.as_tuple() {
+            todo!()
+        } else {
+            self.symbol(rest_param).name
+        }
+    }
+
+    fn get_intersected_sigs(&mut self, sigs: &[&'cx ty::Sig<'cx>]) -> Option<&'cx ty::Sig<'cx>> {
+        if self.config.no_implicit_any() {
+            let first = sigs.first().copied();
+            sigs.iter().skip(1).fold(first, |left, right| {
+                if left == Some(right) || left.is_none() {
+                    left
+                } else if let Some(left) = left
+                    && let left_ty_params = self.get_sig_links(left.id).get_ty_params()
+                    && let right_ty_params = self.get_sig_links(right.id).get_ty_params()
+                    && self.compare_ty_params_identical(left_ty_params, right_ty_params)
+                {
+                    // combine signatures of intersection members
+                    let ty_params = left_ty_params.or(right_ty_params);
+                    let param_mapper = if let Some(left_ty_mapper) = left_ty_params
+                        && let Some(right_ty_mapper) = right_ty_params
+                    {
+                        Some(self.create_ty_mapper(right_ty_mapper, left_ty_mapper)
+                            as &dyn ty::TyMap<'cx>)
+                    } else {
+                        None
+                    };
+                    let mut flags = (left.flags | right.flags)
+                        & ty::SigFlags::PROPAGATING_FLAGS
+                            .intersection(ty::SigFlags::HAS_REST_PARAMETER.complement());
+                    let params = {
+                        // combine_intersection_params
+                        let left_count = left.get_param_count(self);
+                        let right_count = right.get_param_count(self);
+                        let longest = if left_count >= right_count {
+                            left
+                        } else {
+                            right
+                        };
+                        let shorter = if longest == left { right } else { left };
+                        let longest_count = if longest == left {
+                            left_count
+                        } else {
+                            right_count
+                        };
+                        let either_has_effective_rest = self.has_effective_rest_param(left)
+                            || self.has_effective_rest_param(right);
+                        let needs_extra_rest_element =
+                            either_has_effective_rest && !self.has_effective_rest_param(longest);
+                        let mut params = Vec::with_capacity(
+                            longest_count + (if needs_extra_rest_element { 1 } else { 0 }),
+                        );
+                        for i in 0..longest_count {
+                            let mut longest_param_type =
+                                self.try_get_ty_at_pos(longest, i).unwrap();
+                            if longest.eq(right) {
+                                longest_param_type =
+                                    self.instantiate_ty(longest_param_type, param_mapper);
+                            }
+                            let mut shorter_param_type = self
+                                .try_get_ty_at_pos(shorter, i)
+                                .unwrap_or(self.unknown_ty);
+                            if shorter.eq(right) {
+                                shorter_param_type =
+                                    self.instantiate_ty(shorter_param_type, param_mapper);
+                            }
+                            let union_param_type = self.get_union_ty::<false>(
+                                &[longest_param_type, shorter_param_type],
+                                ty::UnionReduction::Lit,
+                                None,
+                                None,
+                                None,
+                            );
+                            let is_rest_params = either_has_effective_rest
+                                && !needs_extra_rest_element
+                                && i == (longest_count - 1);
+                            let is_optional = i >= self.get_min_arg_count(longest)
+                                && i >= self.get_min_arg_count(shorter);
+                            let left_name = if i >= left_count {
+                                None
+                            } else {
+                                Some(self.get_parameter_name_at_position(left, i, None))
+                            };
+                            let right_name = if i >= right_count {
+                                None
+                            } else {
+                                Some(self.get_parameter_name_at_position(right, i, None))
+                            };
+                            let param_name = if left_name == right_name {
+                                left_name
+                            } else if left_name.is_none() {
+                                right_name
+                            } else if right_name.is_none() {
+                                left_name
+                            } else {
+                                None
+                            };
+
+                            let flags = SymbolFlags::FUNCTION_SCOPED_VARIABLE
+                                | if is_optional && !is_rest_params {
+                                    SymbolFlags::OPTIONAL
+                                } else {
+                                    SymbolFlags::empty()
+                                };
+                            let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
+                            let links = links::SymbolLinks::default()
+                                .with_ty(if is_rest_params {
+                                    self.create_array_ty(union_param_type, false)
+                                } else {
+                                    union_param_type
+                                })
+                                .with_check_flags(if is_rest_params {
+                                    CheckFlags::REST_PARAMETER
+                                } else if is_optional {
+                                    CheckFlags::OPTIONAL_PARAMETER
+                                } else {
+                                    CheckFlags::empty()
+                                });
+                            let param_symbol = self.create_transient_symbol(
+                                name,
+                                flags | SymbolFlags::TRANSIENT,
+                                links,
+                                None,
+                                None,
+                                None,
+                            );
+                            params.push(param_symbol);
+                        }
+                        params
+                    };
+                    let last_param = params.last().copied();
+                    if let Some(last_param) = last_param
+                        && self
+                            .get_check_flags(last_param)
+                            .contains(CheckFlags::REST_PARAMETER)
+                    {
+                        flags.insert(ty::SigFlags::HAS_REST_PARAMETER);
+                    }
+                    let this_param = {
+                        // combine_intersection_this_param
+                        let left_this_param = left.this_param;
+                        let right_this_param = right.this_param;
+                        match (left_this_param, right_this_param) {
+                            (None, None) => None,
+                            (None, Some(_)) => right_this_param,
+                            (Some(_), None) => left_this_param,
+                            (Some(left_this_param), Some(right_this_param)) => {
+                                let left_this_ty = self.get_type_of_symbol(left_this_param);
+                                let right_this_ty = self.get_type_of_symbol(right_this_param);
+                                let right_this_ty =
+                                    self.instantiate_ty(right_this_ty, param_mapper);
+                                let this_ty = self.get_union_ty::<false>(
+                                    &[left_this_ty, right_this_ty],
+                                    ty::UnionReduction::Lit,
+                                    None,
+                                    None,
+                                    None,
+                                );
+                                Some(self.create_transient_symbol_with_ty(left_this_param, this_ty))
+                            }
+                        }
+                    };
+                    let min_args_count = left.min_args_count.max(right.min_args_count);
+                    let composite_sigs = if left.composite_kind == Some(TypeFlags::INTERSECTION)
+                        && left.composite_sigs.is_some()
+                    {
+                        self.alloc(vec![left, right])
+                    } else {
+                        self.alloc(vec![*right])
+                    };
+                    let mapper = param_mapper.map(|mapper| {
+                        if left.composite_kind == Some(TypeFlags::INTERSECTION)
+                            && left.composite_sigs.is_some()
+                            && left.mapper.is_some()
+                        {
+                            self.combine_ty_mappers(left.mapper, mapper)
+                        } else {
+                            mapper
+                        }
+                    });
+                    let res = ty::Sig {
+                        id: ty::SigID::dummy(),
+                        node_id: left.node_id,
+                        class_decl: left.class_decl,
+                        flags,
+                        this_param,
+                        params: self.alloc(params),
+                        min_args_count,
+                        ret: None,
+                        target: None,
+                        mapper,
+                        composite_sigs: Some(self.alloc(composite_sigs)),
+                        composite_kind: Some(TypeFlags::INTERSECTION),
+                    };
+                    let sig_links = super::links::SigLinks::default();
+                    let sig_links = if let Some(ty_params) = ty_params {
+                        sig_links.with_ty_params(ty_params)
+                    } else {
+                        sig_links
+                    };
+                    let sig = self.new_sig(res);
+                    let sig_links = self.sig_links.insert(sig.id, sig_links);
+                    debug_assert!(sig_links.is_none());
+                    Some(sig)
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
         }
     }
 

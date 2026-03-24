@@ -1,0 +1,5 @@
+  × Property 'asdf' does not exist on type 'number | string'.
+    ╭─[../../tests/compiler/contextualTypingOfLambdaWithMultipleSignatures2_strict/index.ts:11:23]
+ 11 │ asdf
+    · ────
+    ╰────
