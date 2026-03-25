@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use indexmap::IndexMap;
 
 pub fn compile_single_input(code: &str) -> TestState {
@@ -5,6 +7,9 @@ pub fn compile_single_input(code: &str) -> TestState {
         "/index.ts": code
     });
     let files: indexmap::IndexMap<String, String> = serde_json::from_value(json).unwrap();
+    // let mut marker_positions = HashMap::new();
+    // let mut markers = vec![];
+    // let mut ranges = vec![];
     let files = files
         .into_iter()
         .map(|(path, content)| {
@@ -14,6 +19,11 @@ pub fn compile_single_input(code: &str) -> TestState {
         .collect::<IndexMap<_, _>>();
     assert!(files.len() == 1);
     TestState::new(files, 0)
+}
+struct Range {
+    lo: usize,
+    hi: usize,
+    marker: Option<Marker>,
 }
 
 fn parse_file_content(filename: &str, content: &str) -> self::File {
@@ -26,6 +36,16 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
     struct LocationInfo {
         position: usize,
         source_pos: usize,
+        source_line: usize,
+        source_column: usize,
+    }
+    #[derive(Debug, PartialEq)]
+    struct RangeLocationInfo {
+        position: usize,
+        source_pos: usize,
+        source_line: usize,
+        source_column: usize,
+        marker: Option<Marker>,
     }
 
     const VALID_MARKER_CHARS: &str =
@@ -34,6 +54,8 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
     let content = content.as_bytes();
     let mut markers = vec![];
     let mut output = vec![];
+    let mut open_ranges: Vec<RangeLocationInfo> = vec![];
+    let mut local_ranges: Vec<Range> = vec![];
     let mut last_normal_char_pos = 0;
     let mut difference = 0;
 
@@ -56,18 +78,54 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
     }
 
     let mut previous_char = content[0];
+    let mut line = 1;
+    let mut column = 1;
     for i in 1..content.len() {
         let current_char = content[i];
 
         match state {
-            State::None => {
-                if previous_char == b'/' && current_char == b'*' {
+            State::None => match (previous_char, current_char) {
+                (b'[', b'|') => {
+                    open_ranges.push(RangeLocationInfo {
+                        position: i - 1 - difference,
+                        source_pos: i - 1,
+                        marker: None,
+                        source_line: line,
+                        source_column: column,
+                    });
+                    flush(&mut output, last_normal_char_pos, Some(i - 1));
+                    last_normal_char_pos = i + 1;
+                    difference += 2;
+                }
+                (b'|', b']') => {
+                    let Some(range_start) = open_ranges.pop() else {
+                        unreachable!(
+                            "Unmatched range end marker at line {}, column {} in {}",
+                            line, column, filename
+                        );
+                    };
+
+                    let range = Range {
+                        lo: range_start.position,
+                        hi: i - 1 - difference,
+                        marker: range_start.marker,
+                    };
+                    local_ranges.push(range);
+
+                    flush(&mut output, last_normal_char_pos, Some(i - 1));
+                    last_normal_char_pos = i + 1;
+                    difference += 2;
+                }
+                (b'/', b'*') => {
                     state = State::InSlashStarMarker(LocationInfo {
                         position: i - 1 - difference,
                         source_pos: i - 1,
-                    });
+                        source_line: line,
+                        source_column: column,
+                    })
                 }
-            }
+                _ => {}
+            },
             State::InSlashStarMarker(loc) => {
                 if previous_char == b'*' && current_char == b'/' {
                     markers.push(Marker {
@@ -109,6 +167,7 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
     }
 }
 
+#[derive(Debug, PartialEq)]
 struct Marker {
     offset: usize,
     content: String,

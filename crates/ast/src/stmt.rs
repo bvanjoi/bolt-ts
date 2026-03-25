@@ -254,6 +254,13 @@ pub struct EnumDecl<'cx> {
     pub members: EnumMembers<'cx>,
 }
 
+impl<'cx> EnumDecl<'cx> {
+    pub fn is_const(&self) -> bool {
+        self.modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierKind::Const))
+    }
+}
+
 pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
 
 #[derive(Debug, Clone)]

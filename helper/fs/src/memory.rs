@@ -13,7 +13,6 @@ pub struct MemoryFS {
 impl MemoryFS {
     pub fn new(
         content_map: impl Iterator<Item = (String, String)>,
-        symlink_map: impl Iterator<Item = (String, String)>,
         atoms: &mut AtomIntern,
     ) -> FsResult<Self> {
         let mut tree = FSTree::new(atoms);
@@ -22,12 +21,6 @@ impl MemoryFS {
             let path = std::path::Path::new(&path);
             let content = atoms.atom(&content);
             tree.add_file(atoms, path, content)?;
-        }
-
-        for (from, to) in symlink_map {
-            let path = std::path::Path::new(&from);
-            let target = std::path::Path::new(&to);
-            tree.add_symlink_file(atoms, path, target)?;
         }
 
         Ok(Self { tree })

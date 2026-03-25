@@ -372,7 +372,7 @@ impl ParserState<'_, '_> {
             } else if is_ascii_identifier_part(self.ch_unchecked()) {
                 self.pos += 1;
             } else if self.ch_unchecked() == b'\\' {
-                result.extend(self.scan_identifier_parts());
+                result.extend(self.scan_identifier_parts()?);
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
@@ -923,8 +923,11 @@ impl ParserState<'_, '_> {
                         && is_identifier_start(extended_cooked_char, false)
                     {
                         let mut unicode = self.scan_extended_unicode_escape(true);
-                        let ident_parts = self.scan_identifier_parts();
-                        unicode.extend(ident_parts);
+                        if let Some(ident_parts) = self.scan_identifier_parts() {
+                            unicode.extend(ident_parts);
+                        } else {
+                            continue;
+                        };
                         self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
                         return;
                     }
@@ -939,8 +942,11 @@ impl ParserState<'_, '_> {
                             std::char::from_u32_unchecked(cooked_char)
                         };
                         let mut s = ch.to_string().into_bytes();
-                        let ident_parts = self.scan_identifier_parts();
-                        s.extend(ident_parts);
+                        if let Some(ident_parts) = self.scan_identifier_parts() {
+                            s.extend(ident_parts);
+                        } else {
+                            continue;
+                        };
                         self.token = self.get_ident_token(Cow::Owned(s), start as u32);
                         return;
                     }
@@ -1403,7 +1409,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
         }
         let end_of_regexp_body = self.pos;
-        if self.token_flags.intersects(TokenFlags::UNTERMINATED) {
+        if self.token_flags.contains(TokenFlags::UNTERMINATED) {
             self.pos = start_of_regexp_body as usize;
             in_escape = false;
             let mut character_class_depth = 0;
@@ -1622,7 +1628,11 @@ impl ParserState<'_, '_> {
                 continue;
             } else {
                 let old_pos = self.pos;
-                v.extend(self.scan_identifier_parts());
+                if let Some(ident_parts) = self.scan_identifier_parts() {
+                    v.extend(ident_parts);
+                } else {
+                    todo!()
+                }
                 if self.pos == old_pos {
                     break;
                 }
@@ -1646,7 +1656,7 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_identifier_parts(&mut self) -> Vec<u8> {
+    fn scan_identifier_parts(&mut self) -> Option<Vec<u8>> {
         let mut result = Vec::with_capacity(32);
         let mut start = self.pos;
         while let Some(ch) = self.ch() {
@@ -1662,8 +1672,17 @@ impl ParserState<'_, '_> {
                     continue;
                 }
                 let ch = self.peek_unicode_escape();
-                if !(ch.is_some_and(|ch| is_identifier_part(ch, false))) {
-                    break;
+                match ch {
+                    Some(ch) => {
+                        if !is_identifier_part(ch, false) {
+                            self.pos += 6;
+                            return None;
+                        }
+                    }
+                    None => {
+                        self.pos += 1;
+                        return None;
+                    }
                 }
                 self.token_flags |= TokenFlags::UNICODE_ESCAPE;
                 result.extend(self.input[start..self.pos].iter());
@@ -1680,7 +1699,7 @@ impl ParserState<'_, '_> {
             }
         }
         result.extend_from_slice(&self.input[start..self.pos]);
-        result
+        Some(result)
     }
 
     pub(super) fn scan_jsx_attr_value(&mut self) {

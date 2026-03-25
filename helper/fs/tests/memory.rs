@@ -16,7 +16,7 @@ fn test_mem_fs() {
 
     let atoms = &mut AtomIntern::prefill(&[]);
     let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let mut fs = MemoryFS::new(inputs.into_iter(), vec![].into_iter(), atoms).unwrap();
+    let mut fs = MemoryFS::new(inputs.into_iter(), atoms).unwrap();
 
     let read_file = |fs: &mut MemoryFS, path: &str, atoms: &mut AtomIntern| {
         fs.read_file(Path::new(path), atoms)
@@ -110,7 +110,7 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
 
     let atoms = &mut AtomIntern::prefill(&[]);
     let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let fs = MemoryFS::new(inputs.into_iter(), vec![].into_iter(), atoms);
+    let fs = MemoryFS::new(inputs.into_iter(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, FsError::FileExists(_))));
 
     let json = serde_json::json!({
@@ -120,6 +120,6 @@ fn test_mem_fs_with_overlap_name_between_dir_and_file() {
 
     let atoms = &mut AtomIntern::prefill(&[]);
     let inputs: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(json).unwrap();
-    let fs = MemoryFS::new(inputs.into_iter(), vec![].into_iter(), atoms);
+    let fs = MemoryFS::new(inputs.into_iter(), atoms);
     assert!(fs.is_err_and(|err| matches!(err, FsError::DirExists(_))));
 }

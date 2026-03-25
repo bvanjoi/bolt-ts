@@ -369,7 +369,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let has_export_modifier = self
             .node_query()
             .get_combined_modifier_flags(current)
-            .contains(ast::ModifierKind::Export);
+            .contains(ast::ModifierKind::Export); // TODO: js
         if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()

@@ -1,12 +1,12 @@
 mod errors;
 
-use bolt_ts_ast::{self as ast, ModuleName};
+use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_config::{Extension, NormalizedCompilerOptions};
+use bolt_ts_config::Extension;
 use bolt_ts_fs::PathId;
+use bolt_ts_module_resolve::ResolveFlags;
 use bolt_ts_module_resolve::{RResult, ResolveError, get_resolution_mode_for_usage_location};
-use bolt_ts_module_resolve::{ResolutionMode, ResolveFlags};
-use bolt_ts_parser::{ImportInfo, ParsedMap};
+use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;

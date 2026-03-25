@@ -1732,6 +1732,8 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let name = SymbolName::Atom(right.name);
+        let skip_object_function_property_augment = self.is_const_enum_object_ty(apparent_left_ty);
+        let include_type_only_members = self.p.node(node).is_qualified_name();
         let prop = self.get_prop_of_ty(apparent_left_ty, name);
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
