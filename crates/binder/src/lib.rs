@@ -101,6 +101,8 @@ struct BinderState<'cx, 'atoms, 'parser> {
     last_container: Option<ast::NodeID>,
     seen_this_keyword: bool,
 
+    block_parent_stack: Vec<ast::NodeID>,
+
     current_flow: Option<FlowID>,
     in_strict_mode: bool,
     in_assignment_pattern: bool,
@@ -213,6 +215,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             last_container: None,
             parent_map,
             pre_switch_case_flow: None,
+            block_parent_stack: vec![],
         }
     }
 

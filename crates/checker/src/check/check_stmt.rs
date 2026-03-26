@@ -154,13 +154,34 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
         let has_module_spec = node.module_spec().is_some();
-        if (!has_module_spec || self.check_external_module_name(node.id))
-            && let ast::ExportClauseKind::Specs(specs) = node.clause.kind
-        {
-            // export { a, b as c } from 'xxxx'
-            // export { a, b as c }
-            for spec in specs.list {
-                self.check_export_spec(spec, has_module_spec);
+        if !has_module_spec || self.check_external_module_name(node.id) {
+            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
+                // export { a, b as c } from 'xxxx'
+                // export { a, b as c }
+                for spec in specs.list {
+                    self.check_export_spec(spec, has_module_spec);
+                }
+                let parent = self.parent(node.id).unwrap();
+                let parent_node = self.p.node(parent);
+                let in_ambient_external_module = parent_node.is_module_block()
+                    && self
+                        .p
+                        .node(self.parent(parent).unwrap())
+                        .is_ambient_module();
+                let in_ambient_ns_decl = !in_ambient_external_module
+                    && parent_node.is_module_block()
+                    && node.module_spec().is_none()
+                    && self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT);
+                if !in_ambient_external_module && !in_ambient_ns_decl && !parent_node.is_program() {
+                    // TODO: could this check moved into wf check?
+                    let error =
+                        errors::ExportDeclarationsAreNotPermittedInANamespace { span: node.span };
+                    self.push_error(Box::new(error));
+                }
+            } else {
+                // export * from 'xxxx'
+                // export * as ns from 'xxxx'
+                // TODO:
             }
         }
     }
@@ -366,9 +387,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
-        let state = self
-            .node_query(node.id.module())
-            .get_module_instance_state(node, None);
+        let nq = self.node_query(node.id.module());
+        let state = nq.get_module_instance_state(node, None, |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 

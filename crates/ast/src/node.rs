@@ -32,7 +32,8 @@ pub enum Node<'cx> {
     VarDecl(&'cx super::VarDecl<'cx>),
     ParamDecl(&'cx super::ParamDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
-    ImportExportShorthandSpec(&'cx super::ImportExportShorthandSpec<'cx>),
+    ImportShorthandSpec(&'cx super::ImportShorthandSpec<'cx>),
+    ExportShorthandSpec(&'cx super::ExportShorthandSpec<'cx>),
     NsImport(&'cx super::NsImport<'cx>),
     NsExport(&'cx super::NsExport<'cx>),
     GlobExport(&'cx super::GlobExport<'cx>),
@@ -307,7 +308,8 @@ impl<'cx> Node<'cx> {
                     None
                 }
             }
-            ImportExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ImportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -500,9 +502,10 @@ impl<'cx> Node<'cx> {
                 | ParamDecl(_)
                 | TyParam(_)
                 | NsImport(_)
-                | ImportExportShorthandSpec(_)
+                | ImportShorthandSpec(_)
                 | ImportEqualsDecl(_)
                 | ExportNamedSpec(_)
+                | ExportShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | ObjectLit(_)
@@ -847,7 +850,8 @@ impl<'cx> Node<'cx> {
     pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::Atom> {
         use Node::*;
         match self {
-            ImportExportShorthandSpec(n) => Some(n.name.name),
+            ImportShorthandSpec(n) => Some(n.name.name),
+            ExportShorthandSpec(n) => Some(n.name.name),
             ImportNamedSpec(n) => match n.prop_name.kind {
                 crate::ModuleExportNameKind::Ident(ident) => Some(ident.name),
                 crate::ModuleExportNameKind::StringLit(lit) => Some(lit.val),
@@ -1244,9 +1248,14 @@ as_node!(
     (TypeofTy, super::TypeofTy<'cx>, typeof_ty),
     (ThrowStmt, super::ThrowStmt<'cx>, throw_stmt),
     (
-        ImportExportShorthandSpec,
-        super::ImportExportShorthandSpec<'cx>,
-        shorthand_spec
+        ImportShorthandSpec,
+        super::ImportShorthandSpec<'cx>,
+        import_shorthand_spec
+    ),
+    (
+        ExportShorthandSpec,
+        super::ExportShorthandSpec<'cx>,
+        export_shorthand_spec
     ),
     (NsImport, super::NsImport<'cx>, ns_import),
     (

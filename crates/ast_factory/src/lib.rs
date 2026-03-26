@@ -1039,4 +1039,28 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    fn create_import_shorthand_spec(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::ImportShorthandSpec<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ImportShorthandSpec { id, span, name });
+        self.insert_node(id, ast::Node::ImportShorthandSpec(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_export_shorthand_spec(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::ExportShorthandSpec<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExportShorthandSpec { id, span, name });
+        self.insert_node(id, ast::Node::ExportShorthandSpec(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

@@ -4,21 +4,22 @@ use miette::MietteSpanContents;
 #[derive(Debug)]
 pub(crate) struct SourceCode {
     pub filename: Option<String>,
-    pub source: std::sync::Arc<String>,
+    pub source: &'static str,
 }
 
 impl SourceCode {
     pub fn new(module_arena: &ModuleArena, module_id: ModuleID) -> Self {
         let source = module_arena.get_content(module_id);
+        let source = unsafe {
+            // SAFETY: the lifetime of `module_arena` is guaranteed to outlive.
+            std::mem::transmute::<&str, &'static str>(source)
+        };
         let filename = module_arena.get_path(module_id);
         let cwd = std::env::current_dir().unwrap();
         let relative =
             relative_path::PathExt::relative_to(filename.as_path(), cwd.as_path()).unwrap();
         let filename = Some(relative.to_string());
-        Self {
-            filename,
-            source: source.clone(),
-        }
+        Self { filename, source }
     }
 }
 

@@ -1,11 +1,12 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::PResult;
 use super::ParserState;
-use crate::keyword;
-use crate::parsing_ctx::ParsingContext;
+use super::keyword;
+use super::parsing_ctx::ParsingContext;
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseNamedImports;
@@ -72,16 +73,8 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ImportExportShorthandSpec {
-                id,
-                span,
-                name: ident,
-            });
-            state
-                .nodes
-                .insert(id, ast::Node::ImportExportShorthandSpec(spec));
-            ast::ImportSpecKind::Shorthand(spec)
+            let node = state.create_import_shorthand_spec(span, ident);
+            ast::ImportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ImportSpec { kind })
     }
@@ -124,16 +117,8 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ImportExportShorthandSpec {
-                id,
-                span,
-                name: ident,
-            });
-            state
-                .nodes
-                .insert(id, ast::Node::ImportExportShorthandSpec(spec));
-            ast::ExportSpecKind::Shorthand(spec)
+            let node = state.create_export_shorthand_spec(span, ident);
+            ast::ExportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ExportSpec { kind })
     }

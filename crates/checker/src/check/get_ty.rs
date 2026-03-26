@@ -172,16 +172,17 @@ impl<'cx> TyChecker<'cx> {
                 self.check_object_prop_assignment(n)
             }
             // TODO: jsx
-        } else if let Some(n) = node.as_shorthand_spec() {
-            if let Some(ty) = node.ty_anno() {
-                self.get_ty_from_type_node(ty)
-            } else {
-                let save_mode = self.check_mode;
-                self.check_mode = Some(CheckMode::empty());
-                let t = self.check_ident_for_mutable_loc(n.name);
-                self.check_mode = save_mode;
-                t
-            }
+        } else if node.is_object_shorthand_member() {
+            todo!()
+            // if let Some(ty) = node.ty_anno() {
+            //     self.get_ty_from_type_node(ty)
+            // } else {
+            //     let save_mode = self.check_mode;
+            //     self.check_mode = Some(CheckMode::empty());
+            //     let t = self.check_ident_for_mutable_loc(n.name);
+            //     self.check_mode = save_mode;
+            //     t
+            // }
         } else if let Some(n) = node.as_object_method_member() {
             if let Some(ty) = node.ty_anno() {
                 self.get_ty_from_type_node(ty)

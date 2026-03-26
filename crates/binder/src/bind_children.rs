@@ -373,16 +373,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
-                || n.as_shorthand_spec().is_some_and(|_| {
-                    let parent = self.parent_map.parent(current).unwrap();
-                    self.p.node(parent).is_specs_export()
-                })
+                || n.is_export_shorthand_spec()
                 || (n.is_import_equals_decl() && has_export_modifier)
             {
                 let table = SymbolTableLocation::exports(container);
-                // let parent = self.final_res[&container];
-                let parent = None;
-                (table, parent)
+                let parent = self.final_res[&container];
+                (table, Some(parent))
             } else {
                 assert!(self.p.node(container).has_locals());
                 let table = SymbolTableLocation::locals(container);
@@ -544,16 +540,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             EleAccessExpr(n) => self.bind_access_expr_flow(n),
             CallExpr(n) => self.bind_call_expr_flow(n),
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
-            Program(n) => {
-                for stmt in n.stmts {
-                    self.bind(stmt.id());
-                }
-            }
-            BlockStmt(ast::BlockStmt { stmts, .. })
+            Program(ast::Program { stmts, .. })
+            | BlockStmt(ast::BlockStmt { stmts, .. })
             | ModuleBlock(ast::ModuleBlock { stmts, .. }) => {
+                self.block_parent_stack.push(node);
                 for stmt in *stmts {
                     self.bind(stmt.id());
                 }
+                self.block_parent_stack.pop();
             }
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
@@ -1120,7 +1114,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TemplateSpanTy(n) => {
                 self.bind(n.ty.id());
             }
-            ImportExportShorthandSpec(n) => self.bind(n.name.id),
+            ImportShorthandSpec(n) => self.bind(n.name.id),
+            ExportShorthandSpec(n) => self.bind(n.name.id),
             ExportNamedSpec(n) => {
                 self.bind_module_export_name(n.prop_name);
                 self.bind_module_export_name(n.name);

@@ -62,7 +62,8 @@ impl<'cx> Nodes<'cx> {
         match node {
             ImportEqualsDecl(_) |
             ImportNamedSpec(_) |                // `import { a as b } from 'xxx'`
-            ImportExportShorthandSpec(_) |      // `export { spec }` or `import { spec } from 'xxx'`
+            ImportShorthandSpec(_) |            // `import { spec } from 'xxx'`
+            ExportShorthandSpec(_) |            // `export { spec }`
             ExportNamedSpec(_) |                // `export { a as b }`
             NsImport(_)                         // `import * as ns from 'xxx'`
             => true,

@@ -1351,3 +1351,26 @@ pub(super) struct AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
     pub span: Span,
     pub field: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Import declaration conflicts with local declaration of '{name}'.")]
+pub(super) struct ImportDeclarationConflictsWithLocalDeclarationOfX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Export declaration conflicts with exported declaration of '{name}'.")]
+pub(super) struct ExportDeclarationConflictsWithExportedDeclarationOfX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Export declarations are not permitted in a namespace.")]
+pub(super) struct ExportDeclarationsAreNotPermittedInANamespace {
+    #[label(primary)]
+    pub span: Span,
+}

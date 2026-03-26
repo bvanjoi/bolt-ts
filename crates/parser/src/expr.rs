@@ -1248,16 +1248,15 @@ impl<'cx> ParserState<'cx, '_> {
         start: usize,
         expr: &'cx ast::Expr<'cx>,
         question_dot: Option<bolt_ts_span::Span>,
-    ) -> PResult<&'cx ast::PropAccessExpr<'cx>> {
+    ) -> &'cx ast::PropAccessExpr<'cx> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
-        let prop = if is_optional_chain {
+        if is_optional_chain {
             self.create_prop_access_chain(span, expr, question_dot, name)
         } else {
             self.create_prop_access_expr(span, expr, name)
-        };
-        Ok(prop)
+        }
     }
 
     fn parse_ele_access_expr_rest(
@@ -1360,7 +1359,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
 
             if is_property_access {
-                let prop = self.parse_prop_access_expr_rest(start, expr, question_dot_token)?;
+                let prop = self.parse_prop_access_expr_rest(start, expr, question_dot_token);
                 expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::PropAccess(prop),
                 });

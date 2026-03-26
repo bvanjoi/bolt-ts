@@ -52,7 +52,7 @@ pub enum StmtKind<'cx> {
     Switch(&'cx SwitchStmt<'cx>),
 }
 
-impl Stmt<'_> {
+impl<'cx> Stmt<'cx> {
     pub fn id(&self) -> NodeID {
         use StmtKind::*;
         match self.kind {
@@ -94,6 +94,23 @@ impl Stmt<'_> {
             return lit.val == keyword::DIRECTIVE_USE_STRICT;
         }
         false
+    }
+
+    pub fn has_name(&self, name: &'cx Ident) -> bool {
+        match self.kind {
+            StmtKind::Var(stmt) => stmt.list.iter().any(|decl| decl.name.kind.has_name(name)),
+            StmtKind::Fn(n) => n.name.is_some_and(|i| i.name == name.name),
+            StmtKind::Class(n) => n.name.is_some_and(|i| i.name == name.name),
+            StmtKind::Interface(n) => n.name.name == name.name,
+            StmtKind::TypeAlias(n) => n.name.name == name.name,
+            StmtKind::Module(n) => match n.name {
+                ModuleName::Ident(ident) => ident.name == name.name,
+                ModuleName::StringLit(lit) => lit.val == name.name,
+            },
+            StmtKind::Enum(n) => n.name.name == name.name,
+            StmtKind::ImportEquals(n) => n.name.name == name.name,
+            _ => false,
+        }
     }
 }
 
@@ -833,14 +850,21 @@ pub struct ImportSpec<'cx> {
 
 #[derive(Debug, Clone)]
 pub enum ImportSpecKind<'cx> {
-    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
+    Shorthand(&'cx ImportShorthandSpec<'cx>),
     Named(&'cx ImportNamedSpec<'cx>),
 }
 
 pub type ImportSpecs<'cx> = &'cx [&'cx ImportSpec<'cx>];
 
 #[derive(Debug, Clone)]
-pub struct ImportExportShorthandSpec<'cx> {
+pub struct ImportShorthandSpec<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportShorthandSpec<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
@@ -1004,11 +1028,19 @@ impl ExportSpec<'_> {
             Named(named) => named.id,
         }
     }
+
+    pub fn span(&self) -> Span {
+        use ExportSpecKind::*;
+        match self.kind {
+            Shorthand(shorthand) => shorthand.span,
+            Named(named) => named.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum ExportSpecKind<'cx> {
-    Shorthand(&'cx ImportExportShorthandSpec<'cx>),
+    Shorthand(&'cx ExportShorthandSpec<'cx>),
     Named(&'cx ExportNamedSpec<'cx>),
 }
 
@@ -1067,6 +1099,20 @@ impl<'cx> BindingKind<'cx> {
             Ident(ident) => ident.span,
             ObjectPat(obj_pat) => obj_pat.span,
             ArrayPat(arr_pat) => arr_pat.span,
+        }
+    }
+
+    pub fn has_name(&self, ident_name: &'cx Ident) -> bool {
+        match self {
+            BindingKind::Ident(ident) => ident.name == ident_name.name,
+            BindingKind::ObjectPat(pat) => pat.elems.iter().any(|elem| match elem.name {
+                ObjectBindingName::Shorthand(ident) => ident.name == ident_name.name,
+                ObjectBindingName::Prop { name, .. } => name.kind.has_name(ident_name),
+            }),
+            BindingKind::ArrayPat(pat) => pat.elems.iter().any(|elem| match elem.kind {
+                ArrayBindingElemKind::Omit(_) => false,
+                ArrayBindingElemKind::Binding(binding) => binding.name.kind.has_name(ident_name),
+            }),
         }
     }
 }

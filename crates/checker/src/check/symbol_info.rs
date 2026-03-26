@@ -257,13 +257,11 @@ impl<'cx> super::TyChecker<'cx> {
                 Some(self.get_target_of_import_equals_decl::<DONT_RESOLVE_ALIAS>(n))
             }
             ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS),
-            ImportExportShorthandSpec(_)
-                if p.node(self.parent(node).unwrap()).is_import_clause() =>
-            {
+            ImportShorthandSpec(_) => {
                 get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS)
             }
-            ImportExportShorthandSpec(_) => {
-                assert!(p.node(self.parent(node).unwrap()).is_specs_export());
+            ExportShorthandSpec(_) => {
+                debug_assert!(p.node(self.parent(node).unwrap()).is_specs_export());
                 get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
             }
             ExportNamedSpec(_) => {
@@ -1088,7 +1086,8 @@ fn get_external_module_member(
                 ast::ModuleExportNameKind::Ident(ident) => ident.name,
                 ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
-            ast::Node::ImportExportShorthandSpec(n) => n.name.name,
+            ast::Node::ImportShorthandSpec(n) => n.name.name,
+            ast::Node::ExportShorthandSpec(n) => n.name.name,
             ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
                 ast::ModuleExportNameKind::Ident(n) => n.name,
                 ast::ModuleExportNameKind::StringLit(_) => todo!(),
@@ -1209,7 +1208,8 @@ fn report_non_exported_member(
     } else {
         use ast::Node::*;
         let span = match this.p().node(spec_name_id) {
-            ImportExportShorthandSpec(n) => n.span,
+            ImportShorthandSpec(n) => n.span,
+            ExportShorthandSpec(n) => n.span,
             ExportNamedSpec(n) => n.prop_name.span(),
             _ => unreachable!(),
         };
@@ -1242,7 +1242,7 @@ fn get_target_of_export_spec(
     }
 
     match n {
-        ast::Node::ImportExportShorthandSpec(n) => {
+        ast::Node::ExportShorthandSpec(n) => {
             let p_id = this.parent(node).unwrap();
             let p = this.p().node(p_id).expect_specs_export();
             if p.module.is_some() {

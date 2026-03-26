@@ -42,7 +42,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         name: SymbolName,
         ns: &'cx ast::ModuleDecl<'cx>,
     ) -> SymbolID {
-        let state = self.node_query().get_module_instance_state(ns, None);
+        let nq = self.node_query();
+        let state = nq.get_module_instance_state(ns, None, |_, index| {
+            if self.block_parent_stack.len() == index {
+                None
+            } else {
+                let index = self.block_parent_stack.len() - 1 - index;
+                Some(self.block_parent_stack[index])
+            }
+        });
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         let (includes, excludes) = if instantiated {
             (
@@ -592,15 +600,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ModuleDecl(node) => self.bind_ns_decl(node),
             ImportEqualsDecl(ast::ImportEqualsDecl { id, name, .. })
             | ImportNamedSpec(ast::ImportNamedSpec { id, name, .. })
-            | ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
+            | ImportShorthandSpec(ast::ImportShorthandSpec { id, name, .. })
+            | ExportShorthandSpec(ast::ExportShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
                 // importEqualsDeclaration:
                 //  - import name = xxx
                 //  - import name = xxx.yyy
                 // ImportNamedSpec:
                 //  - import { prop_name as name } from 'xxx'
-                // ImportExportShorthandSpec:
+                // ImportShorthandSpec:
                 //  - import { name } from 'xxx'
+                // ExportShorthandSpec:
                 //  - export { name } from 'xxx'
                 // NsImport:
                 //  - import * as name from 'xxx'

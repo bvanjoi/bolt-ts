@@ -10,7 +10,7 @@ pub struct NodeQuery<'cx, 'a> {
     parse_result: &'a bolt_ts_parser::ParseResultForGraph<'cx>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum ModuleInstanceState {
     NonInstantiated = 0,
     Instantiated = 1,
@@ -148,57 +148,135 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         m: &'cx ast::ModuleDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
         fn cache<'cx>(
             this: &NodeQuery<'cx, '_>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
         ) -> ModuleInstanceState {
             let key = node.index_as_u32();
             if let Some(v) = visited.get(&key).copied() {
-                v.unwrap_or(ModuleInstanceState::Instantiated)
+                v.unwrap_or(ModuleInstanceState::NonInstantiated)
             } else {
                 visited.insert(key, None);
-                let state = _get_module_instance_state(this, node, visited);
+                let state = get_module_instance_state_worker(this, node, visited, parent_of);
                 visited.insert(key, Some(state));
                 state
             }
         }
 
-        fn _get_module_instance_state<'cx>(
+        fn get_module_instance_state_for_alias_target<'cx>(
+            this: &NodeQuery<'cx, '_>,
+            node: &'cx ast::ExportSpec<'cx>,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+        ) -> ModuleInstanceState {
+            let name = match node.kind {
+                ast::ExportSpecKind::Shorthand(n) => n.name,
+                ast::ExportSpecKind::Named(n) => {
+                    match n.prop_name.kind {
+                        ast::ModuleExportNameKind::Ident(ident) => ident,
+                        ast::ModuleExportNameKind::StringLit(_) => {
+                            // Skip for invalid syntax like this: export { "x" }
+                            return ModuleInstanceState::Instantiated;
+                        }
+                    }
+                }
+            };
+
+            let mut index = 0;
+            let mut p = parent_of(node.id(), index);
+            debug_assert!(p.is_some());
+            while let Some(p_id) = p {
+                match this.node(p_id) {
+                    ast::Node::BlockStmt(ast::BlockStmt { stmts, .. })
+                    | ast::Node::ModuleBlock(ast::ModuleBlock { stmts, .. })
+                    | ast::Node::Program(ast::Program { stmts, .. }) => {
+                        let mut found: Option<ModuleInstanceState> = None;
+                        for stmt in *stmts {
+                            if stmt.has_name(name) {
+                                let state = cache(this, stmt.id(), visited, parent_of);
+                                if found.is_none_or(|found| state > found) {
+                                    found = Some(state);
+                                }
+                                if let Some(found) = found
+                                    && found == ModuleInstanceState::Instantiated
+                                {
+                                    return found;
+                                }
+                            }
+                            if let ast::StmtKind::ImportEquals(_) = stmt.kind {
+                                found = Some(ModuleInstanceState::Instantiated);
+                            }
+                            if let Some(found) = found {
+                                return found;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                index += 1;
+                p = parent_of(p_id, index);
+            }
+            ModuleInstanceState::Instantiated
+        }
+
+        fn get_module_instance_state_worker<'cx>(
             this: &NodeQuery<'cx, '_>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
         ) -> ModuleInstanceState {
             use ast::Node::*;
             let n = this.node(node);
             match n {
                 InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
-                // TODO: import eq
-                ImportDecl(_) if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) => {
+                ImportDecl(_) | ImportEqualsDecl(_)
+                    if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) =>
+                {
                     ModuleInstanceState::NonInstantiated
                 }
-                ExportDecl(_) => {
-                    todo!()
+                ExportDecl(n) => {
+                    if n.module_spec().is_none()
+                        && let ast::ExportClauseKind::Specs(specs) = n.clause.kind
+                    {
+                        let mut state = ModuleInstanceState::NonInstantiated;
+                        for spec in specs.list {
+                            let spec_state = get_module_instance_state_for_alias_target(
+                                this, spec, visited, parent_of,
+                            );
+                            if spec_state > state {
+                                state = spec_state;
+                            }
+                            if state == ModuleInstanceState::Instantiated {
+                                return state;
+                            }
+                        }
+                        return state;
+                    }
+                    ModuleInstanceState::Instantiated
                 }
                 ModuleBlock(m) => {
                     let mut state = ModuleInstanceState::NonInstantiated;
                     for item in m.stmts {
-                        let child_state = cache(this, item.id(), visited);
+                        let child_state = cache(this, item.id(), visited, parent_of);
                         match child_state {
                             ModuleInstanceState::NonInstantiated => (),
                             ModuleInstanceState::Instantiated => {
-                                state = ModuleInstanceState::Instantiated
+                                state = ModuleInstanceState::Instantiated;
+                                break;
                             }
                             ModuleInstanceState::ConstEnumOnly => {
-                                state = ModuleInstanceState::ConstEnumOnly
+                                state = ModuleInstanceState::ConstEnumOnly;
                             }
                         }
                     }
                     state
                 }
-                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
+                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited), parent_of),
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -212,10 +290,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
         if let Some(block) = m.block {
             if let Some(visited) = visited {
-                cache(self, block.id, visited)
+                cache(self, block.id, visited, parent_of)
             } else {
                 let mut default_map = nohash_hasher::IntMap::default();
-                cache(self, block.id, &mut default_map)
+                cache(self, block.id, &mut default_map, parent_of)
             }
         } else {
             ModuleInstanceState::Instantiated
@@ -929,15 +1007,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 let p = self.node(p).expect_import_decl();
                 Some(p.module)
             }
-            ImportExportShorthandSpec(_) => {
+            ExportShorthandSpec(_) => {
                 // export {a}
                 // export {a} from 'xxx'
                 let p = self.parent(id).unwrap();
-                if let Some(n) = self.node(p).as_specs_export() {
-                    return n.module;
-                }
+                let n = self.node(p).expect_specs_export();
+                n.module
+            }
+            ImportShorthandSpec(_) => {
                 // import {a} from 'xxx'
-                let p = self.parent(p).unwrap();
+                let p = self.parent(id).unwrap();
                 let p = self.node(p).expect_import_decl();
                 Some(p.module)
             }
