@@ -1,24 +1,15 @@
 use std::collections::HashMap;
 
+use bolt_ts_language_server::LanguageService;
 use indexmap::IndexMap;
+use tower_lsp::LanguageServer;
 
 pub fn compile_single_input(code: &str) -> TestState {
     let json = serde_json::json!({
         "/index.ts": code
     });
     let files: indexmap::IndexMap<String, String> = serde_json::from_value(json).unwrap();
-    // let mut marker_positions = HashMap::new();
-    // let mut markers = vec![];
-    // let mut ranges = vec![];
-    let files = files
-        .into_iter()
-        .map(|(path, content)| {
-            let file = parse_file_content(&path, &content);
-            (path, file)
-        })
-        .collect::<IndexMap<_, _>>();
-    assert!(files.len() == 1);
-    TestState::new(files, 0)
+    parse_test_data(files)
 }
 struct Range {
     lo: usize,
@@ -26,7 +17,30 @@ struct Range {
     marker: Option<Marker>,
 }
 
-fn parse_file_content(filename: &str, content: &str) -> self::File {
+type MarkerArena = bolt_ts_arena::la_arena::Arena<Marker>;
+type MarkerId = bolt_ts_arena::la_arena::Idx<Marker>;
+
+fn parse_test_data(files: indexmap::IndexMap<String, String>) -> TestState {
+    let mut marker_positions = HashMap::new();
+    let mut markers = MarkerArena::new();
+    // let mut ranges = vec![];
+    let files = files
+        .into_iter()
+        .map(|(path, content)| {
+            let file = parse_file_content(&path, &content, &mut marker_positions, &mut markers);
+            (path, file)
+        })
+        .collect::<IndexMap<_, _>>();
+    assert!(files.len() == 1);
+    TestState::new(files, 0, marker_positions, markers)
+}
+
+fn parse_file_content(
+    filename: &str,
+    content: &str,
+    marker_positions: &mut HashMap<String, MarkerId>,
+    markers: &mut MarkerArena,
+) -> String {
     #[derive(Debug, PartialEq, Clone, Copy)]
     enum State {
         None,
@@ -52,7 +66,6 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz$1234567890_";
 
     let content = content.as_bytes();
-    let mut markers = vec![];
     let mut output = vec![];
     let mut open_ranges: Vec<RangeLocationInfo> = vec![];
     let mut local_ranges: Vec<Range> = vec![];
@@ -71,10 +84,7 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
         };
 
     if content.is_empty() {
-        return self::File {
-            content: "".to_string(),
-            markers,
-        };
+        return "".to_string();
     }
 
     let mut previous_char = content[0];
@@ -128,12 +138,21 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
             },
             State::InSlashStarMarker(loc) => {
                 if previous_char == b'*' && current_char == b'/' {
-                    markers.push(Marker {
+                    // record_marker
+                    let marker_name_text =
+                        String::from_utf8_lossy(&content[loc.source_pos + 2..i - 1]);
+                    if marker_positions.contains_key(marker_name_text.as_ref()) {
+                        panic!(
+                            "Duplicate marker name '{}' at line {}, column {} in {}",
+                            marker_name_text, loc.source_line, loc.source_column, filename
+                        );
+                    }
+                    let marker = markers.alloc(Marker {
+                        filename: filename.to_string(),
                         offset: loc.position,
-                        content: String::from_utf8_lossy(&content[loc.source_pos + 2..i - 1])
-                            .trim()
-                            .to_string(),
+                        content: marker_name_text.to_string(),
                     });
+                    marker_positions.insert(marker_name_text.to_string(), marker);
                     flush(&mut output, last_normal_char_pos, Some(loc.source_pos));
                     last_normal_char_pos = i + 1;
                     difference += i + 1 - loc.source_pos;
@@ -153,55 +172,69 @@ fn parse_file_content(filename: &str, content: &str) -> self::File {
         if current_char == b'\n' && previous_char == b'\r' {
             continue;
         } else if current_char == b'\n' || current_char == b'\r' {
+            line += 1;
+            column = 1;
             continue;
         }
 
+        column += 1;
         previous_char = current_char;
     }
 
     flush(&mut output, last_normal_char_pos, None);
 
-    File {
-        content: String::from_utf8(output).unwrap(),
-        markers,
+    if !open_ranges.is_empty() {
+        panic!(
+            "Unmatched range start marker at line {}, column {} in {}",
+            open_ranges[0].source_line, open_ranges[0].source_column, filename
+        );
     }
+
+    String::from_utf8(output).unwrap()
 }
 
 #[derive(Debug, PartialEq)]
 struct Marker {
+    filename: String,
     offset: usize,
     content: String,
 }
 
-struct File {
-    content: String,
-    markers: Vec<Marker>,
-}
-
 pub struct TestState {
-    files: indexmap::IndexMap<String, File>,
+    input_files: indexmap::IndexMap<String, String>,
+    markers: MarkerArena,
+    marker_positions: HashMap<String, MarkerId>,
     active_file: usize,
 
     current_caret_pos: usize,
     selection_end: usize,
+    language_service: LanguageService,
 }
 
 impl TestState {
-    fn new(files: indexmap::IndexMap<String, File>, active_file: usize) -> Self {
+    fn new(
+        input_files: indexmap::IndexMap<String, String>,
+        active_file: usize,
+        marker_positions: HashMap<String, MarkerId>,
+        markers: MarkerArena,
+    ) -> Self {
         Self {
-            files,
+            input_files,
             active_file,
+            marker_positions,
+            markers,
             current_caret_pos: 0,
             selection_end: usize::MAX,
+            language_service: LanguageService::new(),
         }
     }
 
     pub fn goto_marker(&mut self, marker: &str) {
-        let (_, file) = self.files.get_index(self.active_file).unwrap();
-        let Some(marker) = file.markers.iter().find(|m| m.content == marker) else {
+        let (_, file) = self.input_files.get_index(self.active_file).unwrap();
+        let Some(marker) = self.marker_positions.get(marker).copied() else {
             return;
         };
-        self.current_caret_pos = marker.offset;
+        self.current_caret_pos = self.markers[marker].offset;
         self.selection_end = usize::MAX;
     }
 
@@ -210,9 +243,7 @@ impl TestState {
 
         let range = self.get_range();
 
-        self.files[self.active_file]
-            .content
-            .replace_range(range.0..range.1, "");
+        self.input_files[self.active_file].replace_range(range.0..range.1, "");
 
         for ch in text.chars() {
             self.current_caret_pos += 1;
@@ -223,8 +254,8 @@ impl TestState {
     }
 
     pub fn verify_current_file_content_is(&self, expected: &str) {
-        let (_, file) = self.files.get_index(self.active_file).unwrap();
-        assert_eq!(file.content, expected);
+        let (_, file) = self.input_files.get_index(self.active_file).unwrap();
+        assert_eq!(file, expected);
     }
 
     pub fn edit_script_and_update_markers(
@@ -234,14 +265,18 @@ impl TestState {
         edit_end: usize,
         new_text: &str,
     ) {
-        let file = &mut self.files[file_index];
+        let file = &mut self.input_files[file_index];
         // TODO: edit_script
-        let prefix = &file.content[..edit_start];
+        let prefix = &file[..edit_start];
         let middle = new_text;
-        let suffix = &file.content[edit_end..];
-        file.content = format!("{}{}{}", prefix, middle, suffix);
+        let suffix = &file[edit_end..];
+        *file = format!("{}{}{}", prefix, middle, suffix);
 
-        for marker in &mut file.markers {
+        let file_name = self.input_files.get_index(file_index).unwrap().0;
+        for marker in self.markers.values_mut() {
+            if !marker.filename.eq(file_name) {
+                continue;
+            }
             marker.offset =
                 Self::update_position(marker.offset, edit_start, edit_end, new_text.len());
         }
@@ -265,4 +300,37 @@ impl TestState {
             pos + len - (edit_end - edit_start)
         }
     }
+}
+
+#[test]
+#[should_panic]
+fn panic_when_missing_range_location_0() {
+    const CODE: &str = r#"
+enum [|Foo {
+  Foo1 = function initializer() { return 5 } (),
+  Foo2 = 6
+}
+  "#;
+    compile_single_input(CODE);
+}
+
+#[test]
+#[should_panic]
+fn panic_when_missing_range_location_1() {
+    const CODE: &str = r#"
+enum Foo|] {
+  Foo1 = function initializer() { return 5 } (),
+  Foo2 = 6
+}
+  "#;
+    compile_single_input(CODE);
+}
+
+#[test]
+#[should_panic]
+fn panic_when_duplicate_marker_name() {
+    const CODE: &str = r#"
+/*marker*/*marker*/
+  "#;
+    compile_single_input(CODE);
 }

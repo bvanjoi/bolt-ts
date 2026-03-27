@@ -1,6 +1,8 @@
 mod editor_services;
 mod services;
 
+pub use self::services::LanguageService;
+
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types;
 use tower_lsp::{Client, LanguageServer};

@@ -530,7 +530,7 @@ impl<'cx> TyChecker<'cx> {
                 let id = self.flow_loop_types[i];
                 let tys = self.flow_loop_types_arena.get(id);
                 let ty = self.get_union_or_evolving_array_ty(
-                    &tys.clone(),
+                    &tys.clone(), // TODO: remove clone
                     ty::UnionReduction::Lit,
                     declared_ty,
                 );
@@ -596,7 +596,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
         let result = self.get_union_or_evolving_array_ty(
-            &antecedent_tys.clone(),
+            &antecedent_tys.clone(), // TODO: remove clone
             if subtype_reduction {
                 ty::UnionReduction::Subtype
             } else {
@@ -872,7 +872,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let cond_antecedent = cond.antecedent;
         let cond_node = cond.node;
-        let assume_true = n.flags.intersects(FlowFlags::TRUE_CONDITION);
+        let assume_true = n.flags.contains(FlowFlags::TRUE_CONDITION);
         let flow_ty = self.get_ty_at_flow_node(
             cond_antecedent,
             refer,

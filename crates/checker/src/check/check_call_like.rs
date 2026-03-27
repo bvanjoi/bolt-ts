@@ -463,6 +463,10 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(error);
             });
 
+        if func_ty == self.silent_never_ty {
+            return self.silent_never_sig();
+        }
+
         let apparent_ty = self.get_apparent_ty(func_ty);
         if self.is_error(apparent_ty) {
             return self.resolve_error_call(expr);

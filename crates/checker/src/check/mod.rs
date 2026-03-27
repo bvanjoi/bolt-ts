@@ -305,6 +305,7 @@ pub struct TyChecker<'cx> {
     any_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     unknown_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
     resolving_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
+    silent_never_sig: std::cell::OnceCell<&'cx Sig<'cx>>,
 
     any_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     any_fn_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -770,6 +771,8 @@ impl<'cx> TyChecker<'cx> {
             any_sig: Default::default(),
             unknown_sig: Default::default(),
             resolving_sig: Default::default(),
+            silent_never_sig: Default::default(),
+
             never_intersection_tys: no_hashmap_with_capacity(1024),
 
             type_name: no_hashmap_with_capacity(1024 * 8),
@@ -875,11 +878,18 @@ impl<'cx> TyChecker<'cx> {
             (any_sig,                       this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (unknown_sig,                   this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (resolving_sig,                 this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
+            (silent_never_sig,              this.new_sig(Sig { flags: SigFlags::empty(), this_param: None, params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
             (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false })),
         });
+
+        let silent_never_sig_links = SigLinks::default().with_resolved_ret_ty(silent_never_ty);
+        let prev = this
+            .sig_links
+            .insert(silent_never_sig.id, silent_never_sig_links);
+        debug_assert!(prev.is_none());
 
         let unknown_union_ty = if this.config.strict_null_checks() {
             this.get_union_ty::<false>(
@@ -968,6 +978,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn resolving_sig(&self) -> &'cx Sig<'cx> {
         self.resolving_sig.get().unwrap()
+    }
+
+    pub fn silent_never_sig(&self) -> &'cx Sig<'cx> {
+        self.silent_never_sig.get().unwrap()
     }
 
     pub fn any_iteration_tys(&self) -> &'cx ty::IterationTys<'cx> {

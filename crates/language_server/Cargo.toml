@@ -16,6 +16,7 @@ bolt_ts_libs = { path = "../libs" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_ast = { path = "../ast" }
 bolt_ts_optimize = { path = "../optimize" }
+bolt_ts_arena = { path = "../../helper/arena" }
 tower-lsp = { version = "0.20.0" }
 tokio = { version = "1.48.0", features = ["full"] }
 serde_json = { workspace = true }
