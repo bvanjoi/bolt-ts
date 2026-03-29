@@ -10,7 +10,7 @@ use thin_vec::thin_vec;
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, ObjectMappedTyLinks};
 use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
@@ -550,7 +550,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiate_ty_worker(template_ty, template_mapper)
         };
         let modifiers = m.decl.get_modifiers();
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
         if strict_null_checks
             && modifiers.contains(MappedTyModifiers::INCLUDE_OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))

@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
 use super::relation::RelationKind;
-use super::symbol_info::SymbolInfo;
 use super::ty::ElementFlags;
 use super::ty::TypeFlags;
 use super::ty::{self, TypeFacts};

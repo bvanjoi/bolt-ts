@@ -66,7 +66,7 @@ impl std::fmt::Display for Span {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Module {
     id: ModuleID,
     is_default_lib: bool,

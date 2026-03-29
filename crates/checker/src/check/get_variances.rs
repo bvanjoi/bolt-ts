@@ -2,7 +2,7 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TyMapper;

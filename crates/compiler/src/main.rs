@@ -42,14 +42,24 @@ fn main() {
     };
     let cwd = env::current_dir().unwrap();
     let tsconfig = tsconfig.normalize();
-    let output = eval_with_fs(cwd, &tsconfig, exe_dir, libs, fs, atoms);
+    let parser_herd = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut compiler_result = eval_with_fs(
+        cwd,
+        tsconfig,
+        exe_dir,
+        libs,
+        &parser_herd,
+        &type_arena,
+        fs,
+        atoms,
+    );
     let duration = start.elapsed();
-    output
-        .diags
-        .into_iter()
-        .for_each(|diag| diag.emit(&output.module_arena));
-    println!("Files: {}", output.module_arena.modules().len());
-    println!("Types: {}", output.types_len);
+    let module_arena = compiler_result.steal_module_arena();
+    let diags = compiler_result.steal_diags();
+    diags.into_iter().for_each(|diag| diag.emit(&module_arena));
+    println!("Files: {}", module_arena.modules().len());
+    println!("Types: {}", compiler_result.type_count());
     println!(
         "Time cost: {}",
         pretty_duration::pretty_duration(&duration, None)

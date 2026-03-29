@@ -636,7 +636,45 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_decl_name(&self, id: ast::NodeID) -> bool {
-        self.parent(id).is_some_and(|p| self.node(p).is_decl())
+        self.parent(id).is_some_and(|p| {
+            let p_node = self.node(p);
+            use ast::Node::*;
+            match p_node {
+                VarDecl(n) => {
+                    if let ast::BindingKind::Ident(name) = n.name.kind {
+                        name.id == id
+                    } else {
+                        false
+                    }
+                }
+                ObjectShorthandMember(n) => n.name.id == id,
+                ObjectPropAssignment(n) => n.name.id() == id,
+                PropSignature(n) => n.name.id() == id,
+                ObjectMethodMember(n) => n.name.id() == id,
+                MethodSignature(n) => n.name.id() == id,
+                ClassDecl(n) => n.name.is_some_and(|name| name.id == id),
+                ClassExpr(n) => n.name.is_some_and(|name| name.id == id),
+                ClassPropElem(n) => n.name.id() == id,
+                ClassMethodElem(n) => n.name.id() == id,
+                EnumDecl(n) => n.name.id == id,
+                EnumMember(n) => n.name.id() == id,
+                FnExpr(n) => n.name.is_some_and(|name| name.id == id),
+                FnDecl(n) => n.name.is_some_and(|name| name.id == id),
+                InterfaceDecl(n) => n.name.id == id,
+                ParamDecl(n) => n.name.id() == id,
+                TyParam(n) => n.name.id == id,
+                NsImport(n) => n.name.id == id,
+                ImportShorthandSpec(n) => n.name.id == id,
+                ImportEqualsDecl(n) => n.name.id == id,
+                ExportNamedSpec(n) => n.name.id() == id,
+                ExportShorthandSpec(n) => n.name.id == id,
+                GetterDecl(n) => n.name.id() == id,
+                SetterDecl(n) => n.name.id() == id,
+                ModuleDecl(n) => n.name.id() == id,
+                ArrayBinding(n) => n.name.id() == id,
+                _ => false,
+            }
+        })
     }
 
     pub fn is_this_in_type_query(&self, mut id: ast::NodeID) -> bool {
@@ -1313,5 +1351,68 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         parent_node.is_class_like()
             && node.is_class_prop_elem()
             && !node.has_syntactic_modifier(ast::ModifierKind::Accessor.into())
+    }
+
+    pub fn is_in_right_side_of_internal_import_equals_declaration(
+        &self,
+        mut node: ast::NodeID,
+    ) -> bool {
+        let Some(mut parent) = self.parent(node) else {
+            return false;
+        };
+        loop {
+            let parent_node = self.node(parent);
+            if parent_node.is_qualified_name() {
+                node = parent;
+                parent = if let Some(parent) = self.parent(parent) {
+                    parent
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        let parent_node = self.node(parent);
+        self.is_internal_module_import_equals_declaration(parent) && {
+            let parent_node = parent_node.expect_import_equals_decl();
+            parent_node.module_reference.id() == node
+        }
+    }
+
+    pub fn is_internal_module_import_equals_declaration(&self, id: ast::NodeID) -> bool {
+        let n = self.node(id);
+        n.as_import_equals_decl().is_some_and(|n| {
+            !matches!(
+                n.module_reference,
+                ast::ModuleReferenceKind::ExternalModuleReference(_)
+            )
+        })
+    }
+
+    pub fn is_type_reference(&self, mut node: ast::NodeID) -> bool {
+        if self.is_right_side_of_qualified_name_or_prop_access(node) {
+            node = self.parent(node).unwrap();
+        }
+
+        let n = self.node(node);
+        match n {
+            ast::Node::ThisExpr(_) => {
+                todo!(" notis in expression context")
+            }
+            ast::Node::ThisTy(_) => return true,
+            _ => {}
+        }
+
+        if let Some(parent) = self.parent(node) {
+            match self.node(parent) {
+                ast::Node::ReferTy(_) => true,
+                // TODO: import type
+                ast::Node::ExprWithTyArgs(_) => self.is_part_of_ty_node(parent),
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 }

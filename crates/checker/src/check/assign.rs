@@ -1,6 +1,5 @@
 use super::SymbolLinks;
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
 use super::ty::{self, CheckFlags};
 
 use bolt_ts_ast as ast;
@@ -165,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
             None
         };
         if elements.is_empty() || (elements.len() == 1 && rest_elements.is_some()) {
-            if *self.config.target() >= bolt_ts_config::Target::ES2015 {
+            if *self.config.compiler_options().target() >= bolt_ts_config::Target::ES2015 {
                 todo!()
             } else {
                 return self.any_array_ty();
@@ -255,7 +254,7 @@ impl<'cx> TyChecker<'cx> {
             );
             return;
         }
-        let decl_id = param.decl(self.binder);
+        let decl_id = param.decl(&self.binder);
         let decl = self.p.node(decl_id).expect_param_decl();
         let ty = if let Some(ctx) = contextual_ty {
             ctx
@@ -344,7 +343,7 @@ impl<'cx> TyChecker<'cx> {
         let len = sig.params.len() - (if sig_has_rest { 1 } else { 0 });
         for i in 0..len {
             let param = sig.params[i];
-            let decl = param.decl(self.binder);
+            let decl = param.decl(&self.binder);
             let decl = self.p.node(decl).expect_param_decl();
             // TODO: !getEffectiveTypeAnnotationNode(decl)
             if decl.ty.is_none() {

@@ -8,12 +8,19 @@ use super::PathId;
 use super::errors::FsResult;
 use super::tree::FSTree;
 
+#[derive(Default)]
 pub struct LocalFS {
     tree: FSTree,
     file_exists_cache: FxHashMap<Atom, bool>,
     dir_exists_cache: FxHashMap<Atom, bool>,
     metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
     symlink_metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
+}
+
+impl std::fmt::Debug for LocalFS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LocalFS").finish()
+    }
 }
 
 impl LocalFS {
@@ -98,6 +105,10 @@ impl LocalFS {
 }
 
 impl CachedFileSystem for LocalFS {
+    fn is_vfs(&self) -> bool {
+        false
+    }
+
     fn read_file(
         &mut self,
         path: &std::path::Path,

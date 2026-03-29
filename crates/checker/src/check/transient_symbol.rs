@@ -3,7 +3,7 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use bolt_ts_span::ModuleID;
 
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 
 pub(super) fn create_transient_symbol(symbols: &mut Symbols, symbol: Symbol) -> SymbolID {
@@ -91,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
                 .as_ref()
                 .and_then(|decls| decls.first().copied())
         } else {
-            symbol.opt_decl(self.binder)
+            symbol.opt_decl(&self.binder)
         }
     }
 

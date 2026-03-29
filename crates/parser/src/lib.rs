@@ -16,6 +16,7 @@ mod scan_integer;
 mod scan_pragma;
 mod state;
 mod stmt;
+mod touch;
 mod ty;
 mod unicode;
 mod utils;
@@ -28,14 +29,15 @@ use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
+pub use self::scan::is_identifier_part;
 use self::state::LanguageVariant;
 use self::state::ParserState;
+pub use self::touch::get_touching_property_name;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
 

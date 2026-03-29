@@ -6,8 +6,15 @@ use super::PathId;
 use super::errors::FsResult;
 use super::tree::{FSNodeId, FSTree};
 
+#[derive(Default)]
 pub struct MemoryFS {
     tree: FSTree,
+}
+
+impl std::fmt::Debug for MemoryFS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemoryFS").finish()
+    }
 }
 
 impl MemoryFS {
@@ -53,6 +60,10 @@ impl MemoryFS {
 }
 
 impl CachedFileSystem for MemoryFS {
+    fn is_vfs(&self) -> bool {
+        true
+    }
+
     fn read_file(
         &mut self,
         path: &std::path::Path,

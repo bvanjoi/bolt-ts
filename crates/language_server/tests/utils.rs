@@ -1,38 +1,64 @@
 use std::collections::HashMap;
 
+use bolt_ts_compiler::add_default_libs_into_memory_files;
+use bolt_ts_fs::MemoryFS;
 use bolt_ts_language_server::LanguageService;
+use bolt_ts_span::{ModuleID, Span};
 use indexmap::IndexMap;
-use tower_lsp::LanguageServer;
 
-pub fn compile_single_input(code: &str) -> TestState {
+pub fn compile_single_input<'cx>(
+    code: &str,
+    parser_arena: &'cx bolt_ts_arena::bumpalo_herd::Herd,
+    type_arena: &'cx bolt_ts_arena::bumpalo::Bump,
+) -> TestState<'cx> {
     let json = serde_json::json!({
         "/index.ts": code
     });
     let files: indexmap::IndexMap<String, String> = serde_json::from_value(json).unwrap();
-    parse_test_data(files)
+    parse_test_data(files, parser_arena, type_arena)
 }
+
 struct Range {
     lo: usize,
     hi: usize,
+    filename: String,
     marker: Option<Marker>,
 }
 
 type MarkerArena = bolt_ts_arena::la_arena::Arena<Marker>;
 type MarkerId = bolt_ts_arena::la_arena::Idx<Marker>;
 
-fn parse_test_data(files: indexmap::IndexMap<String, String>) -> TestState {
+fn parse_test_data<'cx>(
+    files: indexmap::IndexMap<String, String>,
+    parser_arena: &'cx bolt_ts_arena::bumpalo_herd::Herd,
+    type_arena: &'cx bolt_ts_arena::bumpalo::Bump,
+) -> TestState<'cx> {
     let mut marker_positions = HashMap::new();
     let mut markers = MarkerArena::new();
-    // let mut ranges = vec![];
+    let mut ranges = vec![];
     let files = files
         .into_iter()
         .map(|(path, content)| {
-            let file = parse_file_content(&path, &content, &mut marker_positions, &mut markers);
+            let file = parse_file_content(
+                &path,
+                &content,
+                &mut marker_positions,
+                &mut markers,
+                &mut ranges,
+            );
             (path, file)
         })
         .collect::<IndexMap<_, _>>();
     assert!(files.len() == 1);
-    TestState::new(files, 0, marker_positions, markers)
+    TestState::new(
+        files,
+        0,
+        ranges,
+        marker_positions,
+        markers,
+        parser_arena,
+        type_arena,
+    )
 }
 
 fn parse_file_content(
@@ -40,6 +66,7 @@ fn parse_file_content(
     content: &str,
     marker_positions: &mut HashMap<String, MarkerId>,
     markers: &mut MarkerArena,
+    ranges: &mut Vec<Range>,
 ) -> String {
     #[derive(Debug, PartialEq, Clone, Copy)]
     enum State {
@@ -116,6 +143,7 @@ fn parse_file_content(
                     };
 
                     let range = Range {
+                        filename: filename.to_string(),
                         lo: range_start.position,
                         hi: i - 1 - difference,
                         marker: range_start.marker,
@@ -149,7 +177,7 @@ fn parse_file_content(
                     }
                     let marker = markers.alloc(Marker {
                         filename: filename.to_string(),
-                        offset: loc.position,
+                        position: loc.position,
                         content: marker_name_text.to_string(),
                     });
                     marker_positions.insert(marker_name_text.to_string(), marker);
@@ -190,51 +218,113 @@ fn parse_file_content(
         );
     }
 
+    local_ranges.sort_by(|a, b| {
+        if a.lo == b.lo {
+            a.hi.cmp(&b.hi)
+        } else {
+            a.lo.cmp(&b.lo)
+        }
+    });
+    ranges.extend(local_ranges);
+
     String::from_utf8(output).unwrap()
 }
 
 #[derive(Debug, PartialEq)]
 struct Marker {
     filename: String,
-    offset: usize,
+    position: usize,
     content: String,
 }
 
-pub struct TestState {
+struct TestHost {
+    fs: MemoryFS,
+}
+
+impl bolt_ts_language_server::LanguageServiceHost<MemoryFS> for TestHost {
+    fn new(fs: MemoryFS) -> Self {
+        Self { fs }
+    }
+
+    fn steal_fs(&mut self) -> MemoryFS {
+        std::mem::take(&mut self.fs)
+    }
+}
+
+pub struct TestState<'cx> {
+    // TODO: delete
     input_files: indexmap::IndexMap<String, String>,
+    ranges: Vec<Range>,
     markers: MarkerArena,
     marker_positions: HashMap<String, MarkerId>,
     active_file: usize,
 
     current_caret_pos: usize,
     selection_end: usize,
-    language_service: LanguageService,
+    language_service: LanguageService<'cx, MemoryFS, TestHost>,
+    last_known_marker: Option<MarkerId>,
 }
 
-impl TestState {
+impl<'cx> TestState<'cx> {
     fn new(
-        input_files: indexmap::IndexMap<String, String>,
+        mut input_files: indexmap::IndexMap<String, String>,
         active_file: usize,
+        ranges: Vec<Range>,
         marker_positions: HashMap<String, MarkerId>,
         markers: MarkerArena,
+        parser_arena: &'cx bolt_ts_arena::bumpalo_herd::Herd,
+        type_arena: &'cx bolt_ts_arena::bumpalo::Bump,
     ) -> Self {
+        let mut atoms = bolt_ts_ast::keyword::init_atom_map();
+        const DEFAULT_LIB_DIR: &str = "/node_modules/typescript/lib";
+        add_default_libs_into_memory_files(&mut input_files, DEFAULT_LIB_DIR);
+        let fs = MemoryFS::new(input_files.clone().into_iter(), &mut atoms).unwrap();
+        let host = TestHost { fs };
+        let language_service = LanguageService::<MemoryFS, TestHost>::new(
+            host,
+            atoms,
+            parser_arena,
+            type_arena,
+            DEFAULT_LIB_DIR.to_string(),
+        );
         Self {
-            input_files,
+            input_files: input_files.clone(),
             active_file,
+            ranges,
             marker_positions,
             markers,
             current_caret_pos: 0,
             selection_end: usize::MAX,
-            language_service: LanguageService::new(),
+            language_service,
+            last_known_marker: None,
         }
+    }
+
+    fn get_marker_by_name(&self, name: &str) -> MarkerId {
+        let Some(marker) = self.marker_positions.get(name).copied() else {
+            panic!("Unknown marker '{}'", name);
+        };
+        marker
     }
 
     pub fn goto_marker(&mut self, marker: &str) {
         let (_, file) = self.input_files.get_index(self.active_file).unwrap();
-        let Some(marker) = self.marker_positions.get(marker).copied() else {
-            return;
-        };
-        self.current_caret_pos = self.markers[marker].offset;
+        let marker_id = self.get_marker_by_name(marker);
+        let marker = &self.markers[marker_id];
+        if marker.position > file.len() {
+            panic!(
+                "Marker '{}' position {} is out of bounds for file of length {}",
+                marker.content,
+                marker.position,
+                file.len(),
+            );
+        }
+        self.last_known_marker = Some(marker_id);
+        self.goto_position(marker.position);
+    }
+
+    fn goto_position(&mut self, pos: usize) {
+        self.current_caret_pos = pos;
         self.selection_end = usize::MAX;
     }
 
@@ -247,10 +337,51 @@ impl TestState {
 
         for ch in text.chars() {
             self.current_caret_pos += 1;
-
             self.edit_script_and_update_markers(self.active_file, offset, offset, &ch.to_string());
             offset += 1;
         }
+    }
+
+    fn goto_defs_by_marker(&mut self, marker: &str, goto_defs: impl Fn(&mut Self) -> ()) {
+        self.goto_marker(marker);
+        goto_defs(self);
+    }
+
+    fn get_module_id_by_active_file(&self) -> ModuleID {
+        let (file_name, _) = self.input_files.get_index(self.active_file).unwrap();
+        let module_arena = self.language_service.compiler_result().module_arena();
+        let path = std::path::Path::new(file_name);
+        module_arena
+            .modules()
+            .iter()
+            .find_map(|item| {
+                let module_id = item.id();
+                if module_arena.get_path(module_id).as_path() == path {
+                    Some(module_id)
+                } else {
+                    None
+                }
+            })
+            .unwrap()
+    }
+
+    pub fn verify_baseline_goto_implementation_by_marker(&mut self, marker: &str) -> Vec<String> {
+        self.goto_marker(marker);
+        let module_id = self.get_module_id_by_active_file();
+        self.language_service
+            .get_implementation_at_position(module_id, self.current_caret_pos)
+            .into_iter()
+            .map(|n| {
+                let span = n.span();
+                let content = self
+                    .language_service
+                    .compiler_result()
+                    .module_arena()
+                    .get_content(span.module());
+                let content = content[span.lo() as usize..span.hi() as usize].to_string();
+                content
+            })
+            .collect()
     }
 
     pub fn verify_current_file_content_is(&self, expected: &str) {
@@ -277,8 +408,8 @@ impl TestState {
             if !marker.filename.eq(file_name) {
                 continue;
             }
-            marker.offset =
-                Self::update_position(marker.offset, edit_start, edit_end, new_text.len());
+            marker.position =
+                Self::update_position(marker.position, edit_start, edit_end, new_text.len());
         }
     }
 
@@ -311,7 +442,9 @@ enum [|Foo {
   Foo2 = 6
 }
   "#;
-    compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    compile_single_input(CODE, &parser_arena, &type_arena);
 }
 
 #[test]
@@ -323,7 +456,9 @@ enum Foo|] {
   Foo2 = 6
 }
   "#;
-    compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    compile_single_input(CODE, &parser_arena, &type_arena);
 }
 
 #[test]
@@ -332,5 +467,17 @@ fn panic_when_duplicate_marker_name() {
     const CODE: &str = r#"
 /*marker*/*marker*/
   "#;
-    compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    compile_single_input(CODE, &parser_arena, &type_arena);
+}
+
+#[test]
+#[should_panic]
+fn panic_when_unknown_marker() {
+    const CODE: &str = r#""#;
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
+    t.goto_marker("not_exist");
 }

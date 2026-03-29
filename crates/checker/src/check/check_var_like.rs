@@ -1,7 +1,6 @@
 use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::errors;
-use super::symbol_info::SymbolInfo;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -152,7 +151,9 @@ impl<'cx> TyChecker<'cx> {
                     let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
                     if need_check_initializer {
                         let initializer_ty = self.check_expr_cached(decl.init().unwrap());
-                        if self.config.strict_null_checks() && need_check_widened_ty {
+                        if self.config.compiler_options().strict_null_checks()
+                            && need_check_widened_ty
+                        {
                             self.check_non_null_non_void_ty(initializer_ty, id);
                         } else {
                             // checkTypeAssignableToAndOptionallyElaborate(
@@ -171,7 +172,7 @@ impl<'cx> TyChecker<'cx> {
                                 self.undefined_ty,
                                 Some(id),
                             );
-                        } else if self.config.strict_null_checks() {
+                        } else if self.config.compiler_options().strict_null_checks() {
                             // TODO:
                             // self.check_non_null_non_void_ty(widened_ty, id);
                         }

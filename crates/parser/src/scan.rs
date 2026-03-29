@@ -47,7 +47,7 @@ fn is_ascii_identifier_part(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
+pub fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
     if ch <= 127 {
         is_ascii_identifier_part(ch as u8)
     } else if is_es5_target {

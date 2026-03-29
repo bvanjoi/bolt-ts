@@ -4,7 +4,7 @@ use super::ContextFlags;
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
-use super::symbol_info::SymbolInfo;
+
 use super::ty::typeof_ne_facts;
 use super::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use super::type_predicate::TyPred;
@@ -317,7 +317,7 @@ impl<'cx> TyChecker<'cx> {
         {
             // TODO:
         } else {
-            if self.config.strict_null_checks() {
+            if self.config.compiler_options().strict_null_checks() {
                 // TODO:
             }
             if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty) {
@@ -1056,7 +1056,7 @@ impl<'cx> TyChecker<'cx> {
         let value_ty = self.get_ty_of_expr(value);
         let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
         if value_ty.flags.intersects(TypeFlags::NULLABLE) {
-            if !self.config.strict_null_checks() {
+            if !self.config.compiler_options().strict_null_checks() {
                 return ty;
             }
             let facts = if double_equals {
@@ -1154,7 +1154,7 @@ impl<'cx> TyChecker<'cx> {
                     return self.narrow_ty_by_equality(ty, binary_expr.op.kind, left, assume_true);
                 }
 
-                if self.config.strict_null_checks() {
+                if self.config.compiler_options().strict_null_checks() {
                     // TODO:
                 }
 
@@ -1213,7 +1213,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         let optional_chain = self.node_query(access.module()).is_optional_chain(access);
-        let remove_nullable = self.config.strict_null_checks()
+        let remove_nullable = self.config.compiler_options().strict_null_checks()
             && (optional_chain || matches!(self.p.node(access), ast::Node::NonNullExpr(_)))
             && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
         let Some(prop_ty) =
@@ -1415,7 +1415,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let left = self.get_reference_candidate(expr.left);
         if !self.is_matching_reference(refer, left.id()) {
-            // if assume_true && self.config.strict_null_checks() && self.contain
+            // if assume_true && self.config.compiler_options().strict_null_checks() && self.contain
 
             return ty;
         }
@@ -1948,9 +1948,12 @@ impl<'cx> TyChecker<'cx> {
         }
         let prop_ty = self.get_narrow_ty_for_reference(prop_ty, id, check_mode);
         let mut assume_uninitialized = false;
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
         if strict_null_checks
-            && self.config.strict_property_initialization()
+            && self
+                .config
+                .compiler_options()
+                .strict_property_initialization()
             && let ast::ExprKind::This(n) = expr.kind
         {
             let decl = prop.map(|prop| self.symbol(prop).value_decl);

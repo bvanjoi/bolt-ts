@@ -2,7 +2,7 @@ use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
 use super::get_iteration_tys::IterationTypeKind;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;

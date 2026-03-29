@@ -13,6 +13,9 @@ enum [|Foo|] {
 
 Fo/*reference*/o;
 "#;
-    let mut t = compile_single_input(CODE);
-    // TODO:
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
+    let refer_to = t.verify_baseline_goto_implementation_by_marker("reference");
+    assert_eq!(refer_to, ["Foo"]);
 }

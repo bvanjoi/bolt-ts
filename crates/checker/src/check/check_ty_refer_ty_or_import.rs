@@ -6,7 +6,7 @@ use super::cycle_check::ResolutionKey;
 use super::fn_mapper;
 use super::get_simplified_ty::SimplifiedKind;
 use super::is_deeply_nested_type::RecursionId;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::IndexFlags;
 use super::ty::TypeFlags;

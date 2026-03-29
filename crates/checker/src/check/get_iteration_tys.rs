@@ -4,7 +4,6 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::TypeFacts;
 
-use super::SymbolInfo;
 use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::create_ty::IntersectionFlags;

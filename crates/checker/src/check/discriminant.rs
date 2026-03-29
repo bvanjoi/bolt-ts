@@ -1,4 +1,3 @@
-use super::SymbolInfo;
 use super::TyChecker;
 use super::ty;
 

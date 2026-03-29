@@ -1,5 +1,4 @@
 use super::CheckMode;
-use super::SymbolInfo;
 use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::errors;
@@ -19,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        debug_assert!(self.config.strict_null_checks());
+        debug_assert!(self.config.compiler_options().strict_null_checks());
         let missing_or_undefined = if IS_PROPERTY {
             self.undefined_or_missing_ty
         } else {
@@ -48,7 +47,7 @@ impl<'cx> TyChecker<'cx> {
         declared_ty: &'cx Ty<'cx>,
         is_optional: bool,
     ) -> &'cx Ty<'cx> {
-        if self.config.strict_null_checks() && is_optional {
+        if self.config.compiler_options().strict_null_checks() && is_optional {
             self.get_optional_ty::<IS_PROPERTY>(declared_ty)
         } else {
             declared_ty

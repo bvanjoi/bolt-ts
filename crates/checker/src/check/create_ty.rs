@@ -15,7 +15,7 @@ use super::instantiation_ty_map::SubstitutionKey;
 use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
 use super::links::TyLinks;
 use super::relation::RelationKind;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::{CheckFlags, ElementFlags, IndexFlags};
 use super::ty::{ObjectFlags, TyID, TypeFlags, UnionReduction};
@@ -491,7 +491,9 @@ impl<'cx> TyChecker<'cx> {
                 includes |= TypeFlags::INCLUDES_ERROR;
             }
 
-            if !self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
+            if !self.config.compiler_options().strict_null_checks()
+                && flags.intersects(TypeFlags::NULLABLE)
+            {
                 if !object_flags.contains(ObjectFlags::CONTAINS_WIDENING_TYPE) {
                     includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE;
                 }
@@ -961,7 +963,9 @@ impl<'cx> TyChecker<'cx> {
                 if ty == self.wildcard_ty {
                     includes |= TypeFlags::INCLUDES_WILDCARD;
                 }
-            } else if self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE) {
+            } else if self.config.compiler_options().strict_null_checks()
+                || !flags.intersects(TypeFlags::NULLABLE)
+            {
                 if ty == self.missing_ty {
                     includes |= TypeFlags::INCLUDES_MISSING_TYPE;
                     ty = self.undefined_ty;
@@ -1143,7 +1147,7 @@ impl<'cx> TyChecker<'cx> {
             return self.never_ty;
         }
 
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
 
         if (strict_null_checks
             && includes.intersects(TypeFlags::NULLABLE)

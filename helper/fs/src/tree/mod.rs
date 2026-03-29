@@ -17,6 +17,7 @@ use super::path::PathId;
 
 bolt_ts_utils::index!(FSNodeId);
 
+#[derive(Default)]
 pub(super) struct FSTree {
     path_to_node: nohash_hasher::IntMap<PathId, FSNodeId>,
     nodes: Vec<FSNode>,

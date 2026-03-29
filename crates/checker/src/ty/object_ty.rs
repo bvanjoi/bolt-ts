@@ -3,7 +3,6 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_utils::FxIndexMap;
 
-use super::super::check::SymbolInfo;
 use super::PromiseOrAwaitableTyLinksID;
 use super::TyChecker;
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};

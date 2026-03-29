@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::ast;
 use super::errors;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::ElementFlags;
 
@@ -61,7 +61,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {
-        if n.ty.is_none() && self.config.no_implicit_any() {
+        if n.ty.is_none() && self.config.compiler_options().no_implicit_any() {
             // TODO: skip when check js file
             let error = errors::MappedObjectTypeImplicitlyHasAnAnyTemplateType { span: n.span };
             self.push_error(Box::new(error));

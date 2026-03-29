@@ -191,6 +191,11 @@ pub enum Node<'cx> {
 }
 
 impl<'cx> Node<'cx> {
+    pub fn is_string_literal_like(&self) -> bool {
+        use Node::*;
+        matches!(self, StringLit(_) | NoSubstitutionTemplateLit(_))
+    }
+
     pub fn is_class_like(&self) -> bool {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
@@ -1032,6 +1037,16 @@ impl<'cx> Node<'cx> {
                 Some(super::ExprKind::ObjectLit(n))
             }
             _ => None,
+        }
+    }
+
+    pub fn is_property_name_literal(&self) -> bool {
+        match self {
+            Node::Ident(_)
+            | Node::StringLit(_)
+            | Node::NoSubstitutionTemplateLit(_)
+            | Node::NumLit(_) => true,
+            _ => false,
         }
     }
 }

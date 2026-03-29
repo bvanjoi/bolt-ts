@@ -2,7 +2,7 @@ use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
@@ -1014,7 +1014,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
         for i in 0..len {
-            let decl = sig.params[i].decl(self.binder);
+            let decl = sig.params[i].decl(&self.binder);
             if let Some(ty_node) = self.p.node(decl).as_param_decl().and_then(|decl| decl.ty) {
                 let source = self.get_ty_from_type_node(ty_node);
                 let target = self.get_ty_at_pos(contextual_sig, i);
@@ -2481,7 +2481,7 @@ impl<'cx> InferenceState<'cx, '_> {
                 || n.is_class_ctor();
 
             self.apply_to_param_tys(source, target, |this, source, target| {
-                if this.c.config.strict_function_types()
+                if this.c.config.compiler_options().strict_function_types()
                     || this.priority.contains(InferencePriority::ALWAYS_STRICT)
                 {
                     this.infer_from_contravariant_tys(source, target);

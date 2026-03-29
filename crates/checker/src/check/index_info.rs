@@ -1,5 +1,5 @@
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;

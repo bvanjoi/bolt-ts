@@ -1,5 +1,5 @@
 use super::TyChecker;
-use super::{get_declared_ty::EnumMemberValue, symbol_info::SymbolInfo};
+use super::get_declared_ty::EnumMemberValue;
 
 use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;

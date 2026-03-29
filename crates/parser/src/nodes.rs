@@ -6,15 +6,15 @@ use super::ast::Node::*;
 pub struct Nodes<'cx>(pub(super) Vec<Node<'cx>>);
 
 impl<'cx> Nodes<'cx> {
+    pub(super) fn insert(&mut self, id: ast::NodeID, node: Node<'cx>) {
+        debug_assert_eq!(id.index_as_usize(), self.0.len());
+        self.0.push(node);
+    }
+
     pub fn get(&self, id: ast::NodeID) -> Node<'cx> {
         let idx = id.index_as_usize();
         debug_assert!(idx < self.0.len(), "idx: {idx}, len: {}", self.0.len());
         *unsafe { self.0.get_unchecked(idx) }
-    }
-
-    pub(crate) fn insert(&mut self, id: ast::NodeID, node: Node<'cx>) {
-        debug_assert_eq!(id.index_as_usize(), self.0.len());
-        self.0.push(node);
     }
 
     pub fn root(&self) -> &'cx ast::Program<'cx> {

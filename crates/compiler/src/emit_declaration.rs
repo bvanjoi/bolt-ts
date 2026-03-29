@@ -10,9 +10,9 @@ pub fn emit_declaration_parallel(
     entries: &Vec<ModuleID>,
     checker: &TyChecker,
 ) -> Vec<(ModuleID, String)> {
-    let p = checker.p;
+    let p = &checker.p;
     let atoms = &checker.atoms;
-    let module_arena = checker.module_arena;
+    let module_arena = &checker.module_arena;
     let output = entries
         .into_par_iter()
         .filter_map(|&item| {

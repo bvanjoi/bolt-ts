@@ -8,7 +8,7 @@ use crate::check::links::SigLinks;
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 use super::ty::SigID;

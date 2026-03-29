@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap;
 use super::check_type_related_to::IntersectionState;
 use super::create_ty::IntersectionFlags;
 use super::get_declared_ty::EnumMemberValue;
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use super::ty::{Ty, TyKind};
 use super::{SymbolLinks, errors};
@@ -233,7 +233,7 @@ impl<'cx> TyChecker<'cx> {
         use RelationKind::*;
         let s = source.flags;
         let t = target.flags;
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
         let is_unknown_like_union_ty = |this: &mut Self| {
             strict_null_checks
                 && target.kind.as_union().is_some_and(|u| {

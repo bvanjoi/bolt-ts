@@ -1,5 +1,4 @@
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
 use super::ty;
 
 use bolt_ts_ast as ast;

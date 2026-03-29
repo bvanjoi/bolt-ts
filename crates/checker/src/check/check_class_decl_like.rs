@@ -1,4 +1,3 @@
-use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::TypeFlags;
 use super::{TyChecker, errors};
@@ -155,8 +154,8 @@ impl<'cx> TyChecker<'cx> {
             };
 
             let declared_prop = member_name
-                .and_then(|name| self.get_symbol_at_loc(name))
-                .or_else(|| self.get_symbol_at_loc(member.kind.id()));
+                .and_then(|name| self.get_symbol_at_location(name))
+                .or_else(|| self.get_symbol_at_location(member.kind.id()));
 
             if let Some(declared_prop) = declared_prop
                 && let name = self.binder.symbol(declared_prop).name
@@ -457,8 +456,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // check_property_initialization
-        if self.config.strict_null_checks()
-            && self.config.strict_property_initialization()
+        if self.config.compiler_options().strict_null_checks()
+            && self
+                .config
+                .compiler_options()
+                .strict_property_initialization()
             && !self
                 .p
                 .node_flags(class_id)

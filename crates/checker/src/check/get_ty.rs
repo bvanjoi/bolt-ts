@@ -3,7 +3,7 @@ use std::ops::Not;
 use super::create_ty::IntersectionFlags;
 use super::get_iteration_tys::IterationTypeKind;
 use super::infer::{InferenceFlags, InferencePriority};
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper};
 use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
@@ -362,7 +362,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
-        let ty = if self.config.strict_null_checks()
+        let ty = if self.config.compiler_options().strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
@@ -1075,7 +1075,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(access_expr) = access_expr
                 && !self.is_const_enum_object_ty(object_ty)
             {
-                let no_implicit_any = self.config.no_implicit_any();
+                let no_implicit_any = self.config.compiler_options().no_implicit_any();
                 if object_ty
                     .get_object_flags()
                     .contains(ObjectFlags::OBJECT_LITERAL)
@@ -1258,7 +1258,7 @@ impl<'cx> TyChecker<'cx> {
             index_ty = self.string_ty;
         }
 
-        if self.config.no_unchecked_indexed_access()
+        if self.config.compiler_options().no_unchecked_indexed_access()
             && access_flags.contains(AccessFlags::EXPRESSION_POSITION)
         {
             access_flags |= AccessFlags::INCLUDE_UNDEFINED;
@@ -2217,7 +2217,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         widening_kind: Option<WideningKind>,
     ) {
-        if self.config.no_implicit_any()
+        if self.config.compiler_options().no_implicit_any()
             && ty
                 .get_object_flags()
                 .contains(ObjectFlags::CONTAINS_WIDENING_TYPE)
@@ -2247,7 +2247,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ObjectMethodMember(_)
             | ast::Node::ClassMethodElem(_)
             | ast::Node::MethodSignature(_) => {
-                let no_implicit_any = self.config.no_implicit_any();
+                let no_implicit_any = self.config.compiler_options().no_implicit_any();
                 let decl_name = self.p.node(decl).name();
                 if no_implicit_any && decl_name.is_none() {
                     // TODO: REPORT_ERROR

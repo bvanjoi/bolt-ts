@@ -2,6 +2,7 @@ mod editor_services;
 mod services;
 
 pub use self::services::LanguageService;
+pub use self::services::LanguageServiceHost;
 
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types;

@@ -10,7 +10,7 @@ use bolt_ts_ty::TypeFacts;
 use super::TyChecker;
 use super::ast;
 use super::errors;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::TypeFlags;
 
@@ -760,7 +760,7 @@ impl<'cx> TyChecker<'cx> {
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
 
-        if self.config.strict_null_checks()
+        if self.config.compiler_options().strict_null_checks()
             || node.expr.is_some()
             || ret_ty.flags.contains(TypeFlags::NEVER)
         {
@@ -788,7 +788,7 @@ impl<'cx> TyChecker<'cx> {
                 let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
                 self.check_ret_expr(container, unwrapped_ret_ty, node.expr, expr_ty);
             }
-        } else if self.config.no_implicit_returns()
+        } else if self.config.compiler_options().no_implicit_returns()
             && !self.p.node(container).is_class_ctor()
             && !self.is_unwrapped_ret_ty_undefined_void_or_any(container, ret_ty)
         {

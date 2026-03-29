@@ -60,10 +60,9 @@ pub fn build_graph<'cx>(
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parsed: &mut ParsedMap<'cx>,
-    fs: impl bolt_ts_fs::CachedFileSystem,
+    fs: Arc<Mutex<impl bolt_ts_fs::CachedFileSystem>>,
     options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
-    let fs = Arc::new(Mutex::new(fs));
     let always_strict = options.compiler_options().always_strict();
     // resolve
     let mut flags = ResolveFlags::empty();

@@ -12,7 +12,9 @@ if (true) {
 "#
     .trim_ascii();
 
-    let mut t = compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
     t.goto_marker("err");
     t.edit_insert("\n");
     t.verify_current_file_content_is(
@@ -37,7 +39,9 @@ let templateTail = `/*    ${1 + 2}    /*4*/`;
 "#
     .trim_ascii();
 
-    let mut t = compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
     t.goto_marker("1");
     t.edit_insert("\n");
     t.goto_marker("2");
@@ -72,7 +76,9 @@ bar     \
 "#
     .trim_ascii();
 
-    let mut t = compile_single_input(CODE);
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
     t.goto_marker("1");
     t.edit_insert(";");
     t.verify_current_file_content_is(

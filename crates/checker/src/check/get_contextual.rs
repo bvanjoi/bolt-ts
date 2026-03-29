@@ -11,7 +11,7 @@ use super::TyChecker;
 use super::ast;
 use super::create_ty::IntersectionFlags;
 use super::links;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::MappedTyNameTyKind;
 use super::ty::ObjectFlags;
@@ -764,7 +764,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_intersected_sigs(&mut self, sigs: &[&'cx ty::Sig<'cx>]) -> Option<&'cx ty::Sig<'cx>> {
-        if self.config.no_implicit_any() {
+        if self.config.compiler_options().no_implicit_any() {
             let first = sigs.first().copied();
             sigs.iter().skip(1).fold(first, |left, right| {
                 if left == Some(right) || left.is_none() {

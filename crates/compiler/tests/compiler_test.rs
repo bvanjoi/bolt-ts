@@ -1,6 +1,6 @@
-use bolt_ts_compiler::output_files;
 use bolt_ts_config::{NormalizedTsConfig, RawCompilerOptions, RawTsConfig};
 use bolt_ts_errors::miette::Severity;
+use bolt_ts_fs::LocalFS;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
 use compile_test::{ensure_node_exist, run_node_with_assert_context};
@@ -23,11 +23,16 @@ fn ensure_all_compiler_cases_are_dir() {
     }
 }
 
-fn eval_in_test(root: PathBuf, tsconfig: &NormalizedTsConfig) -> bolt_ts_compiler::Output {
+fn eval_in_test<'cx>(
+    root: PathBuf,
+    tsconfig: NormalizedTsConfig,
+    parser_arena: &'cx bolt_ts_arena::bumpalo_herd::Herd,
+    type_arena: &'cx bolt_ts_arena::bumpalo::Bump,
+) -> bolt_ts_compiler::CompilerResult<'cx, LocalFS> {
     // ==== atom init ====
     let mut atoms = bolt_ts_compiler::init_atom();
     // ==== fs init ====
-    let fs = bolt_ts_fs::LocalFS::new(&mut atoms);
+    let fs = LocalFS::new(&mut atoms);
     let exe_dir = bolt_ts_compiler::current_exe_dir();
     let mut default_libs = bolt_ts_libs::DEFAULT_LIBS
         .iter()
@@ -37,7 +42,16 @@ fn eval_in_test(root: PathBuf, tsconfig: &NormalizedTsConfig) -> bolt_ts_compile
     // extra default lib
     let current_dir = std::env::current_dir().unwrap();
     default_libs.push(current_dir.join("tests/test.d.ts"));
-    bolt_ts_compiler::eval_with_fs(root, tsconfig, exe_dir, default_libs, fs, atoms)
+    bolt_ts_compiler::eval_with_fs(
+        root,
+        tsconfig,
+        exe_dir,
+        default_libs,
+        parser_arena,
+        type_arena,
+        fs,
+        atoms,
+    )
 }
 
 fn run_test(entry: &std::path::Path, try_run_node: bool) {
@@ -64,15 +78,17 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
 
         let cwd = dir.normalize();
         let tsconfig = tsconfig.normalize();
-        let output = eval_in_test(cwd, &tsconfig);
+        let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+        let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+        let mut compiler_result = eval_in_test(cwd, tsconfig, &parser_arena, &type_arena);
         let output_dir = dir.join(DEFAULT_OUTPUT);
         if !output_dir.exists() {
             std::fs::create_dir(&output_dir).unwrap();
         }
-        let output_files =
-            output_files(&output.root, &tsconfig, &output.module_arena, output.files);
+        let output_files = compiler_result.steal_output_files();
         let output_err_path = output_dir.join(file_name).with_extension("stderr");
-        if output.diags.is_empty() {
+        let diags = compiler_result.steal_diags();
+        if diags.is_empty() {
             let _ = std::fs::remove_file(output_err_path);
 
             let mut index_file_path = None;
@@ -106,8 +122,8 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
             }
             Ok(())
         } else {
-            let errors = output
-                .diags
+            let module_arena = compiler_result.steal_module_arena();
+            let errors = diags
                 .iter()
                 .filter_map(|diag| {
                     let labels = diag.inner.labels()?;
@@ -129,7 +145,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                     } else {
                         diag.inner.to_string()
                     };
-                    let code = output.module_arena.get_content(diag.inner.module_id());
+                    let code = module_arena.get_content(diag.inner.module_id());
                     let start =
                         bolt_ts_errors::miette_label_span_to_line_position(primary_label, code).0;
                     Some(compile_test::errors::Error {
@@ -139,10 +155,9 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                     })
                 })
                 .collect::<Vec<compile_test::errors::Error>>();
-            let err_msg = output
-                .diags
+            let err_msg = diags
                 .into_iter()
-                .map(|diag| diag.emit_message(&output.module_arena, true))
+                .map(|diag| diag.emit_message(&module_arena, true))
                 .collect::<Vec<_>>()
                 .join("\n");
             expect_test::expect_file![output_err_path].assert_eq(&err_msg);

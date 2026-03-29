@@ -8,7 +8,7 @@ use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::infer::InferenceFlags;
 use super::links::SigLinks;
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 
@@ -436,7 +436,7 @@ impl<'cx> TyChecker<'cx> {
             };
             if !cycle_reported
                 && let Cycle::Some(_) = self.pop_ty_resolution()
-                && let Some(decl) = id.opt_decl(self.binder)
+                && let Some(decl) = id.opt_decl(&self.binder)
             {
                 let p = self.p.node(decl);
                 if p.is_class_decl() || p.is_interface_decl() {
@@ -1552,7 +1552,7 @@ impl<'cx> TyChecker<'cx> {
                             .contains(MappedTyModifiers::INCLUDE_READONLY)
                             || !template_modifier.contains(MappedTyModifiers::EXCLUDE_READONLY)
                                 && modifiers_prop.is_some_and(|m| this.is_readonly_symbol(m));
-                        let strip_optional = self.config.strict_null_checks()
+                        let strip_optional = this.config.compiler_options().strict_null_checks()
                             && !is_optional
                             && modifiers_prop.is_some_and(|m| {
                                 this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)

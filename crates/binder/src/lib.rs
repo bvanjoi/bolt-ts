@@ -58,6 +58,11 @@ impl Binder {
         Self { bind_results }
     }
 
+    pub fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        let m = id.module();
+        self.get(m).parent_map.parent(id)
+    }
+
     #[inline(always)]
     #[track_caller]
     pub fn get(&self, id: ModuleID) -> &ResolveResult {

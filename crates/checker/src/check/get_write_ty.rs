@@ -1,6 +1,6 @@
 use super::ResolutionKey;
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 

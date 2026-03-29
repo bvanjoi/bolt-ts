@@ -1,4 +1,4 @@
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 use super::{TyChecker, errors};

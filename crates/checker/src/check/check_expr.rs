@@ -19,7 +19,6 @@ use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
 use super::node_check_flags::NodeCheckFlags;
 use super::relation;
-use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ty::CheckFlags;
@@ -589,7 +588,7 @@ impl<'cx> TyChecker<'cx> {
         {
             return ty;
         }
-        if self.config.no_implicit_any()
+        if self.config.compiler_options().no_implicit_any()
             && !self
                 .node_query(node.id.module())
                 .expr_result_is_unused(node.id)
@@ -848,9 +847,10 @@ impl<'cx> TyChecker<'cx> {
             return None;
         }
         let iterable_exists = self.get_global_iterable_ty::<false>() != self.empty_object_ty();
-        let uplevel_iteration = iterable_exists && *self.config.target() >= Target::ES2015;
+        let uplevel_iteration =
+            iterable_exists && *self.config.compiler_options().target() >= Target::ES2015;
         let downlevel_iteration = !uplevel_iteration; // TODO: config.downlevel_iteration;
-        let possible_out_of_bounds = self.config.no_unchecked_indexed_access()
+        let possible_out_of_bounds = self.config.compiler_options().no_unchecked_indexed_access()
             && mode.contains(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
             let iteration_tys = self.get_iteration_tys_of_iterable(
@@ -1197,7 +1197,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.try_get_this_ty_at(expr.id, true, Some(container_id));
 
-        if self.config.no_implicit_this() {
+        if self.config.compiler_options().no_implicit_this() {
             let global_this_ty = self.get_type_of_symbol(self.global_this_symbol);
             match ty {
                 Some(ty) if ty == global_this_ty && captured_by_arrow_fn => {

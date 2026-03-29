@@ -8,7 +8,7 @@ use bolt_ts_span::Span;
 use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::{Ternary, errors};
 

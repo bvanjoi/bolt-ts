@@ -1,5 +1,4 @@
 use super::NodeCheckFlags;
-use super::SymbolInfo;
 use super::ty;
 use super::ty::TypeFlags;
 use super::{CheckMode, TyChecker};
@@ -251,7 +250,7 @@ impl<'cx> TyChecker<'cx> {
         // check signature declaration
         let ret_ty_node = self.get_effective_ret_type_node(id);
         let ret_ty_error_location = ret_ty_node;
-        if self.config.no_implicit_any() && ret_ty_node.is_none() {
+        if self.config.compiler_options().no_implicit_any() && ret_ty_node.is_none() {
             match n {
                 ast::Node::CtorSigDecl(_) => {
                     todo!()
@@ -285,7 +284,7 @@ impl<'cx> TyChecker<'cx> {
         ret_ty_error_location: &'cx ast::Ty<'cx>,
     ) {
         let ret_ty = self.get_ty_from_type_node(ret_ty_node);
-        if self.config.target() >= &bolt_ts_config::Target::ES2015 {
+        if self.config.compiler_options().target() >= &bolt_ts_config::Target::ES2015 {
             if self.is_error(ret_ty) {
                 return;
             }

@@ -3,7 +3,6 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 
-use super::SymbolInfo;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
 use super::ty;
@@ -174,7 +173,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_builtin_iterator_return_ty(&self) -> &'cx ty::Ty<'cx> {
-        if self.config.strict_builtin_iteration_return() {
+        if self
+            .config
+            .compiler_options()
+            .strict_builtin_iteration_return()
+        {
             self.undefined_ty
         } else {
             self.any_ty

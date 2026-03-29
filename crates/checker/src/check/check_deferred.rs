@@ -4,7 +4,6 @@ use super::NodeCheckFlags;
 use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;
-use super::symbol_info::SymbolInfo;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_node_deferred(&mut self, node: ast::NodeID) {

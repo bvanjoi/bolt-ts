@@ -88,15 +88,19 @@ fn compile(input_dir: std::path::PathBuf) {
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
-    let output = bolt_ts_compiler::eval_with_fs(
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut output = bolt_ts_compiler::eval_with_fs(
         input_dir,
-        &tsconfig,
+        tsconfig,
         default_lib_dir,
         default_libs,
+        &parser_arena,
+        &type_arena,
         fs,
         atoms,
     );
-    assert!(output.diags.is_empty());
+    assert!(output.steal_diags().is_empty());
 }
 
 #[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 10)]

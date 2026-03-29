@@ -13,7 +13,8 @@ pub use self::real::read_file_with_encoding;
 use bolt_ts_atom::{Atom, AtomIntern};
 use std::path::{Path, PathBuf};
 
-pub trait CachedFileSystem: Send + Sync {
+pub trait CachedFileSystem: Send + Sync + std::fmt::Debug + Default {
+    fn is_vfs(&self) -> bool;
     fn file_exists(&mut self, p: &Path, atoms: &mut AtomIntern) -> bool;
     fn read_file(&mut self, p: &Path, atoms: &mut AtomIntern) -> FsResult<Atom>;
 

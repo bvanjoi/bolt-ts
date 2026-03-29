@@ -108,7 +108,7 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn is_string_lit_like(&self) -> bool {
-        self.kind.is_string_lit_like()
+        self.kind.is_string_literal_like()
     }
 
     pub fn is_signed_numeric_lit(&self) -> bool {
@@ -307,7 +307,7 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
-    pub fn is_string_lit_like(&self) -> bool {
+    pub fn is_string_literal_like(&self) -> bool {
         matches!(
             self,
             ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
@@ -315,7 +315,7 @@ impl<'cx> ExprKind<'cx> {
     }
 
     pub fn is_string_or_number_lit_like(&self) -> bool {
-        self.is_string_lit_like() || matches!(self, ExprKind::NumLit(_))
+        self.is_string_literal_like() || matches!(self, ExprKind::NumLit(_))
     }
 
     fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
@@ -1009,4 +1009,19 @@ pub struct ExternalModuleReference<'cx> {
 pub enum ModuleReferenceKind<'cx> {
     EntityName(&'cx EntityName<'cx>),
     ExternalModuleReference(&'cx ExternalModuleReference<'cx>),
+}
+
+impl ModuleReferenceKind<'_> {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::EntityName(e) => e.span(),
+            Self::ExternalModuleReference(e) => e.span,
+        }
+    }
+    pub fn id(&self) -> NodeID {
+        match self {
+            Self::EntityName(e) => e.id(),
+            Self::ExternalModuleReference(e) => e.id,
+        }
+    }
 }

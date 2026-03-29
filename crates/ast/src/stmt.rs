@@ -87,6 +87,39 @@ impl<'cx> Stmt<'cx> {
         }
     }
 
+    pub fn span(&self) -> Span {
+        match self.kind {
+            StmtKind::Empty(n) => n.span,
+            StmtKind::Var(n) => n.span,
+            StmtKind::If(n) => n.span,
+            StmtKind::For(n) => n.span,
+            StmtKind::ForOf(n) => n.span,
+            StmtKind::ForIn(n) => n.span,
+            StmtKind::Break(n) => n.span,
+            StmtKind::Continue(n) => n.span,
+            StmtKind::Ret(n) => n.span,
+            StmtKind::Block(n) => n.span,
+            StmtKind::Fn(n) => n.span,
+            StmtKind::Class(n) => n.span,
+            StmtKind::Expr(n) => n.span,
+            StmtKind::Interface(n) => n.span,
+            StmtKind::TypeAlias(n) => n.span,
+            StmtKind::Module(n) => n.span,
+            StmtKind::Throw(n) => n.span,
+            StmtKind::Enum(n) => n.span,
+            StmtKind::Import(n) => n.span,
+            StmtKind::ImportEquals(n) => n.span,
+            StmtKind::Export(n) => n.span,
+            StmtKind::ExportAssign(n) => n.span,
+            StmtKind::Try(n) => n.span,
+            StmtKind::While(n) => n.span,
+            StmtKind::Do(n) => n.span,
+            StmtKind::Debugger(n) => n.span,
+            StmtKind::Labeled(n) => n.span,
+            StmtKind::Switch(n) => n.span,
+        }
+    }
+
     pub fn is_use_strict_directive(&self) -> bool {
         if let StmtKind::Expr(expr_stmt) = self.kind
             && let ExprKind::StringLit(lit) = expr_stmt.expr.kind

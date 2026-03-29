@@ -12,7 +12,7 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
-use super::symbol_info::SymbolInfo;
+
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 use super::utils::contains_ty;
@@ -272,7 +272,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let target_is_optional = self.c.config.strict_null_checks()
+        let target_is_optional = self.c.config.compiler_options().strict_null_checks()
             && self
                 .c
                 .get_check_flags(target_prop)
@@ -1809,8 +1809,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         let discriminant_combinations = ty_cartesian_product(source_discriminant_tys.as_ref());
         let mut matching_tys = vec![];
-        let skip_optional =
-            self.c.config.strict_null_checks() || self.relation == RelationKind::Comparable;
+        let skip_optional = self.c.config.compiler_options().strict_null_checks()
+            || self.relation == RelationKind::Comparable;
         for combination in discriminant_combinations {
             let mut has_match = false;
             'outer: for ty in target_union.tys {
@@ -2024,7 +2024,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             );
             if self.c.is_applicable_index_ty(lit_ty, target.key_ty) {
                 let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
-                let ty = if self.c.config.exact_optional_property_types()
+                let ty = if self
+                    .c
+                    .config
+                    .compiler_options()
+                    .exact_optional_property_types()
                     || prop_ty.flags.contains(TypeFlags::UNDEFINED)
                     || target.key_ty == self.c.number_ty
                     || !self.c.symbol(*prop).flags.contains(SymbolFlags::OPTIONAL)
@@ -2570,7 +2574,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         use ast::Node::*;
         let strict_variance = !check_mode.intersects(SigCheckMode::CALLBACK)
-            && self.c.config.strict_function_types()
+            && self.c.config.compiler_options().strict_function_types()
             && !matches!(
                 self.c.p.node(target.def_id()),
                 ClassCtor(_)
