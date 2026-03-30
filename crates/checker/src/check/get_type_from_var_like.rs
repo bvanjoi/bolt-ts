@@ -64,6 +64,7 @@ impl<'cx> TyChecker<'cx> {
         if self.check_mode.is_some_and(|m| m != CheckMode::empty()) {
             match parent_node {
                 ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+                ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
                 _ => {
                     // TODO:
                     None
@@ -71,8 +72,16 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             // TODO: cache
+            // if parent_node.is_decl()
+            //     && let symbol = self.get_symbol_of_decl(parent_id)
+            //     && let Some(ty) = self.get_symbol_links(symbol).get_ty()
+            // {
+            //     return Some(ty);
+            // };
+
             match parent_node {
-                ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+                ast::Node::VarDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
+                ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
                 _ => {
                     // TODO:
                     None
@@ -173,7 +182,7 @@ impl<'cx> TyChecker<'cx> {
         element_ty
     }
 
-    fn get_object_binding_element_ty_from_parent_ty(
+    pub(super) fn get_object_binding_element_ty_from_parent_ty(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,
@@ -448,7 +457,8 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
-        if decl.is_param() {
+        if let Some(param_decl) = decl.as_param() {
+            // TODO: !declaration.symbol then return
             if let Some(setter) = parent.as_setter_decl() {
                 // TODO: has bindable name
                 let symbol = self.get_symbol_of_decl(setter.id);
@@ -462,14 +472,68 @@ impl<'cx> TyChecker<'cx> {
                     return Some(self.get_ret_ty_of_sig(getter_sig));
                 }
             }
+
+            // TODO: self.get_parameter_ty_of_ty_tag(parent_id);
+            // let s = self.symbol(self.final_res(id));
+            // TODO: this
+            if let Some(ty) = self.get_contextually_typed_parameter_ty(param_decl) {
+                return Some(self.add_optionality::<false>(ty, is_optional));
+            }
         }
 
-        if let Some(init) = decl.init() {
-            let init_ty = self.check_expr_cached(init);
-            Some(self.widened_ty_from_init(decl, init_ty))
-        } else {
-            None
+        if decl.init().is_some() && decl.has_only_expr_initializer() {
+            let ty = self.check_decl_init(decl, None);
+            let ty = self.widen_ty_inferred_from_initializer(decl, ty);
+            return Some(self.add_optionality::<false>(ty, is_optional));
         }
+
+        None
+    }
+
+    fn widen_ty_inferred_from_initializer(
+        &mut self,
+        decl: &impl r#trait::VarLike<'cx>,
+        ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let widened = self.get_widened_lit_ty_for_init(decl, ty);
+        // TODO: in js
+        widened
+    }
+
+    fn get_contextually_typed_parameter_ty(
+        &mut self,
+        param_decl: &ast::ParamDecl<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        let func = self.parent(param_decl.id).unwrap();
+        if self.is_context_sensitive_fn_or_object_literal_method(func) {
+            return None;
+        }
+        if let Some(iife) = self
+            .node_query(func.module())
+            .get_immediately_invoked_fn_expr(func)
+            && !iife.args.is_empty()
+        {
+            // TODO:
+        }
+
+        if let Some(contextual_sig) = self.get_contextual_sig(func) {
+            let params = self.p.node(func).params().unwrap();
+            let index = params.iter().position(|p| p.id == param_decl.id).unwrap()
+                - if contextual_sig.this_param.is_some() {
+                    1
+                } else {
+                    0
+                };
+            if param_decl.dotdotdot.is_some()
+                && params.last().is_some_and(|p| p.id == param_decl.id)
+            {
+                return Some(self.get_rest_ty_at_pos(contextual_sig, index, false));
+            } else {
+                return self.try_get_ty_at_pos(contextual_sig, index);
+            }
+        }
+
+        None
     }
 
     pub(super) fn widen_ty_for_var_like_decl(

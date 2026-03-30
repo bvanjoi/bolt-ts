@@ -5121,7 +5121,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_decl_init(
+    pub(super) fn check_decl_init(
         &mut self,
         decl: &impl VarLike<'cx>,
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
@@ -5129,12 +5129,101 @@ impl<'cx> TyChecker<'cx> {
         let init = decl.init().unwrap();
         // TODO: get_quick_ty_of_expr
 
-        if let Some(contextual_ty) = contextual_ty {
+        let ty = if let Some(contextual_ty) = contextual_ty {
             let check_mode = self.check_mode.unwrap_or(CheckMode::empty());
             self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode)
         } else {
             self.check_expr_cached(init)
+        };
+
+        let decl_id = decl.id();
+        let decl_node = self.p.node(decl_id);
+        let decl_node = if decl_node.is_object_pat() || decl_node.is_array_pat() {
+            let id = self
+                .node_query(decl_id.module())
+                .walkup_binding_elements_and_patterns(decl_id);
+            self.p.node(id)
+        } else {
+            decl_node
+        };
+        if let Some(p) = decl_node.as_param_decl() {
+            match p.name.kind {
+                ast::BindingKind::ObjectPat(pattern) if ty.is_object_literal() => {
+                    return self.pad_object_literal_ty(ty, pattern);
+                }
+                ast::BindingKind::ArrayPat(pat) if ty.is_tuple() => {
+                    // TODO:
+                }
+                _ => {}
+            }
         }
+        ty
+    }
+
+    fn get_prop_name_from_object_binding_element(
+        &mut self,
+        element: &'cx ast::ObjectBindingElem<'cx>,
+    ) -> Option<SymbolName> {
+        let expr_ty = self.get_literal_ty_from_prop_name(&element.name.name());
+        if expr_ty.useable_as_prop_name() {
+            Some(self.get_prop_name_from_ty(expr_ty))
+        } else {
+            None
+        }
+    }
+
+    fn pad_object_literal_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        pattern: &'cx ast::ObjectPat<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut missing_elements = vec![];
+        for elem in pattern.elems {
+            if elem.init.is_some() {
+                if let Some(name) = self.get_prop_name_from_object_binding_element(elem)
+                    && self.get_prop_of_ty(ty, name).is_none()
+                {
+                    missing_elements.push(elem);
+                }
+            }
+        }
+        if missing_elements.is_empty() {
+            return ty;
+        }
+        let mut members = SymbolTable::new(missing_elements.len());
+        for &prop in self.get_props_of_object_ty(ty) {
+            let name = self.symbol(prop).name;
+            members.0.insert(name, prop);
+        }
+        for e in missing_elements {
+            let name = self.get_prop_name_from_object_binding_element(e).unwrap();
+            let ty = self.get_ty_from_object_binding::<false>(e);
+            let links = SymbolLinks::default().with_ty(ty);
+            let symbol = self.create_transient_symbol(
+                name,
+                SymbolFlags::PROPERTY
+                    .union(SymbolFlags::OPTIONAL)
+                    .union(SymbolFlags::TRANSIENT),
+                links,
+                None,
+                None,
+                None,
+            );
+            members.0.insert(name, symbol);
+        }
+        let res = self.create_anonymous_ty(ty.symbol(), ty.get_object_flags(), None, None, None);
+        let s = ty::StructuredMembers {
+            props: self.get_props_from_members(&members.0),
+            members: self.alloc(members.0),
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
+            index_infos: self.get_index_infos_of_ty(ty),
+        };
+        self.ty_links.insert(
+            res.id,
+            TyLinks::default().with_structured_members(self.alloc(s)),
+        );
+        res
     }
 
     pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {

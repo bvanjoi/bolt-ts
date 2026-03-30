@@ -82,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         result
     }
 
-    fn get_ty_from_object_binding<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_object_binding<const INCLUDE_PATTERN_IN_TY: bool>(
         &mut self,
         elem: &'cx bolt_ts_ast::ObjectBindingElem<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -254,30 +254,50 @@ impl<'cx> TyChecker<'cx> {
             );
             return;
         }
-        let decl_id = param.decl(&self.binder);
-        let decl = self.p.node(decl_id).expect_param_decl();
+        let param_symbol = self.symbol(param);
+        let decl = param_symbol.value_decl;
+        let decl_node = decl.map(|decl| self.p.node(decl).expect_param_decl());
         let ty = if let Some(ctx) = contextual_ty {
             ctx
-        } else {
+        } else if let Some(decl) = decl_node {
             self.get_widened_ty_for_var_like_decl(decl)
+        } else {
+            self.get_type_of_symbol(param)
         };
-        // TODO: optional for js
-        let mut ty =
-            self.add_optionality::<false>(ty, decl.init.is_none() && decl.question.is_some());
-        if ty == self.unknown_ty && !matches!(decl.name.kind, ast::BindingKind::Ident(_)) {
-            ty = self.get_ty_from_binding_pat::<false>(decl.name);
+        let is_optional = decl_node.is_some_and(|decl_node| {
+            // TODO: optional for js
+            decl_node.init.is_none() && decl_node.question.is_some()
+        });
+
+        let mut ty = self.add_optionality::<false>(ty, is_optional);
+        if let Some(declaration) = decl_node
+            && !matches!(declaration.name.kind, ast::BindingKind::Ident(_))
+            && ty == self.unknown_ty
+        {
+            ty = self.get_ty_from_binding_pat::<false>(declaration.name);
         }
         self.get_mut_symbol_links(param).set_ty(ty);
-
-        use bolt_ts_ast::BindingKind::*;
-        match decl.name.kind {
-            ObjectPat(pat) => self.assign_object_pat_ele_tys(decl.name, pat, ty),
-            ArrayPat(pat) => self.assign_array_pat_ele_tys(decl.name, pat, ty),
-            Ident(_) => {}
+        if let Some(declaration) = decl_node
+            && !matches!(declaration.name.kind, ast::BindingKind::Ident(_))
+        {
+            self.assign_binding_element_types(declaration.name, ty);
         }
     }
 
-    fn assign_array_binding_ele_tys(
+    fn assign_binding_element_types(
+        &mut self,
+        binding: &'cx bolt_ts_ast::Binding<'cx>,
+        parent_ty: &'cx ty::Ty<'cx>,
+    ) {
+        use bolt_ts_ast::BindingKind::*;
+        match binding.kind {
+            ObjectPat(pat) => self.assign_object_pat_elem_tys(pat, parent_ty),
+            ArrayPat(pat) => self.assign_array_pat_elem_tys(pat, parent_ty),
+            Ident(_) => {}
+        };
+    }
+
+    fn assign_array_binding_elem_tys(
         &mut self,
         binding: &'cx bolt_ts_ast::ArrayBinding<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -291,23 +311,35 @@ impl<'cx> TyChecker<'cx> {
                     .insert(symbol, SymbolLinks::default().with_ty(ty));
                 assert!(prev.is_none());
             }
-            ObjectPat(pat) => self.assign_object_pat_ele_tys(binding.name, pat, ty),
-            ArrayPat(pat) => self.assign_array_pat_ele_tys(binding.name, pat, ty),
+            ObjectPat(pat) => self.assign_object_pat_elem_tys(pat, ty),
+            ArrayPat(pat) => self.assign_array_pat_elem_tys(pat, ty),
         }
     }
 
-    fn assign_object_pat_ele_tys(
+    fn assign_object_pat_elem_tys(
         &mut self,
-        binding: &'cx bolt_ts_ast::Binding<'cx>,
         pat: &'cx bolt_ts_ast::ObjectPat<'cx>,
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
-        for ele in pat.elems {}
+        for elem in pat.elems {
+            let ty = self.get_object_binding_element_ty_from_parent_ty(*elem, pat, parent_ty);
+            match elem.name {
+                ast::ObjectBindingName::Shorthand(_) => {
+                    let symbol = self.get_symbol_of_decl(elem.id);
+                    let prev = self
+                        .symbol_links
+                        .insert(symbol, SymbolLinks::default().with_ty(ty));
+                    assert!(prev.is_none());
+                }
+                ast::ObjectBindingName::Prop { name, .. } => {
+                    self.assign_binding_element_types(name, ty);
+                }
+            }
+        }
     }
 
-    fn assign_array_pat_ele_tys(
+    fn assign_array_pat_elem_tys(
         &mut self,
-        binding: &'cx bolt_ts_ast::Binding<'cx>,
         pat: &'cx bolt_ts_ast::ArrayPat<'cx>,
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
@@ -318,7 +350,7 @@ impl<'cx> TyChecker<'cx> {
                     let ty = self.get_array_binding_element_ty_from_parent_ty(
                         binding, pat, false, parent_ty,
                     );
-                    self.assign_array_binding_ele_tys(binding, ty);
+                    self.assign_array_binding_elem_tys(binding, ty);
                 }
                 Omit(_) => {}
             }
@@ -381,7 +413,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn assign_non_contextual_param_tys(&mut self, sig: &'cx ty::Sig<'cx>) {
         if let Some(this_param) = sig.this_param {
-            // TODO:
+            self.assign_param_ty(this_param, None);
         }
 
         for param in sig.params {

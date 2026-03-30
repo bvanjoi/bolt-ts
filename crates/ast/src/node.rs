@@ -741,6 +741,7 @@ impl<'cx> Node<'cx> {
         match self {
             Node::PropSignature(n) => n.question.is_some(),
             Node::ClassPropElem(n) => n.question.is_some(),
+            Node::ParamDecl(n) => n.question.is_some(), // TODO: js
             _ => false,
         }
     }

@@ -1,9 +1,7 @@
 use super::TyChecker;
-use super::node_query;
 
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
-use bolt_ts_parser::ParsedMap;
 
 impl TyChecker<'_> {
     pub fn get_symbol_of_node(&self, id: ast::NodeID) -> Option<SymbolID> {

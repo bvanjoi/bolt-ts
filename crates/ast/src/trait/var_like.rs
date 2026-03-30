@@ -29,8 +29,12 @@ pub trait VarLike<'cx>: std::fmt::Debug {
     fn name(&self) -> VarLikeName<'cx>;
     fn decl_ty(&self) -> Option<&'cx crate::Ty<'cx>>;
     fn init(&self) -> Option<&'cx crate::Expr<'cx>>;
+    fn has_only_expr_initializer(&self) -> bool;
     fn is_param(&self) -> bool {
-        false
+        self.as_param().is_some()
+    }
+    fn as_param(&self) -> Option<&crate::ParamDecl<'cx>> {
+        None
     }
 }
 
@@ -47,6 +51,9 @@ impl<'cx> VarLike<'cx> for crate::VarDecl<'cx> {
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         self.init
     }
+    fn has_only_expr_initializer(&self) -> bool {
+        true
+    }
 }
 
 impl<'cx> VarLike<'cx> for crate::ParamDecl<'cx> {
@@ -62,7 +69,10 @@ impl<'cx> VarLike<'cx> for crate::ParamDecl<'cx> {
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         self.init
     }
-    fn is_param(&self) -> bool {
+    fn as_param(&self) -> Option<&crate::ParamDecl<'cx>> {
+        Some(self)
+    }
+    fn has_only_expr_initializer(&self) -> bool {
         true
     }
 }
@@ -80,6 +90,9 @@ impl<'cx> VarLike<'cx> for crate::ClassPropElem<'cx> {
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         self.init
     }
+    fn has_only_expr_initializer(&self) -> bool {
+        false
+    }
 }
 
 impl<'cx> VarLike<'cx> for crate::PropSignature<'cx> {
@@ -94,6 +107,9 @@ impl<'cx> VarLike<'cx> for crate::PropSignature<'cx> {
     }
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         None
+    }
+    fn has_only_expr_initializer(&self) -> bool {
+        false
     }
 }
 
@@ -110,6 +126,9 @@ impl<'cx> VarLike<'cx> for crate::ObjectPropAssignment<'cx> {
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         Some(self.init)
     }
+    fn has_only_expr_initializer(&self) -> bool {
+        true
+    }
 }
 
 impl<'cx> VarLike<'cx> for crate::ObjectShorthandMember<'cx> {
@@ -124,6 +143,9 @@ impl<'cx> VarLike<'cx> for crate::ObjectShorthandMember<'cx> {
     }
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         None
+    }
+    fn has_only_expr_initializer(&self) -> bool {
+        true
     }
 }
 
@@ -142,6 +164,9 @@ impl<'cx> VarLike<'cx> for crate::ArrayBinding<'cx> {
 
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         self.init
+    }
+    fn has_only_expr_initializer(&self) -> bool {
+        true
     }
 }
 
@@ -173,5 +198,8 @@ impl<'cx> VarLike<'cx> for crate::ObjectBindingElem<'cx> {
 
     fn init(&self) -> Option<&'cx crate::Expr<'cx>> {
         self.init
+    }
+    fn has_only_expr_initializer(&self) -> bool {
+        true
     }
 }
