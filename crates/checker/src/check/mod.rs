@@ -2728,7 +2728,12 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let is_never_initialized = if let Some(v) = self.p.node(immediate_decl).as_var_decl() {
+            // TODO: is not in for init && !is_symbol_assigned_definitely
             v.init.is_none()
+                && v.excl.is_none()
+                && self
+                    .node_query(v.id.module())
+                    .is_mutable_local_variable_declaration(v)
         } else {
             false
         };
@@ -5211,19 +5216,18 @@ impl<'cx> TyChecker<'cx> {
             );
             members.0.insert(name, symbol);
         }
-        let res = self.create_anonymous_ty(ty.symbol(), ty.get_object_flags(), None, None, None);
-        let s = ty::StructuredMembers {
-            props: self.get_props_from_members(&members.0),
-            members: self.alloc(members.0),
-            call_sigs: self.empty_array(),
-            ctor_sigs: self.empty_array(),
-            index_infos: self.get_index_infos_of_ty(ty),
-        };
-        self.ty_links.insert(
-            res.id,
-            TyLinks::default().with_structured_members(self.alloc(s)),
-        );
-        res
+
+        let members = self.alloc(members.0);
+        let index_infos = self.get_index_infos_of_ty(ty);
+        self.create_anonymous_ty_with_resolved(
+            ty.symbol(),
+            ty.get_object_flags(),
+            members,
+            self.empty_array(),
+            self.empty_array(),
+            index_infos,
+            None,
+        )
     }
 
     pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
@@ -6163,7 +6167,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.check_expr_cached(n.expr);
                 self.get_base_constraint_or_ty(ty)
             };
-            if !ty.is_lit_ty() {
+            if !ty.is_literal_ty() {
                 return false;
             }
 
@@ -6453,6 +6457,58 @@ impl<'cx> TyChecker<'cx> {
 
     fn alloc<T>(&self, value: T) -> &'cx T {
         self.arena.alloc(value)
+    }
+
+    fn create_empty_object_ty_from_string_literal(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let mut members = SymbolTable::new(0);
+        self.for_each_ty(ty, |this, t| {
+            if !t.flags.contains(TypeFlags::STRING_LITERAL) {
+                return;
+            }
+            let Some(s) = t.kind.as_string_lit() else {
+                unreachable!()
+            };
+            let links = SymbolLinks::default().with_ty(this.any_ty);
+            let mut declarations = None;
+            let mut value_declaration = None;
+            if let Some(symbol) = t.symbol() {
+                let s = this.symbol(symbol);
+                declarations = s.decls.clone();
+                value_declaration = s.value_decl;
+            }
+            let literal_prop = this.create_transient_symbol(
+                SymbolName::Atom(s.val),
+                SymbolFlags::PROPERTY | SymbolFlags::TRANSIENT,
+                links,
+                declarations,
+                value_declaration,
+                None,
+            );
+            members.0.insert(SymbolName::Atom(s.val), literal_prop);
+        });
+        let members = self.alloc(members.0);
+        let index_infos = if ty.flags.contains(TypeFlags::STRING) {
+            self.alloc([self.alloc(ty::IndexInfo {
+                symbol: Symbol::ERR,
+                key_ty: self.string_ty,
+                val_ty: self.empty_object_ty(),
+                is_readonly: false,
+            })])
+        } else {
+            self.empty_array()
+        };
+        self.create_anonymous_ty_with_resolved(
+            None,
+            ObjectFlags::OBJECT_LITERAL,
+            members,
+            self.empty_array(),
+            self.empty_array(),
+            index_infos,
+            None,
+        )
     }
 }
 

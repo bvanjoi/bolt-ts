@@ -9,9 +9,9 @@ use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
 use super::ast;
+use super::check_expr::IterationUse;
 use super::create_ty::IntersectionFlags;
 use super::links;
-
 use super::ty;
 use super::ty::MappedTyNameTyKind;
 use super::ty::ObjectFlags;
@@ -53,6 +53,7 @@ impl<'cx> TyChecker<'cx> {
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
                 let element_idx = self.p.index_of_node(parent.elems, id);
+                // get_spread_indices
                 let (first, last) = {
                     // TODO: cache
                     let mut first = None;
@@ -433,7 +434,13 @@ impl<'cx> TyChecker<'cx> {
                     return Some(t);
                 }
                 // TODO: this.get_iterated_ty_or_element_ty()
-                this.get_index_ty_of_ty(t, this.number_ty)
+                this.get_iterated_ty_or_element_ty(
+                    IterationUse::ELEMENT,
+                    t,
+                    this.undefined_ty,
+                    None,
+                    true,
+                )
             },
             true,
         )
@@ -652,9 +659,8 @@ impl<'cx> TyChecker<'cx> {
             self.get_contextual_ty(node, flags)
         };
         let instantiated_ty = self.instantiate_contextual_ty(contextual_ty, node, flags)?;
-        if flags.is_none_or(|flags| {
-            !(flags.contains(ContextFlags::NO_CONSTRAINTS)
-                && instantiated_ty.kind.is_type_variable())
+        if !flags.is_some_and(|flags| {
+            flags.contains(ContextFlags::NO_CONSTRAINTS) && instantiated_ty.kind.is_type_variable()
         }) {
             let apparent_ty = self
                 .map_ty(

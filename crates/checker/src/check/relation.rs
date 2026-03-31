@@ -865,7 +865,7 @@ impl<'cx> TyChecker<'cx> {
                 check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE;
             }
 
-            if ty.is_lit_ty() || ty.is_pattern_lit_ty() {
+            if ty.is_literal_ty() || ty.is_pattern_lit_ty() {
                 check_flags |= CheckFlags::HAS_LITERAL_TYPE;
             }
 

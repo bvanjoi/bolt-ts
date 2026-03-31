@@ -155,9 +155,9 @@ impl<'cx> TyChecker<'cx> {
         } else {
             (contextual_ty.flags.intersects(
                 TypeFlags::STRING_LITERAL
-                    | TypeFlags::INDEX
-                    | TypeFlags::TEMPLATE_LITERAL
-                    | TypeFlags::STRING_MAPPING,
+                    .union(TypeFlags::INDEX)
+                    .union(TypeFlags::TEMPLATE_LITERAL)
+                    .union(TypeFlags::STRING_MAPPING),
             ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
                 || (contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))

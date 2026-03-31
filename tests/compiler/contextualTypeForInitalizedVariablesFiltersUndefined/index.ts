@@ -10,7 +10,7 @@ const fAnnotated: typeof fInferred = ({ a = 0 } = {}) => a;
 
 declare var t: { s: string } | undefined;
 const { s } = t;
-//~^ ERROR: Property 's' does not exist on type '{ s: string; } | undefined'.
+//~^ ERROR: Property '"s"' does not exist on type 'undefined | { s: string; }'.
 function fst({ s } = t) { }
-//~^ ERROR: Property 's' does not exist on type '{ s: string; } | undefined'.
+//~^ ERROR: Property '"s"' does not exist on type 'undefined | { s: string; }'.
 

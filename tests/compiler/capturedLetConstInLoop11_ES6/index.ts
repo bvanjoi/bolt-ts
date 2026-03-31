@@ -7,6 +7,7 @@ for (;;) {
     let x = 1;
     () => x;
 }
+x; //~ERROR: Cannot find name 'x'.
 
 function foo() {
     for (;;) {

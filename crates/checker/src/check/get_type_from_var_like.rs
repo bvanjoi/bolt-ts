@@ -11,6 +11,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
+use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
@@ -191,6 +192,26 @@ impl<'cx> TyChecker<'cx> {
         debug_assert!(self.parent(binding.id).is_some());
         if self.is_type_any(parent_parent_ty) {
             return parent_parent_ty;
+        }
+
+        if self.config.compiler_options().strict_null_checks() {
+            if self
+                .p
+                .node_flags(binding.id)
+                .contains(ast::NodeFlags::AMBIENT)
+                && self
+                    .node_query(binding.id.module())
+                    .is_part_of_param_decl(binding.id)
+            {
+                parent_parent_ty = self.get_non_nullable_ty(parent_parent_ty)
+            } else if let parent_parent = self.parent(parent.id).unwrap()
+                && let Some(init) = self.p.node(parent_parent).initializer()
+                && let init_ty = self.get_ty_of_init(init)
+                && !self.has_type_facts(init_ty, TypeFacts::EQ_UNDEFINED)
+            {
+                parent_parent_ty =
+                    self.get_ty_with_facts(parent_parent_ty, TypeFacts::NE_UNDEFINED);
+            }
         }
 
         let access_flags = AccessFlags::EXPRESSION_POSITION;
@@ -505,7 +526,7 @@ impl<'cx> TyChecker<'cx> {
         param_decl: &ast::ParamDecl<'cx>,
     ) -> Option<&'cx Ty<'cx>> {
         let func = self.parent(param_decl.id).unwrap();
-        if self.is_context_sensitive_fn_or_object_literal_method(func) {
+        if !self.is_context_sensitive_fn_or_object_literal_method(func) {
             return None;
         }
         if let Some(iife) = self

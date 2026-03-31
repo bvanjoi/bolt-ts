@@ -859,7 +859,7 @@ impl<'cx> TyChecker<'cx> {
                             InferenceFlags::empty(),
                         );
                         infer_ctx = Some(infer);
-                        ty_arg_tys = Some(self.infer_ty_args(
+                        ty_arg_tys = Some(self.infer_ty_arguments(
                             expr,
                             candidate,
                             expr.args(),
@@ -894,7 +894,7 @@ impl<'cx> TyChecker<'cx> {
                 if !argument_check_mode.is_empty() {
                     argument_check_mode = CheckMode::empty();
                     if let Some(infer_ctx) = infer_ctx {
-                        let ty_arg_tys = self.infer_ty_args(
+                        let ty_arg_tys = self.infer_ty_arguments(
                             expr,
                             candidate,
                             expr.args(),

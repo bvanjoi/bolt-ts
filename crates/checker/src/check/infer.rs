@@ -677,7 +677,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn infer_ty_args(
+    pub(super) fn infer_ty_arguments(
         &mut self,
         node: &impl r#trait::CallLike<'cx>,
         sig: &'cx Sig<'cx>,
@@ -1656,7 +1656,18 @@ impl<'cx> InferenceState<'cx, '_> {
             && let Some(target) = target.kind.as_index_ty()
         {
             self.infer_from_contravariant_tys(source.ty, target.ty);
-            // TODO:((isLiteralType(source) || source.flags & TypeFlags.String) && target.flags & TypeFlags.Index) {
+        } else if (source.is_literal_ty() || source.flags.contains(TypeFlags::STRING))
+            && target.flags.contains(TypeFlags::INDEX)
+        {
+            let Some(target_index_ty) = target.kind.as_index_ty() else {
+                unreachable!()
+            };
+            let empty = self.c.create_empty_object_ty_from_string_literal(source);
+            self.infer_from_contravariant_tys_with_priority(
+                empty,
+                target_index_ty.ty,
+                InferencePriority::LITERAL_KEYOF,
+            );
         } else if let Some(source) = source.kind.as_indexed_access()
             && let Some(target) = target.kind.as_indexed_access()
         {
@@ -2468,6 +2479,18 @@ impl<'cx> InferenceState<'cx, '_> {
         self.contravariant = !self.contravariant;
         self.infer_from_tys(source, target);
         self.contravariant = !self.contravariant;
+    }
+
+    fn infer_from_contravariant_tys_with_priority(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        new_priority: InferencePriority,
+    ) {
+        let save_priority = self.priority;
+        self.priority |= new_priority;
+        self.infer_from_contravariant_tys(source, target);
+        self.priority = save_priority;
     }
 
     fn infer_from_sig(&mut self, source: &'cx ty::Sig<'cx>, target: &'cx ty::Sig<'cx>) {

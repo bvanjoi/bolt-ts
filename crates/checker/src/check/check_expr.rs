@@ -810,7 +810,7 @@ impl<'cx> TyChecker<'cx> {
         if self.is_type_any(input_ty) {
             return input_ty;
         }
-        self.get_iterated_ty_or_elem_ty(mode, input_ty, send_ty, error_node, true)
+        self.get_iterated_ty_or_element_ty(mode, input_ty, send_ty, error_node, true)
             .unwrap_or(self.any_ty)
     }
 
@@ -831,7 +831,7 @@ impl<'cx> TyChecker<'cx> {
         };
     }
 
-    fn get_iterated_ty_or_elem_ty(
+    pub(super) fn get_iterated_ty_or_element_ty(
         &mut self,
         mode: IterationUse,
         input_ty: &'cx ty::Ty<'cx>,

@@ -91,7 +91,7 @@ impl<'cx> VarLike<'cx> for crate::ClassPropElem<'cx> {
         self.init
     }
     fn has_only_expr_initializer(&self) -> bool {
-        false
+        true
     }
 }
 
@@ -109,7 +109,7 @@ impl<'cx> VarLike<'cx> for crate::PropSignature<'cx> {
         None
     }
     fn has_only_expr_initializer(&self) -> bool {
-        false
+        true
     }
 }
 

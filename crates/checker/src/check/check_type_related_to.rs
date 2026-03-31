@@ -1283,13 +1283,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
             if self.relation == RelationKind::Comparable
-                && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
+                && source_flags.contains(TypeFlags::TYPE_PARAMETER)
             {
                 // TODO:
             }
-        } else if target_flags.intersects(TypeFlags::INDEX) {
+        } else if target_flags.contains(TypeFlags::INDEX) {
             let target_ty = target.kind.expect_index_ty();
-            if source_flags.intersects(TypeFlags::INDEX) {
+            if source_flags.contains(TypeFlags::INDEX) {
                 let source_ty = source.kind.expect_index_ty().ty;
                 result = self.is_related_to(
                     target_ty.ty,

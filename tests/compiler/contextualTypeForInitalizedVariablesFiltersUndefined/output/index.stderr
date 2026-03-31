@@ -1,0 +1,11 @@
+  × Property '"s"' does not exist on type 'undefined | { s: string; }'.
+    ╭─[../../tests/compiler/contextualTypeForInitalizedVariablesFiltersUndefined/index.ts:12:9]
+ 12 │ s
+    · ─
+    ╰────
+
+  × Property '"s"' does not exist on type 'undefined | { s: string; }'.
+    ╭─[../../tests/compiler/contextualTypeForInitalizedVariablesFiltersUndefined/index.ts:14:16]
+ 14 │ s
+    · ─
+    ╰────

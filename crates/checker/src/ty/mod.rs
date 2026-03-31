@@ -463,7 +463,7 @@ impl<'cx> Ty<'cx> {
         }
     }
 
-    pub fn is_lit_ty(&self) -> bool {
+    pub fn is_literal_ty(&self) -> bool {
         self.flags.intersects(TypeFlags::BOOLEAN)
             || if let Some(u) = self.kind.as_union() {
                 if self.flags.contains(TypeFlags::ENUM_LITERAL) {
