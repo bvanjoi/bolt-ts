@@ -1,6 +1,6 @@
 use bolt_ts_compiler::eval_from_memory_path_worker;
 use bolt_ts_fs::{CachedFileSystem, LocalFS, MemoryFS};
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::ModuleID;
 
 pub trait LanguageServiceHost<FS: CachedFileSystem> {
     fn new(fs: FS) -> Self;

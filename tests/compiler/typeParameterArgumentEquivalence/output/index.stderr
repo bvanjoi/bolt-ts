@@ -1,0 +1,13 @@
+  × Type '(item: T) => boolean' is not assignable to type '(item: number) =>
+  │ boolean'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence/index.ts:7:5]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Type '(item: number) => boolean' is not assignable to type '(item: T) =>
+  │ boolean'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence/index.ts:9:5]
+ 9 │ y
+   · ─
+   ╰────

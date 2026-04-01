@@ -231,7 +231,13 @@ impl<'cx> TyChecker<'cx> {
             let constraint = if let Some(constraint_decl) = self.get_constraint_decl(ty_param) {
                 let mut ty = self.get_ty_from_type_node(constraint_decl);
                 if ty.flags.contains(TypeFlags::ANY) && !self.is_error(ty) {
-                    ty = self.error_ty;
+                    let parent = self.parent(constraint_decl.id()).unwrap();
+                    let parent_parent = self.parent(parent).unwrap();
+                    ty = if self.p.node(parent_parent).is_mapped_ty() {
+                        self.string_number_symbol_ty()
+                    } else {
+                        self.unknown_ty
+                    }
                 }
                 ty
             } else {
