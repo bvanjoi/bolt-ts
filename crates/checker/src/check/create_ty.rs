@@ -390,7 +390,7 @@ impl<'cx> TyChecker<'cx> {
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        assert!(target.kind.is_object_anonymous());
+        debug_assert!(target.kind.is_object_anonymous());
         debug_assert!(
             node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         );

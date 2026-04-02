@@ -201,7 +201,7 @@ pub struct TyChecker<'cx> {
     intersection_tys: IntersectionMap<'cx>,
     indexed_access_tys: IndexedAccessTyMap<'cx>,
     string_mapping_tys: StringMappingTyMap<'cx>,
-    type_name: nohash_hasher::IntMap<TyID, String>,
+    type_name: nohash_hasher::IntMap<TyID, std::borrow::Cow<'static, str>>,
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
 
     check_mode: Option<CheckMode>,
@@ -917,7 +917,8 @@ impl<'cx> TyChecker<'cx> {
 
         debug_assert!(this.global_readonly_array_ty().is_readonly_array(&this));
 
-        this.type_name.insert(boolean_ty.id, "boolean".to_string());
+        this.type_name
+            .insert(boolean_ty.id, std::borrow::Cow::Borrowed("boolean"));
 
         let iarguments =
             this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_IARGUMENTS_CLASS));
@@ -972,11 +973,18 @@ impl<'cx> TyChecker<'cx> {
         this
     }
 
-    pub fn print_ty<'a>(&'a mut self, ty: &'cx ty::Ty<'cx>) -> &'a str {
-        let type_name = (!self.type_name.contains_key(&ty.id)).then(|| ty.to_string(self));
+    pub fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &str {
+        if self.type_name.contains_key(&ty.id) {
+            return &self.type_name[&ty.id];
+        }
         self.type_name
-            .entry(ty.id)
-            .or_insert_with(|| type_name.unwrap())
+            .insert(ty.id, std::borrow::Cow::Borrowed("..."));
+        let type_name = ty.to_string(self);
+        let prev = self
+            .type_name
+            .insert(ty.id, std::borrow::Cow::Owned(type_name));
+        debug_assert!(prev.is_some_and(|s| s == "..."));
+        &self.type_name[&ty.id]
     }
 
     pub fn any_sig(&self) -> &'cx Sig<'cx> {

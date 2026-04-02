@@ -64,6 +64,13 @@ impl<'cx> DeclarationEmitter<'cx> {
 }
 
 impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
+    fn visit_program(&mut self, node: &'cx bolt_ts_ast::Program<'cx>) {
+        for stmt in node.stmts {
+            self.visit_stmt(stmt);
+            self.emitter.print().p_newline();
+        }
+    }
+
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
         self.emitter.print().p("declare");
         self.emitter.print().p_whitespace();
@@ -173,16 +180,36 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
         self.visit_ty(node.ty);
     }
 
+    fn visit_type_alias_decl(&mut self, node: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {
+        self.emitter.print().p("type");
+        self.emitter.print().p_whitespace();
+        self.emitter.emit_atom(node.name.name);
+        if let Some(type_params) = node.ty_params {
+            if !type_params.is_empty() {
+                self.emitter.print().p_less();
+                for type_param in type_params {
+                    self.visit_ident(&type_param.name);
+                }
+                self.emitter.print().p_great();
+            }
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_eq();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
+        self.emitter.print().p_semi();
+    }
+
     fn visit_lit_ty(&mut self, node: &'cx bolt_ts_ast::LitTy) {
         use bolt_ts_ast::LitTyKind::*;
         match &node.kind {
             Void => self.emitter.print().p("void"),
-            Null => todo!(),
-            True => todo!(),
-            False => todo!(),
-            Undefined => todo!(),
-            Num(_) => todo!(),
-            String(atom) => todo!(),
+            Null => self.emitter.print().p("null"),
+            True => self.emitter.print().p("true"),
+            False => self.emitter.print().p("false"),
+            Undefined => self.emitter.print().p("undefined"),
+            Num(num) => self.emitter.print().p(&num.to_string()),
+            String(atom) => self.emitter.emit_atom(*atom),
             BigInt { neg, val } => todo!(),
         }
     }

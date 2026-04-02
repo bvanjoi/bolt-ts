@@ -424,8 +424,8 @@ impl<'cx> ObjectTyKind<'cx> {
                         .iter()
                         .map(|(name, symbol)| {
                             let ty = checker.get_type_of_symbol(*symbol);
-                            let field_ty = ty.to_string(checker);
                             let field_name = name.to_string(&checker.atoms);
+                            let field_ty = checker.print_ty(ty);
                             format!("{field_name}: {field_ty}; ",)
                         })
                         .collect::<Vec<_>>()
