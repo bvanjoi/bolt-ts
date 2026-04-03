@@ -106,7 +106,8 @@ fn compile(input_dir: std::path::PathBuf) {
 #[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 10)]
 fn bench_compile(bencher: divan::Bencher, case: &Case) {
     bencher.bench(|| {
-        divan::black_box(compile(case.dir.clone()));
+        compile(case.dir.clone());
+        divan::black_box(());
     });
 }
 

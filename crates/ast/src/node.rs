@@ -1042,13 +1042,10 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_property_name_literal(&self) -> bool {
-        match self {
-            Node::Ident(_)
+        matches!(self, Node::Ident(_)
             | Node::StringLit(_)
             | Node::NoSubstitutionTemplateLit(_)
-            | Node::NumLit(_) => true,
-            _ => false,
-        }
+            | Node::NumLit(_))
     }
 }
 

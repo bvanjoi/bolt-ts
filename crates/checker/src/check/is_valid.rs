@@ -60,12 +60,12 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(s) = source.kind.as_string_lit() {
             let v = s.val;
             (target.flags.intersects(TypeFlags::NUMBER) && self.is_valid_number_string(v, false))
-                || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
+                // || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
                 || (target
                     .flags
                     .intersects(TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE))
                     && v == target.intrinsic_name().unwrap())
-                || (target.flags.contains(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
+                    // || (target.flags.contains(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
                 || target
                     .kind
                     .as_template_lit_ty()

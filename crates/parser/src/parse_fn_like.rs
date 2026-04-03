@@ -2,9 +2,8 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
 
-use crate::SignatureFlags;
-use crate::parsing_ctx::ParseContext;
-
+use super::SignatureFlags;
+use super::parsing_ctx::ParseContext;
 use super::{PResult, ParserState};
 
 pub(super) trait FnLike<'cx, 'p> {
@@ -137,7 +136,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let name = mode.parse_name(this, modifier_flags)?;
                 let ty_params = this.parse_ty_params();
                 let params = this.parse_params();
-                this.check_params(params, false);
+                this.check_params::<false>(params);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
                 let is_generator = asterisk_token.is_some();
                 let is_async = modifier_flags.contains(ast::ModifierKind::Async);

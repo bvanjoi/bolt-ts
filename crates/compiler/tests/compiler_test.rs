@@ -112,14 +112,13 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
                 expect_test::expect_file![p].assert_eq(content);
             }
 
-            if let Some(index_file_path) = index_file_path {
-                if try_run_node {
+            if let Some(index_file_path) = index_file_path
+                && try_run_node {
                     match run_node_with_assert_context(&index_file_path) {
                         Ok(_) => {}
                         Err(_) => return Err(vec![]),
                     }
                 }
-            }
             Ok(())
         } else {
             let module_arena = compiler_result.steal_module_arena();

@@ -129,7 +129,7 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_grammar_object_lit_expr(&mut self, node: &'cx ast::ObjectLit<'cx>) {
+    fn check_grammar_object_lit_expr(&mut self, _node: &'cx ast::ObjectLit<'cx>) {
         // TODO:
     }
 

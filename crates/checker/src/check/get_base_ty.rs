@@ -54,11 +54,11 @@ impl<'cx> TyChecker<'cx> {
             .intersects(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM))
         {
             self.number_ty
-        } else if ty.flags.intersects(TypeFlags::BIG_INT_LITERAL) {
+        } else if ty.flags.contains(TypeFlags::BIG_INT_LITERAL) {
             self.bigint_ty
-        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+        } else if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) {
             self.boolean_ty()
-        } else if ty.flags.intersects(TypeFlags::UNION) {
+        } else if ty.flags.contains(TypeFlags::UNION) {
             self.map_ty(
                 ty,
                 |this, t| Some(this.get_base_ty_of_literal_ty_for_comparison(t)),

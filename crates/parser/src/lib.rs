@@ -36,6 +36,7 @@ pub use self::scan::is_identifier_part;
 use self::state::LanguageVariant;
 use self::state::ParserState;
 pub use self::touch::get_touching_property_name;
+pub use self::utils::parse_pseudo_bigint;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -137,8 +138,12 @@ impl<'cx> ParseResultForGraph<'cx> {
         self.nodes.0.len()
     }
 
+    pub fn is_external_module(&self) -> bool {
+        self.external_module_indicator.is_some()
+    }
+
     pub fn is_external_or_commonjs_module(&self) -> bool {
-        self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
+        self.is_external_module() || self.commonjs_module_indicator.is_some()
     }
 
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
@@ -310,7 +315,7 @@ fn collect_deps<'cx>(
     is_external_module_file: bool,
     root: &'cx ast::Program<'cx>,
     atoms: Arc<Mutex<AtomIntern>>,
-) -> CollectDepsResult {
+) -> CollectDepsResult<'cx> {
     let mut visitor = CollectDepsVisitor {
         in_ambient_module: false,
         is_declaration,
@@ -398,7 +403,7 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
                 ))
         {
             self.imports.push(ImportInfo {
-                module_name: module_name,
+                module_name,
                 // kind: todo!(),
             });
         }

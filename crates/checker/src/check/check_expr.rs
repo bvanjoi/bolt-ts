@@ -72,7 +72,7 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_fresh_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+        if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) {
             if ty == self.true_ty || ty == self.regular_true_ty {
                 Some(self.true_ty)
             } else if ty == self.false_ty || ty == self.regular_false_ty {
@@ -93,7 +93,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_regular_ty(&self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+        if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) {
             if ty == self.true_ty || ty == self.regular_true_ty {
                 Some(self.regular_true_ty)
             } else if ty == self.false_ty || ty == self.regular_false_ty {

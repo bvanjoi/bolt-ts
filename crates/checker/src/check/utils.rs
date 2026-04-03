@@ -2,7 +2,6 @@ use bolt_ts_ty::TypeFlags;
 
 use super::SymbolID;
 use super::TyChecker;
-
 use super::ty;
 
 pub fn append_if_unique<'a, T: PartialEq>(array: &mut Vec<&'a T>, value: &'a T) {

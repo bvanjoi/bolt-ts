@@ -1,4 +1,4 @@
-use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind, keyword};
+use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
@@ -58,11 +58,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.scan_jsx_token(true);
                 let opening =
                     self.create_jsx_opening_ele(self.new_span(start), tag_name, ty_args, attrs);
-                let mut children = self.parse_jsx_children(Some(opening.tag_name));
-                let mut closing_ele;
+                let children = self.parse_jsx_children(Some(opening.tag_name));
+                let closing_ele;
 
                 let late_child = children.last();
-                let mut else_then = true;
+                let else_then = true;
                 if let Some(end) = late_child
                     && let bolt_ts_ast::JsxChild::Elem(end_ele) = end
                     && !tag_names_are_eq(
@@ -162,7 +162,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
         match token {
             TokenKind::EOF => {
-                if let Some(opening_tag_name) = opening_tag_name {
+                if let Some(_opening_tag_name) = opening_tag_name {
                     todo!("error handle")
                 } else {
                     todo!("error handle")

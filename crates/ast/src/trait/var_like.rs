@@ -185,7 +185,7 @@ impl<'cx> VarLike<'cx> for crate::ObjectBindingElem<'cx> {
 
     fn name(&self) -> VarLikeName<'cx> {
         match self.name {
-            crate::ObjectBindingName::Shorthand(ident) => VarLikeName::Ident(&ident),
+            crate::ObjectBindingName::Shorthand(ident) => VarLikeName::Ident(ident),
             crate::ObjectBindingName::Prop { name, .. } => {
                 binding_kind_to_var_like_name(&name.kind)
             }

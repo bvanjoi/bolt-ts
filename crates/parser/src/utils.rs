@@ -4,11 +4,10 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 use enumflags2::BitFlag;
 
-use crate::lookahead::Lookahead;
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-use crate::{SignatureFlags, keyword};
-
+use super::lookahead::Lookahead;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
+use super::{SignatureFlags, keyword};
 use super::{ast, errors};
 
 pub(super) trait ParseSuccess {
@@ -375,8 +374,7 @@ impl<'cx> ParserState<'cx, '_> {
             _ => None,
         };
         if let Some(kind) = kind {
-            let prop_name = self.alloc(ast::PropName { kind });
-            prop_name
+            (self.alloc(ast::PropName { kind })) as _
         } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
@@ -386,10 +384,10 @@ impl<'cx> ParserState<'cx, '_> {
             self.expect(TokenKind::RBracket);
             let span = self.new_span(start);
             let kind = self.create_computed_prop_name(span, expr);
-            let prop_name = self.alloc(ast::PropName {
+
+            (self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
-            });
-            prop_name
+            })) as _
         } else if self.token.kind == TokenKind::PrivateIdent {
             let ident = self.parse_private_ident();
             let kind = ast::PropNameKind::PrivateIdent(ident);
@@ -428,7 +426,7 @@ impl<'cx> ParserState<'cx, '_> {
         const PERMIT_CONST_AS_MODIFIER: bool,
     >(
         &mut self,
-        allow_decorators: bool,
+        _allow_decorators: bool,
     ) -> Option<&'cx ast::Modifiers<'cx>> {
         let push_precede_error = |this: &mut Self, x: &ast::Modifier, y: ast::ModifierKind| {
             let error = errors::XModifierMustPrecedeYModifier {
@@ -441,8 +439,8 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let mut has_seen_static_modifier = false;
-        let has_leading_modifier = false;
-        let has_trailing_decorator = false;
+        let _has_leading_modifier = false;
+        let _has_trailing_decorator = false;
         let mut flags = ast::ModifierKind::empty();
         loop {
             let Some(m) = self
@@ -967,7 +965,7 @@ impl<'cx> ParserState<'cx, '_> {
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
-        let ty_params = self.parse_ty_params();
+        let _ty_params = self.parse_ty_params();
         if !self.parse_params().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
                 span: name.span(),
@@ -998,7 +996,7 @@ impl<'cx> ParserState<'cx, '_> {
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
-        let ty_params = self.parse_ty_params();
+        let _ty_params = self.parse_ty_params();
         let params = self.parse_params();
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
@@ -1013,7 +1011,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             params
         };
-        let ty = self.parse_return_ty::<true, false>()?;
+        let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
@@ -1042,4 +1040,87 @@ impl<'cx> ParserState<'cx, '_> {
 pub(super) fn is_declaration_filename(filename: &[u8]) -> bool {
     const SUFFIX: &[u8] = b".d.ts";
     filename.ends_with(SUFFIX)
+}
+
+pub fn parse_pseudo_bigint<'a>(s: &'a str) -> std::borrow::Cow<'a, str> {
+    let s = s.trim();
+    let (s, log2_base) = if let Some(rest) = s.strip_prefix("0b") {
+        (rest.strip_suffix('n').unwrap_or(rest), 1u32)
+    } else if let Some(rest) = s.strip_prefix("0o") {
+        (rest.strip_suffix('n').unwrap_or(rest), 3u32)
+    } else if let Some(rest) = s.strip_prefix("0x") {
+        (rest.strip_suffix('n').unwrap_or(rest), 4u32)
+    } else {
+        // Decimal: omit trailing 'n'
+        let rest = s.strip_suffix('n').unwrap_or(s);
+        let rest = rest.trim_start_matches('0'); // skip leading zeros
+        return if rest.is_empty() {
+            std::borrow::Cow::Borrowed("0")
+        } else {
+            std::borrow::Cow::Borrowed(rest)
+        };
+    };
+
+    // For binary, octal, hex: skip leading zeros in digits
+    let digits = s.trim_start_matches('0');
+    let digits = if digits.is_empty() { "0" } else { digits };
+
+    let base = match log2_base {
+        1 => 2,
+        3 => 8,
+        4 => 16,
+        _ => unreachable!(),
+    };
+
+    // Big number: use a vector to store 16-bit LE "segments"
+    let bits_needed = digits.len() as u32 * log2_base;
+    let segments_len = ((bits_needed >> 4) + if bits_needed & 15 != 0 { 1 } else { 0 }) as usize;
+    let mut segments = vec![0u16; segments_len];
+
+    // Add each digit, one at a time, lowest digit last
+    let chars: Vec<char> = digits.chars().collect();
+    let start_idx = 0; // skip already-trimmed prefix
+    let end_idx = chars.len();
+
+    let mut bit_offset = 0u32;
+    for i in (start_idx..end_idx).rev() {
+        let c = chars[i];
+        // Hex-digit to numeric value
+        let digit = match c {
+            '0'..='9' => (c as u8 - b'0') as u16,
+            'a'..='f' => 10 + (c as u8 - b'a') as u16,
+            'A'..='F' => 10 + (c as u8 - b'A') as u16,
+            _ => unreachable!(),
+        };
+        let segment = (bit_offset >> 4) as usize;
+        let shifted_digit = (digit as u32) << (bit_offset & 15);
+        segments[segment] |= (shifted_digit & 0xFFFF) as u16;
+        let residual = shifted_digit >> 16;
+        if residual != 0 && segment + 1 < segments.len() {
+            segments[segment + 1] |= residual as u16;
+        }
+        bit_offset += log2_base;
+    }
+
+    // Repeatedly divide segments by 10 and collect remainders for decimal string
+    let mut base10_value = String::new();
+    let mut first_nonzero_segment = segments.len().saturating_sub(1);
+    let mut segments_remaining = true;
+    while segments_remaining {
+        let mut mod10 = 0u32;
+        segments_remaining = false;
+        for segment in (0..=first_nonzero_segment).rev() {
+            let new_segment = (mod10 << 16) | segments[segment] as u32;
+            let segment_value = new_segment / 10;
+            segments[segment] = segment_value as u16;
+            mod10 = new_segment - segment_value * 10;
+            if segment_value != 0 && !segments_remaining {
+                first_nonzero_segment = segment;
+                segments_remaining = true;
+            }
+        }
+        base10_value.insert(0, std::char::from_digit(mod10, 10).unwrap());
+    }
+
+    std::borrow::Cow::Owned(base10_value)
 }

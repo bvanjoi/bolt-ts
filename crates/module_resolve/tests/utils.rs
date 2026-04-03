@@ -31,7 +31,7 @@ fn build_and_resolve(
 
     let atoms = Arc::new(Mutex::new(atoms));
     let containing_file = ContainingFile::new(base_dir);
-    let resolution_mode = get_resolution_mode_for_usage_location(file_ext, Some(&options));
+    let resolution_mode = get_resolution_mode_for_usage_location(file_ext, Some(options));
     let options = bolt_ts_module_resolve::ResolverOptions {
         module_resolution: *options.module_resolution(),
         custom_conditions: options.custom_conditions(),
@@ -63,7 +63,7 @@ fn should_eq_worker(
 ) {
     use bolt_ts_utils::path::NormalizePath;
 
-    let ret = build_and_resolve(&from, target, options).unwrap();
+    let ret = build_and_resolve(from, target, options).unwrap();
     assert!(std::path::PathBuf::from(&ret).is_normalized());
     let expected = expected.normalize();
     assert_eq!(ret, expected.to_string_lossy());

@@ -398,7 +398,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
                 let params = this.p().parse_params();
-                this.p().check_params(params, true);
+                this.p().check_params::<true>(params);
                 let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)

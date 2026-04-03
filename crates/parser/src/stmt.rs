@@ -439,7 +439,7 @@ impl<'cx> ParserState<'cx, '_> {
             const THROW_LEN: u32 = "throw".len() as u32;
             let lo = start + THROW_LEN;
             let span = bolt_ts_span::Span::new(lo, lo + 1, self.module_id);
-            let error = errors::LineBreakNotPermittedHere { span: span };
+            let error = errors::LineBreakNotPermittedHere { span };
             self.push_error(Box::new(error));
             let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, span);
             let kind = ast::ExprKind::Ident(ident);
@@ -520,7 +520,7 @@ impl<'cx> ParserState<'cx, '_> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
         name: ast::ModuleName<'cx>,
     ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
-        let flags = if IS_GLOBAL_ARGUMENT {
+        let _flags = if IS_GLOBAL_ARGUMENT {
             NodeFlags::GLOBAL_AUGMENTATION
         } else {
             ast::NodeFlags::empty()

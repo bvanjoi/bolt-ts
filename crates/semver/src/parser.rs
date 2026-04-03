@@ -93,28 +93,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_alphanum_part(&mut self) -> Result<String, ParseError> {
-        self.consume_whitespace();
 
-        let start = self.pos;
-        while let Some(c) = self.peek() {
-            if c.is_ascii_alphanumeric() || c == b'-' {
-                self.next();
-            } else {
-                break;
-            }
-        }
-
-        if self.pos == start {
-            return Err(ParseError::InvalidPreRelease);
-        }
-
-        // Convert to string, validating UTF-8
-        let slice = &self.bytes[start..self.pos];
-        std::str::from_utf8(slice)
-            .map(|s| s.to_string())
-            .map_err(|_| ParseError::InvalidUtf8)
-    }
 
     fn parse_prepart(&mut self) -> Result<PreReleasePart, ParseError> {
         self.consume_whitespace();
@@ -375,7 +354,7 @@ impl<'a> Parser<'a> {
                 break;
             }
 
-            let before_simple = self.pos;
+            let _before_simple = self.pos;
             match self.parse_comparator() {
                 Ok(simple) => simples.push(simple),
                 Err(_) => {

@@ -76,10 +76,11 @@ use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery, prop_name};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
-use bolt_ts_config::{NormalizedCompilerOptions, NormalizedTsConfig};
+use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::ParsedMap;
+use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
@@ -6517,6 +6518,39 @@ impl<'cx> TyChecker<'cx> {
             index_infos,
             None,
         )
+    }
+
+    fn parse_valid_bigint(&mut self, ty: &'cx ty::StringLitTy<'cx>) -> (bool, Atom) {
+        let str = self.atoms.get(ty.val);
+        let neg = str.starts_with('-');
+        let str = if neg { &str[1..] } else { str };
+        let str = parse_pseudo_bigint(str);
+        let atom = self.atoms.atom(&str);
+        (neg, atom)
+    }
+
+    fn parse_bigint_literal_ty(&mut self, ty: &'cx ty::StringLitTy<'cx>) -> &'cx ty::Ty<'cx> {
+        let (neg, val) = self.parse_valid_bigint(ty);
+        self.get_bigint_literal_type(neg, val)
+    }
+
+    fn is_bigint_equal_to_str(
+        &self,
+        bigint: &'cx ty::BigIntLitTy<'cx>,
+        str: &'cx ty::StringLitTy<'cx>,
+    ) -> bool {
+        let str_val = self.atoms.get(str.val);
+        if bigint.neg {
+            if str_val.starts_with('-') {
+                &str_val[1..] == self.atoms.get(bigint.val)
+            } else {
+                false
+            }
+        } else if str_val.starts_with('-') {
+            false
+        } else {
+            str_val == self.atoms.get(bigint.val)
+        }
     }
 }
 

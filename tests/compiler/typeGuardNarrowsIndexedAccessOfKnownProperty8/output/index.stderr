@@ -1,5 +1,5 @@
   × Type '"a"' is not assignable to type '"b"'.
     ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty8/index.ts:15:7]
- 15 │ b
-    · ─
+ 15 │ a0
+    · ──
     ╰────

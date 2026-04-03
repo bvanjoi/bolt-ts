@@ -13,8 +13,8 @@ pub struct ParenRule;
 impl<'cx> ParenRuleTrait<'cx> for ParenRule {
     fn paren_left_side_of_access(
         &self,
-        expr: &'cx Expr<'cx>,
-        optional_chain: bool,
+        _expr: &'cx Expr<'cx>,
+        _optional_chain: bool,
     ) -> &'cx Expr<'cx> {
         todo!()
     }

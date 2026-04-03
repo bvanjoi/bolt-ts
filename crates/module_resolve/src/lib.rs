@@ -1,4 +1,3 @@
-mod classic_name_resolver;
 mod errors;
 mod from_dir;
 mod from_spec_node_modules_dir;
@@ -94,11 +93,7 @@ impl ResolveFlags {
     }
 }
 
-pub struct Resolver<FS: CachedFileSystem> {
-    fs: Arc<Mutex<FS>>,
-    atoms: Arc<Mutex<AtomIntern>>,
-    cache: ModuleResolutionCache,
-}
+pub struct Resolver;
 
 #[derive(Debug, Clone, Copy)]
 struct Resolved {
@@ -121,14 +116,14 @@ impl ContainingFile {
     }
 }
 
-impl<FS: CachedFileSystem> Resolver<FS> {
+impl Resolver {
     pub fn resolve_module_name<'a>(
         module_name: Atom,
         containing_file: ContainingFile,
         options: ResolverOptions<'a>,
         cache: &'a ModuleResolutionCache,
         atoms: &'a Arc<Mutex<AtomIntern>>,
-        fs: &'a Arc<Mutex<FS>>,
+        fs: &'a Arc<Mutex<impl CachedFileSystem>>,
         resolution_mode: Option<ResolutionMode>,
     ) -> RResult<PathId> {
         if let Some(cached) =
@@ -290,7 +285,7 @@ fn is_file<FS: CachedFileSystem>(
 
 fn try_file_lookup<'a, 'options, FS: CachedFileSystem>(
     p: &std::path::Path,
-    only_record_failures: bool,
+    _only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
 ) -> RResult<PathId> {
     debug_assert!(p.is_normalized());
@@ -469,7 +464,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
     types_scope_only: bool,
     cache: &ModuleResolutionCache,
 ) -> RResult<PathId> {
-    let mode = if state.features.is_empty() {
+    let _mode = if state.features.is_empty() {
         None
     } else if state.features.contains(NodeResolutionFeatures::ESM_MODE)
         || state.conditions.iter().any(|c| c == "import")
@@ -479,7 +474,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
         Some(Module::CommonJS)
     };
     fn lookup<'a, 'options, FS: CachedFileSystem>(
-        mode: Option<Module>,
+        _mode: Option<Module>,
         state: &ModuleResolutionState<'a, 'options, FS>,
         ext: Extensions,
         base_dir_id: PathId,
@@ -515,7 +510,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
             let s = unsafe { std::str::from_utf8_unchecked(bytes) };
             state.atoms.lock().unwrap().atom(s);
             lookup(
-                mode,
+                _mode,
                 state,
                 ext,
                 parent_id,
@@ -531,7 +526,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
     let priority_exts = ext & Extensions::TypeScript.union(Extensions::Declaration);
     if !priority_exts.is_empty()
         && let Some(ret) = lookup(
-            mode,
+            _mode,
             state,
             priority_exts,
             base_dir,
@@ -547,7 +542,7 @@ fn load_module_from_nearest_node_modules_directory_worker<'a, 'options, FS: Cach
         && let secondary_exts = ext & !Extensions::TypeScript.union(Extensions::Declaration)
         && !secondary_exts.is_empty()
         && let Some(ret) = lookup(
-            mode,
+            _mode,
             state,
             secondary_exts,
             base_dir,
@@ -657,7 +652,7 @@ fn get_pkg_json_info<'a, 'options, FS: CachedFileSystem>(
         let package_json_path = cache.package_json_cache().insert_package_json(
             pkg_json_path_id,
             PackageJsonInfo::new(package_directory, contents),
-            &state.atoms,
+            state.atoms,
         );
         Some(package_json_path)
     } else {
@@ -730,13 +725,13 @@ struct ModuleResolutionState<'a, 'options, FS: CachedFileSystem> {
     options: &'a ResolverOptions<'options>,
     atoms: &'a Arc<Mutex<AtomIntern>>,
     fs: &'a Arc<Mutex<FS>>,
-    failed_lookup_locations: Vec<PathId>,
-    affecting_locations: Vec<PathId>,
+    _failed_lookup_locations: Vec<PathId>,
+    _affecting_locations: Vec<PathId>,
     features: NodeResolutionFeatures,
     conditions: Conditions<'a>,
-    request_containing_directory: PathId,
-    is_config_lookup: bool,
-    candidate_is_from_package_json_field: bool,
+    _request_containing_directory: PathId,
+    _is_config_lookup: bool,
+    _candidate_is_from_package_json_field: bool,
     resolved_package_directory: std::cell::Cell<bool>,
 }
 

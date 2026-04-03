@@ -108,9 +108,9 @@ impl<'cx> DeclarationName<'cx> {
             Ident(n) => atoms.get(n.name).to_string(),
             NumLit(n) => n.val.to_string(),
             StringLit { raw, .. } => atoms.get(raw.val).to_string(),
-            Computed(n) => todo!(),
-            PrivateIdent(n) => todo!(),
-            BigIntLit(n) => todo!(),
+            Computed(_n) => todo!(),
+            PrivateIdent(_n) => todo!(),
+            BigIntLit(_n) => todo!(),
         }
     }
 }

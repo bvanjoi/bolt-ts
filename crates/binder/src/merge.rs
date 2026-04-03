@@ -85,7 +85,7 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
         self.atom.get(atom)
     }
     fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
-        &self.atom
+        self.atom
     }
 }
 

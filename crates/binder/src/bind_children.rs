@@ -1257,7 +1257,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExternalModuleReference(n) => {
                 self.bind(n.module_spec.id);
             }
-            ClassSemiElem(n) => {}
+            ClassSemiElem(_n) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
@@ -1297,7 +1297,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                             ast::ExprKind::SpreadElement(e) => {
                                 self.bind_assignment_target_flow(e.expr);
                             }
-                            _ => self.bind_destructuring_target_flow(*elem),
+                            _ => self.bind_destructuring_target_flow(elem),
                         }
                     }
                 }
@@ -1782,9 +1782,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     ) -> SymbolID {
         let symbol = self.create_symbol(name, flags);
         if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
-            let container = self.final_res.get(&self.container.unwrap()).copied();
-            debug_assert!(container.is_some());
-            self.symbols.get_mut(symbol).parent = container;
+            let container = self.final_res[&self.container.unwrap()];
+            self.symbols.get_mut(symbol).parent = Some(container);
         }
         self.add_declaration_to_symbol(symbol, node, flags);
         symbol

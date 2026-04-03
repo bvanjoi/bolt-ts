@@ -1087,17 +1087,17 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 if f.name.is_some_and(|name| last_location_is_fn_name(name.id)) {
                     return false;
                 }
-                return self
+                self
                     .node_query()
                     .get_immediately_invoked_fn_expr(location)
-                    .is_none();
+                    .is_none()
             }
             ast::Node::ArrowFnExpr(_) => {
                 // TODO: name
-                return self
+                self
                     .node_query()
                     .get_immediately_invoked_fn_expr(location)
-                    .is_none();
+                    .is_none()
             }
             _ => {
                 // TODO: is_type_query_node
@@ -1113,7 +1113,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 {
                     return true;
                 }
-                return false;
+                false
             }
         }
     }

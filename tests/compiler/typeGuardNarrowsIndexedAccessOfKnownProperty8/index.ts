@@ -12,5 +12,8 @@ export class C {
     }
 }
 
-const b: 'b' = a.key;
+const a0: 'b' = a.key;
 //~^ ERROR: Type '"a"' is not assignable to type '"b"'.
+
+
+export {type default as tag} from './b';

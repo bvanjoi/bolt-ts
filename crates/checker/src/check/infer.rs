@@ -1918,7 +1918,7 @@ impl<'cx> InferenceState<'cx, '_> {
             for i in 0..tys.len() {
                 let source = matches.map_or(self.c.never_ty, |m| m[i]);
                 let target = tys[i];
-                if source.flags.intersects(TypeFlags::STRING_LITERAL)
+                if source.flags.contains(TypeFlags::STRING_LITERAL)
                     && target.flags.intersects(TypeFlags::TYPE_VARIABLE)
                 {
                     let inference_context = self.get_inference_info_for_ty(target);
@@ -1950,17 +1950,17 @@ impl<'cx> InferenceState<'cx, '_> {
                                 None,
                             )
                             .unwrap();
-                        if !all_ty_flags.intersects(TypeFlags::STRING) {
+                        if !all_ty_flags.contains(TypeFlags::STRING) {
                             let str = source.kind.expect_string_lit();
                             if all_ty_flags.intersects(TypeFlags::NUMBER_LIKE)
                                 && !self.c.is_valid_number_string(str.val, true)
                             {
-                                all_ty_flags &= !TypeFlags::NUMBER_LIKE;
+                                all_ty_flags &= TypeFlags::NUMBER_LIKE.complement();
                             }
                             if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) && false
-                            /* !is_valid_big_int_string */
+                            /* !is_valid_bit_int_str*/
                             {
-                                all_ty_flags &= !TypeFlags::BIG_INT_LIKE;
+                                all_ty_flags &= TypeFlags::BIG_INT_LIKE.complement();
                             }
                             let matching_ty = self
                                 .c
@@ -1969,20 +1969,19 @@ impl<'cx> InferenceState<'cx, '_> {
                                     |this, left, right, _| {
                                         if !right.flags.intersects(all_ty_flags) {
                                             left
-                                        } else if left.flags.intersects(TypeFlags::STRING) {
+                                        } else if left.flags.contains(TypeFlags::STRING) {
                                             left
-                                        } else if right.flags.intersects(TypeFlags::STRING) {
+                                        } else if right.flags.contains(TypeFlags::STRING) {
                                             source
-                                        } else if left.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
-                                        {
+                                        } else if left.flags.contains(TypeFlags::TEMPLATE_LITERAL) {
                                             left
                                         } else if let Some(r) = right.kind.as_template_lit_ty()
                                             && this.is_ty_matched_by_template_lit_ty(source, r)
                                         {
                                             source
-                                        } else if left.flags.intersects(TypeFlags::STRING_MAPPING) {
+                                        } else if left.flags.contains(TypeFlags::STRING_MAPPING) {
                                             left
-                                        } else if right.flags.intersects(TypeFlags::STRING_MAPPING)
+                                        } else if right.flags.contains(TypeFlags::STRING_MAPPING)
                                             && str.val
                                                 == this.apply_string_mapping(
                                                     right.symbol().unwrap(),
@@ -1998,18 +1997,18 @@ impl<'cx> InferenceState<'cx, '_> {
                                             .is_some_and(|r| r.val == str.val)
                                         {
                                             right
-                                        } else if left.flags.intersects(TypeFlags::NUMBER) {
+                                        } else if left.flags.contains(TypeFlags::NUMBER) {
                                             left
-                                        } else if right.flags.intersects(TypeFlags::NUMBER) {
+                                        } else if right.flags.contains(TypeFlags::NUMBER) {
                                             let val =
                                                 this.atoms.get(str.val).parse::<f64>().unwrap();
                                             this.get_number_literal_type_from_number(val)
-                                        } else if left.flags.intersects(TypeFlags::ENUM) {
+                                        } else if left.flags.contains(TypeFlags::ENUM) {
                                             left
-                                        } else if right.flags.intersects(TypeFlags::ENUM) {
+                                        } else if right.flags.contains(TypeFlags::ENUM) {
                                             // getNumberLiteralType(+str)
                                             todo!()
-                                        } else if left.flags.intersects(TypeFlags::NUMBER_LITERAL) {
+                                        } else if left.flags.contains(TypeFlags::NUMBER_LITERAL) {
                                             left
                                         } else if right
                                             .kind
@@ -2017,13 +2016,22 @@ impl<'cx> InferenceState<'cx, '_> {
                                             .is_some_and(|r| /*r.val == str*/ todo!())
                                         {
                                             right
-                                        } else if left.flags.intersects(TypeFlags::BIG_INT) {
+                                        } else if left.flags.contains(TypeFlags::BIG_INT) {
                                             left
-                                            // TODO: else if right.kind flags.intersects(TypeFlags::BigInt){parseBigIntLiteralType}(str)
-                                            // TODO: else if left.flags.intersects(TypeFlags::BigIntLiteral){left} else if right.flags.intersects(TypeFlags::BigIntLiteral) && pseudoBigIntToString((right as BigIntLiteralType).value) === str{right}
-                                        } else if left.flags.intersects(TypeFlags::BOOLEAN) {
+                                        } else if right.flags.contains(TypeFlags::BIG_INT) {
+                                            this.parse_bigint_literal_ty(str)
+                                        } else if left.flags.contains(TypeFlags::BIG_INT_LITERAL) {
                                             left
-                                        } else if right.flags.intersects(TypeFlags::BOOLEAN) {
+                                        } else if right.flags.contains(TypeFlags::BIG_INT_LITERAL)
+                                            && this.is_bigint_equal_to_str(
+                                                right.kind.expect_bigint_lit(),
+                                                str,
+                                            )
+                                        {
+                                            right
+                                        } else if left.flags.contains(TypeFlags::BOOLEAN) {
+                                            left
+                                        } else if right.flags.contains(TypeFlags::BOOLEAN) {
                                             if str.val == keyword::KW_TRUE {
                                                 this.true_ty
                                             } else if str.val == keyword::KW_FALSE {
@@ -2031,16 +2039,33 @@ impl<'cx> InferenceState<'cx, '_> {
                                             } else {
                                                 this.boolean_ty()
                                             }
-                                        } else if left.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                                        } else if left.flags.contains(TypeFlags::BOOLEAN_LITERAL) {
+                                            left
+                                        } else if right.flags.contains(TypeFlags::BOOLEAN_LITERAL)
+                                            && right
+                                                .kind
+                                                .as_intrinsic()
+                                                .is_some_and(|r| r.name == str.val)
                                         {
+                                            right
+                                        } else if left.flags.contains(TypeFlags::UNDEFINED) {
                                             left
-                                            // TODO: else if right.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && (right as IntrinsicType).intrinsicName === str{right}
-                                        } else if left.flags.intersects(TypeFlags::UNDEFINED) {
+                                        } else if right.flags.contains(TypeFlags::UNDEFINED)
+                                            && right
+                                                .kind
+                                                .as_intrinsic()
+                                                .is_some_and(|r| r.name == str.val)
+                                        {
+                                            right
+                                        } else if left.flags.contains(TypeFlags::NULL) {
                                             left
-                                            // TODO: else if right.flags.intersects(TypeFlags::UNDEFINED) && (right as IntrinsicType).intrinsicName === str{right}
-                                        } else if left.flags.intersects(TypeFlags::NULL) {
-                                            left
-                                            // TODO: else if right.flags.intersects(TypeFlags::NULL) && (right as IntrinsicType).intrinsicName === str{right}
+                                        } else if right.flags.contains(TypeFlags::NULL)
+                                            && right
+                                                .kind
+                                                .as_intrinsic()
+                                                .is_some_and(|r| r.name == str.val)
+                                        {
+                                            right
                                         } else {
                                             left
                                         }

@@ -10,6 +10,7 @@ pub(crate) struct Conditions<'options> {
 }
 
 impl<'options> Conditions<'options> {
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.by_resolution.is_empty() && self.custom.is_empty()
     }

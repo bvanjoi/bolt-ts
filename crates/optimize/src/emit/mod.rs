@@ -967,7 +967,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emit_string_lit(n.module());
     }
 
-    fn emit_import_equals_decl(&mut self, n: ir::ImportEqualsDeclID) {
+    fn emit_import_equals_decl(&mut self, _n: ir::ImportEqualsDeclID) {
         // TODO:
     }
 

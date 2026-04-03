@@ -52,14 +52,14 @@ impl<K: PartialEq + Eq + std::hash::Hash, V> CacheWithRedirects<K, V> {
 }
 
 pub struct PerNonRelativeNameCache<V> {
-    is_readonly: bool,
+    _is_readonly: bool,
     directory_path_map: DashMap<PathId, V>,
 }
 
 impl<V: Copy> PerNonRelativeNameCache<V> {
     pub fn new() -> Self {
         Self {
-            is_readonly: false,
+            _is_readonly: false,
             directory_path_map: DashMap::new(),
         }
     }
@@ -76,6 +76,12 @@ pub struct ModuleResolutionCache {
     module_name_to_directory_map:
         CacheWithRedirects<RedirectCacheKey, PerNonRelativeNameCache<RResult<PathId>>>,
     package_json_cache: PackageJsonInfoCache,
+}
+
+impl Default for ModuleResolutionCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModuleResolutionCache {

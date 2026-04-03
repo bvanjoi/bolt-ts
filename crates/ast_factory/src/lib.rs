@@ -345,6 +345,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_class_ctor(
         &mut self,
         span: Span,
@@ -372,6 +373,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_class_prop_elem(
         &mut self,
         span: Span,
@@ -449,6 +451,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_object_method_member(
         &mut self,
         span: Span,
@@ -476,6 +479,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_class_method_elem(
         &mut self,
         span: Span,
@@ -738,11 +742,10 @@ pub trait ASTFactory<'cx> {
 
     #[inline(always)]
     fn create_binding(&mut self, kind: ast::BindingKind<'cx>) -> &'cx ast::Binding<'cx> {
-        let binding = self.alloc(ast::Binding {
+        (self.alloc(ast::Binding {
             span: kind.span(),
             kind,
-        });
-        binding
+        })) as _
     }
 
     #[inline(always)]
@@ -834,7 +837,7 @@ pub trait ASTFactory<'cx> {
     #[inline]
     fn create_omit_expr(&mut self, span: Span) -> &'cx ast::OmitExpr {
         let id = self.next_node_id();
-        let node = self.alloc(ast::OmitExpr { id, span: span });
+        let node = self.alloc(ast::OmitExpr { id, span });
         self.insert_node(id, ast::Node::OmitExpr(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
@@ -947,6 +950,7 @@ pub trait ASTFactory<'cx> {
             modifiers,
             is_export_equals: IS_EXPORT_EQUALS,
         });
+        self.set_external_module_indicator(id);
         self.insert_node(id, ast::Node::ExportAssign(node));
         self.insert_node_flags(id, self.node_context_flags());
         node

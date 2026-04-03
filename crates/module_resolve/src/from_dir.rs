@@ -16,7 +16,7 @@ use super::resolution_kind_spec_loader::ResolutionKindSpecLoader;
 use super::try_file;
 
 struct Loader {
-    package_json: Option<PackageJsonPath>,
+    _package_json: Option<PackageJsonPath>,
 }
 
 impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a, 'options, FS>
@@ -37,7 +37,7 @@ impl<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> ResolutionKindSpecLoader<'a
 pub(super) fn load_filename_from_package_json_field<'a, 'options, FS: CachedFileSystem>(
     ext: Extensions,
     candidate: &mut std::path::PathBuf,
-    package_json_value: Option<&str>,
+    _package_json_value: Option<&str>,
     only_record_failures: bool,
     state: &ModuleResolutionState<'a, 'options, FS>,
 ) -> Option<RResult<PathId>> {
@@ -104,7 +104,7 @@ pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFil
             .unwrap()
             .dir_exists(candidate, state.atoms.lock().as_mut().unwrap());
     if let Some(Ok(package_file_result)) = package_file.and_then(|mut package_file| {
-        let loader = Loader { package_json };
+        let loader = Loader { _package_json: package_json };
         loader.loader(
             ext,
             &mut package_file,

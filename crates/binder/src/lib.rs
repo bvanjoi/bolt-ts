@@ -17,6 +17,7 @@ mod parent_map;
 mod pprint;
 mod symbol;
 
+use bolt_ts_span::ModuleArena;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -263,16 +264,16 @@ impl<'cx> BinderResult<'cx> {
 }
 
 pub fn bind_parallel<'cx>(
-    modules: &[Module],
+    modules: &ModuleArena,
     atoms: &AtomIntern,
     parser: ParsedMap<'cx>,
     options: &NormalizedTsConfig,
 ) -> Vec<(BinderResult<'cx>, ParseResultForGraph<'cx>)> {
-    assert_eq!(parser.module_count(), modules.len());
+    debug_assert_eq!(parser.module_count(), modules.modules().len());
     parser
         .into_map()
         .into_par_iter()
-        .zip(modules)
+        .zip(modules.modules())
         .map(|(mut p, m)| {
             let module_id = m.id();
             let is_default_lib = m.is_default_lib();

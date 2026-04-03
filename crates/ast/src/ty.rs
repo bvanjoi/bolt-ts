@@ -421,7 +421,7 @@ impl<'cx> PropNameKind<'cx> {
                 _ => None,
             },
             PropNameKind::PrivateIdent(private_ident) => Some(private_ident.name),
-            PropNameKind::BigIntLit(lit) => None,
+            PropNameKind::BigIntLit(_lit) => None,
         }
     }
 
@@ -441,11 +441,11 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
             PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
             PropNameKind::NumLit(num) => num.val.to_string(),
-            PropNameKind::Computed(n) => todo!(),
+            PropNameKind::Computed(_n) => todo!(),
             PropNameKind::PrivateIdent(ident) => {
-                format!("#{}", atoms.get(ident.name).to_string())
+                format!("#{}", atoms.get(ident.name))
             }
-            PropNameKind::BigIntLit(lit) => todo!(),
+            PropNameKind::BigIntLit(_lit) => todo!(),
         }
     }
     pub fn span(&self) -> Span {

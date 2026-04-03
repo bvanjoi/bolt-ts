@@ -158,7 +158,7 @@ impl BinderState<'_, '_, '_> {
                     let prev = table.0.insert(name, symbol);
                     assert!(prev.is_none());
                 } else {
-                    let mut table = SymbolTable::new(32);
+                    let mut table = SymbolTable::new(8);
                     table.0.insert(name, symbol);
                     self.init_symbol_table_by_location(location, table);
                 }
@@ -252,6 +252,7 @@ impl BinderState<'_, '_, '_> {
             container: ast::NodeID,
             is_export: bool,
         ) -> Option<&'a mut SymbolTable> {
+            // TODO: use `this.final_res[&container]`.
             let container = this.final_res.get(&container).copied()?;
             let container = this.symbols.get_mut(container);
             if is_export {
@@ -300,6 +301,7 @@ impl BinderState<'_, '_, '_> {
             is_export: bool,
             table: SymbolTable,
         ) {
+            // TODO: use `this.final_res[&container]`.
             let Some(container) = this.final_res.get(&container).copied() else {
                 return;
             };

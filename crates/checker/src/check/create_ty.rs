@@ -734,8 +734,8 @@ impl<'cx> TyChecker<'cx> {
             pre_computed_object_flags | ty::Ty::get_propagating_flags_of_tys(&tys, None);
         let mut flags = TypeFlags::UNION;
         if tys.len() == 2
-            && tys[0].flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-            && tys[1].flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+            && tys[0].flags.contains(TypeFlags::BOOLEAN_LITERAL)
+            && tys[1].flags.contains(TypeFlags::BOOLEAN_LITERAL)
         {
             flags |= TypeFlags::BOOLEAN;
         } else if IS_ENUM {

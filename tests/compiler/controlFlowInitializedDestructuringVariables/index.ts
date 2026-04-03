@@ -8,3 +8,16 @@ const {
     a = "0",
     b = +a,
 } = obj;
+
+
+{
+    type AbsoluteBigInt<N extends number | bigint> =  `${N}` extends `-${infer Magnitude extends bigint}`
+		? Magnitude
+		: string;
+
+    function m(a: AbsoluteBigInt<-512n>) {
+        const a1: 512n = a;
+    }
+
+    0b11_1000n;
+}

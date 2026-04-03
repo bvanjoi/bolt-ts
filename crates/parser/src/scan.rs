@@ -1,11 +1,10 @@
-use std::{borrow::Cow, str};
+use std::borrow::Cow;
 
+use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 use bolt_ts_span::Span;
 
+use super::{CommentDirective, scan_integer::parse_integer, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
-use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-
-use crate::{CommentDirective, scan_integer::parse_integer};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -201,7 +200,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
             if self.ch() == Some(b'_') {
                 self.token_flags |=
-                    TokenFlags::CONTAINS_SEPARATOR | TokenFlags::CONTAINS_INVALID_ESCAPE;
+                    TokenFlags::CONTAINS_SEPARATOR.union(TokenFlags::CONTAINS_INVALID_ESCAPE);
                 self.push_error(Box::new(errors::NumericSeparatorsAreNotAllowedHere {
                     span: Span::new(self.pos as u32, (self.pos + 1) as u32, self.module_id),
                 }));
@@ -260,7 +259,7 @@ impl ParserState<'_, '_> {
             }
         }
 
-        let result = if self.token_flags.intersects(TokenFlags::CONTAINS_SEPARATOR) {
+        let result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
             debug_assert!(self.input[start..end].contains(&b'_'));
             Cow::Owned(
                 self.input[start..end]
@@ -459,6 +458,26 @@ impl ParserState<'_, '_> {
         self.next_token_without_checked();
     }
 
+    fn check_bigint_suffix<const RADIX: u8>(&mut self, start: usize, s: &str) -> Token {
+        debug_assert!(matches!(RADIX, 2 | 8 | 16));
+        if self.ch() == Some(b'n') {
+            let s = parse_pseudo_bigint(s);
+            let value = self.atoms.lock().unwrap().atom(&s);
+            self.token_value = Some(TokenValue::Ident { value });
+            self.pos += 1;
+            Token::new(
+                TokenKind::BigInt,
+                Span::new(start as u32, self.pos as u32, self.module_id),
+            )
+        } else {
+            let value = parse_integer::<RADIX>(s);
+            self.token_value = Some(TokenValue::Number { value });
+            Token::new(
+                TokenKind::Number,
+                Span::new(start as u32, self.pos as u32, self.module_id),
+            )
+        }
+    }
     pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
@@ -871,15 +890,9 @@ impl ParserState<'_, '_> {
                     if v.is_empty() {
                         todo!("throw error")
                     }
-                    self.token_flags = TokenFlags::HEX_SPECIFIER;
+                    self.token_flags |= TokenFlags::HEX_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    // TODO: check bigint suffix
-                    let v = parse_integer::<16>(s);
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<16>(start, s)
                 }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
@@ -889,15 +902,9 @@ impl ParserState<'_, '_> {
                     if v.is_empty() {
                         todo!()
                     }
-                    self.token_flags = TokenFlags::BINARY_SPECIFIER;
+                    self.token_flags |= TokenFlags::BINARY_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    let v = parse_integer::<2>(s);
-                    // TODO: check bigint suffix
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<2>(start, s)
                 }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
@@ -909,13 +916,7 @@ impl ParserState<'_, '_> {
                     }
                     self.token_flags = TokenFlags::OCTAL_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    // TODO: check bigint suffix
-                    let v = parse_integer::<8>(s);
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<8>(start, s)
                 }
                 b'0'..=b'9' => self.scan_number(),
                 b'\\' => {
@@ -1000,7 +1001,7 @@ impl ParserState<'_, '_> {
 
     fn scan_template_and_set_token_value(
         &mut self,
-        should_emit_invalid_escape_error: bool,
+        _should_emit_invalid_escape_error: bool,
     ) -> Token {
         let started_with_backtick = self.ch_unchecked() == b'`';
         let start = self.pos;
@@ -1454,7 +1455,7 @@ impl ParserState<'_, '_> {
             }
 
             let error = errors::UnterminatedRegularExpressionLiteral {
-                span: Span::new(start as u32, self.pos as u32, self.module_id),
+                span: Span::new(start, self.pos as u32, self.module_id),
             };
             self.push_error(Box::new(error));
         } else {

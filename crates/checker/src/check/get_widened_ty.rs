@@ -56,7 +56,7 @@ impl<'cx> TyChecker<'cx> {
             self.number_ty
         } else if ty.kind.is_string_lit() && self.is_fresh_literal_ty(ty) {
             self.string_ty
-        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
+        } else if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
             self.boolean_ty()
         } else {
             ty
@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_widened_prop(&mut self, prop: SymbolID) -> SymbolID {
-        if !self.symbol(prop).flags.intersects(SymbolFlags::PROPERTY) {
+        if !self.symbol(prop).flags.contains(SymbolFlags::PROPERTY) {
             prop
         } else {
             let original = self.get_type_of_symbol(prop);
@@ -159,13 +159,13 @@ impl<'cx> TyChecker<'cx> {
                     .union(TypeFlags::TEMPLATE_LITERAL)
                     .union(TypeFlags::STRING_MAPPING),
             ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::NUMBER_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::BIG_INT_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::BOOLEAN_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                || (contextual_ty.flags.contains(TypeFlags::UNIQUE_ES_SYMBOL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
         }
     }

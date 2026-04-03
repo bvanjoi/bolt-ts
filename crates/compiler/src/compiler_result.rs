@@ -6,7 +6,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_checker::check::{TyChecker, node_query};
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_parser::get_touching_property_name;
-use bolt_ts_span::{ModuleArena, ModuleID, Span};
+use bolt_ts_span::{ModuleArena, ModuleID};
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
@@ -203,7 +203,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
 
     fn get_reference_entires_for_node(
         &self,
-        position: usize,
+        _position: usize,
         node: ast::NodeID,
         root: &'cx ast::Program<'cx>,
         flags: FindAllReferenceFlags,
@@ -215,7 +215,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         &self,
         node: ast::NodeID,
         flags: FindAllReferenceFlags,
-        root: &'cx ast::Program<'cx>,
+        _root: &'cx ast::Program<'cx>,
     ) -> Option<Vec<SymbolAndEntires<'cx>>> {
         let node = self.get_adjust_node(node, flags);
         let n: bolt_ts_ast::Node<'_> = self.checker.p.node(node);
@@ -256,7 +256,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
 
         let alias_symbol =
             self.get_merged_aliased_symbol_of_namespace_export_declaration(node, symbol);
-        let module_reference_of_export_target = alias_symbol.map(|alias_symbol| {
+        let _module_reference_of_export_target = alias_symbol.map(|alias_symbol| {
             self.get_referenced_symbols_for_module_if_declared_by_source_file(alias_symbol)
         });
         self.get_referenced_symbols_for_symbol(symbol, Some(node), flags)
@@ -304,7 +304,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
 
     fn get_references_in_container_or_files(
         &self,
-        symbol: SymbolID,
+        _symbol: SymbolID,
         search: &FindReferencesSearch,
         state: &mut FindReferencesState,
     ) {
@@ -355,7 +355,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
             if pos > container_span.hi() as usize {
                 break;
             }
-            let end_pos = pos + text.len();
+            let _end_pos = pos + text.len();
             // TODO: check is_identifier_part
             positions.push(pos);
             position = find_position(source_text, pos + text.len() + 1, text);
@@ -389,7 +389,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         module: ModuleID,
         root: &'cx ast::Program<'cx>,
         position: usize,
-        search: &FindReferencesSearch,
+        _search: &FindReferencesSearch,
         state: &mut FindReferencesState,
         add_reference_here: bool,
     ) {
@@ -517,7 +517,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
             let p_node = self.checker.p.node(p);
             let parent_parent = self.checker.binder.parent(p);
             let parent_parent_node = parent_parent.map(|pp| self.checker.p.node(pp));
-            if p_node.is_object_lit_ty() && parent_parent_node.map_or(false, |n| n.is_union_ty()) {
+            if p_node.is_object_lit_ty() && parent_parent_node.is_some_and(|n| n.is_union_ty()) {
                 todo!()
             }
         }
@@ -530,7 +530,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         symbol: SymbolID,
     ) -> Option<Vec<SymbolAndEntires<'cx>>> {
         let s = self.checker.symbol(symbol);
-        let module_source_file = if s.flags.intersects(SymbolFlags::MODULE)
+        let _module_source_file = if s.flags.intersects(SymbolFlags::MODULE)
             && let Some(decls) = s.decls.as_ref()
             && let Some(module_source_file) = decls
                 .iter()
@@ -546,10 +546,10 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     fn get_merged_aliased_symbol_of_namespace_export_declaration(
         &self,
         node: ast::NodeID,
-        symbol: SymbolID,
+        _symbol: SymbolID,
     ) -> Option<SymbolID> {
         if let Some(p) = self.checker.binder.parent(node)
-            && let p_node = self.checker.p.node(p)
+            && let _p_node = self.checker.p.node(p)
         {
             // TODO: is_namespace_export_declaration
         }

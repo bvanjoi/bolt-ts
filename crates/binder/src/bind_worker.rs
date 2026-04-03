@@ -195,8 +195,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.bind_var(n.id, name.name);
                 self.create_final_res(n.id, symbol);
             }
-            ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_) => return,
-        };
+            ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_) => (),
+        }
     }
 
     fn bind_object_binding_ele(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -214,11 +214,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let ast::BindingKind::Ident(name) = name.kind {
                     let symbol = self.bind_var(n.id, name.name);
                     self.create_final_res(n.id, symbol);
-                } else {
-                    return;
                 }
             }
-        };
+        }
     }
 
     fn bind_array_binding(&mut self, n: &ast::ArrayBinding<'cx>) {
@@ -227,12 +225,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
 
         use bolt_ts_ast::BindingKind::*;
-        match n.name.kind {
-            Ident(ident) => {
-                let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(n.id, symbol);
-            }
-            _ => {}
+        if let Ident(ident) = n.name.kind {
+            let symbol = self.bind_var(n.id, ident.name);
+            self.create_final_res(n.id, symbol);
         };
     }
 
@@ -726,7 +721,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ast::Node::EleAccessExpr(p) => {
                 self.lookup_symbol_for_prop_access(p.expr.id(), self.container.unwrap())
             }
-            ast::Node::PropAccessExpr(p) => {
+            ast::Node::PropAccessExpr(_p) => {
                 // TODO:
                 return None;
             }
@@ -837,8 +832,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         };
         let name = SymbolName::Atom(node.name.name);
         let symbol = self.bind_block_scoped_decl(node.id, name, includes, excludes);
-        let prev = self.final_res.insert(node.id, symbol);
-        debug_assert!(prev.is_none());
+        self.create_final_res(node.id, symbol);
     }
 
     fn bind_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) {
@@ -877,7 +871,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_source_file_if_external_module(&mut self, node: &'cx ast::Program<'cx>) {
-        if self.p.is_external_or_commonjs_module() {
+        if self.p.is_external_module() {
             self.bind_source_file_as_external_module(node);
         }
         // TODO: json source file
@@ -890,7 +884,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolName::Atom(self.p.filepath),
         );
         assert_eq!(s, SymbolID::container(node.id.module()));
-        self.final_res.insert(node.id, s);
+        self.create_final_res(node.id, s);
     }
 
     fn ele_access_is_narrowable_reference(&self, n: &ast::EleAccessExpr) -> bool {

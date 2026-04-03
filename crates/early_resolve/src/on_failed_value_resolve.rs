@@ -132,7 +132,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     pub(super) fn on_failed_to_resolve_namespace_symbol(
         &mut self,
         ident: &'cx ast::Ident,
-        res: &ResolvedResult,
+        _res: &ResolvedResult,
         mut error: errors::CannotFindName,
     ) -> errors::CannotFindName {
         if let Some(e) = self.check_using_type_as_namespace(ident) {

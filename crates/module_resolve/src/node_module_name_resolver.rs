@@ -27,6 +27,7 @@ use super::node_load_module_by_relative_name;
 use super::normalize_join::normalize_join;
 use super::resolution_cache::ModuleResolutionCache;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn node_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
     module_name: Atom,
     containing_file: &ContainingFile,
@@ -54,7 +55,6 @@ pub(super) fn node_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
         Extensions::TypeScript
             .union(Extensions::JavaScript)
             .union(Extensions::Declaration)
-            .union(Extensions::Json)
     };
     let features = match &conditions {
         Some(_) => NodeResolutionFeatures::ALL_FEATURES,
@@ -74,6 +74,7 @@ pub(super) fn node_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn node_next_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
     features: NodeResolutionFeatures,
     module_name: Atom,
@@ -148,6 +149,7 @@ pub(super) fn bundler_module_name_resolver<'a, 'options, FS: CachedFileSystem>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
     features: NodeResolutionFeatures,
     module_name: Atom,
@@ -156,7 +158,7 @@ fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
     atoms: &'a Arc<Mutex<AtomIntern>>,
     fs: &'a Arc<Mutex<FS>>,
     cache: &'a ModuleResolutionCache,
-    ext: Extensions,
+    _ext: Extensions,
     is_config_lookup: bool,
     conditions: Option<Conditions<'options>>,
 ) -> RResult<PathId> {
@@ -182,24 +184,25 @@ fn node_module_name_resolver_worker<'a, 'options, FS: CachedFileSystem>(
         options,
         atoms,
         fs,
-        is_config_lookup,
-        candidate_is_from_package_json_field: false,
+        _is_config_lookup: is_config_lookup,
+        _candidate_is_from_package_json_field: false,
         resolved_package_directory: std::cell::Cell::new(false),
-        failed_lookup_locations: vec![],
-        affecting_locations: vec![],
-        request_containing_directory: containing_directory,
+        _failed_lookup_locations: vec![],
+        _affecting_locations: vec![],
+        _request_containing_directory: containing_directory,
     };
-    let resolved = if options.module_resolution == NormalizedModuleResolution::Node10 {
-        try_resolve(module_name, containing_directory, &state, features, cache)
-        // TODO:
-        // let priority_extensions = ext & Extensions::TypeScript.union(Extensions::Declaration);
-        // let secondary_extensions = ext & !Extensions::TypeScript.union(Extensions::Declaration);
-        // if !priority_extensions.is_empty() {
-        //     try_resolve(module_name, containing_directory)
-        // } else if
-    } else {
-        try_resolve(module_name, containing_directory, &state, features, cache)
-    };
+    // let resolved = if options.module_resolution == NormalizedModuleResolution::Node10 {
+    //     try_resolve(module_name, containing_directory, &state, features, cache)
+    //     // TODO:
+    //     // let priority_extensions = ext & Extensions::TypeScript.union(Extensions::Declaration);
+    //     // let secondary_extensions = ext & !Extensions::TypeScript.union(Extensions::Declaration);
+    //     // if !priority_extensions.is_empty() {
+    //     //     try_resolve(module_name, containing_directory)
+    //     // } else if
+    // } else {
+    //     try_resolve(module_name, containing_directory, &state, features, cache)
+    // };
+    let resolved = try_resolve(module_name, containing_directory, &state, features, cache);
 
     create_resolved_module_with_failed_lookup_locations_handing_symlink(
         module_name,

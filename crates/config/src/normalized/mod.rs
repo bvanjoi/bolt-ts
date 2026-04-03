@@ -309,12 +309,12 @@ pub(super) fn get_resolve_package_json_exports(
     if let Some(custom) = resolve_package_json_exports {
         return custom;
     }
-    match module_resolution {
+    matches!(
+        module_resolution,
         NormalizedModuleResolution::Node16
-        | NormalizedModuleResolution::NodeNext
-        | NormalizedModuleResolution::Bundler => true,
-        _ => false,
-    }
+            | NormalizedModuleResolution::NodeNext
+            | NormalizedModuleResolution::Bundler
+    )
 }
 
 pub(super) fn get_resolve_package_json_imports(
@@ -327,12 +327,12 @@ pub(super) fn get_resolve_package_json_imports(
     if let Some(custom) = resolve_package_json_imports {
         return custom;
     }
-    match module_resolution {
+    matches!(
+        module_resolution,
         NormalizedModuleResolution::Node16
-        | NormalizedModuleResolution::NodeNext
-        | NormalizedModuleResolution::Bundler => true,
-        _ => false,
-    }
+            | NormalizedModuleResolution::NodeNext
+            | NormalizedModuleResolution::Bundler
+    )
 }
 
 #[test]

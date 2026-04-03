@@ -2,7 +2,7 @@ use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_binder::NodeQuery;
 
 pub trait VarLike<'cx>: bolt_ts_ast::r#trait::VarLike<'cx> {
-    fn is_var_const(&self, node_query: &NodeQuery) -> bool {
+    fn is_var_const(&self, _node_query: &NodeQuery) -> bool {
         false
     }
 }

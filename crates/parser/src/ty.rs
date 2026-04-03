@@ -224,7 +224,7 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
-        self.check_params(params, false);
+        self.check_params::<false>(params);
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let ty = if is_ctor_ty {
             let id = self.next_node_id();
@@ -482,10 +482,10 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_ty_reference(&mut self) -> &'cx ast::Ty<'cx> {
         let refer = self.parse_entity_name_of_ty_reference();
-        let ty = self.alloc(ast::Ty {
+
+        (self.alloc(ast::Ty {
             kind: ast::TyKind::Refer(refer),
-        });
-        ty
+        })) as _
     }
 
     fn parse_keyword_and_not_dot(&mut self) -> Option<Token> {
@@ -553,10 +553,10 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::This);
         let kind = self.parse_this_ty_kind();
         self.nodes.insert(kind.id, ast::Node::ThisTy(kind));
-        let ty = self.alloc(ast::Ty {
+
+        (self.alloc(ast::Ty {
             kind: ast::TyKind::This(kind),
-        });
-        ty
+        })) as _
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -662,7 +662,7 @@ impl<'cx> ParserState<'cx, '_> {
             let ret = l.p().parse_keyword_and_not_dot();
             Ok(ret)
         }) {
-            let ty = match node.kind {
+            (match node.kind {
                 Number => {
                     let val = token_val.number();
                     let val = if neg { -val } else { val };
@@ -693,8 +693,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
 
                 _ => unreachable!(),
-            };
-            ty
+            }) as _
         } else {
             self.parse_ty_reference()
         }
@@ -923,7 +922,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
-            self.check_params(params, false);
+            self.check_params::<false>(params);
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
@@ -964,7 +963,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
-        self.check_params(params, false);
+        self.check_params::<false>(params);
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);

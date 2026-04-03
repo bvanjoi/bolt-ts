@@ -17,7 +17,7 @@ pub(super) fn test_disjunction(version: &Version, alternatives: &RangeSet) -> bo
 
 fn test_alternative(version: &Version, alternative: &Range) -> bool {
     match alternative {
-        Range::Hyphen(hyphen_range) => todo!(),
+        Range::Hyphen(_hyphen_range) => todo!(),
         Range::Comparators(comparators) => {
             for comparator in comparators {
                 if !test_comparator(version, comparator) {

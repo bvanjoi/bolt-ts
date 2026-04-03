@@ -72,17 +72,16 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     // TODO: put it into `parse_params`
-    pub(super) fn check_params(
+    pub(super) fn check_params<const CONTAINER_IS_CTOR_IMPL: bool>(
         &mut self,
         params: &'cx [&'cx ast::ParamDecl<'cx>],
-        container_is_ctor_impl: bool,
     ) {
         for param in params {
             if let Some(mods) = param.modifiers {
                 let mut flags = ModifierKind::empty();
 
                 for m in mods.list {
-                    if container_is_ctor_impl
+                    if CONTAINER_IS_CTOR_IMPL
                         && ModifierKind::ACCESSIBILITY.contains(m.kind)
                         && flags.intersects(ModifierKind::ACCESSIBILITY)
                     {
@@ -92,7 +91,7 @@ impl<'cx> ParserState<'cx, '_> {
                     flags.insert(m.kind);
                 }
 
-                if !container_is_ctor_impl {
+                if !CONTAINER_IS_CTOR_IMPL {
                     let error = Box::new(
                         errors::AParamPropIsOnlyAllowedInAConstructorImplementation {
                             span: mods.span,
@@ -146,7 +145,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
-        self.check_params(params, false);
+        self.check_params::<false>(params);
 
         // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_return_ty::<true, false>()?;
@@ -574,8 +573,8 @@ impl<'cx> ParserState<'cx, '_> {
         let expr = self.make_super_expr();
 
         if self.token.kind == TokenKind::Less {
-            let start_pos = self.token.start();
-            if let Ok(Some(ty_args)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
+            let _start_pos = self.token.start();
+            if let Ok(Some(_ty_args)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
                 todo!("error handler")
             }
         }
@@ -740,7 +739,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let ty_params = self.parse_ty_params();
         let params = self.parse_params();
-        self.check_params(params, false);
+        self.check_params::<false>(params);
         let ty = self.parse_return_ty::<true, false>()?;
         let body = self.parse_fn_block_or_semi(is_generator).unwrap();
         let span = self.new_span(start);
@@ -813,7 +812,7 @@ impl<'cx> ParserState<'cx, '_> {
             };
             self.push_error(Box::new(error));
         }
-        let excl_token = self.parse_optional(TokenKind::Excl);
+        let _excl_token = self.parse_optional(TokenKind::Excl);
         if asterisk_token.is_some()
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
@@ -1207,10 +1206,10 @@ impl<'cx> ParserState<'cx, '_> {
             members: props,
         });
         self.nodes.insert(id, ast::Node::ObjectLit(lit));
-        let expr = self.alloc(ast::Expr {
+
+        (self.alloc(ast::Expr {
             kind: ast::ExprKind::ObjectLit(lit),
-        });
-        expr
+        })) as _
     }
 
     fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {

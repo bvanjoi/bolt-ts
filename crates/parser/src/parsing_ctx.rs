@@ -1,6 +1,6 @@
-use crate::{errors, parse_class_like::is_class_ele_start};
-
 use super::{ParserState, lookahead::Lookahead};
+use super::{errors, parse_class_like::is_class_ele_start};
+
 use bolt_ts_ast::TokenKind;
 
 bitflags::bitflags! {

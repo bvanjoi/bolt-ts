@@ -290,16 +290,11 @@ impl fmt::Display for Version {
     }
 }
 
-impl Comparator {
-    pub fn to_string(&self) -> String {
-        format!("{}{}", self.kind, self.version)
-    }
-}
+
 
 impl fmt::Display for Comparator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = self.to_string();
-        write!(f, "{}", s)
+        write!(f, "{}{}", self.kind, self.version)
     }
 }
 

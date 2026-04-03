@@ -120,7 +120,7 @@ pub fn build_graph<'cx>(
             for item in imports {
                 // TODO: the key should not only depend on the module name, but also the resolution mode
                 let entry = group.entry(item.module_name.val);
-                entry.or_insert_with(Vec::new).push(item.module_name);
+                entry.or_default().push(item.module_name);
             }
             let resolution_mode =
                 get_resolution_mode_for_usage_location(file_ext, Some(options.compiler_options()));

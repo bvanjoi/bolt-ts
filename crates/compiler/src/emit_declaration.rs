@@ -13,7 +13,8 @@ pub fn emit_declaration_parallel(
     let p = &checker.p;
     let atoms = &checker.atoms;
     let module_arena = &checker.module_arena;
-    let output = entries
+    
+    entries
         .into_par_iter()
         .filter_map(|&item| {
             let is_default_lib = module_arena.get_module(item).is_default_lib();
@@ -21,12 +22,11 @@ pub fn emit_declaration_parallel(
                 None
             } else {
                 let root = p.root(item);
-                let output = emit_declaration(&atoms, root);
+                let output = emit_declaration(atoms, root);
                 Some((item, output))
             }
         })
-        .collect::<Vec<_>>();
-    output
+        .collect::<Vec<_>>()
 }
 
 pub fn emit_declaration(atoms: &AtomIntern, root: &ast::Program<'_>) -> String {
@@ -89,13 +89,13 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
                 |this, elem| {
                     use ast::ClassElemKind::*;
                     match elem.kind {
-                        Ctor(n) => todo!(),
-                        Prop(n) => todo!(),
-                        Method(n) => todo!(),
+                        Ctor(_n) => todo!(),
+                        Prop(_n) => todo!(),
+                        Method(_n) => todo!(),
                         IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(n) => todo!(),
-                        Setter(n) => todo!(),
-                        StaticBlockDecl(n) => todo!(),
+                        Getter(_n) => todo!(),
+                        Setter(_n) => todo!(),
+                        StaticBlockDecl(_n) => todo!(),
                         Semi(_) => {}
                     }
                 },
@@ -142,13 +142,13 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
                 |this, elem| {
                     use ast::ObjectTyMemberKind::*;
                     match elem.kind {
-                        IndexSig(n) => todo!(),
+                        IndexSig(_n) => todo!(),
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => todo!(),
-                        CtorSig(n) => todo!(),
-                        Setter(n) => todo!(),
-                        Getter(n) => todo!(),
+                        CallSig(_n) => todo!(),
+                        CtorSig(_n) => todo!(),
+                        Setter(_n) => todo!(),
+                        Getter(_n) => todo!(),
                     }
                 },
                 |this, _| {
@@ -184,15 +184,14 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
         self.emitter.print().p("type");
         self.emitter.print().p_whitespace();
         self.emitter.emit_atom(node.name.name);
-        if let Some(type_params) = node.ty_params {
-            if !type_params.is_empty() {
+        if let Some(type_params) = node.ty_params
+            && !type_params.is_empty() {
                 self.emitter.print().p_less();
                 for type_param in type_params {
-                    self.visit_ident(&type_param.name);
+                    self.visit_ident(type_param.name);
                 }
                 self.emitter.print().p_great();
             }
-        }
         self.emitter.print().p_whitespace();
         self.emitter.print().p_eq();
         self.emitter.print().p_whitespace();
@@ -210,7 +209,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
             Undefined => self.emitter.print().p("undefined"),
             Num(num) => self.emitter.print().p(&num.to_string()),
             String(atom) => self.emitter.emit_atom(*atom),
-            BigInt { neg, val } => todo!(),
+            BigInt { neg: _, val: _ } => todo!(),
         }
     }
 
@@ -253,11 +252,11 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
             Ident(n) => self.visit_ident(n),
             StringLit { .. } => todo!(),
             BigIntLit { .. } => todo!(),
-            NumLit(n) => todo!(),
-            Computed(n) => {
+            NumLit(_n) => todo!(),
+            Computed(_n) => {
                 todo!()
             }
-            PrivateIdent(private_ident) => todo!(),
+            PrivateIdent(_private_ident) => todo!(),
         }
     }
 
@@ -296,15 +295,14 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx> {
 
     fn visit_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
         self.visit_entity_name(n.name);
-        if let Some(ty_args) = n.ty_args {
-            if !ty_args.list.is_empty() {
+        if let Some(ty_args) = n.ty_args
+            && !ty_args.list.is_empty() {
                 self.emitter.print().p_less();
                 for ty in ty_args.list {
                     self.visit_ty(ty);
                 }
                 self.emitter.print().p_great();
             }
-        }
     }
 
     fn visit_ident(&mut self, node: &'cx ast::Ident) {

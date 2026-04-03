@@ -16,7 +16,7 @@ pub fn build_temp_files(map: serde_json::Value) -> TempDir {
             continue;
         }
         let p = base.join(k);
-        if p.as_os_str().as_encoded_bytes().ends_with(&[b'/']) {
+        if p.as_os_str().as_encoded_bytes().ends_with(b"/") {
             assert!(v.is_empty());
             std::fs::create_dir_all(&p).unwrap();
         } else {

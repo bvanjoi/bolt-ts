@@ -40,24 +40,24 @@ impl BinderState<'_, '_, '_> {
             self.in_return_position = true;
         }
 
-        if container_flags.intersects(ContainerFlags::IS_CONTAINER) {
+        if container_flags.contains(ContainerFlags::IS_CONTAINER) {
             if !n.is_arrow_fn_expr() {
                 self.this_parent_container = self.container;
             }
             self.block_scope_container = Some(node);
             self.container = self.block_scope_container;
-            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+            if container_flags.contains(ContainerFlags::HAS_LOCALS) {
                 self.create_locals_for_container(node);
                 self.add_to_container_chain(node);
             }
-        } else if container_flags.intersects(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
+        } else if container_flags.contains(ContainerFlags::IS_BLOCK_SCOPED_CONTAINER) {
             self.block_scope_container = Some(node);
-            if container_flags.intersects(ContainerFlags::HAS_LOCALS) {
+            if container_flags.contains(ContainerFlags::HAS_LOCALS) {
                 self.delete_locals_for_container(node);
             }
         }
 
-        if container_flags.intersects(ContainerFlags::IS_CONTROL_FLOW_CONTAINER) {
+        if container_flags.contains(ContainerFlags::IS_CONTROL_FLOW_CONTAINER) {
             let save_current_flow = self.current_flow;
             let save_break_target = self.current_break_target;
             let save_continue_target = self.current_continue_target;
@@ -66,7 +66,7 @@ impl BinderState<'_, '_, '_> {
             // TODO: active_label_list
             let save_has_explicit_return = self.has_explicit_return;
             let is_immediately_invoked = (container_flags
-                .intersects(ContainerFlags::IS_FUNCTION_EXPRESSION)
+                .contains(ContainerFlags::IS_FUNCTION_EXPRESSION)
                 && !n.has_syntactic_modifier(ast::ModifierKind::Async.into())
                 && !n.is_fn_like_and_has_asterisk()
                 && self

@@ -155,6 +155,6 @@ impl CachedFileSystem for MemoryFS {
             let p = PathId::new(p, atoms);
             return Err(crate::errors::FsError::NotASymlink(p));
         }
-        self.tree.read_symlink(p, atoms).map(|ret| ret.into())
+        self.tree.read_symlink(p, atoms)
     }
 }

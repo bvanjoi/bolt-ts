@@ -314,7 +314,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
 
     let (bind_list, mut p) = {
         let (bind_list, p_map): (Vec<BinderResult<'_>>, Vec<ParseResultForGraph<'_>>) =
-            bind_parallel(module_arena.modules(), &atoms, p, &tsconfig)
+            bind_parallel(&module_arena, &atoms, p, &tsconfig)
                 .into_iter()
                 .unzip();
         let p = ParsedMap::from_map(p_map);

@@ -339,8 +339,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     fn get_modifier_flags(
         &self,
         id: ast::NodeID,
-        include_js_doc: bool,
-        always_include_js_doc: bool,
+        _include_js_doc: bool,
+        _always_include_js_doc: bool,
     ) -> enumflags2::BitFlags<ast::ModifierKind> {
         let m = self.get_syntactic_modifier_flags_no_cache(id);
         ast::ModifierKind::get_syntactic_modifier_flags(m)
@@ -477,7 +477,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 self.node(p).expect_import_clause().is_type_only
             })
             || (n.is_export_named_spec()) && {
-                let p = self.parent(id).unwrap();
+                let _p = self.parent(id).unwrap();
                 let p = self.parent(id).unwrap();
                 self.node(p).expect_export_decl().clause.is_type_only
             }
@@ -487,7 +487,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         mut id: ast::NodeID,
         include_arrow_fn: bool,
-        include_class_computed_prop_name: bool,
+        _include_class_computed_prop_name: bool,
     ) -> ast::NodeID {
         use ast::Node::*;
         while let Some(parent) = self.parent(id) {
@@ -829,7 +829,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 n,
                 ast::Node::VarDecl(_) | ast::Node::ImportClause(_) | ast::Node::NsImport(_)
             ) {
-                return None;
+                None
             } else {
                 Some(true)
             }
@@ -1164,7 +1164,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             ast::Node::QualifiedName(n) => n.right.id == node,
             ast::Node::PropAccessExpr(n) => n.name.id == node,
             // TODO: meta_property
-            _ => return false,
+            _ => false,
         }
     }
 

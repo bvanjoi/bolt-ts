@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bolt_ts_compiler::add_default_libs_into_memory_files;
 use bolt_ts_fs::MemoryFS;
 use bolt_ts_language_server::LanguageService;
-use bolt_ts_span::{ModuleID, Span};
+use bolt_ts_span::ModuleID;
 use indexmap::IndexMap;
 
 pub fn compile_single_input<'cx>(
@@ -342,7 +342,7 @@ impl<'cx> TestState<'cx> {
         }
     }
 
-    fn goto_defs_by_marker(&mut self, marker: &str, goto_defs: impl Fn(&mut Self) -> ()) {
+    fn goto_defs_by_marker(&mut self, marker: &str, goto_defs: impl Fn(&mut Self)) {
         self.goto_marker(marker);
         goto_defs(self);
     }
@@ -378,8 +378,8 @@ impl<'cx> TestState<'cx> {
                     .compiler_result()
                     .module_arena()
                     .get_content(span.module());
-                let content = content[span.lo() as usize..span.hi() as usize].to_string();
-                content
+                
+                content[span.lo() as usize..span.hi() as usize].to_string()
             })
             .collect()
     }
