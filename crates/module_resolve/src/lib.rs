@@ -11,8 +11,9 @@ mod resolution_cache;
 mod resolution_kind_spec_loader;
 
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_config::{Extension, Module, NormalizedCompilerOptions, NormalizedModuleResolution};
+use bolt_ts_config::{Module, NormalizedCompilerOptions, NormalizedModuleResolution};
 use bolt_ts_fs::{CachedFileSystem, PathId};
+use bolt_ts_middle::Extension;
 use bolt_ts_path::is_external_module_relative;
 use bolt_ts_utils::path::{NormalizePath, path_as_str};
 use std::path::{Path, PathBuf};

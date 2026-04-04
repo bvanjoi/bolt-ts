@@ -1,7 +1,7 @@
 use bolt_ts_config::{NormalizedModuleResolution, NormalizedTsConfig, RawTsConfig};
 
 fn normalize(input: &str) -> NormalizedTsConfig {
-    let raw: RawTsConfig = serde_json::from_str(input).unwrap();
+    let raw: RawTsConfig = bolt_ts_config::parse_tsconfig(input).unwrap();
     raw.normalize()
 }
 

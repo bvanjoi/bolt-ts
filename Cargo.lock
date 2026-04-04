@@ -266,9 +266,9 @@ name = "bolt_ts_config"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.9.4",
+ "jsonc-parser",
  "paste",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -400,6 +400,7 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_config",
  "bolt_ts_fs",
+ "bolt_ts_middle",
  "bolt_ts_path",
  "bolt_ts_semver",
  "bolt_ts_utils",
@@ -1290,6 +1291,15 @@ checksum = "1cfaf33c695fc6e08064efbc1f72ec937429614f25eef83af942d0e227c3a28f"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "jsonc-parser"
+version = "0.32.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e174964e77ea79b784f1e1dfffec4f77f61a453a36efc7c36838c917706777"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

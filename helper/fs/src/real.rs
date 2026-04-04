@@ -44,9 +44,8 @@ impl LocalFS {
         atoms: &mut bolt_ts_atom::AtomIntern,
     ) {
         // TODO: parallel?
-        let matched = self
-            .read_dir(dir, atoms)
-            .unwrap()
+        let entires = self.read_dir(dir, atoms).unwrap();
+        let matched = entires
             .filter(|item| {
                 includes.iter().any(|p| p.matches_path(item))
                     && excludes.iter().all(|p| !p.matches_path(item))
@@ -189,8 +188,8 @@ impl CachedFileSystem for LocalFS {
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         debug_assert!(p.is_dir());
         self.tree.add_dir(atoms, p).map(|_| ())?;
-        let entry = std::fs::read_dir(p).unwrap();
-        Ok(entry.map(|entry| entry.unwrap().path()))
+        let read_dir = std::fs::read_dir(p).unwrap();
+        Ok(read_dir.map(|entry| entry.unwrap().path()))
     }
 
     fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern) -> bool {
@@ -226,7 +225,7 @@ impl CachedFileSystem for LocalFS {
             .iter()
             .map(|e| glob::Pattern::new(e).unwrap())
             .collect::<Vec<_>>();
-        let mut result = Vec::with_capacity(4096);
+        let mut result = Vec::with_capacity(64);
         self.glob_visitor(&mut result, base_dir, &includes, &excludes, atoms);
         result
     }

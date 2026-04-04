@@ -18,7 +18,7 @@ use bolt_ts_binder::bind_parallel;
 use bolt_ts_binder::{Binder, ResolveResult};
 use bolt_ts_binder::{BinderResult, MergeGlobalSymbolResult};
 use bolt_ts_checker::check::MergeModuleAugmentationResult;
-use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig};
+use bolt_ts_config::{CompilerOptionFlags, NormalizedTsConfig, parse_tsconfig};
 use bolt_ts_early_resolve::early_resolve_parallel;
 use bolt_ts_fs::{CachedFileSystem, MemoryFS, read_file_with_encoding};
 use bolt_ts_optimize::optimize_and_js_emit;
@@ -178,7 +178,7 @@ pub fn eval_from_memory_path_worker<'cx>(
     let tsconfig: bolt_ts_config::RawTsConfig = if let Ok(raw_tsconfig) =
         fs.read_file(std::path::Path::new("/tsconfig.json"), &mut atoms)
     {
-        serde_json::from_str(atoms.get(raw_tsconfig)).unwrap()
+        parse_tsconfig(atoms.get(raw_tsconfig)).unwrap()
     } else {
         Default::default()
     };

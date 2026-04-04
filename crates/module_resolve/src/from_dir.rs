@@ -1,7 +1,7 @@
-use bolt_ts_config::SUPPORTED_DECLARATION_EXTENSIONS;
-use bolt_ts_config::SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS;
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_fs::PathId;
+use bolt_ts_middle::SUPPORTED_DECLARATION_EXTENSIONS;
+use bolt_ts_middle::SUPPORTED_TS_IMPLEMENTATION_EXTENSIONS;
 use bolt_ts_utils::path::NormalizePath;
 
 use super::Extensions;
@@ -104,7 +104,9 @@ pub(super) fn load_node_module_from_directory_worker<'a, 'options, FS: CachedFil
             .unwrap()
             .dir_exists(candidate, state.atoms.lock().as_mut().unwrap());
     if let Some(Ok(package_file_result)) = package_file.and_then(|mut package_file| {
-        let loader = Loader { _package_json: package_json };
+        let loader = Loader {
+            _package_json: package_json,
+        };
         loader.loader(
             ext,
             &mut package_file,

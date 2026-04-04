@@ -11,6 +11,7 @@ pub use self::real::LocalFS;
 pub use self::real::read_file_with_encoding;
 
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_utils::path::NormalizePath;
 use std::path::{Path, PathBuf};
 
 pub trait CachedFileSystem: Send + Sync + std::fmt::Debug + Default {
@@ -46,7 +47,17 @@ pub trait CachedFileSystem: Send + Sync + std::fmt::Debug + Default {
     ) -> Atom;
 }
 
-pub fn has_slash_suffix_and_not_root(p: &Path) -> bool {
+fn has_slash_suffix_and_not_root(p: &Path) -> bool {
     let p = p.as_os_str().as_encoded_bytes();
     p.len() > 1 && p.last() == Some(&b'/')
+}
+
+pub fn match_files(
+    path: &std::path::Path,
+    exclude: Option<&[String]>,
+    include: Option<&[String]>,
+    fs: &mut impl CachedFileSystem,
+    atoms: &mut bolt_ts_atom::AtomIntern,
+) {
+    debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
 }

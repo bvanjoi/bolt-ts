@@ -1,3 +1,4 @@
+use bolt_ts_config::parse_tsconfig;
 use project_root::get_project_root;
 
 const BENCH_REPO: &str = "https://github.com/bvanjoi/typescript-compiler-bench";
@@ -70,7 +71,7 @@ fn compile(input_dir: std::path::PathBuf) {
     assert!(tsconfig_path.is_file());
     let tsconfig = {
         let s = std::fs::read_to_string(tsconfig_path).unwrap();
-        let raw: bolt_ts_config::RawTsConfig = serde_json::from_str(&s).unwrap();
+        let raw: bolt_ts_config::RawTsConfig = parse_tsconfig(&s).unwrap();
         raw.normalize()
     };
     // ==== atom init ====

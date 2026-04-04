@@ -1,8 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use bolt_ts_fs::PathId;
+use bolt_ts_middle::Extension;
 use bolt_ts_module_resolve::ResolveFlags;
 use bolt_ts_module_resolve::{ResolveError, Resolver};
+
 use compile_test::TempDir;
 
 #[cfg(test)]
@@ -16,7 +18,6 @@ fn build_and_resolve(
     target: &str,
     options: &bolt_ts_config::NormalizedCompilerOptions,
 ) -> Result<String, ResolveError> {
-    use bolt_ts_config::Extension;
     use bolt_ts_module_resolve::{ContainingFile, get_resolution_mode_for_usage_location};
 
     let file_ext = Extension::extension_of_file_name(file.as_os_str().as_encoded_bytes());

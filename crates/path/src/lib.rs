@@ -13,13 +13,12 @@ use bolt_ts_utils::path::{BACKSLASH, SLASH};
 //     path.replace('\\', "/")
 // }
 
-// pub(super) fn remove_trailing_directory_separator(path: &str) -> String {
-//     if path.len() > 1 && path.ends_with(DIRECTORY_SEPARATOR) {
-//         path.trim_end_matches(DIRECTORY_SEPARATOR).to_string()
-//     } else {
-//         path.to_string()
-//     }
-// }
+pub fn remove_trailing_directory_separator(p: &mut std::path::PathBuf) {
+    if has_trailing_directory_separator(p.as_os_str().as_encoded_bytes()) {
+        let v = unsafe { &mut *(p as *mut std::path::PathBuf as *mut Vec<u8>) };
+        v.pop();
+    }
+}
 
 // fn equate_strings_case_sensitive(a: &str, b: &str) -> bool {
 //     a == b
@@ -105,4 +104,11 @@ pub fn ensure_trailing_directory_separator(mut path: Vec<u8>) -> Vec<u8> {
         path.push(SLASH);
         path
     }
+}
+
+pub fn get_base_paths(
+    path: &std::path::Path,
+    includes: Option<&[String]>,
+) -> Vec<std::path::PathBuf> {
+    todo!()
 }

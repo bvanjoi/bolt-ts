@@ -1,6 +1,5 @@
-use crate::symbol::Container;
-
 use super::SymbolTable;
+use super::symbol::Container;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 
@@ -104,7 +103,7 @@ impl BinderState<'_, '_, '_> {
                     if old_symbol.is_replaceable_by_method.is_some_and(|r| r) {
                         todo!()
                     } else if !(includes.intersects(SymbolFlags::VARIABLE)
-                        && old_symbol.flags.intersects(SymbolFlags::ASSIGNMENT))
+                        && old_symbol.flags.contains(SymbolFlags::ASSIGNMENT))
                     {
                         let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
                         let old_decl = self.p.node(old_decl_id);

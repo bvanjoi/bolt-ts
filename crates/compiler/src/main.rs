@@ -1,5 +1,5 @@
 use bolt_ts_compiler::{current_exe_dir, eval_with_fs, init_atom};
-use bolt_ts_config::RawTsConfig;
+use bolt_ts_config::{RawTsConfig, parse_tsconfig};
 use bolt_ts_fs::CachedFileSystem;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -36,7 +36,7 @@ fn main() {
     let tsconfig = if p.ends_with("tsconfig.json") {
         let content = fs.read_file(&p, &mut atoms).unwrap();
         let s = atoms.get(content);
-        serde_json::from_str(s).unwrap()
+        parse_tsconfig(s).unwrap()
     } else {
         RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()])
     };

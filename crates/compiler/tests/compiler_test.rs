@@ -64,7 +64,11 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
         let compiler_options: RawCompilerOptions =
             serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
 
-        debug_assert!(file_name == "index.ts" || file_name == "index.tsx");
+        assert!(file_name == "index.ts" || file_name == "index.tsx");
+        assert!(
+            !dir.join("tsconfig.json").exists(),
+            "use tsconfig d instead of providing tsconfig.json file"
+        );
 
         let default_include = if file_name == "index.ts" {
             vec!["./*.ts".to_string()]
@@ -113,12 +117,13 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
             }
 
             if let Some(index_file_path) = index_file_path
-                && try_run_node {
-                    match run_node_with_assert_context(&index_file_path) {
-                        Ok(_) => {}
-                        Err(_) => return Err(vec![]),
-                    }
+                && try_run_node
+            {
+                match run_node_with_assert_context(&index_file_path) {
+                    Ok(_) => {}
+                    Err(_) => return Err(vec![]),
                 }
+            }
             Ok(())
         } else {
             let module_arena = compiler_result.steal_module_arena();
