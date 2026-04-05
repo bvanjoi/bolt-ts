@@ -7,7 +7,10 @@ pub use self::combine_paths::combine_paths;
 use self::get_root_length::get_encoded_root_length;
 pub use self::get_root_length::get_root_length;
 pub use self::path_is_relative::path_is_relative;
-use bolt_ts_utils::path::{BACKSLASH, SLASH};
+
+use bolt_ts_utils::path::{BACKSLASH, NormalizePath, SLASH};
+
+use std::borrow::Cow;
 
 // pub(super) fn normalize_slashes(path: &str) -> String {
 //     path.replace('\\', "/")
@@ -106,9 +109,38 @@ pub fn ensure_trailing_directory_separator(mut path: Vec<u8>) -> Vec<u8> {
     }
 }
 
-pub fn get_base_paths(
-    path: &std::path::Path,
-    includes: Option<&[String]>,
-) -> Vec<std::path::PathBuf> {
-    todo!()
+const WILDCARD_CHAR_CODES: [u8; 2] = [b'*', b'?'];
+
+pub fn get_base_path<'a>(path: &'a std::path::Path, include: &'a str) -> Cow<'a, std::path::Path> {
+    debug_assert!(path.is_normalized());
+    let path = if is_rooted_disk_path(include) {
+        Cow::Borrowed(std::path::Path::new(include))
+    } else {
+        Cow::Owned(path.join(include).normalize())
+    };
+    debug_assert!(path.is_normalized());
+    let wildcard_offset = path
+        .as_os_str()
+        .as_encoded_bytes()
+        .iter()
+        .position(|b| WILDCARD_CHAR_CODES.contains(b));
+    if let Some(wildcard_offset) = wildcard_offset {
+        let mut p = match path {
+            Cow::Borrowed(p) => p.to_path_buf(),
+            Cow::Owned(p) => p,
+        };
+        let v = unsafe { &mut *(&mut p as *mut std::path::PathBuf as *mut Vec<u8>) };
+        v.truncate(wildcard_offset);
+        Cow::Owned(p)
+    } else if path.extension().is_some() {
+        let mut p = match path {
+            Cow::Borrowed(p) => p.to_path_buf(),
+            Cow::Owned(p) => p,
+        };
+        p.pop();
+        remove_trailing_directory_separator(&mut p);
+        Cow::Owned(p)
+    } else {
+        path
+    }
 }
