@@ -498,11 +498,29 @@ impl<'cx> TyChecker<'cx> {
     ) -> EnumMemberValue {
         debug_assert!(member.init.is_some_and(|init| ptr::eq(init, member_init)));
 
-        match self.eval_expr(member_init, Some(member.id)) {
+        let result = match self.eval_expr(member_init, Some(member.id)) {
             EvalResult::Number(i) => EnumMemberValue::Number(i),
             EvalResult::Str(s) => EnumMemberValue::Str(s),
             EvalResult::Err => EnumMemberValue::Err,
+        };
+
+        if matches!(result, EnumMemberValue::Err) {
+            let enum_decl = self.parent(member.id).unwrap();
+            debug_assert!(self.p.node(enum_decl).is_enum_decl());
+            if self
+                .p
+                .node_flags(enum_decl)
+                .contains(ast::NodeFlags::AMBIENT)
+            {
+                self.push_error(Box::new(
+                    errors::InAmbientEnumDeclarationsMemberInitializerMustBeConstantExpression {
+                        span: member_init.span(),
+                    },
+                ));
+            }
         }
+
+        result
     }
 
     fn compute_enum_member_value(
@@ -530,7 +548,6 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.parent(member.id).unwrap();
         let node = self.p.node(parent).expect_enum_decl();
         self.compute_enum_member_values(node);
-
         self.get_node_links(member.id).expect_enum_member_value()
     }
 

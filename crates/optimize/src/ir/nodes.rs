@@ -3964,16 +3964,16 @@ pub struct Modifier {
 
 #[derive(Debug)]
 pub struct Modifiers {
-    flags: enumflags2::BitFlags<ast::ModifierKind>,
+    flags: ast::ModifierFlags,
     list: Vec<ModifierID>,
 }
 
 impl Modifiers {
-    pub fn new(flags: enumflags2::BitFlags<ast::ModifierKind>, list: Vec<ModifierID>) -> Self {
+    pub fn new(flags: ast::ModifierFlags, list: Vec<ModifierID>) -> Self {
         Self { flags, list }
     }
 
-    pub fn flags(&self) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn flags(&self) -> ast::ModifierFlags {
         self.flags
     }
 

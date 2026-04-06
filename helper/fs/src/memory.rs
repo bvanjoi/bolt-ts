@@ -3,12 +3,17 @@ use bolt_ts_utils::path::NormalizePath;
 
 use super::CachedFileSystem;
 use super::PathId;
+use super::errors;
 use super::errors::FsResult;
-use super::tree::{FSNodeId, FSTree};
+
+use std::io::Read;
+use std::io::Write;
+use vfs::FileSystem;
+use vfs::MemoryFS as VFSMemoryFS;
 
 #[derive(Default)]
 pub struct MemoryFS {
-    tree: FSTree,
+    fs: VFSMemoryFS,
 }
 
 impl std::fmt::Debug for MemoryFS {
@@ -22,40 +27,47 @@ impl MemoryFS {
         content_map: impl Iterator<Item = (String, String)>,
         atoms: &mut AtomIntern,
     ) -> FsResult<Self> {
-        let mut tree = FSTree::new(atoms);
-
+        let fs = VFSMemoryFS::new();
         for (path, content) in content_map {
-            let path = std::path::Path::new(&path);
-            let content = atoms.atom(&content);
-            tree.add_file(atoms, path, content)?;
-        }
-
-        Ok(Self { tree })
-    }
-
-    fn glob_visitor(
-        &self,
-        result: &mut Vec<std::path::PathBuf>,
-        node: FSNodeId,
-        atoms: &AtomIntern,
-        includes: &[glob::Pattern],
-        excludes: &[glob::Pattern],
-    ) {
-        let n = self.tree.node(node);
-        if let Some(dir) = n.kind().as_dir_node() {
-            for n in dir.children() {
-                self.glob_visitor(result, *n, atoms, includes, excludes);
+            let path = std::path::PathBuf::from(path);
+            let path = path.normalize();
+            let mut current = std::path::PathBuf::new();
+            let path_count = path.components().count();
+            for (i, c) in path.components().enumerate() {
+                if i == path_count - 1 {
+                    break;
+                }
+                match c {
+                    std::path::Component::Prefix(_) => unreachable!(),
+                    std::path::Component::CurDir => unreachable!(),
+                    std::path::Component::ParentDir => unreachable!(),
+                    std::path::Component::RootDir => {
+                        current.push(c.as_os_str());
+                    }
+                    std::path::Component::Normal(os_str) => {
+                        current.push(os_str);
+                    }
+                }
+                let current_str = current.to_str().unwrap();
+                if let Ok(metadata) = fs.metadata(current_str) {
+                    if metadata.file_type == vfs::VfsFileType::File {
+                        return Err(errors::FsError::FileExists(PathId::new(&current, atoms)));
+                    } else if metadata.file_type == vfs::VfsFileType::Directory {
+                        continue;
+                    }
+                }
+                fs.create_dir(current_str).unwrap();
             }
-        } else {
-            let path = n.kind().path();
-            let path = atoms.get(path.into());
-            if !(includes.iter().any(|p| p.matches_path(path.as_ref()))
-                && excludes.iter().all(|p| !p.matches_path(path.as_ref())))
-            {
-                return;
+            let path_str = path.to_str().unwrap();
+            if let Ok(metadata) = fs.metadata(path_str) {
+                if metadata.file_type == vfs::VfsFileType::Directory {
+                    return Err(errors::FsError::DirExists(PathId::new(&path, atoms)));
+                }
             }
-            result.push(std::path::PathBuf::from(path));
+            let mut file = fs.create_file(path_str).unwrap();
+            file.write_all(content.as_bytes()).unwrap();
         }
+        Ok(Self { fs })
     }
 }
 
@@ -69,11 +81,33 @@ impl CachedFileSystem for MemoryFS {
         path: &std::path::Path,
         atoms: &mut AtomIntern,
     ) -> FsResult<bolt_ts_atom::Atom> {
-        self.tree.read_file(path, atoms)
+        match self.fs.open_file(path.to_str().unwrap()) {
+            Ok(mut file) => {
+                let mut content = String::new();
+                file.read_to_string(&mut content).unwrap();
+                Ok(atoms.atom(&content))
+            }
+            Err(error) => {
+                let path_id = PathId::new(path, atoms);
+                Err(match error.kind() {
+                    vfs::error::VfsErrorKind::FileNotFound => errors::FsError::NotFound(path_id),
+                    vfs::error::VfsErrorKind::DirectoryExists => errors::FsError::NotAFile(path_id),
+                    vfs::error::VfsErrorKind::Other(_) => errors::FsError::NotAFile(path_id),
+                    vfs::error::VfsErrorKind::IoError(_) => todo!(),
+                    vfs::error::VfsErrorKind::InvalidPath => todo!(),
+                    vfs::error::VfsErrorKind::FileExists => todo!(),
+                    vfs::error::VfsErrorKind::NotSupported => todo!(),
+                })
+            }
+        }
     }
 
-    fn file_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
-        self.tree.file_exists(p, atoms)
+    fn file_exists(&mut self, p: &std::path::Path, _: &mut AtomIntern) -> bool {
+        let path_str = p.to_str().unwrap();
+        self.fs
+            .metadata(path_str)
+            .map(|m| m.file_type == vfs::VfsFileType::File)
+            .unwrap_or_default()
     }
 
     fn read_dir(
@@ -81,58 +115,42 @@ impl CachedFileSystem for MemoryFS {
         path: &std::path::Path,
         atoms: &mut AtomIntern,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
-        let id = self.tree.find_path(path, true, atoms)?;
-        let node = self.tree.node(id);
-        node.kind().as_dir_node().map_or_else(
-            || {
-                let p = node.kind().path();
-                Err(crate::errors::FsError::NotADir(p))
-            },
-            |dir| {
-                Ok(dir.children().iter().map(|id| {
-                    let id = self.tree.node(*id).kind().path();
-                    let atom = atoms.get(id.into());
-                    std::path::PathBuf::from(atom)
-                }))
-            },
-        )
-    }
-
-    fn glob(
-        &mut self,
-        base_dir: &std::path::Path,
-        includes: &[&str],
-        excludes: &[&str],
-        atoms: &mut AtomIntern,
-    ) -> Vec<std::path::PathBuf> {
-        let includes = includes
-            .iter()
-            .map(|i| glob::Pattern::new(i).unwrap())
-            .collect::<Vec<_>>();
-        let excludes = excludes
-            .iter()
-            .map(|e| glob::Pattern::new(e).unwrap())
-            .collect::<Vec<_>>();
-        let Ok(node) = self.tree.find_path(base_dir, true, atoms) else {
-            return vec![];
+        let path_str = path.to_str().unwrap();
+        let path_str = if path_str.ends_with('/') {
+            &path_str[..path_str.len() - 1]
+        } else {
+            path_str
         };
-        let mut results = Vec::new();
-        self.glob_visitor(
-            &mut results,
-            node,
-            atoms,
-            includes.as_ref(),
-            excludes.as_ref(),
-        );
-        results
+        if let Ok(metadata) = self.fs.metadata(path_str) {
+            if metadata.file_type == vfs::VfsFileType::File {
+                return Err(errors::FsError::NotADir(PathId::new(path, atoms)));
+            }
+        } else {
+            return Err(errors::FsError::NotFound(PathId::new(path, atoms)));
+        }
+
+        self.fs
+            .read_dir(path_str)
+            .map_err(|_| errors::FsError::NotFound(PathId::new(path, atoms)))
+            .map(|iter| {
+                iter.flat_map(|entry| {
+                    if entry.is_empty() {
+                        None
+                    } else {
+                        let res = path.join(entry);
+                        debug_assert!(res.is_normalized());
+                        Some(res)
+                    }
+                })
+            })
     }
 
     fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
-        let Ok(id) = self.tree.find_path(p, true, atoms) else {
-            return false;
-        };
-        let node = self.tree.node(id);
-        node.kind().as_dir_node().is_some()
+        let path_str = p.to_str().unwrap();
+        self.fs
+            .metadata(path_str)
+            .map(|m| m.file_type == vfs::VfsFileType::Directory)
+            .unwrap_or_default()
     }
 
     fn add_file(
@@ -145,16 +163,12 @@ impl CachedFileSystem for MemoryFS {
         unreachable!("Cannot add file to memory fs")
     }
 
-    fn is_symlink(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
-        self.tree.is_symlink(p, atoms)
+    fn is_symlink(&mut self, _: &std::path::Path, _: &mut AtomIntern) -> bool {
+        unreachable!()
     }
 
     fn realpath(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> FsResult<PathId> {
         debug_assert!(p.is_normalized());
-        if !self.is_symlink(p, atoms) {
-            let p = PathId::new(p, atoms);
-            return Err(crate::errors::FsError::NotASymlink(p));
-        }
-        self.tree.read_symlink(p, atoms)
+        Ok(PathId::get(p, atoms))
     }
 }

@@ -36,8 +36,8 @@ fn get_node_at_position_worker<
     nodes: &Nodes<'cx>,
     include_preceding_token_at_position: impl Fn(ast::Node<'cx>) -> bool + Copy,
 ) -> Option<ast::NodeID> {
-    debug_assert!(pos < root.span.hi());
-    let mut current = root.id;
+    debug_assert!(pos < root.span().hi());
+    let mut current = root.id();
     loop {
         let node = nodes.get(current);
         // TODO: get_children
@@ -45,7 +45,7 @@ fn get_node_at_position_worker<
             ast::Node::Ident(_) => {
                 return include_preceding_token_at_position(node).then_some(node.id());
             }
-            ast::Node::Program(n) => binary_search_node_by_position_in_stmts(n.stmts, pos),
+            ast::Node::Program(n) => binary_search_node_by_position_in_stmts(n.stmts(), pos),
             ast::Node::EnumDecl(n) => {
                 let node = nodes.get(n.name.id);
                 return include_preceding_token_at_position(node).then_some(n.name.id);

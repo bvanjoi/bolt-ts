@@ -323,7 +323,7 @@ impl<'cx> TyChecker<'cx> {
                 omit_key_ty,
                 relation::RelationKind::Assignable,
             ) && (self.get_declaration_modifier_flags_from_symbol(prop, None)
-                & (ast::ModifierKind::Private | ast::ModifierKind::Protected))
+                & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                 .is_empty()
                 && self.is_spreadable_property(prop)
             {

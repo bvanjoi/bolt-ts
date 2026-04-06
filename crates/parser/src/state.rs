@@ -382,11 +382,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Ok(stmt)
         });
         let id = self.next_node_id();
-        let program = self.alloc(ast::Program {
-            id,
-            stmts,
-            span: self.new_span(start as u32),
-        });
+        let program = ast::Program::new(id, self.new_span(start as u32), stmts);
+        let program = self.alloc(program);
         self.nodes.insert(id, Node::Program(program));
         program
     }

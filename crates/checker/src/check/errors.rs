@@ -1374,3 +1374,10 @@ pub(super) struct ExportDeclarationsAreNotPermittedInANamespace {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("In ambient enum declarations member initializer must be constant expression.")]
+pub(super) struct InAmbientEnumDeclarationsMemberInitializerMustBeConstantExpression {
+    #[label(primary)]
+    pub span: Span,
+}

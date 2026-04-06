@@ -14,7 +14,7 @@ impl TyChecker<'_> {
     }
 
     #[inline]
-    pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
+    pub(crate) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
         debug_assert!(
             self.p.node(id).is_decl(),
             "expected a decl node, but got {:#?}",

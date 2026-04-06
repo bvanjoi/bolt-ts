@@ -80,7 +80,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 (prop_name.name == ident.name).then_some(prop)
             }) && prop
                 .modifiers
-                .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
+                .map(|mods| mods.flags.contains(ast::ModifierFlags::STATIC))
                 .unwrap_or_default()
             {
                 let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {

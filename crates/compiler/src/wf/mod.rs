@@ -109,17 +109,17 @@ impl<'cx> CheckState<'cx> {
         };
         for modifier in modifiers.list {
             use bolt_ts_ast::ModifierKind::*;
-            if modifier.kind == Abstract {
+            if modifier.kind() == Abstract {
                 let parent = self.parent(node).unwrap();
                 let parent_node = self.p.node(parent);
                 if !(parent_node.is_class_decl()
-                    && parent_node.has_syntactic_modifier(ast::ModifierKind::Abstract.into()))
+                    && parent_node.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT))
                 {
                     let error = if n.is_class_prop_elem() {
                         todo!()
                     } else {
                         errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
-                            span: modifier.span,
+                            span: modifier.span(),
                         }
                     };
                     self.push_error(Box::new(error));

@@ -771,7 +771,7 @@ pub trait ASTFactory<'cx> {
     #[inline]
     fn create_modifier(&mut self, span: Span, kind: ast::ModifierKind) -> &'cx ast::Modifier {
         let id = self.next_node_id();
-        let m = self.alloc(ast::Modifier { id, span, kind });
+        let m = self.alloc(ast::Modifier::new(id, span, kind));
         self.insert_node(id, ast::Node::Modifier(m));
         m
     }
@@ -781,7 +781,7 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         modifiers: &'cx [&'cx ast::Modifier],
-        flags: enumflags2::BitFlags<ast::ModifierKind>,
+        flags: ast::ModifierFlags,
     ) -> &'cx ast::Modifiers<'cx> {
         self.alloc(ast::Modifiers {
             span,
@@ -1026,11 +1026,7 @@ pub trait ASTFactory<'cx> {
         module_spec: &'cx ast::StringLit,
     ) -> &'cx ast::ExternalModuleReference<'cx> {
         let id = self.next_node_id();
-        let node = self.alloc(ast::ExternalModuleReference {
-            id,
-            span,
-            module_spec,
-        });
+        let node = self.alloc(ast::ExternalModuleReference::new(id, span, module_spec));
         self.insert_node(id, ast::Node::ExternalModuleReference(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
@@ -1066,5 +1062,44 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::ExportShorthandSpec(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
+    }
+
+    fn create_enum_decl(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::Ident,
+        members: ast::EnumMembers<'cx>,
+    ) -> &'cx ast::EnumDecl<'cx> {
+        let id = self.next_node_id();
+        let decl = self.alloc(ast::EnumDecl {
+            id,
+            span,
+            modifiers,
+            name,
+            members,
+        });
+        self.set_external_module_indicator(id);
+        self.insert_node(id, ast::Node::EnumDecl(decl));
+        self.insert_node_flags(id, self.node_context_flags());
+        decl
+    }
+
+    fn create_enum_member(
+        &mut self,
+        span: Span,
+        name: ast::EnumMemberNameKind<'cx>,
+        init: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ast::EnumMember<'cx> {
+        let id = self.next_node_id();
+        let member = self.alloc(ast::EnumMember {
+            id,
+            span,
+            name,
+            init,
+        });
+        self.insert_node(id, ast::Node::EnumMember(member));
+        self.insert_node_flags(id, self.node_context_flags());
+        member
     }
 }

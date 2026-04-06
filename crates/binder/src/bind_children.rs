@@ -369,7 +369,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let has_export_modifier = self
             .node_query()
             .get_combined_modifier_flags(current)
-            .contains(ast::ModifierKind::Export); // TODO: js
+            .contains(ast::ModifierFlags::EXPORT); // TODO: js
         if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
@@ -405,7 +405,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         {
             if !self.p.node(container).has_locals()
                 || !self.locals.contains_key(&container)
-                || (current_node.has_syntactic_modifier(ast::ModifierKind::Default.into())
+                || (current_node.has_syntactic_modifier(ast::ModifierFlags::DEFAULT)
                     && current_node.ident_name().is_none())
             {
                 let table = SymbolTableLocation::exports(container);
@@ -465,7 +465,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_modifiers(&mut self, mods: &'cx ast::Modifiers<'cx>) {
         for m in mods.list {
-            self.bind(m.id);
+            self.bind(m.id());
         }
     }
 
@@ -510,6 +510,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.bind(n.id());
     }
 
+    fn bind_stmts_under(&mut self, parent: ast::NodeID, stmts: ast::Stmts<'cx>) {
+        self.block_parent_stack.push(parent);
+        for stmt in stmts {
+            self.bind(stmt.id());
+        }
+        self.block_parent_stack.pop();
+    }
+
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
         use ast::Node::*;
         let save_in_assignment_pattern = self.in_assignment_pattern;
@@ -540,14 +548,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             EleAccessExpr(n) => self.bind_access_expr_flow(n),
             CallExpr(n) => self.bind_call_expr_flow(n),
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
-            Program(ast::Program { stmts, .. })
-            | BlockStmt(ast::BlockStmt { stmts, .. })
+            Program(n) => {
+                self.bind_stmts_under(node, n.stmts());
+            }
+            BlockStmt(ast::BlockStmt { stmts, .. })
             | ModuleBlock(ast::ModuleBlock { stmts, .. }) => {
-                self.block_parent_stack.push(node);
-                for stmt in *stmts {
-                    self.bind(stmt.id());
-                }
-                self.block_parent_stack.pop();
+                self.bind_stmts_under(node, *stmts);
             }
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
@@ -814,7 +820,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             EnumMember(n) => {
-                self.bind_prop_name(n.name);
+                match n.name {
+                    ast::EnumMemberNameKind::Ident(ident) => self.bind(ident.id),
+                    ast::EnumMemberNameKind::StringLit { raw, .. } => self.bind(raw.id),
+                }
                 if let Some(init) = n.init {
                     self.bind(init.id());
                 }
@@ -1249,13 +1258,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.name.id);
                 match n.module_reference {
                     ast::ModuleReferenceKind::ExternalModuleReference(n) => {
-                        self.bind(n.id);
+                        self.bind(n.id());
                     }
                     ast::ModuleReferenceKind::EntityName(n) => self.bind_entity_name(n),
                 }
             }
             ExternalModuleReference(n) => {
-                self.bind(n.module_spec.id);
+                self.bind(n.module_spec().id);
             }
             ClassSemiElem(_n) => {}
         }

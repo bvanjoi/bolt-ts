@@ -67,7 +67,7 @@ impl BinderState<'_, '_, '_> {
             let save_has_explicit_return = self.has_explicit_return;
             let is_immediately_invoked = (container_flags
                 .contains(ContainerFlags::IS_FUNCTION_EXPRESSION)
-                && !n.has_syntactic_modifier(ast::ModifierKind::Async.into())
+                && !n.has_syntactic_modifier(ast::ModifierFlags::ASYNC)
                 && !n.is_fn_like_and_has_asterisk()
                 && self
                     .node_query()

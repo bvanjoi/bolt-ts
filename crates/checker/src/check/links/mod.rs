@@ -3,6 +3,9 @@ mod sig_links;
 mod symbol_links;
 mod ty_links;
 
+use super::NodeCheckFlags;
+use super::ty::{SigID, TyID};
+
 macro_rules! _links {
     ($s: ident, $(($x: ident, $ty: ty)),* $( , )? ) => {
         #[derive(Debug, Default, Clone, Copy)]
@@ -60,15 +63,16 @@ macro_rules! _links {
 use _links as links;
 use bolt_ts_ast::NodeID;
 
-pub use node_links::NodeLinks;
-pub use sig_links::SigLinks;
-pub use symbol_links::SymbolLinks;
-pub use ty_links::TyLinks;
-
-use super::NodeCheckFlags;
-use super::ty::{SigID, TyID};
+pub use self::node_links::NodeLinks;
+pub use self::sig_links::SigLinks;
+pub use self::symbol_links::SymbolLinks;
+pub use self::ty_links::TyLinks;
 
 impl<'cx> super::TyChecker<'cx> {
+    pub(crate) fn node_links(&self, node: NodeID) -> Option<&NodeLinks<'cx>> {
+        self.node_links.get(&node)
+    }
+
     pub fn get_node_links(&mut self, node: NodeID) -> &NodeLinks<'cx> {
         self.node_links
             .entry(node)

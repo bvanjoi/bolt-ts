@@ -1000,9 +1000,32 @@ pub struct ImportEqualsDecl<'cx> {
 
 #[derive(Debug, Clone)]
 pub struct ExternalModuleReference<'cx> {
-    pub id: NodeID,
-    pub span: Span,
-    pub module_spec: &'cx StringLit,
+    pub(super) id: NodeID,
+    pub(super) span: Span,
+    pub(super) module_spec: &'cx StringLit,
+}
+
+impl<'cx> ExternalModuleReference<'cx> {
+    #[inline(always)]
+    pub fn new(id: NodeID, span: Span, module_spec: &'cx StringLit) -> Self {
+        Self {
+            id,
+            span,
+            module_spec,
+        }
+    }
+    #[inline(always)]
+    pub fn id(&self) -> NodeID {
+        self.id
+    }
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    #[inline(always)]
+    pub fn module_spec(&self) -> &StringLit {
+        self.module_spec
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -349,12 +349,12 @@ impl<'cx> TyChecker<'cx> {
                     if derived == base {
                         let derived_class_decl =
                             self.get_class_like_decl_of_symbol(ty.symbol().unwrap());
-                        if base_declaration_flags.contains(ast::ModifierKind::Abstract)
+                        if base_declaration_flags.contains(ast::ModifierFlags::ABSTRACT)
                             && derived_class_decl.is_none_or(|derived_class_decl| {
                                 !self
                                     .p
                                     .node(derived_class_decl)
-                                    .has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+                                    .has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
                             })
                         {
                             for other_base_ty in self.get_base_tys(ty) {
@@ -471,7 +471,7 @@ impl<'cx> TyChecker<'cx> {
                 if elem
                     .kind
                     .modifiers()
-                    .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                    .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
                 {
                     continue;
                 }

@@ -1,19 +1,19 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::ArrowFnExprBody;
-use bolt_ts_ast::ModifierKind;
-use bolt_ts_ast::keyword;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_span::Span;
 
 use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
-
 use super::ty;
 use super::{Ternary, errors};
 
-const FLAGS_TO_CHECK: enumflags2::BitFlags<ast::ModifierKind> =
-    enumflags2::make_bitflags!(ModifierKind::{Export | Ambient | Private | Protected | Abstract});
+const FLAGS_TO_CHECK: ast::ModifierFlags = ast::ModifierFlags::EXPORT
+    .union(ast::ModifierFlags::AMBIENT)
+    .union(ast::ModifierFlags::PRIVATE)
+    .union(ast::ModifierFlags::PROTECTED)
+    .union(ast::ModifierFlags::ABSTRACT);
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
@@ -23,7 +23,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut has_overloads = false;
         let mut body_declaration = None;
-        let mut some_node_flags = enumflags2::BitFlags::empty();
+        let mut some_node_flags = ast::ModifierFlags::empty();
         let mut all_node_flags = FLAGS_TO_CHECK;
         let is_ctor = s.flags.contains(SymbolFlags::CONSTRUCTOR);
 
@@ -137,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl
             && let n = self.p.node(last_seen_non_ambient_decl)
             && n.fn_body().is_none()
-            && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+            && !n.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
         {
             if s.flags.contains(SymbolFlags::CONSTRUCTOR) {
                 let node = self.p.node(decls[0]).expect_class_ctor();
@@ -200,8 +200,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
         implementation: Option<ast::NodeID>,
-        some_overload_flags: enumflags2::BitFlags<ModifierKind>,
-        allow_overload_flags: enumflags2::BitFlags<ModifierKind>,
+        some_overload_flags: ast::ModifierFlags,
+        allow_overload_flags: ast::ModifierFlags,
     ) {
         let s = self.binder.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
@@ -214,8 +214,8 @@ impl<'cx> TyChecker<'cx> {
             for o in decls.clone() {
                 let flags = self.get_effective_declaration_flags(o, FLAGS_TO_CHECK);
                 let deviation_in_file = flags ^ cannoical_flags;
-                if deviation_in_file.contains(ast::ModifierKind::Export) {
-                } else if deviation_in_file.contains(ast::ModifierKind::Ambient) {
+                if deviation_in_file.contains(ast::ModifierFlags::EXPORT) {
+                } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
                     let span = self
                         .node_query(o.module())
                         .get_name_of_decl(o)

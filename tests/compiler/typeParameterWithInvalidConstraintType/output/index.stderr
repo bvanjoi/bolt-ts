@@ -11,13 +11,13 @@
    ╰────
 
   × This expression is not constructable.
-    ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:11:17]
- 11 │ new x(123)
-    · ──────────
+    ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:11:21]
+ 11 │ x
+    · ─
     ╰────
 
   × This expression is not callable.
     ╭─[../../tests/compiler/typeParameterWithInvalidConstraintType/index.ts:14:17]
- 14 │ x()
-    · ───
+ 14 │ x
+    · ─
     ╰────

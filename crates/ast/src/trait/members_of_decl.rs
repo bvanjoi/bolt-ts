@@ -16,7 +16,7 @@ impl MembersOfDecl for crate::ObjectTyMember<'_> {
             Getter(n) => n.modifiers,
             Method(_) | CallSig(_) | CtorSig(_) => return false,
         };
-        modifiers.is_some_and(|mods| mods.flags.contains(crate::ModifierKind::Static))
+        modifiers.is_some_and(|mods| mods.flags.contains(crate::ModifierFlags::STATIC))
     }
 }
 

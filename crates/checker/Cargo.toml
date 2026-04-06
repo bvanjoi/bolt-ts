@@ -27,4 +27,3 @@ nohash-hasher = { workspace = true }
 thin-vec = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 tracing = { workspace = true }
-enumflags2 = { workspace = true }

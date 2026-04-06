@@ -1,5 +1,7 @@
 use bolt_ts_span::ModuleID;
 
+use crate::ModifierFlags;
+
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -294,6 +296,12 @@ impl<'cx> Node<'cx> {
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
             FnExpr(n) => n.name.map(DeclarationName::Ident),
             FnDecl(n) => n.name.map(DeclarationName::Ident),
+            EnumMember(n) => match n.name {
+                super::EnumMemberNameKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                super::EnumMemberNameKind::StringLit { raw, key } => {
+                    Some(DeclarationName::StringLit { raw, key })
+                }
+            },
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
             ClassDecl(n) => n.name.map(DeclarationName::Ident),
             ClassExpr(n) => n.name.map(DeclarationName::Ident),
@@ -584,7 +592,7 @@ impl<'cx> Node<'cx> {
                 if asterisk.is_some() {
                     flags |= FnFlags::GENERATOR;
                 }
-                if self.has_syntactic_modifier(self::ModifierKind::Async.into()) {
+                if self.has_syntactic_modifier(self::ModifierFlags::ASYNC) {
                     flags |= FnFlags::ASYNC;
                 }
             }
@@ -646,18 +654,18 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_static_modifier(&self) -> bool {
-        self.has_syntactic_modifier(ModifierKind::Static.into())
+        self.has_syntactic_modifier(ModifierFlags::STATIC)
     }
 
     pub fn has_effective_readonly_modifier(&self) -> bool {
-        self.has_syntactic_modifier(ModifierKind::Readonly.into())
+        self.has_syntactic_modifier(ModifierFlags::READONLY)
     }
 
     pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
-        self.has_syntactic_modifier(kind.into())
+        self.has_syntactic_modifier(kind.into_flag())
     }
 
-    pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
+    pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
         self.modifiers()
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
@@ -1042,10 +1050,13 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_property_name_literal(&self) -> bool {
-        matches!(self, Node::Ident(_)
-            | Node::StringLit(_)
-            | Node::NoSubstitutionTemplateLit(_)
-            | Node::NumLit(_))
+        matches!(
+            self,
+            Node::Ident(_)
+                | Node::StringLit(_)
+                | Node::NoSubstitutionTemplateLit(_)
+                | Node::NumLit(_)
+        )
     }
 }
 

@@ -11,7 +11,6 @@ pub use self::real::LocalFS;
 pub use self::real::read_file_with_encoding;
 
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_utils::path::NormalizePath;
 use std::path::{Path, PathBuf};
 
 pub trait CachedFileSystem: Send + Sync + std::fmt::Debug + Default {
@@ -29,15 +28,6 @@ pub trait CachedFileSystem: Send + Sync + std::fmt::Debug + Default {
         atoms: &mut AtomIntern,
     ) -> FsResult<impl Iterator<Item = PathBuf>>;
 
-    // TODO: maybe use regexp?
-    fn glob(
-        &mut self,
-        base_dir: &Path,
-        includes: &[&str],
-        excludes: &[&str],
-        atoms: &mut AtomIntern,
-    ) -> Vec<PathBuf>;
-
     fn add_file(
         &mut self,
         p: &Path,
@@ -52,12 +42,37 @@ fn has_slash_suffix_and_not_root(p: &Path) -> bool {
     p.len() > 1 && p.last() == Some(&b'/')
 }
 
-pub fn match_files(
-    path: &std::path::Path,
-    exclude: Option<&[String]>,
-    include: Option<&[String]>,
+fn glob_visitor(
     fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomIntern,
+    result: &mut Vec<std::path::PathBuf>,
+    base_dir: &std::path::Path,
+    includes: &glob::Pattern,
+    excludes: &[glob::Pattern],
+    atoms: &mut AtomIntern,
 ) {
-    debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
+    let entires = fs.read_dir(base_dir, atoms).unwrap();
+    let matched = entires
+        .filter(|item| {
+            includes.matches_path(item) && excludes.iter().all(|p| !p.matches_path(item))
+        })
+        .collect::<Vec<_>>();
+    for item in matched {
+        if fs.dir_exists(&item, atoms) {
+            glob_visitor(fs, result, &item, includes, excludes, atoms);
+        } else {
+            result.push(item);
+        }
+    }
+}
+
+pub fn glob(
+    fs: &mut impl CachedFileSystem,
+    base_dir: &Path,
+    includes: &glob::Pattern,
+    excludes: &[glob::Pattern],
+    atoms: &mut AtomIntern,
+) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    glob_visitor(fs, &mut result, base_dir, includes, excludes, atoms);
+    result
 }

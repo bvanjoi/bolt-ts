@@ -333,9 +333,9 @@ impl<'cx> TyChecker<'cx> {
             return Ternary::TRUE;
         }
         let source_prop_access = self.decl_modifier_flags_from_symbol(source)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self.decl_modifier_flags_from_symbol(target)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
             return Ternary::FALSE;
@@ -743,20 +743,20 @@ impl<'cx> TyChecker<'cx> {
                     _ => (),
                 };
                 check_flags |= if !modifiers
-                    .intersects(ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                    .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                 {
                     CheckFlags::CONTAINS_PUBLIC
                 } else {
                     CheckFlags::empty()
-                } | if modifiers.intersects(ast::ModifierKind::Protected) {
+                } | if modifiers.contains(ast::ModifierFlags::PROTECTED) {
                     CheckFlags::CONTAINS_PROTECTED
                 } else {
                     CheckFlags::empty()
-                } | if modifiers.intersects(ast::ModifierKind::Private) {
+                } | if modifiers.contains(ast::ModifierFlags::PRIVATE) {
                     CheckFlags::CONTAINS_PRIVATE
                 } else {
                     CheckFlags::empty()
-                } | if modifiers.intersects(ast::ModifierKind::Static) {
+                } | if modifiers.contains(ast::ModifierFlags::STATIC) {
                     CheckFlags::CONTAINS_STATIC
                 } else {
                     CheckFlags::empty()

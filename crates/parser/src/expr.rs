@@ -8,10 +8,9 @@ use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
 
 use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
-use bolt_ts_ast::{self as ast, ModifierKind, keyword};
+use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
-use enumflags2::BitFlag;
 
 impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
@@ -78,17 +77,17 @@ impl<'cx> ParserState<'cx, '_> {
     ) {
         for param in params {
             if let Some(mods) = param.modifiers {
-                let mut flags = ModifierKind::empty();
+                let mut flags = ModifierFlags::empty();
 
                 for m in mods.list {
                     if CONTAINER_IS_CTOR_IMPL
-                        && ModifierKind::ACCESSIBILITY.contains(m.kind)
-                        && flags.intersects(ModifierKind::ACCESSIBILITY)
+                        && ModifierFlags::ACCESSIBILITY.contains(m.kind().into_flag())
+                        && flags.intersects(ModifierFlags::ACCESSIBILITY)
                     {
-                        let error = errors::AccessibilityModifierAlreadySeen { span: m.span };
+                        let error = errors::AccessibilityModifierAlreadySeen { span: m.span() };
                         self.push_error(Box::new(error));
                     }
-                    flags.insert(m.kind);
+                    flags.insert(m.kind().into_flag());
                 }
 
                 if !CONTAINER_IS_CTOR_IMPL {
@@ -122,7 +121,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
         let start = self.token.start();
         let modifier = self.parse_async_modifier();
-        debug_assert!(modifier.is_none_or(|m| m.kind == ast::ModifierKind::Async));
+        debug_assert!(modifier.is_none_or(|m| m.kind() == ast::ModifierKind::Async));
         let is_async = modifier.is_some();
         let signature_flags = if is_async {
             SignatureFlags::AWAIT
@@ -780,8 +779,8 @@ impl<'cx> ParserState<'cx, '_> {
         let invalid_modifiers = |this: &mut Self| {
             if let Some(ms) = &mods {
                 for m in ms.list {
-                    if m.kind != ModifierKind::Async {
-                        let error = errors::ModifierCannotBeUsedHere { span: m.span };
+                    if m.kind() != ModifierKind::Async {
+                        let error = errors::ModifierCannotBeUsedHere { span: m.span() };
                         this.push_error(Box::new(error));
                     }
                 }
@@ -1180,7 +1179,7 @@ impl<'cx> ParserState<'cx, '_> {
         let f = self.parse_fn_decl_or_expr(
             ParseFnExpr,
             modifier,
-            modifier.map(|m| m.kind.into()).unwrap_or_default(),
+            modifier.map(|m| m.kind().into_flag()).unwrap_or_default(),
         )?;
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Fn(f),

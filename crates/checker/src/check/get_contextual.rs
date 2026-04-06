@@ -720,7 +720,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn compare_ty_params_identical(
+    pub(super) fn compare_ty_params_identical(
         &mut self,
         source: Option<ty::Tys<'cx>>,
         target: Option<ty::Tys<'cx>>,

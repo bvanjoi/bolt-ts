@@ -12,7 +12,6 @@ use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
-
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 use super::utils::contains_ty;
@@ -316,8 +315,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let target_prop_flags = self
             .c
             .get_declaration_modifier_flags_from_symbol(target_prop, None);
-        if source_prop_flags.contains(ast::ModifierKind::Private)
-            || target_prop_flags.contains(ast::ModifierKind::Private)
+        if source_prop_flags.contains(ast::ModifierFlags::PRIVATE)
+            || target_prop_flags.contains(ast::ModifierFlags::PRIVATE)
         {
             if self.c.symbol(source_prop).value_decl != self.c.symbol(target_prop).value_decl {
                 if report_error {
@@ -325,9 +324,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
                 return Ternary::FALSE;
             }
-        } else if target_prop_flags.contains(ast::ModifierKind::Protected) {
+        } else if target_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
             // TODO:
-        } else if source_prop_flags.contains(ast::ModifierKind::Protected) {
+        } else if source_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
             if report_error {
                 // TODO:
             }
@@ -2321,26 +2320,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             .node_query(source_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 source_node_id,
-                ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
             );
         let target_accessibility = self
             .c
             .node_query(target_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 target_node_id,
-                ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
             );
-        if target_accessibility == ast::ModifierKind::Private {
+        if target_accessibility == ast::ModifierKind::Private.into_flag() {
             return true;
-        } else if target_accessibility == ast::ModifierKind::Protected
-            && source_accessibility != ast::ModifierKind::Private
+        } else if target_accessibility == ast::ModifierKind::Protected.into_flag()
+            && source_accessibility != ast::ModifierKind::Private.into_flag()
         {
             return true;
-        } else if target_accessibility == ast::ModifierKind::Public
-            && source_accessibility == ast::ModifierKind::Public
+        } else if target_accessibility == ast::ModifierKind::Public.into_flag()
+            && source_accessibility == ast::ModifierKind::Public.into_flag()
         {
             return true;
-        } else if target_accessibility != ast::ModifierKind::Protected
+        } else if target_accessibility != ast::ModifierKind::Protected.into_flag()
             && source_accessibility.is_empty()
         {
             return true;
@@ -2733,9 +2732,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let source_prop_access = self.c.decl_modifier_flags_from_symbol(source)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self.c.decl_modifier_flags_from_symbol(target)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
             return Ternary::FALSE;

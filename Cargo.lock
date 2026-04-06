@@ -130,7 +130,6 @@ dependencies = [
  "bolt_ts_ecma_logical",
  "bolt_ts_span",
  "bolt_ts_utils",
- "enumflags2",
  "nohash-hasher",
  "paste",
  "rustc-hash",
@@ -144,7 +143,6 @@ dependencies = [
  "bolt_ts_ast",
  "bolt_ts_atom",
  "bolt_ts_span",
- "enumflags2",
 ]
 
 [[package]]
@@ -179,7 +177,6 @@ dependencies = [
  "bolt_ts_parser",
  "bolt_ts_span",
  "bolt_ts_utils",
- "enumflags2",
  "nohash-hasher",
  "rayon",
  "rustc-hash",
@@ -206,7 +203,6 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_ty",
  "bolt_ts_utils",
- "enumflags2",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -245,8 +241,8 @@ dependencies = [
  "codspeed-divan-compat",
  "compile-test",
  "dir-test",
- "enumflags2",
  "expect-test",
+ "glob",
  "include_dir",
  "indexmap",
  "nohash-hasher",
@@ -258,7 +254,6 @@ dependencies = [
  "serde_json",
  "thin-vec",
  "tracing",
- "unicode-id-start",
 ]
 
 [[package]]
@@ -333,6 +328,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "vfs",
 ]
 
 [[package]]
@@ -446,7 +442,6 @@ dependencies = [
  "bolt_ts_ecma_logical",
  "bolt_ts_span",
  "bolt_ts_utils",
- "enumflags2",
  "nohash-hasher",
  "paste",
  "rustc-hash",
@@ -473,7 +468,6 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
- "enumflags2",
  "include_dir",
  "indexmap",
  "nohash-hasher",
@@ -905,26 +899,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
 
 [[package]]
-name = "enumflags2"
-version = "0.7.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1027f7680c853e056ebcec683615fb6fbbc07dbaa13b4d5d9442b146ded4ecef"
-dependencies = [
- "enumflags2_derive",
-]
-
-[[package]]
-name = "enumflags2_derive"
-version = "0.7.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67c78a4d8fdf9953a5c9d458f9efe940fd97a0cab0941c075a813ac594733827"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -948,6 +922,17 @@ checksum = "63af43ff4431e848fb47472a920f14fa71c24de13255a5692e93d4e90302acb0"
 dependencies = [
  "dissimilar",
  "once_cell",
+]
+
+[[package]]
+name = "filetime"
+version = "0.2.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f98844151eee8917efc50bd9e8318cb963ae8b297431495d3f758616ea5c57db"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "libredox",
 ]
 
 [[package]]
@@ -1087,9 +1072,9 @@ checksum = "40ecd4077b5ae9fd2e9e169b102c6c330d0605168eb0e8bf79952b256dbefffd"
 
 [[package]]
 name = "glob"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "hashbrown"
@@ -1334,6 +1319,18 @@ checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
 dependencies = [
  "cfg-if",
  "windows-link",
+]
+
+[[package]]
+name = "libredox"
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ddbf48fd451246b1f8c2610bd3b4ac0cc6e149d89832867093ab69a17194f08"
+dependencies = [
+ "bitflags 2.9.4",
+ "libc",
+ "plain",
+ "redox_syscall 0.7.3",
 ]
 
 [[package]]
@@ -1583,7 +1580,7 @@ checksum = "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.5.11",
  "smallvec",
  "windows-link",
 ]
@@ -1631,6 +1628,12 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "plain"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "potential_utf"
@@ -1747,6 +1750,15 @@ name = "redox_syscall"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2f103c6d277498fbceb16e84d317e2a400f160f46904d5f5410848c829511a3"
+dependencies = [
+ "bitflags 2.9.4",
+]
+
+[[package]]
+name = "redox_syscall"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce70a74e890531977d37e532c34d45e9055d2409ed08ddba14529471ed0be16"
 dependencies = [
  "bitflags 2.9.4",
 ]
@@ -2401,6 +2413,15 @@ name = "valuable"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
+
+[[package]]
+name = "vfs"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69d33cbe2ac48f2a446f04c33aef4906078ffd224888df5ae60b7ed401ded771"
+dependencies = [
+ "filetime",
+]
 
 [[package]]
 name = "walkdir"

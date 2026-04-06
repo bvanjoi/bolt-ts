@@ -1327,7 +1327,7 @@ impl<'cx> TyChecker<'cx> {
         s.get_merged_symbol(id, symbols)
     }
 
-    pub(super) fn locals(
+    fn locals(
         &self,
         module: bolt_ts_span::ModuleID,
     ) -> &FxHashMap<bolt_ts_ast::NodeID, SymbolTable> {
@@ -1335,6 +1335,17 @@ impl<'cx> TyChecker<'cx> {
         let res = &self.binder.bind_results;
         debug_assert!(idx < res.len());
         unsafe { &res.get_unchecked(idx).locals }
+    }
+
+    pub(crate) fn symbol_links(&self, symbol: SymbolID) -> Option<&SymbolLinks<'cx>> {
+        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            let index = symbol.index_as_usize();
+            debug_assert!(index < self.transient_symbol_links.len());
+            let links = unsafe { self.transient_symbol_links.get_unchecked(index) };
+            Some(links)
+        } else {
+            self.symbol_links.get(&symbol)
+        }
     }
 
     pub(super) fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {

@@ -50,10 +50,10 @@ impl<'cx> Nodes<'cx> {
 
     pub fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {
         // TODO: has_syntactic_modifier
-        param
-            .modifiers
-            .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
-            && self.get(parent).is_class_ctor()
+        param.modifiers.is_some_and(|mods| {
+            mods.flags
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+        }) && self.get(parent).is_class_ctor()
     }
 
     pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {

@@ -273,13 +273,22 @@ impl<'cx> Ty<'cx> {
         checker.atoms.get(name.expect_atom()).to_string()
     }
 
-    fn print_enum_lit_symbol(&'cx self, checker: &mut TyChecker<'cx>, symbol: SymbolID) -> String {
+    fn print_enum_lit_symbol(&'cx self, checker: &TyChecker<'cx>, symbol: SymbolID) -> String {
         let s = checker.binder.symbol(symbol);
+        let value_decl = s.value_decl.unwrap();
         let prop = checker.atoms.get(s.name.expect_atom());
         let p = s.parent.unwrap();
         let p = checker.binder.symbol(p);
         let object = checker.atoms.get(p.name.expect_atom());
-        format!("{object}.{prop}")
+        let enum_member = checker.p.node(value_decl).expect_enum_member();
+        match enum_member.name {
+            ast::EnumMemberNameKind::Ident(_) => {
+                format!("{object}.{prop}")
+            }
+            ast::EnumMemberNameKind::StringLit { .. } => {
+                format!("{object}[\"{prop}\"]")
+            }
+        }
     }
 
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {

@@ -128,7 +128,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_program(&mut self, root: &'cx ast::Program<'cx>) {
-        for stmt in root.stmts {
+        for stmt in root.stmts() {
             self.resolve_stmt(stmt);
         }
     }
@@ -1087,15 +1087,13 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 if f.name.is_some_and(|name| last_location_is_fn_name(name.id)) {
                     return false;
                 }
-                self
-                    .node_query()
+                self.node_query()
                     .get_immediately_invoked_fn_expr(location)
                     .is_none()
             }
             ast::Node::ArrowFnExpr(_) => {
                 // TODO: name
-                self
-                    .node_query()
+                self.node_query()
                     .get_immediately_invoked_fn_expr(location)
                     .is_none()
             }
@@ -1333,7 +1331,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 if let Some(location) = location
                     && !n
                         .modifiers
-                        .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Static))
+                        .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
                     && let parent_id = resolver.parent(location).unwrap()
                     && let parent = resolver.p.node(parent_id)
                     && let Some(ctor) = parent

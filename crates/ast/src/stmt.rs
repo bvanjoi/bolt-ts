@@ -307,7 +307,7 @@ pub struct EnumDecl<'cx> {
 impl<'cx> EnumDecl<'cx> {
     pub fn is_const(&self) -> bool {
         self.modifiers
-            .is_some_and(|ms| ms.flags.contains(ModifierKind::Const))
+            .is_some_and(|ms| ms.flags.contains(ModifierFlags::CONST))
     }
 }
 
@@ -317,8 +317,33 @@ pub type EnumMembers<'cx> = &'cx [&'cx EnumMember<'cx>];
 pub struct EnumMember<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub name: &'cx PropName<'cx>,
+    pub name: EnumMemberNameKind<'cx>,
     pub init: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum EnumMemberNameKind<'cx> {
+    Ident(&'cx Ident),
+    StringLit {
+        raw: &'cx StringLit,
+        key: bolt_ts_atom::Atom,
+    },
+}
+
+impl EnumMemberNameKind<'_> {
+    pub fn id(&self) -> NodeID {
+        match self {
+            EnumMemberNameKind::Ident(ident) => ident.id,
+            EnumMemberNameKind::StringLit { raw, .. } => raw.id,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            EnumMemberNameKind::Ident(ident) => ident.span,
+            EnumMemberNameKind::StringLit { raw, .. } => raw.span,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -533,7 +558,7 @@ impl<'cx> ClassElemKind<'cx> {
     }
     pub fn is_static(&self) -> bool {
         let ms = self.modifiers();
-        ms.is_some_and(|ms| ms.flags.contains(ModifierKind::Static))
+        ms.is_some_and(|ms| ms.flags.contains(ModifierFlags::STATIC))
     }
 
     pub fn id(&self) -> NodeID {
@@ -571,7 +596,7 @@ impl<'cx> ClassElemKind<'cx> {
             && prop.excl.is_none()
             && !prop
                 .modifiers
-                .is_some_and(|ms| ms.flags.contains(ModifierKind::Abstract))
+                .is_some_and(|ms| ms.flags.contains(ModifierFlags::ABSTRACT))
     }
 }
 
@@ -723,26 +748,92 @@ pub struct VarStmt<'cx> {
     pub list: VarDecls<'cx>,
 }
 
-#[enumflags2::bitflags]
-#[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ModifierKind {
-    Public = 1 << 0,
-    Private = 1 << 1,
-    Protected = 1 << 2,
-    Readonly = 1 << 3,
-    Override = 1 << 4,
-    Export = 1 << 5,
-    Abstract = 1 << 6,
-    Ambient = 1 << 7,
-    Static = 1 << 8,
-    Accessor = 1 << 9,
-    Async = 1 << 10,
-    Default = 1 << 11,
-    Const = 1 << 12,
-    In = 1 << 13,
-    Out = 1 << 14,
-    Decorator = 1 << 15,
+    Public,
+    Private,
+    Protected,
+    Readonly,
+    Override,
+    Export,
+    Abstract,
+    Ambient,
+    Static,
+    Accessor,
+    Async,
+    Default,
+    Const,
+    In,
+    Out,
+    Decorator,
+}
+
+impl ModifierKind {
+    pub const fn into_flag(self) -> ModifierFlags {
+        match self {
+            ModifierKind::Public => ModifierFlags::PUBLIC,
+            ModifierKind::Private => ModifierFlags::PRIVATE,
+            ModifierKind::Protected => ModifierFlags::PROTECTED,
+            ModifierKind::Readonly => ModifierFlags::READONLY,
+            ModifierKind::Override => ModifierFlags::OVERRIDE,
+            ModifierKind::Export => ModifierFlags::EXPORT,
+            ModifierKind::Abstract => ModifierFlags::ABSTRACT,
+            ModifierKind::Ambient => ModifierFlags::AMBIENT,
+            ModifierKind::Static => ModifierFlags::STATIC,
+            ModifierKind::Accessor => ModifierFlags::ACCESSOR,
+            ModifierKind::Async => ModifierFlags::ASYNC,
+            ModifierKind::Default => ModifierFlags::DEFAULT,
+            ModifierKind::Const => ModifierFlags::CONST,
+            ModifierKind::In => ModifierFlags::IN,
+            ModifierKind::Out => ModifierFlags::OUT,
+            ModifierKind::Decorator => ModifierFlags::DECORATOR,
+        }
+    }
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct ModifierFlags: u32 {
+        const PUBLIC        = 1 << 0;
+        const PRIVATE       = 1 << 1;
+        const PROTECTED     = 1 << 2;
+        const READONLY      = 1 << 3;
+        const OVERRIDE      = 1 << 4;
+        const EXPORT        = 1 << 5;
+        const ABSTRACT      = 1 << 6;
+        const AMBIENT       = 1 << 7;
+        const STATIC        = 1 << 8;
+        const ACCESSOR      = 1 << 9;
+        const ASYNC         = 1 << 10;
+        const DEFAULT       = 1 << 11;
+        const CONST         = 1 << 12;
+        const IN            = 1 << 13;
+        const OUT           = 1 << 14;
+        const DECORATOR     = 1 << 15;
+
+        const SYNTACTIC_OR_JS_MODIFIERS = ModifierFlags::PUBLIC.bits()
+            | ModifierFlags::PRIVATE.bits()
+            | ModifierFlags::PROTECTED.bits()
+            | ModifierFlags::READONLY.bits()
+            | ModifierFlags::OVERRIDE.bits();
+
+        const SYNTACTIC_ONLY_MODIFIERS = ModifierFlags::EXPORT.bits()
+            | ModifierFlags::AMBIENT.bits()
+            | ModifierFlags::ABSTRACT.bits()
+            | ModifierFlags::STATIC.bits()
+            | ModifierFlags::ACCESSOR.bits()
+            | ModifierFlags::ASYNC.bits()
+            | ModifierFlags::DEFAULT.bits()
+            | ModifierFlags::CONST.bits()
+            | ModifierFlags::IN.bits()
+            | ModifierFlags::OUT.bits()
+            | ModifierFlags::DECORATOR.bits();
+
+        const ACCESSIBILITY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits();
+        const PARAMETER_PROPERTY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits() | Self::READONLY.bits() | Self::OVERRIDE.bits();
+        const NON_PUBLIC_ACCESSIBILITY_MODIFIER = Self::PRIVATE.bits() | Self::PROTECTED.bits();
+        const SYNTACTIC_MODIFIER = Self::SYNTACTIC_OR_JS_MODIFIERS.bits() | Self::SYNTACTIC_ONLY_MODIFIERS.bits();
+    }
 }
 
 impl std::fmt::Display for ModifierKind {
@@ -770,44 +861,50 @@ impl std::fmt::Display for ModifierKind {
 }
 
 impl ModifierKind {
-    pub const SYNTACTIC_OR_JS_MODIFIERS: enumflags2::BitFlags<ModifierKind> = enumflags2::make_bitflags!(ModifierKind::{Public | Private | Protected | Readonly | Override});
-    pub const SYNTACTIC_ONLY_MODIFIERS: enumflags2::BitFlags<ModifierKind> = enumflags2::make_bitflags!(ModifierKind::{Export | Ambient | Abstract | Static | Accessor | Async | Default | Const | In | Out | Decorator});
-    // pub const SYNTACTIC_MODIFIER: enumflags2::BitFlags<ModifierKind> =
+    // pub const SYNTACTIC_MODIFIER: ModifierFlags =
     //     enumflags2::BitFlags::<ModifierKind>::from_bits_truncate_c(
     //         Self::SYNTACTIC_OR_JS_MODIFIERS.bits() | Self::SYNTACTIC_ONLY_MODIFIERS.bits(),
     //         enumflags2::BitFlags::CONST_TOKEN,
     //     );
-
-    pub const ACCESSIBILITY: enumflags2::BitFlags<ModifierKind> =
-        enumflags2::make_bitflags!(ModifierKind::{Public | Private | Protected});
-    pub const PARAMETER_PROPERTY: enumflags2::BitFlags<ModifierKind> =
-        enumflags2::make_bitflags!(Self::{Public | Private | Protected | Readonly | Override});
-    pub const NON_PUBLIC_ACCESSIBILITY_MODIFIER: enumflags2::BitFlags<ModifierKind> =
-        enumflags2::make_bitflags!(ModifierKind::{Private | Protected});
-
-    fn syntactic_modifier() -> enumflags2::BitFlags<ModifierKind> {
-        Self::SYNTACTIC_ONLY_MODIFIERS | Self::SYNTACTIC_OR_JS_MODIFIERS
-    }
-
-    pub fn get_syntactic_modifier_flags(
-        flags: enumflags2::BitFlags<ModifierKind>,
-    ) -> enumflags2::BitFlags<ModifierKind> {
-        flags & Self::syntactic_modifier()
+    pub fn get_syntactic_modifier_flags(flags: ModifierFlags) -> ModifierFlags {
+        flags & ModifierFlags::SYNTACTIC_MODIFIER
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Modifiers<'cx> {
     pub span: Span,
-    pub flags: enumflags2::BitFlags<ModifierKind>,
+    pub flags: ModifierFlags,
     pub list: &'cx [&'cx Modifier],
 }
 
 #[derive(Debug, Clone)]
 pub struct Modifier {
-    pub id: NodeID,
-    pub span: Span,
-    pub kind: ModifierKind,
+    pub(super) id: NodeID,
+    pub(super) span: Span,
+    pub(super) kind: ModifierKind,
+}
+
+impl Modifier {
+    #[inline(always)]
+    pub fn new(id: NodeID, span: Span, kind: ModifierKind) -> Self {
+        Self { id, span, kind }
+    }
+
+    #[inline(always)]
+    pub fn id(&self) -> NodeID {
+        self.id
+    }
+
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    #[inline(always)]
+    pub fn kind(&self) -> ModifierKind {
+        self.kind
+    }
 }
 
 #[derive(Debug, Clone)]

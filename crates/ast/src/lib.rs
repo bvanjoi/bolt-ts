@@ -22,9 +22,28 @@ use bolt_ts_span::Span;
 
 #[derive(Debug, Clone)]
 pub struct Program<'cx> {
-    pub id: NodeID,
-    pub span: Span,
-    pub stmts: Stmts<'cx>,
+    id: NodeID,
+    span: Span,
+    stmts: Stmts<'cx>,
+}
+
+impl<'cx> Program<'cx> {
+    #[inline(always)]
+    pub fn new(id: NodeID, span: Span, stmts: Stmts<'cx>) -> Self {
+        Self { id, span, stmts }
+    }
+    #[inline(always)]
+    pub fn id(&self) -> NodeID {
+        self.id
+    }
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    #[inline(always)]
+    pub fn stmts(&self) -> Stmts<'cx> {
+        self.stmts
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

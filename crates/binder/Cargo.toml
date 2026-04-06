@@ -16,5 +16,4 @@ rustc-hash = { workspace = true }
 rayon = { workspace = true }
 bitflags = { workspace = true }
 nohash-hasher = { workspace = true }
-enumflags2 = { workspace = true }
 thin-vec = { workspace = true }

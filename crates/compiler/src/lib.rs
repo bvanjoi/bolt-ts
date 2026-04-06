@@ -2,6 +2,7 @@ mod cli;
 mod compiler_result;
 mod diag;
 mod emit_declaration;
+mod match_files;
 mod r#trait;
 mod wf;
 
@@ -10,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use self::cli::get_filenames;
 pub use self::compiler_result::{CompilerResult, OutputFile};
-use self::emit_declaration::emit_declaration_parallel;
+use self::emit_declaration::emit_declarations;
 use self::wf::well_formed_check_parallel;
 
 use bolt_ts_atom::AtomIntern;
@@ -464,7 +465,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     let mut files = vec![];
     if !compiler_options.contains(CompilerOptionFlags::NO_EMIT) {
         let dts_output = if compiler_options.contains(CompilerOptionFlags::DECLARATION) {
-            emit_declaration_parallel(&entries, &checker)
+            emit_declarations(&entries, &mut checker)
         } else {
             entries
                 .iter()

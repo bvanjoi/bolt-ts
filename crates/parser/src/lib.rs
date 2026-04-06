@@ -360,7 +360,7 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
                 if n.is_ambient()
                     && (self.in_ambient_module
                         || n.modifiers
-                            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
                         || self.is_declaration)
                 {
                     let name = match n.name {

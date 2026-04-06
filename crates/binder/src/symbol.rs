@@ -159,52 +159,52 @@ bitflags::bitflags! {
 impl SymbolFlags {
     pub const fn get_excluded(&self) -> Self {
         let mut result = SymbolFlags::empty();
-        if self.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+        if self.contains(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
             result = result.union(SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+        if self.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
             result = result.union(SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::PROPERTY) {
+        if self.contains(SymbolFlags::PROPERTY) {
             result = result.union(SymbolFlags::PROPERTY_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::ENUM_MEMBER) {
+        if self.contains(SymbolFlags::ENUM_MEMBER) {
             result = result.union(SymbolFlags::ENUM_MEMBER_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::FUNCTION) {
+        if self.contains(SymbolFlags::FUNCTION) {
             result = result.union(SymbolFlags::FUNCTION_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::CLASS) {
+        if self.contains(SymbolFlags::CLASS) {
             result = result.union(SymbolFlags::CLASS_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::INTERFACE) {
+        if self.contains(SymbolFlags::INTERFACE) {
             result = result.union(SymbolFlags::INTERFACE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::REGULAR_ENUM) {
+        if self.contains(SymbolFlags::REGULAR_ENUM) {
             result = result.union(SymbolFlags::REGULAR_ENUM_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::CONST_ENUM) {
+        if self.contains(SymbolFlags::CONST_ENUM) {
             result = result.union(SymbolFlags::CONST_ENUM_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::VALUE_MODULE) {
+        if self.contains(SymbolFlags::VALUE_MODULE) {
             result = result.union(SymbolFlags::VALUE_MODULE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::METHOD) {
+        if self.contains(SymbolFlags::METHOD) {
             result = result.union(SymbolFlags::METHOD_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::GET_ACCESSOR) {
+        if self.contains(SymbolFlags::GET_ACCESSOR) {
             result = result.union(SymbolFlags::GET_ACCESSOR_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::SET_ACCESSOR) {
+        if self.contains(SymbolFlags::SET_ACCESSOR) {
             result = result.union(SymbolFlags::SET_ACCESSOR_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::TYPE_PARAMETER) {
+        if self.contains(SymbolFlags::TYPE_PARAMETER) {
             result = result.union(SymbolFlags::TYPE_PARAMETER_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::TYPE_ALIAS) {
+        if self.contains(SymbolFlags::TYPE_ALIAS) {
             result = result.union(SymbolFlags::TYPE_ALIAS_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::ALIAS) {
+        if self.contains(SymbolFlags::ALIAS) {
             result = result.union(SymbolFlags::ALIAS_EXCLUDES);
         };
         result

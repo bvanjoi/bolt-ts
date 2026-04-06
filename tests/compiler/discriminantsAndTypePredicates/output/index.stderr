@@ -12,8 +12,8 @@
 
   × This expression is not callable.
     ╭─[../../tests/compiler/discriminantsAndTypePredicates/index.ts:24:5]
- 24 │ x()
-    · ───
+ 24 │ x
+    · ─
     ╰────
 
   × Type 'A | B' is not assignable to type 'string'.
@@ -30,6 +30,6 @@
 
   × This expression is not callable.
     ╭─[../../tests/compiler/discriminantsAndTypePredicates/index.ts:43:5]
- 43 │ x()
-    · ───
+ 43 │ x
+    · ─
     ╰────

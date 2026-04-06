@@ -127,9 +127,9 @@ impl<'cx> Sig<'cx> {
     }
 }
 
-pub type Sigs<'cx> = &'cx [&'cx Sig<'cx>];
+pub type Sigs<'cx> = &'cx [&'cx self::Sig<'cx>];
 
-impl PartialEq for Sig<'_> {
+impl PartialEq for self::Sig<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }

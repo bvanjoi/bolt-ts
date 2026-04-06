@@ -1,6 +1,6 @@
 use super::errors;
 use super::symbol::SymbolFlags;
-use super::{BinderState, SymbolID, SymbolName, prop_name};
+use super::{BinderState, SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -9,7 +9,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
     pub(super) fn bind_prop_or_method_or_access<const BIND_FLOW_NODE: bool>(
         &mut self,
         decl_id: ast::NodeID,
-        name: &'cx ast::PropName<'cx>,
+        name: impl FnOnce() -> SymbolName,
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
@@ -19,7 +19,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         if self.node_query().has_dynamic_name(decl_id) {
             self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
         } else {
-            let name = prop_name(name);
+            let name = name();
             self.declare_symbol_and_add_to_symbol_table(name, decl_id, includes, excludes)
         }
     }

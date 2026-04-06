@@ -293,7 +293,7 @@ pub fn merge_global_symbol<'cx>(
 
         if !p.is_external_or_commonjs_module() {
             let target = SymbolTableLocation::Global;
-            let container = parser.get(m.id()).root().id;
+            let container = parser.get(m.id()).root().id();
             let source = SymbolTableLocation::Locals { container };
             c.merge_symbol_table(target, source, false);
         }

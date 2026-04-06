@@ -210,7 +210,7 @@ impl<'cx> ParserState<'cx, '_> {
             let m = self.parse_modifier::<false, false>(false).unwrap();
             let span = self.new_span(pos);
             let modifiers = self.alloc([m]);
-            let flags = ast::ModifierKind::Abstract.into();
+            let flags = ast::ModifierFlags::ABSTRACT;
             Some(self.create_modifiers(span, modifiers, flags))
         } else {
             None
@@ -1020,10 +1020,10 @@ impl<'cx> ParserState<'cx, '_> {
         } else if self.is_index_sig() {
             if let Some(ms) = modifiers {
                 for m in ms.list {
-                    if !matches!(m.kind, ast::ModifierKind::Readonly) {
+                    if !matches!(m.kind(), ast::ModifierKind::Readonly) {
                         self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
-                            span: m.span,
-                            kind: m.kind,
+                            span: m.span(),
+                            kind: m.kind(),
                         }));
                     }
                 }

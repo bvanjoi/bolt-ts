@@ -106,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         flags.contains(SymbolFlags::PROPERTY)
             && self
                 .decl_modifier_flags_from_symbol(symbol)
-                .contains(ast::ModifierKind::Readonly)
+                .contains(ast::ModifierFlags::READONLY)
             || flags.contains(SymbolFlags::ENUM_MEMBER)
     }
 

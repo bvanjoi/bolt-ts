@@ -394,40 +394,31 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             todo!("error handler")
         };
-
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::EnumDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            name,
-            members,
-        });
-        self.set_external_module_indicator(id);
-        self.nodes.insert(id, ast::Node::EnumDecl(decl));
+        let span = self.new_span(start);
+        let decl = self.create_enum_decl(span, modifiers, name, members);
         Ok(decl)
     }
 
     fn parse_enum_member(&mut self) -> PResult<&'cx ast::EnumMember<'cx>> {
         let start = self.token.start();
         let name = self.parse_prop_name::<false>();
-        if matches!(
-            name.kind,
-            ast::PropNameKind::BigIntLit(_) | ast::PropNameKind::NumLit(_)
-        ) {
-            let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
-            self.push_error(Box::new(error));
-        }
+        let name = match name.kind {
+            ast::PropNameKind::Ident(ident) => ast::EnumMemberNameKind::Ident(ident),
+            ast::PropNameKind::StringLit { raw, key } => {
+                ast::EnumMemberNameKind::StringLit { raw, key }
+            }
+            ast::PropNameKind::BigIntLit(_) | ast::PropNameKind::NumLit(_) => {
+                let error = errors::AnEnumMemberCannotHaveANumericName { span: name.span() };
+                self.push_error(Box::new(error));
+                ast::EnumMemberNameKind::Ident(
+                    self.create_ident_by_atom(keyword::IDENT_EMPTY, name.span()),
+                )
+            }
+            _ => todo!(),
+        };
         let init = self.parse_init()?;
-        let id = self.next_node_id();
-        let member = self.alloc(ast::EnumMember {
-            id,
-            span: self.new_span(start),
-            name,
-            init,
-        });
-        self.nodes.insert(id, ast::Node::EnumMember(member));
-        Ok(member)
+        let span = self.new_span(start);
+        Ok(self.create_enum_member(span, name, init))
     }
 
     fn parse_throw_stmt(&mut self) -> PResult<&'cx ast::ThrowStmt<'cx>> {
@@ -467,7 +458,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
-                if mods.is_none_or(|mods| !mods.flags.contains(ast::ModifierKind::Ambient)) {
+                if mods.is_none_or(|mods| !mods.flags.contains(ast::ModifierFlags::AMBIENT)) {
                     let error = errors::OnlyAmbientModulesCanUseQuotedNames {
                         span: self.token.span,
                     };
@@ -611,7 +602,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn contain_declare_mod(mods: &ast::Modifiers<'cx>) -> bool {
-        mods.flags.contains(ast::ModifierKind::Ambient)
+        mods.flags.contains(ast::ModifierFlags::AMBIENT)
     }
 
     fn _parse_decl(
@@ -905,8 +896,8 @@ impl<'cx> ParserState<'cx, '_> {
         let mods = self.parse_modifiers::<false, false>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if mods.is_some_and(|ms| {
-            ms.flags.contains(ast::ModifierKind::Export)
-                && ms.flags.contains(ast::ModifierKind::Default)
+            ms.flags
+                .contains(ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::DEFAULT))
         }) {
             self.check_export_default_error(self.token.span);
         }
@@ -1063,7 +1054,7 @@ impl<'cx> ParserState<'cx, '_> {
         mods: Option<&'cx ast::Modifiers<'cx>>,
         node: ast::NodeID,
     ) {
-        if mods.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Export)) {
+        if mods.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT)) {
             self.set_external_module_indicator(node);
         }
     }

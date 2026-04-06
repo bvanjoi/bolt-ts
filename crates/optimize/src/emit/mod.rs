@@ -18,11 +18,12 @@ bolt_ts_utils::index! {
 }
 
 pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult) -> String {
-    let emitter = Emitter::new(atoms);
+    let emitter = Emitter::new();
     let scope = ScopeID::root();
     let max_scope = ScopeID::root().next();
     let mut js_emitter = JSEmitter {
         emitter,
+        atoms,
         ns_names: FxHashSet::default(),
         scope,
         max_scope,
@@ -33,24 +34,17 @@ pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult) -> String {
     js_emitter.emit_root(ir.entry_graph)
 }
 
-pub struct Emitter<'cx> {
-    atoms: &'cx AtomIntern,
+pub struct Emitter {
     options: EmitterOptions,
     content: PPrint,
 }
 
-impl<'cx> Emitter<'cx> {
-    pub fn new(atoms: &'cx AtomIntern) -> Self {
+impl Emitter {
+    pub fn new() -> Self {
         Self {
-            atoms,
             options: EmitterOptions { indent: 2 },
             content: PPrint::new(1024),
         }
-    }
-
-    #[inline]
-    pub fn atom(&self, atom: Atom) -> &'static str {
-        self.atoms.get(atom)
     }
 
     #[inline]
@@ -59,8 +53,8 @@ impl<'cx> Emitter<'cx> {
     }
 
     #[inline]
-    pub fn emit_atom(&mut self, atom: Atom) {
-        let name = self.atom(atom);
+    pub fn emit_atom(&mut self, atoms: &AtomIntern, atom: Atom) {
+        let name = atoms.get(atom);
         self.print().p(name);
     }
 
@@ -76,7 +70,8 @@ impl<'cx> Emitter<'cx> {
 }
 
 struct JSEmitter<'cx, 'ir> {
-    emitter: Emitter<'cx>,
+    emitter: Emitter,
+    atoms: &'cx AtomIntern,
     ns_names: FxHashSet<(ScopeID, bolt_ts_atom::Atom)>,
     scope: ScopeID,
     max_scope: ScopeID,
@@ -163,7 +158,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let var = self.nodes.get_var_stmt(&var);
         if var
             .modifiers()
-            .is_some_and(|ms| ms.flags().contains(ast::ModifierKind::Ambient))
+            .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
         {
             return;
         }
@@ -198,13 +193,13 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_ident(&mut self, ident: ir::IdentID) {
         let ident = self.nodes.get_ident(&ident);
-        let content = self.emitter.atoms.get(ident.name());
+        let content = self.atoms.get(ident.name());
         self.emitter.print().p(content);
     }
 
     fn emit_private_ident(&mut self, ident: ir::PrivateIdentID) {
         let ident = self.nodes.get_private_ident(&ident);
-        let content = self.emitter.atoms.get(ident.name());
+        let content = self.atoms.get(ident.name());
         self.emitter.print().p("#");
         self.emitter.print().p(content);
     }
@@ -219,7 +214,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let val = s.val();
         if s.is_template() {
             self.emitter.print().p("`");
-            let content = self.emitter.atoms.get(val);
+            let content = self.atoms.get(val);
             self.emitter.print().p(content);
             self.emitter.print().p("`");
         } else {
@@ -228,7 +223,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
     }
 
     fn emit_as_string(&mut self, val: Atom) {
-        let s = self.emitter.atoms.get(val);
+        let s = self.atoms.get(val);
         self.emitter.print().p("'");
         for c in s.chars() {
             match c {
@@ -255,7 +250,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
             }
             ir::PropName::BigIntLit(id) => {
                 let lit = self.nodes.get_bigint_lit(&id);
-                let content = self.emitter.atoms.get(lit.val().1);
+                let content = self.atoms.get(lit.val().1);
                 self.emitter.print().p(content);
             }
         }
@@ -341,15 +336,15 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_fn_decl(&mut self, f: ir::FnDeclID) {
         let f = self.nodes.get_fn_decl(&f);
         if let Some(ms) = f.modifiers() {
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierKind::Export) {
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::EXPORT) {
                 self.emitter.print().p("export");
                 self.emitter.print().p_whitespace();
             }
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierKind::Default) {
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::DEFAULT) {
                 self.emitter.print().p("default");
                 self.emitter.print().p_whitespace();
             }
-            if ms.flags().contains(ast::ModifierKind::Async) {
+            if ms.flags().contains(ast::ModifierFlags::ASYNC) {
                 self.emitter.print().p("async");
                 self.emitter.print().p_whitespace();
             }
@@ -463,7 +458,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_getter_decl(&mut self, elem: ir::GetterDeclID) {
         let elem = self.nodes.get_getter_decl(&elem);
         if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierKind::Static)
+            && mods.flags().contains(ast::ModifierFlags::STATIC)
         {
             self.emitter.print().p("static");
             self.emitter.print().p_whitespace();
@@ -479,7 +474,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_setter_decl(&mut self, elem: ir::SetterDeclID) {
         let elem = self.nodes.get_setter_decl(&elem);
         if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierKind::Static)
+            && mods.flags().contains(ast::ModifierFlags::STATIC)
         {
             self.emitter.print().p("static");
             self.emitter.print().p_whitespace();
@@ -510,7 +505,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 param.dotdotdot().is_none()
                     && param
                         .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierKind::Public))
+                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
             });
 
         if has_block_stmt {
@@ -551,7 +546,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 if param.dotdotdot().is_none()
                     && param
                         .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierKind::Public))
+                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
                 {
                     this.emitter.content.p_newline();
 
@@ -569,7 +564,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 if param.dotdotdot().is_none()
                     && param
                         .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierKind::Public))
+                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
                 {
                     this.emitter.content.p_newline();
                 }
@@ -604,10 +599,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_class_prop_elem(&mut self, elem: ir::ClassPropElemID) {
         let elem = self.nodes.get_class_prop_elem(&elem);
         if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierKind::Abstract) {
+            if mods.flags().contains(ast::ModifierFlags::ABSTRACT) {
                 return;
             }
-            if mods.flags().contains(ast::ModifierKind::Static) {
+            if mods.flags().contains(ast::ModifierFlags::STATIC) {
                 self.emitter.print().p("static");
                 self.emitter.print().p_whitespace();
             }
@@ -624,7 +619,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_class_method_elem(&mut self, elem: ir::ClassMethodElemID) {
         let elem = self.nodes.get_class_method_elem(&elem);
         if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierKind::Static)
+            && mods.flags().contains(ast::ModifierFlags::STATIC)
         {
             self.emitter.print().p("static");
             self.emitter.print().p_whitespace();
@@ -733,7 +728,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let ns = self.nodes.get_module_decl(&decl);
         if ns
             .modifiers()
-            .map(|ms| ms.flags().contains(ast::ModifierKind::Ambient))
+            .map(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
             .unwrap_or_default()
         {
             return;
@@ -801,7 +796,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 _ => None,
             })
             .flatten()
-            .map(|name| self.emitter.atoms.get(name))
+            .map(|name| self.atoms.get(name))
             .collect::<Vec<_>>();
         sub_names.sort();
 
@@ -809,8 +804,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
             ir::ModuleName::Ident(ident) => ident,
             ir::ModuleName::StringLit(_) => return,
         };
-        let mut param_name =
-            Cow::Borrowed(self.emitter.atoms.get(self.nodes.get_ident(&ident).name()));
+        let mut param_name = Cow::Borrowed(self.atoms.get(self.nodes.get_ident(&ident).name()));
         if let Some(i) = sub_names.iter().position(|sub| *sub == param_name) {
             let mut offset = 1;
             let mut n = format!("{param_name}_{offset}");
@@ -834,7 +828,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                     ir::Stmt::Var(v) => {
                         let v = this.nodes.get_var_stmt(v);
                         if v.modifiers()
-                            .map(|ms| ms.flags().contains(ast::ModifierKind::Export))
+                            .map(|ms| ms.flags().contains(ast::ModifierFlags::EXPORT))
                             .unwrap_or_default()
                         {
                             for item in v.decls() {
@@ -877,7 +871,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 let Some((ms, name)) = t else {
                     continue;
                 };
-                if ms.flags().contains(ast::ModifierKind::Export) {
+                if ms.flags().contains(ast::ModifierFlags::EXPORT) {
                     this.emitter.content.p(&param_name);
                     this.emitter.content.p_dot();
                     this.emit_ident(name);
@@ -895,16 +889,14 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_enum_decl(&mut self, e: ir::EnumDeclID) {
         let e = self.nodes.get_enum_decl(&e);
         if e.modifiers()
-            .map(|ms| ms.flags().contains(ast::ModifierKind::Ambient))
+            .map(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
             .unwrap_or_default()
         {
             return;
         }
         self.emit_with_var_fn_wrapper(
             e.name(),
-            self.emitter
-                .atoms
-                .get(self.nodes.get_ident(&e.name()).name()),
+            self.atoms.get(self.nodes.get_ident(&e.name()).name()),
             |this| {
                 for member in e.members() {
                     this.emitter.content.p_newline();
@@ -1401,14 +1393,14 @@ impl<'ir> JSEmitter<'_, 'ir> {
         if n.val().0 {
             self.emitter.print().p("-");
         }
-        let content = self.emitter.atoms.get(n.val().1);
+        let content = self.atoms.get(n.val().1);
         self.emitter.print().p(content);
         self.emitter.print().p("n");
     }
 
     fn emit_regexp_lit(&mut self, n: ir::RegExpLitID) {
         let n = self.nodes.get_regexp_lit(&n);
-        let content = self.emitter.atoms.get(n.val());
+        let content = self.atoms.get(n.val());
         self.emitter.print().p(content);
     }
 
@@ -1514,14 +1506,14 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let n = self.nodes.get_template_expr(&n);
         self.emitter.print().p("`");
         let head = self.nodes.get_template_head(&n.head());
-        let content = self.emitter.atoms.get(head.text());
+        let content = self.atoms.get(head.text());
         self.emitter.print().p(content);
         for span in n.spans() {
             self.emitter.print().p("${");
             let span = self.nodes.get_template_span(span);
             self.emit_expr(span.expr());
             self.emitter.print().p("}");
-            let content = self.emitter.atoms.get(span.text());
+            let content = self.atoms.get(span.text());
             self.emitter.print().p(content);
         }
         self.emitter.print().p("`");
@@ -1691,7 +1683,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         match child {
             ir::JsxChild::Text(n) => {
                 let n = self.nodes.get_jsx_text(&n);
-                let content = self.emitter.atoms.get(n.text());
+                let content = self.atoms.get(n.text());
                 self.emitter.print().p(content);
             }
             ir::JsxChild::Expr(n) => self.emit_jsx_expr(n),

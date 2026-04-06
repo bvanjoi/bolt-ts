@@ -673,7 +673,7 @@ impl<'cx> TyChecker<'cx> {
         let is_abstract = decl.is_some_and(|decl| {
             self.p
                 .node(decl)
-                .has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+                .has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
         });
         if base_sigs.is_empty() {
             let sig = self.new_sig(ty::Sig {
@@ -1105,14 +1105,212 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id).override_structured_members(m);
     }
 
+    fn find_matching_sig<
+        const PARTIAL_MATCH: bool,
+        const IGNORE_THIS_TYS: bool,
+        const IGNORE_RETURN_TYS: bool,
+    >(
+        &mut self,
+        sigs: &[&'cx ty::Sig<'cx>],
+        sig: &'cx ty::Sig<'cx>,
+    ) -> Option<&'cx ty::Sig<'cx>> {
+        for s in sigs {
+            if self.compare_sigs_identical(
+                s,
+                sig,
+                PARTIAL_MATCH,
+                IGNORE_THIS_TYS,
+                IGNORE_RETURN_TYS,
+                |this, source, target| {
+                    if PARTIAL_MATCH {
+                        // compare_type_subtype_of
+                        if this.is_type_related_to(
+                            source,
+                            target,
+                            super::relation::RelationKind::Subtype,
+                        ) {
+                            Ternary::TRUE
+                        } else {
+                            Ternary::FALSE
+                        }
+                    } else {
+                        // compare_type_identical
+                        if this.is_type_related_to(
+                            source,
+                            target,
+                            super::relation::RelationKind::Identity,
+                        ) {
+                            Ternary::TRUE
+                        } else {
+                            Ternary::FALSE
+                        }
+                    }
+                },
+            ) != Ternary::FALSE
+            {
+                return Some(*s);
+            }
+        }
+        None
+    }
+
+    fn find_matching_sigs(
+        &mut self,
+        sigs_list: &[&[&'cx ty::Sig<'cx>]],
+        sig: &'cx ty::Sig<'cx>,
+        list_index: usize,
+    ) -> Option<ty::Sigs<'cx>> {
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            if list_index > 0 {
+                return None;
+            }
+            for i in 1..sigs_list.len() {
+                if self
+                    .find_matching_sig::<false, false, false>(sigs_list[i], sig)
+                    .is_none()
+                {
+                    return None;
+                }
+            }
+            return Some(self.alloc([sig]));
+        }
+        let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
+        for i in 1..sigs_list.len() {
+            let matched = if i == list_index {
+                Some(sig)
+            } else {
+                self.find_matching_sig::<false, false, true>(sigs_list[i], sig)
+                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))
+            };
+            let Some(matched) = matched else { return None };
+            match &mut result {
+                Some(result) => result.push(matched),
+                None => result = Some(vec![matched]),
+            }
+        }
+        let result = result?;
+        Some(self.alloc(result))
+    }
+
+    fn get_union_sigs(&mut self, sigs_list: &[&[&'cx ty::Sig<'cx>]]) -> ty::Sigs<'cx> {
+        let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
+        let mut index_with_length_over_one = None;
+        for i in 0..sigs_list.len() {
+            if sigs_list[i].is_empty() {
+                return self.empty_array();
+            } else if sigs_list[i].len() > 1 {
+                index_with_length_over_one = if index_with_length_over_one.is_none() {
+                    Some(i)
+                } else {
+                    Some(usize::MAX)
+                };
+            }
+            for sig in sigs_list[i] {
+                if result.as_ref().is_none_or(|result| {
+                    self.find_matching_sig::<false, false, true>(&result, sig)
+                        .is_none()
+                }) && let Some(union_sigs) = self.find_matching_sigs(sigs_list, sig, i)
+                {
+                    let s = sig;
+                    if union_sigs.len() > 1 {
+                        todo!("move sig.this_param to sig_links.get_this_params");
+                        // let this_params = sig.this_param;
+                        // if let Some(first_this_param_of_union_sigs) =
+                        //     union_sigs.iter().find_map(|s| s.this_param)
+                        // {}
+                    }
+                    match &mut result {
+                        Some(result) => result.push(s),
+                        None => result = Some(vec![s]),
+                    }
+                }
+            }
+        }
+
+        if index_with_length_over_one != Some(usize::MAX)
+            && result.as_ref().is_none_or(|result| result.is_empty())
+        {
+            let master_list = match index_with_length_over_one {
+                Some(index) => sigs_list.get(index),
+                None => sigs_list.first(),
+            };
+
+            let mut results = master_list;
+            for sigs in sigs_list {
+                let sig = sigs[0];
+                results = if let Some(source_ty_params) = self.get_sig_links(sig.id).get_ty_params()
+                    && let Some(results) = results
+                    && results.iter().any(|s| {
+                        let Some(target_ty_params) = self.get_sig_links(s.id).get_ty_params()
+                        else {
+                            return false;
+                        };
+                        !self.compare_ty_params_identical(
+                            Some(source_ty_params),
+                            Some(target_ty_params),
+                        )
+                    }) {
+                    None
+                } else if let Some(results) = results {
+                    todo!();
+                    // let sigs = results
+                    //     .iter()
+                    //     .map(|s| self.combine_sigs_of_union_members(s, sig))
+                    //     .collect::<Vec<_>>();
+                    // Some(sigs)
+                } else {
+                    None
+                };
+
+                if results.is_none() {
+                    break;
+                }
+            }
+        }
+
+        let Some(result) = result else {
+            return self.empty_array();
+        };
+        self.alloc(result)
+    }
+
+    fn combine_sigs_of_union_members(
+        &mut self,
+        left: &'cx ty::Sig<'cx>,
+        right: &'cx ty::Sig<'cx>,
+    ) -> ty::Sigs<'cx> {
+        let left_ty_params = self.get_sig_links(left.id).get_ty_params();
+        let right_ty_params = self.get_sig_links(right.id).get_ty_params();
+        let ty_params = left_ty_params.or(right_ty_params);
+        let param_mapper = if let Some(left_ty_params) = left_ty_params
+            && let Some(right_ty_params) = right_ty_params
+        {
+            Some(self.create_ty_mapper(right_ty_params, left_ty_params))
+        } else {
+            None
+        };
+        let flags = left.flags.union(right.flags).intersection(
+            SigFlags::PROPAGATING_FLAGS.union(SigFlags::HAS_REST_PARAMETER.complement()),
+        );
+        let declaration = left.node_id;
+        // let params = self.combine_
+        todo!()
+    }
+
     fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let union = ty.kind.expect_union();
         let call_sigs = union
             .tys
             .iter()
-            .flat_map(|ty| self.get_signatures_of_type(ty, SigKind::Call))
-            .copied()
+            .map(|ty| {
+                if self.global_fn_ty().eq(ty) {
+                    self.alloc([self.unknown_sig()])
+                } else {
+                    self.get_signatures_of_type(ty, SigKind::Call)
+                }
+            })
             .collect::<Vec<_>>();
+        let call_sigs = self.get_union_sigs(&call_sigs);
         let ctor_sigs = union
             .tys
             .iter()

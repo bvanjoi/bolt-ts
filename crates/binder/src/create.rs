@@ -3,7 +3,7 @@ use super::symbol::Container;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 
 pub fn set_value_declaration(
@@ -68,7 +68,7 @@ impl BinderState<'_, '_, '_> {
         let is_replaceable_by_method =
             prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
         let n = self.p.node(node);
-        let is_default_export = n.has_syntactic_modifier(ast::ModifierKind::Default.into());
+        let is_default_export = n.has_syntactic_modifier(ast::ModifierFlags::DEFAULT);
 
         let name = if prop.contains(DeclareSymbolProperty::IS_COMPUTED_NAME) {
             debug_assert!(name.is_none_or(|n| n == SymbolName::Computed));
@@ -108,14 +108,12 @@ impl BinderState<'_, '_, '_> {
                         let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
                         let old_decl = self.p.node(old_decl_id);
 
-                        let error: bolt_ts_errors::BoxedDiag = if old_symbol
-                            .flags
-                            .intersects(SymbolFlags::ENUM)
+                        if old_symbol.flags.intersects(SymbolFlags::ENUM)
                             || includes.intersects(SymbolFlags::ENUM)
                         {
-                            Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
+                            self.push_error(Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
                                     span: self.p.node(node).name().unwrap().span(),
-                                })
+                                }));
                         } else if old_symbol
                             .decls
                             .as_ref()
@@ -133,21 +131,29 @@ impl BinderState<'_, '_, '_> {
                                     }
                                 }
                             };
-                            Box::new(errors::AModuleCannotHaveMultipleDefaultExports { span })
+                            self.push_error(Box::new(
+                                errors::AModuleCannotHaveMultipleDefaultExports { span },
+                            ));
                         } else {
-                            let Some(span) = self.p.node(node).name().map(|n| n.span()) else {
+                            let Some(declaration_name) = self.p.node(node).name() else {
                                 unreachable!("missing name: {:#?}", self.p.node(node));
                             };
-                            Box::new(errors::DuplicateIdentifier {
-                                span,
-                                name: name.to_string(self.atoms),
-                                original_span: old_decl
-                                    .name()
-                                    .map(|name| name.span())
-                                    .unwrap_or(old_decl.span()),
-                            })
+                            if let ast::DeclarationName::Ident(ident) = declaration_name
+                                && ident.name == keyword::IDENT_EMPTY
+                            {
+                                // TODO: delay error reporting
+                            } else {
+                                let error = Box::new(errors::DuplicateIdentifier {
+                                    span: declaration_name.span(),
+                                    name: name.to_string(self.atoms),
+                                    original_span: old_decl
+                                        .name()
+                                        .map(|name| name.span())
+                                        .unwrap_or(old_decl.span()),
+                                });
+                                self.push_error(error);
+                            }
                         };
-                        self.push_error(error);
                         symbol = self.create_symbol(name, includes);
                     }
                 }

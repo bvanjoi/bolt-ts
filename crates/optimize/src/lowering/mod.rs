@@ -55,7 +55,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn lower_program(&mut self, root: &'cx ast::Program<'cx>) {
         debug_assert!(self.current.1 == ir::BasicBlockID::ENTRY);
         let saved = self.current;
-        for stmt in self.lower_stmts(root.stmts) {
+        for stmt in self.lower_stmts(root.stmts()) {
             self.add_stmt_to_basic_block(stmt, saved);
         }
         self.current = saved;
@@ -273,8 +273,17 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_enum_decl(n.span, modifiers, name, members)
     }
 
+    fn lower_enum_member_name(&mut self, n: &ast::EnumMemberNameKind<'cx>) -> ir::PropName {
+        match n {
+            ast::EnumMemberNameKind::Ident(n) => ir::PropName::Ident(self.lower_ident(n)),
+            ast::EnumMemberNameKind::StringLit { raw, .. } => {
+                ir::PropName::StringLit(self.lower_string_lit(raw))
+            }
+        }
+    }
+
     fn lower_enum_member(&mut self, n: &'cx ast::EnumMember<'cx>) -> ir::EnumMemberID {
-        let name = self.lower_prop_name(n.name);
+        let name = self.lower_enum_member_name(&n.name);
         let init = n.init.map(|init| self.lower_expr(init));
         self.nodes.alloc_enum_member(n.span, name, init)
     }
@@ -304,7 +313,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
     fn lower_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) -> Option<ir::ClassDeclID> {
         if n.modifiers
-            .is_some_and(|m| m.flags.contains(ast::ModifierKind::Ambient))
+            .is_some_and(|m| m.flags.contains(ast::ModifierFlags::AMBIENT))
         {
             return None;
         }
@@ -465,7 +474,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_modifier(&mut self, n: &'cx ast::Modifier) -> ir::ModifierID {
-        self.nodes.alloc_modifier(n.span, n.kind)
+        self.nodes.alloc_modifier(n.span(), n.kind())
     }
 
     fn lower_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) -> ir::BlockStmtID {

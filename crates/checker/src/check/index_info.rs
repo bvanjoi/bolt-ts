@@ -1,5 +1,4 @@
 use super::TyChecker;
-
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
@@ -47,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
                     let key_ty = self.get_ty_from_type_node(decl.key_ty);
                     let is_readonly = decl
                         .modifiers
-                        .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
+                        .is_some_and(|mods| mods.flags.contains(ast::ModifierFlags::READONLY));
                     self.alloc(ty::IndexInfo {
                         key_ty,
                         val_ty,

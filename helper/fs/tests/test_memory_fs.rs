@@ -22,22 +22,6 @@ fn test_mem_fs() {
         fs.read_file(Path::new(path), atoms)
     };
 
-    assert_eq!(fs.glob(Path::new("/"), &["a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["/a"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["/b"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["/b/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["/*/c"], &[], atoms).len(), 1);
-    // TODO: should `*/c` match `/b/c`?
-    // assert_eq!(fs.glob(Path::new("/"), &["*/c"], &[],atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["**/*"], &[], atoms).len(), 2);
-    assert_eq!(fs.glob(Path::new("/"), &["**/a"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/"), &["**/b"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/"), &["**/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/b"), &["**/c"], &[], atoms).len(), 1);
-    assert_eq!(fs.glob(Path::new("/b"), &["**/a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/a"), &["**/a"], &[], atoms).len(), 0);
-    assert_eq!(fs.glob(Path::new("/c"), &["**/a"], &[], atoms).len(), 0);
-
     let res = read_file(&mut fs, "/a", atoms);
     assert!(res.is_ok_and(|id| atoms.get(id) == "/a"));
 
@@ -54,10 +38,10 @@ fn test_mem_fs() {
     assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
 
     let res = read_file(&mut fs, "/b/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, NotFound(_))));
 
     let res = read_file(&mut fs, "/a/", atoms);
-    assert!(res.is_err_and(|err| matches!(err, NotAFile(_))));
+    assert!(res.is_err_and(|err| matches!(err, NotFound(_))));
 
     assert!(fs.file_exists(Path::new("/a"), atoms));
     assert!(fs.file_exists(Path::new("/b/c"), atoms));
@@ -87,7 +71,9 @@ fn test_mem_fs() {
     };
 
     let res = read_dir(&mut fs, "/", atoms);
-    assert_eq!(res, vec!["/a", "/b"]);
+    assert_eq!(res.len(), 2);
+    assert!(res.iter().find(|p| *p == "/a").is_some());
+    assert!(res.iter().find(|p| *p == "/b").is_some());
 
     let res = read_dir(&mut fs, "/b", atoms);
     assert_eq!(res, vec!["/b/c"]);

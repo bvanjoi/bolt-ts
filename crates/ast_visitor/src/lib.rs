@@ -1,7 +1,7 @@
 use bolt_ts_ast as ast;
 
 pub fn visit_program<'cx>(v: &mut impl Visitor<'cx>, program: &'cx ast::Program<'cx>) {
-    for stmt in program.stmts {
+    for stmt in program.stmts() {
         v.visit_stmt(stmt);
     }
 }
@@ -82,8 +82,18 @@ pub fn visit_enum_decl<'cx>(v: &mut impl Visitor<'cx>, enum_decl: &'cx ast::Enum
     }
 }
 
+pub fn visit_enum_member_name_kind<'cx>(
+    v: &mut impl Visitor<'cx>,
+    name: &ast::EnumMemberNameKind<'cx>,
+) {
+    use ast::EnumMemberNameKind::*;
+    match name {
+        Ident(ident) => v.visit_ident(ident),
+        StringLit { raw, .. } => v.visit_string_lit(raw),
+    }
+}
 pub fn visit_enum_member<'cx>(v: &mut impl Visitor<'cx>, member: &'cx ast::EnumMember<'cx>) {
-    v.visit_prop_name(member.name);
+    visit_enum_member_name_kind(v, &member.name);
     if let Some(init) = member.init {
         v.visit_expr(init);
     }

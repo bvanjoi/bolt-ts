@@ -332,8 +332,8 @@ impl<'cx> TyChecker<'cx> {
                                 .list
                                 .iter()
                                 .find_map(|m| {
-                                    if m.kind == ast::ModifierKind::Abstract {
-                                        Some(m.span)
+                                    if m.kind() == ast::ModifierKind::Abstract {
+                                        Some(m.span())
                                     } else {
                                         None
                                     }
@@ -363,20 +363,20 @@ impl<'cx> TyChecker<'cx> {
             return sig;
         }
 
-        self.invocation_error(expr, expr_ty, ty::SigKind::Constructor);
+        self.invocation_error(expr.callee().span(), expr_ty, ty::SigKind::Constructor);
         self.unknown_sig()
     }
 
     fn invocation_error(
         &mut self,
-        expr: &impl CallLikeExpr<'cx>,
+        callee_span: Span,
         apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
         let error = if kind == ty::SigKind::Call {
-            errors::ThisExpressionIsNotConstructable::new_from_call(expr.span())
+            errors::ThisExpressionIsNotConstructable::new_from_call(callee_span)
         } else {
-            errors::ThisExpressionIsNotConstructable::new_from_constructor(expr.span())
+            errors::ThisExpressionIsNotConstructable::new_from_constructor(callee_span)
         };
         self.push_error(Box::new(error));
     }
@@ -502,7 +502,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             } else {
-                self.invocation_error(expr, apparent_ty, ty::SigKind::Call);
+                self.invocation_error(expr.callee().span(), apparent_ty, ty::SigKind::Call);
             }
             return self.unknown_sig();
         }

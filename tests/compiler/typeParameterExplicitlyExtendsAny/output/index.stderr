@@ -18,14 +18,14 @@
 
   × This expression is not callable.
     ╭─[../../tests/compiler/typeParameterExplicitlyExtendsAny/index.ts:23:5]
- 23 │ x()
-    · ───
+ 23 │ x
+    · ─
     ╰────
 
   × This expression is not constructable.
-    ╭─[../../tests/compiler/typeParameterExplicitlyExtendsAny/index.ts:25:5]
- 25 │ new x()
-    · ───────
+    ╭─[../../tests/compiler/typeParameterExplicitlyExtendsAny/index.ts:25:9]
+ 25 │ x
+    · ─
     ╰────
 
   × Property 'children' does not exist on type 'T'.

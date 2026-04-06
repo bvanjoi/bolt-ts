@@ -176,7 +176,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         node: ast::NodeID,
         position: usize,
     ) -> Option<Vec<Entry>> {
-        if node == root.id {
+        if node == root.id() {
             return None;
         }
         let p = self.checker.binder.parent(node).unwrap();
@@ -333,7 +333,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         state: &mut FindReferencesState,
     ) {
         // TODO: cancel
-        self.get_references_in_container(module, root, root.id, search, state);
+        self.get_references_in_container(module, root, root.id(), search, state);
     }
 
     fn get_possible_symbol_reference_positions(
@@ -549,7 +549,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         _symbol: SymbolID,
     ) -> Option<SymbolID> {
         if let Some(p) = self.checker.binder.parent(node)
-            && let _p_node = self.checker.p.node(p)
+        // && let _p_node = self.checker.p.node(p)
         {
             // TODO: is_namespace_export_declaration
         }

@@ -12,7 +12,7 @@ pub(super) trait FnLike<'cx, 'p> {
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        ms: enumflags2::BitFlags<ast::ModifierKind>,
+        ms: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>>;
     fn finish(
         self,
@@ -35,9 +35,9 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        ms: enumflags2::BitFlags<ast::ModifierKind>,
+        ms: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>> {
-        if ms.contains(ast::ModifierKind::Default) {
+        if ms.contains(ast::ModifierFlags::DEFAULT) {
             state.parse_optional_binding_ident()
         } else {
             Ok(Some(state.parse_binding_ident()))
@@ -57,7 +57,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     ) -> Self::Node {
         debug_assert!(
             name.is_some()
-                || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Default))
+                || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::DEFAULT))
         );
         let id = state.next_node_id();
         let decl = state.alloc(ast::FnDecl {
@@ -85,7 +85,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     fn parse_name(
         &self,
         state: &mut ParserState<'cx, 'p>,
-        _: enumflags2::BitFlags<ast::ModifierKind>,
+        _: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>> {
         // TODO: is_generator, is_async
         state.parse_optional_binding_ident()
@@ -124,7 +124,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         mode: impl FnLike<'cx, 'p, Node = Node, Modifier = Modifier>,
         modifiers: Modifier,
-        modifier_flags: enumflags2::BitFlags<ast::ModifierKind>,
+        modifier_flags: ast::ModifierFlags,
     ) -> PResult<Node> {
         self.do_outside_of_parse_context(
             ParseContext::CLASS_FIELD_DEFINITION.union(ParseContext::CLASS_STATIC_BLOCK),
@@ -139,7 +139,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.check_params::<false>(params);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
                 let is_generator = asterisk_token.is_some();
-                let is_async = modifier_flags.contains(ast::ModifierKind::Async);
+                let is_async = modifier_flags.contains(ast::ModifierFlags::ASYNC);
                 let flags = match (is_async, is_generator) {
                     (true, true) => SignatureFlags::YIELD
                         .union(SignatureFlags::ASYNC)

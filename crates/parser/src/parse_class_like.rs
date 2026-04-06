@@ -312,7 +312,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             } else {
                 SignatureFlags::empty()
             };
-            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
                 flags | SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
             } else {
                 flags
@@ -343,7 +343,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
                 if let Some(init) = init
-                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
                 {
                     let error =
                         errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
@@ -400,7 +400,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let params = this.p().parse_params();
                 this.p().check_params::<true>(params);
                 let ret = this.p().parse_return_ty::<true, false>()?;
-                let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+                let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
                 } else {
                     SignatureFlags::empty()
@@ -448,17 +448,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if let Some(ms) = modifiers {
             for m in ms.list {
-                let error = match m.kind {
+                let error = match m.kind() {
                     ast::ModifierKind::Const => {
                         Box::new(errors::AClassMemberCannotHaveTheModifierKeyword {
-                            span: m.span,
-                            modifier: m.kind,
+                            span: m.span(),
+                            modifier: m.kind(),
                         }) as Box<_>
                     }
                     ast::ModifierKind::Export => {
                         Box::new(errors::ModifierCannotAppearOnClassElementsOfThisKind {
-                            span: m.span,
-                            modifier: m.kind,
+                            span: m.span(),
+                            modifier: m.kind(),
                         }) as Box<_>
                     }
                     _ => continue,
@@ -469,7 +469,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_getter_accessor_decl(
                 start,
                 modifiers,
@@ -481,7 +481,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
             let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_setter_accessor_decl(
                 start,
                 modifiers,
@@ -499,10 +499,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if let Some(ms) = modifiers {
                 for m in ms.list {
                     use ast::ModifierKind;
-                    if !matches!(m.kind, ModifierKind::Readonly | ModifierKind::Static) {
+                    if !matches!(m.kind(), ModifierKind::Readonly | ModifierKind::Static) {
                         self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
-                            span: m.span,
-                            kind: m.kind,
+                            span: m.span(),
+                            kind: m.kind(),
                         }));
                     }
                 }

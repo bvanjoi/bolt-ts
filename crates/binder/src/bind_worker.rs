@@ -9,9 +9,11 @@ use super::argument_name_from_element_access_node;
 use super::create::DeclareSymbolProperty;
 use super::node_query::ModuleInstanceState;
 use super::param_index_in_parameter_list;
+use super::prop_name;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
+use super::symbol_name_from_enum_member_name;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
@@ -398,7 +400,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     };
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    name,
+                    || prop_name(name),
                     includes,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -407,7 +409,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectPropAssignment(n) => {
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    n.name,
+                    || prop_name(n.name),
                     SymbolFlags::PROPERTY,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -426,7 +428,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             EnumMember(m) => {
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    m.name,
+                    || symbol_name_from_enum_member_name(&m.name),
                     SymbolFlags::ENUM_MEMBER,
                     SymbolFlags::ENUM_MEMBER_EXCLUDES,
                 );
@@ -459,7 +461,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     };
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node.id,
-                    node.name,
+                    || prop_name(node.name),
                     includes,
                     SymbolFlags::METHOD_EXCLUDES,
                 );
@@ -474,14 +476,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = if bind_flow {
                     self.bind_prop_or_method_or_access::<true>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         includes,
                         SymbolFlags::METHOD_EXCLUDES,
                     )
                 } else {
                     self.bind_prop_or_method_or_access::<false>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         includes,
                         SymbolFlags::METHOD_EXCLUDES,
                     )
@@ -493,7 +495,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let includes = SymbolFlags::METHOD;
                 let symbol = self.bind_prop_or_method_or_access::<true>(
                     node.id,
-                    node.name,
+                    || prop_name(node.name),
                     includes,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -521,14 +523,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = if bind_flow {
                     self.bind_prop_or_method_or_access::<true>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         SymbolFlags::GET_ACCESSOR,
                         SymbolFlags::GET_ACCESSOR_EXCLUDES,
                     )
                 } else {
                     self.bind_prop_or_method_or_access::<false>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         SymbolFlags::GET_ACCESSOR,
                         SymbolFlags::GET_ACCESSOR_EXCLUDES,
                     )
@@ -545,14 +547,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = if bind_flow {
                     self.bind_prop_or_method_or_access::<true>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         SymbolFlags::SET_ACCESSOR,
                         SymbolFlags::SET_ACCESSOR_EXCLUDES,
                     )
                 } else {
                     self.bind_prop_or_method_or_access::<false>(
                         node.id,
-                        node.name,
+                        || prop_name(node.name),
                         SymbolFlags::SET_ACCESSOR,
                         SymbolFlags::SET_ACCESSOR_EXCLUDES,
                     )
@@ -639,7 +641,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExportDecl(node) => self.bind_export_decl(node),
             ExportAssign(node) => self.bind_export_assign(node),
             Program(node) => {
-                self.update_strict_mode_statement_list(node.stmts);
+                self.update_strict_mode_statement_list(node.stmts());
                 self.bind_source_file_if_external_module(node);
             }
             BlockStmt(n)
@@ -879,12 +881,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_source_file_as_external_module(&mut self, node: &'cx ast::Program<'cx>) {
         let s = self.bind_anonymous_decl(
-            node.id,
+            node.id(),
             SymbolFlags::VALUE_MODULE,
             SymbolName::Atom(self.p.filepath),
         );
-        assert_eq!(s, SymbolID::container(node.id.module()));
-        self.create_final_res(node.id, s);
+        assert_eq!(s, SymbolID::container(node.id().module()));
+        self.create_final_res(node.id(), s);
     }
 
     fn ele_access_is_narrowable_reference(&self, n: &ast::EleAccessExpr) -> bool {

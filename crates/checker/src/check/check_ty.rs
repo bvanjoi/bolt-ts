@@ -1,7 +1,6 @@
 use super::TyChecker;
 use super::ast;
 use super::errors;
-
 use super::ty;
 use super::ty::ElementFlags;
 

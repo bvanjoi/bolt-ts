@@ -1,0 +1,6 @@
+  × In ambient enum declarations member initializer must be constant
+  │ expression.
+    ╭─[../../tests/compiler/ambientEnum1/index.ts:11:13]
+ 11 │ 'foo'.length
+    · ────────────
+    ╰────

@@ -17,10 +17,12 @@ impl<'cx> TyChecker<'cx> {
         } else if l.has_question() != r.has_question() {
             false
         } else {
-            use ast::ModifierKind;
-            const FLAGS: enumflags2::BitFlags<ast::ModifierKind> = enumflags2::make_bitflags!(
-                ModifierKind::{Private | Protected | Async | Abstract | Readonly | Static}
-            );
+            const FLAGS: ast::ModifierFlags = ast::ModifierFlags::PRIVATE
+                .union(ast::ModifierFlags::PROTECTED)
+                .union(ast::ModifierFlags::ASYNC)
+                .union(ast::ModifierFlags::ABSTRACT)
+                .union(ast::ModifierFlags::READONLY)
+                .union(ast::ModifierFlags::STATIC);
             match (l.modifiers(), r.modifiers()) {
                 (None, None) => true,
                 (None, Some(r)) => !r.flags.intersects(FLAGS),
@@ -76,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
         } else {
-            let is_assignment = s.flags.intersects(SymbolFlags::ASSIGNMENT);
+            let is_assignment = s.flags.contains(SymbolFlags::ASSIGNMENT);
             let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
             if !self.is_error(ty)
                 && !self.is_error(decl_ty)

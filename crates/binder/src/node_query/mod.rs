@@ -127,21 +127,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_selected_syntactic_modifier_flags(
         &self,
         id: ast::NodeID,
-        flags: enumflags2::BitFlags<ast::ModifierKind>,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        flags: ast::ModifierFlags,
+    ) -> ast::ModifierFlags {
         self.get_effective_modifier_flags(id) & flags
     }
 
-    pub fn get_combined_modifier_flags(
-        &self,
-        id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn get_combined_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
     }
 
     pub fn is_enum_const(&self, e: &ast::EnumDecl) -> bool {
         self.get_combined_modifier_flags(e.id)
-            .intersects(ast::ModifierKind::Const)
+            .contains(ast::ModifierFlags::CONST)
     }
 
     pub fn get_module_instance_state(
@@ -167,6 +164,36 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         }
 
+        fn find_module_instance_state_in_stmts<'cx>(
+            this: &NodeQuery<'cx, '_>,
+            stmts: ast::Stmts<'cx>,
+            name: &'cx ast::Ident,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+        ) -> Option<ModuleInstanceState> {
+            let mut found: Option<ModuleInstanceState> = None;
+            for stmt in stmts {
+                if stmt.has_name(name) {
+                    let state = cache(this, stmt.id(), visited, parent_of);
+                    if found.is_none_or(|found| state > found) {
+                        found = Some(state);
+                    }
+                    if let Some(found) = found
+                        && found == ModuleInstanceState::Instantiated
+                    {
+                        return Some(found);
+                    }
+                }
+                if let ast::StmtKind::ImportEquals(_) = stmt.kind {
+                    found = Some(ModuleInstanceState::Instantiated);
+                }
+                if let Some(found) = found {
+                    return Some(found);
+                }
+            }
+            None
+        }
+
         fn get_module_instance_state_for_alias_target<'cx>(
             this: &NodeQuery<'cx, '_>,
             node: &'cx ast::ExportSpec<'cx>,
@@ -190,32 +217,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             let mut p = parent_of(node.id(), index);
             debug_assert!(p.is_some());
             while let Some(p_id) = p {
-                match this.node(p_id) {
+                if let Some(stmts) = match this.node(p_id) {
                     ast::Node::BlockStmt(ast::BlockStmt { stmts, .. })
-                    | ast::Node::ModuleBlock(ast::ModuleBlock { stmts, .. })
-                    | ast::Node::Program(ast::Program { stmts, .. }) => {
-                        let mut found: Option<ModuleInstanceState> = None;
-                        for stmt in *stmts {
-                            if stmt.has_name(name) {
-                                let state = cache(this, stmt.id(), visited, parent_of);
-                                if found.is_none_or(|found| state > found) {
-                                    found = Some(state);
-                                }
-                                if let Some(found) = found
-                                    && found == ModuleInstanceState::Instantiated
-                                {
-                                    return found;
-                                }
-                            }
-                            if let ast::StmtKind::ImportEquals(_) = stmt.kind {
-                                found = Some(ModuleInstanceState::Instantiated);
-                            }
-                            if let Some(found) = found {
-                                return found;
-                            }
-                        }
-                    }
-                    _ => {}
+                    | ast::Node::ModuleBlock(ast::ModuleBlock { stmts, .. }) => Some(*stmts),
+                    ast::Node::Program(n) => Some(n.stmts()),
+                    _ => None,
+                } && let Some(found) =
+                    find_module_instance_state_in_stmts(this, stmts, name, visited, parent_of)
+                {
+                    return found;
                 }
                 index += 1;
                 p = parent_of(p_id, index);
@@ -235,7 +245,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
                 ImportDecl(_) | ImportEqualsDecl(_)
-                    if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) =>
+                    if !n.has_syntactic_modifier(ast::ModifierFlags::EXPORT) =>
                 {
                     ModuleInstanceState::NonInstantiated
                 }
@@ -329,10 +339,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    fn get_effective_modifier_flags(
-        &self,
-        id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_modifier_flags(id, true, false)
     }
 
@@ -341,15 +348,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         id: ast::NodeID,
         _include_js_doc: bool,
         _always_include_js_doc: bool,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    ) -> ast::ModifierFlags {
         let m = self.get_syntactic_modifier_flags_no_cache(id);
         ast::ModifierKind::get_syntactic_modifier_flags(m)
     }
 
-    pub fn get_syntactic_modifier_flags_no_cache(
-        &self,
-        id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn get_syntactic_modifier_flags_no_cache(&self, id: ast::NodeID) -> ast::ModifierFlags {
         let n = self.node(id);
         let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
         let node_flags = self.node_flags(id);
@@ -357,7 +361,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             || n.is_ident()
                 && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
         {
-            flags | ast::ModifierKind::Export
+            flags | ast::ModifierFlags::EXPORT
         } else {
             flags
         }
@@ -1314,7 +1318,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node_flags(p).contains(ast::NodeFlags::LET)
             && !(self
                 .get_combined_modifier_flags(decl.id)
-                .contains(ast::ModifierKind::Export)
+                .contains(ast::ModifierFlags::EXPORT)
                 || (match self.node(p) {
                     ast::Node::VarStmt(_) => {
                         let parent_parent = self.parent(p).unwrap();
@@ -1350,7 +1354,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let node = self.node(node);
         parent_node.is_class_like()
             && node.is_class_prop_elem()
-            && !node.has_syntactic_modifier(ast::ModifierKind::Accessor.into())
+            && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
     }
 
     pub fn is_in_right_side_of_internal_import_equals_declaration(

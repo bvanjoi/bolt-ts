@@ -71,11 +71,11 @@ use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr}
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_binder::param_index_in_parameter_list;
 use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery, prop_name};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{param_index_in_parameter_list, symbol_name_from_enum_member_name};
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
@@ -85,7 +85,6 @@ use bolt_ts_span::ModuleID;
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
-use enumflags2::BitFlag;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::check_expr::IterationUse;
@@ -97,6 +96,7 @@ use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
+pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_simplified_ty::SimplifiedKind;
 use self::get_variances::VarianceFlags;
@@ -1017,7 +1017,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn check_program(&mut self, program: &'cx ast::Program<'cx>) {
-        for stmt in program.stmts {
+        for stmt in program.stmts() {
             self.check_stmt(stmt);
         }
     }
@@ -1254,7 +1254,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         symbol: SymbolID,
         is_write: Option<bool>,
-    ) -> enumflags2::BitFlags<bolt_ts_ast::ModifierKind> {
+    ) -> ast::ModifierFlags {
         let is_write = is_write.unwrap_or(false);
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
@@ -1287,29 +1287,27 @@ impl<'cx> TyChecker<'cx> {
             {
                 flags
             } else {
-                flags & !ast::ModifierKind::ACCESSIBILITY
+                flags & !ast::ModifierFlags::ACCESSIBILITY
             };
         }
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(CheckFlags::SYNTHETIC) {
-            let access_modifier: enumflags2::BitFlags<_> =
-                if check_flags.contains(CheckFlags::CONTAINS_PRIVATE) {
-                    ast::ModifierKind::Private
-                } else if check_flags.contains(CheckFlags::CONTAINS_PUBLIC) {
-                    ast::ModifierKind::Public
-                } else {
-                    ast::ModifierKind::Protected
-                }
-                .into();
-            let static_modifier = if check_flags.contains(CheckFlags::CONTAINS_STATIC) {
-                ast::ModifierKind::Static.into()
+            let access_modifier = if check_flags.contains(CheckFlags::CONTAINS_PRIVATE) {
+                ast::ModifierFlags::PRIVATE
+            } else if check_flags.contains(CheckFlags::CONTAINS_PUBLIC) {
+                ast::ModifierFlags::PUBLIC
             } else {
-                ast::ModifierKind::empty()
+                ast::ModifierFlags::PROTECTED
+            }
+            .into();
+            let static_modifier = if check_flags.contains(CheckFlags::CONTAINS_STATIC) {
+                ast::ModifierFlags::STATIC
+            } else {
+                ast::ModifierFlags::empty()
             };
             static_modifier | access_modifier
         } else if s.flags.contains(SymbolFlags::PROPERTY) {
-            use ast::ModifierKind;
-            enumflags2::make_bitflags!(ModifierKind::{Public | Static})
+            ast::ModifierFlags::PUBLIC.union(ast::ModifierFlags::STATIC)
         } else {
             Default::default()
         }
@@ -1324,7 +1322,7 @@ impl<'cx> TyChecker<'cx> {
         if include_non_public
             || !self
                 .get_declaration_modifier_flags_from_symbol(prop, None)
-                .intersects(ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
         {
             // TODO: late bound
             let ty = match self.get_symbol_links(prop).get_name_ty() {
@@ -1888,7 +1886,7 @@ impl<'cx> TyChecker<'cx> {
             && !(value_decl_node.as_class_prop_elem().is_some_and(|n| {
                 n.question.is_some()
                     && n.modifiers
-                        .is_none_or(|ms| ms.flags.contains(ast::ModifierKind::Accessor))
+                        .is_none_or(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR))
             }))
             && let n = self.p.node(node)
             && !n
@@ -1900,7 +1898,7 @@ impl<'cx> TyChecker<'cx> {
                 && self
                     .node_query(value_decl.module())
                     .get_combined_modifier_flags(value_decl)
-                    .contains(ast::ModifierKind::Static))
+                    .contains(ast::ModifierFlags::STATIC))
             && !is_prop_declared_in_ancestor_class(self)
         {
             let error = errors::Property0IsUsedBeforeItsInitialization {
@@ -1967,7 +1965,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            if !flags.contains(ast::ModifierKind::Static)
+            if !flags.contains(ast::ModifierFlags::STATIC)
                 && let prop_symbol = self.symbol(prop)
                 && let Some(decls) = prop_symbol.decls.as_ref()
                 && decls.iter().any(|decl| {
@@ -1986,7 +1984,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if flags.contains(ast::ModifierKind::Private) {
+        if flags.contains(ast::ModifierFlags::PRIVATE) {
             // TODO: use parent symbol to find the class
             let p = self.parent(loc).unwrap();
             if self
@@ -4752,10 +4750,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn decl_modifier_flags_from_symbol(
-        &self,
-        symbol: SymbolID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn decl_modifier_flags_from_symbol(&self, symbol: SymbolID) -> ast::ModifierFlags {
         if let Some(decl) = self.symbol(symbol).value_decl {
             let flags = self
                 .node_query(decl.module())
@@ -4768,14 +4763,14 @@ impl<'cx> TyChecker<'cx> {
             {
                 flags
             } else {
-                flags & !ast::ModifierKind::ACCESSIBILITY
+                flags.intersection(ast::ModifierFlags::ACCESSIBILITY.complement())
             };
         }
 
-        if self.symbol(symbol).flags.intersects(SymbolFlags::PROPERTY) {
-            return ast::ModifierKind::Public | ast::ModifierKind::Static;
+        if self.symbol(symbol).flags.contains(SymbolFlags::PROPERTY) {
+            return ast::ModifierFlags::PUBLIC.union(ast::ModifierFlags::STATIC);
         }
-        enumflags2::BitFlags::empty()
+        ast::ModifierFlags::empty()
     }
 
     fn get_mapped_ty_optionality(&self, ty: &'cx ty::MappedTy<'cx>) -> i32 {
@@ -5240,7 +5235,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
-        let module_symbol = self.get_symbol_of_decl(node.id);
+        let module_symbol = self.get_symbol_of_decl(node.id());
         if self
             .get_symbol_links(module_symbol)
             .get_exports_checked()
@@ -5557,7 +5552,7 @@ impl<'cx> TyChecker<'cx> {
                     self.p
                         .node(*decl)
                         .modifiers()
-                        .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Const))
+                        .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::CONST))
                 })
             }),
             Union(ty::UnionTy { tys, .. }) | Intersection(ty::IntersectionTy { tys, .. }) => tys
@@ -5879,7 +5874,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 return self.try_get_name_from_ty(init_ty);
             } else if let Some(enum_member) = decl_node.as_enum_member() {
-                return Some(prop_name(enum_member.name));
+                return Some(symbol_name_from_enum_member_name(&enum_member.name));
             }
         }
 

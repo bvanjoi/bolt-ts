@@ -17,18 +17,16 @@ mod parent_map;
 mod pprint;
 mod symbol;
 
-use bolt_ts_span::ModuleArena;
-use rayon::prelude::*;
-use rustc_hash::FxHashMap;
-
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_parser::ParsedMap;
-use bolt_ts_span::Module;
+use bolt_ts_span::ModuleArena;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 
 pub use self::create::set_value_declaration;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
@@ -294,13 +292,20 @@ fn bind<'cx, 'atoms, 'parser>(
     options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, module_id, options);
-    state.bind(root.id);
+    state.bind(root.id());
     state.parent_map.finish();
     state
 }
 
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
     prop_name_opt(&name.kind).unwrap()
+}
+
+pub fn symbol_name_from_enum_member_name(name: &ast::EnumMemberNameKind) -> SymbolName {
+    match name {
+        ast::EnumMemberNameKind::Ident(ident) => SymbolName::Atom(ident.name),
+        ast::EnumMemberNameKind::StringLit { key, .. } => SymbolName::Atom(*key),
+    }
 }
 
 pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {

@@ -1,8 +1,6 @@
-use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
-use enumflags2::BitFlag;
 
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -328,7 +326,7 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
-        let const_modifier = const_modifier.map(|m| m.span);
+        let const_modifier = const_modifier.map(|m| m.span());
         Ok(self.create_type_parameter(span, const_modifier, name, constraint, default))
     }
 
@@ -430,8 +428,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> Option<&'cx ast::Modifiers<'cx>> {
         let push_precede_error = |this: &mut Self, x: &ast::Modifier, y: ast::ModifierKind| {
             let error = errors::XModifierMustPrecedeYModifier {
-                span: x.span,
-                x: x.kind,
+                span: x.span(),
+                x: x.kind(),
                 y,
             };
             this.push_error(Box::new(error));
@@ -441,7 +439,7 @@ impl<'cx> ParserState<'cx, '_> {
         let mut has_seen_static_modifier = false;
         let _has_leading_modifier = false;
         let _has_trailing_decorator = false;
-        let mut flags = ast::ModifierKind::empty();
+        let mut flags = ast::ModifierFlags::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
@@ -450,43 +448,43 @@ impl<'cx> ParserState<'cx, '_> {
             else {
                 break;
             };
-            if m.kind == ast::ModifierKind::Static {
+            if m.kind() == ast::ModifierKind::Static {
                 has_seen_static_modifier = true;
             }
-            flags.insert(m.kind);
+            flags.insert(m.kind().into_flag());
             list.push(m);
 
-            match m.kind {
+            match m.kind() {
                 ast::ModifierKind::Override => {
-                    if flags.contains(ast::ModifierKind::Readonly) {
+                    if flags.contains(ast::ModifierFlags::READONLY) {
                         push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
                         push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierKind::Async) {
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
                         push_precede_error(self, m, ast::ModifierKind::Async);
                     }
                 }
                 ast::ModifierKind::Public
                 | ast::ModifierKind::Protected
                 | ast::ModifierKind::Private => {
-                    if flags.contains(ast::ModifierKind::Static) {
+                    if flags.contains(ast::ModifierFlags::STATIC) {
                         push_precede_error(self, m, ast::ModifierKind::Static);
-                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
                         push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierKind::Readonly) {
+                    } else if flags.contains(ast::ModifierFlags::READONLY) {
                         push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierKind::Async) {
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
                         push_precede_error(self, m, ast::ModifierKind::Async);
                     }
                 }
                 ast::ModifierKind::Static => {
-                    if flags.contains(ast::ModifierKind::Readonly) {
+                    if flags.contains(ast::ModifierFlags::READONLY) {
                         push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierKind::Async) {
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
                         push_precede_error(self, m, ast::ModifierKind::Async);
-                    } else if flags.contains(ast::ModifierKind::Accessor) {
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
                         push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierKind::Override) {
+                    } else if flags.contains(ast::ModifierFlags::OVERRIDE) {
                         push_precede_error(self, m, ast::ModifierKind::Override);
                     }
                 }
@@ -657,22 +655,22 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let modifiers = self.parse_modifiers::<false, false>(false);
-        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
-            enumflags2::make_bitflags!(ModifierKind::{Static | Export});
+        const INVALID_MODIFIERS: ast::ModifierFlags =
+            ast::ModifierFlags::STATIC.union(ast::ModifierFlags::EXPORT);
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
             .unwrap_or_default()
             && let Some(ms) = modifiers.map(|ms| {
                 ms.list
                     .iter()
-                    .filter(|m| INVALID_MODIFIERS.intersects(m.kind))
+                    .filter(|m| INVALID_MODIFIERS.contains(m.kind().into_flag()))
                     .copied()
             })
         {
             for m in ms {
                 let error = errors::ModifierCannotAppearOnAParameter {
-                    span: m.span,
-                    kind: m.kind,
+                    span: m.span(),
+                    kind: m.kind(),
                 };
                 self.push_error(Box::new(error));
             }
@@ -707,14 +705,14 @@ impl<'cx> ParserState<'cx, '_> {
         self.check_contextual_binding(name);
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
-            && ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY)
+            && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
         {
             let kinds = ms
                 .list
                 .iter()
                 .filter_map(|m| {
-                    if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
-                        Some(m.kind)
+                    if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
+                        Some(m.kind())
                     } else {
                         None
                     }

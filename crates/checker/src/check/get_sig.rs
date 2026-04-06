@@ -570,13 +570,13 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
     match node {
         ast::Node::CtorTy(n)
             if n.modifiers
-                .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract)) =>
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT)) =>
         {
             flags |= SigFlags::ABSTRACT;
         }
         ast::Node::ClassCtor(n)
             if n.modifiers
-                .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract)) =>
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT)) =>
         {
             flags |= SigFlags::ABSTRACT;
         }

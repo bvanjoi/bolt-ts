@@ -24,6 +24,52 @@ impl<'cx> TyChecker<'cx> {
             ast::ExprKind::NumLit(n) => EvalResult::Number(n.val),
             ast::ExprKind::StringLit(n) => EvalResult::Str(n.val),
             ast::ExprKind::Paren(n) => self.eval_expr(n.expr, location),
+            ast::ExprKind::Bin(n) => {
+                let left = self.eval_expr(n.left, location);
+                let right = self.eval_expr(n.right, location);
+                match (left, right) {
+                    (EvalResult::Number(left), EvalResult::Number(right)) => {
+                        let result = match n.op.kind {
+                            ast::BinOpKind::Add => left + right,
+                            ast::BinOpKind::Sub => left - right,
+                            ast::BinOpKind::Mul => left * right,
+                            ast::BinOpKind::Div => left / right,
+                            ast::BinOpKind::Mod => left % right,
+                            ast::BinOpKind::Less => (left < right) as i32 as f64,
+                            ast::BinOpKind::LessEq => (left <= right) as i32 as f64,
+                            ast::BinOpKind::Shl => ((left as i32) << (right as i32)) as f64,
+                            ast::BinOpKind::Great => (left > right) as i32 as f64,
+                            ast::BinOpKind::GreatEq => (left >= right) as i32 as f64,
+                            ast::BinOpKind::Sar => ((left as i32) >> (right as i32)) as f64,
+                            ast::BinOpKind::Shr => ((left as i32) >> (right as i32)) as f64,
+                            ast::BinOpKind::BitOr => ((left as i32) | (right as i32)) as f64,
+                            ast::BinOpKind::BitAnd => ((left as i32) & (right as i32)) as f64,
+                            ast::BinOpKind::BitXor => ((left as i32) ^ (right as i32)) as f64,
+                            ast::BinOpKind::LogicalOr => {
+                                (left != 0.0 || right != 0.0) as i32 as f64
+                            }
+                            ast::BinOpKind::LogicalAnd => {
+                                (left != 0.0 && right != 0.0) as i32 as f64
+                            }
+                            ast::BinOpKind::EqEq => (left == right) as i32 as f64,
+                            ast::BinOpKind::EqEqEq => (left == right) as i32 as f64,
+                            ast::BinOpKind::NEq => (left != right) as i32 as f64,
+                            ast::BinOpKind::NEqEq => (left != right) as i32 as f64,
+                            ast::BinOpKind::Exp => left.powf(right),
+                            ast::BinOpKind::Instanceof => todo!(),
+                            ast::BinOpKind::In => todo!(),
+                            ast::BinOpKind::Satisfies => todo!(),
+                            ast::BinOpKind::Nullish => todo!(),
+                            ast::BinOpKind::Comma => unreachable!(),
+                        };
+                        EvalResult::Number(result)
+                    }
+                    (EvalResult::Number(_), EvalResult::Str(_)) => todo!(),
+                    (EvalResult::Str(_), EvalResult::Number(_)) => todo!(),
+                    (EvalResult::Str(_), EvalResult::Str(_)) => todo!(),
+                    (EvalResult::Err, _) | (_, EvalResult::Err) => EvalResult::Err,
+                }
+            }
             ast::ExprKind::PrefixUnary(n) => {
                 let v = self.eval_expr(n.expr, location);
                 let i = match v {
