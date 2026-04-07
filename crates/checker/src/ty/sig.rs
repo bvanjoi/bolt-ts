@@ -131,6 +131,7 @@ pub type Sigs<'cx> = &'cx [&'cx self::Sig<'cx>];
 
 impl PartialEq for self::Sig<'_> {
     fn eq(&self, other: &Self) -> bool {
+        debug_assert!(self.id != other.id || std::ptr::eq(self, other));
         self.id == other.id
     }
 }

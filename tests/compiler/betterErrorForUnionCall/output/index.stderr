@@ -1,0 +1,17 @@
+  × This expression is not callable.
+   ╭─[../../tests/compiler/betterErrorForUnionCall/index.ts:5:1]
+ 5 │ union
+   · ─────
+   ╰────
+
+  × This expression is not callable.
+   ╭─[../../tests/compiler/betterErrorForUnionCall/index.ts:9:1]
+ 9 │ fnUnion
+   · ───────
+   ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/betterErrorForUnionCall/index.ts:13:1]
+ 13 │ fnUnion2
+    · ────────
+    ╰────

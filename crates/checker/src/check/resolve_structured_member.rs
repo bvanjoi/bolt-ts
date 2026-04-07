@@ -8,7 +8,6 @@ use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
 use super::infer::InferenceFlags;
 use super::links::SigLinks;
-
 use super::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
 use super::{SymbolLinks, Ternary, TyChecker, errors};
 
@@ -72,7 +71,7 @@ impl<'cx> TyChecker<'cx> {
             if !self
                 .symbol(symbol)
                 .flags
-                .intersects(SymbolFlags::SET_ACCESSOR)
+                .contains(SymbolFlags::SET_ACCESSOR)
             {
                 return symbol;
             }
@@ -1160,7 +1159,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         list_index: usize,
     ) -> Option<ty::Sigs<'cx>> {
-        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+        if self.get_sig_links(sig.id).get_ty_params().is_some() {
             if list_index > 0 {
                 return None;
             }
@@ -1175,7 +1174,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.alloc([sig]));
         }
         let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
-        for i in 1..sigs_list.len() {
+        for i in 0..sigs_list.len() {
             let matched = if i == list_index {
                 Some(sig)
             } else {
@@ -1211,13 +1210,47 @@ impl<'cx> TyChecker<'cx> {
                         .is_none()
                 }) && let Some(union_sigs) = self.find_matching_sigs(sigs_list, sig, i)
                 {
-                    let s = sig;
+                    let mut s = *sig;
                     if union_sigs.len() > 1 {
-                        todo!("move sig.this_param to sig_links.get_this_params");
-                        // let this_params = sig.this_param;
-                        // if let Some(first_this_param_of_union_sigs) =
-                        //     union_sigs.iter().find_map(|s| s.this_param)
-                        // {}
+                        let mut this_param = sig.this_param;
+                        if let Some(first_this_param_of_union_sigs) =
+                            union_sigs.iter().find_map(|s| s.this_param)
+                        {
+                            let this_params = union_sigs
+                                .iter()
+                                .flat_map(|sig| {
+                                    sig.this_param
+                                        .map(|this_param| self.get_type_of_symbol(this_param))
+                                })
+                                .collect::<Vec<_>>();
+                            let this_ty = self.get_intersection_ty(
+                                &this_params,
+                                IntersectionFlags::None,
+                                None,
+                                None,
+                            );
+                            this_param = Some(self.create_transient_symbol_with_ty(
+                                first_this_param_of_union_sigs,
+                                this_ty,
+                            ));
+                        }
+                        s = self.create_union_sig(
+                            &ty::Sig {
+                                id: sig.id,
+                                flags: sig.flags,
+                                params: sig.params,
+                                this_param,
+                                min_args_count: sig.min_args_count,
+                                ret: sig.ret,
+                                node_id: sig.node_id,
+                                target: sig.target,
+                                mapper: sig.mapper,
+                                class_decl: sig.class_decl,
+                                composite_sigs: sig.composite_sigs,
+                                composite_kind: sig.composite_kind,
+                            },
+                            union_sigs,
+                        );
                     }
                     match &mut result {
                         Some(result) => result.push(s),
@@ -1235,66 +1268,260 @@ impl<'cx> TyChecker<'cx> {
                 None => sigs_list.first(),
             };
 
-            let mut results = master_list;
+            let mut results: Option<Vec<&'cx ty::Sig<'cx>>> = master_list.map(|sigs| sigs.to_vec());
             for sigs in sigs_list {
-                let sig = sigs[0];
-                results = if let Some(source_ty_params) = self.get_sig_links(sig.id).get_ty_params()
-                    && let Some(results) = results
-                    && results.iter().any(|s| {
-                        let Some(target_ty_params) = self.get_sig_links(s.id).get_ty_params()
-                        else {
-                            return false;
-                        };
-                        !self.compare_ty_params_identical(
-                            Some(source_ty_params),
-                            Some(target_ty_params),
+                if master_list.is_none_or(|master_list| !std::ptr::eq(master_list, sigs)) {
+                    let sig = sigs[0];
+                    results = if let Some(source_ty_params) =
+                        self.get_sig_links(sig.id).get_ty_params()
+                        && let Some(results) = results.as_ref()
+                        && results.iter().any(|s| {
+                            let Some(target_ty_params) = self.get_sig_links(s.id).get_ty_params()
+                            else {
+                                return false;
+                            };
+                            !self.compare_ty_params_identical(
+                                Some(source_ty_params),
+                                Some(target_ty_params),
+                            )
+                        }) {
+                        None
+                    } else if let Some(results) = results.as_ref() {
+                        Some(
+                            results
+                                .iter()
+                                .map(|s| self.combine_sigs_of_union_members(s, sig))
+                                .collect::<Vec<_>>(),
                         )
-                    }) {
-                    None
-                } else if let Some(results) = results {
-                    todo!();
-                    // let sigs = results
-                    //     .iter()
-                    //     .map(|s| self.combine_sigs_of_union_members(s, sig))
-                    //     .collect::<Vec<_>>();
-                    // Some(sigs)
-                } else {
-                    None
-                };
-
-                if results.is_none() {
-                    break;
+                    } else {
+                        None
+                    };
+                    if results.is_some() {
+                        break;
+                    }
                 }
             }
+            result = results;
         }
 
         let Some(result) = result else {
             return self.empty_array();
         };
+        debug_assert!(!result.is_empty());
         self.alloc(result)
+    }
+
+    fn combine_union_parameters(
+        &mut self,
+        left: &'cx ty::Sig<'cx>,
+        right: &'cx ty::Sig<'cx>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> Vec<SymbolID> {
+        let left_count = left.get_param_count(self);
+        let right_count = right.get_param_count(self);
+        let longest = if left_count > right_count {
+            left
+        } else {
+            right
+        };
+        let shorter = if left == longest { right } else { left };
+        let longest_count = if longest == left {
+            left_count
+        } else {
+            right_count
+        };
+        let either_has_effective_rest = left.has_rest_param() || right.has_rest_param();
+        let need_extra_rest_element = either_has_effective_rest && !longest.has_rest_param();
+        let mut params =
+            Vec::with_capacity(longest_count + if need_extra_rest_element { 1 } else { 0 });
+        for i in 0..longest_count {
+            let mut longest_param_ty = self.try_get_ty_at_pos(longest, i).unwrap();
+            if longest == right {
+                longest_param_ty = self.instantiate_ty(longest_param_ty, mapper);
+            }
+            let mut shorter_param_ty = self
+                .try_get_ty_at_pos(shorter, i)
+                .unwrap_or(self.unknown_ty);
+            if shorter == right {
+                shorter_param_ty = self.instantiate_ty(shorter_param_ty, mapper);
+            }
+            let union_param_ty = self.get_intersection_ty(
+                &[longest_param_ty, shorter_param_ty],
+                IntersectionFlags::None,
+                None,
+                None,
+            );
+            let is_rest_param =
+                either_has_effective_rest && !need_extra_rest_element && i == longest_count - 1;
+            let is_optional =
+                i >= self.get_min_arg_count(longest) && i >= self.get_min_arg_count(shorter);
+            let left_name = if i >= left_count {
+                None
+            } else {
+                Some(self.get_param_name_at_pos(left, i))
+            };
+            let right_name = if i >= right_count {
+                None
+            } else {
+                Some(self.get_param_name_at_pos(right, i))
+            };
+            let param_name = if left_name == right_name {
+                left_name
+            } else if left_name.is_none() {
+                right_name
+            } else if right_name.is_none() {
+                left_name
+            } else {
+                None
+            };
+            let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
+            let links = SymbolLinks::default()
+                .with_ty(if is_rest_param {
+                    self.create_array_ty(union_param_ty, false)
+                } else {
+                    union_param_ty
+                })
+                .with_check_flags(if is_rest_param {
+                    CheckFlags::REST_PARAMETER
+                } else if is_optional {
+                    CheckFlags::OPTIONAL_PARAMETER
+                } else {
+                    CheckFlags::empty()
+                });
+            let param_symbol = self.create_transient_symbol(
+                name,
+                SymbolFlags::TRANSIENT
+                    .union(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                    .union(if is_optional && !is_rest_param {
+                        SymbolFlags::OPTIONAL
+                    } else {
+                        SymbolFlags::empty()
+                    }),
+                links,
+                None,
+                None,
+                None,
+            );
+            params.push(param_symbol);
+        }
+
+        if need_extra_rest_element {
+            todo!()
+        }
+        params
+    }
+
+    fn combine_union_this_parameter(
+        &mut self,
+        left: Option<SymbolID>,
+        right: Option<SymbolID>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> Option<SymbolID> {
+        let Some(left) = left else {
+            return right;
+        };
+        let Some(right) = right else {
+            return Some(left);
+        };
+        // A signature `this` type might be a read or a write position... It's very possible that it should be invariant
+        // and we should refuse to merge signatures if there are `this` types and they do not match. However, so as to be
+        // permissive when calling, for now, we'll intersect the `this` types just like we do for param types in union signatures.
+        let left_ty = self.get_type_of_symbol(left);
+        let right_ty = self.get_type_of_symbol(right);
+        let right_ty = self.instantiate_ty(right_ty, mapper);
+        let this_ty =
+            self.get_intersection_ty(&[left_ty, right_ty], IntersectionFlags::None, None, None);
+        Some(self.create_transient_symbol_with_ty(left, this_ty))
+    }
+
+    fn get_param_name_at_pos(&mut self, sig: &'cx ty::Sig<'cx>, pos: usize) -> SymbolName {
+        let param_count = sig.params.len() - if sig.has_rest_param() { 1 } else { 0 };
+        if pos < param_count {
+            let symbol = sig.params[pos];
+            self.symbol(symbol).name
+        } else {
+            todo!()
+        }
     }
 
     fn combine_sigs_of_union_members(
         &mut self,
         left: &'cx ty::Sig<'cx>,
         right: &'cx ty::Sig<'cx>,
-    ) -> ty::Sigs<'cx> {
+    ) -> &'cx ty::Sig<'cx> {
         let left_ty_params = self.get_sig_links(left.id).get_ty_params();
         let right_ty_params = self.get_sig_links(right.id).get_ty_params();
         let ty_params = left_ty_params.or(right_ty_params);
         let param_mapper = if let Some(left_ty_params) = left_ty_params
             && let Some(right_ty_params) = right_ty_params
         {
-            Some(self.create_ty_mapper(right_ty_params, left_ty_params))
+            Some(self.create_ty_mapper(right_ty_params, left_ty_params) as &'cx dyn ty::TyMap<'cx>)
         } else {
             None
         };
-        let flags = left.flags.union(right.flags).intersection(
+        let mut flags = left.flags.union(right.flags).intersection(
             SigFlags::PROPAGATING_FLAGS.union(SigFlags::HAS_REST_PARAMETER.complement()),
         );
-        let declaration = left.node_id;
-        // let params = self.combine_
-        todo!()
+        let params = self.combine_union_parameters(left, right, param_mapper);
+        if let Some(last_param) = params.last().copied()
+            && self
+                .get_check_flags(last_param)
+                .contains(CheckFlags::REST_PARAMETER)
+        {
+            flags |= SigFlags::HAS_REST_PARAMETER;
+        }
+        let this_param =
+            self.combine_union_this_parameter(left.this_param, right.this_param, param_mapper);
+        let composite_sigs: Option<&'cx [&'cx ty::Sig<'cx>]> =
+            if left.composite_kind != Some(TypeFlags::INTERSECTION) {
+                if let Some(composite_sigs) = left.composite_sigs {
+                    let mut composite_sigs = composite_sigs.to_vec();
+                    composite_sigs.push(right);
+                    Some(self.alloc(composite_sigs))
+                } else {
+                    Some(self.alloc(vec![left, right]))
+                }
+            } else {
+                Some(self.alloc(vec![left, right]))
+            };
+        let mapper = if let Some(param_mapper) = param_mapper {
+            if left.composite_kind != Some(TypeFlags::INTERSECTION)
+                && let Some(left_mapper) = left.mapper
+                && left.composite_sigs.is_some()
+            {
+                Some(self.combine_ty_mappers(Some(left_mapper), param_mapper))
+            } else {
+                Some(param_mapper)
+            }
+        } else if left.composite_kind != Some(TypeFlags::INTERSECTION)
+            && let Some(left_mapper) = left.mapper
+            && left.composite_sigs.is_some()
+        {
+            Some(left_mapper)
+        } else {
+            None
+        };
+        let sig = self.new_sig(ty::Sig {
+            id: SigID::dummy(),
+            flags,
+            params: self.alloc(params),
+            this_param,
+            min_args_count: left.min_args_count.max(right.min_args_count),
+            ret: None,
+            node_id: left.node_id,
+            target: None,
+            mapper: mapper,
+            class_decl: left.class_decl,
+            composite_sigs,
+            composite_kind: Some(TypeFlags::UNION),
+        });
+        let mut links = SigLinks::default();
+        if let Some(ty_params) = ty_params {
+            links = links.with_ty_params(ty_params);
+        }
+        let prev = self.sig_links.insert(sig.id, links);
+        debug_assert!(prev.is_none());
+        sig
     }
 
     fn resolve_union_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
@@ -1314,10 +1541,11 @@ impl<'cx> TyChecker<'cx> {
         let ctor_sigs = union
             .tys
             .iter()
-            .flat_map(|ty| self.get_signatures_of_type(ty, SigKind::Constructor))
-            .copied()
+            .map(|ty| self.get_signatures_of_type(ty, SigKind::Constructor))
             .collect::<Vec<_>>();
+        let ctor_sigs = self.get_union_sigs(&ctor_sigs);
         let index_infos = self.get_union_index_infos(union.tys);
+
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(FxIndexMap::default()),
             call_sigs: self.alloc(call_sigs),
@@ -1516,7 +1744,7 @@ impl<'cx> TyChecker<'cx> {
         for i in 0..target_len {
             let s = self.get_ty_at_pos(source, i);
             let t = self.get_ty_at_pos(target, i);
-            let related = compare_tys(self, s, t);
+            let related = compare_tys(self, t, s);
             if related == Ternary::FALSE {
                 return Ternary::FALSE;
             }

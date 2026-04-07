@@ -16,8 +16,6 @@ pub use bolt_ts_ty::ObjectFlags;
 pub use bolt_ts_ty::TypeFacts;
 pub use bolt_ts_ty::TypeFlags;
 
-use super::check::TyChecker;
-
 pub use self::facts::{TYPEOF_NE_FACTS, typeof_ne_facts};
 pub use self::links::ConditionalLinks;
 pub use self::links::ConditionalLinksArena;
@@ -39,6 +37,7 @@ pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
 pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
+use super::check::TyChecker;
 
 bolt_ts_utils::index!(TyID);
 
@@ -66,12 +65,8 @@ impl std::hash::Hash for Ty<'_> {
 
 impl PartialEq for Ty<'_> {
     fn eq(&self, other: &Self) -> bool {
-        if self.id == other.id {
-            debug_assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
-            true
-        } else {
-            false
-        }
+        debug_assert!(self.id != other.id || std::ptr::eq(&self.kind, &other.kind));
+        self.id == other.id
     }
 }
 

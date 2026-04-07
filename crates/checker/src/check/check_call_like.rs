@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
 use super::relation::RelationKind;
@@ -154,6 +155,25 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_symbol_by_ident(ident) == global_es_symbol
     }
 
+    fn get_union_or_intersection_ty(
+        &mut self,
+        tys: &[&'cx ty::Ty<'cx>],
+        is_intersection: bool,
+        union_reduction: Option<ty::UnionReduction>,
+    ) -> &'cx ty::Ty<'cx> {
+        if !is_intersection {
+            self.get_union_ty::<false>(
+                tys,
+                union_reduction.unwrap_or(ty::UnionReduction::Lit),
+                None,
+                None,
+                None,
+            )
+        } else {
+            self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
+        }
+    }
+
     pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(ty) = self.get_sig_links(sig.id).get_resolved_ret_ty() {
             return ty;
@@ -164,6 +184,18 @@ impl<'cx> TyChecker<'cx> {
         let mut ty = if let Some(target) = sig.target {
             let ret_ty = self.get_ret_ty_of_sig(target);
             self.instantiate_ty(ret_ty, sig.mapper)
+        } else if let Some(composite_sigs) = sig.composite_sigs {
+            let composite_sigs = composite_sigs
+                .iter()
+                .map(|s| self.get_ret_ty_of_sig(s))
+                .collect::<Vec<_>>();
+            let is_intersection = sig.composite_kind == Some(TypeFlags::INTERSECTION);
+            let ty = self.get_union_or_intersection_ty(
+                &composite_sigs,
+                is_intersection,
+                Some(ty::UnionReduction::Subtype),
+            );
+            self.instantiate_ty(ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {
             self.get_ret_ty_from_anno(node_id)
                 .unwrap_or_else(|| self.get_ret_ty_from_body(node_id))
@@ -311,7 +343,7 @@ impl<'cx> TyChecker<'cx> {
         if !ctor_sigs.is_empty() {
             let abstract_sigs = ctor_sigs
                 .iter()
-                .filter(|sig| sig.flags.contains(SigFlags::ABSTRACT))
+                .filter(|sig| self.some_signature(sig, |s| s.flags.contains(SigFlags::ABSTRACT)))
                 .collect::<thin_vec::ThinVec<_>>();
             if !abstract_sigs.is_empty() {
                 let abstract_class_list = abstract_sigs
@@ -1501,5 +1533,37 @@ impl<'cx> TyChecker<'cx> {
             candidate
         };
         (best_index, instantiated)
+    }
+
+    fn some_signature(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        f: impl Fn(&'cx Sig<'cx>) -> bool + Copy,
+    ) -> bool {
+        if sig.composite_kind == Some(TypeFlags::UNION) {
+            if let Some(composite_sigs) = sig.composite_sigs {
+                for &composite_sig in composite_sigs {
+                    if f(composite_sig) {
+                        return true;
+                    }
+                }
+            }
+            false
+        } else {
+            f(sig)
+        }
+    }
+
+    fn some_signatures(
+        &mut self,
+        sigs: &[&'cx Sig<'cx>],
+        predicate: impl Fn(&'cx Sig<'cx>) -> bool + Copy,
+    ) -> bool {
+        for sig in sigs {
+            if self.some_signature(sig, predicate) {
+                return true;
+            }
+        }
+        false
     }
 }

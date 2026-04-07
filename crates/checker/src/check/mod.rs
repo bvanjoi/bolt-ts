@@ -262,7 +262,7 @@ pub struct TyChecker<'cx> {
     ///     while (cond) {
     ///         if (typeof x === "string") {
     ///             x = x.slice();
-    ///              // ~ the type of `x` is `silent_never_ty` when during the `x` in `typeof x`.
+    ///              // ~ the type of `x` is `silent_never_ty` when query the `x` in `typeof x`.
     ///         } else {
     ///             x = "abc";
     ///         }

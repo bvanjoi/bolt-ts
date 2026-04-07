@@ -988,9 +988,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn create_union_sigs(
+    pub(super) fn create_union_sig(
         &mut self,
-        sig: &'cx ty::Sig<'cx>,
+        sig: &ty::Sig<'cx>,
         union_sigs: ty::Sigs<'cx>,
     ) -> &'cx ty::Sig<'cx> {
         let next = ty::Sig {
@@ -1048,7 +1048,7 @@ impl<'cx> TyChecker<'cx> {
                     return Some(sigs[0]);
                 } else {
                     let sigs = self.alloc(sigs);
-                    self.create_union_sigs(sigs[0], sigs);
+                    self.create_union_sig(sigs[0], sigs);
                 }
             }
         } else {
