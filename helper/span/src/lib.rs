@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bolt_ts_atom::Atom;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -68,7 +66,7 @@ impl std::fmt::Display for Span {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Module {
     id: ModuleID,
     is_default_lib: bool,
@@ -89,7 +87,7 @@ pub type ModulePath = std::path::PathBuf;
 
 pub struct ModuleArena {
     path_map: Vec<ModulePath>,
-    content_map: Vec<Arc<String>>,
+    content_map: Vec<String>,
     modules: Vec<Module>,
 }
 
@@ -113,12 +111,12 @@ impl ModuleArena {
         let m = Module { id, is_default_lib };
         self.modules.push(m);
         assert_eq!(id.as_usize(), self.content_map.len());
+        // TODO: dont use atom when read file.
         let Some(atom) = read_file(p.as_path(), atoms) else {
             panic!("File not found: {p:?}");
         };
-        // TODO: remove this clone
         let data = atoms.get(atom).to_string();
-        self.content_map.push(Arc::new(data));
+        self.content_map.push(data);
         assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
@@ -137,7 +135,7 @@ impl ModuleArena {
         assert_eq!(id.as_usize(), self.content_map.len());
         // TODO: remove this clone
         let data = atoms.get(content).to_string();
-        self.content_map.push(Arc::new(data));
+        self.content_map.push(data);
         assert_eq!(id.as_usize(), self.path_map.len());
         self.path_map.push(p);
         id
@@ -148,7 +146,7 @@ impl ModuleArena {
         assert!(idx < self.path_map.len());
         unsafe { self.path_map.get_unchecked(idx) }
     }
-    pub fn get_content(&self, id: ModuleID) -> &Arc<String> {
+    pub fn get_content(&self, id: ModuleID) -> &str {
         let idx = id.as_usize();
         assert!(id.as_usize() < self.content_map.len());
         unsafe { self.content_map.get_unchecked(idx) }

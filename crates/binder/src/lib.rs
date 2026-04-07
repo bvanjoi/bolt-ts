@@ -17,17 +17,16 @@ mod parent_map;
 mod pprint;
 mod symbol;
 
-use rayon::prelude::*;
-use rustc_hash::FxHashMap;
-
 use bolt_ts_ast as ast;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_parser::ParsedMap;
-use bolt_ts_span::Module;
+use bolt_ts_span::ModuleArena;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 
 pub use self::create::set_value_declaration;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
@@ -56,6 +55,11 @@ pub struct Binder {
 impl Binder {
     pub fn new(bind_results: Vec<ResolveResult>) -> Self {
         Self { bind_results }
+    }
+
+    pub fn parent(&self, id: ast::NodeID) -> Option<ast::NodeID> {
+        let m = id.module();
+        self.get(m).parent_map.parent(id)
     }
 
     #[inline(always)]
@@ -100,6 +104,8 @@ struct BinderState<'cx, 'atoms, 'parser> {
     block_scope_container: Option<ast::NodeID>,
     last_container: Option<ast::NodeID>,
     seen_this_keyword: bool,
+
+    block_parent_stack: Vec<ast::NodeID>,
 
     current_flow: Option<FlowID>,
     in_strict_mode: bool,
@@ -213,6 +219,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             last_container: None,
             parent_map,
             pre_switch_case_flow: None,
+            block_parent_stack: vec![],
         }
     }
 
@@ -255,16 +262,16 @@ impl<'cx> BinderResult<'cx> {
 }
 
 pub fn bind_parallel<'cx>(
-    modules: &[Module],
+    modules: &ModuleArena,
     atoms: &AtomIntern,
     parser: ParsedMap<'cx>,
     options: &NormalizedTsConfig,
 ) -> Vec<(BinderResult<'cx>, ParseResultForGraph<'cx>)> {
-    assert_eq!(parser.module_count(), modules.len());
+    debug_assert_eq!(parser.module_count(), modules.modules().len());
     parser
         .into_map()
         .into_par_iter()
-        .zip(modules)
+        .zip(modules.modules())
         .map(|(mut p, m)| {
             let module_id = m.id();
             let is_default_lib = m.is_default_lib();
@@ -285,24 +292,83 @@ fn bind<'cx, 'atoms, 'parser>(
     options: &NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, module_id, options);
-    state.bind(root.id);
+    state.bind(root.id());
     state.parent_map.finish();
     state
 }
 
 pub fn prop_name(name: &ast::PropName) -> SymbolName {
-    match name.kind {
-        ast::PropNameKind::Ident(ident) => SymbolName::Atom(ident.name),
-        ast::PropNameKind::NumLit(num) => SymbolName::EleNum(num.val.into()),
-        ast::PropNameKind::StringLit { key, .. } => SymbolName::Atom(key),
+    prop_name_opt(&name.kind).unwrap()
+}
+
+pub fn symbol_name_from_enum_member_name(name: &ast::EnumMemberNameKind) -> SymbolName {
+    match name {
+        ast::EnumMemberNameKind::Ident(ident) => SymbolName::Atom(ident.name),
+        ast::EnumMemberNameKind::StringLit { key, .. } => SymbolName::Atom(*key),
+    }
+}
+
+pub fn prop_name_opt(name: &ast::PropNameKind) -> Option<SymbolName> {
+    match name {
+        ast::PropNameKind::Ident(ident) => Some(SymbolName::Atom(ident.name)),
+        ast::PropNameKind::PrivateIdent(ident) => Some(SymbolName::Atom(ident.name)),
+        ast::PropNameKind::NumLit(num) => Some(SymbolName::EleNum(num.val.into())),
+        ast::PropNameKind::StringLit { key, .. } => Some(SymbolName::Atom(*key)),
         ast::PropNameKind::Computed(c) => {
             use bolt_ts_ast::ExprKind::*;
             match c.expr.kind {
-                Ident(n) => SymbolName::Atom(n.name),
-                StringLit(n) => SymbolName::Atom(n.val),
-                NumLit(n) => SymbolName::EleNum(n.val.into()),
-                _ => unreachable!("name: {name:#?}"),
+                Ident(n) => Some(SymbolName::Atom(n.name)),
+                StringLit(n) => Some(SymbolName::Atom(n.val)),
+                NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
+                _ => {
+                    let n = c.expr.kind.as_signed_numeric_lit()?;
+                    Some(SymbolName::EleNum(n.into()))
+                }
             }
         }
+        ast::PropNameKind::BigIntLit(n) => Some(SymbolName::Atom(n.val.1)),
     }
+}
+
+fn argument_name_from_element_access_node<'cx>(
+    node: &'cx ast::EleAccessExpr<'cx>,
+) -> Option<SymbolName> {
+    use bolt_ts_ast::ExprKind::*;
+    match node.arg.kind {
+        StringLit(n) => Some(SymbolName::Atom(n.val)),
+        NoSubstitutionTemplateLit(n) => Some(SymbolName::Atom(n.val)),
+        NumLit(n) => Some(SymbolName::EleNum(n.val.into())),
+        _ => None,
+    }
+}
+
+pub enum AssignmentDeclarationKind {
+    None,
+    /// `exports.name = expr`
+    /// `module.exports.name = expr`
+    ExportsProperty,
+    /// `module.exports = expr`
+    ModuleExports,
+    /// `className.prototype.name = expr`
+    PrototypeProperty,
+    /// `this.name = expr`
+    ThisProperty,
+    // `F.name = expr`
+    Property,
+    // `F.prototype = { ... }`
+    Prototype,
+    // `Object.defineProperty(x, 'name', { value: any, writable?: boolean (false by default) });`
+    // `Object.defineProperty(x, 'name', { get: Function, set: Function });`
+    // `Object.defineProperty(x, 'name', { get: Function });`
+    // `Object.defineProperty(x, 'name', { set: Function });`
+    ObjectDefinePropertyValue,
+    // `Object.defineProperty(exports || module.exports, 'name', ...);`
+    ObjectDefinePropertyExports,
+    // `Object.defineProperty(Foo.prototype, 'name', ...);`
+    ObjectDefinePrototypeProperty,
+}
+
+pub fn param_index_in_parameter_list(param: ast::NodeID, list: ast::ParamsDecl) -> SymbolName {
+    let index = list.iter().position(|p| p.id == param).unwrap();
+    SymbolName::ParamIndex(index as u32)
 }

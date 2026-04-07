@@ -8,3 +8,9 @@ function bigInt64ArraySubarray() {
     arr.subarray(0);
     arr.subarray(0, 10);
 }
+
+
+const a = 1n;
+function f(_: bigint) {}
+f(a)
+f(1n);

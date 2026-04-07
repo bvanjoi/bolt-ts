@@ -1,0 +1,11 @@
+  × 'public' modifier must precede 'static' modifier.
+   ╭─[../../tests/compiler/multipleClassPropertyModifiers/index.ts:5:12]
+ 5 │ public
+   · ──────
+   ╰────
+
+  × 'private' modifier must precede 'static' modifier.
+   ╭─[../../tests/compiler/multipleClassPropertyModifiers/index.ts:8:12]
+ 8 │ private
+   · ───────
+   ╰────

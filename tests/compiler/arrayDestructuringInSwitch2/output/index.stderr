@@ -1,0 +1,6 @@
+  × Type 'never' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/arrayDestructuringInSwitch2/index.ts:15:13]
+ 15 │ [n]
+    · ───
+    ╰────

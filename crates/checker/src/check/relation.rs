@@ -1,17 +1,19 @@
-use bolt_ts_ast::{self as ast, ModifierKind};
-use bolt_ts_atom::Atom;
+use bolt_ts_ast::{self as ast};
+use bolt_ts_binder::{MergeSymbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
-use bolt_ts_utils::{fx_hashset_with_capacity, fx_indexmap_with_capacity};
-use rustc_hash::FxHashSet;
+use bolt_ts_utils::{FxIndexMap, FxIndexSet};
+use bolt_ts_utils::{fx_indexmap_with_capacity, fx_indexset_with_capacity};
 
+use rustc_hash::FxHashMap;
+
+use super::check_type_related_to::IntersectionState;
 use super::create_ty::IntersectionFlags;
-use super::symbol_info::SymbolInfo;
-use super::{SymbolLinks, errors};
-use crate::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
-use crate::ty::{ObjectTy, ObjectTyKind, Ty, TyKind};
-use bolt_ts_binder::{MergeSymbol, Symbol, SymbolFlags, SymbolID, SymbolName};
+use super::get_declared_ty::EnumMemberValue;
 
+use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
+use super::ty::{Ty, TyKind};
+use super::{SymbolLinks, errors};
 use super::{Ternary, TyChecker};
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -24,6 +26,54 @@ pub(super) enum RelationKind {
     Enum,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub(super) struct EnumRelationKey {
+    source: SymbolID,
+    target: SymbolID,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum GenericItemKey<'cx> {
+    Target(ty::TyID),
+    ParamIndex(u32),
+    SubParams(&'cx [GenericItemKey<'cx>]),
+    ParamTy(ty::TyID),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RelationKey<'cx> {
+    Normal {
+        source: ty::TyID,
+        target: ty::TyID,
+        relation: RelationKind,
+        has_intersection_state: bool,
+    },
+    Generic {
+        source: &'cx [GenericItemKey<'cx>],
+        target: &'cx [GenericItemKey<'cx>],
+        // TODO: merge `relation`, `has_constraint_marker` and `has_intersection_state` into flags
+        relation: RelationKind,
+        has_constraint_marker: bool,
+        has_intersection_state: bool,
+    },
+}
+
+pub(super) struct EnumRelationMap(FxHashMap<EnumRelationKey, RelationComparisonResult>);
+impl EnumRelationMap {
+    pub fn new() -> Self {
+        Self(FxHashMap::default())
+    }
+
+    pub fn get(&self, key: EnumRelationKey) -> Option<RelationComparisonResult> {
+        self.0.get(&key).copied()
+    }
+
+    pub fn insert(&mut self, key: EnumRelationKey, value: RelationComparisonResult) {
+        let prev = self.0.insert(key, value);
+        debug_assert!(prev.is_none())
+    }
+}
+
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
     pub(super) struct SigCheckMode: u8 {
@@ -34,14 +84,26 @@ bitflags::bitflags! {
         const STRICT_TOP_SIGNATURE  = 1 << 4;
         const CALLBACK              = Self::BIVARIANT_CALLBACK.bits() | Self::STRICT_CALLBACK.bits();
     }
+
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    pub(super) struct RelationComparisonResult: u8 {
+        const SUCCEEDED             = 1 << 0;
+        const FAILED                = 1 << 1;
+        const REPORT_UNMEASURABLE   = 1 << 3;
+        const REPORT_UNRELIABLE     = 1 << 4;
+        const REPORT_MASK           = Self::REPORT_UNMEASURABLE.bits() | Self::REPORT_UNRELIABLE.bits();
+        const COMPLEXITY_OVERFLOW   = 1 << 5;
+        const STACK_DEPTH_OVERFLOW  = 1 << 6;
+        const OVERFLOW              = Self::COMPLEXITY_OVERFLOW.bits() | Self::STACK_DEPTH_OVERFLOW.bits();
+    }
 }
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_excess_property_check_target(ty: &'cx Ty<'cx>) -> bool {
         if ty.kind.is_object() {
             let flags = ty.get_object_flags();
-            !flags.intersects(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
-        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
+            !flags.contains(ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES)
+        } else if ty.flags.contains(TypeFlags::NON_PRIMITIVE) {
             true
         } else if let Some(s) = ty.kind.as_substitution_ty() {
             Self::is_excess_property_check_target(s.base_ty)
@@ -59,6 +121,109 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_enum_ty_related_to(
+        &mut self,
+        source: SymbolID,
+        target: SymbolID,
+        report_error: bool,
+    ) -> bool {
+        let s = self.symbol(source);
+        let t = self.symbol(target);
+        let source_symbol = if s.flags.contains(SymbolFlags::ENUM_MEMBER) {
+            s.parent.unwrap()
+        } else {
+            source
+        };
+        let target_symbol = if t.flags.contains(SymbolFlags::ENUM_MEMBER) {
+            t.parent.unwrap()
+        } else {
+            target
+        };
+        if source_symbol == target_symbol {
+            return true;
+        }
+        let s = self.symbol(source_symbol);
+        let t = self.symbol(target_symbol);
+        if s.name != t.name
+            || !s.flags.contains(SymbolFlags::REGULAR_ENUM)
+            || !t.flags.contains(SymbolFlags::REGULAR_ENUM)
+        {
+            return false;
+        }
+        let key = EnumRelationKey {
+            source: source_symbol,
+            target: target_symbol,
+        };
+        if report_error
+            && let Some(entry) = self.enum_relation.get(key)
+            && !entry.contains(RelationComparisonResult::FAILED)
+        {
+            return entry.contains(RelationComparisonResult::SUCCEEDED);
+        }
+        let target_enum_ty = self.get_type_of_symbol(target_symbol);
+        let source_enum_ty = self.get_type_of_symbol(source_symbol);
+        let source_props = self.get_props_of_ty(source_enum_ty);
+        for source_prop in source_props {
+            let source_name = self.symbol(*source_prop).name;
+            let target_prop = self.get_prop_of_ty(target_enum_ty, source_name);
+            let Some(target_prop) = target_prop else {
+                // TODO: report error
+                self.enum_relation
+                    .insert(key, RelationComparisonResult::FAILED);
+                return false;
+            };
+            if !self
+                .symbol(target_prop)
+                .flags
+                .contains(SymbolFlags::ENUM_MEMBER)
+            {
+                // TODO: report error
+                self.enum_relation
+                    .insert(key, RelationComparisonResult::FAILED);
+                return false;
+            }
+            let source_value = {
+                let n = self
+                    .symbol(*source_prop)
+                    .get_declaration_of_kind(|id| self.p.node(id).is_enum_member())
+                    .unwrap();
+                let enum_member = self.p.node(n).expect_enum_member();
+                self.get_enum_member_value(enum_member)
+            };
+            let target_value = {
+                let n = self
+                    .symbol(target_prop)
+                    .get_declaration_of_kind(|id| self.p.node(id).is_enum_member())
+                    .unwrap();
+                let enum_member = self.p.node(n).expect_enum_member();
+                self.get_enum_member_value(enum_member)
+            };
+            if source_value != target_value {
+                if !matches!(source_value, EnumMemberValue::Err)
+                    && !matches!(target_value, EnumMemberValue::Err)
+                {
+                    // TODO: report error
+                    self.enum_relation
+                        .insert(key, RelationComparisonResult::FAILED);
+                    return false;
+                }
+
+                if matches!(source_value, EnumMemberValue::Str(_))
+                    || matches!(target_value, EnumMemberValue::Str(_))
+                {
+                    // TODO: report error
+                    self.enum_relation
+                        .insert(key, RelationComparisonResult::FAILED);
+                    return false;
+                }
+            }
+        }
+
+        self.enum_relation
+            .insert(key, RelationComparisonResult::SUCCEEDED);
+        true
+    }
+
     pub(super) fn is_simple_type_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -68,7 +233,7 @@ impl<'cx> TyChecker<'cx> {
         use RelationKind::*;
         let s = source.flags;
         let t = target.flags;
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
         let is_unknown_like_union_ty = |this: &mut Self| {
             strict_null_checks
                 && target.kind.as_union().is_some_and(|u| {
@@ -86,36 +251,67 @@ impl<'cx> TyChecker<'cx> {
             || (t.contains(TypeFlags::UNKNOWN)
                 && !(relation == StrictSubtype && s.contains(TypeFlags::ANY)))
         {
-            true
+            return true;
         } else if t.contains(TypeFlags::NEVER) {
-            false
-        } else if (s.intersects(TypeFlags::NUMBER_LIKE) && t.intersects(TypeFlags::NUMBER))
-            || (s.intersects(TypeFlags::STRING_LIKE) && t.intersects(TypeFlags::STRING))
-            || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.intersects(TypeFlags::BIG_INT))
-            || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.intersects(TypeFlags::BOOLEAN))
-            || (s.intersects(TypeFlags::UNDEFINED)
+            return false;
+        } else if s.intersects(TypeFlags::STRING_LIKE) && t.contains(TypeFlags::STRING) {
+            return true;
+        } else if s.contains(TypeFlags::ENUM_LITERAL) && !t.contains(TypeFlags::ENUM_LITERAL) {
+            if let Some(source_s) = source.kind.as_string_lit()
+                && let Some(target_s) = target.kind.as_string_lit()
+                && source_s.val == target_s.val
+            {
+                return true;
+            }
+            if let Some(source_n) = source.kind.as_number_lit()
+                && let Some(target_n) = target.kind.as_number_lit()
+                && source_n.val == target_n.val
+            {
+                return true;
+            }
+        }
+
+        if let Some(source_e) = source.kind.as_enum()
+            && let Some(target_e) = target.kind.as_enum()
+            && self.symbol(source_e.symbol).name == self.symbol(target_e.symbol).name
+            && self.is_enum_ty_related_to(source_e.symbol, target_e.symbol, false)
+        // TODO: report_error
+        {
+            return true;
+        }
+
+        if s.contains(TypeFlags::ENUM_LITERAL) && t.contains(TypeFlags::ENUM_LITERAL) {
+            // TODO: union
+            // TODO: literal
+        }
+
+        if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
+            || (s.intersects(TypeFlags::BIG_INT_LIKE) && t.contains(TypeFlags::BIG_INT))
+            || (s.intersects(TypeFlags::BOOLEAN_LIKE) && t.contains(TypeFlags::BOOLEAN))
+            || (s.intersects(TypeFlags::ES_SYMBOL_LIKE) && t.contains(TypeFlags::ES_SYMBOL))
+            || (s.contains(TypeFlags::UNDEFINED)
                 && (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION)
                     || t.intersects(TypeFlags::UNDEFINED.union(TypeFlags::VOID))))
-            || (s.intersects(TypeFlags::NULL)
-                && (t.intersects(TypeFlags::NULL)
+            || (s.contains(TypeFlags::NULL)
+                && (t.contains(TypeFlags::NULL)
                     || (!strict_null_checks && !t.intersects(TypeFlags::UNION_OR_INTERSECTION))))
-            || (s.intersects(TypeFlags::OBJECT)
-                && t.intersects(TypeFlags::NON_PRIMITIVE)
+            || (s.contains(TypeFlags::OBJECT)
+                && t.contains(TypeFlags::NON_PRIMITIVE)
                 && !(relation == StrictSubtype
                     && self.is_empty_anonymous_object_ty(source)
                     && !source
                         .get_object_flags()
-                        .intersects(ObjectFlags::FRESH_LITERAL)))
+                        .contains(ObjectFlags::FRESH_LITERAL)))
         {
             true
         } else if matches!(relation, Assignable | Comparable) {
-            s.intersects(TypeFlags::ANY)
-                || (s.intersects(TypeFlags::NUMBER)
-                    && (t.intersects(TypeFlags::ENUM)
+            s.contains(TypeFlags::ANY)
+                || (s.contains(TypeFlags::NUMBER)
+                    && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))))
                 || (s.intersection(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                     == TypeFlags::NUMBER_LITERAL
-                    && (t.intersects(TypeFlags::ENUM)
+                    && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                             && source.kind.as_number_lit().is_some_and(|s| {
                                 target.kind.as_number_lit().is_some_and(|t| s.val == t.val)
@@ -137,9 +333,9 @@ impl<'cx> TyChecker<'cx> {
             return Ternary::TRUE;
         }
         let source_prop_access = self.decl_modifier_flags_from_symbol(source)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self.decl_modifier_flags_from_symbol(target)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
             return Ternary::FALSE;
@@ -211,7 +407,15 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if source.kind.is_object() && target.kind.is_object() {
-            // TODO: cache
+            // let key = self.get_relation_key::<false>(
+            //     source,
+            //     target,
+            //     IntersectionState::empty(),
+            //     relation,
+            // );
+            // if let Some(related) = self.relations.get(&key) {
+            //     return related.contains(RelationComparisonResult::SUCCEEDED);
+            // }
         }
 
         if source.kind.is_structured_or_instantiable()
@@ -338,7 +542,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
             unreachable!()
         };
-        let mut members = fx_indexmap_with_capacity(64);
+        let mut members = fx_indexmap_with_capacity(16);
         for current in tys {
             for prop in self.get_props_of_ty(current) {
                 let name = self.symbol(*prop).name;
@@ -348,17 +552,53 @@ impl<'cx> TyChecker<'cx> {
                     vac.insert(combined_prop);
                 }
             }
+
+            if ty.flags.contains(TypeFlags::UNION) && self.get_index_infos_of_ty(current).is_empty()
+            {
+                break;
+            }
         }
         let props = members.into_values().collect::<Vec<_>>();
         let props = self.alloc(props);
         if self.get_ty_links(ty.id).get_resolved_properties().is_none() {
             self.get_mut_ty_links(ty.id).set_resolved_properties(props);
         } else {
-            // cycle
+            // TODO: cycle
             self.get_mut_ty_links(ty.id)
                 .override_resolved_properties(props);
         }
         props
+    }
+
+    fn get_prop_of_members(
+        &mut self,
+        members: &FxIndexMap<SymbolName, SymbolID>,
+        name: SymbolName,
+    ) -> Option<SymbolID> {
+        if let Some(symbol) = members.get(&name) {
+            return Some(*symbol);
+        }
+        // TODO: remove following query
+        match name {
+            SymbolName::Atom(n) => {
+                let name = self.atom(n);
+                if let Ok(val) = name.parse()
+                    && let Some(symbol) = members.get(&SymbolName::EleNum(F64Represent::new(val)))
+                {
+                    return Some(*symbol);
+                }
+            }
+            SymbolName::EleNum(n) => {
+                // TODO: remove `.to_string()`
+                let name = n.val().to_string();
+                let name = self.atoms.atom(&name);
+                if let Some(symbol) = members.get(&SymbolName::Atom(name)) {
+                    return Some(*symbol);
+                }
+            }
+            _ => {}
+        }
+        None
     }
 
     pub(super) fn get_prop_of_ty(
@@ -370,23 +610,11 @@ impl<'cx> TyChecker<'cx> {
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
             let s = self.expect_ty_links(ty.id).expect_structured_members();
-            if let Some(symbol) = s.members.get(&name) {
-                return Some(*symbol);
-            } else if let Some(name) = name.as_atom()
-                && let name = self.atom(name)
-                && let Ok(num) = name.parse()
-                && let Some(symbol) = s.members.get(&SymbolName::EleNum(F64Represent::new(num)))
-            {
-                return Some(*symbol);
-            } else if let Some(num) = name.as_numeric()
-             // TODO: remove `.to_string()`
-                && let name = self.atoms.atom(&num.to_string())
-                && let Some(symbol) = s.members.get(&SymbolName::Atom(name))
-            {
-                return Some(*symbol);
+            if let Some(symbol) = self.get_prop_of_members(s.members, name) {
+                return Some(symbol);
             }
 
-            let fn_ty = if ty.id == self.any_fn_ty().id {
+            let fn_ty = if ty == self.any_fn_ty() {
                 Some(self.global_array_ty())
             } else if self
                 .get_ty_links(ty.id)
@@ -425,20 +653,18 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        self.get_union_or_intersection_prop(ty, name)
-            .and_then(|prop| {
-                if !self
-                    .get_check_flags(prop)
-                    .intersects(CheckFlags::READ_PARTIAL)
-                {
-                    Some(prop)
-                } else {
-                    None
-                }
-            })
+        let prop = self.get_union_or_intersection_prop(ty, name)?;
+        if !self
+            .get_check_flags(prop)
+            .contains(CheckFlags::READ_PARTIAL)
+        {
+            Some(prop)
+        } else {
+            None
+        }
     }
 
-    fn get_union_or_intersection_prop(
+    pub(super) fn get_union_or_intersection_prop(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -457,10 +683,12 @@ impl<'cx> TyChecker<'cx> {
 
         let mut optional_flag = None;
 
+        let mut prop_flags = SymbolFlags::empty();
         let mut single_prop = None;
-        let mut prop_set: Option<FxHashSet<_>> = None;
-        let index_tys: Option<Vec<Ty<'cx>>> = None;
+        let mut prop_set: Option<FxIndexSet<_>> = None;
+        let mut index_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
+        let mut synthetic_flags = CheckFlags::SYNTHETIC_METHOD;
         let mut check_flags = if is_union {
             CheckFlags::empty()
         } else {
@@ -469,7 +697,7 @@ impl<'cx> TyChecker<'cx> {
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
-            if self.is_error(ty) || ty.flags.intersects(TypeFlags::NEVER) {
+            if self.is_error(ty) || ty.flags.contains(TypeFlags::NEVER) {
                 continue;
             }
             if let Some(prop) = self.get_prop_of_ty(ty, name) {
@@ -496,7 +724,7 @@ impl<'cx> TyChecker<'cx> {
                         if let Some(prop_set) = &mut prop_set {
                             prop_set.insert(prop);
                         } else {
-                            let mut t = fx_hashset_with_capacity(tys.len());
+                            let mut t = fx_indexset_with_capacity(tys.len());
                             t.insert(single_prop);
                             t.insert(prop);
                             prop_set = Some(t);
@@ -504,6 +732,9 @@ impl<'cx> TyChecker<'cx> {
                     }
                 } else {
                     single_prop = Some(prop);
+                    prop_flags = symbol_flags
+                        .intersection(SymbolFlags::ACCESSOR)
+                        .union(SymbolFlags::PROPERTY);
                 }
 
                 match (is_union, self.is_readonly_symbol(prop)) {
@@ -511,27 +742,65 @@ impl<'cx> TyChecker<'cx> {
                     (false, false) => check_flags &= !CheckFlags::READONLY,
                     _ => (),
                 };
-                check_flags |=
-                    if !modifiers.intersects(ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
-                        CheckFlags::CONTAINS_PUBLIC
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Protected) {
-                        CheckFlags::CONTAINS_PROTECTED
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Private) {
-                        CheckFlags::CONTAINS_PRIVATE
-                    } else {
-                        CheckFlags::empty()
-                    } | if modifiers.intersects(ModifierKind::Static) {
-                        CheckFlags::CONTAINS_STATIC
-                    } else {
-                        CheckFlags::empty()
-                    };
-                // TODO: !is_prototype_prop
+                check_flags |= if !modifiers
+                    .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                {
+                    CheckFlags::CONTAINS_PUBLIC
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.contains(ast::ModifierFlags::PROTECTED) {
+                    CheckFlags::CONTAINS_PROTECTED
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.contains(ast::ModifierFlags::PRIVATE) {
+                    CheckFlags::CONTAINS_PRIVATE
+                } else {
+                    CheckFlags::empty()
+                } | if modifiers.contains(ast::ModifierFlags::STATIC) {
+                    CheckFlags::CONTAINS_STATIC
+                } else {
+                    CheckFlags::empty()
+                };
+                if !self.is_prototype_prop(prop) {
+                    synthetic_flags = CheckFlags::SYNTHETIC_PROPERTY;
+                }
             } else if is_union {
-                // TODO:
+                if !name.is_late_bound()
+                    && let Some(index_info) = self.get_applicable_index_info_for_name(ty, name)
+                {
+                    // TODO: prop_flags
+                    check_flags |= CheckFlags::WRITE_PARTIAL
+                        | if index_info.is_readonly {
+                            CheckFlags::READONLY
+                        } else {
+                            CheckFlags::empty()
+                        };
+
+                    let index_ty = if ty.is_tuple() {
+                        self.get_rest_ty_of_tuple_ty(ty)
+                            .unwrap_or(self.undefined_ty)
+                    } else {
+                        index_info.val_ty
+                    };
+                    match &mut index_tys {
+                        Some(index_tys) => index_tys.push(index_ty),
+                        None => {
+                            index_tys = Some(vec![index_ty]);
+                        }
+                    }
+                } else if ty.is_object_literal()
+                    && !ty.get_object_flags().contains(ObjectFlags::CONTAINS_SPREAD)
+                {
+                    check_flags |= CheckFlags::WRITE_PARTIAL;
+                    match &mut index_tys {
+                        Some(index_tys) => index_tys.push(self.undefined_ty),
+                        None => {
+                            index_tys = Some(vec![self.undefined_ty]);
+                        }
+                    }
+                } else {
+                    check_flags |= CheckFlags::READ_PARTIAL
+                }
             }
         }
         let single_prop = single_prop?;
@@ -547,12 +816,36 @@ impl<'cx> TyChecker<'cx> {
             .map(|set| set.into_iter().collect())
             .unwrap_or_else(|| vec![single_prop]);
 
+        let mut first_value_declaration = None;
+        let mut has_non_uniform_value_declaration = false;
+        let mut declarations: Option<thin_vec::ThinVec<bolt_ts_ast::NodeID>> = None;
         let mut first_ty = None;
         let mut name_ty = None;
         let mut prop_tys = Vec::with_capacity(props.len());
         let mut write_tys: Option<Vec<&'cx Ty<'cx>>> = None;
 
         for prop in props {
+            let s = self.symbol(prop);
+            let prop_value_decl = s.value_decl;
+            if let Some(first_value_decl) = first_value_declaration {
+                if prop_value_decl.is_some_and(|d| d == first_value_decl) {
+                    has_non_uniform_value_declaration = true;
+                }
+            } else {
+                first_value_declaration = prop_value_decl;
+            }
+            if let Some(decls) = s.decls.as_ref()
+                && !decls.is_empty()
+            {
+                match &mut declarations {
+                    Some(v) => {
+                        v.extend(decls.clone());
+                    }
+                    None => {
+                        declarations = Some(decls.clone());
+                    }
+                }
+            }
             let ty = self.get_type_of_symbol(prop);
             if first_ty.is_none() {
                 first_ty = Some(ty);
@@ -568,16 +861,24 @@ impl<'cx> TyChecker<'cx> {
                     write_tys = Some(t);
                 }
             }
-            // if first_ty.map_or(true, |first_ty| first_ty != ty)
-            // {}
+            if first_ty != Some(ty) {
+                check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE;
+            }
+
+            if ty.is_literal_ty() || ty.is_pattern_lit_ty() {
+                check_flags |= CheckFlags::HAS_LITERAL_TYPE;
+            }
+
+            // TODO: if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {}
+
             prop_tys.push(ty);
         }
 
-        let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
+        let symbol_flags = prop_flags.union(SymbolFlags::TRANSIENT)
             | optional_flag.unwrap_or(SymbolFlags::empty());
         let links = SymbolLinks::default()
             .with_containing_ty(containing_ty)
-            .with_check_flags(CheckFlags::empty());
+            .with_check_flags(synthetic_flags | check_flags);
         let mut links = if let Some(name_ty) = name_ty {
             links.with_name_ty(name_ty)
         } else {
@@ -590,13 +891,13 @@ impl<'cx> TyChecker<'cx> {
                 .with_deferral_parent(containing_ty)
                 .with_deferral_constituents(prop_tys);
             if let Some(write_tys) = write_tys {
-                links.with_deferral_constituents(self.alloc(write_tys))
+                links.with_deferral_write_constituents(self.alloc(write_tys))
             } else {
                 links
             }
         } else {
             let ty = if is_union {
-                self.get_union_ty(&prop_tys, ty::UnionReduction::Lit, false, None, None)
+                self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Lit, None, None, None)
             } else {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };
@@ -605,7 +906,7 @@ impl<'cx> TyChecker<'cx> {
 
         // TODO: declarations
         let result =
-            self.create_transient_symbol(name, symbol_flags, links, Default::default(), None);
+            self.create_transient_symbol(name, symbol_flags, links, Default::default(), None, None);
 
         Some(result)
     }
@@ -619,12 +920,8 @@ impl<'cx> TyChecker<'cx> {
             return None;
         };
         self.resolve_structured_type_members(ty);
-        let symbol = self
-            .expect_ty_links(ty.id)
-            .expect_structured_members()
-            .members
-            .get(&name)
-            .copied()?;
+        let s = self.expect_ty_links(ty.id).expect_structured_members();
+        let symbol = self.get_prop_of_members(s.members, name)?;
         self.symbol_is_value(symbol, false).then_some(symbol)
     }
 
@@ -646,8 +943,14 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<Atom>, SymbolID)> {
-        self.get_unmatched_props(source, target, require_optional_properties)
+        match_discriminant_properties: bool,
+    ) -> Option<Vec<SymbolID>> {
+        self.get_unmatched_props(
+            source,
+            target,
+            require_optional_properties,
+            match_discriminant_properties,
+        )
     }
 
     fn get_unmatched_props(
@@ -655,43 +958,42 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         require_optional_properties: bool,
-    ) -> Option<(Vec<Atom>, SymbolID)> {
+        match_discriminant_properties: bool,
+    ) -> Option<Vec<SymbolID>> {
         let properties = self.get_props_of_ty(target);
-        let mut unmatched = Vec::with_capacity(properties.len());
+        let mut unmatched = vec![];
         for target_prop in properties {
-            let s = self.symbol(*target_prop);
+            // TODO: is_static_private_ident_property
+            let target_prop_symbol = self.symbol(*target_prop);
             if require_optional_properties
-                || !(s.flags.intersects(SymbolFlags::OPTIONAL)
+                || !(target_prop_symbol.flags.contains(SymbolFlags::OPTIONAL)
                     || self
                         .get_check_flags(*target_prop)
                         .intersects(CheckFlags::PARTIAL))
             {
-                let target_prop_name = s.name;
+                let target_prop_name = target_prop_symbol.name;
                 let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
-                    if let Some(target_prop_name) = target_prop_name.as_atom() {
-                        unmatched.push(target_prop_name);
-                    }
+                    unmatched.push(*target_prop);
                     continue;
                 };
+                if match_discriminant_properties {
+                    let target_ty = self.get_type_of_symbol(*target_prop);
+                    if target_ty.is_unit() {
+                        let source_ty = self.get_type_of_symbol(source_prop);
+                        if !source_ty.flags.contains(TypeFlags::ANY)
+                            && self.get_regular_ty_of_literal_ty(source_ty)
+                                != self.get_regular_ty_of_literal_ty(target_ty)
+                        {
+                            unmatched.push(*target_prop);
+                        }
+                    }
+                }
             }
         }
         if unmatched.is_empty() {
             None
         } else {
-            let target = self.get_reduced_apparent_ty(target);
-            let ty = target.kind.expect_object();
-            fn recur(ty: &ObjectTy) -> SymbolID {
-                match ty.kind {
-                    ObjectTyKind::Reference(ty) => recur(ty.target.kind.expect_object()),
-                    ObjectTyKind::Interface(ty) => ty.symbol,
-                    ObjectTyKind::Anonymous(ty) => ty.symbol.unwrap(),
-                    ObjectTyKind::Mapped(ty) => ty.symbol,
-                    ObjectTyKind::Tuple(_) => Symbol::ERR,
-                    _ => unreachable!("{ty:#?}"),
-                }
-            }
-            let symbol = recur(ty);
-            Some((unmatched, symbol))
+            Some(unmatched)
         }
     }
 
@@ -701,5 +1003,110 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
     ) -> bool {
         self.is_type_related_to(source, target, RelationKind::Assignable)
+    }
+
+    fn is_unconstrained_ty_param(&mut self, ty: &'cx Ty<'cx>) -> bool {
+        ty.flags.contains(TypeFlags::TYPE_PARAMETER)
+            && self.get_constraint_of_ty_param(ty).is_none()
+    }
+
+    pub(super) fn get_relation_key<const IGNORE_CONSTRAINTS: bool>(
+        &mut self,
+        mut source: &'cx ty::Ty<'cx>,
+        mut target: &'cx ty::Ty<'cx>,
+        intersection_state: IntersectionState,
+        relation: RelationKind,
+    ) -> RelationKey<'cx> {
+        if relation == RelationKind::Identity && source.id.as_u32() > target.id.as_u32() {
+            std::mem::swap(&mut source, &mut target);
+            debug_assert!(source.id.as_u32() <= target.id.as_u32());
+        }
+        let has_intersection_state = !intersection_state.is_empty();
+        if self.is_ty_reference_with_generic_arguments(source)
+            && self.is_ty_reference_with_generic_arguments(target)
+        {
+            fn get_ty_reference_id<'cx, const IGNORE_CONSTRAINTS: bool>(
+                this: &mut TyChecker<'cx>,
+                ty: &'cx ty::Ty<'cx>,
+                depth: u8,
+                has_constraint_marker: &mut bool,
+                ty_params: &mut Vec<&'cx ty::Ty<'cx>>,
+            ) -> &'cx [GenericItemKey<'cx>] {
+                debug_assert!(ty.get_object_flags().contains(ObjectFlags::REFERENCE));
+                debug_assert!(!this.get_ty_arguments(ty).is_empty());
+                let object_ty = ty.kind.expect_object();
+                let target = match object_ty.kind {
+                    ty::ObjectTyKind::Reference(t) => t.target,
+                    ty::ObjectTyKind::Tuple(_) => ty,
+                    _ => unreachable!(),
+                };
+                let mut result = vec![];
+                result.push(GenericItemKey::Target(target.id));
+                for t in this.get_ty_arguments(ty) {
+                    if t.flags.contains(TypeFlags::TYPE_PARAMETER) {
+                        if IGNORE_CONSTRAINTS || this.is_unconstrained_ty_param(t) {
+                            let index = match ty_params.iter().position(|ty_param| ty_param == t) {
+                                Some(index) => index,
+                                None => {
+                                    let len = ty_params.len();
+                                    ty_params.push(t);
+                                    len
+                                }
+                            };
+                            result.push(GenericItemKey::ParamIndex(index as u32));
+                            continue;
+                        }
+                        *has_constraint_marker = true;
+                    } else if depth < 4 && this.is_ty_reference_with_generic_arguments(t) {
+                        let subs =
+                            GenericItemKey::SubParams(get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                                this,
+                                t,
+                                depth + 1,
+                                has_constraint_marker,
+                                ty_params,
+                            ));
+                        result.push(subs);
+                        continue;
+                    }
+                    result.push(GenericItemKey::ParamTy(t.id));
+                }
+                this.alloc(result)
+            }
+
+            let mut has_constraint_marker = false;
+            let mut ty_params = vec![];
+            let source = get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                self,
+                source,
+                0,
+                &mut has_constraint_marker,
+                &mut ty_params,
+            );
+            let target = get_ty_reference_id::<IGNORE_CONSTRAINTS>(
+                self,
+                target,
+                0,
+                &mut has_constraint_marker,
+                &mut ty_params,
+            );
+
+            if has_constraint_marker == true {
+                // get generic ty reference relation key
+                return RelationKey::Generic {
+                    source,
+                    target,
+                    relation,
+                    has_intersection_state,
+                    has_constraint_marker,
+                };
+            }
+        }
+        RelationKey::Normal {
+            source: source.id,
+            target: target.id,
+            relation,
+            has_intersection_state,
+        }
     }
 }

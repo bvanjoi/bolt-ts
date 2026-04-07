@@ -1,0 +1,5 @@
+  × Declarations must be initialized.
+   ╭─[../../tests/compiler/downlevelLetConst4/index.ts:4:7]
+ 4 │ a
+   · ─
+   ╰────

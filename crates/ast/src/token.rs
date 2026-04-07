@@ -9,18 +9,21 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, span: Span) -> Self {
+        debug_assert!(span.lo() <= span.hi());
         Self { kind, span }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn start(&self) -> u32 {
         debug_assert_ne!(self.span.lo(), u32::MAX);
+        debug_assert!(self.span.lo() <= self.span.hi());
         self.span.lo()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn end(&self) -> u32 {
         debug_assert_ne!(self.span.hi(), u32::MAX);
+        debug_assert!(self.span.lo() <= self.span.hi());
         self.span.hi()
     }
 }
@@ -166,6 +169,10 @@ pub enum TokenKind {
     CaretEq,
     /// `?.`
     QuestionDot,
+    /// `??`
+    QuestionQuestion,
+    /// `??=`
+    QuestionQuestionEq,
     /// `</`
     LessSlash,
     // =====
@@ -305,6 +312,7 @@ pub enum TokenKind {
     JSXTextAllWhiteSpaces,
     Regexp,
     Ident,
+    PrivateIdent,
     NoSubstitutionTemplate,
     TemplateHead,
     TemplateMiddle,
@@ -462,6 +470,7 @@ impl From<TokenKind> for super::BinOpKind {
             TokenKind::Caret => BitXor,
             TokenKind::AsteriskAsterisk => Exp,
             TokenKind::Comma => Comma,
+            TokenKind::QuestionQuestion => Nullish,
             _ => {
                 unreachable!("{:#?}", value)
             }
@@ -559,6 +568,7 @@ impl TokenKind {
     pub const fn prec(self) -> BinPrec {
         use TokenKind::*;
         match self {
+            QuestionQuestion => BinPrec::LogicalOr,
             Pipe => BinPrec::BitwiseOR,
             Caret => BinPrec::BitwiseXOR,
             Amp => BinPrec::BitwiseAND,
@@ -652,13 +662,13 @@ impl TokenKind {
 
     #[inline(always)]
     pub const fn is_ident_or_keyword(self) -> bool {
-        matches!(self, TokenKind::Ident) || self.is_keyword()
+        matches!(self, TokenKind::Ident | TokenKind::PrivateIdent) || self.is_keyword()
     }
 
     #[inline(always)]
     pub const fn is_lit_prop_name(self) -> bool {
         use TokenKind::*;
-        self.is_ident_or_keyword() || matches!(self, String | Number)
+        self.is_ident_or_keyword() || matches!(self, String | Number | BigInt)
     }
 
     #[inline(always)]
@@ -726,7 +736,7 @@ impl TokenKind {
 pub enum BinPrec {
     Invalid,
     Lowest,
-    /// `||`
+    /// `||` and `??`
     LogicalOr,
     /// `&&`
     LogicalAnd,

@@ -1,7 +1,8 @@
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_module_resolve::COMMON_PACKAGE_FOLDERS;
-use bolt_ts_utils::path::NormalizePath;
+
+use super::match_files::match_files_with_extensions;
 
 pub(super) struct ConfigFileSpecs {
     include_specs: Vec<String>,
@@ -14,69 +15,19 @@ impl ConfigFileSpecs {
     }
 }
 
-fn match_files(
-    path: &std::path::Path,
-    extensions: &[bolt_ts_config::Extension],
-    exclude: Option<&[String]>,
-    include: Option<&[String]>,
-    fs: &mut impl CachedFileSystem,
-    atoms: &mut bolt_ts_atom::AtomIntern,
-) -> Vec<std::path::PathBuf> {
-    debug_assert!(path.is_normalized(), "'{path:#?}' is not normalized");
-    let include = include
-        .unwrap_or_default()
-        .iter()
-        .map(|s| {
-            // TODO: join means we need to compare more the prefix part
-            path.join(s)
-        })
-        .collect::<Vec<_>>();
-    let include = include
-        .iter()
-        .map(|p| p.to_str().unwrap())
-        .collect::<Vec<_>>();
-    let exclude = exclude
-        .unwrap_or_default()
-        .iter()
-        .map(|s| {
-            // TODO: join means we need to compare more the prefix part
-            path.join(s)
-        })
-        .collect::<Vec<_>>();
-    let exclude = exclude
-        .iter()
-        .map(|p| p.to_str().unwrap())
-        .collect::<Vec<_>>();
-    let files = fs.glob(path, &include, &exclude, atoms);
-    files
-        .into_iter()
-        .filter(|p| {
-            for ext in extensions {
-                let Some(p_ext) = p.extension() else {
-                    return false;
-                };
-                if p_ext == ext.as_str() {
-                    return true;
-                }
-            }
-            false
-        })
-        .collect()
-}
-
 fn get_filenames_from_config_specs(
     config_file_specs: &ConfigFileSpecs,
     base_path: &std::path::Path,
     fs: &mut impl CachedFileSystem,
     atoms: &mut bolt_ts_atom::AtomIntern,
 ) -> Vec<std::path::PathBuf> {
-    let supported_extensions = &bolt_ts_config::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
+    let supported_extensions = &bolt_ts_middle::FLATTENED_ALL_SUPPORTED_EXTENSIONS;
     let exclude = COMMON_PACKAGE_FOLDERS
         .iter()
         .map(|s| format!("**/{s}/**/*"))
         .collect::<Vec<_>>();
 
-    match_files(
+    match_files_with_extensions(
         base_path,
         supported_extensions,
         Some(&exclude),

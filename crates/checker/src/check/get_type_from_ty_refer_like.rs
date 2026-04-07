@@ -1,4 +1,4 @@
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 use super::{TyChecker, errors};
@@ -77,7 +77,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if self
             .get_check_flags(symbol)
-            .intersects(CheckFlags::UNRESOLVED)
+            .contains(CheckFlags::UNRESOLVED)
         {
             return self.error_ty;
         }
@@ -89,7 +89,7 @@ impl<'cx> TyChecker<'cx> {
                 .ty_args()
                 .map(|ty_args| ty_args.list.len())
                 .unwrap_or_default();
-            let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
+            let min_ty_arg_count = self.get_min_ty_arg_count_of_ty_params(ty_params);
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let ty = self.binder.symbol(symbol).name.to_string(&self.atoms);
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
@@ -140,7 +140,9 @@ impl<'cx> TyChecker<'cx> {
             let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
-            self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args)
+            let ret =
+                self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args);
+            ret
         } else if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
             ty
         } else {
@@ -189,22 +191,19 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_from_class_or_interface_reference(
         &mut self,
+        node: ast::NodeID,
         node_span: bolt_ts_span::Span,
         ty_args: Option<&'cx ast::Tys<'cx>>,
         name: Option<&'cx ast::EntityName<'cx>>,
         symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let i = if let Some(i) = ty.kind.as_object_interface() {
-            i
-        } else if let Some(r) = ty.kind.as_object_reference() {
-            r.target.kind.expect_object_interface()
-        } else {
+        let Some(i) = ty.as_class_or_interface_ty() else {
             unreachable!()
         };
         if let Some(ty_params) = i.local_ty_params {
             let num_ty_args = ty_args.map(|args| args.list.len()).unwrap_or_default();
-            let min_ty_arg_count = self.get_min_ty_arg_count(Some(ty_params));
+            let min_ty_arg_count = self.get_min_ty_arg_count_of_ty_params(ty_params);
             if num_ty_args < min_ty_arg_count || num_ty_args > ty_params.len() {
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
@@ -222,6 +221,14 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(error);
                 return self.error_ty;
+            }
+
+            if self.p.node(node).as_refer_ty().is_some_and(|n| {
+                let has_default_ty_arguments =
+                    n.ty_args.map(|tys| tys.list.len()) != ty_args.map(|tys| tys.list.len());
+                self.is_deferred_ty_reference_node(node, has_default_ty_arguments)
+            }) {
+                return self.create_deferred_ty_reference(ty, node, None, None, None);
             }
 
             let resolved_ty_args = {
@@ -249,6 +256,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             return self.get_ty_from_class_or_interface_reference(
+                node.id(),
                 node.span(),
                 node.ty_args(),
                 Some(node.name()),

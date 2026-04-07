@@ -1,5 +1,4 @@
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
 use super::ty;
 
 use bolt_ts_ast as ast;
@@ -25,7 +24,6 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let fn_decl = self.p.node(id);
         let symbol = self.get_symbol_of_decl(id);
-        // TODO: check_sig_decl
         let first_fn_decl = self.binder.symbol(symbol).decls.as_ref().and_then(|decls| {
             decls
                 .iter()
@@ -35,16 +33,14 @@ impl<'cx> TyChecker<'cx> {
             self.check_fn_like_symbol(symbol);
         }
 
-        // TODO: use check_sig
-        if let Some(ty_params) = decl.ty_params() {
-            self.check_ty_params(ty_params);
-        }
+        self.check_sig_decl(id);
 
         for param in decl.params() {
             self.check_param_decl(param)
         }
 
-        if let Some(body) = r#trait::FnDeclLike::body(decl) {
+        let body = r#trait::FnDeclLike::body(decl);
+        if let Some(body) = body {
             self.check_block(body)
         }
 
@@ -52,12 +48,16 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty(ty);
         }
 
-        if {
-            let n = self.p.node(id);
-            !(n.is_ctor_sig_decl() || n.is_ctor_ty() || n.is_class_ctor())
-        } {
-            let ret_ty = self.get_ret_ty_from_anno(id);
-            self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, ret_ty);
+        use ast::Node::*;
+        if !matches!(self.p.node(id), CtorSigDecl(_) | CtorTy(_) | ClassCtor(_)) {
+            let return_ty = self.get_ret_ty_from_anno(id);
+            self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, return_ty);
+        }
+
+        if self.get_effective_ret_type_node(id).is_none() {
+            if body.is_none() {
+                self.report_implicit_any(id, self.any_ty, None);
+            }
         }
     }
 
@@ -66,8 +66,10 @@ impl<'cx> TyChecker<'cx> {
         func: &impl r#trait::FnLike<'cx>,
         ret_ty: Option<&'cx ty::Ty<'cx>>,
     ) {
-        // TODO: unwrap_return_ty
-        let ty = ret_ty;
+        let fn_id = func.id();
+        let n = self.p.node(fn_id);
+        let fn_flags = n.fn_flags();
+        let ty = ret_ty.and_then(|ret_ty| self.unwrap_ret_ty(ret_ty, fn_flags));
         if ty.is_some_and(|ty| {
             ty.maybe_type_of_kind(ty::TypeFlags::VOID)
                 || ty
@@ -83,8 +85,6 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
 
-        let fn_id = func.id();
-        let n = self.p.node(fn_id);
         if n.is_method_signature() || !self.fn_has_implicit_return(fn_id) {
             return;
         }

@@ -1,0 +1,6 @@
+  × Object literal may only specify known properties, and 'foo' does not exist
+  │ in type '{ id: number; }'.
+   ╭─[../../tests/compiler/arrayCast/index.ts:7:23]
+ 7 │ foo: "s"
+   · ────────
+   ╰────

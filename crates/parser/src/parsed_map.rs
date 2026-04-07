@@ -102,4 +102,8 @@ impl<'cx> ParsedMap<'cx> {
     pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
         self.get(id.module()).nodes.is_alias_symbol_decl(id)
     }
+
+    pub fn is_call_chain(&self, id: ast::NodeID) -> bool {
+        self.node(id).is_call_expr() && self.node_flags(id).contains(ast::NodeFlags::OPTIONAL_CHAIN)
+    }
 }

@@ -1,0 +1,64 @@
+  × Class 'B' used before its declaration.
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:3:17]
+ 3 │ B
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'B' is defined here
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:6:7]
+ 6 │ B
+   · ─
+   ╰────
+
+  × Class 'C' used before its declaration.
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:6:20]
+ 6 │ C
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'C' is defined here
+    ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:10:7]
+ 10 │ C
+    · ─
+    ╰────
+
+  × Class 'B' used before its declaration.
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:3:17]
+ 3 │ B
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'B' is defined here
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:6:7]
+ 6 │ B
+   · ─
+   ╰────
+
+  × Class 'C' used before its declaration.
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:6:20]
+ 6 │ C
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'C' is defined here
+    ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:10:7]
+ 10 │ C
+    · ─
+    ╰────
+
+  × Class 'C' used before its declaration.
+   ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:6:20]
+ 6 │ C
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Class 'C' is defined here
+    ╭─[../../tests/compiler/genericClassInheritsConstructorFromNonGenericClass/index.ts:10:7]
+ 10 │ C
+    · ─
+    ╰────

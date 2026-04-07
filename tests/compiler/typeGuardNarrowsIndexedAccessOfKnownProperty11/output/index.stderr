@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty11/index.ts:13:11]
+ 13 │ a
+    · ─
+    ╰────

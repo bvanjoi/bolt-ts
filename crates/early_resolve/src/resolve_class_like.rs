@@ -77,6 +77,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 StaticBlockDecl(n) => {
                     self.resolve_block_stmt(n.body);
                 }
+                Semi(_) => {}
             }
         }
     }

@@ -1,0 +1,5 @@
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/indexWithoutParamType2/index.ts:5:6]
+ 5 │ x
+   · ─
+   ╰────

@@ -176,6 +176,14 @@ pub(super) struct ModifierCannotAppearOnAParameter {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{kind}' modifier cannot appear on an index signature.")]
+pub(super) struct ModifierCannotAppearOnAnIndexSignature {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An implementation cannot be declared in ambient contexts.")]
 pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
     #[label(primary)]
@@ -597,4 +605,34 @@ pub(super) struct FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUs
     pub span: Span,
     pub is_fn_ty: bool,
     pub is_union_ty: bool,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{x}' modifier must precede '{y}' modifier.")]
+pub(super) struct XModifierMustPrecedeYModifier {
+    #[label(primary)]
+    pub span: Span,
+    pub x: bolt_ts_ast::ModifierKind,
+    pub y: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An index signature cannot have a rest parameter.")]
+pub(super) struct AnIndexSignatureCannotHaveARestParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'yield' expression is only allowed in a generator body.")]
+pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Unexpected keyword or identifier.")]
+pub(super) struct UnexpectedKeywordOrIdentifier {
+    #[label(primary)]
+    pub span: Span,
 }

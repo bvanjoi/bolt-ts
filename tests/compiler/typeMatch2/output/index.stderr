@@ -1,0 +1,56 @@
+  × Property 'x' is missing.
+   ╭─[../../tests/compiler/typeMatch2/index.ts:8:2]
+ 8 │ a
+   · ─
+   ╰────
+
+  × Property 'y' is missing.
+   ╭─[../../tests/compiler/typeMatch2/index.ts:8:2]
+ 8 │ a
+   · ─
+   ╰────
+
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:11:5]
+ 11 │ a
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ x: number; y: number; }'.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:13:20]
+ 13 │ z: 3
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ x: number; y: number; }'.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:15:17]
+ 15 │ z: 3
+    · ────
+    ╰────
+
+  × Property 'g' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:28:5]
+ 28 │ gg
+    · ──
+    ╰────
+
+  × Property 'g' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:33:5]
+ 33 │ xb
+    · ──
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ x: number; y: number; }'.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:46:26]
+ 46 │ z:1
+    · ───
+    ╰────
+
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:48:5]
+ 48 │ a
+    · ─
+    ╰────

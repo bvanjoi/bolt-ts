@@ -3,6 +3,8 @@
 class C { 
     public {};
     //~^ ERROR: Identifier expected.
+    //~| ERROR: Unexpected keyword or identifier.
+    //~| ERROR: Expected '}'.
 }
 //~^ ERROR: Declaration or statement expected.
 

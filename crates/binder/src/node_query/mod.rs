@@ -1,24 +1,23 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::{self, is_prim_ty_name};
 
-use super::{
-    AccessKind, ParentMap,
-    container_flags::{ContainerFlags, container_flags_for_node},
-};
+use super::AssignmentDeclarationKind;
+use super::container_flags::{ContainerFlags, container_flags_for_node};
+use super::{AccessKind, ParentMap};
 
 pub struct NodeQuery<'cx, 'a> {
     parent_map: &'a ParentMap,
     parse_result: &'a bolt_ts_parser::ParseResultForGraph<'cx>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum ModuleInstanceState {
     NonInstantiated = 0,
     Instantiated = 1,
     ConstEnumOnly = 2,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum AssignmentKind {
     None,
     Definite,
@@ -85,11 +84,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let mut n = self.parent(binding).unwrap();
         debug_assert!(matches!(self.node(n), ObjectPat(_) | ArrayPat(_)));
         loop {
-            let p = self.parent(n).unwrap();
-            if self.node(p).is_binding() {
-                n = p;
+            let parent_id = self.parent(n).unwrap();
+            let parent_node = self.node(parent_id);
+            if matches!(parent_node, ObjectBindingElem(_) | ArrayBinding(_)) {
+                n = parent_id;
             } else {
-                break p;
+                break parent_id;
             }
         }
     }
@@ -124,73 +124,169 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.get_combined_flags(id, |p, id| p.node_flags(id))
     }
 
-    pub fn get_combined_modifier_flags(
+    pub fn get_selected_syntactic_modifier_flags(
         &self,
         id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        flags: ast::ModifierFlags,
+    ) -> ast::ModifierFlags {
+        self.get_effective_modifier_flags(id) & flags
+    }
+
+    pub fn get_combined_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
     }
 
     pub fn is_enum_const(&self, e: &ast::EnumDecl) -> bool {
         self.get_combined_modifier_flags(e.id)
-            .intersects(ast::ModifierKind::Const)
+            .contains(ast::ModifierFlags::CONST)
     }
 
     pub fn get_module_instance_state(
         &self,
         m: &'cx ast::ModuleDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
         fn cache<'cx>(
             this: &NodeQuery<'cx, '_>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
         ) -> ModuleInstanceState {
             let key = node.index_as_u32();
             if let Some(v) = visited.get(&key).copied() {
-                v.unwrap_or(ModuleInstanceState::Instantiated)
+                v.unwrap_or(ModuleInstanceState::NonInstantiated)
             } else {
                 visited.insert(key, None);
-                let state = _get_module_instance_state(this, node, visited);
+                let state = get_module_instance_state_worker(this, node, visited, parent_of);
                 visited.insert(key, Some(state));
                 state
             }
         }
 
-        fn _get_module_instance_state<'cx>(
+        fn find_module_instance_state_in_stmts<'cx>(
+            this: &NodeQuery<'cx, '_>,
+            stmts: ast::Stmts<'cx>,
+            name: &'cx ast::Ident,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+        ) -> Option<ModuleInstanceState> {
+            let mut found: Option<ModuleInstanceState> = None;
+            for stmt in stmts {
+                if stmt.has_name(name) {
+                    let state = cache(this, stmt.id(), visited, parent_of);
+                    if found.is_none_or(|found| state > found) {
+                        found = Some(state);
+                    }
+                    if let Some(found) = found
+                        && found == ModuleInstanceState::Instantiated
+                    {
+                        return Some(found);
+                    }
+                }
+                if let ast::StmtKind::ImportEquals(_) = stmt.kind {
+                    found = Some(ModuleInstanceState::Instantiated);
+                }
+                if let Some(found) = found {
+                    return Some(found);
+                }
+            }
+            None
+        }
+
+        fn get_module_instance_state_for_alias_target<'cx>(
+            this: &NodeQuery<'cx, '_>,
+            node: &'cx ast::ExportSpec<'cx>,
+            visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+        ) -> ModuleInstanceState {
+            let name = match node.kind {
+                ast::ExportSpecKind::Shorthand(n) => n.name,
+                ast::ExportSpecKind::Named(n) => {
+                    match n.prop_name.kind {
+                        ast::ModuleExportNameKind::Ident(ident) => ident,
+                        ast::ModuleExportNameKind::StringLit(_) => {
+                            // Skip for invalid syntax like this: export { "x" }
+                            return ModuleInstanceState::Instantiated;
+                        }
+                    }
+                }
+            };
+
+            let mut index = 0;
+            let mut p = parent_of(node.id(), index);
+            debug_assert!(p.is_some());
+            while let Some(p_id) = p {
+                if let Some(stmts) = match this.node(p_id) {
+                    ast::Node::BlockStmt(ast::BlockStmt { stmts, .. })
+                    | ast::Node::ModuleBlock(ast::ModuleBlock { stmts, .. }) => Some(*stmts),
+                    ast::Node::Program(n) => Some(n.stmts()),
+                    _ => None,
+                } && let Some(found) =
+                    find_module_instance_state_in_stmts(this, stmts, name, visited, parent_of)
+                {
+                    return found;
+                }
+                index += 1;
+                p = parent_of(p_id, index);
+            }
+            ModuleInstanceState::Instantiated
+        }
+
+        fn get_module_instance_state_worker<'cx>(
             this: &NodeQuery<'cx, '_>,
             node: ast::NodeID,
             visited: &mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>,
+            parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
         ) -> ModuleInstanceState {
             use ast::Node::*;
             let n = this.node(node);
             match n {
                 InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
-                // TODO: import eq
-                ImportDecl(_) if !n.has_syntactic_modifier(ast::ModifierKind::Export.into()) => {
+                ImportDecl(_) | ImportEqualsDecl(_)
+                    if !n.has_syntactic_modifier(ast::ModifierFlags::EXPORT) =>
+                {
                     ModuleInstanceState::NonInstantiated
                 }
-                ExportDecl(_) => {
-                    todo!()
+                ExportDecl(n) => {
+                    if n.module_spec().is_none()
+                        && let ast::ExportClauseKind::Specs(specs) = n.clause.kind
+                    {
+                        let mut state = ModuleInstanceState::NonInstantiated;
+                        for spec in specs.list {
+                            let spec_state = get_module_instance_state_for_alias_target(
+                                this, spec, visited, parent_of,
+                            );
+                            if spec_state > state {
+                                state = spec_state;
+                            }
+                            if state == ModuleInstanceState::Instantiated {
+                                return state;
+                            }
+                        }
+                        return state;
+                    }
+                    ModuleInstanceState::Instantiated
                 }
                 ModuleBlock(m) => {
                     let mut state = ModuleInstanceState::NonInstantiated;
                     for item in m.stmts {
-                        let child_state = cache(this, item.id(), visited);
+                        let child_state = cache(this, item.id(), visited, parent_of);
                         match child_state {
                             ModuleInstanceState::NonInstantiated => (),
                             ModuleInstanceState::Instantiated => {
-                                state = ModuleInstanceState::Instantiated
+                                state = ModuleInstanceState::Instantiated;
+                                break;
                             }
                             ModuleInstanceState::ConstEnumOnly => {
-                                state = ModuleInstanceState::ConstEnumOnly
+                                state = ModuleInstanceState::ConstEnumOnly;
                             }
                         }
                     }
                     state
                 }
-                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited)),
+                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited), parent_of),
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -204,10 +300,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
         if let Some(block) = m.block {
             if let Some(visited) = visited {
-                cache(self, block.id, visited)
+                cache(self, block.id, visited, parent_of)
             } else {
                 let mut default_map = nohash_hasher::IntMap::default();
-                cache(self, block.id, &mut default_map)
+                cache(self, block.id, &mut default_map, parent_of)
             }
         } else {
             ModuleInstanceState::Instantiated
@@ -243,35 +339,29 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    fn get_effective_modifier_flags(
-        &self,
-        id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_modifier_flags(id, true, false)
     }
 
     fn get_modifier_flags(
         &self,
         id: ast::NodeID,
-        include_js_doc: bool,
-        always_include_js_doc: bool,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+        _include_js_doc: bool,
+        _always_include_js_doc: bool,
+    ) -> ast::ModifierFlags {
         let m = self.get_syntactic_modifier_flags_no_cache(id);
         ast::ModifierKind::get_syntactic_modifier_flags(m)
     }
 
-    pub fn get_syntactic_modifier_flags_no_cache(
-        &self,
-        id: ast::NodeID,
-    ) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn get_syntactic_modifier_flags_no_cache(&self, id: ast::NodeID) -> ast::ModifierFlags {
         let n = self.node(id);
         let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
         let node_flags = self.node_flags(id);
-        if node_flags.intersects(ast::NodeFlags::NESTED_NAMESPACE)
+        if node_flags.contains(ast::NodeFlags::NESTED_NAMESPACE)
             || n.is_ident()
                 && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
         {
-            flags | ast::ModifierKind::Export
+            flags | ast::ModifierFlags::EXPORT
         } else {
             flags
         }
@@ -288,19 +378,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             if n.is_object_binding_elem() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_object_pat());
-                let p = self.parent(p).unwrap();
-                debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
                 n = self.node(id);
             } else if n.is_array_binding() {
                 let p = self.parent(id).unwrap();
                 debug_assert!(self.node(p).is_array_pat(), "span: {:#?}", self.node(p));
-                let p = self.parent(p).unwrap();
-                debug_assert!(self.node(p).is_binding());
                 id = self.parent(p).unwrap();
-                n = self.node(id);
-            } else if n.is_binding() {
-                id = self.parent(id).unwrap();
                 n = self.node(id);
             } else {
                 break;
@@ -398,7 +481,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 self.node(p).expect_import_clause().is_type_only
             })
             || (n.is_export_named_spec()) && {
-                let p = self.parent(id).unwrap();
+                let _p = self.parent(id).unwrap();
                 let p = self.parent(id).unwrap();
                 self.node(p).expect_export_decl().clause.is_type_only
             }
@@ -408,7 +491,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         mut id: ast::NodeID,
         include_arrow_fn: bool,
-        include_class_computed_prop_name: bool,
+        _include_class_computed_prop_name: bool,
     ) -> ast::NodeID {
         use ast::Node::*;
         while let Some(parent) = self.parent(id) {
@@ -423,9 +506,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             } else {
                 match node {
                     FnDecl(_) | FnExpr(_) | ModuleDecl(_) | ClassPropElem(_)
-                    | ClassMethodElem(_) | ClassCtor(_) | CtorSigDecl(_) | GetterDecl(_)
-                    | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_) | Program(_)
-                    | PropSignature(_) => return id,
+                    | ClassMethodElem(_) | MethodSignature(_) | ClassCtor(_) | CtorSigDecl(_)
+                    | GetterDecl(_) | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_)
+                    | Program(_) | PropSignature(_) => return id,
                     _ => {}
                 }
             }
@@ -438,7 +521,6 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         mut id: ast::NodeID,
         stop_on_functions: bool,
     ) -> Option<ast::NodeID> {
-        use ast::Node::*;
         loop {
             let parent = self.parent(id)?;
             id = parent;
@@ -463,18 +545,35 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn is_in_ambient_or_type_node(&self, id: ast::NodeID) -> bool {
+        self.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+            || self
+                .find_ancestor(id, |node| {
+                    if matches!(
+                        node,
+                        ast::Node::InterfaceDecl(_)
+                            | ast::Node::TypeAliasDecl(_)
+                            | ast::Node::ObjectLitTy(_)
+                    ) {
+                        Some(true)
+                    } else {
+                        None
+                    }
+                })
+                .is_some()
+    }
+
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
-        self.find_ancestor(id, |node| {
-            if node.is_typeof_expr() || node.is_typeof_ty() {
-                Some(true)
-            } else if node.is_ident() {
-                // TODO: qualified name
-                None
-            } else {
-                Some(false)
-            }
+        self.find_ancestor(id, |node| match node {
+            ast::Node::TypeofTy(_) => Some(true),
+            ast::Node::Ident(_) | ast::Node::QualifiedName(_) => None,
+            _ => Some(false),
         })
         .is_some()
+    }
+
+    pub fn is_assignment_target(&self, n: ast::NodeID) -> bool {
+        self.get_assignment_target(n).is_some()
     }
 
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
@@ -521,6 +620,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn is_in_compound_like_assignment(&self, id: ast::NodeID) -> bool {
+        let Some(target) = self.get_assignment_target(id) else {
+            return false;
+        };
+        let n = self.node(target);
+        n.as_assign_expr()
+            .is_some_and(ast::AssignExpr::is_compound_assignment)
+    }
+
     pub fn is_decl_name_or_import_prop_name(&self, id: ast::NodeID) -> bool {
         use ast::Node::*;
         self.parent(id).is_some_and(|p| match self.node(p) {
@@ -532,7 +640,45 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_decl_name(&self, id: ast::NodeID) -> bool {
-        self.parent(id).is_some_and(|p| self.node(p).is_decl())
+        self.parent(id).is_some_and(|p| {
+            let p_node = self.node(p);
+            use ast::Node::*;
+            match p_node {
+                VarDecl(n) => {
+                    if let ast::BindingKind::Ident(name) = n.name.kind {
+                        name.id == id
+                    } else {
+                        false
+                    }
+                }
+                ObjectShorthandMember(n) => n.name.id == id,
+                ObjectPropAssignment(n) => n.name.id() == id,
+                PropSignature(n) => n.name.id() == id,
+                ObjectMethodMember(n) => n.name.id() == id,
+                MethodSignature(n) => n.name.id() == id,
+                ClassDecl(n) => n.name.is_some_and(|name| name.id == id),
+                ClassExpr(n) => n.name.is_some_and(|name| name.id == id),
+                ClassPropElem(n) => n.name.id() == id,
+                ClassMethodElem(n) => n.name.id() == id,
+                EnumDecl(n) => n.name.id == id,
+                EnumMember(n) => n.name.id() == id,
+                FnExpr(n) => n.name.is_some_and(|name| name.id == id),
+                FnDecl(n) => n.name.is_some_and(|name| name.id == id),
+                InterfaceDecl(n) => n.name.id == id,
+                ParamDecl(n) => n.name.id() == id,
+                TyParam(n) => n.name.id == id,
+                NsImport(n) => n.name.id == id,
+                ImportShorthandSpec(n) => n.name.id == id,
+                ImportEqualsDecl(n) => n.name.id == id,
+                ExportNamedSpec(n) => n.name.id() == id,
+                ExportShorthandSpec(n) => n.name.id == id,
+                GetterDecl(n) => n.name.id() == id,
+                SetterDecl(n) => n.name.id() == id,
+                ModuleDecl(n) => n.name.id() == id,
+                ArrayBinding(n) => n.name.id() == id,
+                _ => false,
+            }
+        })
     }
 
     pub fn is_this_in_type_query(&self, mut id: ast::NodeID) -> bool {
@@ -598,6 +744,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             new.expr.id() == id
         } else {
             false
+        }
+    }
+
+    pub fn walk_up_paren_exprs(&self, mut n: ast::NodeID) -> ast::NodeID {
+        loop {
+            let node = self.node(n);
+            if node.is_paren_expr()
+                && let Some(p) = self.parent(n)
+            {
+                n = p;
+            } else {
+                break n;
+            }
         }
     }
 
@@ -674,7 +833,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 n,
                 ast::Node::VarDecl(_) | ast::Node::ImportClause(_) | ast::Node::NsImport(_)
             ) {
-                return None;
+                None
             } else {
                 Some(true)
             }
@@ -779,23 +938,37 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         .unwrap()
     }
 
+    pub fn is_part_of_ty_expr_with_ty_arguments(&self, n: &'cx ast::ExprWithTyArgs<'cx>) -> bool {
+        let p = self.parent(n.id).unwrap();
+        match self.node(p) {
+            ast::Node::InterfaceExtendsClause(_) => true,
+            // TODO: js
+            _ => false,
+        }
+    }
+
     pub fn is_part_of_ty_node(&self, n: ast::NodeID) -> bool {
         let mut node = self.node(n);
         if node.is_ty() {
             return true;
         }
+        let Some(p) = self.parent(n) else {
+            return false;
+        };
         use ast::Node::*;
         match node {
             Ident(ident) if ident.name == keyword::KW_VOID => {
-                let p = self.parent(n).unwrap();
                 let p = self.node(p);
                 return !matches!(p, VoidExpr(_));
             }
             Ident(ident) if is_prim_ty_name(ident.name) => return true,
+            ExprWithTyArgs(n) => return self.is_part_of_ty_expr_with_ty_arguments(n),
+            TyParam(_) => {
+                return matches!(self.node(p), MappedTy(_) | InferTy(_));
+            }
             _ => (),
         }
         if let Ident(ident) = node {
-            let p = self.parent(n).unwrap();
             let p = self.node(p);
             if p.as_qualified_name()
                 .is_some_and(|p| std::ptr::eq(p.right, ident))
@@ -804,12 +977,42 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             {
                 node = p;
             }
-            assert!(node.is_ident() || node.is_qualified_name() || node.is_prop_access_expr());
+            debug_assert!(
+                node.is_ident() || node.is_qualified_name() || node.is_prop_access_expr()
+            );
         }
         match node {
-            Ident(_) | QualifiedName(_) | PropAccessExpr(_) => {
-                //TODO:
-                false
+            Ident(_) | QualifiedName(_) | PropAccessExpr(_) | ThisExpr(_) => {
+                match self.node(p) {
+                    ExprWithTyArgs(p) => self.is_part_of_ty_expr_with_ty_arguments(p),
+                    TyParam(p) => p.constraint.is_some_and(|c| c.id() == n),
+                    //TODO: js
+                    ClassPropElem(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    PropSignature(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ParamDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    VarDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    FnDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    FnExpr(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ArrowFnExpr(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ClassMethodElem(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    ObjectMethodMember(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    GetterDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    CallSigDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    CtorSigDecl(p) => p.ty.is_some_and(|ty| ty.id() == n),
+                    IndexSigDecl(p) => p.ty.id() == n,
+                    CallExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    NewExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    TaggedTemplateExpr(p) => p
+                        .ty_args
+                        .is_some_and(|ty_args| ty_args.list.iter().any(|ty| ty.id() == n)),
+                    TypeofTy(_) => false,
+                    //TODO: import type
+                    p_node => p_node.is_ty(),
+                }
             }
             _ => false,
         }
@@ -846,15 +1049,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 let p = self.node(p).expect_import_decl();
                 Some(p.module)
             }
-            ImportExportShorthandSpec(_) => {
+            ExportShorthandSpec(_) => {
                 // export {a}
                 // export {a} from 'xxx'
                 let p = self.parent(id).unwrap();
-                if let Some(n) = self.node(p).as_specs_export() {
-                    return n.module;
-                }
+                let n = self.node(p).expect_specs_export();
+                n.module
+            }
+            ImportShorthandSpec(_) => {
                 // import {a} from 'xxx'
-                let p = self.parent(p).unwrap();
+                let p = self.parent(id).unwrap();
                 let p = self.node(p).expect_import_decl();
                 Some(p.module)
             }
@@ -920,5 +1124,299 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_source_file_of_node(&self) -> &'cx ast::Program<'cx> {
         self.parse_result.root()
+    }
+
+    pub fn get_right_most_assigned_expr(&self, mut node: ast::NodeID) -> ast::NodeID {
+        while let Some(assign) = self.node(node).as_assign_expr() {
+            node = assign.right.id();
+        }
+        node
+    }
+
+    pub fn get_reference_root(&self, node: ast::NodeID) -> ast::NodeID {
+        let parent = match self.parent(node) {
+            Some(p) => p,
+            None => unreachable!(),
+        };
+        let p = self.node(parent);
+        match p {
+            ast::Node::ParenExpr(_) => self.get_reference_root(parent),
+            ast::Node::AssignExpr(n) if n.left.id() == node => self.get_reference_root(parent),
+            ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma && n.right.id() == node => {
+                self.get_reference_root(parent)
+            }
+            _ => node,
+        }
+    }
+
+    pub fn is_right_side_of_instance_expr(&self, node: ast::NodeID) -> bool {
+        let parent = match self.parent(node) {
+            Some(p) => p,
+            None => return false,
+        };
+        let ast::Node::BinExpr(n) = self.node(parent) else {
+            return false;
+        };
+        n.op.kind == ast::BinOpKind::Instanceof && n.right.id() == node
+    }
+
+    pub fn is_right_side_of_qualified_name_or_prop_access(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        match self.node(parent) {
+            ast::Node::QualifiedName(n) => n.right.id == node,
+            ast::Node::PropAccessExpr(n) => n.name.id == node,
+            // TODO: meta_property
+            _ => false,
+        }
+    }
+
+    pub fn is_optional_chain(&self, node: ast::NodeID) -> bool {
+        if !self
+            .node_flags(node)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            return false;
+        }
+        use ast::Node::*;
+        matches!(
+            self.node(node),
+            PropAccessExpr(_) | EleAccessExpr(_) | CallExpr(_) | NonNullExpr(_)
+        )
+    }
+
+    pub fn is_optional_chain_root(&self, node: ast::NodeID) -> bool {
+        if !self
+            .node_flags(node)
+            .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+        {
+            return false;
+        }
+        use ast::Node::*;
+        match self.node(node) {
+            PropAccessExpr(n) => n.question_dot.is_some(),
+            EleAccessExpr(n) => n.question.is_some(),
+            CallExpr(n) => n.question.is_some(),
+            _ => false,
+        }
+    }
+
+    pub fn is_expression_of_optional_chain_root(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            return false;
+        }
+        use ast::Node::*;
+        match self.node(p) {
+            PropAccessExpr(n) => n.question_dot.is_some() && n.expr.id() == node,
+            EleAccessExpr(n) => n.question.is_some() && n.expr.id() == node,
+            CallExpr(n) => n.question.is_some() && n.expr.id() == node,
+            _ => false,
+        }
+    }
+
+    pub fn expr_result_is_unused(&self, mut node: ast::NodeID) -> bool {
+        loop {
+            let p = match self.parent(node) {
+                Some(p) => p,
+                None => return false,
+            };
+            match self.node(p) {
+                ast::Node::ParenExpr(_) => node = p,
+                ast::Node::ExprStmt(_) | ast::Node::VoidExpr(_) => return true,
+                ast::Node::ForStmt(stmt) => {
+                    if stmt.init.is_some_and(|init| match init {
+                        ast::ForInitKind::Var(_) => false,
+                        ast::ForInitKind::Expr(expr) => expr.id() == node,
+                    }) {
+                        return true;
+                    }
+                    if stmt.incr.is_some_and(|incr| incr.id() == node) {
+                        return true;
+                    }
+                }
+                // TODO: command list
+                // TODO: comma
+                _ => return false,
+            }
+        }
+    }
+
+    fn get_assignment_declaration_prop_access_kind(
+        &self,
+        access: ast::NodeID,
+    ) -> AssignmentDeclarationKind {
+        let access_node = self.node(access);
+        let expr = match access_node {
+            ast::Node::PropAccessExpr(n) => n.expr,
+            ast::Node::EleAccessExpr(n) => n.expr,
+            _ => unreachable!(),
+        };
+        if matches!(expr.kind, ast::ExprKind::This(_)) {
+            return AssignmentDeclarationKind::ThisProperty;
+        }
+        // TODO: module_exports
+        if expr.is_bindable_static_name_expr::<true>() {
+            if expr.is_prototype_access() {
+                return AssignmentDeclarationKind::PrototypeProperty;
+            }
+            // TODO: exportsProperty
+
+            if access_node.is_bindable_static_name_expr::<true>()
+                || access_node
+                    .as_ele_access_expr()
+                    .is_some_and(|ele| ele.is_dynamic_name())
+            {
+                return AssignmentDeclarationKind::Property;
+            }
+        }
+        AssignmentDeclarationKind::None
+    }
+
+    pub fn get_assignment_declaration_kind_for_assign_expr(
+        &self,
+        expr: &'cx ast::AssignExpr<'cx>,
+    ) -> AssignmentDeclarationKind {
+        if expr.op != ast::AssignOp::Eq
+            || !expr.left.kind.is_access_expr()
+            || self
+                .node(self.get_right_most_assigned_expr(expr.id))
+                .is_void_zero_expr()
+        {
+            AssignmentDeclarationKind::None
+        } else {
+            // TODO: prototype
+            self.get_assignment_declaration_prop_access_kind(expr.left.id())
+        }
+    }
+
+    pub fn is_outermost_optional_chain(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return true;
+        };
+        if !self.node_flags(p).contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            return true;
+        }
+        use ast::Node::*;
+        match self.node(p) {
+            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
+            EleAccessExpr(n) => n.question.is_some() || n.expr.id() == node,
+            CallExpr(n) => n.question.is_some() || n.expr.id() == node,
+            NonNullExpr(_) => {
+                // TODO: question dot || n.expr.id() == node
+                false
+            }
+            _ => true,
+        }
+    }
+
+    pub fn is_mutable_local_variable_declaration(&self, decl: &'cx ast::VarDecl<'cx>) -> bool {
+        let p = self.parent(decl.id).unwrap();
+        self.node_flags(p).contains(ast::NodeFlags::LET)
+            && !(self
+                .get_combined_modifier_flags(decl.id)
+                .contains(ast::ModifierFlags::EXPORT)
+                || (match self.node(p) {
+                    ast::Node::VarStmt(_) => {
+                        let parent_parent = self.parent(p).unwrap();
+                        self.parent(parent_parent).is_none()
+                    }
+                    ast::Node::CatchClause(_)
+                    | ast::Node::ForInStmt(_)
+                    | ast::Node::ForOfStmt(_) => false,
+                    _ => unreachable!(),
+                }))
+    }
+
+    pub fn is_var_const(&self, node: ast::NodeID) -> bool {
+        let block_scope_kind = self
+            .get_combined_node_flags(node)
+            .intersection(ast::NodeFlags::BLOCK_SCOPED);
+        block_scope_kind == ast::NodeFlags::CONST
+            || block_scope_kind == ast::NodeFlags::USING
+            || block_scope_kind == ast::NodeFlags::AWAIT_USING
+    }
+
+    pub fn is_in_js_file(&self, node: ast::NodeID) -> bool {
+        self.node_flags(node)
+            .contains(ast::NodeFlags::JAVASCRIPT_FILE)
+    }
+
+    pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
+        // TODO: js
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        let parent_node = self.node(parent);
+        let node = self.node(node);
+        parent_node.is_class_like()
+            && node.is_class_prop_elem()
+            && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
+    }
+
+    pub fn is_in_right_side_of_internal_import_equals_declaration(
+        &self,
+        mut node: ast::NodeID,
+    ) -> bool {
+        let Some(mut parent) = self.parent(node) else {
+            return false;
+        };
+        loop {
+            let parent_node = self.node(parent);
+            if parent_node.is_qualified_name() {
+                node = parent;
+                parent = if let Some(parent) = self.parent(parent) {
+                    parent
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        let parent_node = self.node(parent);
+        self.is_internal_module_import_equals_declaration(parent) && {
+            let parent_node = parent_node.expect_import_equals_decl();
+            parent_node.module_reference.id() == node
+        }
+    }
+
+    pub fn is_internal_module_import_equals_declaration(&self, id: ast::NodeID) -> bool {
+        let n = self.node(id);
+        n.as_import_equals_decl().is_some_and(|n| {
+            !matches!(
+                n.module_reference,
+                ast::ModuleReferenceKind::ExternalModuleReference(_)
+            )
+        })
+    }
+
+    pub fn is_type_reference(&self, mut node: ast::NodeID) -> bool {
+        if self.is_right_side_of_qualified_name_or_prop_access(node) {
+            node = self.parent(node).unwrap();
+        }
+
+        let n = self.node(node);
+        match n {
+            ast::Node::ThisExpr(_) => {
+                todo!(" notis in expression context")
+            }
+            ast::Node::ThisTy(_) => return true,
+            _ => {}
+        }
+
+        if let Some(parent) = self.parent(node) {
+            match self.node(parent) {
+                ast::Node::ReferTy(_) => true,
+                // TODO: import type
+                ast::Node::ExprWithTyArgs(_) => self.is_part_of_ty_node(parent),
+                _ => false,
+            }
+        } else {
+            false
+        }
     }
 }

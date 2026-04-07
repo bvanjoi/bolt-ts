@@ -1,6 +1,6 @@
-use crate::state::LanguageVariant;
-
+use super::state::LanguageVariant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
+
 use bolt_ts_ast::{TokenKind, keyword};
 
 pub(super) struct Lookahead<'a, 'cx, 'p> {
@@ -11,6 +11,12 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
     #[inline(always)]
     pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p> {
         self.p
+    }
+
+    pub(super) fn next_token_is_lparen(&mut self) -> bool {
+        use bolt_ts_ast::TokenKind::*;
+        self.p.next_token();
+        matches!(self.p.token.kind, LParen)
     }
 
     pub(super) fn next_token_is_lparen_or_less(&mut self) -> bool {
@@ -219,7 +225,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         Ok(self.p.is_ident())
     }
 
-    fn _is_paren_arrow_fn_expr(&mut self) -> Tristate {
+    fn is_paren_arrow_fn_expr_worker(&mut self) -> Tristate {
         use bolt_ts_ast::TokenKind::*;
         if self.p.token.kind == TokenKind::Async {
             self.p.next_token();
@@ -400,7 +406,7 @@ impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
         let t = self.token.kind;
 
         if matches!(t, TokenKind::LParen | TokenKind::Less | TokenKind::Async) {
-            return self.lookahead(Lookahead::_is_paren_arrow_fn_expr);
+            return self.lookahead(Lookahead::is_paren_arrow_fn_expr_worker);
         }
 
         if t == TokenKind::EqGreat {

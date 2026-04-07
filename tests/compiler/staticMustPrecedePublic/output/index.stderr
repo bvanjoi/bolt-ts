@@ -1,0 +1,11 @@
+  × 'public' modifier must precede 'static' modifier.
+   ╭─[../../tests/compiler/staticMustPrecedePublic/index.ts:5:12]
+ 5 │ public
+   · ──────
+   ╰────
+
+  × 'private' modifier must precede 'static' modifier.
+   ╭─[../../tests/compiler/staticMustPrecedePublic/index.ts:7:12]
+ 7 │ private
+   · ───────
+   ╰────

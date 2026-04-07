@@ -1,0 +1,35 @@
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:10:8]
+ 10 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:14:25]
+ 14 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:16:23]
+ 16 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:18:19]
+ 18 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:20:23]
+ 20 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/arguments/index.ts:22:34]
+ 22 │ arguments
+    · ─────────
+    ╰────

@@ -1,0 +1,6 @@
+  × Class static side 'typeof b' incorrectly extends base class static side
+  │ 'typeof a'.
+    ╭─[../../tests/compiler/inheritanceStaticFuncOverridingProperty/index.ts:10:7]
+ 10 │ b
+    · ─
+    ╰────

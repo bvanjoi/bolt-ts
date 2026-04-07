@@ -2,14 +2,14 @@ use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
 
 use super::TyChecker;
-use crate::ty::{self, TypeFlags};
+use super::ty::{self, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn is_valid_index_key_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags
-            .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL)
+            .intersects(TypeFlags::STRING.union(TypeFlags::NUMBER.union(TypeFlags::ES_SYMBOL)))
             || ty.kind.as_intersection().is_some_and(|i| {
-                !self.is_generic(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
+                !self.is_generic_ty(ty) && i.tys.iter().any(|ty| self.is_valid_index_key_ty(ty))
             })
             || ty.is_pattern_lit_ty()
     }
@@ -60,14 +60,16 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(s) = source.kind.as_string_lit() {
             let v = s.val;
             (target.flags.intersects(TypeFlags::NUMBER) && self.is_valid_number_string(v, false))
-                || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
+                // || (target.flags.intersects(TypeFlags::BIG_INT) && false/* TODO: handle bigint */)
                 || (target
                     .flags
                     .intersects(TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE))
                     && v == target.intrinsic_name().unwrap())
-                || (target.flags.intersects(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
-                || (target.flags.intersects(TypeFlags::TEMPLATE_LITERAL)
-                    && self.is_ty_matched_by_template_lit_ty(source, target))
+                    // || (target.flags.contains(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
+                || target
+                    .kind
+                    .as_template_lit_ty()
+                    .is_some_and(|t| self.is_ty_matched_by_template_lit_ty(source, t))
         } else if let Some(s) = source.kind.as_template_lit_ty() {
             let texts = s.texts;
             texts.len() == 2

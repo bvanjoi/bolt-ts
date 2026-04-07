@@ -1,0 +1,92 @@
+mod utils;
+
+use self::utils::compile_single_input;
+
+#[test]
+fn white_space_trimming() {
+    // From `github.com/microsoft/TypeScript/blob/v5.9.2/tests/cases/fourslash/whiteSpaceTrimming.ts`, Apache-2.0 License
+    const CODE: &str = r#"
+if (true) {     
+  //    
+   /*err*/}
+"#
+    .trim_ascii();
+
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
+    t.goto_marker("err");
+    t.edit_insert("\n");
+    t.verify_current_file_content_is(
+        r#"
+if (true) {     
+  //    
+   
+}
+"#
+        .trim_ascii(),
+    );
+}
+
+#[test]
+fn white_space_trimming2() {
+    // From `github.com/microsoft/TypeScript/blob/v5.9.2/tests/cases/fourslash/whiteSpaceTrimming2.ts`, Apache-2.0 License
+    const CODE: &str = r#"
+let noSubTemplate = `/*    /*1*/`;
+let templateHead = `/*    /*2*/${1 + 2}`;
+let templateMiddle = `/*    ${1 + 2    /*3*/}`;
+let templateTail = `/*    ${1 + 2}    /*4*/`;
+"#
+    .trim_ascii();
+
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
+    t.goto_marker("1");
+    t.edit_insert("\n");
+    t.goto_marker("2");
+    t.edit_insert("\n");
+    t.goto_marker("3");
+    t.edit_insert("\n");
+    t.goto_marker("4");
+    t.edit_insert("\n");
+
+    t.verify_current_file_content_is(
+        r#"
+let noSubTemplate = `/*    
+`;
+let templateHead = `/*    
+${1 + 2}`;
+let templateMiddle = `/*    ${1 + 2    
+}`;
+let templateTail = `/*    ${1 + 2}    
+`;
+"#
+        .trim_ascii(),
+    );
+}
+
+#[test]
+fn white_space_trimming3() {
+    // From `github.com/microsoft/TypeScript/blob/v5.9.2/tests/cases/fourslash/whiteSpaceTrimming3.ts`, Apache-2.0 License
+    const CODE: &str = r#"
+let t = "foo \
+bar     \   
+"/*1*/
+"#
+    .trim_ascii();
+
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut t = compile_single_input(CODE, &parser_arena, &type_arena);
+    t.goto_marker("1");
+    t.edit_insert(";");
+    t.verify_current_file_content_is(
+        r#"
+let t = "foo \
+bar     \   
+";
+        "#
+        .trim_ascii(),
+    );
+}

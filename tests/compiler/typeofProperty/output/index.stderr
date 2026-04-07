@@ -1,0 +1,47 @@
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/typeofProperty/index.ts:7:15]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'd'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:12:15]
+ 12 │ d
+    · ─
+    ╰────
+
+  × Cannot find name 'e'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:18:15]
+ 18 │ e
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:24:15]
+ 24 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'd'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:30:15]
+ 30 │ d
+    · ─
+    ╰────
+
+  × Cannot find name 'e'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:36:15]
+ 36 │ e
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:55:5]
+ 55 │ x3
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:57:5]
+ 57 │ x4
+    · ──
+    ╰────

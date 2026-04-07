@@ -8,5 +8,5 @@ namespace A {
 }
 
 var b: A.B;
-//~^ ERROR: 'A.B' refers to a value, but is being used as a type here. Did you mean 'typeof A.B'
+//~^ ERROR: 'A.B' refers to a value, but is being used as a type here. Did you mean 'typeof A.B'?
 A.B(1);

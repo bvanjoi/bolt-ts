@@ -1,6 +1,6 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/controlFlowWithIncompleteTypes.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/controlFlowWithIncompleteTypes.ts`, Apache-2.0 License
 
-// Repro from #11000
+//@compiler-options: target=es2015
 
 declare var cond: boolean;
 

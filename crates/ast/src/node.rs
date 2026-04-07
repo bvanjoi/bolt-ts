@@ -1,5 +1,7 @@
 use bolt_ts_span::ModuleID;
 
+use crate::ModifierFlags;
+
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -14,7 +16,7 @@ impl NodeID {
 }
 
 bitflags::bitflags! {
-  #[derive(Clone, Copy, Debug)]
+  #[derive(Clone, Copy, Debug, PartialEq, Eq)]
   pub struct FnFlags: u8 {
         const NORMAL          = 0;
         const GENERATOR       = 1 << 0;
@@ -32,7 +34,8 @@ pub enum Node<'cx> {
     VarDecl(&'cx super::VarDecl<'cx>),
     ParamDecl(&'cx super::ParamDecl<'cx>),
     ClassExtendsClause(&'cx super::ClassExtendsClause<'cx>),
-    ImportExportShorthandSpec(&'cx super::ImportExportShorthandSpec<'cx>),
+    ImportShorthandSpec(&'cx super::ImportShorthandSpec<'cx>),
+    ExportShorthandSpec(&'cx super::ExportShorthandSpec<'cx>),
     NsImport(&'cx super::NsImport<'cx>),
     NsExport(&'cx super::NsExport<'cx>),
     GlobExport(&'cx super::GlobExport<'cx>),
@@ -69,6 +72,7 @@ pub enum Node<'cx> {
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
+    ClassSemiElem(&'cx super::ClassSemiElem),
     ClassStaticBlockDecl(&'cx super::ClassStaticBlockDecl<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
@@ -81,6 +85,8 @@ pub enum Node<'cx> {
     ThrowStmt(&'cx super::ThrowStmt<'cx>),
     EnumDecl(&'cx super::EnumDecl<'cx>),
     ImportDecl(&'cx super::ImportDecl<'cx>),
+    ImportEqualsDecl(&'cx super::ImportEqualsDecl<'cx>),
+    ExternalModuleReference(&'cx super::ExternalModuleReference<'cx>),
     ExportDecl(&'cx super::ExportDecl<'cx>),
     ExportAssign(&'cx super::ExportAssign<'cx>),
     ForStmt(&'cx super::ForStmt<'cx>),
@@ -116,6 +122,7 @@ pub enum Node<'cx> {
     TypeofExpr(&'cx super::TypeofExpr<'cx>),
     VoidExpr(&'cx super::VoidExpr<'cx>),
     AwaitExpr(&'cx super::AwaitExpr<'cx>),
+    YieldExpr(&'cx super::YieldExpr<'cx>),
     SuperExpr(&'cx super::SuperExpr),
     AsExpr(&'cx super::AsExpr<'cx>),
     TyAssertionExpr(&'cx super::TyAssertion<'cx>),
@@ -134,7 +141,7 @@ pub enum Node<'cx> {
     ArrayLit(&'cx super::ArrayLit<'cx>),
     ObjectLit(&'cx super::ObjectLit<'cx>),
     Ident(&'cx super::Ident),
-    Binding(&'cx super::Binding<'cx>),
+    PrivateIdent(&'cx super::PrivateIdent),
     ComputedPropName(&'cx super::ComputedPropName<'cx>),
     ExprWithTyArgs(&'cx super::ExprWithTyArgs<'cx>),
 
@@ -160,7 +167,7 @@ pub enum Node<'cx> {
     UnionTy(&'cx super::UnionTy<'cx>),
     TypeofTy(&'cx super::TypeofTy<'cx>),
     MappedTy(&'cx super::MappedTy<'cx>),
-    TyOp(&'cx super::TyOp<'cx>),
+    TyOp(&'cx super::TypeOp<'cx>),
     PredTy(&'cx super::PredTy<'cx>),
     ParenTy(&'cx super::ParenTy<'cx>),
     InferTy(&'cx super::InferTy<'cx>),
@@ -186,6 +193,11 @@ pub enum Node<'cx> {
 }
 
 impl<'cx> Node<'cx> {
+    pub fn is_string_literal_like(&self) -> bool {
+        use Node::*;
+        matches!(self, StringLit(_) | NoSubstitutionTemplateLit(_))
+    }
+
     pub fn is_class_like(&self) -> bool {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
@@ -228,11 +240,6 @@ impl<'cx> Node<'cx> {
         self.is_fn_like() || self.is_class_static_block_decl()
     }
 
-    pub fn is_paren_type_node(&self) -> bool {
-        // matches!(self, Node::ParenTy(_))
-        false
-    }
-
     pub fn is_ty_refer_ty(&self) -> bool {
         // TODO: is_expr_with_ty_args
         self.is_refer_ty()
@@ -258,6 +265,16 @@ impl<'cx> Node<'cx> {
             Node::IntersectionTy(n) => TyKind::Intersection(n),
             Node::MappedTy(n) => TyKind::Mapped(n),
             Node::InferTy(n) => TyKind::Infer(n),
+            Node::TypeofTy(n) => TyKind::Typeof(n),
+            Node::TyOp(n) => TyKind::TypeOp(n),
+            Node::CtorTy(n) => TyKind::Ctor(n),
+            Node::PredTy(n) => TyKind::Pred(n),
+            Node::ParenTy(n) => TyKind::Paren(n),
+            Node::IntrinsicTy(n) => TyKind::Intrinsic(n),
+            Node::NullableTy(n) => TyKind::Nullable(n),
+            Node::NamedTupleTy(n) => TyKind::NamedTuple(n),
+            Node::TemplateLitTy(n) => TyKind::TemplateLit(n),
+            Node::ThisTy(n) => TyKind::This(n),
             _ => return None,
         };
         Some(Ty { kind })
@@ -279,6 +296,12 @@ impl<'cx> Node<'cx> {
             ObjectShorthandMember(prop) => Some(DeclarationName::Ident(prop.name)),
             FnExpr(n) => n.name.map(DeclarationName::Ident),
             FnDecl(n) => n.name.map(DeclarationName::Ident),
+            EnumMember(n) => match n.name {
+                super::EnumMemberNameKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                super::EnumMemberNameKind::StringLit { raw, key } => {
+                    Some(DeclarationName::StringLit { raw, key })
+                }
+            },
             EnumDecl(n) => Some(DeclarationName::Ident(n.name)),
             ClassDecl(n) => n.name.map(DeclarationName::Ident),
             ClassExpr(n) => n.name.map(DeclarationName::Ident),
@@ -291,7 +314,15 @@ impl<'cx> Node<'cx> {
                 crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
                 crate::ModuleName::StringLit(_) => None,
             },
-            ImportExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ExportAssign(n) => {
+                if let ExprKind::Ident(ident) = n.expr.kind {
+                    Some(DeclarationName::Ident(ident))
+                } else {
+                    None
+                }
+            }
+            ImportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -391,47 +422,30 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn ret_ty(&self) -> Option<&'cx super::Ty<'cx>> {
-        macro_rules! dot_ty {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(n.ty),)*
-                    _ => None,
-                }
-            };
+        match self {
+            Node::FnTy(n) => Some(n.ty),
+            Node::IndexSigDecl(n) => Some(n.ty),
+            Node::CtorTy(n) => Some(n.ty),
+            Node::FnDecl(n) => n.ty,
+            Node::FnExpr(n) => n.ty,
+            Node::ArrowFnExpr(n) => n.ty,
+            Node::ClassCtor(n) => n.ret,
+            Node::CtorSigDecl(n) => n.ty,
+            Node::ClassMethodElem(n) => n.ty,
+            Node::ObjectMethodMember(n) => n.ty,
+            Node::MethodSignature(n) => n.ty,
+            Node::CallSigDecl(n) => n.ty,
+            Node::GetterDecl(n) => n.ty,
+            // TODO: delete?
+            Node::VarDecl(n) => n.ty,
+            // TODO: delete?
+            Node::ParamDecl(n) => n.ty,
+            // TODO: delete?
+            Node::PropSignature(n) => n.ty,
+            // TODO: delete?
+            Node::ClassPropElem(n) => n.ty,
+            _ => None,
         }
-
-        if let Some(ty) = dot_ty!(FnTy, IndexSigDecl, CtorTy) {
-            return Some(ty);
-        }
-
-        macro_rules! dot_ty_with_option {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => n.ty,)*
-                    _ => None,
-                }
-            };
-        }
-
-        dot_ty_with_option!(
-            CallSigDecl,
-            CtorSigDecl,
-            FnDecl,
-            MethodSignature,
-            ClassMethodElem,
-            FnExpr,
-            ArrowFnExpr,
-            VarDecl,
-            ParamDecl,
-            PropSignature,
-            ClassPropElem,
-            // TypePredicate,
-            // ParenTy
-            // TypeOp,
-            // Mapped,
-            // AssertionExpr
-            GetterDecl,
-        )
     }
 
     pub fn ty_anno(&self) -> Option<&'cx super::Ty<'cx>> {
@@ -443,6 +457,23 @@ impl<'cx> Node<'cx> {
             return None;
         }
         self.ret_ty()
+    }
+
+    pub fn is_decl_stmt(&self) -> bool {
+        use super::Node::*;
+        matches!(
+            self,
+            FnDecl(_)
+                | ClassDecl(_)
+                | InterfaceDecl(_)
+                | TypeAliasDecl(_)
+                | EnumDecl(_)
+                | ModuleDecl(_)
+                | ImportDecl(_)
+                // TODO: import equal default
+                | ExportDecl(_)
+                | ExportAssign(_) // TODO: namespace export default
+        )
     }
 
     pub fn is_decl(&self) -> bool {
@@ -484,8 +515,10 @@ impl<'cx> Node<'cx> {
                 | ParamDecl(_)
                 | TyParam(_)
                 | NsImport(_)
-                | ImportExportShorthandSpec(_)
+                | ImportShorthandSpec(_)
+                | ImportEqualsDecl(_)
                 | ExportNamedSpec(_)
+                | ExportShorthandSpec(_)
                 | GetterDecl(_)
                 | SetterDecl(_)
                 | ObjectLit(_)
@@ -493,6 +526,8 @@ impl<'cx> Node<'cx> {
                 | ModuleDecl(_)
                 | ArrayBinding(_)
                 | ObjectBindingElem(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
         )
     }
 
@@ -503,15 +538,17 @@ impl<'cx> Node<'cx> {
             BreakStmt(_)
                 | ContinueStmt(_)
                 | DoWhileStmt(_)
+                | ExprStmt(_)
                 | EmptyStmt(_)
                 | ForStmt(_)
                 | ForInStmt(_)
                 | ForOfStmt(_)
                 | IfStmt(_)
+                | LabeledStmt(_)
                 | RetStmt(_)
                 | ThrowStmt(_)
                 | VarStmt(_)
-                | WhileStmt(_)
+                | WhileStmt(_) // TODO: with
         )
     }
 
@@ -548,12 +585,35 @@ impl<'cx> Node<'cx> {
             return FnFlags::INVALID;
         }
         let mut flags = FnFlags::NORMAL;
-        if self.is_fn_decl() || self.is_fn_expr() || self.is_class_method_elem() {
-            // todo: check aster token
-        } else if self.as_arrow_fn_expr().is_some()
-            && self.has_syntactic_modifier(self::ModifierKind::Async.into())
-        {
-            flags |= FnFlags::GENERATOR;
+        match self {
+            Node::FnDecl(super::FnDecl { asterisk, .. })
+            | Node::ClassMethodElem(super::ClassMethodElem { asterisk, .. })
+            | Node::ObjectMethodMember(super::ObjectMethodMember { asterisk, .. }) => {
+                if asterisk.is_some() {
+                    flags |= FnFlags::GENERATOR;
+                }
+                if self.has_syntactic_modifier(self::ModifierFlags::ASYNC) {
+                    flags |= FnFlags::ASYNC;
+                }
+            }
+            Node::FnExpr(super::FnExpr {
+                asterisk,
+                async_modifier,
+                ..
+            }) => {
+                if asterisk.is_some() {
+                    flags |= FnFlags::GENERATOR;
+                }
+                if async_modifier.is_some() {
+                    flags |= FnFlags::ASYNC;
+                }
+            }
+            Node::ArrowFnExpr(n) => {
+                if n.async_modifier.is_some() {
+                    flags |= FnFlags::ASYNC;
+                }
+            }
+            _ => {}
         }
 
         if self.fn_body().is_none() {
@@ -594,18 +654,18 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_static_modifier(&self) -> bool {
-        self.has_syntactic_modifier(ModifierKind::Static.into())
+        self.has_syntactic_modifier(ModifierFlags::STATIC)
     }
 
     pub fn has_effective_readonly_modifier(&self) -> bool {
-        self.has_syntactic_modifier(ModifierKind::Readonly.into())
+        self.has_syntactic_modifier(ModifierFlags::READONLY)
     }
 
     pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
-        self.has_syntactic_modifier(kind.into())
+        self.has_syntactic_modifier(kind.into_flag())
     }
 
-    pub fn has_syntactic_modifier(&self, flags: enumflags2::BitFlags<ModifierKind>) -> bool {
+    pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
         self.modifiers()
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
@@ -613,6 +673,7 @@ impl<'cx> Node<'cx> {
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         match self {
             Node::ClassCtor(n) => n.modifiers,
+            Node::CtorTy(n) => n.modifiers,
             Node::ClassMethodElem(n) => n.modifiers,
             Node::ClassPropElem(n) => n.modifiers,
             Node::GetterDecl(n) => n.modifiers,
@@ -627,6 +688,7 @@ impl<'cx> Node<'cx> {
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
             Node::ExportAssign(n) => n.modifiers,
+            Node::EnumDecl(n) => n.modifiers,
             _ => None,
         }
     }
@@ -686,6 +748,8 @@ impl<'cx> Node<'cx> {
     pub fn is_optional_decl(&self) -> bool {
         match self {
             Node::PropSignature(n) => n.question.is_some(),
+            Node::ClassPropElem(n) => n.question.is_some(),
+            Node::ParamDecl(n) => n.question.is_some(), // TODO: js
             _ => false,
         }
     }
@@ -701,7 +765,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_stmt(&self) -> bool {
-        self.is_block_stmt() || self.is_decl() || self.is_stmt_but_not_decl()
+        self.is_block_stmt() || self.is_decl_stmt() || self.is_stmt_but_not_decl()
     }
 
     pub fn ge_first_stmt_and_le_last_stmt(&self) -> bool {
@@ -800,7 +864,8 @@ impl<'cx> Node<'cx> {
     pub fn import_export_spec_name(&self) -> Option<bolt_ts_atom::Atom> {
         use Node::*;
         match self {
-            ImportExportShorthandSpec(n) => Some(n.name.name),
+            ImportShorthandSpec(n) => Some(n.name.name),
+            ExportShorthandSpec(n) => Some(n.name.name),
             ImportNamedSpec(n) => match n.prop_name.kind {
                 crate::ModuleExportNameKind::Ident(ident) => Some(ident.name),
                 crate::ModuleExportNameKind::StringLit(lit) => Some(lit.val),
@@ -869,7 +934,6 @@ impl<'cx> Node<'cx> {
             self,
             Node::VarDecl(_)
                 | Node::ParamDecl(_)
-                | Node::Binding(_)
                 | Node::ClassPropElem(_)
                 | Node::PropSignature(_)
                 | Node::ObjectPropAssignment(_)
@@ -899,16 +963,99 @@ impl<'cx> Node<'cx> {
 
     pub fn is_variable_like(&self) -> bool {
         use Node::*;
+        matches!(self, |EnumMember(_)| ParamDecl(_)
+            | ObjectPropAssignment(_)
+            | ClassPropElem(_)
+            | PropSignature(_)
+            | ObjectShorthandMember(_)
+            | VarDecl(_))
+    }
+
+    pub fn is_void_zero_expr(&self) -> bool {
+        if let Some(v) = self.as_void_expr()
+            && let super::ExprKind::NumLit(lit) = v.expr.kind
+        {
+            lit.val == 0.0
+        } else {
+            false
+        }
+    }
+
+    pub fn is_entity_name_expr(&self) -> bool {
+        matches!(self, Node::Ident(_)) || self.is_prop_access_entity_name_expr()
+    }
+
+    pub fn is_prop_access_entity_name_expr(&self) -> bool {
+        if let Some(e) = self.as_prop_access_expr() {
+            // TODO: matches!(p.name.kind, ExprKind::Ident(_))
+            e.expr.is_entity_name_expr()
+        } else {
+            false
+        }
+    }
+
+    pub fn is_bindable_static_name_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        self.is_entity_name_expr() || self.is_bindable_static_access_expr::<EXCLUDE_THIS_KEYWORD>()
+    }
+
+    pub fn is_bindable_static_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if let Some(e) = self.as_prop_access_expr()
+            && (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_))
+                || e.expr.is_bindable_static_name_expr::<true>())
+        {
+            true
+        } else {
+            self.is_bindable_static_element_access_expr::<EXCLUDE_THIS_KEYWORD>()
+        }
+    }
+
+    pub fn is_literal_like_element_access(&self) -> bool {
+        self.as_ele_access_expr()
+            .is_some_and(|e| e.arg.is_string_or_number_lit_like())
+    }
+
+    pub fn is_bindable_static_element_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if !self.is_literal_like_element_access() {
+            return false;
+        }
+        let e = self.expect_ele_access_expr();
+        (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_)))
+            || e.expr.is_entity_name_expr()
+            || e.expr.is_bindable_static_access_expr::<true>()
+    }
+
+    pub fn is_instance_of_expr(&self) -> bool {
+        self.as_bin_expr()
+            .is_some_and(|e| matches!(e.op.kind, super::BinOpKind::Instanceof))
+    }
+
+    pub fn get_expando_init(&self, is_prototype_assignment: bool) -> Option<super::ExprKind<'cx>> {
+        match self {
+            Node::CallExpr(n) => {
+                let e = super::Expr::skip_parens(n.expr);
+                if matches!(e.kind, super::ExprKind::Fn(_) | super::ExprKind::ArrowFn(_)) {
+                    Some(super::ExprKind::Call(n))
+                } else {
+                    None
+                }
+            }
+            Node::FnExpr(n) => Some(super::ExprKind::Fn(n)),
+            Node::ClassExpr(n) => Some(super::ExprKind::Class(n)),
+            Node::ArrowFnExpr(n) => Some(super::ExprKind::ArrowFn(n)),
+            Node::ObjectLit(n) if n.members.is_empty() || is_prototype_assignment => {
+                Some(super::ExprKind::ObjectLit(n))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn is_property_name_literal(&self) -> bool {
         matches!(
             self,
-            Binding(_)
-                | EnumMember(_)
-                | ParamDecl(_)
-                | ObjectPropAssignment(_)
-                | ClassPropElem(_)
-                | PropSignature(_)
-                | ObjectShorthandMember(_)
-                | VarDecl(_)
+            Node::Ident(_)
+                | Node::StringLit(_)
+                | Node::NoSubstitutionTemplateLit(_)
+                | Node::NumLit(_)
         )
     }
 }
@@ -1003,7 +1150,7 @@ as_node!(
     ),
     (ArrayLit, super::ArrayLit<'cx>, array_lit),
     (Ident, super::Ident, ident),
-    (Binding, super::Binding<'cx>, binding),
+    (PrivateIdent, super::PrivateIdent, private_ident),
     (OmitExpr, super::OmitExpr, omit_expr),
     (ParenExpr, super::ParenExpr<'cx>, paren_expr),
     (CondExpr, super::CondExpr<'cx>, cond_expr),
@@ -1047,6 +1194,7 @@ as_node!(
         super::ClassStaticBlockDecl<'cx>,
         class_static_block_decl
     ),
+    (ClassSemiElem, super::ClassSemiElem, class_semi_elem),
     (
         ClassMethodElem,
         super::ClassMethodElem<'cx>,
@@ -1089,6 +1237,7 @@ as_node!(
     (TypeofExpr, super::TypeofExpr<'cx>, typeof_expr),
     (VoidExpr, super::VoidExpr<'cx>, void_expr),
     (AwaitExpr, super::AwaitExpr<'cx>, await_expr),
+    (YieldExpr, super::YieldExpr<'cx>, yield_expr),
     (EleAccessExpr, super::EleAccessExpr<'cx>, ele_access_expr),
     (ClassCtor, super::ClassCtor<'cx>, class_ctor),
     (GetterDecl, super::GetterDecl<'cx>, getter_decl),
@@ -1123,9 +1272,14 @@ as_node!(
     (TypeofTy, super::TypeofTy<'cx>, typeof_ty),
     (ThrowStmt, super::ThrowStmt<'cx>, throw_stmt),
     (
-        ImportExportShorthandSpec,
-        super::ImportExportShorthandSpec<'cx>,
-        shorthand_spec
+        ImportShorthandSpec,
+        super::ImportShorthandSpec<'cx>,
+        import_shorthand_spec
+    ),
+    (
+        ExportShorthandSpec,
+        super::ExportShorthandSpec<'cx>,
+        export_shorthand_spec
     ),
     (NsImport, super::NsImport<'cx>, ns_import),
     (
@@ -1135,6 +1289,16 @@ as_node!(
     ),
     (ImportClause, super::ImportClause<'cx>, import_clause),
     (ImportDecl, super::ImportDecl<'cx>, import_decl),
+    (
+        ExternalModuleReference,
+        super::ExternalModuleReference<'cx>,
+        external_module_reference
+    ),
+    (
+        ImportEqualsDecl,
+        super::ImportEqualsDecl<'cx>,
+        import_equals_decl
+    ),
     (NsExport, super::NsExport<'cx>, ns_export),
     (
         ExportNamedSpec,
@@ -1152,7 +1316,7 @@ as_node!(
     (ContinueStmt, super::ContinueStmt<'cx>, continue_stmt),
     (SuperExpr, super::SuperExpr, super_expr),
     (MappedTy, super::MappedTy<'cx>, mapped_ty),
-    (TyOp, super::TyOp<'cx>, ty_op),
+    (TyOp, super::TypeOp<'cx>, ty_op),
     (TryStmt, super::TryStmt<'cx>, try_stmt),
     (CatchClause, super::CatchClause<'cx>, catch_clause),
     (DoWhileStmt, super::DoWhileStmt<'cx>, do_stmt),

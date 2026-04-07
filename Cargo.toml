@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
   "crates/ast",
+  "crates/ast_factory",
+  "crates/ast_visitor",
   "crates/binder",
   "crates/checker",
   "crates/compiler",
@@ -14,10 +16,13 @@ members = [
   "crates/middle",
   "crates/module_graph",
   "crates/module_resolve",
+  "crates/napi",
   "crates/optimize",
   "crates/parser",
   "crates/path",
+  "crates/semver",
   "crates/tracing",
+  "crates/ty",
   "crates/wasm",
 
   "helper/arena",
@@ -29,6 +34,7 @@ members = [
   "helper/utils",
 
   "tools/bootstrap",
+  "tools/build-github-ci",
   "tools/compile-test",
 ]
 
@@ -40,9 +46,12 @@ thin-vec = "0.2.14"
 regex = { version = "1.11.1" }
 serde = { version = "1.0.226", features = ["derive"] }
 serde_json = "1.0.145"
-enumflags2 = { version = "0.7.12" }
 bitflags = "2.9.4"
 paste = "1.0.15"
 indexmap = "2.11.4"
 tracing = "0.1.41"
 rayon = "1.11.0"
+clap = { version = "4.3.0", features = ["derive"] }
+expect-test = "1.5.1"
+project-root = "0.2.2"
+glob = "0.3.3"

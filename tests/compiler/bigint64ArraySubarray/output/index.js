@@ -4,3 +4,7 @@ function bigInt64ArraySubarray() {
   arr.subarray(0);
   arr.subarray(0, 10);
 }
+var a = 1n;
+function f(_) {}
+f(a);
+f(1n);

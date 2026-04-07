@@ -4,17 +4,17 @@ pub fn is_prim_ty_name(name: Atom) -> bool {
     matches!(
         name,
         IDENT_ANY
-            | KW_NULL
+            | IDENT_UNKNOWN
             | IDENT_NUMBER
+            | IDENT_BIGINT
             | IDENT_STRING
             | IDENT_BOOLEAN
-            | IDENT_NEVER
-            | IDENT_UNKNOWN
-            | KW_UNDEFINED
-            | KW_VOID
             | IDENT_SYMBOL
             | IDENT_OBJECT
-            | IDENT_BIGINT
+            | KW_UNDEFINED
+            | KW_NULL
+            | IDENT_NEVER
+            | KW_VOID
     )
 }
 
@@ -140,33 +140,69 @@ prefilled_atom_map!(
             IDENT_NEVER:                            ["never", 81],
             IDENT_UNKNOWN:                          ["unknown", 82],
             IDENT_BIGINT:                           ["bigint", 83],
-            IDENT_OBJECT:                           ["object", 84],
-            IDENT_OBJECT_CLASS:                     ["Object", 85],
-            IDENT_SYMBOL:                           ["symbol", 86],
-            IDENT_SYMBOL_CLASS:                     ["Symbol", 87],
-            IDENT_FUNCTION_CLASS:                   ["Function", 88],
-            IDENT_CALLABLE_FUNCTION_CLASS:          ["CallableFunction", 89],
-            IDENT_NEWABLE_FUNCTION_CLASS:           ["NewableFunction", 90],
-            IDENT_GLOBAL:                           ["global", 91],
-            IDENT_GLOBAL_THIS:                      ["globalThis", 92],
-            IDENT_ARGUMENTS:                        ["arguments", 93],
-            IDENT_IARGUMENTS_CLASS:                 ["IArguments", 94],
-            IDENT_REGEXP_CLASS:                     ["RegExp", 95],
-            IDENT_PROTOTYPE:                        ["prototype", 96],
-            IDENT_EXTRACT:                          ["Extract", 97],
-            IDENT_EVAL:                             ["eval", 98],
-            IDENT_NON_NULLABLE:                     ["NonNullable", 99],
-            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 100],
-            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 101],
-            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 102],
-            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 103],
-            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 104]
+            IDENT_BIGINT_CLASS:                     ["BigInt", 84],
+            IDENT_OBJECT:                           ["object", 85],
+            IDENT_OBJECT_CLASS:                     ["Object", 86],
+            IDENT_SYMBOL:                           ["symbol", 87],
+            IDENT_SYMBOL_CLASS:                     ["Symbol", 88],
+            IDENT_FUNCTION_CLASS:                   ["Function", 89],
+            IDENT_CALLABLE_FUNCTION_CLASS:          ["CallableFunction", 90],
+            IDENT_NEWABLE_FUNCTION_CLASS:           ["NewableFunction", 91],
+            IDENT_GLOBAL:                           ["global", 92],
+            IDENT_GLOBAL_THIS:                      ["globalThis", 93],
+            IDENT_ARGUMENTS:                        ["arguments", 94],
+            IDENT_IARGUMENTS_CLASS:                 ["IArguments", 95],
+            IDENT_REGEXP_CLASS:                     ["RegExp", 96],
+            IDENT_PROTOTYPE:                        ["prototype", 97],
+            IDENT_EXTRACT:                          ["Extract", 98],
+            IDENT_EVAL:                             ["eval", 99],
+            IDENT_NON_NULLABLE:                     ["NonNullable", 100],
+            IDENT_OMIT:                             ["Omit", 101],
+            IDENT_AWAITED:                          ["Awaited", 102],
+            INTRINSIC_TYPE_UPPERCASE:               ["Uppercase", 103],
+            INTRINSIC_TYPE_LOWERCASE:               ["Lowercase", 104],
+            INTRINSIC_TYPE_CAPITALIZE:              ["Capitalize", 105],
+            INTRINSIC_TYPE_UNCAPITALIZE:            ["Uncapitalize", 106],
+            INTRINSIC_TYPE_NOINFER:                 ["NoInfer", 107],
+            IDENT_PUSH:                             ["push", 108],
+            IDENT_UNSHIFT:                          ["unshift", 109],
+            IDENT_OPTIONAL:                         ["optional", 110],
+            IDENT_THEN:                             ["then", 111],
+            IDENT_PROMISE:                          ["Promise", 112],
+            IDENT_PROMISE_LIKE:                     ["PromiseLike", 113],
+            IDENT_ITERATOR:                         ["iterator", 114],
+            IDENT_ITERATOR_CLASS:                   ["Iterator", 115],
+            IDENT_ASYNC_ITERATOR:                   ["asyncIterator", 116],
+            IDENT_ASYNC_ITERATOR_CLASS:             ["AsyncIterator", 117],
+            IDENT_ASYNC_ITERABLE:                   ["AsyncIterable", 118],
+            IDENT_ASYNC_ITERABLE_ITERATOR:          ["AsyncIterableIterator", 119],
+            IDENT_READABLE_STREAM_ASYNC_ITERATOR:   ["ReadableStreamAsyncIterator", 120],
+            IDENT_ASYNC_ITERATOR_OBJECT:            ["AsyncIteratorObject", 121],
+            IDENT_ITERABLE:                         ["Iterable", 122],
+            IDENT_ITERABLE_ITERATOR:                ["IterableIterator", 123],
+            IDENT_ITERATOR_OBJECT:                  ["IteratorObject", 124],
+            IDENT_GENERATOR:                        ["Generator", 125],
+            IDENT_ASYNC_GENERATOR:                  ["AsyncGenerator", 126],
+            IDENT_ARRAY_ITERATOR:                   ["ArrayIterator", 127],
+            IDENT_MAP_ITERATOR:                     ["MapIterator", 128],
+            IDENT_SET_ITERATOR:                     ["SetIterator", 129],
+            IDENT_STRING_ITERATOR:                  ["StringIterator", 130],
+            IDENT_NEXT:                             ["next", 131],
+            IDENT_ITERATOR_YIELD_RESULT:            ["IteratorYieldResult", 132],
+            IDENT_ITERATOR_RETURN_RESULT:           ["IteratorReturnResult", 133],
+            IDENT_DONE:                             ["done", 134],
+            IDENT_VALUE:                            ["value", 135],
+            IDENT_REQUIRE:                          ["require", 136]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 105]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 137]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 106]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 138]
         },
     }
 );
+
+pub fn is_push_or_unshift(name: Atom) -> bool {
+    matches!(name, IDENT_PUSH | IDENT_UNSHIFT)
+}

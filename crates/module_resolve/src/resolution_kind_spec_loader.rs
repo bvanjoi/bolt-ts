@@ -1,13 +1,15 @@
 use bolt_ts_fs::PathId;
 
-use crate::{Extensions, RResult};
+use super::ModuleResolutionCache;
+use super::{Extensions, ModuleResolutionState, RResult};
 
-pub trait ResolutionKindSpecLoader<FS: bolt_ts_fs::CachedFileSystem> {
+pub trait ResolutionKindSpecLoader<'a, 'options, FS: bolt_ts_fs::CachedFileSystem> {
     fn loader(
         &self,
-        resolver: &super::Resolver<FS>,
         ext: Extensions,
         candidate: &mut std::path::PathBuf,
         only_record_failures: bool,
-    ) -> RResult<PathId>;
+        state: &ModuleResolutionState<'a, 'options, FS>,
+        cache: &ModuleResolutionCache,
+    ) -> Option<RResult<PathId>>;
 }

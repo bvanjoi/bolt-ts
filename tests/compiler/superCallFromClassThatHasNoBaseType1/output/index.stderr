@@ -1,0 +1,5 @@
+  × 'super' can only be referenced in a derived class.
+    ╭─[../../tests/compiler/superCallFromClassThatHasNoBaseType1/index.ts:13:21]
+ 13 │ super
+    · ─────
+    ╰────

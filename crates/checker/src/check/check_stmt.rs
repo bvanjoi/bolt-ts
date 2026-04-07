@@ -3,13 +3,14 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::ModuleInstanceState;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
-use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
+use bolt_ts_ty::ObjectFlags;
+use bolt_ts_ty::TypeFacts;
 
 use super::TyChecker;
 use super::ast;
 use super::errors;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::TypeFlags;
 
@@ -33,6 +34,9 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             ForOf(node) => self.check_for_of_stmt(node),
             Import(node) => self.check_import_decl(node),
+            ImportEquals(node) => {
+                self.check_import_equals_decl(node);
+            }
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
@@ -52,15 +56,6 @@ impl<'cx> TyChecker<'cx> {
     fn check_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
         self.check_truthiness_expr(node.expr);
         self.check_stmt(node.stmt);
-    }
-
-    fn is_type_equality_comparable_to(
-        &mut self,
-        source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::Ty<'cx>,
-    ) -> bool {
-        target.flags.contains(TypeFlags::NULLABLE)
-            || self.is_type_related_to(source, target, super::relation::RelationKind::Comparable)
     }
 
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
@@ -95,6 +90,9 @@ impl<'cx> TyChecker<'cx> {
                                 first_default_clause = Some(n);
                             }
                         }
+                    }
+                    for stmt in n.stmts {
+                        self.check_stmt(stmt);
                     }
                 }
             }
@@ -156,13 +154,34 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
         let has_module_spec = node.module_spec().is_some();
-        if (!has_module_spec || self.check_external_module_name(node.id))
-            && let ast::ExportClauseKind::Specs(specs) = node.clause.kind
-        {
-            // export { a, b as c } from 'xxxx'
-            // export { a, b as c }
-            for spec in specs.list {
-                self.check_export_spec(spec, has_module_spec);
+        if !has_module_spec || self.check_external_module_name(node.id) {
+            if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
+                // export { a, b as c } from 'xxxx'
+                // export { a, b as c }
+                for spec in specs.list {
+                    self.check_export_spec(spec, has_module_spec);
+                }
+                let parent = self.parent(node.id).unwrap();
+                let parent_node = self.p.node(parent);
+                let in_ambient_external_module = parent_node.is_module_block()
+                    && self
+                        .p
+                        .node(self.parent(parent).unwrap())
+                        .is_ambient_module();
+                let in_ambient_ns_decl = !in_ambient_external_module
+                    && parent_node.is_module_block()
+                    && node.module_spec().is_none()
+                    && self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT);
+                if !in_ambient_external_module && !in_ambient_ns_decl && !parent_node.is_program() {
+                    // TODO: could this check moved into wf check?
+                    let error =
+                        errors::ExportDeclarationsAreNotPermittedInANamespace { span: node.span };
+                    self.push_error(Box::new(error));
+                }
+            } else {
+                // export * from 'xxxx'
+                // export * as ns from 'xxxx'
+                // TODO:
             }
         }
     }
@@ -217,6 +236,10 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
+        self.check_import_binding(node.id);
+    }
+
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
         if let Some(clause) = node.clause.and_then(|c| c.kind) {
             use bolt_ts_ast::ImportClauseKind::*;
@@ -244,21 +267,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_extract_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol(SymbolName::Atom(keyword::IDENT_EXTRACT), 2, true);
-        let res = self.deferred_global_extract_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
     fn get_extract_string_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let extract_ty_alias = self.get_global_extract_symbol();
         if let Some(extract_ty_alias) = extract_ty_alias {
-            let ty_args = self.alloc(vec![ty, self.string_ty]);
+            let ty_args = self.alloc([ty, self.string_ty]);
             self.get_type_alias_instantiation(extract_ty_alias, ty_args, None, None)
         } else {
             self.string_ty
@@ -375,9 +387,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
-        let state = self
-            .node_query(node.id.module())
-            .get_module_instance_state(node, None);
+        let nq = self.node_query(node.id.module());
+        let state = nq.get_module_instance_state(node, None, |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 
@@ -451,6 +462,296 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn is_awaited_ty_instantiation(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if ty.flags.contains(TypeFlags::CONDITIONAL) {
+            let Some(awaited) = self.get_global_awaited_symbol() else {
+                return false;
+            };
+            ty.alias_symbol() == Some(awaited)
+                && ty.alias_ty_arguments().is_some_and(|args| args.len() == 1)
+        } else {
+            false
+        }
+    }
+
+    fn is_thenable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let base_constraint = self.get_base_constraint_or_ty(ty);
+        if self.all_types_assignable_to_kind(
+            base_constraint,
+            TypeFlags::PRIMITIVE.union(TypeFlags::NEVER),
+            false,
+        ) {
+            return false;
+        };
+        let Some(then_fn) = self.get_ty_of_prop_of_ty(ty, SymbolName::Atom(keyword::IDENT_THEN))
+        else {
+            return false;
+        };
+        let t = self.get_ty_with_facts(then_fn, TypeFacts::NE_UNDEFINED_OR_NULL);
+        !self.get_signatures_of_type(t, ty::SigKind::Call).is_empty()
+    }
+
+    fn is_awaited_ty_needed(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        if self.is_type_any(ty) || self.is_awaited_ty_instantiation(ty) {
+            return false;
+        }
+        if self.is_generic_object_ty(ty) {
+            let base_constraint = self.get_base_constraint_of_ty(ty);
+            if let Some(base_constraint) = base_constraint
+                && (base_constraint.flags.contains(TypeFlags::ANY_OR_UNKNOWN)
+                    || self.is_empty_object_ty(base_constraint)
+                    || self.some_type(base_constraint, |this, t| this.is_thenable_ty(t)))
+            {
+                return true;
+            } else if ty.maybe_type_of_kind(TypeFlags::TYPE_VARIABLE) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn try_create_awaited_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let awaited_symbol = self.get_global_awaited_symbol()?;
+        let ty_arguments = vec![self.unwrap_awaited_ty(ty)];
+        let ty_arguments = self.alloc(ty_arguments);
+        Some(self.get_type_alias_instantiation(awaited_symbol, ty_arguments, None, None))
+    }
+
+    fn create_awaited_ty_if_needed(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if self.is_awaited_ty_needed(ty) {
+            self.try_create_awaited_ty(ty).unwrap_or(ty)
+        } else {
+            debug_assert!(
+                self.is_awaited_ty_instantiation(ty)
+                    || self.get_promised_ty_of_promise(ty).is_none()
+            );
+            ty
+        }
+    }
+
+    pub(super) fn get_awaited_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
+        let awaited_ty = self.get_awaited_ty_no_alias(ty);
+        awaited_ty.map(|awaited_ty| self.create_awaited_ty_if_needed(awaited_ty))
+    }
+
+    pub(super) fn get_awaited_ty_no_alias(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.is_type_any(ty) || self.is_awaited_ty_instantiation(ty) {
+            return Some(ty);
+        }
+
+        let id = ty.promise_or_awaitable_ty_links();
+        if let Some(id) = id
+            && let Some(cached) = self.promise_or_awaitable_links_arena[id].get_awaited_ty_of_ty()
+        {
+            return Some(cached);
+        }
+
+        if let Some(u) = ty.kind.as_union() {
+            if self.awaited_ty_stack.contains(&ty) {
+                todo!("error handler")
+            }
+
+            self.awaited_ty_stack.push(ty);
+            // TODO: error node
+            let mapped = self
+                .map_union_ty(ty, u, |this, t| this.get_awaited_ty_no_alias(t), false)
+                .unwrap();
+            self.awaited_ty_stack.pop();
+
+            self.promise_or_awaitable_links_arena[u.promise_or_awaitable_links]
+                .set_awaited_ty_of_ty(mapped);
+            return Some(mapped);
+        }
+
+        if self.is_awaited_ty_needed(ty) {
+            if let Some(id) = id {
+                self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
+            }
+            return Some(ty);
+        }
+
+        let promised_ty = self.get_promised_ty_of_promise(ty);
+        if let Some(promised_ty) = promised_ty {
+            if ty == promised_ty || self.awaited_ty_stack.contains(&promised_ty) {
+                // TODO: error
+                return None;
+            }
+            self.awaited_ty_stack.push(ty);
+            let awaited_ty = self.get_awaited_ty_no_alias(promised_ty);
+            self.awaited_ty_stack.pop();
+
+            match awaited_ty {
+                Some(ty) => {
+                    if let Some(id) = id {
+                        self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
+                    }
+                    return Some(ty);
+                }
+                None => return None,
+            }
+        }
+
+        if self.is_thenable_ty(ty) {
+            // TODO: error node
+            return None;
+        }
+        if let Some(id) = id {
+            self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
+        }
+        return Some(ty);
+    }
+
+    pub(super) fn is_reference_to_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        ty.get_object_flags().contains(ObjectFlags::REFERENCE) && {
+            // TODO: Tuple?
+            let Some(object_ty) = ty.kind.as_object() else {
+                unreachable!()
+            };
+            match object_ty.kind {
+                ty::ObjectTyKind::Interface(_) => true,
+                ty::ObjectTyKind::Reference(t) => t.target == target,
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    pub(super) fn get_promised_ty_of_promise(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.is_type_any(ty) {
+            return None;
+        }
+
+        let id = ty.promise_or_awaitable_ty_links();
+
+        if let Some(id) = id
+            && let Some(cached) =
+                self.promise_or_awaitable_links_arena[id].get_promised_ty_of_promise()
+        {
+            return Some(cached);
+        }
+
+        let promise_ty = self.get_global_promise_ty::<false>();
+        if self.is_reference_to_ty(ty, promise_ty) {
+            let promised_ty_of_promise = self.get_ty_arguments(ty)[0];
+            if let Some(id) = id {
+                self.promise_or_awaitable_links_arena[id]
+                    .set_promised_ty_of_promise(promised_ty_of_promise);
+            }
+            return Some(promised_ty_of_promise);
+        }
+        let base_ctor_or_ty = self.get_base_constraint_or_ty(ty);
+        if self.all_types_assignable_to_kind(
+            base_ctor_or_ty,
+            TypeFlags::PRIMITIVE.union(TypeFlags::NEVER),
+            false,
+        ) {
+            return None;
+        }
+
+        let then_fn = self.get_ty_of_prop_of_ty(ty, SymbolName::Atom(keyword::IDENT_THEN));
+        if then_fn.is_some_and(|ty| self.is_type_any(ty)) {
+            return None;
+        }
+
+        let then_sigs = if let Some(then_fn) = then_fn {
+            self.get_signatures_of_type(then_fn, ty::SigKind::Call)
+        } else {
+            self.empty_array()
+        };
+        if then_sigs.is_empty() {
+            // TODO: error
+            return None;
+        }
+        let mut this_ty_for_error = None;
+        let mut candidates = vec![];
+        for then_sig in then_sigs {
+            let this_ty = self.get_this_ty_of_sig(then_sig);
+            if let Some(this_ty) = this_ty
+                && this_ty != self.void_ty
+                && !self.is_type_related_to(ty, this_ty, super::relation::RelationKind::Subtype)
+            {
+                this_ty_for_error = Some(this_ty);
+            } else {
+                candidates.push(then_sig);
+            }
+        }
+        if candidates.is_empty() {
+            let Some(this_ty_for_error) = this_ty_for_error else {
+                unreachable!()
+            };
+            // TODO: error
+            return None;
+        }
+
+        let onfulfilled_param_ty = {
+            let tys = candidates
+                .iter()
+                .map(|sig| self.get_ty_of_first_param_of_sig(sig))
+                .collect::<Vec<_>>();
+            let ty = self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
+        };
+        if self.is_type_any(onfulfilled_param_ty) {
+            return None;
+        }
+        let onfulfilled_param_sigs =
+            self.get_signatures_of_type(onfulfilled_param_ty, ty::SigKind::Call);
+        if onfulfilled_param_sigs.is_empty() {
+            // TODO: error
+            return None;
+        }
+        let tys = onfulfilled_param_sigs
+            .iter()
+            .map(|sig| self.get_ty_of_first_param_of_sig(sig))
+            .collect::<Vec<_>>();
+        let ty = self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+        if let Some(id) = id {
+            self.promise_or_awaitable_links_arena[id].set_promised_ty_of_promise(ty);
+        }
+        Some(ty)
+    }
+
+    fn get_ty_of_first_param_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
+        self.get_ty_of_first_param_of_sig_with_fallback(sig, self.never_ty)
+    }
+
+    fn get_ty_of_first_param_of_sig_with_fallback(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        fallback_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if !sig.params.is_empty() {
+            self.get_ty_at_pos(sig, 0)
+        } else {
+            fallback_ty
+        }
+    }
+
+    fn is_unwrapped_ret_ty_undefined_void_or_any(
+        &mut self,
+        func: ast::NodeID,
+        ret_ty: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        let flags = self.p.node(func).fn_flags();
+        let Some(ty) = self.unwrap_ret_ty(ret_ty, flags) else {
+            return false;
+        };
+        ty.maybe_type_of_kind(TypeFlags::VOID)
+            || ty
+                .flags
+                .intersects(TypeFlags::ANY.union(TypeFlags::UNDEFINED))
+    }
+
     fn check_ret_stmt(&mut self, node: &ast::RetStmt<'cx>) {
         let Some(container) = self.get_containing_fn_or_class_static_block(node.id) else {
             // delay bug
@@ -459,9 +760,9 @@ impl<'cx> TyChecker<'cx> {
         let sig = self.get_sig_from_decl(container);
         let ret_ty = self.get_ret_ty_of_sig(sig);
 
-        if self.config.strict_null_checks()
+        if self.config.compiler_options().strict_null_checks()
             || node.expr.is_some()
-            || ret_ty.flags.intersects(TypeFlags::NEVER)
+            || ret_ty.flags.contains(TypeFlags::NEVER)
         {
             let expr_ty = node
                 .expr
@@ -483,8 +784,16 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
             } else if self.get_ret_ty_from_anno(container).is_some() {
-                self.check_ret_expr(container, ret_ty, node.expr, expr_ty);
+                let fn_flags = self.p.node(container).fn_flags();
+                let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
+                self.check_ret_expr(container, unwrapped_ret_ty, node.expr, expr_ty);
             }
+        } else if self.config.compiler_options().no_implicit_returns()
+            && !self.p.node(container).is_class_ctor()
+            && !self.is_unwrapped_ret_ty_undefined_void_or_any(container, ret_ty)
+        {
+            let error = errors::NotAllCodePathsReturnAValue { span: node.span };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -509,11 +818,11 @@ impl<'cx> TyChecker<'cx> {
         self.check_class_like_decl(class)
     }
 
-    fn check_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {
-        if let Some(ty_params) = ty.ty_params {
+    fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
+        if let Some(ty_params) = n.ty_params {
             self.check_ty_params(ty_params);
         }
-        self.check_ty(ty.ty);
+        self.check_ty(n.ty);
     }
 
     pub(super) fn check_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) {

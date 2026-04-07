@@ -1,16 +1,19 @@
 use std::cell::OnceCell;
-use std::ptr::read_unaligned;
 
+use super::ContextFlags;
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
-use super::symbol_info::SymbolInfo;
+
+use super::ty::typeof_ne_facts;
 use super::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use super::type_predicate::TyPred;
 use super::type_predicate::TyPredKind;
 
+use bolt_ts_ast::keyword::is_push_or_unshift;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
@@ -100,6 +103,47 @@ impl<'cx> TyChecker<'cx> {
         evolved_ty
     }
 
+    pub fn is_evolving_array_op_target(&mut self, node: ast::NodeID) -> bool {
+        let root = self.node_query(node.module()).get_reference_root(node);
+        let Some(parent) = self.parent(root) else {
+            unreachable!()
+        };
+        let parent_node = self.p.node(parent);
+        let is_length_push_or_unshift = if let ast::Node::PropAccessExpr(parent_node) = parent_node
+        {
+            parent_node.name.name == keyword::IDENT_LENGTH || {
+                let parent_parent = self.parent(parent).unwrap();
+                self.p.node(parent_parent).is_call_expr()
+                    && is_push_or_unshift(parent_node.name.name)
+            }
+        } else {
+            false
+        };
+        if is_length_push_or_unshift {
+            return true;
+        }
+
+        let is_element_assignment = parent_node.as_ele_access_expr().is_some_and(|parent_node| {
+            parent_node.expr.id() == root && {
+                let parent_parent = self.parent(parent).unwrap();
+                let parent_parent_node = self.p.node(parent_parent);
+                parent_parent_node
+                    .as_assign_expr()
+                    .is_some_and(|parent_parent_node| {
+                        parent_parent_node.left.id() == parent
+                            && !self
+                                .node_query(parent_parent.module())
+                                .is_assignment_target(parent_parent)
+                            && {
+                                let ty = self.get_ty_of_expr(parent_node.arg);
+                                self.is_type_assignable_to_kind(ty, TypeFlags::NUMBER_LIKE, false)
+                            }
+                    })
+            }
+        });
+        is_element_assignment
+    }
+
     fn get_ty_at_flow_node(
         &mut self,
         mut flow: FlowID,
@@ -114,7 +158,7 @@ impl<'cx> TyChecker<'cx> {
         loop {
             let n = self.flow_node(flow);
             let flags = n.flags;
-            if flags.intersects(FlowFlags::SHARED) {
+            if flags.contains(FlowFlags::SHARED) {
                 for i in shared_flow_start..self.shared_flow_info.len() {
                     let (n, ty) = self.shared_flow_info[i];
                     if flow == n {
@@ -131,6 +175,7 @@ impl<'cx> TyChecker<'cx> {
                     shared_flow_start,
                     declared_ty,
                     init_ty,
+                    key,
                 ) else {
                     flow = match &self.flow_node(flow).kind {
                         FlowNodeKind::Switch(n) => n.antecedent,
@@ -168,12 +213,32 @@ impl<'cx> TyChecker<'cx> {
                     flow_container,
                     key,
                 );
+            } else if flags.contains(FlowFlags::SWITCH_CLAUSE) {
+                ty = self.get_ty_at_flow_switch_clause(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
             } else if flags.contains(FlowFlags::START) {
                 let FlowNodeKind::Start(start) = &n.kind else {
                     unreachable!()
                 };
-                if let Some(start) = start.node {
-                    // TODO:
+                if start.node != flow_container
+                    && let Some(container) = start.node
+                    && let reference_node = self.p.node(refer)
+                    && !matches!(
+                        reference_node,
+                        ast::Node::PropAccessExpr(_) | ast::Node::EleAccessExpr(_)
+                    )
+                    && !(reference_node.is_this_expr()
+                        && matches!(self.p.node(container), ast::Node::ArrowFnExpr(_)))
+                {
+                    flow = self.get_flow_node_of_node(container).unwrap();
+                    continue;
                 }
                 ty = FlowTy::Ty(init_ty);
             } else if flags.intersects(FlowFlags::LABEL) {
@@ -217,6 +282,127 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_ty_at_flow_switch_clause(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let FlowNodeKind::Switch(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let expr = ast::Expr::skip_parens(n.node.expr);
+        let flow_ty = self.get_ty_at_flow_node(
+            n.antecedent,
+            refer,
+            shared_flow_start,
+            declared_ty,
+            init_ty,
+            flow_container,
+            key,
+        );
+        let mut ty = self.get_ty_from_flow_ty(flow_ty);
+        if self.is_matching_reference(refer, expr.id()) {
+            // TODO:
+        } else if let ast::ExprKind::Typeof(expr) = expr.kind
+            && self.is_matching_reference(refer, expr.expr.id())
+        {
+            // TODO:
+        } else if let ast::ExprKind::BoolLit(lit) = expr.kind
+            && lit.val
+        {
+            // TODO:
+        } else {
+            if self.config.compiler_options().strict_null_checks() {
+                // TODO:
+            }
+            if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty) {
+                ty = self.narrow_ty_by_switch_on_discriminant_prop(ty, access, flow)
+            }
+        }
+        self.create_flow_ty(ty, flow_ty.is_incomplete())
+    }
+
+    fn narrow_ty_by_switch_on_discriminant_prop(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        access: ast::NodeID,
+        flow: FlowID,
+    ) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Switch(_) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        self.narrow_ty_by_discriminant(access, ty, |this, t| {
+            this.narrow_ty_by_switch_on_discriminant(t, flow)
+        })
+    }
+
+    fn narrow_ty_by_switch_on_discriminant(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        flow: FlowID,
+    ) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Switch(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let clause_start = n.clause_start;
+        let clause_end = n.clause_end;
+        let switch_tys = self.get_switch_clause_tys(n.node);
+        if switch_tys.is_empty() {
+            return ty;
+        }
+        let clause_tys = &switch_tys[clause_start as usize..clause_end as usize];
+        let has_default_clause = clause_start == clause_end || clause_tys.contains(&self.never_ty);
+        if ty.flags.contains(TypeFlags::UNKNOWN) && !has_default_clause {
+            // TODO:
+        }
+        let discriminant_ty =
+            self.get_union_ty::<false>(clause_tys, ty::UnionReduction::Lit, None, None, None);
+        let case_ty = if discriminant_ty.flags.contains(TypeFlags::NEVER) {
+            self.never_ty
+        } else {
+            // TODO:
+            let t = self.filter_type(ty, |this, t| this.are_types_comparable(discriminant_ty, t));
+            self.replace_primitives_with_literals(t, discriminant_ty)
+        };
+        if !has_default_clause {
+            case_ty
+        } else {
+            let default_ty = self.filter_type(ty, |this, t| {
+                !(this.is_unit_like_ty(t)
+                    && switch_tys.iter().any(|t1| {
+                        if !t1.is_unit() {
+                            return false;
+                        }
+                        let t2 = if t1.flags.contains(TypeFlags::UNDEFINED) {
+                            this.undefined_ty
+                        } else {
+                            let t = this.extract_unit_ty(t1);
+                            this.get_regular_ty_of_literal_ty(t)
+                        };
+                        this.are_types_comparable(t1, t2)
+                    }))
+            });
+            if case_ty.flags.contains(TypeFlags::NEVER) {
+                default_ty
+            } else if default_ty.flags.contains(TypeFlags::NEVER) {
+                case_ty
+            } else {
+                self.get_union_ty::<false>(
+                    &[case_ty, default_ty],
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                )
+            }
+        }
+    }
+
     fn get_ty_at_flow_branch_label(
         &mut self,
         flow: FlowID,
@@ -231,16 +417,17 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let antecedents = n.antecedent.clone().unwrap();
-        let antecedent_tys_id = self.flow_loop_types_arena.alloc(Vec::new());
+        let mut antecedent_tys = vec![];
         let mut subtype_reduction = false;
         let mut seen_incomplete = false;
+        let mut bypass_flow = None;
         for antecedent in antecedents {
-            if self
-                .flow_node(antecedent)
-                .flags
-                .contains(FlowFlags::SWITCH_CLAUSE)
+            if bypass_flow.is_none()
+                && let FlowNodeKind::Switch(n) = &self.flow_node(antecedent).kind
+                && n.clause_start == n.clause_end
             {
-                todo!()
+                bypass_flow = Some(antecedent);
+                continue;
             }
 
             let flow_ty = self.get_ty_at_flow_node(
@@ -256,7 +443,6 @@ impl<'cx> TyChecker<'cx> {
             if ty == declared_ty && declared_ty == init_ty {
                 return FlowTy::Ty(declared_ty);
             }
-            let antecedent_tys = self.flow_loop_types_arena.get_mut(antecedent_tys_id);
             if !antecedent_tys.contains(&ty) {
                 antecedent_tys.push(ty);
             }
@@ -267,9 +453,38 @@ impl<'cx> TyChecker<'cx> {
                 seen_incomplete = true;
             }
         }
-        let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
+        if let Some(bypass_flow) = bypass_flow {
+            let flow_ty = self.get_ty_at_flow_node(
+                bypass_flow,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            );
+            let ty = self.get_ty_from_flow_ty(flow_ty);
+            let FlowNodeKind::Switch(n) = &self.flow_node(bypass_flow).kind else {
+                unreachable!()
+            };
+            if !ty.flags.contains(TypeFlags::NEVER)
+                && !antecedent_tys.contains(&ty)
+                && !self.is_exhaustive_switch_stmt(n.node)
+            {
+                if ty == declared_ty && declared_ty == init_ty {
+                    return FlowTy::Ty(ty);
+                }
+                antecedent_tys.push(ty);
+                if !self.is_ty_subset_of(ty, init_ty) {
+                    subtype_reduction = true
+                }
+                if flow_ty.is_incomplete() {
+                    seen_incomplete = true;
+                }
+            }
+        }
         let ty = self.get_union_or_evolving_array_ty(
-            &antecedent_tys.clone(),
+            &antecedent_tys,
             if subtype_reduction {
                 ty::UnionReduction::Subtype
             } else {
@@ -315,7 +530,7 @@ impl<'cx> TyChecker<'cx> {
                 let id = self.flow_loop_types[i];
                 let tys = self.flow_loop_types_arena.get(id);
                 let ty = self.get_union_or_evolving_array_ty(
-                    &tys.clone(),
+                    &tys.clone(), // TODO: remove clone
                     ty::UnionReduction::Lit,
                     declared_ty,
                 );
@@ -381,7 +596,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let antecedent_tys = self.flow_loop_types_arena.get(antecedent_tys_id);
         let result = self.get_union_or_evolving_array_ty(
-            &antecedent_tys.clone(),
+            &antecedent_tys.clone(), // TODO: remove clone
             if subtype_reduction {
                 ty::UnionReduction::Subtype
             } else {
@@ -412,7 +627,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_evolving_array_op_target(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
+    fn is_evolving_array_ty_list(&self, tys: &[&'cx ty::Ty<'cx>]) -> bool {
         let mut has_evolving_array_ty = false;
         for t in tys {
             if !t.flags.contains(TypeFlags::NEVER) {
@@ -431,13 +646,13 @@ impl<'cx> TyChecker<'cx> {
         subtype_reduction: ty::UnionReduction,
         declared_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_evolving_array_op_target(tys) {
+        if self.is_evolving_array_ty_list(tys) {
             todo!()
         }
 
         let result = {
             // TODO: finalize_evolving_array_ty;
-            let ty = self.get_union_ty(tys, subtype_reduction, false, None, None);
+            let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None);
             self.recombine_unknown_ty(ty)
         };
         if result != declared_ty
@@ -491,6 +706,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn contains_matching_reference(
+        &mut self,
+        mut source: ast::NodeID,
+        target: ast::NodeID,
+    ) -> bool {
+        loop {
+            source = match self.p.node(source) {
+                ast::Node::PropAccessExpr(n) => n.expr.id(),
+                ast::Node::EleAccessExpr(n) => n.expr.id(),
+                _ => break,
+            };
+            if self.is_matching_reference(source, target) {
+                return true;
+            }
+        }
+        false
+    }
+
     fn get_ty_at_flow_assign(
         &mut self,
         flow: FlowID,
@@ -498,6 +731,7 @@ impl<'cx> TyChecker<'cx> {
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
     ) -> Option<FlowTy<'cx>> {
         let node = match &self.flow_node(flow).kind {
             FlowNodeKind::Switch(n) => n.node.id,
@@ -505,7 +739,22 @@ impl<'cx> TyChecker<'cx> {
             _ => unreachable!(),
         };
         if self.is_matching_reference(refer, node) {
-            let t = declared_ty;
+            if !self.is_reachable_flow_node(flow) {
+                return Some(FlowTy::Ty(self.unreachable_never_ty));
+            }
+            let nq = self.node_query(node.module());
+            if nq.get_assignment_target_kind(node) == AssignmentKind::Compound {
+                // TODO:
+            }
+            {}
+            if declared_ty == self.auto_ty || declared_ty == self.auto_array_ty() {
+                // TODO:
+            }
+            let t = if nq.is_in_compound_like_assignment(node) {
+                self.get_base_ty_of_literal_ty(declared_ty)
+            } else {
+                declared_ty
+            };
             let t = if t.kind.is_union() {
                 let init_ty = self.get_init_or_assigned_ty(flow, refer);
                 self.get_assign_reduced_ty(t, init_ty)
@@ -514,6 +763,35 @@ impl<'cx> TyChecker<'cx> {
             };
             return Some(FlowTy::Ty(t));
         }
+
+        if self.contains_matching_reference(refer, node) {
+            if !self.is_reachable_flow_node(flow) {
+                return Some(FlowTy::Ty(self.unreachable_never_ty));
+            }
+            if let ast::Node::VarDecl(n) = self.p.node(node)
+                && let nq = self.node_query(node.module())
+                && (nq.is_var_const(node) || nq.is_in_js_file(node))
+                && let Some(init) = n.init.and_then(|init| init.kind.get_expando_init(false))
+                && matches!(init, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_))
+            {
+                let antecedent = match &self.flow_node(flow).kind {
+                    FlowNodeKind::Switch(n) => n.antecedent,
+                    FlowNodeKind::Assign(n) => n.antecedent,
+                    _ => unreachable!(),
+                };
+                return Some(self.get_ty_at_flow_node(
+                    antecedent,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    None,
+                    key,
+                ));
+            }
+            return Some(FlowTy::Ty(declared_ty));
+        }
+
         None
     }
 
@@ -555,7 +833,7 @@ impl<'cx> TyChecker<'cx> {
             } else if let TyPredKind::AssertsIdent(i) = pred.kind {
                 if (i.param_index as usize) < n_node.args.len() {
                     let expr = n_node.args[i.param_index as usize];
-                    self.narrow_ty_by_assertion(ty, refer, expr)
+                    self.narrow_ty_by_assertion(ty, declared_ty, refer, expr)
                 } else {
                     ty
                 }
@@ -594,7 +872,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let cond_antecedent = cond.antecedent;
         let cond_node = cond.node;
-        let assume_true = n.flags.intersects(FlowFlags::TRUE_CONDITION);
+        let assume_true = n.flags.contains(FlowFlags::TRUE_CONDITION);
         let flow_ty = self.get_ty_at_flow_node(
             cond_antecedent,
             refer,
@@ -605,11 +883,12 @@ impl<'cx> TyChecker<'cx> {
             key,
         );
         let ty = self.get_ty_from_flow_ty(flow_ty);
-        if ty.flags.intersects(TypeFlags::NEVER) {
+        if ty.flags.contains(TypeFlags::NEVER) {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
-        let narrowed_ty = self.narrow_ty(non_evolving_ty, refer, cond_node, assume_true);
+        let narrowed_ty =
+            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, assume_true);
         if narrowed_ty == non_evolving_ty {
             flow_ty
         } else {
@@ -626,23 +905,40 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn finalize_evolving_array_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty
-            .get_object_flags()
-            .intersects(ObjectFlags::EVOLVING_ARRAY)
-        {
+        if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
             todo!()
         } else {
             ty
         }
     }
 
-    fn is_constant_variable(&self, symbol: SymbolID) -> bool {
-        let s = self.symbol(symbol);
-        s.flags.contains(SymbolFlags::VARIABLE)
-            && s.value_decl.is_some_and(|d| {
+    pub fn is_parameter_or_mutable_local_variable(&self, symbol: &Symbol) -> bool {
+        let Some(decl) = symbol.value_decl.map(|value_decl| {
+            self.node_query(value_decl.module())
+                .get_root_decl(value_decl)
+        }) else {
+            return false;
+        };
+        let n = self.p.node(decl);
+        match n {
+            ast::Node::ParamDecl(_) => true,
+            ast::Node::VarDecl(n) => {
+                let p = self.parent(decl).unwrap();
+                matches!(self.p.node(p), ast::Node::CatchClause(_))
+                    || self
+                        .node_query(decl.module())
+                        .is_mutable_local_variable_declaration(n)
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_constant_variable(&self, symbol: &Symbol) -> bool {
+        symbol.flags.intersects(SymbolFlags::VARIABLE)
+            && symbol.value_decl.is_some_and(|d| {
                 self.node_query(d.module())
                     .get_combined_node_flags(d)
-                    .contains(ast::NodeFlags::CONSTANT)
+                    .intersects(ast::NodeFlags::CONSTANT)
             })
     }
 
@@ -667,30 +963,78 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn narrow_ty_optionality(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+        assume_present: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.is_matching_reference(refer, expr.id()) {
+            let facts = if assume_present {
+                TypeFacts::NE_UNDEFINED_OR_NULL
+            } else {
+                TypeFacts::EQ_UNDEFINED_OR_NULL
+            };
+            self.get_adjusted_ty_with_facts(ty, facts)
+        } else if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty)
+        {
+            self.narrow_ty_by_discriminant(access, ty, |this, t| {
+                let facts = if assume_present {
+                    TypeFacts::NE_UNDEFINED_OR_NULL
+                } else {
+                    TypeFacts::EQ_UNDEFINED_OR_NULL
+                };
+                this.get_ty_with_facts(t, facts)
+            })
+        } else {
+            ty
+        }
+    }
+
     fn narrow_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::ExprKind::*;
+        let expr_id = expr.id();
+        if self
+            .node_query(expr_id.module())
+            .is_expression_of_optional_chain_root(expr_id)
+            || self.parent(expr_id).is_some_and(|p| {
+                self.p.node(p).as_bin_expr().is_some_and(|e| {
+                    matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr_id
+                })
+            })
+        {
+            // TODO: assignment nullish
+            return self.narrow_ty_optionality(ty, declared_ty, refer, expr, assume_true);
+        }
+
         if let Ident(node) = expr.kind
             && !self.is_matching_reference(refer, node.id)
             && let symbol = self.final_res(expr.id())
-            && self.is_constant_variable(symbol)
+            && let s = self.symbol(symbol)
+            && self.is_constant_variable(s)
         {
             //TODO: inline_level < 5
-            let value_decl = self.symbol(symbol).value_decl.unwrap();
+            let value_decl = s.value_decl.unwrap();
         }
 
         match expr.kind {
-            Ident(_) => self.narrow_ty_by_truthiness(ty, refer, expr, assume_true),
+            Ident(_) | PropAccess(_) | EleAccess(_) | This(_) | Super(_) => {
+                self.narrow_ty_by_truthiness(ty, refer, expr, assume_true)
+            }
             Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
             PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
-                self.narrow_ty(ty, refer, node.expr, !assume_true)
+                self.narrow_ty(ty, declared_ty, refer, node.expr, !assume_true)
             }
-            Bin(node) => self.narrow_ty_by_bin_expr(ty, refer, node, assume_true),
+            Bin(node) => self.narrow_ty_by_bin_expr(ty, declared_ty, refer, node, assume_true),
             _ => ty,
         }
     }
@@ -710,15 +1054,51 @@ impl<'cx> TyChecker<'cx> {
             assume_true = !assume_true;
         }
         let value_ty = self.get_ty_of_expr(value);
-        let double_equal = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
-        if value_ty.flags.contains(TypeFlags::NULLABLE) {
-            if !self.config.strict_null_checks() {
+        let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
+        if value_ty.flags.intersects(TypeFlags::NULLABLE) {
+            if !self.config.compiler_options().strict_null_checks() {
                 return ty;
             }
+            let facts = if double_equals {
+                if assume_true {
+                    TypeFacts::EQ_UNDEFINED_OR_NULL
+                } else {
+                    TypeFacts::NE_UNDEFINED_OR_NULL
+                }
+            } else if value_ty.flags.contains(TypeFlags::NULL) {
+                if assume_true {
+                    TypeFacts::EQ_NULL
+                } else {
+                    TypeFacts::NE_NULL
+                }
+            } else if assume_true {
+                TypeFacts::EQ_UNDEFINED
+            } else {
+                TypeFacts::NE_UNDEFINED
+            };
+            return self.get_adjusted_ty_with_facts(ty, facts);
         }
 
         if assume_true {
-            // TODO
+            if !double_equals
+                && (ty.flags.contains(TypeFlags::UNKNOWN)
+                    || self.some_type(ty, Self::is_empty_anonymous_object_ty))
+            {
+                if value_ty
+                    .flags
+                    .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NON_PRIMITIVE))
+                    || self.is_empty_anonymous_object_ty(value_ty)
+                {
+                    return value_ty;
+                } else if value_ty.flags.contains(TypeFlags::OBJECT) {
+                    return self.non_primitive_ty;
+                }
+            }
+            let filtered_ty = self.filter_type(ty, |this, t| {
+                this.are_types_comparable(t, value_ty)
+                    || double_equals && ty::Ty::is_coercible_under_double_equals(t, value_ty)
+            });
+            return self.replace_primitives_with_literals(filtered_ty, value_ty);
         }
 
         if value_ty.is_unit() {
@@ -733,35 +1113,62 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty_by_bin_expr(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
-        expr: &'cx ast::BinExpr<'cx>,
+        binary_expr: &'cx ast::BinExpr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use ast::BinOpKind::*;
-        match expr.op.kind {
-            Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, expr, assume_true),
+        match binary_expr.op.kind {
+            Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, binary_expr, assume_true),
             EqEqEq | NEqEq | EqEq | NEq => {
-                let left = self.get_reference_candidate(expr.left);
-                let right = self.get_reference_candidate(expr.right);
+                let left = self.get_reference_candidate(binary_expr.left);
+                let right = self.get_reference_candidate(binary_expr.right);
                 if let ast::ExprKind::Typeof(n) = left.kind
                     && right.is_string_lit_like()
                 {
                     return self.narrow_ty_by_typeof(
                         ty,
+                        declared_ty,
                         refer,
                         n,
-                        expr.op.kind,
+                        binary_expr.op.kind,
                         right,
                         assume_true,
                     );
                 } else if let ast::ExprKind::Typeof(n) = right.kind
                     && left.is_string_lit_like()
                 {
-                    return self.narrow_ty_by_typeof(ty, refer, n, expr.op.kind, left, assume_true);
+                    return self.narrow_ty_by_typeof(
+                        ty,
+                        declared_ty,
+                        refer,
+                        n,
+                        binary_expr.op.kind,
+                        left,
+                        assume_true,
+                    );
                 } else if self.is_matching_reference(refer, left.id()) {
-                    return self.narrow_ty_by_equality(ty, expr.op.kind, right, assume_true);
+                    return self.narrow_ty_by_equality(ty, binary_expr.op.kind, right, assume_true);
                 } else if self.is_matching_reference(refer, right.id()) {
-                    return self.narrow_ty_by_equality(ty, expr.op.kind, left, assume_true);
+                    return self.narrow_ty_by_equality(ty, binary_expr.op.kind, left, assume_true);
+                }
+
+                if self.config.compiler_options().strict_null_checks() {
+                    // TODO:
+                }
+
+                if let Some(left_access) =
+                    self.get_discriminant_prop_access(refer, left, ty, declared_ty)
+                {
+                    return self.narrow_ty_by_discriminant_prop(
+                        ty,
+                        left_access,
+                        refer,
+                        binary_expr.op.kind,
+                        right,
+                        assume_true,
+                    );
                 }
 
                 ty
@@ -770,9 +1177,68 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn narrow_ty_by_discriminant_prop(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        access: ast::NodeID,
+        refer: ast::NodeID,
+        op: ast::BinOpKind,
+        value: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if matches!(op, ast::BinOpKind::EqEqEq | ast::BinOpKind::EqEq)
+            && ty.kind.is_union()
+            && let Some(key_prop_name) = self.get_key_prop_name(ty)
+            && self
+                .get_accessed_prop_name(access)
+                .is_some_and(|name| name == key_prop_name)
+            && let key_ty = self.get_ty_of_expr(value)
+            && let Some(candidate) = self.get_constituent_ty_for_key_ty(ty, key_ty)
+        {
+            // TODO: key_prop_name ==  match access {}
+        }
+
+        self.narrow_ty_by_discriminant(access, ty, |this, t| {
+            this.narrow_ty_by_equality(t, op, value, assume_true)
+        })
+    }
+
+    fn narrow_ty_by_discriminant(
+        &mut self,
+        access: ast::NodeID,
+        ty: &'cx ty::Ty<'cx>,
+        narrow_ty: impl FnOnce(&mut Self, &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let Some(prop_name) = self.get_accessed_prop_name(access) else {
+            return ty;
+        };
+        let optional_chain = self.node_query(access.module()).is_optional_chain(access);
+        let remove_nullable = self.config.compiler_options().strict_null_checks()
+            && (optional_chain || matches!(self.p.node(access), ast::Node::NonNullExpr(_)))
+            && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
+        let Some(prop_ty) =
+            self.get_ty_of_prop_of_ty(if remove_nullable { todo!() } else { ty }, prop_name)
+        else {
+            return ty;
+        };
+        if remove_nullable && optional_chain {
+            todo!()
+        }
+        let narrowed_prop_ty = narrow_ty(self, prop_ty);
+        self.filter_type(ty, |this, t| {
+            let discriminant_ty = this
+                .get_ty_of_prop_or_index_sig_of_ty(t, prop_name)
+                .unwrap_or(self.unknown_ty);
+            !discriminant_ty.flags.contains(TypeFlags::NEVER)
+                && !narrowed_prop_ty.flags.contains(TypeFlags::NEVER)
+                && this.are_types_comparable(narrowed_prop_ty, discriminant_ty)
+        })
+    }
+
     fn narrow_ty_by_typeof(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         typeof_expr: &'cx ast::TypeofExpr<'cx>,
         op: ast::BinOpKind,
@@ -786,9 +1252,16 @@ impl<'cx> TyChecker<'cx> {
             assume_true = !assume_true;
         }
         let target = self.get_reference_candidate(typeof_expr.expr);
-        if !self.is_matching_reference(refer, target.id()) {
+        let target_id = target.id();
+        if !self.is_matching_reference(refer, target_id) {
             // TODO: optional chain
-            // TODO: prop access
+            if let Some(prop_access) =
+                self.get_discriminant_prop_access(refer, target, ty, declared_ty)
+            {
+                return self.narrow_ty_by_discriminant(prop_access, ty, |this, t| {
+                    this.narrow_ty_by_lit(t, lit, assume_true)
+                });
+            }
             ty
         } else {
             self.narrow_ty_by_lit(ty, lit, assume_true)
@@ -864,7 +1337,13 @@ impl<'cx> TyChecker<'cx> {
                             TypeFacts::TYPEOF_EQ_OBJECT,
                         );
                         let b = self.narrow_ty_by_ty_facts(ty, self.null_ty, TypeFacts::EQ_NULL);
-                        self.get_union_ty(&[a, b], ty::UnionReduction::Lit, false, None, None)
+                        self.get_union_ty::<false>(
+                            &[a, b],
+                            ty::UnionReduction::Lit,
+                            None,
+                            None,
+                            None,
+                        )
                     }
                 }
                 keyword::KW_FUNCTION => {
@@ -903,17 +1382,9 @@ impl<'cx> TyChecker<'cx> {
             self.narrow_ty_by_ty_name(ty, lit)
         } else {
             let facts = match lit.kind {
-                ast::ExprKind::StringLit(s) => match s.val {
-                    keyword::IDENT_STRING => TypeFacts::TYPEOF_NE_STRING,
-                    keyword::IDENT_NUMBER => TypeFacts::TYPEOF_NE_NUMBER,
-                    keyword::IDENT_BIGINT => TypeFacts::TYPEOF_NE_BIGINT,
-                    keyword::IDENT_BOOLEAN => TypeFacts::TYPEOF_NE_BOOLEAN,
-                    keyword::IDENT_SYMBOL => TypeFacts::TYPEOF_NE_SYMBOL,
-                    keyword::KW_UNDEFINED => TypeFacts::NE_UNDEFINED,
-                    keyword::IDENT_OBJECT => TypeFacts::TYPEOF_NE_OBJECT,
-                    keyword::KW_FUNCTION => TypeFacts::TYPEOF_NE_FUNCTION,
-                    _ => TypeFacts::TYPEOF_NE_HOST_OBJECT,
-                },
+                ast::ExprKind::StringLit(s) => {
+                    typeof_ne_facts(s.val).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT)
+                }
                 _ => unreachable!(),
             };
             self.get_adjusted_ty_with_facts(ty, facts)
@@ -923,17 +1394,14 @@ impl<'cx> TyChecker<'cx> {
     fn get_reference_candidate(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
         let n = ast::Expr::skip_parens(expr);
         match n.kind {
-            ast::ExprKind::Assign(node) => {
-                match node.op {
-                    ast::AssignOp::Eq
-                    | ast::AssignOp::LogicalOrEq
-                    | ast::AssignOp::LogicalAndEq => {
-                        // TODO: `??=`
-                        self.get_reference_candidate(node.left)
-                    }
-                    _ => n,
-                }
-            }
+            ast::ExprKind::Assign(node) => match node.op {
+                ast::AssignOp::Eq
+                | ast::AssignOp::LogicalOrEq
+                | ast::AssignOp::LogicalAndEq
+                | ast::AssignOp::NullishEq => self.get_reference_candidate(node.left),
+                // TODO: comma
+                _ => n,
+            },
             _ => n,
         }
     }
@@ -947,7 +1415,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let left = self.get_reference_candidate(expr.left);
         if !self.is_matching_reference(refer, left.id()) {
-            // if assume_true && self.config.strict_null_checks() && self.contain
+            // if assume_true && self.config.compiler_options().strict_null_checks() && self.contain
 
             return ty;
         }
@@ -987,7 +1455,7 @@ impl<'cx> TyChecker<'cx> {
                             })
                             .collect::<Vec<_>>();
                         let tys = this.alloc(tys);
-                        this.get_union_ty(tys, ty::UnionReduction::Lit, false, None, None)
+                        this.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None)
                     })
                 },
                 false,
@@ -1000,6 +1468,7 @@ impl<'cx> TyChecker<'cx> {
     fn narrow_ty_by_assertion(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -1008,23 +1477,23 @@ impl<'cx> TyChecker<'cx> {
             ast::ExprKind::BoolLit(n) if !n.val => self.unreachable_never_ty,
             ast::ExprKind::Bin(n) => {
                 if n.op.kind == ast::BinOpKind::LogicalAnd {
-                    let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
-                    self.narrow_ty_by_assertion(left_ty, refer, n.right)
+                    let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
+                    self.narrow_ty_by_assertion(left_ty, declared_ty, refer, n.right)
                 } else if n.op.kind == ast::BinOpKind::LogicalOr {
-                    let left_ty = self.narrow_ty_by_assertion(ty, refer, n.left);
-                    let right_ty = self.narrow_ty_by_assertion(ty, refer, n.right);
-                    self.get_union_ty(
+                    let left_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.left);
+                    let right_ty = self.narrow_ty_by_assertion(ty, declared_ty, refer, n.right);
+                    self.get_union_ty::<false>(
                         &[left_ty, right_ty],
                         ty::UnionReduction::Lit,
-                        false,
+                        None,
                         None,
                         None,
                     )
                 } else {
-                    self.narrow_ty(ty, refer, n.left, true)
+                    self.narrow_ty(ty, declared_ty, refer, n.left, true)
                 }
             }
-            _ => self.narrow_ty(ty, refer, expr, true),
+            _ => self.narrow_ty(ty, declared_ty, refer, expr, true),
         }
     }
 
@@ -1047,8 +1516,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             };
-            let pred = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig));
-            if let Some(pred) = pred
+            if let Some(pred) = sig.and_then(|sig| self.get_ty_predicate_of_sig(sig))
                 && matches!(pred.kind, TyPredKind::Ident(_) | TyPredKind::This(_))
             {
                 return self.narrow_ty_by_ty_pred(ty, refer, pred, call_expr, assume_true);
@@ -1135,7 +1603,7 @@ impl<'cx> TyChecker<'cx> {
             Self::is_ty_sub_type_of
         };
 
-        let key_prop_name = ty.kind.as_union().and_then(|u| self.get_key_prop_name(u));
+        let key_prop_name = ty.kind.as_union().and_then(|_| self.get_key_prop_name(ty));
         let narrowed_ty = self
             .map_ty(
                 candidate,
@@ -1143,8 +1611,8 @@ impl<'cx> TyChecker<'cx> {
                     let discriminant =
                         key_prop_name.and_then(|name| this.get_ty_of_prop_of_ty(c, name));
                     let matching = discriminant.and_then(|key_ty| {
-                        let union_ty = ty.kind.expect_union();
-                        this.get_constituent_ty_for_key_ty(ty, union_ty, key_ty)
+                        debug_assert!(ty.kind.is_union());
+                        this.get_constituent_ty_for_key_ty(ty, key_ty)
                     });
                     let directly_related = this
                         .map_ty(
@@ -1215,6 +1683,78 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn is_generic_ty_with_union_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        match ty.kind {
+            ty::TyKind::Intersection(i) => i
+                .tys
+                .iter()
+                .any(|ty| self.is_generic_ty_with_union_constraint(ty)),
+            _ => {
+                ty.flags.intersects(TypeFlags::INSTANTIABLE) && {
+                    let base_constraint = self.get_base_constraint_or_ty(ty);
+                    base_constraint
+                        .flags
+                        .intersects(TypeFlags::NULLABLE.union(TypeFlags::UNION))
+                }
+            }
+        }
+    }
+
+    fn is_generic_ty_without_nullable_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        match ty.kind {
+            ty::TyKind::Intersection(i) => i
+                .tys
+                .iter()
+                .any(|ty| self.is_generic_ty_without_nullable_constraint(ty)),
+            _ => {
+                ty.flags.intersects(TypeFlags::INSTANTIABLE) && {
+                    let base_constraint = self.get_base_constraint_or_ty(ty);
+                    !base_constraint.maybe_type_of_kind(TypeFlags::NULLABLE)
+                }
+            }
+        }
+    }
+
+    fn is_constraint_position(&mut self, ty: &'cx ty::Ty<'cx>, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        match self.p.node(parent) {
+            ast::Node::PropAccessExpr(_) | ast::Node::QualifiedName(_) => true,
+            ast::Node::CallExpr(n) if n.expr.id() == node => true,
+            ast::Node::NewExpr(n) if n.expr.id() == node => true,
+            ast::Node::EleAccessExpr(n) if n.expr.id() == node => {
+                !(self.some_type(ty, Self::is_generic_ty_without_nullable_constraint) && {
+                    let t = self.get_ty_of_expr(n.arg);
+                    self.is_generic_index_ty(t)
+                })
+            }
+            _ => false,
+        }
+    }
+
+    fn has_contextual_ty_with_no_generic_tys(
+        &mut self,
+        node: ast::NodeID,
+        check_mode: Option<super::CheckMode>,
+    ) -> bool {
+        let n = self.p.node(node);
+        let contextual_ty = match n {
+            ast::Node::Ident(_) | ast::Node::PropAccessExpr(_) | ast::Node::EleAccessExpr(_) => {
+                // TODO: parent is not jsx
+                if check_mode.is_some_and(|check_mode| {
+                    check_mode.intersects(super::CheckMode::REST_BINDING_ELEMENT)
+                }) {
+                    self.get_contextual_ty(node, Some(ContextFlags::SKIP_BINDING_PATTERNS))
+                } else {
+                    self.get_contextual_ty(node, None)
+                }
+            }
+            _ => self.get_contextual_ty(node, None),
+        };
+        contextual_ty.is_some_and(|contextual_ty| !self.is_generic_ty(contextual_ty))
+    }
+
     fn get_narrow_ty_for_reference(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
@@ -1226,25 +1766,33 @@ impl<'cx> TyChecker<'cx> {
             ty = sub.base_ty;
         }
 
-        ty
-        // if check_mode.is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
-        //     && false
-        // // TODO:
-        // {
-        //     ty
-        // } else {
-        //     ty
-        // }
+        if !check_mode
+            .is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
+            && self.some_type(ty, |this, t| this.is_generic_ty_with_union_constraint(t))
+            && {
+                self.is_constraint_position(ty, refer)
+                    || self.has_contextual_ty_with_no_generic_tys(refer, check_mode)
+            }
+        {
+            self.map_ty(ty, |this, t| Some(this.get_base_constraint_or_ty(t)), false)
+                .unwrap()
+        } else {
+            ty
+        }
     }
 
     pub(super) fn is_reachable_flow_node(&mut self, id: FlowID) -> bool {
-        let result = self._is_reachable_flow_node(id, false);
+        let result = self.is_reachable_flow_node_worker(id, false);
         self.last_flow_node = Some(id);
         self.last_flow_reachable = result;
         result
     }
 
-    fn _is_reachable_flow_node(&mut self, mut flow: FlowID, mut no_cache_check: bool) -> bool {
+    fn is_reachable_flow_node_worker(
+        &mut self,
+        mut flow: FlowID,
+        mut no_cache_check: bool,
+    ) -> bool {
         loop {
             if self.last_flow_node.is_some_and(|l| l == flow) {
                 return self.last_flow_reachable;
@@ -1256,7 +1804,7 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(reachable) = self.flow_node_reachable.get(&flow).copied() {
                         return reachable;
                     } else {
-                        let reachable = self._is_reachable_flow_node(flow, true);
+                        let reachable = self.is_reachable_flow_node_worker(flow, true);
                         self.flow_node_reachable.insert(flow, reachable);
                         return reachable;
                     }
@@ -1267,7 +1815,13 @@ impl<'cx> TyChecker<'cx> {
             match &f.kind {
                 FlowNodeKind::Assign(n) => flow = n.antecedent,
                 FlowNodeKind::Cond(n) => flow = n.antecedent,
-                // TODO: handle other kinds
+                FlowNodeKind::Switch(n) => {
+                    let antecedent = n.antecedent;
+                    if n.clause_start == n.clause_end && self.is_exhaustive_switch_stmt(n.node) {
+                        return false;
+                    }
+                    flow = antecedent;
+                }
                 _ => return !flags.contains(FlowFlags::UNREACHABLE),
             }
         }
@@ -1347,6 +1901,91 @@ impl<'cx> TyChecker<'cx> {
                 Some(FlowCacheKey::Pseudo(key))
             }
             _ => None,
+        }
+    }
+
+    pub(super) fn get_flow_type_of_prop_access_expr(
+        &mut self,
+        n: ast::NodeID,
+        prop: Option<SymbolID>,
+        prop_ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+        check_mode: Option<super::CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        let (id, expr) = match self.p.node(n) {
+            ast::Node::PropAccessExpr(n) => (n.id, n.expr),
+            ast::Node::EleAccessExpr(n) => (n.id, n.expr),
+            ast::Node::QualifiedName(_) => {
+                // TODO:
+                return prop_ty;
+            }
+            n => unreachable!("n: {n:#?}"),
+        };
+        let assignment_kind = self.node_query(id.module()).get_assignment_target_kind(id);
+        if assignment_kind == AssignmentKind::Definite {
+            let is_optional =
+                prop.is_some_and(|prop| self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL));
+            return self.remove_missing_ty(prop_ty, is_optional);
+        }
+
+        if let Some(prop) = prop
+            && let prop_symbol = self.symbol(prop)
+            && !prop_symbol.flags.intersects(
+                SymbolFlags::VARIABLE
+                    .union(SymbolFlags::PROPERTY)
+                    .union(SymbolFlags::ACCESSOR),
+            )
+            && !(prop_symbol.flags.contains(SymbolFlags::METHOD)
+                && prop_ty.flags.contains(TypeFlags::UNION))
+        {
+            // TODO: !is_duplicate_common_js_export
+            return prop_ty;
+        }
+
+        if prop_ty == self.auto_ty {
+            // TODO: self.get_flow_ty_of_property
+            return prop_ty;
+        }
+        let prop_ty = self.get_narrow_ty_for_reference(prop_ty, id, check_mode);
+        let mut assume_uninitialized = false;
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
+        if strict_null_checks
+            && self
+                .config
+                .compiler_options()
+                .strict_property_initialization()
+            && let ast::ExprKind::This(n) = expr.kind
+        {
+            let decl = prop.map(|prop| self.symbol(prop).value_decl);
+            // TODO:
+            // if let Some(decl) = decl {
+            //     if decl.is_optional() {
+            //         assume_uninitialized = true;
+            //     }
+            // }
+        } else if strict_null_checks
+            && let Some(prop) = prop
+            && let Some(value_decl) = self.symbol(prop).value_decl
+            && self.p.node(value_decl).is_prop_access_expr()
+        {
+            // TODO: self.get_assignment_declaration_prop_access_kind
+        }
+        let init_ty = if assume_uninitialized {
+            self.get_optional_ty::<false>(prop_ty)
+        } else {
+            prop_ty
+        };
+        let flow_ty = self.get_flow_ty_of_reference(id, prop_ty, Some(init_ty), None, None);
+        if assume_uninitialized
+            && !prop_ty.contains_undefined_ty()
+            && flow_ty.contains_undefined_ty()
+        {
+            // TODO: report error
+            prop_ty
+        } else if assignment_kind != AssignmentKind::None {
+            self.get_base_ty_of_literal_ty(flow_ty)
+        } else {
+            flow_ty
         }
     }
 }

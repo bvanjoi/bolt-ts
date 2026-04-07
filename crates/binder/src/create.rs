@@ -1,8 +1,9 @@
 use super::SymbolTable;
+use super::symbol::Container;
 use super::symbol::{SymbolFlags, SymbolTableLocation};
 use super::{BinderState, Symbol, SymbolID, SymbolName, Symbols, errors};
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 
 pub fn set_value_declaration(
@@ -67,7 +68,7 @@ impl BinderState<'_, '_, '_> {
         let is_replaceable_by_method =
             prop.contains(DeclareSymbolProperty::IS_REPLACEABLE_BY_METHOD);
         let n = self.p.node(node);
-        let is_default_export = n.has_syntactic_modifier(ast::ModifierKind::Default.into());
+        let is_default_export = n.has_syntactic_modifier(ast::ModifierFlags::DEFAULT);
 
         let name = if prop.contains(DeclareSymbolProperty::IS_COMPUTED_NAME) {
             debug_assert!(name.is_none_or(|n| n == SymbolName::Computed));
@@ -102,19 +103,17 @@ impl BinderState<'_, '_, '_> {
                     if old_symbol.is_replaceable_by_method.is_some_and(|r| r) {
                         todo!()
                     } else if !(includes.intersects(SymbolFlags::VARIABLE)
-                        && old_symbol.flags.intersects(SymbolFlags::ASSIGNMENT))
+                        && old_symbol.flags.contains(SymbolFlags::ASSIGNMENT))
                     {
                         let old_decl_id = self.symbols.get(old).opt_decl().unwrap();
                         let old_decl = self.p.node(old_decl_id);
 
-                        let error: bolt_ts_errors::BoxedDiag = if old_symbol
-                            .flags
-                            .intersects(SymbolFlags::ENUM)
+                        if old_symbol.flags.intersects(SymbolFlags::ENUM)
                             || includes.intersects(SymbolFlags::ENUM)
                         {
-                            Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
+                            self.push_error(Box::new(errors::EnumDeclarationsCanOnlyMergeWithNamespaceOrOtherEnumDeclarations {
                                     span: self.p.node(node).name().unwrap().span(),
-                                })
+                                }));
                         } else if old_symbol
                             .decls
                             .as_ref()
@@ -132,21 +131,29 @@ impl BinderState<'_, '_, '_> {
                                     }
                                 }
                             };
-                            Box::new(errors::AModuleCannotHaveMultipleDefaultExports { span })
+                            self.push_error(Box::new(
+                                errors::AModuleCannotHaveMultipleDefaultExports { span },
+                            ));
                         } else {
-                            let Some(span) = self.p.node(node).name().map(|n| n.span()) else {
+                            let Some(declaration_name) = self.p.node(node).name() else {
                                 unreachable!("missing name: {:#?}", self.p.node(node));
                             };
-                            Box::new(errors::DuplicateIdentifier {
-                                span,
-                                name: self.atoms.get(name.expect_atom()).to_string(),
-                                original_span: old_decl
-                                    .name()
-                                    .map(|name| name.span())
-                                    .unwrap_or(old_decl.span()),
-                            })
+                            if let ast::DeclarationName::Ident(ident) = declaration_name
+                                && ident.name == keyword::IDENT_EMPTY
+                            {
+                                // TODO: delay error reporting
+                            } else {
+                                let error = Box::new(errors::DuplicateIdentifier {
+                                    span: declaration_name.span(),
+                                    name: name.to_string(self.atoms),
+                                    original_span: old_decl
+                                        .name()
+                                        .map(|name| name.span())
+                                        .unwrap_or(old_decl.span()),
+                                });
+                                self.push_error(error);
+                            }
                         };
-                        self.push_error(error);
                         symbol = self.create_symbol(name, includes);
                     }
                 }
@@ -156,7 +163,7 @@ impl BinderState<'_, '_, '_> {
                     let prev = table.0.insert(name, symbol);
                     assert!(prev.is_none());
                 } else {
-                    let mut table = SymbolTable::new(32);
+                    let mut table = SymbolTable::new(8);
                     table.0.insert(name, symbol);
                     self.init_symbol_table_by_location(location, table);
                 }
@@ -188,6 +195,7 @@ impl BinderState<'_, '_, '_> {
         let has_members = s.members.is_some();
         s.flags |= flags;
         if let Some(decls) = s.decls.as_mut() {
+            debug_assert!(!decls.contains(&node));
             decls.push(node);
         } else {
             let mut decls = thin_vec::ThinVec::with_capacity(4);
@@ -249,7 +257,20 @@ impl BinderState<'_, '_, '_> {
             container: ast::NodeID,
             is_export: bool,
         ) -> Option<&'a mut SymbolTable> {
+            // TODO: use `this.final_res[&container]`.
             let container = this.final_res.get(&container).copied()?;
+            let container = this.symbols.get_mut(container);
+            if is_export {
+                container.exports.as_mut()
+            } else {
+                container.members.as_mut()
+            }
+        }
+        fn inner_symbol<'a>(
+            this: &'a mut BinderState,
+            container: SymbolID,
+            is_export: bool,
+        ) -> Option<&'a mut SymbolTable> {
             let container = this.symbols.get_mut(container);
             if is_export {
                 container.exports.as_mut()
@@ -259,15 +280,21 @@ impl BinderState<'_, '_, '_> {
         }
         use super::symbol::SymbolTableLocationKind;
         match location.kind {
-            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false),
-            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true),
+            SymbolTableLocationKind::SymbolMember => match location.container {
+                Container::Node(node) => inner(self, node, false),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, false),
+            },
+            SymbolTableLocationKind::SymbolExports => match location.container {
+                Container::Node(node) => inner(self, node, true),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, true),
+            },
             SymbolTableLocationKind::ContainerLocals => {
                 assert!(
-                    self.p.node(location.container).has_locals(),
+                    self.p.node(location.container.expect_node()).has_locals(),
                     "{:#?}",
-                    self.p.node(location.container)
+                    self.p.node(location.container.expect_node())
                 );
-                self.locals.get_mut(&location.container)
+                self.locals.get_mut(&location.container.expect_node())
             }
         }
     }
@@ -279,6 +306,7 @@ impl BinderState<'_, '_, '_> {
             is_export: bool,
             table: SymbolTable,
         ) {
+            // TODO: use `this.final_res[&container]`.
             let Some(container) = this.final_res.get(&container).copied() else {
                 return;
             };
@@ -290,13 +318,33 @@ impl BinderState<'_, '_, '_> {
             };
             assert!(prev.is_none());
         }
+        fn inner_symbol(
+            this: &mut BinderState,
+            container: SymbolID,
+            is_export: bool,
+            table: SymbolTable,
+        ) {
+            let container = this.symbols.get_mut(container);
+            let prev = if is_export {
+                container.exports.replace(table)
+            } else {
+                container.members.replace(table)
+            };
+            assert!(prev.is_none());
+        }
         use super::symbol::SymbolTableLocationKind;
         match location.kind {
-            SymbolTableLocationKind::SymbolMember => inner(self, location.container, false, table),
-            SymbolTableLocationKind::SymbolExports => inner(self, location.container, true, table),
+            SymbolTableLocationKind::SymbolMember => match location.container {
+                Container::Node(node) => inner(self, node, false, table),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, false, table),
+            },
+            SymbolTableLocationKind::SymbolExports => match location.container {
+                Container::Node(node) => inner(self, node, true, table),
+                Container::Symbol(symbol) => inner_symbol(self, symbol, true, table),
+            },
             SymbolTableLocationKind::ContainerLocals => {
-                assert!(self.p.node(location.container).has_locals());
-                let prev = self.locals.insert(location.container, table);
+                assert!(self.p.node(location.container.expect_node()).has_locals());
+                let prev = self.locals.insert(location.container.expect_node(), table);
                 assert!(prev.is_none());
             }
         }

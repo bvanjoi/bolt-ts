@@ -1,0 +1,5 @@
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/typeParameterFixingWithContextSensitiveArguments3/index.ts:12:29]
+ 12 │ t2 => t2
+    · ────────
+    ╰────

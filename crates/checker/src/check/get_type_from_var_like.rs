@@ -1,17 +1,26 @@
 use super::CheckMode;
 use super::TyChecker;
 use super::check_expr::IterationUse;
+use super::errors;
+use super::relation;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ty::Ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolID;
+use bolt_ts_ty::TypeFacts;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn get_optional_ty(&mut self, ty: &'cx Ty<'cx>, is_property: bool) -> &'cx Ty<'cx> {
-        assert!(self.config.strict_null_checks());
-        let missing_or_undefined = if is_property {
+    pub(super) fn get_optional_ty<const IS_PROPERTY: bool>(
+        &mut self,
+        ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        debug_assert!(self.config.compiler_options().strict_null_checks());
+        let missing_or_undefined = if IS_PROPERTY {
             self.undefined_or_missing_ty
         } else {
             self.undefined_ty
@@ -24,52 +33,72 @@ impl<'cx> TyChecker<'cx> {
         {
             ty
         } else {
-            self.get_union_ty(
+            self.get_union_ty::<false>(
                 &[ty, missing_or_undefined],
                 ty::UnionReduction::Lit,
-                false,
+                None,
                 None,
                 None,
             )
         }
     }
 
-    pub(super) fn add_optionality(
+    pub(super) fn add_optionality<const IS_PROPERTY: bool>(
         &mut self,
         declared_ty: &'cx Ty<'cx>,
-        is_property: bool,
         is_optional: bool,
     ) -> &'cx Ty<'cx> {
-        if self.config.strict_null_checks() && is_optional {
-            self.get_optional_ty(declared_ty, is_property)
+        if self.config.compiler_options().strict_null_checks() && is_optional {
+            self.get_optional_ty::<IS_PROPERTY>(declared_ty)
         } else {
             declared_ty
         }
     }
 
-    fn get_ty_for_binding_element_parent(&mut self, pat_id: ast::NodeID) -> Option<&'cx Ty<'cx>> {
+    pub(super) fn get_ty_for_binding_element_parent(
+        &mut self,
+        pat_id: ast::NodeID,
+    ) -> Option<&'cx Ty<'cx>> {
         debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
         let parent_id = self.parent(pat_id).unwrap();
-        let parent = self.p.node(parent_id);
-        debug_assert!(parent.is_binding());
-        let parent_parent_id = self.parent(parent_id).unwrap();
-        let parent_parent = self.p.node(parent_parent_id);
-        match parent_parent {
-            ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
-            _ => {
-                // TODO:
-                None
+        let parent_node = self.p.node(parent_id);
+        if self.check_mode.is_some_and(|m| m != CheckMode::empty()) {
+            match parent_node {
+                ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var),
+                ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
+                _ => {
+                    // TODO:
+                    None
+                }
+            }
+        } else {
+            // TODO: cache
+            // if parent_node.is_decl()
+            //     && let symbol = self.get_symbol_of_decl(parent_id)
+            //     && let Some(ty) = self.get_symbol_links(symbol).get_ty()
+            // {
+            //     return Some(ty);
+            // };
+
+            match parent_node {
+                ast::Node::VarDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
+                ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n),
+                _ => {
+                    // TODO:
+                    None
+                }
             }
         }
     }
 
-    fn get_array_binding_element_ty_from_parent_ty(
+    pub(super) fn get_array_binding_element_ty_from_parent_ty(
         &mut self,
         binding: &'cx ast::ArrayBinding<'cx>,
         parent: &'cx ast::ArrayPat<'cx>,
+        no_tuple_bounds_check: bool,
         parent_parent_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        debug_assert!(self.parent(binding.id).is_some());
+        debug_assert!(self.parent(binding.id).is_some_and(|p| p == parent.id));
         if self.is_type_any(parent_parent_ty) {
             return parent_parent_ty;
         }
@@ -80,52 +109,269 @@ impl<'cx> TyChecker<'cx> {
             IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS)
         };
 
+        let access_flags = AccessFlags::EXPRESSION_POSITION
+            | if no_tuple_bounds_check {
+                // TODO: add `has_default_value` in condition
+                AccessFlags::ALLOWING_MISSING
+            } else {
+                AccessFlags::empty()
+            };
+
+        let has_dotdotdot = binding.dotdotdot.is_some();
+        let index = || {
+            parent
+                .elems
+                .iter()
+                .position(|ele| match ele.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => false,
+                    ast::ArrayBindingElemKind::Binding(item) => item.id == binding.id,
+                })
+                .unwrap()
+        };
         let element_ty = self.check_iterated_ty_or_element_ty(
             mode,
             parent_parent_ty,
             self.undefined_ty,
             Some(parent.id),
         );
+        let element_ty = if has_dotdotdot {
+            let base_constraint = self
+                .map_ty(
+                    parent_parent_ty,
+                    |this, t| {
+                        Some(
+                            if t.flags
+                                .intersects(ty::TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+                            {
+                                this.get_base_constraint_or_ty(t)
+                            } else {
+                                t
+                            },
+                        )
+                    },
+                    false,
+                )
+                .unwrap();
+            if self.every_type(base_constraint, |_, t| t.is_tuple()) {
+                let index = index();
+                self.map_ty(
+                    base_constraint,
+                    |this, t| Some(this.slice_tuple_ty(t, index, 0)),
+                    false,
+                )
+                .unwrap()
+            } else {
+                self.create_array_ty(element_ty, false)
+            }
+        } else if self.is_array_like_ty(parent_parent_ty) {
+            let index_ty = self.get_number_literal_type_from_number(index() as f64);
+            self.get_indexed_access_ty_or_undefined(
+                parent_parent_ty,
+                index_ty,
+                Some(access_flags),
+                Some(binding.id),
+                None,
+                None,
+            )
+            .unwrap_or(self.error_ty)
+        } else {
+            element_ty
+        };
+
+        // TODO: widen
 
         element_ty
     }
 
-    fn get_object_binding_element_ty_from_parent_ty(
+    pub(super) fn get_object_binding_element_ty_from_parent_ty(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,
-        parent_parent_ty: &'cx Ty<'cx>,
+        mut parent_parent_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         debug_assert!(self.parent(binding.id).is_some());
         if self.is_type_any(parent_parent_ty) {
             return parent_parent_ty;
         }
 
+        if self.config.compiler_options().strict_null_checks() {
+            if self
+                .p
+                .node_flags(binding.id)
+                .contains(ast::NodeFlags::AMBIENT)
+                && self
+                    .node_query(binding.id.module())
+                    .is_part_of_param_decl(binding.id)
+            {
+                parent_parent_ty = self.get_non_nullable_ty(parent_parent_ty)
+            } else if let parent_parent = self.parent(parent.id).unwrap()
+                && let Some(init) = self.p.node(parent_parent).initializer()
+                && let init_ty = self.get_ty_of_init(init)
+                && !self.has_type_facts(init_ty, TypeFacts::EQ_UNDEFINED)
+            {
+                parent_parent_ty =
+                    self.get_ty_with_facts(parent_parent_ty, TypeFacts::NE_UNDEFINED);
+            }
+        }
+
         let access_flags = AccessFlags::EXPRESSION_POSITION;
         if binding.dotdotdot.is_some() {
-            // TODO:
-            parent_parent_ty
+            parent_parent_ty = self.get_reduced_ty(parent_parent_ty);
+            if parent_parent_ty.flags.contains(ty::TypeFlags::UNKNOWN)
+                || !self.is_valid_spread_ty(parent_parent_ty)
+            {
+                let error = errors::RestTypesMayOnlyBeCreatedFromObjectTypes { span: binding.span };
+                self.push_error(Box::new(error));
+                return self.error_ty;
+            }
+            let mut literal_members = Vec::with_capacity(parent.elems.len());
+            for elem in parent.elems {
+                if elem.dotdotdot.is_none() {
+                    match elem.name {
+                        ast::ObjectBindingName::Shorthand(ident) => {
+                            literal_members.push(ast::PropNameKind::Ident(ident));
+                        }
+                        ast::ObjectBindingName::Prop { prop_name, .. } => {
+                            literal_members.push(prop_name.kind);
+                        }
+                    }
+                }
+            }
+            let symbol = self.get_symbol_of_decl(binding.id);
+            // TODO: getFlowTypeOfDestructuring
+            self.get_rest_ty(parent_parent_ty, &literal_members, Some(symbol))
         } else {
             let index_ty = match binding.name {
                 ast::ObjectBindingName::Shorthand(ident) => {
                     self.get_string_literal_type_from_string(ident.name)
                 }
                 ast::ObjectBindingName::Prop { prop_name, .. } => {
-                    self.get_lit_ty_from_prop_name(&prop_name.kind)
+                    self.get_literal_ty_from_prop_name(&prop_name.kind)
                 }
             };
-            let name = match binding.name {
-                ast::ObjectBindingName::Shorthand(ident) => ident.id,
-                ast::ObjectBindingName::Prop { prop_name, .. } => prop_name.id(),
-            };
+            let name = binding.name.name().id();
             let decl_ty = self.get_indexed_access_ty(
                 parent_parent_ty,
                 index_ty,
                 Some(access_flags),
                 Some(name),
+                None,
+                None,
             );
             // TODO: getFlowTypeOfDestructuring
             decl_ty
+        }
+    }
+
+    fn is_spreadable_property(&self, prop: SymbolID) -> bool {
+        let s = self.symbol(prop);
+        // TODO: s.decls.iter().any(|decl| self.is_private_identifier_class_element_declaration(decl))
+        let flags = s.flags;
+        return !flags.intersects(
+            SymbolFlags::METHOD
+                .union(SymbolFlags::GET_ACCESSOR)
+                .union(SymbolFlags::SET_ACCESSOR),
+        ) || s.decls.as_ref().is_none_or(|decls| {
+            decls.iter().any(|decl| {
+                if let Some(p) = self.parent(*decl) {
+                    self.p.node(p).is_class_like()
+                } else {
+                    false
+                }
+            })
+        });
+    }
+
+    fn get_rest_ty(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        props: &[ast::PropNameKind<'cx>],
+        symbol: Option<SymbolID>,
+    ) -> &'cx Ty<'cx> {
+        let source = self.filter_type(source, |this, t| !t.flags.contains(ty::TypeFlags::NULLABLE));
+        if source.flags.contains(ty::TypeFlags::NEVER) {
+            return self.empty_object_ty();
+        } else if source.flags.contains(ty::TypeFlags::UNION) {
+            return self
+                .map_ty(
+                    source,
+                    |this, t| Some(this.get_rest_ty(t, props, symbol)),
+                    false,
+                )
+                .unwrap();
+        }
+
+        let mut omit_key_ty = {
+            let props = props
+                .iter()
+                .map(|prop| self.get_literal_ty_from_prop_name(prop))
+                .collect::<Vec<_>>();
+            self.get_union_ty::<false>(&props, ty::UnionReduction::Lit, None, None, None)
+        };
+
+        let mut spreadable_props = vec![];
+        let mut unsparedable_to_rest_keys = vec![];
+
+        for &prop in self.get_props_of_ty(source) {
+            let lit_ty_from_property = self.get_literal_ty_from_prop(
+                prop,
+                ty::TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                false,
+            );
+            if !self.is_type_related_to(
+                lit_ty_from_property,
+                omit_key_ty,
+                relation::RelationKind::Assignable,
+            ) && (self.get_declaration_modifier_flags_from_symbol(prop, None)
+                & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                .is_empty()
+                && self.is_spreadable_property(prop)
+            {
+                spreadable_props.push(prop);
+            } else {
+                unsparedable_to_rest_keys.push(lit_ty_from_property);
+            }
+        }
+
+        if self.is_generic_object_ty(source) || self.is_generic_index_ty(omit_key_ty) {
+            if unsparedable_to_rest_keys.len() > 0 {
+                // If the type we're spreading from has properties that cannot
+                // be spread into the rest type (e.g. getters, methods), ensure
+                // they are explicitly omitted, as they would in the non-generic case.
+                let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
+                tys.push(omit_key_ty);
+                tys.extend(unsparedable_to_rest_keys);
+                omit_key_ty =
+                    self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            }
+
+            if omit_key_ty.flags.contains(ty::TypeFlags::NEVER) {
+                return source;
+            }
+
+            let Some(omit_type_alias) = self.get_global_omit_symbol() else {
+                return self.error_ty;
+            };
+            let ty_args = self.alloc([source, omit_key_ty]);
+            self.get_type_alias_instantiation(omit_type_alias, ty_args, None, None)
+        } else {
+            let mut members = fx_indexmap_with_capacity(spreadable_props.len());
+            for prop in spreadable_props {
+                let spared_symbol = self.get_spread_symbol(prop, false);
+                let name = self.symbol(prop).name;
+                members.insert(name, spared_symbol);
+            }
+            let members = self.alloc(members);
+            let index_infos = self.get_index_infos_of_ty(source);
+            self.create_anonymous_ty_with_resolved(
+                symbol,
+                ty::ObjectFlags::OBJECT_REST_TYPE,
+                members,
+                self.empty_array(),
+                self.empty_array(),
+                index_infos,
+                None,
+            )
         }
     }
 
@@ -145,7 +391,7 @@ impl<'cx> TyChecker<'cx> {
         let parent_ty = self.get_ty_for_binding_element_parent(parent.id);
         self.check_mode = old_check_mode;
         parent_ty.map(|parent_ty| {
-            self.get_array_binding_element_ty_from_parent_ty(binding, parent, parent_ty)
+            self.get_array_binding_element_ty_from_parent_ty(binding, parent, false, parent_ty)
         })
     }
 
@@ -214,15 +460,26 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let decl_node = self.p.node(id);
-        let is_property = decl_node.is_prop_signature();
+
         let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
 
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
-            return Some(self.add_optionality(ty, is_property, is_optional));
+            let is_property = match decl_node {
+                ast::Node::PropSignature(_) => true,
+                ast::Node::ClassPropElem(p) => p.modifiers.is_none(),
+                // TODO: js
+                _ => false,
+            };
+            return Some(if is_property {
+                self.add_optionality::<true>(ty, is_optional)
+            } else {
+                self.add_optionality::<false>(ty, is_optional)
+            });
         }
 
-        if decl.is_param() {
+        if let Some(param_decl) = decl.as_param() {
+            // TODO: !declaration.symbol then return
             if let Some(setter) = parent.as_setter_decl() {
                 // TODO: has bindable name
                 let symbol = self.get_symbol_of_decl(setter.id);
@@ -236,14 +493,68 @@ impl<'cx> TyChecker<'cx> {
                     return Some(self.get_ret_ty_of_sig(getter_sig));
                 }
             }
+
+            // TODO: self.get_parameter_ty_of_ty_tag(parent_id);
+            // let s = self.symbol(self.final_res(id));
+            // TODO: this
+            if let Some(ty) = self.get_contextually_typed_parameter_ty(param_decl) {
+                return Some(self.add_optionality::<false>(ty, is_optional));
+            }
         }
 
-        if let Some(init) = decl.init() {
-            let init_ty = self.check_expr_cached(init);
-            Some(self.widened_ty_from_init(decl, init_ty))
-        } else {
-            None
+        if decl.init().is_some() && decl.has_only_expr_initializer() {
+            let ty = self.check_decl_init(decl, None);
+            let ty = self.widen_ty_inferred_from_initializer(decl, ty);
+            return Some(self.add_optionality::<false>(ty, is_optional));
         }
+
+        None
+    }
+
+    fn widen_ty_inferred_from_initializer(
+        &mut self,
+        decl: &impl r#trait::VarLike<'cx>,
+        ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let widened = self.get_widened_lit_ty_for_init(decl, ty);
+        // TODO: in js
+        widened
+    }
+
+    fn get_contextually_typed_parameter_ty(
+        &mut self,
+        param_decl: &ast::ParamDecl<'cx>,
+    ) -> Option<&'cx Ty<'cx>> {
+        let func = self.parent(param_decl.id).unwrap();
+        if !self.is_context_sensitive_fn_or_object_literal_method(func) {
+            return None;
+        }
+        if let Some(iife) = self
+            .node_query(func.module())
+            .get_immediately_invoked_fn_expr(func)
+            && !iife.args.is_empty()
+        {
+            // TODO:
+        }
+
+        if let Some(contextual_sig) = self.get_contextual_sig(func) {
+            let params = self.p.node(func).params().unwrap();
+            let index = params.iter().position(|p| p.id == param_decl.id).unwrap()
+                - if contextual_sig.this_param.is_some() {
+                    1
+                } else {
+                    0
+                };
+            if param_decl.dotdotdot.is_some()
+                && params.last().is_some_and(|p| p.id == param_decl.id)
+            {
+                return Some(self.get_rest_ty_at_pos(contextual_sig, index, false));
+            } else {
+                return self.try_get_ty_at_pos(contextual_sig, index);
+            }
+        }
+
+        None
     }
 
     pub(super) fn widen_ty_for_var_like_decl(

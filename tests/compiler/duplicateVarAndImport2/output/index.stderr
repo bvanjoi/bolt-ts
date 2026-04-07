@@ -1,0 +1,5 @@
+  × Import declaration conflicts with local declaration of 'a'.
+   ╭─[../../tests/compiler/duplicateVarAndImport2/index.ts:7:1]
+ 7 │ import a = M;
+   · ─────────────
+   ╰────

@@ -1,0 +1,8 @@
+  × Duplicate identifier 'export ='.
+    ╭─[../../tests/compiler/multipleExportAssignmentsInAmbientDeclaration/index.ts:10:14]
+  9 │ a;
+    · ┬
+    · ╰── Previous definition here
+ 10 │     export = b
+    ·              ─
+    ╰────

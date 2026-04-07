@@ -1,0 +1,5 @@
+  × A class member cannot have the 'const' keyword.
+   ╭─[../../tests/compiler/constInClassExpression/index.ts:6:5]
+ 6 │ const
+   · ─────
+   ╰────

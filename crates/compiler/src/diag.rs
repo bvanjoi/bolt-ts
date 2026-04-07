@@ -3,11 +3,10 @@ use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_errors::thiserror::Error;
+use bolt_ts_parser::CommentDirective;
 use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
-
-use bolt_ts_parser::CommentDirective;
 
 pub(super) fn get_merged_diags(
     diags: Vec<bolt_ts_errors::Diag>,

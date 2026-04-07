@@ -4,24 +4,10 @@
    · ─
    ╰────
 
-Advice: 
-  ☞ Property 'one' is defined here
-   ╭─[../../tests/compiler/assignmentCompat1/index.ts:3:9]
- 3 │ { one: 1 }
-   · ──────────
-   ╰────
-
   × Property 'one' is missing.
    ╭─[../../tests/compiler/assignmentCompat1/index.ts:9:1]
  9 │ x
    · ─
-   ╰────
-
-Advice: 
-  ☞ Property 'one' is defined here
-   ╭─[../../tests/compiler/assignmentCompat1/index.ts:3:9]
- 3 │ { one: 1 }
-   · ──────────
    ╰────
 
   × Type 'string' is not assignable to type '{ [index: string]: any }'.

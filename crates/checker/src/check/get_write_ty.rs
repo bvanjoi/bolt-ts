@@ -1,6 +1,6 @@
 use super::ResolutionKey;
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 
@@ -8,17 +8,34 @@ use bolt_ts_binder::{SymbolFlags, SymbolID};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
-        if self.symbol(symbol).flags.intersects(SymbolFlags::ACCESSOR) {
+        let flags = self.symbol(symbol).flags;
+        // TODO: synthetic property
+        if flags.contains(SymbolFlags::PROPERTY) {
+            let ty = self.get_type_of_symbol(symbol);
+            self.remove_missing_ty(ty, flags.contains(SymbolFlags::OPTIONAL))
+        } else if flags.intersects(SymbolFlags::ACCESSOR) {
             let check_flags = self.get_check_flags(symbol);
             if check_flags.intersects(CheckFlags::INSTANTIATED) {
-                // TODO:
-                todo!()
+                self.get_write_type_of_instantiated_symbol(symbol)
             } else {
                 self.get_write_type_of_accessor(symbol)
             }
         } else {
             self.get_type_of_symbol(symbol)
         }
+    }
+
+    fn get_write_type_of_instantiated_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let links = self.get_symbol_links(symbol);
+        if let Some(ty) = links.get_write_ty() {
+            return ty;
+        }
+        let target = links.expect_target();
+        let mapper = links.expect_ty_mapper();
+        let ty = self.get_write_type_of_symbol(target);
+        let ty = self.instantiate_ty_worker(ty, mapper);
+        self.get_mut_symbol_links(symbol).set_write_ty(ty);
+        ty
     }
 
     fn get_write_type_of_accessor(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

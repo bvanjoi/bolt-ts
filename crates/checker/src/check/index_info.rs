@@ -1,5 +1,4 @@
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
@@ -47,7 +46,7 @@ impl<'cx> TyChecker<'cx> {
                     let key_ty = self.get_ty_from_type_node(decl.key_ty);
                     let is_readonly = decl
                         .modifiers
-                        .is_some_and(|mods| mods.flags.contains(ast::ModifierKind::Readonly));
+                        .is_some_and(|mods| mods.flags.contains(ast::ModifierFlags::READONLY));
                     self.alloc(ty::IndexInfo {
                         key_ty,
                         val_ty,
@@ -172,7 +171,7 @@ impl<'cx> TyChecker<'cx> {
         let union_ty = if prop_tys.is_empty() {
             self.undefined_ty
         } else {
-            self.get_union_ty(&prop_tys, ty::UnionReduction::Subtype, false, None, None)
+            self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Subtype, None, None, None)
         };
         self.alloc(ty::IndexInfo {
             key_ty,
@@ -313,18 +312,19 @@ impl<'cx> TyChecker<'cx> {
         self.find_applicable_index_info(index_infos, key_ty)
     }
 
-    pub(super) fn get_applicable_index_for_name(
+    pub(super) fn get_applicable_index_info_for_name(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::IndexInfo<'cx>> {
-        // TODO: is late name
-        let key_ty = if let Some(name) = name.as_atom() {
+        let key_ty = if name.is_late_bound() {
+            self.es_symbol_ty
+        } else if let Some(name) = name.as_atom() {
             self.get_string_literal_type_from_string(name)
         } else if let Some(v) = name.as_numeric() {
             self.get_number_literal_type_from_number(v)
         } else {
-            unreachable!()
+            unreachable!("name: {:?}", name.to_string(&self.atoms))
         };
         self.get_applicable_index_info(ty, key_ty)
     }

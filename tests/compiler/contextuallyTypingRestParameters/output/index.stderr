@@ -1,0 +1,11 @@
+  × Type 'string[]' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/contextuallyTypingRestParameters/index.ts:7:9]
+ 7 │ x2
+   · ──
+   ╰────
+
+  × Type 'string[]' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/contextuallyTypingRestParameters/index.ts:10:9]
+ 10 │ y2
+    · ──
+    ╰────

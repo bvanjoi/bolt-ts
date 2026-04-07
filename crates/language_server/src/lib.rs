@@ -1,3 +1,9 @@
+mod editor_services;
+mod services;
+
+pub use self::services::LanguageService;
+pub use self::services::LanguageServiceHost;
+
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types;
 use tower_lsp::{Client, LanguageServer};
@@ -41,14 +47,14 @@ impl LanguageServer for Backend {
 
     async fn goto_declaration(
         &self,
-        params: lsp_types::request::GotoDeclarationParams,
+        _params: lsp_types::request::GotoDeclarationParams,
     ) -> Result<Option<lsp_types::request::GotoDeclarationResponse>> {
         return Ok(None);
     }
 
     async fn goto_definition(
         &self,
-        params: lsp_types::GotoDefinitionParams,
+        _params: lsp_types::GotoDefinitionParams,
     ) -> Result<Option<lsp_types::GotoDefinitionResponse>> {
         return Ok(None);
     }

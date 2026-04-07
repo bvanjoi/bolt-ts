@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/untypedArgumentInLambdaExpression/index.ts:13:9]
+ 13 │ a
+    · ─
+    ╰────

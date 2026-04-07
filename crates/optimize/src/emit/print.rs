@@ -17,6 +17,7 @@ impl PPrint {
     pub fn p(&mut self, content: &str) {
         self.content += content
     }
+    /// `*`
     pub fn p_asterisk(&mut self) {
         self.p("*");
     }
@@ -95,5 +96,9 @@ impl PPrint {
     /// `|`
     pub fn p_pipe(&mut self) {
         self.p("|")
+    }
+    /// `"`
+    pub fn p_double_quote(&mut self) {
+        self.p("\"")
     }
 }

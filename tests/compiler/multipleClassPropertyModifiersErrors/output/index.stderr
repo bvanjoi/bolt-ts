@@ -1,0 +1,5 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/multipleClassPropertyModifiersErrors/index.ts:9:9]
+ 9 │ static
+   · ──────
+   ╰────

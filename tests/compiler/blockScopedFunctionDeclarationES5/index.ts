@@ -7,3 +7,4 @@ if (true) {
   foo();
 }
 foo();
+//~^ ERROR: Cannot find name 'foo'.

@@ -1,0 +1,25 @@
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/indexSignatureWithInitializer/index.ts:5:6]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/indexSignatureWithInitializer/index.ts:11:6]
+ 11 │ x
+    · ─
+    ╰────
+
+  × A computed property name in an interface must refer to an expression whose
+  │ type is a literal type or a 'unique symbol' type.
+   ╭─[../../tests/compiler/indexSignatureWithInitializer/index.ts:5:5]
+ 5 │ [x = '']
+   · ────────
+   ╰────
+
+  × A computed property name in a class property declaration must have a
+  │ simple literal type or a 'unique symbol' type.
+    ╭─[../../tests/compiler/indexSignatureWithInitializer/index.ts:11:5]
+ 11 │ [x = 0]
+    · ───────
+    ╰────

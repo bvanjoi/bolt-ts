@@ -55,6 +55,7 @@ impl<'cx> Expr<'cx> {
             JsxSelfClosingElem(n) => n.span,
             JsxFrag(n) => n.span,
             Delete(n) => n.span,
+            Yield(n) => n.span,
         }
     }
 
@@ -102,18 +103,20 @@ impl<'cx> Expr<'cx> {
             JsxFrag(n) => n.id,
             Delete(n) => n.id,
             Await(n) => n.id,
+            Yield(n) => n.id,
         }
     }
 
     pub fn is_string_lit_like(&self) -> bool {
-        matches!(
-            self.kind,
-            ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
-        )
+        self.kind.is_string_literal_like()
+    }
+
+    pub fn is_signed_numeric_lit(&self) -> bool {
+        self.kind.is_signed_numeric_lit()
     }
 
     pub fn is_string_or_number_lit_like(&self) -> bool {
-        self.is_string_lit_like() || matches!(self.kind, ExprKind::NumLit(_))
+        self.kind.is_string_or_number_lit_like()
     }
 
     pub fn is_entity_name_expr(&self) -> bool {
@@ -202,7 +205,58 @@ impl<'cx> Expr<'cx> {
                 | Template(_)
                 | Super(_)
                 | NonNull(_)
+                | ExprWithTyArgs(_)
         )
+    }
+
+    pub fn is_bindable_static_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if let ExprKind::PropAccess(e) = self.kind
+            && (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_))
+                || e.expr.is_bindable_static_name_expr::<true>())
+        {
+            true
+        } else {
+            self.is_bindable_static_element_access_expr::<EXCLUDE_THIS_KEYWORD>()
+        }
+    }
+
+    pub fn is_bindable_static_name_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        self.is_entity_name_expr() || self.is_bindable_static_access_expr::<EXCLUDE_THIS_KEYWORD>()
+    }
+
+    pub fn is_literal_like_element_access(&self) -> bool {
+        let ExprKind::EleAccess(e) = self.kind else {
+            return false;
+        };
+        e.arg.is_string_or_number_lit_like()
+    }
+
+    pub fn is_bindable_static_element_access_expr<const EXCLUDE_THIS_KEYWORD: bool>(&self) -> bool {
+        if !self.is_literal_like_element_access() {
+            return false;
+        }
+        let ExprKind::EleAccess(e) = &self.kind else {
+            return false;
+        };
+        (!EXCLUDE_THIS_KEYWORD && matches!(e.expr.kind, ExprKind::This(_)))
+            || e.expr.is_entity_name_expr()
+            || e.expr.is_bindable_static_access_expr::<true>()
+    }
+
+    pub fn is_prototype_access(&self) -> bool {
+        self.is_bindable_static_access_expr::<false>() && {
+            match &self.kind {
+                ExprKind::PropAccess(n) => n.name.name == keyword::IDENT_PROTOTYPE,
+                ExprKind::EleAccess(n) => {
+                    if let ExprKind::Ident(ident) = &n.expr.kind {
+                        ident.name == keyword::IDENT_PROTOTYPE
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            }
+        }
     }
 }
 
@@ -238,6 +292,7 @@ pub enum ExprKind<'cx> {
     Typeof(&'cx TypeofExpr<'cx>),
     Void(&'cx VoidExpr<'cx>),
     Await(&'cx AwaitExpr<'cx>),
+    Yield(&'cx YieldExpr<'cx>),
     As(&'cx AsExpr<'cx>),
     Satisfies(&'cx SatisfiesExpr<'cx>),
     NonNull(&'cx NonNullExpr<'cx>),
@@ -252,6 +307,17 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
+    pub fn is_string_literal_like(&self) -> bool {
+        matches!(
+            self,
+            ExprKind::StringLit(_) | ExprKind::NoSubstitutionTemplateLit(_)
+        )
+    }
+
+    pub fn is_string_or_number_lit_like(&self) -> bool {
+        self.is_string_literal_like() || matches!(self, ExprKind::NumLit(_))
+    }
+
     fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
         match self {
             ExprKind::Paren(p) => p.expr.kind.skip_paren(),
@@ -311,6 +377,45 @@ impl<'cx> ExprKind<'cx> {
 
     pub fn is_access_expr(&self) -> bool {
         matches!(self, ExprKind::PropAccess(_) | ExprKind::EleAccess(_))
+    }
+
+    pub fn is_signed_numeric_lit(&self) -> bool {
+        self.as_signed_numeric_lit().is_some()
+    }
+
+    pub fn as_signed_numeric_lit(&self) -> Option<f64> {
+        let ExprKind::PrefixUnary(n) = &self else {
+            return None;
+        };
+        let ExprKind::NumLit(num) = n.expr.kind else {
+            return None;
+        };
+        match n.op {
+            PrefixUnaryOp::Plus => Some(num.val),
+            PrefixUnaryOp::Minus => Some(-num.val),
+            _ => None,
+        }
+    }
+
+    pub fn get_expando_init(
+        &'cx self,
+        is_prototype_assignment: bool,
+    ) -> Option<&'cx super::ExprKind<'cx>> {
+        match self {
+            ExprKind::Call(n) => {
+                let e = super::Expr::skip_parens(n.expr);
+                if matches!(e.kind, super::ExprKind::Fn(_) | super::ExprKind::ArrowFn(_)) {
+                    Some(self)
+                } else {
+                    None
+                }
+            }
+            ExprKind::Fn(_) => Some(self),
+            ExprKind::Class(_) => Some(self),
+            ExprKind::ArrowFn(_) => Some(self),
+            ExprKind::ObjectLit(n) if n.members.is_empty() || is_prototype_assignment => Some(self),
+            _ => None,
+        }
     }
 }
 
@@ -384,6 +489,14 @@ pub struct AwaitExpr<'cx> {
 }
 
 #[derive(Debug, Clone)]
+pub struct YieldExpr<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub asterisk: Option<Span>,
+    pub expr: Option<&'cx Expr<'cx>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct VoidExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
@@ -417,7 +530,15 @@ pub struct EleAccessExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+    pub question: Option<Span>,
     pub arg: &'cx Expr<'cx>,
+}
+
+impl<'cx> EleAccessExpr<'cx> {
+    pub fn is_dynamic_name(&self) -> bool {
+        let expr = ExprKind::skip_paren(&self.arg.kind);
+        !expr.is_string_or_number_lit_like() && !expr.is_signed_numeric_lit()
+    }
 }
 
 /// ```txt
@@ -429,6 +550,7 @@ pub struct PropAccessExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub question_dot: Option<Span>,
+    // TODO: private identifier
     pub name: &'cx Ident,
 }
 
@@ -498,6 +620,7 @@ pub enum ArrowFnExprBody<'cx> {
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub async_modifier: Option<&'cx Modifier>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
@@ -524,6 +647,7 @@ pub enum AssignOp {
     BitOrEq,
     LogicalAndEq,
     LogicalOrEq,
+    NullishEq,
 }
 
 impl AssignOp {
@@ -544,12 +668,15 @@ impl AssignOp {
             BitOrEq => "|=",
             LogicalAndEq => "&&=",
             LogicalOrEq => "||=",
+            NullishEq => "??=",
         }
     }
 
     pub fn is_logical_or_coalescing_assign_op(&self) -> bool {
-        //  ??=
-        matches!(self, Self::LogicalAndEq)
+        matches!(
+            self,
+            Self::LogicalOrEq | Self::LogicalAndEq | Self::NullishEq
+        )
     }
 }
 
@@ -560,6 +687,15 @@ pub struct AssignExpr<'cx> {
     pub left: &'cx Expr<'cx>,
     pub op: AssignOp,
     pub right: &'cx Expr<'cx>,
+}
+impl AssignExpr<'_> {
+    pub fn is_compound_assignment(&self) -> bool {
+        let right = self.right.kind.skip_paren();
+        match right {
+            ExprKind::Bin(e) => e.op.kind.is_shift_op_or_higher(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -586,6 +722,8 @@ pub struct ClassExpr<'cx> {
 pub struct FnExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub async_modifier: Option<&'cx Modifier>,
+    pub asterisk: Option<Span>,
     pub name: Option<&'cx Ident>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
@@ -652,6 +790,7 @@ pub enum BinOpKind {
     In,
     Satisfies,
     Exp,
+    Nullish,
     Comma,
 }
 
@@ -685,16 +824,43 @@ impl BinOpKind {
             BitXor => "^",
             Comma => ",",
             Exp => "**",
+            Nullish => "??",
         }
     }
 
-    fn is_logical_op(self) -> bool {
+    pub fn is_logical_op(self) -> bool {
         matches!(self, Self::LogicalOr | Self::LogicalAnd)
     }
 
     pub fn is_logical_or_coalescing_op(self) -> bool {
-        // TODO: QuestionQuestion
-        self.is_logical_op()
+        self.is_logical_op() || self == Self::Nullish
+    }
+
+    pub fn is_shift_op(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Shl | Sar | Shr)
+    }
+
+    pub fn is_additive_op(self) -> bool {
+        matches!(self, Self::Add | Self::Sub)
+    }
+
+    pub fn is_multiplicative_op(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Mul | Div | Mod)
+    }
+
+    pub fn is_multiplicative_op_or_higher(self) -> bool {
+        use BinOpKind::*;
+        matches!(self, Exp) || self.is_multiplicative_op()
+    }
+
+    pub fn is_additive_op_or_higher(self) -> bool {
+        self.is_additive_op() || self.is_multiplicative_op_or_higher()
+    }
+
+    pub fn is_shift_op_or_higher(self) -> bool {
+        self.is_shift_op() || self.is_additive_op_or_higher()
     }
 }
 
@@ -721,7 +887,7 @@ pub struct Lit<T> {
 }
 
 pub type NumLit = Lit<f64>;
-pub type BigIntLit = Lit<(bool, Atom)>;
+pub type BigIntLit = Lit<(/* neg */ bool, Atom)>;
 pub type BoolLit = Lit<bool>;
 pub type NullLit = Lit<()>;
 pub type StringLit = Lit<Atom>;
@@ -733,12 +899,20 @@ pub struct VarDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Binding<'cx>,
+    pub excl: Option<Span>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub init: Option<&'cx Expr<'cx>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Ident {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: Atom,
+}
+
+#[derive(Debug, Clone)]
+pub struct PrivateIdent {
     pub id: NodeID,
     pub span: Span,
     pub name: Atom,
@@ -756,6 +930,7 @@ pub struct CallExpr<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
+    pub question: Option<Span>,
     pub args: Exprs<'cx>,
 }
 
@@ -812,4 +987,64 @@ pub struct DeleteExpr<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportEqualsDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
+    pub is_type_only: bool,
+    pub module_reference: ModuleReferenceKind<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalModuleReference<'cx> {
+    pub(super) id: NodeID,
+    pub(super) span: Span,
+    pub(super) module_spec: &'cx StringLit,
+}
+
+impl<'cx> ExternalModuleReference<'cx> {
+    #[inline(always)]
+    pub fn new(id: NodeID, span: Span, module_spec: &'cx StringLit) -> Self {
+        Self {
+            id,
+            span,
+            module_spec,
+        }
+    }
+    #[inline(always)]
+    pub fn id(&self) -> NodeID {
+        self.id
+    }
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    #[inline(always)]
+    pub fn module_spec(&self) -> &StringLit {
+        self.module_spec
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleReferenceKind<'cx> {
+    EntityName(&'cx EntityName<'cx>),
+    ExternalModuleReference(&'cx ExternalModuleReference<'cx>),
+}
+
+impl ModuleReferenceKind<'_> {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::EntityName(e) => e.span(),
+            Self::ExternalModuleReference(e) => e.span,
+        }
+    }
+    pub fn id(&self) -> NodeID {
+        match self {
+            Self::EntityName(e) => e.id(),
+            Self::ExternalModuleReference(e) => e.id,
+        }
+    }
 }

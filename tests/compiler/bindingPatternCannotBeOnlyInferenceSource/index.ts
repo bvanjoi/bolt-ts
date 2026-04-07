@@ -78,3 +78,13 @@ const {} = useReduxDispatch1(
         })
     );
 }
+
+{
+    type O = {[Key in string]: V};
+    type A = V[] | number;
+    type V = O | A;
+    const _a: O = {bugs: undefined};
+    //~^ ERROR: Type 'undefined' is not assignable to type 'V'.
+    const _b: O = {bugs: {life: undefined}};
+    //~^ ERROR: Type '{ life: undefined; }' is not assignable to type 'V'.
+}

@@ -80,7 +80,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 (prop_name.name == ident.name).then_some(prop)
             }) && prop
                 .modifiers
-                .map(|mods| mods.flags.contains(ast::ModifierKind::Static))
+                .map(|mods| mods.flags.contains(ast::ModifierFlags::STATIC))
                 .unwrap_or_default()
             {
                 let ast::PropNameKind::Ident(prop_name) = prop.name.kind else {
@@ -127,6 +127,37 @@ impl<'cx> Resolver<'cx, '_, '_> {
             );
             Some(error)
         }
+    }
+
+    pub(super) fn on_failed_to_resolve_namespace_symbol(
+        &mut self,
+        ident: &'cx ast::Ident,
+        _res: &ResolvedResult,
+        mut error: errors::CannotFindName,
+    ) -> errors::CannotFindName {
+        if let Some(e) = self.check_using_type_as_namespace(ident) {
+            error.errors.push(e);
+        }
+
+        error
+    }
+
+    fn check_using_type_as_namespace(
+        &mut self,
+        ident: &'cx ast::Ident,
+    ) -> Option<errors::CannotFindNameHelperKind> {
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+        if symbol != Symbol::ERR {
+            let node = self.symbol(symbol).decls.as_ref().unwrap()[0];
+            let n = self.p.node(node);
+            let span = n.name().map_or(n.span(), |name| name.span());
+            let error = errors::CannotFindNameHelperKind::CannotUseTypeAsNamespace(
+                errors::CannotUseTypeAsNamespace { span },
+            );
+            return Some(error);
+        }
+
+        None
     }
 
     pub(super) fn on_failed_to_resolve_type_symbol(

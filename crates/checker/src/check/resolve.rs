@@ -1,7 +1,8 @@
-use super::TyChecker;
-use bolt_ts_binder::SymbolID;
-
 use bolt_ts_ast as ast;
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
+
+use super::TyChecker;
+use super::errors;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ExpectedArgsCount {
@@ -39,7 +40,58 @@ impl TyChecker<'_> {
 
     pub(super) fn check_alias_symbol(&mut self, node: ast::NodeID) {
         let symbol = self.get_symbol_of_decl(node);
-        self.resolve_alias(symbol);
+        let target = self.resolve_alias(symbol);
+        if target == Symbol::ERR {
+            return;
+        }
+        let symbol = self.symbol(symbol).export_symbol.unwrap_or(symbol);
+        let symbol = self.get_merged_symbol(symbol);
+        if self
+            .p
+            .node_flags(node)
+            .contains(ast::NodeFlags::JAVASCRIPT_FILE)
+        {
+            todo!()
+        }
+
+        let target_flags = self.symbol(target).flags;
+        let s = self.symbol(symbol);
+        let excluded_meanings = if s
+            .flags
+            .intersects(SymbolFlags::VALUE.union(SymbolFlags::EXPORT_VALUE))
+        {
+            SymbolFlags::VALUE
+        } else {
+            SymbolFlags::empty()
+        }
+        .union(if s.flags.intersects(SymbolFlags::TYPE) {
+            SymbolFlags::TYPE
+        } else {
+            SymbolFlags::empty()
+        })
+        .union(if s.flags.intersects(SymbolFlags::NAMESPACE) {
+            SymbolFlags::NAMESPACE
+        } else {
+            SymbolFlags::empty()
+        });
+        let n = self.p.node(node);
+        if target_flags.intersects(excluded_meanings) {
+            if n.is_export_shorthand_spec() {
+                let error = errors::ExportDeclarationConflictsWithExportedDeclarationOfX {
+                    name: s.name.to_string(&self.atoms),
+                    span: n.span(),
+                };
+                self.push_error(Box::new(error));
+            } else {
+                let error = errors::ImportDeclarationConflictsWithLocalDeclarationOfX {
+                    name: s.name.to_string(&self.atoms),
+                    span: n.span(),
+                };
+                self.push_error(Box::new(error));
+            }
+        } else if n.is_export_shorthand_spec() {
+            // TODO:
+        }
     }
 
     pub(super) fn check_import_binding(&mut self, node: ast::NodeID) {

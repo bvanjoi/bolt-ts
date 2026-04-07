@@ -1,0 +1,17 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/staticModifierAlreadySeen/index.ts:7:12]
+ 7 │ static
+   · ──────
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/staticModifierAlreadySeen/index.ts:9:19]
+ 9 │ static
+   · ──────
+   ╰────
+
+  × Duplicate identifier 'static'.
+   ╭─[../../tests/compiler/staticModifierAlreadySeen/index.ts:9:19]
+ 9 │ static
+   · ──────
+   ╰────

@@ -1,0 +1,11 @@
+  × Class declaration cannot implement overload list for 'foo'.
+   ╭─[../../tests/compiler/classOverloadForFunction/index.ts:3:7]
+ 3 │ foo
+   · ───
+   ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+   ╭─[../../tests/compiler/classOverloadForFunction/index.ts:5:10]
+ 5 │ foo
+   · ───
+   ╰────

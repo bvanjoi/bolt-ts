@@ -1,5 +1,5 @@
 use bolt_ts_compiler::{current_exe_dir, eval_with_fs, init_atom};
-use bolt_ts_config::RawTsConfig;
+use bolt_ts_config::{RawTsConfig, parse_tsconfig};
 use bolt_ts_fs::CachedFileSystem;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -36,20 +36,30 @@ fn main() {
     let tsconfig = if p.ends_with("tsconfig.json") {
         let content = fs.read_file(&p, &mut atoms).unwrap();
         let s = atoms.get(content);
-        serde_json::from_str(s).unwrap()
+        parse_tsconfig(s).unwrap()
     } else {
         RawTsConfig::default().with_include(vec![p.to_str().unwrap().to_string()])
     };
     let cwd = env::current_dir().unwrap();
     let tsconfig = tsconfig.normalize();
-    let output = eval_with_fs(cwd, &tsconfig, exe_dir, libs, fs, atoms);
+    let parser_herd = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut compiler_result = eval_with_fs(
+        cwd,
+        tsconfig,
+        exe_dir,
+        libs,
+        &parser_herd,
+        &type_arena,
+        fs,
+        atoms,
+    );
     let duration = start.elapsed();
-    output
-        .diags
-        .into_iter()
-        .for_each(|diag| diag.emit(&output.module_arena));
-    println!("Files: {}", output.module_arena.modules().len());
-    println!("Types: {}", output.types_len);
+    let module_arena = compiler_result.steal_module_arena();
+    let diags = compiler_result.steal_diags();
+    diags.into_iter().for_each(|diag| diag.emit(&module_arena));
+    println!("Files: {}", module_arena.modules().len());
+    println!("Types: {}", compiler_result.type_count());
     println!(
         "Time cost: {}",
         pretty_duration::pretty_duration(&duration, None)

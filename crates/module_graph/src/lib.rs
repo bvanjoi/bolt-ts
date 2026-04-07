@@ -3,7 +3,9 @@ mod errors;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_fs::PathId;
-use bolt_ts_module_resolve::RResult;
+use bolt_ts_middle::Extension;
+use bolt_ts_module_resolve::ResolveFlags;
+use bolt_ts_module_resolve::{RResult, ResolveError, get_resolution_mode_for_usage_location};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -58,17 +60,30 @@ pub fn build_graph<'cx>(
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
     parsed: &mut ParsedMap<'cx>,
-    fs: impl bolt_ts_fs::CachedFileSystem,
+    fs: Arc<Mutex<impl bolt_ts_fs::CachedFileSystem>>,
     options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
-    let fs = Arc::new(Mutex::new(fs));
     let always_strict = options.compiler_options().always_strict();
-    let flags = if options.compiler_options().preserve_symlinks() {
-        bolt_ts_module_resolve::ResolveFlags::PRESERVE_SYMLINKS
-    } else {
-        bolt_ts_module_resolve::ResolveFlags::empty()
+    // resolve
+    let mut flags = ResolveFlags::empty();
+    if options.compiler_options().preserve_symlinks() {
+        flags.insert(ResolveFlags::PRESERVE_SYMLINKS);
     };
-    let resolver = bolt_ts_module_resolve::Resolver::new(fs.clone(), atoms.clone(), flags);
+    if options.compiler_options().no_dts_resolution() {
+        flags.insert(ResolveFlags::NO_DTS_RESOLUTION);
+    }
+    if options.compiler_options().resolve_json_module() {
+        flags.insert(ResolveFlags::RESOLVE_JSON_MODULE);
+    }
+    if options.compiler_options().resolve_package_json_exports() {
+        flags.insert(ResolveFlags::RESOLVE_PACKAGE_JSON_EXPORTS);
+    }
+    if options.compiler_options().resolve_package_json_imports() {
+        flags.insert(ResolveFlags::RESOLVE_PACKAGE_JSON_IMPORTS);
+    }
+
+    let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
+
     let mut resolved = fx_hashmap_with_capacity(2048);
     let mut resolving = list.to_vec();
     let mut mg = ModuleGraph {
@@ -93,14 +108,44 @@ pub fn build_graph<'cx>(
         .map(|(module_id, mut parse_result)| {
             let file_path = module_arena.get_path(module_id);
             debug_assert!(file_path.is_normalized());
+            let file_ext =
+                Extension::extension_of_file_name(file_path.as_os_str().as_encoded_bytes());
             let base_dir = file_path.parent().unwrap();
             debug_assert!(base_dir.is_normalized());
             let base_dir = PathId::get(base_dir, atoms.lock().as_mut().unwrap());
             let imports = std::mem::take(&mut parse_result.imports);
-            // TODO: filter imports
-            let deps = imports
+
+            let mut group =
+                fx_hashmap_with_capacity::<Atom, Vec<&'cx ast::Lit<Atom>>>(imports.len() / 2);
+            for item in imports {
+                // TODO: the key should not only depend on the module name, but also the resolution mode
+                let entry = group.entry(item.module_name.val);
+                entry.or_default().push(item.module_name);
+            }
+            let resolution_mode =
+                get_resolution_mode_for_usage_location(file_ext, Some(options.compiler_options()));
+            let module_resolution = *options.compiler_options().module_resolution();
+            let deps: Vec<(ast::NodeID, Result<PathId, ResolveError>)> = group
                 .into_par_iter()
-                .map(|s| (s.id, resolver.resolve(base_dir, s.val)))
+                .flat_map(|(atom, lits)| {
+                    let containing_file = bolt_ts_module_resolve::ContainingFile::new(base_dir);
+
+                    let options = bolt_ts_module_resolve::ResolverOptions {
+                        module_resolution,
+                        custom_conditions: options.compiler_options().custom_conditions(),
+                        flags,
+                    };
+                    let res = bolt_ts_module_resolve::Resolver::resolve_module_name(
+                        atom,
+                        containing_file,
+                        options,
+                        &cache,
+                        &atoms,
+                        &fs,
+                        resolution_mode,
+                    );
+                    lits.iter().map(|item| (item.id, res)).collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>();
             ResolvedModule {
                 id: module_id,

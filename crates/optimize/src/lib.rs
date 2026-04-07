@@ -22,7 +22,7 @@ pub struct OptimizeAndEmitOutput {
 
 pub fn optimize_and_js_emit<'cx>(
     entries: Vec<ModuleID>,
-    mut checker: TyChecker<'cx>,
+    checker: &mut TyChecker<'cx>,
 ) -> OptimizeAndEmitOutput {
     let output = entries
         .into_iter()
@@ -31,7 +31,7 @@ pub fn optimize_and_js_emit<'cx>(
             if is_default_lib {
                 None
             } else {
-                let mut ir = lowering(item, &mut checker);
+                let mut ir = lowering(item, checker);
                 pipeline::reducer::ReduceGraph::new(&mut ir.nodes, &mut ir.graph_arena);
                 let files_output = emit::emit_js(&checker.atoms, &ir);
                 let ir_output = IrOutput { lowered: ir };

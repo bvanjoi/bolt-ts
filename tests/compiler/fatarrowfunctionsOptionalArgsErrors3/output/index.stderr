@@ -1,0 +1,5 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors3/index.ts:6:5]
+ 6 │ )
+   · ─
+   ╰────

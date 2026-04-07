@@ -26,6 +26,7 @@ pub struct AtomIntern {
 impl AtomIntern {
     pub fn prefill(list: &[&'static str]) -> Self {
         let set = FxIndexSet::from_iter(list.iter().cloned());
+        assert!(list.len() == set.len());
         Self {
             set,
             arena: Vec::new(),
@@ -76,10 +77,13 @@ macro_rules! prefilled_atom_map {
 
     };
     ( $owner: ident, $(($name:ident, [$lit:literal, $idx: literal])),* $(,)? ) => {
-        paste::paste! {
-            $(pub const [<$name _STR>]: &str = $lit;)*
-            $(pub const $name: Atom = Atom::new($idx);)*
-        }
+        $(pub const $name: Atom = Atom::new($idx);)*
         pub const $owner: &[(&str, Atom)] = &[$(($lit, $name),)*];
     }
+}
+
+#[should_panic]
+#[test]
+fn should_panic_if_there_has_duplicate_during_prefill() {
+    AtomIntern::prefill(&["a", "b", "a"]);
 }

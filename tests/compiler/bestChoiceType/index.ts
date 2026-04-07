@@ -1,5 +1,6 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/bestChoiceType.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/bestChoiceType.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
 
 (''.match(/ /) || []).map(s => s.toLowerCase());

@@ -2,10 +2,10 @@ use super::Ternary;
 use super::TyChecker;
 use super::errors;
 use super::relation::RelationKind;
-use super::symbol_info::SymbolInfo;
 
-use crate::ty;
-use crate::ty::TypeFlags;
+use super::ty;
+use super::ty::TypeFlags;
+
 use bolt_ts_ast as ast;
 use bolt_ts_binder::SymbolName;
 
@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
                     return None;
                 }
                 let s = self.get_symbol_of_decl(member.id());
-                let ty = self.get_lit_ty_from_prop(
+                let ty = self.get_literal_ty_from_prop(
                     s,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     false,
@@ -127,7 +127,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         if target
             .flags
-            .intersects(TypeFlags::PRIMITIVE | TypeFlags::NEVER)
+            .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::NEVER))
         {
             return false;
         }
@@ -152,7 +152,9 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         name_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        if let Some(idx) = self.get_indexed_access_ty_or_undefined(target, name_ty, None, None) {
+        if let Some(idx) =
+            self.get_indexed_access_ty_or_undefined(target, name_ty, None, None, None, None)
+        {
             return Some(idx);
         }
 
@@ -165,7 +167,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
         {
-            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None);
+            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None, None, None);
         }
 
         None
@@ -195,12 +197,12 @@ impl<'cx> TyChecker<'cx> {
             else {
                 continue;
             };
-            if target_prop_ty.flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            if target_prop_ty.flags.contains(TypeFlags::INDEXED_ACCESS) {
                 continue;
             }
             let error_node = e.error_node;
             let Some(source_prop_ty) =
-                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None)
+                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None, None, None)
             else {
                 continue;
             };

@@ -1,0 +1,5 @@
+  × Cannot find name 'whatsthis'.
+   ╭─[../../tests/compiler/typeofUnknownSymbol/index.ts:6:16]
+ 6 │ whatsthis
+   · ─────────
+   ╰────

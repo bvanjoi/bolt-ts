@@ -107,11 +107,14 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Object literal may only specify known properties, and '{field}' does not exist.")]
+#[error(
+    "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
+)]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     #[label(primary)]
     pub span: Span,
     pub field: String,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -120,8 +123,8 @@ pub(super) struct PropertyXIsMissing {
     #[label(primary)]
     pub span: Span,
     pub field: String,
-    #[related]
-    pub related: [DefinedHere; 1],
+    // #[related]
+    // pub related: [DefinedHere; 1],
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -343,6 +346,16 @@ pub(super) struct TypeCannotBeUsedAsAnIndexType {
     "An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type."
 )]
 pub(super) struct AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "An index signature parameter type cannot be a literal type or generic type. Consider using a mapped object type instead."
+)]
+pub(super) struct AnIndexSignatureParameterTypeCannotBeALiteralTypeOrGenericTypeConsiderUsingAMappedObjectTypeInstead
+{
     #[label(primary)]
     pub span: Span,
 }
@@ -817,6 +830,18 @@ pub(super) struct NonAbstractClassExpressionDoesNotImplementInheritedAbstractMem
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Non-abstract class '{non_abstract_class}' does not implement inherited abstract member '{member}' from class '{abstract_class}'."
+)]
+pub(super) struct NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
+    #[label(primary)]
+    pub span: Span,
+    pub non_abstract_class: String,
+    pub member: String,
+    pub abstract_class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.")]
 pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
     #[label(primary)]
@@ -1082,6 +1107,277 @@ pub(super) struct CannotInvokeAnObjectWhichIsPossiblyUndefined {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Cannot invoke an object which is possibly 'null'.")]
 pub(super) struct CannotInvokeAnObjectWhichIsPossiblyNull {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Not all code paths return a value.")]
+pub(super) struct NotAllCodePathsReturnAValue {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Rest types may only be created from object types.")]
+pub(super) struct RestTypesMayOnlyBeCreatedFromObjectTypes {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A computed property name in an interface must refer to an expression whose type is a literal type or a 'unique symbol' type."
+)]
+pub(super) struct AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhoseTypeIsALiteralTypeOrAUniqueSymbolType
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Object literal's property '{prop}' implicitly has an '{ty}' type.")]
+pub(super) struct ObjectLiteralSPropertyXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}', which lacks return-type annotation, implicitly has an '{y}' return type.")]
+pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "An interface can only extend an object type or intersection of object types with statically known members."
+)]
+pub(super) struct AnInterfaceCanOnlyExtendAnObjectTypeOrIntersectionOfObjectTypesWithStaticallyKnownMembers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class '{class}' incorrectly implements interface '{interface}'.")]
+pub(super) struct ClassXIncorrectlyImplementsInterfaceY {
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub interface: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class declaration cannot implement overload list for '{name}'.")]
+pub(super) struct ClassDeclarationCannotImplementOverloadListForX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Function with bodies can only merge with classes that are ambient.")]
+pub(super) struct FunctionWithBodiesCanOnlyMergeWithClassesThatAreAmbient {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("All declarations of '{name}' must have identical type parameters.")]
+pub(super) struct AllDeclarationsOfXMustHaveIdenticalTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Property '{property}' has no initializer and is not definitely assigned in the constructor."
+)]
+pub(super) struct PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An object literal cannot have multiple properties with the same name.")]
+pub(super) struct AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+    #[label(primary)]
+    pub span: Span,
+    #[label("Previous definition here")]
+    pub old: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Variable '{name}' is used before being assigned.")]
+pub(super) struct VariableXIsUsedBeforeBeingAssigned {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{x}' does not satisfy the constraint '{y}'.")]
+pub(super) struct TypeXDoesNotSatisfyTheConstraintY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Right operand of ?? is unreachable because the left operand is never nullish.")]
+pub(super) struct RightOperandOfIsUnreachableBecauseTheLeftOperandIsNeverNullish {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This expression is always nullish.")]
+pub(super) struct ThisExpressionIsAlwaysNullish {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'yield' expression implicitly results in an 'any' type because its containing generator lacks a return-type annotation."
+)]
+pub(super) struct YieldExpressionImplicitlyResultsInAnAnyTypeBecauseItsContainingGeneratorLacksAReturnTypeAnnotation
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Element implicitly has an 'any' type because index expression is not of type 'number'.")]
+pub(super) struct ElementImplicitlyHasAnAnyTypeBecauseIndexExpressionIsNotOfTypeNumber {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Element implicitly has an 'any' type because expression of type '{x}' can't be used to index type '{y}'."
+)]
+pub(super) struct ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUsedToIndexTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'super' must be called before accessing a property of 'super' in the constructor of a derived class."
+)]
+pub(super) struct SuperMustBeCalledBeforeAccessingAPropertyOfSuperInTheConstructorOfADerivedClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'super' cannot be referenced in constructor arguments.")]
+pub(super) struct SuperCannotBeReferencedInConstructorArguments {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A 'this' type is available only in a non-static member of a class or interface.")]
+pub(super) struct AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
+pub(super) struct TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An expression of type 'void' cannot be tested for truthiness.")]
+pub(super) struct AnExpressionOfTypeVoidCannotBeTestedForTruthiness {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This kind of expression is always truthy.")]
+pub(super) struct ThisKindOfExpressionIsAlwaysTruthy {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This kind of expression is always falsy.")]
+pub(super) struct ThisKindOfExpressionIsAlwaysFalsy {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}' implicitly has an '{y}' return type, but a better type may be inferred from usage.")]
+pub(super) struct XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsage {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{field}' defined by the parent class is not accessible in the child class via super.")]
+pub(super) struct AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+    #[label(primary)]
+    pub span: Span,
+    pub field: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Import declaration conflicts with local declaration of '{name}'.")]
+pub(super) struct ImportDeclarationConflictsWithLocalDeclarationOfX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Export declaration conflicts with exported declaration of '{name}'.")]
+pub(super) struct ExportDeclarationConflictsWithExportedDeclarationOfX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Export declarations are not permitted in a namespace.")]
+pub(super) struct ExportDeclarationsAreNotPermittedInANamespace {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("In ambient enum declarations member initializer must be constant expression.")]
+pub(super) struct InAmbientEnumDeclarationsMemberInitializerMustBeConstantExpression {
     #[label(primary)]
     pub span: Span,
 }

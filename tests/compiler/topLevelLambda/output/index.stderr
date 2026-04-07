@@ -1,0 +1,5 @@
+  × 'this' cannot be referenced in a module or namespace body.
+   ╭─[../../tests/compiler/topLevelLambda/index.ts:7:17]
+ 7 │ this
+   · ────
+   ╰────

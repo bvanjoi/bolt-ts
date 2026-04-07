@@ -1,0 +1,29 @@
+  × This expression is not callable.
+   ╭─[../../tests/compiler/betterErrorForAccidentalCall/index.ts:7:1]
+ 7 │ foo()
+   · ─────
+   ╰────
+
+  × This expression is not callable.
+   ╭─[../../tests/compiler/betterErrorForAccidentalCall/index.ts:9:1]
+ 9 │ foo()
+   · ─────
+   ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/betterErrorForAccidentalCall/index.ts:11:1]
+ 11 │ foo()
+    · ─────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/betterErrorForAccidentalCall/index.ts:14:1]
+ 14 │ foo()
+    · ─────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/betterErrorForAccidentalCall/index.ts:17:1]
+ 17 │ foo()
+    · ─────
+    ╰────

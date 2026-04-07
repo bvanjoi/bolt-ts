@@ -3,10 +3,12 @@ use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 use rustc_hash::FxHashMap;
 
-use crate::CachedFileSystem;
-use crate::errors::FsResult;
-use crate::tree::FSTree;
+use super::CachedFileSystem;
+use super::PathId;
+use super::errors::FsResult;
+use super::tree::FSTree;
 
+#[derive(Default)]
 pub struct LocalFS {
     tree: FSTree,
     file_exists_cache: FxHashMap<Atom, bool>,
@@ -15,41 +17,21 @@ pub struct LocalFS {
     symlink_metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
 }
 
+impl std::fmt::Debug for LocalFS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LocalFS").finish()
+    }
+}
+
 impl LocalFS {
     pub fn new(atoms: &mut bolt_ts_atom::AtomIntern) -> Self {
         let tree = FSTree::new(atoms);
         Self {
             tree,
-            file_exists_cache: fx_hashmap_with_capacity(1024),
-            dir_exists_cache: fx_hashmap_with_capacity(1024),
-            metadata_cache: fx_hashmap_with_capacity(1024),
-            symlink_metadata_cache: fx_hashmap_with_capacity(1024),
-        }
-    }
-
-    fn glob_visitor(
-        &mut self,
-        result: &mut Vec<std::path::PathBuf>,
-        dir: &std::path::Path,
-        includes: &[glob::Pattern],
-        excludes: &[glob::Pattern],
-        atoms: &mut bolt_ts_atom::AtomIntern,
-    ) {
-        // TODO: parallel?
-        let matched = self
-            .read_dir(dir, atoms)
-            .unwrap()
-            .filter(|item| {
-                includes.iter().any(|p| p.matches_path(item))
-                    && excludes.iter().all(|p| !p.matches_path(item))
-            })
-            .collect::<Vec<_>>();
-        for item in matched {
-            if item.is_dir() {
-                self.glob_visitor(result, &item, includes, excludes, atoms);
-            } else {
-                result.push(item);
-            }
+            file_exists_cache: fx_hashmap_with_capacity(256),
+            dir_exists_cache: fx_hashmap_with_capacity(256),
+            metadata_cache: fx_hashmap_with_capacity(256),
+            symlink_metadata_cache: fx_hashmap_with_capacity(256),
         }
     }
 
@@ -97,6 +79,10 @@ impl LocalFS {
 }
 
 impl CachedFileSystem for LocalFS {
+    fn is_vfs(&self) -> bool {
+        false
+    }
+
     fn read_file(
         &mut self,
         path: &std::path::Path,
@@ -163,11 +149,11 @@ impl CachedFileSystem for LocalFS {
         atoms: &mut bolt_ts_atom::AtomIntern,
     ) -> FsResult<crate::PathId> {
         debug_assert!(p.is_normalized());
-        if !self.is_symlink(p, atoms) {
-            let p = crate::path::PathId::new(p, atoms);
-            return Err(crate::errors::FsError::NotASymlink(p));
-        }
-        self.tree.read_symlink(p, atoms).map(|atom| atom.into())
+        // TODO: optimize
+        let Ok(p) = std::fs::canonicalize(p) else {
+            unreachable!()
+        };
+        Ok(PathId::new(&p, atoms))
     }
 
     fn read_dir(
@@ -177,8 +163,8 @@ impl CachedFileSystem for LocalFS {
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         debug_assert!(p.is_dir());
         self.tree.add_dir(atoms, p).map(|_| ())?;
-        let entry = std::fs::read_dir(p).unwrap();
-        Ok(entry.map(|entry| entry.unwrap().path()))
+        let read_dir = std::fs::read_dir(p).unwrap();
+        Ok(read_dir.map(|entry| entry.unwrap().path()))
     }
 
     fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern) -> bool {
@@ -197,26 +183,6 @@ impl CachedFileSystem for LocalFS {
         let exists = self.metadata(p, Some(id), atoms).is_ok_and(|m| m.is_dir());
         self.dir_exists_cache.insert(id, exists);
         exists
-    }
-
-    fn glob(
-        &mut self,
-        base_dir: &std::path::Path,
-        include: &[&str],
-        exclude: &[&str],
-        atoms: &mut bolt_ts_atom::AtomIntern,
-    ) -> Vec<std::path::PathBuf> {
-        let includes = include
-            .iter()
-            .map(|i| glob::Pattern::new(i).unwrap())
-            .collect::<Vec<_>>();
-        let excludes = exclude
-            .iter()
-            .map(|e| glob::Pattern::new(e).unwrap())
-            .collect::<Vec<_>>();
-        let mut result = Vec::with_capacity(4096);
-        self.glob_visitor(&mut result, base_dir, &includes, &excludes, atoms);
-        result
     }
 
     fn add_file(

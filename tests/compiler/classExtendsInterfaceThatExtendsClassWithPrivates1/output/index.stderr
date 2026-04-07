@@ -1,0 +1,5 @@
+  × Class 'D2' incorrectly implements interface 'I'.
+    ╭─[../../tests/compiler/classExtendsInterfaceThatExtendsClassWithPrivates1/index.ts:12:21]
+ 12 │ I
+    · ─
+    ╰────

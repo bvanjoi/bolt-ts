@@ -1,8 +1,6 @@
-use crate::check::check_expr::IterationUse;
-
 use super::TyChecker;
+use super::check_expr::IterationUse;
 use super::errors;
-use super::symbol_info::SymbolInfo;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -19,10 +17,12 @@ impl<'cx> TyChecker<'cx> {
         } else if l.has_question() != r.has_question() {
             false
         } else {
-            use ast::ModifierKind;
-            const FLAGS: enumflags2::BitFlags<ast::ModifierKind> = enumflags2::make_bitflags!(
-                ModifierKind::{Private | Protected | Async | Abstract | Readonly | Static}
-            );
+            const FLAGS: ast::ModifierFlags = ast::ModifierFlags::PRIVATE
+                .union(ast::ModifierFlags::PROTECTED)
+                .union(ast::ModifierFlags::ASYNC)
+                .union(ast::ModifierFlags::ABSTRACT)
+                .union(ast::ModifierFlags::READONLY)
+                .union(ast::ModifierFlags::STATIC);
             match (l.modifiers(), r.modifiers()) {
                 (None, None) => true,
                 (None, Some(r)) => !r.flags.intersects(FLAGS),
@@ -54,14 +54,12 @@ impl<'cx> TyChecker<'cx> {
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
                 );
-                if ty != init_ty {
-                    self.check_type_assignable_to_and_optionally_elaborate(
-                        init_ty,
-                        ty,
-                        Some(name_id),
-                        Some(init.id()),
-                    );
-                }
+                self.check_type_assignable_to_and_optionally_elaborate(
+                    init_ty,
+                    ty,
+                    Some(name_id),
+                    Some(init.id()),
+                );
             }
 
             // TODO: ensure check once for the symbol
@@ -80,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
         } else {
-            let is_assignment = s.flags.intersects(SymbolFlags::ASSIGNMENT);
+            let is_assignment = s.flags.contains(SymbolFlags::ASSIGNMENT);
             let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
             if !self.is_error(ty)
                 && !self.is_error(decl_ty)
@@ -105,6 +103,9 @@ impl<'cx> TyChecker<'cx> {
         let name = decl.name();
         match name {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, id, decl),
+            PrivateIdent(name) => {
+                // TODO:
+            }
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
             NumLit(num) => self.check_non_pat_var_like_decl(num.id, id, decl),
             Computed(_) => {}
@@ -152,7 +153,9 @@ impl<'cx> TyChecker<'cx> {
                     let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
                     if need_check_initializer {
                         let initializer_ty = self.check_expr_cached(decl.init().unwrap());
-                        if self.config.strict_null_checks() && need_check_widened_ty {
+                        if self.config.compiler_options().strict_null_checks()
+                            && need_check_widened_ty
+                        {
                             self.check_non_null_non_void_ty(initializer_ty, id);
                         } else {
                             // checkTypeAssignableToAndOptionallyElaborate(
@@ -171,7 +174,7 @@ impl<'cx> TyChecker<'cx> {
                                 self.undefined_ty,
                                 Some(id),
                             );
-                        } else if self.config.strict_null_checks() {
+                        } else if self.config.compiler_options().strict_null_checks() {
                             // TODO:
                             // self.check_non_null_non_void_ty(widened_ty, id);
                         }

@@ -1,45 +1,50 @@
-use bolt_ts_ast::{self as ast, Visitor};
-use bolt_ts_atom::AtomIntern;
-use bolt_ts_checker::check::TyChecker;
+use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_visitor::Visitor;
+use bolt_ts_checker::{check::TyChecker, emit_resolver::EmitResolver};
 use bolt_ts_optimize::Emitter;
 use bolt_ts_span::ModuleID;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+// use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-pub fn emit_declaration_parallel(
+pub fn emit_declarations<'cx, 'a>(
     entries: &Vec<ModuleID>,
-    checker: &TyChecker,
+    checker: &'a mut TyChecker<'cx>,
 ) -> Vec<(ModuleID, String)> {
-    let p = checker.p;
-    let atoms = &checker.atoms;
-    let module_arena = checker.module_arena;
-    let output = entries
-        .into_par_iter()
+    // let p = &checker.p;
+    // let atoms = &checker.atoms;
+    // let module_arena = &checker.module_arena;
+
+    // TODO: parallel
+    entries
+        // .into_par_iter()
+        .into_iter()
         .filter_map(|&item| {
-            let is_default_lib = module_arena.get_module(item).is_default_lib();
+            let is_default_lib = checker.module_arena.get_module(item).is_default_lib();
             if is_default_lib {
                 None
             } else {
-                let root = p.root(item);
-                let output = emit_declaration(&atoms, root);
+                // let root = p.root(item);
+                let output = emit_declaration(item, checker);
                 Some((item, output))
             }
         })
-        .collect::<Vec<_>>();
-    output
+        .collect::<Vec<_>>()
 }
 
-pub fn emit_declaration(atoms: &AtomIntern, root: &ast::Program<'_>) -> String {
-    let emitter = Emitter::new(atoms);
-    let mut emitter = DeclarationEmitter { emitter };
+pub fn emit_declaration<'cx, 'a>(module_id: ModuleID, checker: &'a mut TyChecker<'cx>) -> String {
+    let emitter = Emitter::new();
+    let resolver = EmitResolver::new(checker);
+    let mut emitter = DeclarationEmitter { emitter, resolver };
+    let root = emitter.resolver.program(module_id);
     emitter.visit_program(root);
     emitter.emitter.print().take_content()
 }
 
-struct DeclarationEmitter<'cx> {
-    emitter: Emitter<'cx>,
+struct DeclarationEmitter<'cx, 'a> {
+    emitter: Emitter,
+    resolver: EmitResolver<'cx, 'a>,
 }
 
-impl<'cx> DeclarationEmitter<'cx> {
+impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     fn emit_list<T>(
         &mut self,
         list: &[T],
@@ -62,14 +67,21 @@ impl<'cx> DeclarationEmitter<'cx> {
     }
 }
 
-impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
+impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
+    fn visit_program(&mut self, node: &'cx bolt_ts_ast::Program<'cx>) {
+        for stmt in node.stmts() {
+            self.visit_stmt(stmt);
+            self.emitter.print().p_newline();
+        }
+    }
+
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
         self.emitter.print().p("declare");
         self.emitter.print().p_whitespace();
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name.map(|name| name.name) {
-            self.emitter.emit_atom(name);
+            self.emitter.emit_atom(self.resolver.atoms(), name);
         }
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
@@ -81,13 +93,14 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
                 |this, elem| {
                     use ast::ClassElemKind::*;
                     match elem.kind {
-                        Ctor(n) => todo!(),
-                        Prop(n) => todo!(),
-                        Method(n) => todo!(),
+                        Ctor(_n) => todo!(),
+                        Prop(_n) => todo!(),
+                        Method(_n) => todo!(),
                         IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(n) => todo!(),
-                        Setter(n) => todo!(),
-                        StaticBlockDecl(n) => todo!(),
+                        Getter(_n) => todo!(),
+                        Setter(n) => this.visit_setter_decl(n),
+                        StaticBlockDecl(_n) => todo!(),
+                        Semi(_) => {}
                     }
                 },
                 |this, _| {
@@ -98,6 +111,24 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
             self.emitter.print().p_newline();
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_setter_decl(&mut self, node: &'cx bolt_ts_ast::SetterDecl<'cx>) {
+        self.emitter.print().p("set");
+        self.emitter.print().p_whitespace();
+        self.visit_prop_name(node.name);
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
     }
 
     fn visit_index_sig_decl(&mut self, node: &'cx ast::IndexSigDecl<'cx>) {
@@ -115,7 +146,8 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
         self.emitter.print().p("interface");
         self.emitter.print().p_whitespace();
-        self.emitter.emit_atom(node.name.name);
+        self.emitter
+            .emit_atom(self.resolver.atoms(), node.name.name);
         self.emitter.print().p_whitespace();
         if let Some(extends) = node.extends {
             self.emitter.print().p("extends");
@@ -133,13 +165,13 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
                 |this, elem| {
                     use ast::ObjectTyMemberKind::*;
                     match elem.kind {
-                        IndexSig(n) => todo!(),
+                        IndexSig(_n) => todo!(),
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => todo!(),
-                        CtorSig(n) => todo!(),
-                        Setter(n) => todo!(),
-                        Getter(n) => todo!(),
+                        CallSig(_n) => todo!(),
+                        CtorSig(_n) => todo!(),
+                        Setter(_n) => todo!(),
+                        Getter(_n) => todo!(),
                     }
                 },
                 |this, _| {
@@ -171,17 +203,38 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
         self.visit_ty(node.ty);
     }
 
+    fn visit_type_alias_decl(&mut self, node: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {
+        self.emitter.print().p("type");
+        self.emitter.print().p_whitespace();
+        self.emitter
+            .emit_atom(self.resolver.atoms(), node.name.name);
+        if let Some(type_params) = node.ty_params
+            && !type_params.is_empty()
+        {
+            self.emitter.print().p_less();
+            for type_param in type_params {
+                self.visit_ident(type_param.name);
+            }
+            self.emitter.print().p_great();
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_eq();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
+        self.emitter.print().p_semi();
+    }
+
     fn visit_lit_ty(&mut self, node: &'cx bolt_ts_ast::LitTy) {
         use bolt_ts_ast::LitTyKind::*;
         match &node.kind {
             Void => self.emitter.print().p("void"),
-            Null => todo!(),
-            True => todo!(),
-            False => todo!(),
-            Undefined => todo!(),
-            Num(_) => todo!(),
-            String(atom) => todo!(),
-            BigInt { neg, val } => todo!(),
+            Null => self.emitter.print().p("null"),
+            True => self.emitter.print().p("true"),
+            False => self.emitter.print().p("false"),
+            Undefined => self.emitter.print().p("undefined"),
+            Num(num) => self.emitter.print().p(&num.to_string()),
+            String(atom) => self.emitter.emit_atom(self.resolver.atoms(), *atom),
+            BigInt { neg: _, val: _ } => todo!(),
         }
     }
 
@@ -222,12 +275,20 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
         use bolt_ts_ast::PropNameKind::*;
         match &node.kind {
             Ident(n) => self.visit_ident(n),
-            StringLit { .. } => todo!(),
-            NumLit(n) => todo!(),
-            Computed(n) => {
+            StringLit { raw, .. } => self.visit_string_lit(*raw),
+            BigIntLit { .. } => todo!(),
+            NumLit(_n) => todo!(),
+            Computed(_n) => {
                 todo!()
             }
+            PrivateIdent(_private_ident) => todo!(),
         }
+    }
+
+    fn visit_string_lit(&mut self, node: &'cx bolt_ts_ast::StringLit) {
+        self.emitter.print().p_double_quote();
+        self.emitter.emit_atom(self.resolver.atoms(), node.val);
+        self.emitter.print().p_double_quote();
     }
 
     fn visit_prop_signature(&mut self, node: &'cx ast::PropSignature<'cx>) {
@@ -265,18 +326,123 @@ impl<'cx> ast::Visitor<'cx> for DeclarationEmitter<'cx> {
 
     fn visit_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
         self.visit_entity_name(n.name);
-        if let Some(ty_args) = n.ty_args {
-            if !ty_args.list.is_empty() {
-                self.emitter.print().p_less();
-                for ty in ty_args.list {
-                    self.visit_ty(ty);
-                }
-                self.emitter.print().p_great();
+        if let Some(ty_args) = n.ty_args
+            && !ty_args.list.is_empty()
+        {
+            self.emitter.print().p_less();
+            for ty in ty_args.list {
+                self.visit_ty(ty);
             }
+            self.emitter.print().p_great();
         }
     }
 
     fn visit_ident(&mut self, node: &'cx ast::Ident) {
-        self.emitter.emit_atom(node.name);
+        self.emitter.emit_atom(self.resolver.atoms(), node.name);
+    }
+
+    fn visit_fn_decl(&mut self, node: &'cx bolt_ts_ast::FnDecl<'cx>) {
+        self.emitter.print().p("declare");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("function");
+        self.emitter.print().p_whitespace();
+        if let Some(name) = node.name.map(|name| name.name) {
+            self.emitter.emit_atom(self.resolver.atoms(), name);
+        }
+        if let Some(type_params) = node.ty_params
+            && !type_params.is_empty()
+        {
+            self.emitter.print().p_less();
+            for type_param in type_params {
+                self.visit_ident(type_param.name);
+            }
+            self.emitter.print().p_great();
+        }
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        if let Some(ty) = node.ty {
+            self.emitter.print().p_colon();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(ty);
+        }
+        self.emitter.print().p_semi();
+    }
+
+    fn visit_enum_decl(&mut self, node: &'cx bolt_ts_ast::EnumDecl<'cx>) {
+        self.emitter.print().p("declare");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("enum");
+        self.emitter.print().p_whitespace();
+        self.emitter
+            .emit_atom(self.resolver.atoms(), node.name.name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_l_brace();
+        self.emitter.increment_indent();
+        self.emitter.print().p_newline();
+        self.emit_list(
+            node.members,
+            |this, item| {
+                this.visit_enum_member(item);
+                this.emitter.print().p_whitespace();
+                this.emitter.print().p_eq();
+                this.emitter.print().p_whitespace();
+                let enum_member_value = this.resolver.get_enum_member_value(item);
+                match enum_member_value {
+                    bolt_ts_checker::check::EnumMemberValue::Number(num) => {
+                        this.emitter.print().p(&num.to_string());
+                    }
+                    bolt_ts_checker::check::EnumMemberValue::Str(str) => {
+                        this.emitter.emit_atom(this.resolver.atoms(), str);
+                    }
+                    bolt_ts_checker::check::EnumMemberValue::Err => {
+                        this.emitter.print().p("/* computed value */");
+                    }
+                };
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_newline();
+            },
+        );
+        self.emitter.decrement_indent();
+        self.emitter.print().p_newline();
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_var_decl(&mut self, node: &'cx bolt_ts_ast::VarDecl<'cx>) {
+        let ast::BindingKind::Ident(name) = node.name.kind else {
+            todo!()
+        };
+        self.emitter.print().p("declare");
+        self.emitter.print().p_whitespace();
+        let node_flags = self.resolver.node_flags(node.id);
+        if node_flags.contains(ast::NodeFlags::CONST) {
+            self.emitter.print().p("const");
+        } else if node_flags.contains(ast::NodeFlags::LET) {
+            self.emitter.print().p("let");
+        } else {
+            self.emitter.print().p("var");
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.emit_atom(self.resolver.atoms(), name.name);
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        if let Some(ty) = node.ty {
+            self.visit_ty(ty);
+        } else {
+            let ty = self.resolver.ensure_type_for_variable_declaration(node);
+            let ty_str = self.resolver.print_type(ty);
+            self.emitter.print().p(&ty_str);
+        }
     }
 }

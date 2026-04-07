@@ -13,7 +13,6 @@ bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_utils = { path = "../../helper/utils" }
 paste = { workspace = true }
-enumflags2 = { workspace = true }
 rustc-hash = { workspace = true }
 bitflags = { workspace = true }
 nohash-hasher = { workspace = true }

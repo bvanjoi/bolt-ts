@@ -34,6 +34,18 @@
     · ────────
     ╰────
 
+  × Type 'undefined' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:86:20]
+ 86 │ bugs
+    · ────
+    ╰────
+
+  × Type '{ life: undefined; }' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:88:20]
+ 88 │ bugs
+    · ────
+    ╰────
+
   × Type 'string' is not assignable to type 'number'.
     ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:73:21]
  73 │ a0

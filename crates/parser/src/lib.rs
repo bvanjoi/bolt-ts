@@ -1,10 +1,8 @@
 mod errors;
 mod expr;
-mod factory;
 mod jsx;
 mod lookahead;
 mod nodes;
-mod paren_rule;
 mod parse_break_or_continue;
 mod parse_class_like;
 mod parse_fn_like;
@@ -18,25 +16,29 @@ mod scan_integer;
 mod scan_pragma;
 mod state;
 mod stmt;
+mod touch;
 mod ty;
 mod unicode;
 mod utils;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_ast::{Visitor, keyword};
+use bolt_ts_ast_visitor::Visitor;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
+pub use self::scan::is_identifier_part;
 use self::state::LanguageVariant;
 use self::state::ParserState;
+pub use self::touch::get_touching_property_name;
+pub use self::utils::parse_pseudo_bigint;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
 
@@ -82,10 +84,24 @@ pub struct ParseResult<'cx> {
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
-    pub imports: Vec<&'cx ast::StringLit>,
+    pub imports: Vec<ImportInfo<'cx>>,
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     lib_reference_directives: Vec<FileReference>,
+}
+
+pub enum ImportKind {
+    Import,
+    ImportTypeOnly,
+    Export,
+    ExportTypeOnly,
+    // TODO: JSDoc
+    // TODO: require, ImportCall
+    // TODO: ImportEquals
+}
+pub struct ImportInfo<'cx> {
+    pub module_name: &'cx ast::StringLit,
+    // pub kind: ImportKind,
 }
 
 pub struct ParseResultForGraph<'cx> {
@@ -99,7 +115,7 @@ pub struct ParseResultForGraph<'cx> {
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
-    pub imports: Vec<&'cx ast::StringLit>,
+    pub imports: Vec<ImportInfo<'cx>>,
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     pub lib_references: Vec<PathBuf>,
@@ -122,8 +138,12 @@ impl<'cx> ParseResultForGraph<'cx> {
         self.nodes.0.len()
     }
 
+    pub fn is_external_module(&self) -> bool {
+        self.external_module_indicator.is_some()
+    }
+
     pub fn is_external_or_commonjs_module(&self) -> bool {
-        self.external_module_indicator.is_some() || self.commonjs_module_indicator.is_some()
+        self.is_external_module() || self.commonjs_module_indicator.is_some()
     }
 
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
@@ -191,7 +211,9 @@ pub fn parse_parallel<'cx, 'p>(
                 module_arena,
                 always_strict,
             );
-            assert!(!module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty());
+            debug_assert!(
+                !module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty()
+            );
             let p = ParseResultForGraph {
                 lib_references: lib_references(&p, atoms.clone(), *module_id),
                 diags: p.diags,
@@ -317,18 +339,18 @@ struct CollectDepsVisitor<'cx> {
     is_external_module_file: bool,
     atoms: Arc<Mutex<AtomIntern>>,
 
-    imports: Vec<&'cx ast::StringLit>,
+    imports: Vec<ImportInfo<'cx>>,
     module_augmentations: Vec<ast::NodeID>,
     ambient_modules: Vec<Atom>,
 }
 
 struct CollectDepsResult<'cx> {
-    imports: Vec<&'cx ast::StringLit>,
+    imports: Vec<ImportInfo<'cx>>,
     module_augmentations: Vec<ast::NodeID>,
     ambient_modules: Vec<Atom>,
 }
 
-impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
+impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
     fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
         let module_name = match node.kind {
             ast::StmtKind::Import(n) => Some(n.module),
@@ -338,7 +360,7 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
                 if n.is_ambient()
                     && (self.in_ambient_module
                         || n.modifiers
-                            .is_some_and(|ms| ms.flags.intersects(ast::ModifierKind::Ambient))
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
                         || self.is_declaration)
                 {
                     let name = match n.name {
@@ -375,12 +397,15 @@ impl<'cx> ast::Visitor<'cx> for CollectDepsVisitor<'cx> {
             _ => return,
         };
         if let Some(module_name) = module_name
-            && (!self.in_ambient_module
-                || !bolt_ts_path::is_external_module_relative(
+            && !(self.in_ambient_module
+                && bolt_ts_path::is_external_module_relative(
                     self.atoms.lock().unwrap().get(module_name.val),
                 ))
         {
-            self.imports.push(module_name);
+            self.imports.push(ImportInfo {
+                module_name,
+                // kind: todo!(),
+            });
         }
         // TODO: use_uri_style_node_core_modules
     }
@@ -466,5 +491,37 @@ bitflags::bitflags! {
         const IGNORE_MISSING_OPEN_BRACE = 1 << 4;
         const JSDOC = 1 << 5;
         const ASYNC = 1 << 6;
+    }
+}
+
+impl<'cx, 'p> bolt_ts_ast_factory::ASTFactory<'cx> for ParserState<'cx, 'p> {
+    #[inline(always)]
+    fn next_node_id(&mut self) -> NodeID {
+        self.next_node_id()
+    }
+
+    #[inline(always)]
+    fn insert_node(&mut self, node_id: NodeID, node: bolt_ts_ast::Node<'cx>) {
+        self.nodes.insert(node_id, node);
+    }
+
+    #[inline(always)]
+    fn insert_node_flags(&mut self, node_id: NodeID, flags: bolt_ts_ast::NodeFlags) {
+        self.node_flags_map.insert(node_id, flags);
+    }
+
+    #[inline(always)]
+    fn alloc<T>(&self, val: T) -> &'cx T {
+        self.alloc(val)
+    }
+
+    #[inline(always)]
+    fn node_context_flags(&self) -> bolt_ts_ast::NodeFlags {
+        self.node_context_flags
+    }
+
+    #[inline(always)]
+    fn set_external_module_indicator(&mut self, node_id: NodeID) {
+        self.set_external_module_indicator(node_id);
     }
 }

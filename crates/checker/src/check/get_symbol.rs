@@ -1,5 +1,4 @@
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
 
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
@@ -13,8 +12,9 @@ impl TyChecker<'_> {
             None
         }
     }
+
     #[inline]
-    pub(super) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
+    pub(crate) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
         debug_assert!(
             self.p.node(id).is_decl(),
             "expected a decl node, but got {:#?}",
@@ -44,15 +44,18 @@ impl TyChecker<'_> {
 
     fn get_symbol_of_name_or_prop_access_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
         // TODO:
-        None
+        let node = self.p.node(id);
+        if node.is_ident() {
+            Some(self.final_res(id))
+        } else {
+            None
+        }
     }
 
-    pub(super) fn get_symbol_at_loc(&self, id: ast::NodeID) -> Option<SymbolID> {
+    pub fn get_symbol_at_location(&self, id: ast::NodeID) -> Option<SymbolID> {
         use bolt_ts_ast::Node::*;
-        if self
-            .node_query(id.module())
-            .is_decl_name_or_import_prop_name(id)
-        {
+        let nq = self.node_query(id.module());
+        if nq.is_decl_name_or_import_prop_name(id) {
             let p = self.parent(id).unwrap();
             let parent_symbol = self.get_symbol_of_decl(p);
             return if self.p.is_import_or_export_spec(p) {
@@ -62,7 +65,9 @@ impl TyChecker<'_> {
             };
         }
         match self.p.node(id) {
-            Ident(_) if self.node_query(id.module()).is_this_in_type_query(id) => {
+            Ident(_) | PrivateIdent(_) | PropAccessExpr(_) | QualifiedName(_)
+                if !nq.is_this_in_type_query(id) =>
+            {
                 self.get_symbol_of_name_or_prop_access_expr(id)
             }
             _ => None,

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bolt_ts_ast = { path = "../ast" }
+bolt_ts_ast_visitor = { path = "../ast_visitor" }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_binder = { path = "../binder" }
@@ -16,6 +17,7 @@ bolt_ts_module_graph = { path = "../module_graph" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_parser = { path = "../parser" }
 bolt_ts_path = { path = "../path" }
+bolt_ts_ty = { path = "../ty" }
 bolt_ts_utils = { path = "../../helper/utils" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
@@ -25,4 +27,3 @@ nohash-hasher = { workspace = true }
 thin-vec = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 tracing = { workspace = true }
-enumflags2 = { workspace = true }

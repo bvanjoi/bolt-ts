@@ -1,0 +1,11 @@
+  × 'public' modifier cannot appear on an index signature.
+   ╭─[../../tests/compiler/modifiersOnInterfaceIndexSignature1/index.ts:4:3]
+ 4 │ public
+   · ──────
+   ╰────
+
+  × 'public' modifier cannot appear on an index signature.
+    ╭─[../../tests/compiler/modifiersOnInterfaceIndexSignature1/index.ts:13:3]
+ 13 │ public
+    · ──────
+    ╰────

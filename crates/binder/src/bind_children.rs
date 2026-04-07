@@ -23,7 +23,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.flow_nodes
             .add_antecedent(post_if_label, self.current_flow.unwrap());
         self.current_flow = Some(self.finish_flow_label(else_label));
-
         if let Some(alt) = n.else_then {
             self.bind(alt.id());
         }
@@ -370,19 +369,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let has_export_modifier = self
             .node_query()
             .get_combined_modifier_flags(current)
-            .intersects(ast::ModifierKind::Export);
-        if symbol_flags.intersects(SymbolFlags::ALIAS) {
+            .contains(ast::ModifierFlags::EXPORT); // TODO: js
+        if symbol_flags.contains(SymbolFlags::ALIAS) {
             let n = self.p.node(current);
             let (loc, parent) = if n.is_export_named_spec()
-                || n.as_shorthand_spec().is_some_and(|_| {
-                    let parent = self.parent_map.parent(current).unwrap();
-                    self.p.node(parent).is_specs_export()
-                }) {
-                // TODO: is_import_eq_decl && has_export_modifier
+                || n.is_export_shorthand_spec()
+                || (n.is_import_equals_decl() && has_export_modifier)
+            {
                 let table = SymbolTableLocation::exports(container);
-                // let parent = self.final_res[&container];
-                let parent = None;
-                (table, parent)
+                let parent = self.final_res[&container];
+                (table, Some(parent))
             } else {
                 assert!(self.p.node(container).has_locals());
                 let table = SymbolTableLocation::locals(container);
@@ -405,11 +401,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 || self
                     .p
                     .node_flags(container)
-                    .intersects(NodeFlags::EXPORT_CONTEXT))
+                    .contains(NodeFlags::EXPORT_CONTEXT))
         {
             if !self.p.node(container).has_locals()
                 || !self.locals.contains_key(&container)
-                || (current_node.has_syntactic_modifier(ast::ModifierKind::Default.into())
+                || (current_node.has_syntactic_modifier(ast::ModifierFlags::DEFAULT)
                     && current_node.ident_name().is_none())
             {
                 let table = SymbolTableLocation::exports(container);
@@ -469,7 +465,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_modifiers(&mut self, mods: &'cx ast::Modifiers<'cx>) {
         for m in mods.list {
-            self.bind(m.id);
+            self.bind(m.id());
         }
     }
 
@@ -477,9 +473,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         use bolt_ts_ast::PropNameKind::*;
         match name.kind {
             Ident(n) => self.bind(n.id),
+            PrivateIdent(n) => self.bind(n.id),
             StringLit { raw: n, .. } => self.bind(n.id),
             NumLit(n) => self.bind(n.id),
             Computed(n) => self.bind(n.id),
+            BigIntLit(n) => self.bind(n.id),
         }
     }
 
@@ -510,6 +508,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_class_elem(&mut self, n: &'cx ast::ClassElem<'cx>) {
         self.bind(n.id());
+    }
+
+    fn bind_stmts_under(&mut self, parent: ast::NodeID, stmts: ast::Stmts<'cx>) {
+        self.block_parent_stack.push(parent);
+        for stmt in stmts {
+            self.bind(stmt.id());
+        }
+        self.block_parent_stack.pop();
     }
 
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
@@ -543,15 +549,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             CallExpr(n) => self.bind_call_expr_flow(n),
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
             Program(n) => {
-                for stmt in n.stmts {
-                    self.bind(stmt.id());
-                }
+                self.bind_stmts_under(node, n.stmts());
             }
             BlockStmt(ast::BlockStmt { stmts, .. })
             | ModuleBlock(ast::ModuleBlock { stmts, .. }) => {
-                for stmt in *stmts {
-                    self.bind(stmt.id());
-                }
+                self.bind_stmts_under(node, *stmts);
             }
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
@@ -804,7 +806,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     }
                 }
             }
-            Binding(n) => self.bind_binding(n),
             OmitExpr(_) => {}
             ParenExpr(n) => {
                 self.bind(n.expr.id());
@@ -819,7 +820,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             EnumMember(n) => {
-                self.bind_prop_name(n.name);
+                match n.name {
+                    ast::EnumMemberNameKind::Ident(ident) => self.bind(ident.id),
+                    ast::EnumMemberNameKind::StringLit { raw, .. } => self.bind(raw.id),
+                }
                 if let Some(init) = n.init {
                     self.bind(init.id());
                 }
@@ -1000,7 +1004,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(modifiers) = n.modifiers {
                     self.bind_modifiers(modifiers);
                 }
-                self.bind(n.key.id);
+                self.bind_binding(n.key);
                 self.bind(n.key_ty.id());
                 self.bind(n.ty.id());
             }
@@ -1119,7 +1123,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TemplateSpanTy(n) => {
                 self.bind(n.ty.id());
             }
-            ImportExportShorthandSpec(n) => self.bind(n.name.id),
+            ImportShorthandSpec(n) => self.bind(n.name.id),
+            ExportShorthandSpec(n) => self.bind(n.name.id),
             ExportNamedSpec(n) => {
                 self.bind_module_export_name(n.prop_name);
                 self.bind_module_export_name(n.name);
@@ -1227,40 +1232,59 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassStaticBlockDecl(n) => {
                 self.bind(n.body.id);
             }
-            CaseClause(n) => {
-                self.bind(n.expr.id());
-                for stmt in n.stmts {
-                    self.bind(stmt.id());
-                }
-            }
+            CaseClause(n) => self.bind_case_clause(n),
             DefaultClause(n) => {
                 for stmt in n.stmts {
                     self.bind(stmt.id());
                 }
             }
-            CaseBlock(n) => {
-                for item in n.clauses {
-                    use ast::CaseOrDefaultClause::*;
-                    match item {
-                        Case(c) => self.bind(c.id),
-                        Default(c) => self.bind(c.id),
-                    }
-                }
-            }
             SwitchStmt(n) => self.bind_switch_stmt(n),
+            CaseBlock(n) => self.bind_case_block(n),
             DeleteExpr(n) => {
                 self.bind(n.expr.id());
             }
             AwaitExpr(n) => {
                 self.bind(n.expr.id());
             }
+            YieldExpr(n) => {
+                if let Some(expr) = n.expr {
+                    self.bind(expr.id());
+                }
+            }
+            PrivateIdent(_) => {
+                // TODO:
+            }
+            ImportEqualsDecl(n) => {
+                self.bind(n.name.id);
+                match n.module_reference {
+                    ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                        self.bind(n.id());
+                    }
+                    ast::ModuleReferenceKind::EntityName(n) => self.bind_entity_name(n),
+                }
+            }
+            ExternalModuleReference(n) => {
+                self.bind(n.module_spec().id);
+            }
+            ClassSemiElem(_n) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
     }
 
+    fn bind_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) {
+        let saved_current_flow = self.current_flow;
+        debug_assert!(self.pre_switch_case_flow.is_some());
+        self.current_flow = self.pre_switch_case_flow;
+        self.bind(n.expr.id());
+        self.current_flow = saved_current_flow;
+        for stmt in n.stmts {
+            self.bind(stmt.id());
+        }
+    }
+
     fn is_assignment_target(&self, n: ast::NodeID) -> bool {
-        self.node_query().get_assignment_target(n).is_some()
+        self.node_query().is_assignment_target(n)
     }
 
     fn bind_destructuring_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
@@ -1282,7 +1306,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                             ast::ExprKind::SpreadElement(e) => {
                                 self.bind_assignment_target_flow(e.expr);
                             }
-                            _ => self.bind_destructuring_target_flow(*elem),
+                            _ => self.bind_destructuring_target_flow(elem),
                         }
                     }
                 }
@@ -1290,9 +1314,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     for member in n.members {
                         match member.kind {
                             ast::ObjectMemberKind::Shorthand(e) => {
-                                self.current_flow = Some(
-                                    self.create_flow_assign(self.current_flow.unwrap(), e.name.id),
-                                );
+                                self.current_flow =
+                                    Some(self.create_flow_assign(self.current_flow.unwrap(), e.id));
                             }
                             ast::ObjectMemberKind::PropAssignment(e) => {
                                 self.bind_destructuring_target_flow(e.init);
@@ -1306,6 +1329,42 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 _ => {}
             }
+        }
+    }
+
+    fn bind_case_block(&mut self, n: &'cx ast::CaseBlock<'cx>) {
+        let p = self.parent_map.parent(n.id).unwrap();
+        let p = self.p.node(p).expect_switch_stmt();
+        let is_narrowing_switch = matches!(p.expr.kind, ast::ExprKind::BoolLit(lit) if lit.val)
+            || self.is_narrowable_expression(p.expr);
+        let mut fallthrough_flow = self.unreachable_flow_node;
+
+        for i in 0..n.clauses.len() {
+            let clause_start = i;
+            // while clause.stmts().is_empty() && i + 1 < n.clauses.len() {
+            // TODO:
+            // }
+            let prev_case_label = self.flow_nodes.create_branch_label();
+            let antecedent = if is_narrowing_switch {
+                self.create_flow_switch_clause(
+                    self.pre_switch_case_flow.unwrap(),
+                    p,
+                    clause_start as u8,
+                    (i + 1) as u8,
+                )
+            } else {
+                self.pre_switch_case_flow.unwrap()
+            };
+            self.flow_nodes.add_antecedent(prev_case_label, antecedent);
+            self.flow_nodes
+                .add_antecedent(prev_case_label, fallthrough_flow);
+            self.current_flow = Some(self.finish_flow_label(prev_case_label));
+            match n.clauses[i] {
+                ast::CaseOrDefaultClause::Case(c) => self.bind(c.id),
+                ast::CaseOrDefaultClause::Default(c) => self.bind(c.id),
+            }
+            fallthrough_flow = self.current_flow.unwrap();
+            // TODO: clause.fallthrough_flow = fallthrough_flow;
         }
     }
 
@@ -1336,8 +1395,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.finish_flow_label(post_switch_label));
     }
 
-    fn bind_param_flow(&mut self, n: &ast::ParamDecl) {
-        self.bind(n.name.id);
+    fn bind_param_flow(&mut self, n: &'cx ast::ParamDecl<'cx>) {
+        self.bind_binding(n.name);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
@@ -1353,7 +1412,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ast::ObjectBindingName::Prop { prop_name, name } => {
                 self.bind(prop_name.id());
-                self.bind(name.id);
+                self.bind_binding(name);
             }
         }
         if let Some(init) = n.init {
@@ -1362,7 +1421,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_array_binding_flow(&mut self, n: &ast::ArrayBinding<'cx>) {
-        self.bind(n.name.id);
+        self.bind_binding(n.name);
         if let Some(init) = n.init {
             self.bind(init.id());
         }
@@ -1417,9 +1476,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ObjectPat(pat) => {
                 for elem in pat.elems {
                     match elem.name {
-                        ast::ObjectBindingName::Shorthand(ident) => {
-                            let flow =
-                                self.create_flow_assign(self.current_flow.unwrap(), ident.id);
+                        ast::ObjectBindingName::Shorthand(_) => {
+                            let flow = self.create_flow_assign(self.current_flow.unwrap(), elem.id);
                             self.current_flow = Some(flow);
                         }
                         ast::ObjectBindingName::Prop { name, .. } => {
@@ -1440,7 +1498,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_var_decl_flow(&mut self, n: &ast::VarDecl<'cx>) {
-        self.bind(n.name.id);
+        self.bind_binding(n.name);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
@@ -1460,9 +1518,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn is_top_level_logical_expr(&self, mut n: ast::NodeID) -> bool {
-        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| bin.op.kind
-            == BinOpKind::LogicalAnd
-            || bin.op.kind == BinOpKind::LogicalOr));
+        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| matches!(
+            bin.op.kind,
+            BinOpKind::LogicalAnd | BinOpKind::LogicalOr | BinOpKind::Nullish
+        )));
         let mut parent = self.parent_map.parent(n).unwrap();
         let mut parent_node = self.p.node(parent);
         while parent_node.is_paren_expr()
@@ -1558,10 +1617,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                         self.current_false_target.unwrap(),
                     );
                 }
-
                 return;
             }
-            // TODO: question question
+            BinOpKind::Nullish => {
+                if self.is_top_level_logical_expr(n.id) {
+                    bind_top_level_logical_expr::<false>(self, n);
+                } else {
+                    bind_logical_expr::<false>(
+                        self,
+                        n,
+                        self.current_true_target.unwrap(),
+                        self.current_false_target.unwrap(),
+                    );
+                }
+                return;
+            }
             BinOpKind::Comma => true,
             _ => false,
         };
@@ -1698,7 +1768,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.parent_map.insert(node, parent);
         }
 
-        self._bind(node);
+        self.bind_worker(node);
 
         let save_parent = self.parent;
         self.parent = Some(node);
@@ -1721,9 +1791,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     ) -> SymbolID {
         let symbol = self.create_symbol(name, flags);
         if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
-            let container = self.final_res.get(&self.container.unwrap()).copied();
-            debug_assert!(container.is_some());
-            self.symbols.get_mut(symbol).parent = container;
+            let container = self.final_res[&self.container.unwrap()];
+            self.symbols.get_mut(symbol).parent = Some(container);
         }
         self.add_declaration_to_symbol(symbol, node, flags);
         symbol

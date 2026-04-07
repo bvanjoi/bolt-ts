@@ -1,6 +1,4 @@
-mod check_flags;
 mod facts;
-mod flags;
 mod links;
 mod mapper;
 mod num_lit;
@@ -8,20 +6,27 @@ mod object_ty;
 mod pprint;
 mod sig;
 
-use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
-use crate::check::TyChecker;
+pub use bolt_ts_ty::CheckFlags;
+pub use bolt_ts_ty::IndexFlags;
+pub use bolt_ts_ty::ObjectFlags;
+pub use bolt_ts_ty::TypeFacts;
+pub use bolt_ts_ty::TypeFlags;
 
-pub use self::check_flags::CheckFlags;
-pub use self::facts::{TYPEOF_NE_FACTS, TypeFacts};
-pub use self::flags::{ObjectFlags, TypeFlags};
+pub use self::facts::{TYPEOF_NE_FACTS, typeof_ne_facts};
+pub use self::links::ConditionalLinks;
+pub use self::links::ConditionalLinksArena;
+pub use self::links::ConditionalLinksID;
 pub use self::links::InterfaceTyLinksArena;
+pub use self::links::PromiseOrAwaitableTyLinks;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
 pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena};
+pub use self::links::{PromiseOrAwaitableTyLinksArena, PromiseOrAwaitableTyLinksID};
+pub use self::links::{UnionTyLinks, UnionTyLinksArena, UnionTyLinksID};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::num_lit::NumberLitTy;
@@ -32,8 +37,10 @@ pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
 pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
+use super::check::TyChecker;
 
 bolt_ts_utils::index!(TyID);
+
 impl nohash_hasher::IsEnabled for TyID {}
 
 impl TyID {
@@ -42,7 +49,7 @@ impl TyID {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Ty<'cx> {
     pub id: TyID,
     pub kind: TyKind<'cx>,
@@ -50,16 +57,20 @@ pub struct Ty<'cx> {
     pub links: CommonTyLinksID<'cx>,
 }
 
-impl PartialEq for Ty<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.id == other.id {
-            debug_assert!(std::ptr::eq(&self.kind, &other.kind), "extra allocation");
-            true
-        } else {
-            false
-        }
+impl std::hash::Hash for Ty<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
+
+impl PartialEq for Ty<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        debug_assert!(self.id != other.id || std::ptr::eq(&self.kind, &other.kind));
+        self.id == other.id
+    }
+}
+
+impl Eq for Ty<'_> {}
 
 impl<'cx> Ty<'cx> {
     pub fn new(
@@ -74,6 +85,21 @@ impl<'cx> Ty<'cx> {
             flags,
             links,
         }
+    }
+
+    pub fn is_neither_unit_ty_nor_never(&self) -> bool {
+        !self
+            .flags
+            .intersects(TypeFlags::UNIT.union(TypeFlags::NEVER))
+    }
+
+    pub fn contains_undefined_ty(&self) -> bool {
+        let ty = if let Some(u) = self.kind.as_union() {
+            u.tys[0]
+        } else {
+            self
+        };
+        ty.flags.contains(TypeFlags::UNDEFINED)
     }
 
     pub fn is_fresh_object_literal(&self) -> bool {
@@ -127,9 +153,48 @@ impl<'cx> Ty<'cx> {
         let i = self.kind.as_intrinsic();
         i.map(|i| i.name)
     }
+
+    pub fn count(&self) -> usize {
+        match self.kind {
+            TyKind::Union(u) => u.tys.len(),
+            _ => 1,
+        }
+    }
+
+    pub fn as_class_or_interface_ty(&self) -> Option<&'cx InterfaceTy<'cx>> {
+        if let Some(i) = self.kind.as_object_interface() {
+            Some(i)
+        } else if let Some(r) = self.kind.as_object_reference()
+            && let Some(i) = r.target.kind.as_object_interface()
+        {
+            Some(i)
+        } else {
+            None
+        }
+    }
+
+    pub fn promise_or_awaitable_ty_links(&self) -> Option<PromiseOrAwaitableTyLinksID<'cx>> {
+        match self.kind {
+            TyKind::Union(ty) => Some(ty.promise_or_awaitable_links),
+            TyKind::Object(ty) => ty.kind.promise_or_awaitable_ty_links(),
+            _ => None,
+        }
+    }
+
+    pub fn is_non_deferred_ty_reference(&self) -> bool {
+        if !self.get_object_flags().contains(ObjectFlags::REFERENCE) {
+            return false;
+        }
+        let object_ty = self.kind.expect_object();
+        match object_ty.kind {
+            ObjectTyKind::Reference(n) => n.node.is_none(),
+            ObjectTyKind::Tuple(_) => true,
+            _ => unreachable!(),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnionReduction {
     None,
     Lit,
@@ -185,7 +250,7 @@ as_ty_kind!(Enum, &'cx EnumTy<'cx>, enum);
 as_ty_kind!(StringLit, &'cx StringLitTy<'cx>, string_lit);
 as_ty_kind!(NumberLit, &'cx NumberLitTy<'cx>, number_lit);
 as_ty_kind!(BigIntLit, &'cx BigIntLitTy<'cx>, bigint_lit);
-as_ty_kind!(UniqueESSymbol, &'cx UniqueESSymbolTy, unique_ess_symbol);
+as_ty_kind!(UniqueESSymbol, &'cx UniqueESSymbolTy, unique_es_symbol);
 as_ty_kind!(IndexedAccess, &'cx IndexedAccessTy<'cx>, indexed_access);
 as_ty_kind!(Union, &'cx UnionTy<'cx>, union);
 as_ty_kind!(Intersection, &'cx IntersectionTy<'cx>, intersection);
@@ -203,22 +268,34 @@ impl<'cx> Ty<'cx> {
         checker.atoms.get(name.expect_atom()).to_string()
     }
 
-    fn print_enum_lit_symbol(&'cx self, checker: &mut TyChecker<'cx>, symbol: SymbolID) -> String {
+    fn print_enum_lit_symbol(&'cx self, checker: &TyChecker<'cx>, symbol: SymbolID) -> String {
         let s = checker.binder.symbol(symbol);
+        let value_decl = s.value_decl.unwrap();
         let prop = checker.atoms.get(s.name.expect_atom());
         let p = s.parent.unwrap();
         let p = checker.binder.symbol(p);
         let object = checker.atoms.get(p.name.expect_atom());
-        format!("{object}.{prop}")
+        let enum_member = checker.p.node(value_decl).expect_enum_member();
+        match enum_member.name {
+            ast::EnumMemberNameKind::Ident(_) => {
+                format!("{object}.{prop}")
+            }
+            ast::EnumMemberNameKind::StringLit { .. } => {
+                format!("{object}[\"{prop}\"]")
+            }
+        }
     }
 
     pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
-        if self.kind.is_array(checker) {
+        if let Some(alias_symbol) = self.alias_symbol() {
+            let s = checker.binder.symbol(alias_symbol);
+            return s.name.to_string(&checker.atoms);
+        } else if self.kind.is_array(checker) {
             let ele = checker.get_ty_arguments(self)[0];
             let ele = ele.to_string(checker);
             return format!("{ele}[]");
         } else if self == checker.boolean_ty() {
-            return keyword::IDENT_BOOLEAN_STR.to_string();
+            return "boolean".to_string();
         }
         match self.kind {
             TyKind::Object(object) => object.kind.to_string(self, checker),
@@ -351,12 +428,13 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn as_tuple(&self) -> Option<&'cx TupleTy<'cx>> {
-        if self.get_object_flags().intersects(ObjectFlags::REFERENCE) {
-            if let Some(refer) = self.kind.as_object_reference() {
-                return refer.target.kind.as_object_tuple();
-            } else if let Some(tup) = self.kind.as_object_tuple() {
-                return Some(tup);
-            }
+        if self.get_object_flags().contains(ObjectFlags::REFERENCE) {
+            let object_ty = self.kind.expect_object();
+            return match object_ty.kind {
+                ObjectTyKind::Tuple(ty) => Some(ty),
+                ObjectTyKind::Reference(ty) => ty.target.kind.as_object_tuple(),
+                _ => unreachable!(),
+            };
         };
         None
     }
@@ -389,6 +467,19 @@ impl<'cx> Ty<'cx> {
         }
     }
 
+    pub fn is_literal_ty(&self) -> bool {
+        self.flags.intersects(TypeFlags::BOOLEAN)
+            || if let Some(u) = self.kind.as_union() {
+                if self.flags.contains(TypeFlags::ENUM_LITERAL) {
+                    true
+                } else {
+                    u.tys.iter().all(|ty| ty.is_unit())
+                }
+            } else {
+                self.is_unit()
+            }
+    }
+
     pub fn is_pattern_lit_ty(&self) -> bool {
         match self.kind {
             TyKind::TemplateLit(n) => n.tys.iter().all(|ty| ty.is_pattern_lit_placeholder_ty()),
@@ -419,6 +510,38 @@ impl<'cx> Ty<'cx> {
             let t = checker.global_readonly_array_ty();
             ty.target == t || self == t
         })
+    }
+
+    pub fn alias_symbol(&self) -> Option<SymbolID> {
+        match self.kind {
+            TyKind::Union(ty) => ty.alias_symbol,
+            TyKind::Intersection(ty) => ty.alias_symbol,
+            TyKind::Cond(ty) => ty.alias_symbol,
+            TyKind::Object(ty) => ty.kind.alias_symbol(),
+            _ => None,
+        }
+    }
+
+    pub fn alias_ty_arguments(&self) -> Option<Tys<'cx>> {
+        match self.kind {
+            TyKind::Union(ty) => ty.alias_ty_arguments,
+            TyKind::Intersection(ty) => ty.alias_ty_arguments,
+            TyKind::Cond(ty) => ty.alias_ty_arguments,
+            TyKind::Object(ty) => ty.kind.alias_ty_arguments(),
+            _ => None,
+        }
+    }
+
+    pub fn is_coercible_under_double_equals(source: &Self, target: &Self) -> bool {
+        source.flags.intersects(
+            TypeFlags::NUMBER
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::BOOLEAN_LITERAL),
+        ) || target.flags.intersects(
+            TypeFlags::NUMBER
+                .union(TypeFlags::STRING)
+                .union(TypeFlags::BOOLEAN),
+        )
     }
 }
 
@@ -491,25 +614,25 @@ impl<'cx> TyKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct UniqueESSymbolTy {
     pub symbol: SymbolID,
     pub escape_name: SymbolName,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct TemplateLitTy<'cx> {
     pub texts: &'cx [Atom],
     pub tys: Tys<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StringMappingTy<'cx> {
     pub symbol: SymbolID,
     pub ty: &'cx Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct CondTyRoot<'cx> {
     pub node: &'cx ast::CondTy<'cx>,
     pub check_ty: &'cx Ty<'cx>,
@@ -521,7 +644,7 @@ pub struct CondTyRoot<'cx> {
     pub alias_ty_args: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct CondTy<'cx> {
     pub root: &'cx CondTyRoot<'cx>,
     pub check_ty: &'cx Ty<'cx>,
@@ -529,7 +652,8 @@ pub struct CondTy<'cx> {
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub combined_mapper: Option<&'cx dyn TyMap<'cx>>,
     pub alias_symbol: Option<SymbolID>,
-    pub alias_ty_args: Option<Tys<'cx>>,
+    pub alias_ty_arguments: Option<Tys<'cx>>,
+    pub conditional_links: ConditionalLinksID<'cx>,
 }
 
 pub type Tys<'cx> = &'cx [&'cx Ty<'cx>];
@@ -550,7 +674,7 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IndexedAccessTy<'cx> {
     pub object_ty: &'cx self::Ty<'cx>,
     pub index_ty: &'cx self::Ty<'cx>,
@@ -559,16 +683,19 @@ pub struct IndexedAccessTy<'cx> {
     // alias_ty_arguments: Option<&'cx Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct UnionTy<'cx> {
     pub tys: Tys<'cx>,
+    pub origin: Option<&'cx self::Ty<'cx>>,
     pub object_flags: ObjectFlags,
     pub fresh_ty_links: FreshTyLinksID<'cx>,
+    pub union_ty_links: UnionTyLinksID<'cx>,
+    pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IntersectionTy<'cx> {
     pub tys: Tys<'cx>,
     pub object_flags: ObjectFlags,
@@ -576,21 +703,21 @@ pub struct IntersectionTy<'cx> {
     pub alias_ty_arguments: Option<Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StringLitTy<'cx> {
     pub val: Atom,
     pub symbol: Option<SymbolID>,
     pub links: FreshTyLinksID<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct BigIntLitTy<'cx> {
     pub neg: bool,
     pub val: Atom,
     pub links: FreshTyLinksID<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ParamTy<'cx> {
     pub symbol: SymbolID,
     pub offset: Option<usize>,
@@ -598,42 +725,47 @@ pub struct ParamTy<'cx> {
     pub is_this_ty: bool,
 }
 
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq)]
-    pub struct IndexFlags: u8 {
-        const STRINGS_ONLY          = 1 << 0;
-        const NO_INDEX_SIGNATURES   = 1 << 1;
-        const NO_REDUCIBLE_CHECK    = 1 << 2;
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
+///```ts
+/// type A<B> = {
+/// [key in keyof B]: string
+///       //~~~~~~~ index type
+/// }
+/// ```
+#[derive(Debug)]
 pub struct IndexTy<'cx> {
     pub ty: &'cx self::Ty<'cx>,
     pub index_flags: IndexFlags,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IntrinsicTy {
     pub object_flags: ObjectFlags,
     pub name: Atom,
 }
 
-#[derive(Debug, Clone, Copy)]
+/// For example:
+///
+/// ```ts
+/// type A<T> = T extends number ? T : string;
+///                              //~ this is a substitution type:
+///                              // - `base_type` is `T`,
+///                              // - `constraint` is `number`.
+/// ```
+#[derive(Debug)]
 pub struct SubstitutionTy<'cx> {
     pub object_flags: ObjectFlags,
     pub base_ty: &'cx self::Ty<'cx>,
     pub constraint: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IterationTys<'cx> {
-    pub yield_ty: &'cx Ty<'cx>,
-    pub return_ty: &'cx Ty<'cx>,
-    pub next_ty: &'cx Ty<'cx>,
+    pub yield_ty: &'cx self::Ty<'cx>,
+    pub return_ty: &'cx self::Ty<'cx>,
+    pub next_ty: &'cx self::Ty<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct EnumTy<'cx> {
     pub symbol: SymbolID,
     pub fresh_ty_links: FreshTyLinksID<'cx>,

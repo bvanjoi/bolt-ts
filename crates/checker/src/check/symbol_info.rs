@@ -1,22 +1,21 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::pprint_entity_name;
+use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait;
-use bolt_ts_atom::Atom;
-use bolt_ts_binder::{
-    MergeSymbol, MergedSymbols, ResolveResult, Symbol, SymbolFlags, SymbolID, SymbolName,
-    SymbolTable, Symbols,
-};
+use bolt_ts_binder::Symbols;
+use bolt_ts_binder::{MergeSymbol, ResolveResult, Symbol};
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use super::TyChecker;
 use super::resolve_external_module_name;
 use super::resolve_structured_member::MemberOrExportsResolutionKind;
 use super::ty;
 use super::ty::CheckFlags;
 use super::{SymbolLinks, errors};
-use crate::check::TyChecker;
 
 fn symbol_of_resolve_results(
     resolve_results: &[ResolveResult],
@@ -31,88 +30,51 @@ fn decls_of_symbol<'a>(
     symbol: SymbolID,
     this: &'a TyChecker<'_>,
 ) -> Option<&'a thin_vec::ThinVec<bolt_ts_ast::NodeID>> {
-    let s = symbol_of_resolve_results(this.get_resolve_results(), symbol);
+    let s = symbol_of_resolve_results(&this.binder.bind_results, symbol);
     s.decls.as_ref()
 }
 
 fn binder_symbol<'a>(this: &'a TyChecker<'_>, symbol: SymbolID) -> &'a bolt_ts_binder::Symbol {
-    symbol_of_resolve_results(this.get_resolve_results(), symbol)
-}
-
-pub trait SymbolInfo<'cx>: Sized {
-    fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump;
-    fn empty_symbols(&self) -> &'cx SymbolTable;
-    fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph;
-    fn p(&self) -> &bolt_ts_parser::ParsedMap<'cx>;
-    fn atoms(&self) -> &bolt_ts_atom::AtomIntern;
-    fn module_arena(&self) -> &bolt_ts_span::ModuleArena;
-    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag);
-
-    fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>>;
-    fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>>;
-    fn get_mut_transient_symbol_links_map(&mut self) -> &mut Vec<SymbolLinks<'cx>>;
-    fn get_transient_symbols(&self) -> &Symbols;
-    fn get_mut_transient_symbols(&mut self) -> &mut Symbols;
-    fn get_resolve_results(&self) -> &Vec<ResolveResult>;
-    fn get_merged_symbols(&self) -> &MergedSymbols;
-
-    fn get_merged_symbol(&self, id: SymbolID) -> SymbolID {
-        if id == Symbol::ERR {
-            return Symbol::ERR;
-        }
-        let s = self.get_merged_symbols();
-        let symbols = &self.get_resolve_results()[id.module().as_usize()].symbols;
-        s.get_merged_symbol(id, symbols)
-    }
-
-    fn locals(
-        &self,
-        module: bolt_ts_span::ModuleID,
-    ) -> &FxHashMap<bolt_ts_ast::NodeID, SymbolTable> {
-        let idx = module.as_usize();
-        let res = self.get_resolve_results();
-        debug_assert!(idx < res.len());
-        unsafe { &res.get_unchecked(idx).locals }
-    }
-
-    fn alloc<T>(&self, t: T) -> &'cx T {
-        self.arena().alloc(t)
-    }
-
-    fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            debug_assert!(symbol.index_as_usize() < self.get_transient_symbol_links_map().len());
-            unsafe {
-                self.get_transient_symbol_links_map()
-                    .get_unchecked(symbol.index_as_usize())
-            }
-        } else {
-            self.get_mut_symbol_links_map().entry(symbol).or_default()
-        }
-    }
-
-    fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            debug_assert!(symbol.index_as_usize() < self.get_transient_symbol_links_map().len());
-            unsafe {
-                self.get_mut_transient_symbol_links_map()
-                    .get_unchecked_mut(symbol.index_as_usize())
-            }
-        } else {
-            self.get_mut_symbol_links_map().get_mut(&symbol).unwrap()
-        }
-    }
-
-    fn symbol(&self, symbol: SymbolID) -> &Symbol {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            self.get_transient_symbols().get(symbol)
-        } else {
-            symbol_of_resolve_results(self.get_resolve_results(), symbol)
-        }
-    }
+    symbol_of_resolve_results(&this.binder.bind_results, symbol)
 }
 
 impl<'cx> super::TyChecker<'cx> {
+    pub(super) fn get_late_bound_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        if s.flags.contains(SymbolFlags::CLASS) && matches!(s.name, SymbolName::Computed) {
+            let parent = s.parent;
+
+            if self.get_symbol_links(symbol).get_late_symbol().is_none() {
+                if self.symbol(symbol).decls.clone().is_some_and(|decls| {
+                    decls
+                        .into_iter()
+                        .any(|decl| self.has_late_bindable_name(decl))
+                }) {
+                    let parent = parent.map(|parent| self.get_merged_symbol(parent)).unwrap();
+                    if self.symbol(symbol).decls.as_ref().is_some_and(|decls| {
+                        decls
+                            .iter()
+                            .any(|decl| self.p.node(*decl).has_static_modifier())
+                    }) {
+                        self.get_exports_of_symbol(parent);
+                    } else {
+                        self.get_members_of_symbol(parent);
+                    };
+                }
+            }
+            self.get_mut_symbol_links(symbol).set_late_symbol(symbol);
+        }
+        Some(symbol)
+    }
+
+    pub(super) fn get_parent_of_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
+        let s = self.symbol(symbol);
+        let p = s
+            .parent
+            .and_then(|parent| self.get_late_bound_symbol(parent));
+        p.map(|id| self.get_merged_symbol(id))
+    }
+
     // TODO: return `Option<&'cx SymbolTable>`
     pub(super) fn members_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
         if let Some(m) = self.get_symbol_links(symbol).get_members() {
@@ -123,7 +85,7 @@ impl<'cx> super::TyChecker<'cx> {
                 Some(members) => members.clone(),
                 None => SymbolTable::new(16),
             };
-            let members = self.alloc(members);
+            let members = self.arena.alloc(members);
             self.get_mut_symbol_links(symbol).set_members(members);
             members
         }
@@ -140,9 +102,9 @@ impl<'cx> super::TyChecker<'cx> {
                 None => SymbolTable::new(16),
             };
             let exports = if exports.0.is_empty() {
-                self.empty_symbols()
+                self.empty_symbols
             } else {
-                self.alloc(exports)
+                self.arena.alloc(exports)
             };
             self.get_mut_symbol_links(symbol).set_exports(exports);
             exports
@@ -154,7 +116,7 @@ impl<'cx> super::TyChecker<'cx> {
         module_spec_id: bolt_ts_ast::NodeID,
         _module_spec: bolt_ts_atom::Atom,
     ) -> Option<SymbolID> {
-        resolve_external_module_name(self.mg(), module_spec_id, self.p())
+        resolve_external_module_name(&self.mg, module_spec_id, &self.p)
     }
 
     pub(super) fn is_non_local_alias(
@@ -183,19 +145,19 @@ impl<'cx> super::TyChecker<'cx> {
         };
         self.get_mut_symbol_links(symbol)
             .set_alias_target(Symbol::RESOLVING);
-        let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-        assert!(s.flags.intersects(SymbolFlags::ALIAS), "symbol: {s:#?}");
-        let node = s.get_decl_of_alias_symbol(self.p()).unwrap_or_else(|| {
+        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
+        assert!(s.flags.contains(SymbolFlags::ALIAS), "symbol: {s:#?}");
+        let node = s.get_decl_of_alias_symbol(&self.p).unwrap_or_else(|| {
             let decls = s
                 .decls
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|d| self.p().node(*d))
+                .map(|d| self.p.node(*d))
                 .collect::<Vec<_>>();
             panic!("spans of decls: {decls:#?}");
         });
-        let target = self.get_target_of_alias_decl(node, false);
+        let target = self.get_target_of_alias_decl::<false>(node);
         if self
             .get_symbol_links(symbol)
             .get_alias_target()
@@ -209,34 +171,80 @@ impl<'cx> super::TyChecker<'cx> {
         self.get_symbol_links(symbol).expect_alias_target()
     }
 
-    pub(super) fn get_target_of_alias_decl(
+    pub(super) fn get_target_of_alias_decl<const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         node: bolt_ts_ast::NodeID,
-        dont_recur_resolve: bool,
     ) -> Option<SymbolID> {
-        let p = self.p();
         use bolt_ts_ast::Node::*;
         const EXPORT_SPEC_MEANING: SymbolFlags = SymbolFlags::VALUE
             .union(SymbolFlags::TYPE)
             .union(SymbolFlags::NAMESPACE);
-        match p.node(node) {
-            ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, dont_recur_resolve),
-            ImportExportShorthandSpec(_)
-                if p.node(self.parent(node).unwrap()).is_import_clause() =>
-            {
-                get_target_of_import_named_spec(self, node, dont_recur_resolve)
+        match self.p.node(node) {
+            ImportEqualsDecl(n) => {
+                Some(self.get_target_of_import_equals_decl::<DONT_RESOLVE_ALIAS>(n))
             }
-            ImportExportShorthandSpec(_) => {
-                assert!(p.node(self.parent(node).unwrap()).is_specs_export());
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
+            ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS),
+            ImportShorthandSpec(_) => {
+                get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS)
+            }
+            ExportShorthandSpec(_) => {
+                debug_assert!(self.p.node(self.parent(node).unwrap()).is_specs_export());
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
             }
             ExportNamedSpec(_) => {
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, dont_recur_resolve)
+                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
             }
-            NsImport(n) => get_target_of_ns_import(self, n, dont_recur_resolve),
-            ImportClause(n) => get_target_of_import_clause(self, n, dont_recur_resolve),
-            ExportAssign(n) => get_target_of_export_assignment(self, n, dont_recur_resolve),
+            NsImport(n) => get_target_of_ns_import(self, n, DONT_RESOLVE_ALIAS),
+            ImportClause(n) => get_target_of_import_clause(self, n, DONT_RESOLVE_ALIAS),
+            ExportAssign(n) => get_target_of_export_assignment(self, n, DONT_RESOLVE_ALIAS),
             _ => todo!(),
+        }
+    }
+
+    fn get_target_of_import_equals_decl<const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        n: &'cx ast::ImportEqualsDecl<'cx>,
+    ) -> SymbolID {
+        match n.module_reference {
+            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                // TODO:
+                Symbol::ERR
+            }
+            ast::ModuleReferenceKind::EntityName(n) => {
+                self.get_symbol_of_part_of_right_hand_side_of_import_equals::<DONT_RESOLVE_ALIAS>(n)
+            }
+        }
+        // TODO: check_and_report
+    }
+
+    fn get_symbol_of_part_of_right_hand_side_of_import_equals<const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        entity: &'cx ast::EntityName<'cx>,
+    ) -> SymbolID {
+        let mut entity_id = entity.id();
+        if let ast::EntityNameKind::Ident(n) = entity.kind
+            && self
+                .node_query(n.id.module())
+                .is_right_side_of_qualified_name_or_prop_access(n.id)
+        {
+            entity_id = self.parent(n.id).unwrap();
+        }
+
+        let entity_node = self.p.node(entity_id);
+        if let ast::Node::Ident(n) = entity_node
+            && let Some(parent_id) = self.parent(entity_id)
+            && self.p.node(parent_id).is_qualified_name()
+        {
+            self.resolve_ident::<false, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
+        } else {
+            debug_assert!(
+                self.parent(entity_id)
+                    .is_some_and(|p| { self.p.node(p).is_import_equals_decl() })
+            );
+            let meaning = SymbolFlags::VALUE
+                .union(SymbolFlags::TYPE)
+                .union(SymbolFlags::NAMESPACE);
+            self.resolve_entity_name::<false, DONT_RESOLVE_ALIAS>(entity, meaning)
         }
     }
 
@@ -264,8 +272,8 @@ impl<'cx> super::TyChecker<'cx> {
         } else {
             let exports = self.exports_of_symbol(symbol);
             if exports.0.is_empty() {
-                debug_assert!(std::ptr::eq(exports, self.empty_symbols()));
-                self.empty_symbols()
+                debug_assert!(std::ptr::eq(exports, self.empty_symbols));
+                self.empty_symbols
             } else {
                 exports
             }
@@ -288,7 +296,7 @@ impl<'cx> super::TyChecker<'cx> {
         name: SymbolName,
         dont_resolve_alias: bool,
     ) -> Option<SymbolID> {
-        let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
+        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
             let export_symbol = self.get_exports_of_module(symbol).0.get(&name).copied();
 
@@ -368,11 +376,11 @@ impl<'cx> super::TyChecker<'cx> {
                 return Some(symbols);
             };
 
-            let mut nested_symbols = SymbolTable::new(128);
+            let mut nested_symbols = SymbolTable::new(32);
             let mut lookup_table = ExportCollisionTrackerTable(fx_hashmap_with_capacity(32));
             if let Some(decls) = decls_of_symbol(export_starts, this) {
                 for decl in decls.clone() {
-                    let node = this.p().node(decl).expect_export_decl();
+                    let node = this.p.node(decl).expect_export_decl();
                     let bolt_ts_ast::ExportClauseKind::Glob(n) = node.clause.kind else {
                         unreachable!()
                     };
@@ -400,7 +408,7 @@ impl<'cx> super::TyChecker<'cx> {
         if let Some(symbols) = symbols {
             self.alloc(symbols)
         } else {
-            self.empty_symbols()
+            self.empty_symbols
         }
     }
 
@@ -428,7 +436,7 @@ impl<'cx> super::TyChecker<'cx> {
         } else {
             let exports = self.exports_of_symbol(symbol);
             if exports.0.is_empty() {
-                self.empty_symbols()
+                self.empty_symbols
             } else {
                 exports
             }
@@ -446,7 +454,7 @@ impl<'cx> super::TyChecker<'cx> {
         let decls: thin_vec::ThinVec<_> = s.decls.clone().unwrap_or_default();
         let mut late_symbols = SymbolTable::new(decls.len());
         for decl in decls {
-            let n = self.p().node(decl);
+            let n = self.p.node(decl);
             use bolt_ts_ast::Node::*;
             match n {
                 InterfaceDecl(n) => handle_members_for_label_symbol(
@@ -527,20 +535,20 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx bolt_ts_ast::Ident) -> SymbolID {
+    pub(super) fn resolve_symbol_by_ident(&self, ident: &'cx ast::Ident) -> SymbolID {
         let id = ident.id;
-        self.get_resolve_results()[id.module().as_usize()]
+        self.binder.bind_results[id.module().as_usize()]
             .final_res
             .get(&id)
             .copied()
             .unwrap_or_else(|| {
-                let n = self.p().node(id);
+                let n = self.p.node(id);
                 let Some(node) = n.as_ident() else {
                     unreachable!("final_res not found for {:#?}", n);
                 };
-                let name = self.atoms().get(node.name);
-                let span = self.p().node(id).span();
-                let module = self.module_arena().get_path(span.module()).display();
+                let name = self.atoms.get(node.name);
+                let span = self.p.node(id).span();
+                let module = self.module_arena.get_path(span.module()).display();
                 panic!(
                     "The resolution of `{name}({module}:{}:{})` is not found.",
                     span.lo(),
@@ -549,32 +557,99 @@ impl<'cx> super::TyChecker<'cx> {
             })
     }
 
-    fn check_and_report_error_for_using_type_as_namespace(
-        &mut self,
-        error_location: &'cx ast::Ident,
-        name: Atom,
-        meaning: SymbolFlags,
-    ) {
-        if meaning == SymbolFlags::NAMESPACE {
-            let symbol = self.resolve_symbol_by_ident(error_location);
-            if symbol == Symbol::ERR {
-                // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
+    fn pprint_entity_name_like(&self, left: ast::Node<'_>, right: &'cx ast::Ident) -> String {
+        let mut ret = match left {
+            ast::Node::Ident(ident) => pprint_ident(ident, &self.atoms),
+            ast::Node::QualifiedName(q) => {
+                let mut name = pprint_entity_name(q.left, &self.atoms);
+                name.push('.');
+                name.push_str(&pprint_ident(q.right, &self.atoms));
+                name
+            }
+            ast::Node::PropAccessExpr(n) => {
                 todo!()
             }
-            let parent = self.parent(error_location.id).unwrap();
-            if let Some(q) = self.p.node(parent).as_qualified_name()
-                && let ty = self.get_declared_ty_of_symbol(symbol)
-                && let Some(prop_ty) = self.get_prop_of_ty(ty, SymbolName::Atom(q.right.name))
-            {
-                assert!(q.left.id() == error_location.id);
-                let error = errors::CannotAccessPropNameBecauseXIsATypeButNotANamespaceDidYouMeanToRetrieveTheTypeOfThePropertyInX {
-                    span: q.span,
-                    name: self.atom(name).to_string(),
-                    prop_name: self.atom(q.right.name).to_string(),
-                };
-                self.push_error(Box::new(error));
+            _ => unreachable!(),
+        };
+
+        ret.push('.');
+        ret.push_str(&pprint_ident(right, &self.atoms));
+        ret
+    }
+
+    pub(super) fn resolve_qualified_name_like<
+        const IGNORE_ERROR: bool,
+        const DONT_RESOLVE_ALIAS: bool,
+    >(
+        &mut self,
+        left: ast::NodeID,
+        right: &'cx ast::Ident,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        let ns = match self.p.node(left) {
+            ast::Node::Ident(n) => {
+                self.resolve_ident::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
             }
-            // TODO: _0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here
+            ast::Node::QualifiedName(n) => self
+                .resolve_qualified_name_like::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(
+                    n.left.id(),
+                    n.right,
+                    SymbolFlags::NAMESPACE,
+                ),
+            ast::Node::PropAccessExpr(n) => self
+                .resolve_qualified_name_like::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(
+                    n.expr.id(),
+                    n.name,
+                    SymbolFlags::NAMESPACE,
+                ),
+            _ => unreachable!("left: {left:#?}"),
+        };
+        if ns == Symbol::ERR {
+            return Symbol::ERR;
+        }
+        let exports = self.get_exports_of_symbol(ns);
+        let Some(symbol) = self.get_symbol(exports, SymbolName::Atom(right.name), meaning) else {
+            if !IGNORE_ERROR {
+                let can_suggest_typeof = self
+                    .get_symbol(exports, SymbolName::Atom(right.name), SymbolFlags::VALUE)
+                    .is_some();
+                if can_suggest_typeof {
+                    let error = errors::XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
+                        span: right.span,
+                        item: self.pprint_entity_name_like(self.p.node(left), right),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
+            return Symbol::ERR;
+        };
+        let flags = self.symbol(symbol).flags;
+        if flags.intersects(meaning) {
+            symbol
+        } else if flags.contains(SymbolFlags::ALIAS) {
+            self.resolve_alias(symbol)
+        } else {
+            Symbol::ERR
+        }
+    }
+
+    fn resolve_ident<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
+        &mut self,
+        n: &'cx ast::Ident,
+        meaning: SymbolFlags,
+    ) -> SymbolID {
+        let id = self.resolve_symbol_by_ident(n);
+        let symbol = self.get_merged_symbol(id);
+        if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
+            return symbol;
+        }
+        let flags = self.symbol(symbol).flags;
+        if flags.intersects(meaning) {
+            symbol
+        } else if flags.contains(SymbolFlags::ALIAS) {
+            self.resolve_alias(symbol)
+        } else {
+            Symbol::ERR
         }
     }
 
@@ -584,53 +659,13 @@ impl<'cx> super::TyChecker<'cx> {
         meaning: SymbolFlags,
     ) -> SymbolID {
         use bolt_ts_ast::EntityNameKind::*;
-        let symbol;
         match name.kind {
-            Ident(n) => {
-                let id = self.resolve_symbol_by_ident(n);
-                symbol = self.get_merged_symbol(id);
-                if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
-                    return symbol;
-                }
-            }
-            Qualified(n) => {
-                let ns =
-                    self.resolve_entity_name::<IGNORE_ERROR, false>(n.left, SymbolFlags::NAMESPACE);
-                if ns == Symbol::ERR {
-                    return Symbol::ERR;
-                }
-                let exports = self.get_exports_of_symbol(ns);
-                let Some(s) = self.get_symbol(exports, SymbolName::Atom(n.right.name), meaning)
-                else {
-                    if !IGNORE_ERROR {
-                        let can_suggest_typeof = self
-                            .get_symbol(exports, SymbolName::Atom(n.right.name), SymbolFlags::VALUE)
-                            .is_some();
-                        if can_suggest_typeof {
-                            let error =
-                                errors::XRefersToAValueButIsBeingUsedAsATypeHereDidYouMeanTypeofX {
-                                    span: n.right.span,
-                                    item: pprint_entity_name(name, self.atoms()),
-                                };
-                            self.push_error(Box::new(error));
-                            return Symbol::ERR;
-                        }
-                    }
-                    return Symbol::ERR;
-                };
-                symbol = s;
-            }
-        }
-        let flags = self.symbol(symbol).flags;
-        if flags.intersects(meaning) {
-            symbol
-        } else if flags.contains(SymbolFlags::ALIAS) {
-            self.resolve_alias(symbol)
-        } else {
-            if let Ident(n) = name.kind {
-                self.check_and_report_error_for_using_type_as_namespace(n, n.name, meaning);
-            }
-            Symbol::ERR
+            Ident(n) => self.resolve_ident::<IGNORE_ERROR, DONT_RESOLVE_ALIAS>(n, meaning),
+            Qualified(n) => self.resolve_qualified_name_like::<IGNORE_ERROR, false>(
+                n.left.id(),
+                n.right,
+                meaning,
+            ),
         }
     }
 
@@ -644,7 +679,7 @@ impl<'cx> super::TyChecker<'cx> {
             && let Some(symbol) = symbols.0.get(&name).copied()
         {
             let symbol = self.get_merged_symbol(symbol);
-            let flags = symbol_of_resolve_results(self.get_resolve_results(), symbol).flags;
+            let flags = symbol_of_resolve_results(&self.binder.bind_results, symbol).flags;
             if flags.intersects(meaning) {
                 return Some(symbol);
             } else if flags.intersects(SymbolFlags::ALIAS) {
@@ -687,39 +722,49 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn get_export_symbol_of_value_symbol_if_exported(
-        &mut self,
+        &self,
         symbol: SymbolID,
     ) -> SymbolID {
-        // TODO: get merged symbol
-        let s = symbol_of_resolve_results(self.get_resolve_results(), symbol);
-        if s.flags.intersects(SymbolFlags::VALUE) {
+        if symbol == Symbol::ERR || symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            return symbol;
+        }
+        let symbol = self.get_merged_symbol(symbol);
+        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
+        if s.flags.contains(SymbolFlags::EXPORT_VALUE) {
             s.export_symbol.unwrap_or(symbol)
         } else {
             symbol
         }
     }
 
-    pub(super) fn has_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_bindable_name(&mut self, id: ast::NodeID) -> bool {
         !self.has_dynamic_name(id) || self.has_late_bindable_name(id)
     }
 
-    pub(super) fn has_dynamic_name(&self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
-        name.is_late_bindable_ast()
+        name.is_dynamic_name()
     }
 
-    fn has_late_bindable_name(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    fn has_late_bindable_name(&mut self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_name(&name)
     }
 
-    fn is_late_bindable_name(&mut self, name: &bolt_ts_ast::DeclarationName<'cx>) -> bool {
+    pub(super) fn is_non_bindable_dynamic_name(
+        &mut self,
+        name: &ast::DeclarationName<'cx>,
+    ) -> bool {
+        name.is_dynamic_name() && !self.is_late_bindable_name(name)
+    }
+
+    fn is_late_bindable_name(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
-            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+            let ty = if let ast::DeclarationName::Computed(n) = name {
                 self.check_computed_prop_name(n)
             } else {
                 todo!("element access")
@@ -728,19 +773,16 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn has_late_bindable_index_signature(&mut self, id: bolt_ts_ast::NodeID) -> bool {
+    pub(super) fn has_late_bindable_index_signature(&mut self, id: ast::NodeID) -> bool {
         let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
             return false;
         };
         self.is_late_bindable_index_signature(&name)
     }
 
-    fn is_late_bindable_index_signature(
-        &mut self,
-        name: &bolt_ts_ast::DeclarationName<'cx>,
-    ) -> bool {
+    fn is_late_bindable_index_signature(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
-            let ty = if let bolt_ts_ast::DeclarationName::Computed(n) = name {
+            let ty = if let ast::DeclarationName::Computed(n) = name {
                 self.check_computed_prop_name(n)
             } else {
                 todo!("element access")
@@ -756,7 +798,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn add_decl_to_late_bound_symbol(
         &mut self,
         symbol: SymbolID,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
         flags: SymbolFlags,
     ) {
         assert!(self.get_check_flags(symbol).intersects(CheckFlags::LATE));
@@ -791,7 +833,7 @@ impl<'cx> super::TyChecker<'cx> {
         parent: SymbolID,
         early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
     ) -> SymbolID {
         if let Some(s) = self.get_node_links(decl).get_resolved_symbol() {
             return s;
@@ -801,12 +843,12 @@ impl<'cx> super::TyChecker<'cx> {
         // TODO: binary expression
         let decl_name = self.p.node(decl).name().unwrap();
         let ty = match decl_name {
-            bolt_ts_ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
+            ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
             // TODO: element access
             _ => unreachable!("decl_name: {:#?}", decl_name),
         };
         if ty.useable_as_prop_name() {
-            let member_name = self.get_prop_name_from_ty(ty).unwrap();
+            let member_name = self.get_prop_name_from_ty(ty);
             let symbol_flags = self.binder.symbol(s).flags;
             use indexmap::map::Entry;
             let late_symbol = match late_symbols.0.entry(member_name) {
@@ -822,6 +864,7 @@ impl<'cx> super::TyChecker<'cx> {
                         links,
                         None,
                         None,
+                        Some(parent),
                     );
                     vac.insert(s);
                     s
@@ -850,6 +893,7 @@ impl<'cx> super::TyChecker<'cx> {
             links,
             s.decls.clone(),
             s.value_decl,
+            s.parent,
         );
         let symbols = if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
             &mut self.binder.bind_results.last_mut().unwrap().symbols
@@ -865,7 +909,7 @@ impl<'cx> super::TyChecker<'cx> {
         &mut self,
         early_symbols: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
-        decl: bolt_ts_ast::NodeID,
+        decl: ast::NodeID,
     ) {
         let late_symbol = match late_symbols.0.get(&SymbolName::Index).copied() {
             Some(index_symbol) => index_symbol,
@@ -880,6 +924,7 @@ impl<'cx> super::TyChecker<'cx> {
                         SymbolLinks::default().with_check_flags(CheckFlags::LATE),
                         None,
                         None,
+                        None,
                     ),
                 };
                 late_symbols.0.insert(SymbolName::Index, late_symbol);
@@ -891,6 +936,14 @@ impl<'cx> super::TyChecker<'cx> {
             s.decls = Some([decl].into());
         }
         // TODO: is_replace_by_method
+    }
+
+    pub(super) fn get_transient_symbols(&self) -> &Symbols {
+        &self.binder.bind_results.last().unwrap().symbols
+    }
+
+    pub(super) fn get_mut_transient_symbols(&mut self) -> &mut Symbols {
+        &mut self.binder.bind_results.last_mut().unwrap().symbols
     }
 }
 
@@ -916,10 +969,10 @@ fn handle_members_for_label_symbol<'cx>(
 
 fn get_target_of_ns_import<'cx>(
     this: &mut TyChecker<'cx>,
-    n: &'cx bolt_ts_ast::NsImport<'cx>,
+    n: &'cx ast::NsImport<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
-    let p = this.p();
+    let p = &this.p;
     let p_id = this.parent(n.id).unwrap();
     let p_id = this.parent(p_id).unwrap();
     let import_decl = p.node(p_id).expect_import_decl();
@@ -930,11 +983,14 @@ fn get_target_of_ns_import<'cx>(
 
 fn get_target_of_import_named_spec(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
-    let p = this.p();
-    let root = if p.node(node).is_binding() {
+    let n = this.p.node(node);
+    let root = if matches!(
+        n,
+        ast::Node::ArrayBinding(_) | ast::Node::ObjectBindingElem(_)
+    ) {
         this.node_query(node.module()).get_root_decl(node)
     } else {
         let p_id = this.parent(node).unwrap();
@@ -947,28 +1003,29 @@ fn get_target_of_import_named_spec(
 
 fn get_external_module_member(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
-    spec: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
+    spec: ast::NodeID,
     dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
-    let module_spec = match this.p().node(node) {
-        bolt_ts_ast::Node::ImportDecl(n) => n.module,
-        bolt_ts_ast::Node::SpecsExport(n) => n.module.unwrap(),
-        _ => todo!("node: {:#?}", this.p().node(node)),
+    let module_spec = match this.p.node(node) {
+        ast::Node::ImportDecl(n) => n.module,
+        ast::Node::SpecsExport(n) => n.module.unwrap(),
+        _ => todo!("node: {:#?}", this.p.node(node)),
     };
     let module_symbol = this.resolve_external_module_name(module_spec.id, module_spec.val);
     // TODO: target_symbol
     let target_symbol = module_symbol;
     if let Some(target_symbol) = target_symbol {
-        let name = match this.p().node(spec) {
-            bolt_ts_ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
-                bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+        let name = match this.p.node(spec) {
+            ast::Node::ImportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(ident) => ident.name,
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
-            bolt_ts_ast::Node::ImportExportShorthandSpec(n) => n.name.name,
-            bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-                bolt_ts_ast::ModuleExportNameKind::Ident(n) => n.name,
-                bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            ast::Node::ImportShorthandSpec(n) => n.name.name,
+            ast::Node::ExportShorthandSpec(n) => n.name.name,
+            ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+                ast::ModuleExportNameKind::Ident(n) => n.name,
+                ast::ModuleExportNameKind::StringLit(_) => todo!(),
             },
             _ => todo!(),
         };
@@ -988,21 +1045,21 @@ fn error_no_module_member_symbol(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::Atom,
-    spec_name_id: bolt_ts_ast::NodeID,
+    spec_name_id: ast::NodeID,
 ) {
-    let n = this.p().node(spec_name_id);
+    let n = this.p.node(spec_name_id);
     let spec_name = n.import_export_spec_name().unwrap();
     report_non_exported_member(this, spec_name_id, spec_name, module_symbol, module_name);
 }
 
 fn report_non_exported_member(
     this: &mut TyChecker<'_>,
-    spec_name_id: bolt_ts_ast::NodeID,
+    spec_name_id: ast::NodeID,
     spec_name: bolt_ts_atom::Atom,
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::Atom,
 ) {
-    let s = symbol_of_resolve_results(this.get_resolve_results(), module_symbol);
+    let s = symbol_of_resolve_results(&this.binder.bind_results, module_symbol);
     let local_symbol = if let Some(value_decl) = s.value_decl {
         this.locals(value_decl.module())
             .get(&value_decl)
@@ -1017,14 +1074,12 @@ fn report_non_exported_member(
         let decl = s.exports().and_then(|exports| {
             exports.0.values().find_map(|export| {
                 // TODO: use `get_symbol_if_same_reference`
-                let s = symbol_of_resolve_results(this.get_resolve_results(), *export);
+                let s = symbol_of_resolve_results(&this.binder.bind_results, *export);
                 if s.flags == SymbolFlags::ALIAS {
                     let decl = s.decls.as_ref().unwrap()[0];
-                    if let Some(spec) = this.p().node(decl).as_export_named_spec() {
+                    if let Some(spec) = this.p.node(decl).as_export_named_spec() {
                         match spec.prop_name.kind {
-                            bolt_ts_ast::ModuleExportNameKind::Ident(ident)
-                                if ident.name == spec_name =>
-                            {
+                            ast::ModuleExportNameKind::Ident(ident) if ident.name == spec_name => {
                                 return Some(decl);
                             }
                             _ => (),
@@ -1035,7 +1090,7 @@ fn report_non_exported_member(
             })
         });
         let symbol_span = this
-            .p()
+            .p
             .node(decls_of_symbol(local_symbol, this).as_ref().unwrap()[0])
             .ident_name()
             .unwrap()
@@ -1046,56 +1101,57 @@ fn report_non_exported_member(
                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::NameIsDeclaredHere(
                     errors::NameIsDeclaredHere {
                         span: symbol_span,
-                        name: this.atoms().get(spec_name).to_string(),
+                        name: this.atoms.get(spec_name).to_string(),
                     },
                 ),
             );
-            let target_name = match this.p().node(decl) {
-                bolt_ts_ast::Node::ExportNamedSpec(n) => match n.name.kind {
-                    bolt_ts_ast::ModuleExportNameKind::Ident(ident) => ident.name,
-                    bolt_ts_ast::ModuleExportNameKind::StringLit(lit) => lit.val,
+            let target_name = match this.p.node(decl) {
+                ast::Node::ExportNamedSpec(n) => match n.name.kind {
+                    ast::ModuleExportNameKind::Ident(ident) => ident.name,
+                    ast::ModuleExportNameKind::StringLit(lit) => lit.val,
                 },
                 _ => unreachable!(),
             };
             helper.push(
                 errors::ModuleADeclaresBLocallyButItIsExportedAsCHelperKind::ExportedAliasHere(
                     errors::ExportedAliasHere {
-                        span: this.p().node(decl).span(),
-                        name: this.atoms().get(spec_name).to_string(),
+                        span: this.p.node(decl).span(),
+                        name: this.atoms.get(spec_name).to_string(),
                     },
                 ),
             );
             let error = errors::ModuleADeclaresBLocallyButItIsExportedAsC {
-                span: this.p().node(spec_name_id).span(),
-                module_name: this.atoms().get(module_name).to_string(),
-                symbol_name: this.atoms().get(spec_name).to_string(),
-                target_name: this.atoms().get(target_name).to_string(),
+                span: this.p.node(spec_name_id).span(),
+                module_name: this.atoms.get(module_name).to_string(),
+                symbol_name: this.atoms.get(spec_name).to_string(),
+                target_name: this.atoms.get(target_name).to_string(),
                 related: helper,
             };
             Box::new(error)
         } else {
             Box::new(errors::ModuleADeclaresBLocallyButItIsNotExported {
-                span: this.p().node(spec_name_id).span(),
-                module_name: this.atoms().get(module_name).to_string(),
-                symbol_name: this.atoms().get(spec_name).to_string(),
+                span: this.p.node(spec_name_id).span(),
+                module_name: this.atoms.get(module_name).to_string(),
+                symbol_name: this.atoms.get(spec_name).to_string(),
                 related: [errors::NameIsDeclaredHere {
                     span: symbol_span,
-                    name: this.atoms().get(spec_name).to_string(),
+                    name: this.atoms.get(spec_name).to_string(),
                 }],
             })
         };
         this.push_error(error);
     } else {
-        use bolt_ts_ast::Node::*;
-        let span = match this.p().node(spec_name_id) {
-            ImportExportShorthandSpec(n) => n.span,
+        use ast::Node::*;
+        let span = match this.p.node(spec_name_id) {
+            ImportShorthandSpec(n) => n.span,
+            ExportShorthandSpec(n) => n.span,
             ExportNamedSpec(n) => n.prop_name.span(),
             _ => unreachable!(),
         };
         let error = errors::ModuleXHasNoExportedMemberY {
             span,
-            module: this.atoms().get(module_name).to_string(),
-            member: this.atoms().get(spec_name).to_string(),
+            module: this.atoms.get(module_name).to_string(),
+            member: this.atoms.get(spec_name).to_string(),
         };
         this.push_error(Box::new(error));
     }
@@ -1103,11 +1159,11 @@ fn report_non_exported_member(
 
 fn get_target_of_export_spec(
     this: &mut TyChecker<'_>,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     meaning: SymbolFlags,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
-    let n = this.p().node(node);
+    let n = this.p.node(node);
     let spec_name = n.import_export_spec_name().unwrap();
     if spec_name == keyword::KW_DEFAULT {
         let spec = this
@@ -1121,33 +1177,33 @@ fn get_target_of_export_spec(
     }
 
     match n {
-        bolt_ts_ast::Node::ImportExportShorthandSpec(n) => {
+        ast::Node::ExportShorthandSpec(n) => {
             let p_id = this.parent(node).unwrap();
-            let p = this.p().node(p_id).expect_specs_export();
+            let p = this.p.node(p_id).expect_specs_export();
             if p.module.is_some() {
                 get_external_module_member(this, p_id, node, dont_resolve_alias)
             } else {
-                this.get_resolve_results()[n.id.module().as_usize()]
+                this.binder.bind_results[n.id.module().as_usize()]
                     .final_res
                     // COMMENT: pay attention to `n.name.id`, `n.id` refers to itself, but `n.name.id` refers to the result in early_resolve.
                     .get(&n.name.id)
                     .copied()
             }
         }
-        bolt_ts_ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-            bolt_ts_ast::ModuleExportNameKind::Ident(ident) => {
+        ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
+            ast::ModuleExportNameKind::Ident(ident) => {
                 let p = this.parent(node).unwrap();
-                let p = this.p().node(p).expect_specs_export();
+                let p = this.p.node(p).expect_specs_export();
                 if p.module.is_some() {
                     todo!()
                 } else {
-                    this.get_resolve_results()[n.id.module().as_usize()]
+                    this.binder.bind_results[n.id.module().as_usize()]
                         .final_res
                         .get(&n.id)
                         .copied()
                 }
             }
-            bolt_ts_ast::ModuleExportNameKind::StringLit(_) => todo!(),
+            ast::ModuleExportNameKind::StringLit(_) => todo!(),
         },
         _ => unreachable!(),
     }
@@ -1155,7 +1211,7 @@ fn get_target_of_export_spec(
 
 fn get_target_of_export_assignment<'cx>(
     this: &mut TyChecker<'cx>,
-    node: &'cx bolt_ts_ast::ExportAssign<'cx>, // TODO: binary expr
+    node: &'cx ast::ExportAssign<'cx>, // TODO: binary expr
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let expr = node.expr;
@@ -1166,20 +1222,20 @@ fn get_target_of_export_assignment<'cx>(
 
 fn get_target_of_alias_like_expr<'cx>(
     this: &mut TyChecker<'cx>,
-    expr: &'cx bolt_ts_ast::Expr<'cx>,
+    expr: &'cx ast::Expr<'cx>,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
-    use bolt_ts_ast::ExprKind;
+    use ast::ExprKind;
     if let ExprKind::Class(n) = expr.kind {
         // TODO: check_expression?
-        return Some(this.get_resolve_results()[n.id.module().as_usize()].final_res[&n.id]);
+        return Some(this.binder.bind_results[n.id.module().as_usize()].final_res[&n.id]);
     }
     if !matches!(expr.kind, ExprKind::Ident(_)) && !expr.is_entity_name_expr() {
         return None;
     };
     let symbol;
     match expr.kind {
-        bolt_ts_ast::ExprKind::Ident(n) => {
+        ast::ExprKind::Ident(n) => {
             let id = this.resolve_symbol_by_ident(n);
             symbol = this.get_merged_symbol(id);
             if symbol == Symbol::ERR || dont_resolve_alias {
@@ -1204,12 +1260,12 @@ fn get_target_of_alias_like_expr<'cx>(
 
 fn get_target_of_import_clause<'cx>(
     this: &mut TyChecker<'cx>,
-    node: &'cx bolt_ts_ast::ImportClause<'cx>,
+    node: &'cx ast::ImportClause<'cx>,
     dont_recur_alias: bool,
 ) -> Option<SymbolID> {
     let parent = this.parent(node.id).unwrap();
-    let parent = this.p().node(parent).expect_import_decl();
-    let module_symbol = resolve_external_module_name(this.mg(), parent.module.id, this.p());
+    let parent = this.p.node(parent).expect_import_decl();
+    let module_symbol = resolve_external_module_name(&this.mg, parent.module.id, &this.p);
     module_symbol.and_then(|module_symbol| {
         get_target_of_module_default(this, module_symbol, node.id, dont_recur_alias)
     })
@@ -1218,11 +1274,11 @@ fn get_target_of_import_clause<'cx>(
 fn get_target_of_module_default(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
-    node: bolt_ts_ast::NodeID,
+    node: ast::NodeID,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let ms = binder_symbol(this, module_symbol);
-    let export_default_symbol = if ms.is_shorthand_ambient_module(this.p()) {
+    let export_default_symbol = if ms.is_shorthand_ambient_module(&this.p) {
         Some(module_symbol)
     } else {
         resolve_export_by_name(
@@ -1261,47 +1317,66 @@ fn resolve_export_by_name(
     export_symbol.map(|export_symbol| this.resolve_symbol(export_symbol, dont_resolve_alias))
 }
 
-impl<'cx> SymbolInfo<'cx> for super::TyChecker<'cx> {
-    fn arena(&self) -> &'cx bolt_ts_arena::bumpalo::Bump {
-        self.arena
+impl<'cx> TyChecker<'cx> {
+    pub(super) fn get_merged_symbol(&self, id: SymbolID) -> SymbolID {
+        if id == Symbol::ERR {
+            return Symbol::ERR;
+        }
+        let symbols = &self.binder.bind_results[id.module().as_usize()].symbols;
+        let s = self.get_merged_symbols();
+        s.get_merged_symbol(id, symbols)
     }
-    fn empty_symbols(&self) -> &'cx SymbolTable {
-        self.empty_symbols
+
+    fn locals(
+        &self,
+        module: bolt_ts_span::ModuleID,
+    ) -> &FxHashMap<bolt_ts_ast::NodeID, SymbolTable> {
+        let idx = module.as_usize();
+        let res = &self.binder.bind_results;
+        debug_assert!(idx < res.len());
+        unsafe { &res.get_unchecked(idx).locals }
     }
-    fn module_arena(&self) -> &bolt_ts_span::ModuleArena {
-        self.module_arena
+
+    pub(crate) fn symbol_links(&self, symbol: SymbolID) -> Option<&SymbolLinks<'cx>> {
+        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            let index = symbol.index_as_usize();
+            debug_assert!(index < self.transient_symbol_links.len());
+            let links = unsafe { self.transient_symbol_links.get_unchecked(index) };
+            Some(links)
+        } else {
+            self.symbol_links.get(&symbol)
+        }
     }
-    fn mg(&self) -> &bolt_ts_module_graph::ModuleGraph {
-        self.mg
+
+    pub(super) fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
+        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            debug_assert!(symbol.index_as_usize() < self.transient_symbol_links.len());
+            unsafe {
+                self.transient_symbol_links
+                    .get_unchecked(symbol.index_as_usize())
+            }
+        } else {
+            self.symbol_links.entry(symbol).or_default()
+        }
     }
-    fn p(&self) -> &bolt_ts_parser::ParsedMap<'cx> {
-        self.p
+
+    pub(super) fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
+        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            debug_assert!(symbol.index_as_usize() < self.transient_symbol_links.len());
+            unsafe {
+                self.transient_symbol_links
+                    .get_unchecked_mut(symbol.index_as_usize())
+            }
+        } else {
+            self.symbol_links.get_mut(&symbol).unwrap()
+        }
     }
-    fn atoms(&self) -> &bolt_ts_atom::AtomIntern {
-        &self.atoms
-    }
-    fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
-        self.diags.push(bolt_ts_errors::Diag { inner: error })
-    }
-    fn get_mut_symbol_links_map(&mut self) -> &mut FxHashMap<SymbolID, SymbolLinks<'cx>> {
-        &mut self.symbol_links
-    }
-    fn get_transient_symbols(&self) -> &Symbols {
-        &self.binder.bind_results.last().unwrap().symbols
-    }
-    fn get_mut_transient_symbols(&mut self) -> &mut Symbols {
-        &mut self.binder.bind_results.last_mut().unwrap().symbols
-    }
-    fn get_resolve_results(&self) -> &Vec<ResolveResult> {
-        &self.binder.bind_results
-    }
-    fn get_merged_symbols(&self) -> &MergedSymbols {
-        self.merged_symbols
-    }
-    fn get_transient_symbol_links_map(&self) -> &Vec<SymbolLinks<'cx>> {
-        &self.transient_symbol_links
-    }
-    fn get_mut_transient_symbol_links_map(&mut self) -> &mut Vec<SymbolLinks<'cx>> {
-        &mut self.transient_symbol_links
+
+    pub fn symbol(&self, symbol: SymbolID) -> &bolt_ts_binder::Symbol {
+        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            self.get_transient_symbols().get(symbol)
+        } else {
+            symbol_of_resolve_results(&self.binder.bind_results, symbol)
+        }
     }
 }

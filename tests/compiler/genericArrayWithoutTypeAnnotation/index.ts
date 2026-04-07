@@ -7,3 +7,7 @@ class Bar {
       //~^ ERROR: Generic type 'IFoo<T>' requires 1 type argument.
     }
 }
+
+type A = A[];
+const a: A = '42';
+//~^ ERROR: Type 'string' is not assignable to type 'A'.

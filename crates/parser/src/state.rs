@@ -145,10 +145,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn can_parse_semi(&self) -> bool {
-        matches!(
-            self.token.kind,
-            TokenKind::Semi | TokenKind::RBrace | TokenKind::EOF
-        ) || self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+        use TokenKind::*;
+        matches!(self.token.kind, Semi | RBrace | EOF)
+            || self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     pub(super) fn parse_bracketed_list<const CONSIDER_SEMICOLON_AS_DELIMITER: bool, T>(
@@ -172,6 +171,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         ctx: ParsingContext,
         mut ele: impl FnMut(&mut Self) -> PResult<T>,
     ) -> &'cx [T] {
+        let save_parsing_context = self.parsing_context;
+        self.parsing_context.insert(ctx);
         let mut list = Vec::with_capacity(8);
         while !self.is_list_terminator(ctx) {
             if self.is_list_element(ctx, false) {
@@ -183,6 +184,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 break;
             }
         }
+        self.parsing_context = save_parsing_context;
         self.alloc(list)
     }
 
@@ -380,11 +382,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             Ok(stmt)
         });
         let id = self.next_node_id();
-        let program = self.alloc(ast::Program {
-            id,
-            stmts,
-            span: self.new_span(start as u32),
-        });
+        let program = ast::Program::new(id, self.new_span(start as u32), stmts);
+        let program = self.alloc(program);
         self.nodes.insert(id, Node::Program(program));
         program
     }
@@ -408,6 +407,25 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
         );
         res
+    }
+
+    pub(super) fn in_yield_context(&self) -> bool {
+        let res = self.parse_context.contains(ParseContext::YIELD);
+        debug_assert_eq!(
+            res,
+            self.node_context_flags.contains(NodeFlags::YIELD_CONTEXT)
+        );
+        res
+    }
+
+    pub(super) fn set_yield_context(&mut self, val: bool) {
+        if val {
+            self.parse_context.insert(ParseContext::YIELD);
+            self.node_context_flags.insert(NodeFlags::YIELD_CONTEXT);
+        } else {
+            self.parse_context.remove(ParseContext::YIELD);
+            self.node_context_flags.remove(NodeFlags::YIELD_CONTEXT);
+        }
     }
 
     pub(super) fn set_await_context(&mut self, val: bool) {

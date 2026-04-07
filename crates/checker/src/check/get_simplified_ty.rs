@@ -1,5 +1,4 @@
-use crate::ty::{self, IndexFlags, TypeFlags};
-
+use super::ty::{self, IndexFlags, TypeFlags};
 use super::{TyChecker, create_ty::IntersectionFlags};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,24 +25,37 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         kind: SimplifiedKind,
     ) -> &'cx ty::Ty<'cx> {
-        if let Some(indexed_access_ty) = ty.kind.as_indexed_access() {
-            self.get_simplified_index_access_ty(ty, indexed_access_ty, kind)
-        } else if ty.kind.as_cond_ty().is_some() {
-            self.get_simplified_cond_ty(ty, kind)
+        match ty.kind {
+            ty::TyKind::IndexedAccess(n) => self.get_simplified_index_access_ty(ty, n, kind),
+            ty::TyKind::Cond(n) => self.get_simplified_cond_ty(n, kind).unwrap_or(ty),
+            ty::TyKind::Index(n) => self.get_simplified_index_ty(n).unwrap_or(ty),
+            _ => ty,
+        }
+    }
+
+    fn get_simplified_index_ty(
+        &mut self,
+        index_ty: &'cx ty::IndexTy<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if self.is_generic_mapped_ty(index_ty.ty)
+            && let mapped_ty = index_ty.ty.kind.expect_object_mapped()
+            && self.get_name_ty_from_mapped_ty(mapped_ty).is_some()
+            && !self.is_mapped_ty_with_keyof_constraint_decl(mapped_ty)
+        {
+            Some(self.get_index_ty_for_mapped_ty(index_ty.ty, IndexFlags::empty()))
         } else {
-            ty
+            None
         }
     }
 
     fn get_simplified_cond_ty(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        cond_ty: &'cx ty::CondTy<'cx>,
         kind: SimplifiedKind,
-    ) -> &'cx ty::Ty<'cx> {
-        let cond_ty = ty.kind.expect_cond_ty();
-        let true_ty = self.get_true_ty_from_cond_ty(ty, cond_ty);
-        let false_ty = self.get_false_ty_from_cond_ty(ty, cond_ty);
-        if false_ty.flags.intersects(TypeFlags::NEVER)
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let true_ty = self.get_true_ty_from_cond_ty(cond_ty);
+        let false_ty = self.get_false_ty_from_cond_ty(cond_ty);
+        if false_ty.flags.contains(TypeFlags::NEVER)
             && self.get_actual_ty_variable(true_ty) == self.get_actual_ty_variable(cond_ty.check_ty)
         {
             if cond_ty.check_ty.flags.intersects(TypeFlags::ANY) || {
@@ -51,11 +63,11 @@ impl<'cx> TyChecker<'cx> {
                 let target = self.get_restrictive_instantiation(cond_ty.extends_ty);
                 self.is_type_assignable_to(source, target)
             } {
-                return self.get_simplified_ty(ty, kind);
+                return Some(self.get_simplified_ty(true_ty, kind));
             } else if self.is_intersection_empty(cond_ty.check_ty, cond_ty.extends_ty) {
-                return self.never_ty;
+                return Some(self.never_ty);
             }
-        } else if true_ty.flags.intersects(TypeFlags::NEVER)
+        } else if true_ty.flags.contains(TypeFlags::NEVER)
             && self.get_actual_ty_variable(false_ty)
                 == self.get_actual_ty_variable(cond_ty.check_ty)
         {
@@ -64,41 +76,44 @@ impl<'cx> TyChecker<'cx> {
                 let target = self.get_restrictive_instantiation(cond_ty.extends_ty);
                 self.is_type_assignable_to(source, target)
             } {
-                return self.never_ty;
+                return Some(self.never_ty);
             } else if cond_ty.check_ty.flags.intersects(TypeFlags::ANY)
                 || self.is_intersection_empty(cond_ty.check_ty, cond_ty.extends_ty)
             {
-                return self.get_simplified_ty(false_ty, kind);
+                return Some(self.get_simplified_ty(false_ty, kind));
             }
         }
-        ty
+        None
     }
 
     fn is_intersection_empty(&mut self, ty1: &'cx ty::Ty<'cx>, ty2: &'cx ty::Ty<'cx>) -> bool {
         let i = self.get_intersection_ty(&[ty1, ty2], IntersectionFlags::None, None, None);
-        let u = self.get_union_ty(
+        let u = self.get_union_ty::<false>(
             &[i, self.never_ty],
             ty::UnionReduction::Lit,
-            false,
+            None,
             None,
             None,
         );
         u.flags.intersects(TypeFlags::NEVER)
     }
 
-    fn distribute_object_over_object_ty(
+    pub(super) fn distribute_object_over_object_ty(
         &mut self,
         object_ty: &'cx ty::Ty<'cx>,
         index_ty: &'cx ty::Ty<'cx>,
         kind: SimplifiedKind,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // (T | U)[K] -> T[K] | U[K] (reading)
+        // (T | U)[K] -> T[K] & U[K] (writing)
+        // (T & U)[K] -> T[K] & U[K]
         if let Some(tys) = object_ty.kind.tys_of_union_or_intersection()
             && !self.should_defer_index_ty(object_ty, IndexFlags::empty())
         {
             let tys = tys
                 .iter()
                 .map(|t| {
-                    let a = self.get_indexed_access_ty(t, index_ty, None, None);
+                    let a = self.get_indexed_access_ty(t, index_ty, None, None, None, None);
                     self.get_simplified_ty(a, kind)
                 })
                 .collect::<Vec<_>>();
@@ -107,7 +122,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
             } else {
-                Some(self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None))
+                Some(self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None))
             };
         }
         None
@@ -124,14 +139,14 @@ impl<'cx> TyChecker<'cx> {
                 .tys
                 .iter()
                 .map(|t| {
-                    let a = self.get_indexed_access_ty(object_ty, t, None, None);
+                    let a = self.get_indexed_access_ty(object_ty, t, None, None, None, None);
                     self.get_simplified_ty(a, SimplifiedKind::Writing)
                 })
                 .collect::<Vec<_>>();
             if kind == SimplifiedKind::Writing {
                 self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
             } else {
-                self.get_union_ty(&tys, ty::UnionReduction::Lit, false, None, None)
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
             }
         })
     }

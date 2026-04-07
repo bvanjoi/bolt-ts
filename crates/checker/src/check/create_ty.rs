@@ -6,16 +6,19 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
-use crate::check::SymbolLinks;
-use crate::check::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
-use crate::check::links::TyLinks;
-use crate::ty;
-use crate::ty::{
-    CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyID, TypeFlags, UnionReduction,
-};
-
+use super::SymbolLinks;
+use super::UnionOfUnionTysKey;
+use super::get_iteration_tys::AsyncIterationTysResolver;
+use super::get_iteration_tys::IterationTysResolver;
+use super::get_iteration_tys::SyncIterationTysResolver;
+use super::instantiation_ty_map::SubstitutionKey;
+use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
+use super::links::TyLinks;
 use super::relation::RelationKind;
-use super::symbol_info::SymbolInfo;
+
+use super::ty;
+use super::ty::{CheckFlags, ElementFlags, IndexFlags};
+use super::ty::{ObjectFlags, TyID, TypeFlags, UnionReduction};
 use super::utils::insert_ty;
 use super::{InstantiationTyMap, IntersectionMap, UnionMap};
 use super::{TyChecker, errors};
@@ -99,17 +102,38 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    /// Used for these case which cannot compute immediately,
+    /// such as the type of `A` in `type A = A[]`;
     pub(super) fn create_deferred_ty_reference(
         &mut self,
         target: &'cx ty::Ty<'cx>,
         node: ast::NodeID,
         mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+        mut alias_symbol: Option<SymbolID>,
+        mut alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: mapper
+        if alias_symbol.is_none() {
+            debug_assert!(alias_ty_arguments.is_none());
+            alias_symbol = self.get_alias_symbol_for_ty_node(node);
+            let local_alias_ty_arguments = self.get_ty_args_for_alias_symbol(alias_symbol);
+            alias_ty_arguments = if let Some(mapper) = mapper
+                && let Some(local_alias_ty_arguments) = local_alias_ty_arguments
+            {
+                Some(self.instantiate_tys(local_alias_ty_arguments, mapper))
+            } else {
+                local_alias_ty_arguments
+            }
+        }
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
         let ty = ty::ReferenceTy {
             target,
             node: Some(node),
             mapper,
+            alias_symbol,
+            alias_ty_arguments,
+            promise_or_awaitable_links,
         };
 
         self.create_object_ty(
@@ -128,7 +152,7 @@ impl<'cx> TyChecker<'cx> {
             return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE)
             && element_types.iter().enumerate().any(|(i, t)| {
-                target.element_flags[i].intersects(ElementFlags::VARIADIC)
+                target.element_flags[i].contains(ElementFlags::VARIADIC)
                     && t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION))
             })
         {
@@ -141,33 +165,35 @@ impl<'cx> TyChecker<'cx> {
         let mut first_rest_index = usize::MAX;
         let mut last_optional_or_rest_index = usize::MAX;
 
-        let mut add_ele =
-            |ty: &'cx ty::Ty<'cx>, flags: ElementFlags, expanded_tys: &mut Vec<&ty::Ty<'cx>>| {
-                if flags.intersects(ElementFlags::REQUIRED) {
-                    last_required_index = expanded_tys.len();
-                }
-                if flags.intersects(ElementFlags::REST) && first_rest_index == usize::MAX {
-                    first_rest_index = expanded_tys.len()
-                }
-                if flags.intersects(ElementFlags::OPTIONAL | ElementFlags::REST) {
-                    last_optional_or_rest_index = expanded_tys.len();
-                }
-                if flags.intersects(ElementFlags::OPTIONAL) {
-                    // TODO: self.add_optionality
-                    expanded_tys.push(ty);
-                } else {
-                    expanded_tys.push(ty);
-                }
-                expanded_flags.push(flags);
-            };
+        let mut add_ele = |this: &mut Self,
+                           ty: &'cx ty::Ty<'cx>,
+                           flags: ElementFlags,
+                           expanded_tys: &mut Vec<&ty::Ty<'cx>>| {
+            if flags.contains(ElementFlags::REQUIRED) {
+                last_required_index = expanded_tys.len();
+            }
+            if flags.contains(ElementFlags::REST) && first_rest_index == usize::MAX {
+                first_rest_index = expanded_tys.len()
+            }
+            if flags.intersects(ElementFlags::OPTIONAL.union(ElementFlags::REST)) {
+                last_optional_or_rest_index = expanded_tys.len();
+            }
+            if flags.contains(ElementFlags::OPTIONAL) {
+                let ty = this.add_optionality::<true>(ty, true);
+                expanded_tys.push(ty);
+            } else {
+                expanded_tys.push(ty);
+            }
+            expanded_flags.push(flags);
+        };
 
         for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
                 if ty.flags.intersects(TypeFlags::ANY) {
-                    add_ele(ty, ElementFlags::REST, &mut expanded_tys);
+                    add_ele(self, ty, ElementFlags::REST, &mut expanded_tys);
                 } else if ty.kind.is_instantiable_non_primitive() || self.is_generic_mapped_ty(ty) {
-                    add_ele(ty, ElementFlags::VARIADIC, &mut expanded_tys);
+                    add_ele(self, ty, ElementFlags::VARIADIC, &mut expanded_tys);
                 } else if let Some(tuple) = ty.as_tuple() {
                     let elements = self.get_element_tys(ty);
                     if elements.len() + expanded_tys.len() >= 20_000 {
@@ -183,7 +209,7 @@ impl<'cx> TyChecker<'cx> {
                         return self.error_ty;
                     }
                     for (n, t) in elements.iter().enumerate() {
-                        add_ele(t, tuple.element_flags[n], &mut expanded_tys);
+                        add_ele(self, t, tuple.element_flags[n], &mut expanded_tys);
                     }
                 } else {
                     let t = if self.is_array_like_ty(ty) {
@@ -192,10 +218,10 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.error_ty
                     };
-                    add_ele(t, ElementFlags::REST, &mut expanded_tys);
+                    add_ele(self, t, ElementFlags::REST, &mut expanded_tys);
                 }
             } else {
-                add_ele(ty, flag, &mut expanded_tys);
+                add_ele(self, ty, flag, &mut expanded_tys);
             }
         }
 
@@ -229,10 +255,16 @@ impl<'cx> TyChecker<'cx> {
         resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
         let ty = ty::ReferenceTy {
             target,
             mapper: None,
             node: None,
+            alias_symbol: None,
+            alias_ty_arguments: None,
+            promise_or_awaitable_links,
         };
         if !flags.is_empty() {
             // TODO: delete branch
@@ -262,10 +294,11 @@ impl<'cx> TyChecker<'cx> {
                 self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
             assert!(!self.ty_links.contains_key(&ty.id));
             if let Some(resolved_ty_args) = resolved_ty_args {
-                self.ty_links.insert(
+                let prev = self.ty_links.insert(
                     ty.id,
                     TyLinks::default().with_resolved_ty_args(resolved_ty_args),
                 );
+                debug_assert!(prev.is_none());
             }
             self.instantiation_ty_map.insert(id, ty);
             ty
@@ -279,6 +312,7 @@ impl<'cx> TyChecker<'cx> {
         outer_ty_params: Option<ty::Tys<'cx>>,
         local_ty_params: Option<ty::Tys<'cx>>,
         this_ty: Option<&'cx ty::Ty<'cx>>,
+        object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         let links = self.interface_ty_links_arena.alloc(Default::default());
         let ty = ty::InterfaceTy {
@@ -289,10 +323,7 @@ impl<'cx> TyChecker<'cx> {
             this_ty,
             links,
         };
-        self.create_object_ty(
-            ty::ObjectTyKind::Interface(self.alloc(ty)),
-            ObjectFlags::empty(),
-        )
+        self.create_object_ty(ty::ObjectTyKind::Interface(self.alloc(ty)), object_flags)
     }
 
     pub(super) fn create_anonymous_ty(
@@ -300,6 +331,8 @@ impl<'cx> TyChecker<'cx> {
         symbol: Option<SymbolID>,
         object_flags: ObjectFlags,
         node: Option<ast::NodeID>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let links = self.fresh_ty_links_arena.alloc(Default::default());
         debug_assert!(
@@ -311,6 +344,8 @@ impl<'cx> TyChecker<'cx> {
             mapper: None,
             fresh_ty_links: links,
             node,
+            alias_symbol,
+            alias_ty_arguments,
         });
 
         self.create_object_ty(
@@ -329,7 +364,7 @@ impl<'cx> TyChecker<'cx> {
         index_infos: ty::IndexInfos<'cx>,
         node: Option<ast::NodeID>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_anonymous_ty(symbol, object_flags, node);
+        let ty = self.create_anonymous_ty(symbol, object_flags, node, None, None);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
             ty.id,
@@ -352,8 +387,10 @@ impl<'cx> TyChecker<'cx> {
         mapper: &'cx dyn ty::TyMap<'cx>,
         object_flags: ObjectFlags,
         node: Option<ast::NodeID>,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        assert!(target.kind.is_object_anonymous());
+        debug_assert!(target.kind.is_object_anonymous());
         debug_assert!(
             node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         );
@@ -364,6 +401,8 @@ impl<'cx> TyChecker<'cx> {
             mapper: Some(mapper),
             fresh_ty_links: links,
             node,
+            alias_symbol,
+            alias_ty_arguments,
         });
 
         self.create_object_ty(
@@ -434,20 +473,28 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> TypeFlags {
         let flags = ty.flags;
-        if !flags.intersects(TypeFlags::NEVER) {
+        if !flags.contains(TypeFlags::NEVER) {
             includes |= flags & TypeFlags::INCLUDES_MASK;
             if flags.intersects(TypeFlags::INSTANTIABLE) {
                 includes |= TypeFlags::INCLUDES_INSTANTIABLE;
             }
+            let object_flags = ty.get_object_flags();
+            if flags.contains(TypeFlags::INTERSECTION)
+                && object_flags.contains(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+            {
+                includes |= TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE;
+            }
             if ty == self.wildcard_ty {
                 includes |= TypeFlags::INCLUDES_WILDCARD;
             }
+            if self.is_error(ty) {
+                includes |= TypeFlags::INCLUDES_ERROR;
+            }
 
-            if !self.config.strict_null_checks() && flags.intersects(TypeFlags::NULLABLE) {
-                if !ty
-                    .get_object_flags()
-                    .intersects(ObjectFlags::CONTAINS_WIDENING_TYPE)
-                {
+            if !self.config.compiler_options().strict_null_checks()
+                && flags.intersects(TypeFlags::NULLABLE)
+            {
+                if !object_flags.contains(ObjectFlags::CONTAINS_WIDENING_TYPE) {
                     includes |= TypeFlags::INCLUDES_NON_WIDENING_TYPE;
                 }
             } else {
@@ -488,11 +535,8 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.global_array_ty()
         };
-        self.create_reference_ty(
-            target,
-            Some(self.alloc(vec![element_ty])),
-            ObjectFlags::empty(),
-        )
+        let resolved_ty_args = self.alloc([element_ty]);
+        self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
     }
 
     fn remove_redundant_lit_tys(
@@ -510,16 +554,16 @@ impl<'cx> TyChecker<'cx> {
                 TypeFlags::STRING_LITERAL
                     .union(TypeFlags::TEMPLATE_LITERAL)
                     .union(TypeFlags::STRING_MAPPING),
-            ) && includes.intersects(TypeFlags::STRING))
+            ) && includes.contains(TypeFlags::STRING))
                 || (flags.intersects(TypeFlags::NUMBER_LITERAL)
-                    && includes.intersects(TypeFlags::NUMBER))
+                    && includes.contains(TypeFlags::NUMBER))
                 || (flags.intersects(TypeFlags::BIG_INT_LITERAL)
-                    && includes.intersects(TypeFlags::BIG_INT))
+                    && includes.contains(TypeFlags::BIG_INT))
                 || (flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                    && includes.intersects(TypeFlags::ES_SYMBOL))
+                    && includes.contains(TypeFlags::ES_SYMBOL))
                 || (reduce_void_undefined
-                    && flags.intersects(TypeFlags::UNDEFINED)
-                    && includes.intersects(TypeFlags::VOID))
+                    && flags.contains(TypeFlags::UNDEFINED)
+                    && includes.contains(TypeFlags::VOID))
                 || self.is_fresh_literal_ty(t) && tys.contains(&self.get_regular_ty(t).unwrap());
 
             if remove {
@@ -530,20 +574,14 @@ impl<'cx> TyChecker<'cx> {
         tys
     }
 
-    pub(super) fn get_union_ty(
+    fn get_union_ty_worker<const IS_ENUM: bool>(
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         reduction: UnionReduction,
-        is_enum: bool,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
+        origin: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        if tys.is_empty() {
-            return self.never_ty;
-        } else if tys.len() == 1 {
-            return tys[0];
-        }
-
         let mut set = no_hashset_with_capacity(tys.len());
         let includes = self.add_tys_to_union(&mut set, TypeFlags::empty(), tys);
 
@@ -564,7 +602,7 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_ty
                 };
             }
-            if includes.intersects(TypeFlags::UNDEFINED)
+            if includes.contains(TypeFlags::UNDEFINED)
                 && set.len() >= 2
                 && set[0] == self.undefined_ty
                 && set[1] == self.missing_ty
@@ -577,8 +615,7 @@ impl<'cx> TyChecker<'cx> {
                     .union(TypeFlags::UNIQUE_ES_SYMBOL)
                     .union(TypeFlags::TEMPLATE_LITERAL)
                     .union(TypeFlags::STRING_MAPPING),
-            ) || includes.intersects(TypeFlags::VOID)
-                && includes.intersects(TypeFlags::UNDEFINED)
+            ) || includes.contains(TypeFlags::VOID) && includes.contains(TypeFlags::UNDEFINED)
             {
                 set = self.remove_redundant_lit_tys(
                     set,
@@ -587,8 +624,8 @@ impl<'cx> TyChecker<'cx> {
                 );
             }
 
-            if includes.intersects(TypeFlags::STRING_LITERAL)
-                && includes.intersects(TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING)
+            if includes.contains(TypeFlags::STRING_LITERAL)
+                && includes.intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
             {
                 // TODO:
             }
@@ -598,19 +635,17 @@ impl<'cx> TyChecker<'cx> {
             }
 
             if set.is_empty() {
-                return if includes.intersects(TypeFlags::NULL) {
+                return if includes.contains(TypeFlags::NULL) {
                     if includes.intersects(TypeFlags::INCLUDES_NON_WIDENING_TYPE) {
                         self.null_ty
                     } else {
-                        // TODO: null_widening_ty
-                        self.null_ty
+                        self.null_widening_ty
                     }
-                } else if includes.intersects(TypeFlags::UNDEFINED) {
+                } else if includes.contains(TypeFlags::UNDEFINED) {
                     if includes.intersects(TypeFlags::INCLUDES_NON_WIDENING_TYPE) {
                         self.undefined_ty
                     } else {
-                        // TODO: undefined_widening_ty
-                        self.undefined_ty
+                        self.undefined_widening_ty
                     }
                 } else {
                     self.never_ty
@@ -622,27 +657,68 @@ impl<'cx> TyChecker<'cx> {
             ObjectFlags::empty()
         } else {
             ObjectFlags::PRIMITIVE_UNION
-        } | if includes.intersects(TypeFlags::INTERSECTION) {
+        } | if includes.contains(TypeFlags::INTERSECTION) {
             ObjectFlags::CONTAINS_INTERSECTIONS
         } else {
             ObjectFlags::empty()
         };
-        self.get_union_ty_from_sorted_list(
+        self.get_union_ty_from_sorted_list::<IS_ENUM>(
             set,
             pre_computed_object_flags,
-            is_enum,
             alias_symbol,
             alias_ty_arguments,
+            origin,
         )
     }
 
-    pub(super) fn get_union_ty_from_sorted_list(
+    pub(super) fn get_union_ty<const IS_ENUM: bool>(
+        &mut self,
+        tys: &[&'cx ty::Ty<'cx>],
+        reduction: UnionReduction,
+        alias_symbol: Option<SymbolID>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
+        origin: Option<&'cx ty::Ty<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
+        if tys.is_empty() {
+            self.never_ty
+        } else if tys.len() == 1 {
+            tys[0]
+        } else if tys.len() == 2
+            && origin.is_none()
+            && (tys[0].kind.is_union() || tys[1].kind.is_union())
+        {
+            let key = UnionOfUnionTysKey::new(reduction, tys, alias_symbol, alias_ty_arguments);
+            if let Some(ty) = self.union_of_union_tys.get(&key) {
+                return ty;
+            };
+            let ty = self.get_union_ty_worker::<IS_ENUM>(
+                tys,
+                reduction,
+                alias_symbol,
+                alias_ty_arguments,
+                origin,
+            );
+            let prev = self.union_of_union_tys.insert(key, ty);
+            debug_assert!(prev.is_none());
+            ty
+        } else {
+            self.get_union_ty_worker::<IS_ENUM>(
+                tys,
+                reduction,
+                alias_symbol,
+                alias_ty_arguments,
+                origin,
+            )
+        }
+    }
+
+    pub(super) fn get_union_ty_from_sorted_list<const IS_ENUM: bool>(
         &mut self,
         tys: Vec<&'cx ty::Ty<'cx>>,
         pre_computed_object_flags: ObjectFlags,
-        is_enum: bool,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
+        origin: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(tys.is_sorted_by_key(|probe| probe.id.as_u32()));
         if tys.is_empty() {
@@ -658,20 +734,28 @@ impl<'cx> TyChecker<'cx> {
             pre_computed_object_flags | ty::Ty::get_propagating_flags_of_tys(&tys, None);
         let mut flags = TypeFlags::UNION;
         if tys.len() == 2
-            && tys[0].flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-            && tys[1].flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+            && tys[0].flags.contains(TypeFlags::BOOLEAN_LITERAL)
+            && tys[1].flags.contains(TypeFlags::BOOLEAN_LITERAL)
         {
             flags |= TypeFlags::BOOLEAN;
-        } else if is_enum {
+        } else if IS_ENUM {
             flags |= TypeFlags::ENUM_LITERAL;
         }
         let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
+        let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
+        let promise_or_awaitable_links = self
+            .promise_or_awaitable_links_arena
+            .alloc(Default::default());
+        debug_assert!(tys.len() >= 2);
         let union = self.alloc(ty::UnionTy {
             tys: self.alloc(tys),
             object_flags,
             fresh_ty_links,
+            union_ty_links,
             alias_symbol,
             alias_ty_arguments,
+            promise_or_awaitable_links,
+            origin,
         });
         let ty = self.new_ty(ty::TyKind::Union(union), flags);
         self.union_tys.insert(id, ty);
@@ -715,7 +799,7 @@ impl<'cx> TyChecker<'cx> {
         element_flags: &'cx [ElementFlags],
         readonly: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if element_flags.len() == 1 && element_flags[0].intersects(ElementFlags::REST) {
+        if element_flags.len() == 1 && element_flags[0].contains(ElementFlags::REST) {
             return if readonly {
                 self.global_readonly_array_ty()
             } else {
@@ -773,17 +857,18 @@ impl<'cx> TyChecker<'cx> {
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
                         let symbol_flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
-                            | if flag.intersects(ElementFlags::OPTIONAL) {
+                            | (if flag.contains(ElementFlags::OPTIONAL) {
                                 SymbolFlags::OPTIONAL
                             } else {
                                 SymbolFlags::empty()
-                            };
+                            });
                         let property = this.create_transient_symbol(
                             name,
                             symbol_flags,
                             SymbolLinks::default()
                                 .with_ty(ty_param)
                                 .with_check_flags(check_flags),
+                            None,
                             None,
                             None,
                         );
@@ -801,7 +886,7 @@ impl<'cx> TyChecker<'cx> {
                 let tys = (min_length..=arity)
                     .map(|i| this.get_number_literal_type_from_number(i as f64))
                     .collect::<Vec<_>>();
-                this.get_union_ty(&tys, UnionReduction::Lit, false, None, None)
+                this.get_union_ty::<false>(&tys, UnionReduction::Lit, None, None, None)
             };
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
@@ -811,13 +896,20 @@ impl<'cx> TyChecker<'cx> {
                     .with_check_flags(check_flags),
                 None,
                 None,
+                None,
             );
             props.push(length_symbol);
 
             const OBJECT_FLAGS: ObjectFlags = ObjectFlags::TUPLE.union(ObjectFlags::REFERENCE);
             let this_ty = this.create_param_ty(Symbol::ERR, None, true);
-            let ty =
-                this.create_interface_ty(Symbol::ERR, ty_params, None, ty_params, Some(this_ty));
+            let ty = this.create_interface_ty(
+                Symbol::ERR,
+                ty_params,
+                None,
+                ty_params,
+                Some(this_ty),
+                ObjectFlags::empty(),
+            );
             let declared_members = this.alloc(ty::DeclaredMembers {
                 props: this.alloc(props),
                 call_sigs: this.empty_array(),
@@ -854,13 +946,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         set: &mut indexmap::IndexSet<TyID>,
         mut includes: TypeFlags,
-        ty: &'cx ty::Ty<'cx>,
+        mut ty: &'cx ty::Ty<'cx>,
     ) -> TypeFlags {
-        let flags = ty.flags;
-        if flags.intersects(TypeFlags::INTERSECTION) {
-            let ty = ty.kind.expect_intersection();
-            return self.add_tys_to_intersection(set, includes, ty.tys);
+        if let Some(i) = ty.kind.as_intersection() {
+            return self.add_tys_to_intersection(set, includes, i.tys);
         }
+        let flags = ty.flags;
 
         if self.is_empty_anonymous_object_ty(ty) {
             if !includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT) {
@@ -872,13 +963,20 @@ impl<'cx> TyChecker<'cx> {
                 if ty == self.wildcard_ty {
                     includes |= TypeFlags::INCLUDES_WILDCARD;
                 }
-            } else if (self.config.strict_null_checks() || !flags.intersects(TypeFlags::NULLABLE))
-                && !set.contains(&ty.id)
+            } else if self.config.compiler_options().strict_null_checks()
+                || !flags.intersects(TypeFlags::NULLABLE)
             {
-                if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT) {
-                    includes |= TypeFlags::NON_PRIMITIVE;
+                if ty == self.missing_ty {
+                    includes |= TypeFlags::INCLUDES_MISSING_TYPE;
+                    ty = self.undefined_ty;
                 }
-                set.insert(ty.id);
+                if !set.contains(&ty.id) {
+                    if ty.flags.intersects(TypeFlags::UNIT) && includes.intersects(TypeFlags::UNIT)
+                    {
+                        includes |= TypeFlags::NON_PRIMITIVE;
+                    }
+                    set.insert(ty.id);
+                }
             }
             includes |= flags & TypeFlags::INCLUDES_MASK;
         }
@@ -893,7 +991,8 @@ impl<'cx> TyChecker<'cx> {
         tys: &[&'cx ty::Ty<'cx>],
     ) -> TypeFlags {
         for ty in tys {
-            includes = self.add_ty_to_intersection(set, includes, ty)
+            let ty = self.get_regular_ty_of_literal_ty(ty);
+            includes = self.add_ty_to_intersection(set, includes, ty);
         }
         includes
     }
@@ -903,7 +1002,7 @@ impl<'cx> TyChecker<'cx> {
         set: ty::Tys<'cx>,
         flags: ObjectFlags,
         alias_symbol: Option<SymbolID>,
-        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let object_flags =
             flags | ty::Ty::get_propagating_flags_of_tys(set, Some(TypeFlags::NULLABLE));
@@ -911,12 +1010,12 @@ impl<'cx> TyChecker<'cx> {
             tys: set,
             object_flags,
             alias_symbol,
-            alias_ty_arguments: alias_symbol_ty_args,
+            alias_ty_arguments,
         });
         self.new_ty(ty::TyKind::Intersection(ty), TypeFlags::INTERSECTION)
     }
 
-    fn intersect_unions_of_prim_tys(&mut self, tys: &mut Vec<&'cx ty::Ty<'cx>>) -> bool {
+    fn intersect_unions_of_primitive_tys(&mut self, tys: &mut Vec<&'cx ty::Ty<'cx>>) -> bool {
         let Some(index) = tys.iter().position(|ty| {
             ty.get_object_flags()
                 .intersects(ObjectFlags::PRIMITIVE_UNION)
@@ -966,10 +1065,10 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        tys[index] = self.get_union_ty_from_sorted_list(
+        tys[index] = self.get_union_ty_from_sorted_list::<false>(
             result,
             ObjectFlags::PRIMITIVE_UNION,
-            false,
+            None,
             None,
             None,
         );
@@ -981,19 +1080,19 @@ impl<'cx> TyChecker<'cx> {
         while i > 0 {
             i -= 1;
             let t = tys[i];
-            let remove = t.flags.intersects(TypeFlags::STRING)
+            let remove = t.flags.contains(TypeFlags::STRING)
                 && includes.intersects(
                     TypeFlags::STRING_LITERAL
-                        | TypeFlags::TEMPLATE_LITERAL
-                        | TypeFlags::STRING_MAPPING,
+                        .union(TypeFlags::TEMPLATE_LITERAL)
+                        .union(TypeFlags::STRING_MAPPING),
                 )
-                || t.flags.intersects(TypeFlags::NUMBER)
-                    && includes.intersects(TypeFlags::NUMBER_LITERAL)
-                || t.flags.intersects(TypeFlags::BIG_INT)
-                    && includes.intersects(TypeFlags::BIG_INT_LITERAL)
-                || t.flags.intersects(TypeFlags::ES_SYMBOL)
-                    && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-                || t.flags.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+                || t.flags.contains(TypeFlags::NUMBER)
+                    && includes.contains(TypeFlags::NUMBER_LITERAL)
+                || t.flags.contains(TypeFlags::BIG_INT)
+                    && includes.contains(TypeFlags::BIG_INT_LITERAL)
+                || t.flags.contains(TypeFlags::ES_SYMBOL)
+                    && includes.contains(TypeFlags::UNIQUE_ES_SYMBOL)
+                || t.flags.contains(TypeFlags::VOID) && includes.contains(TypeFlags::UNDEFINED)
                 || self.is_empty_anonymous_object_ty(t)
                     && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE);
             if remove {
@@ -1035,7 +1134,7 @@ impl<'cx> TyChecker<'cx> {
         tys: &[&'cx ty::Ty<'cx>],
         flags: IntersectionFlags,
         alias_symbol: Option<SymbolID>,
-        alias_symbol_ty_args: Option<ty::Tys<'cx>>,
+        alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let mut set = indexmap::IndexSet::with_capacity(tys.len());
         let includes = self.add_tys_to_intersection(&mut set, TypeFlags::empty(), tys);
@@ -1044,11 +1143,11 @@ impl<'cx> TyChecker<'cx> {
             .map(|id| self.tys[id.as_usize()])
             .collect::<Vec<_>>();
 
-        if includes.intersects(TypeFlags::NEVER) {
+        if includes.contains(TypeFlags::NEVER) {
             return self.never_ty;
         }
 
-        let strict_null_checks = self.config.strict_null_checks();
+        let strict_null_checks = self.config.compiler_options().strict_null_checks();
 
         if (strict_null_checks
             && includes.intersects(TypeFlags::NULLABLE)
@@ -1057,9 +1156,9 @@ impl<'cx> TyChecker<'cx> {
                     .union(TypeFlags::NON_PRIMITIVE)
                     .union(TypeFlags::INCLUDES_EMPTY_OBJECT),
             )
-            || (includes.intersects(TypeFlags::NON_PRIMITIVE)
+            || (includes.contains(TypeFlags::NON_PRIMITIVE)
                 && includes.intersects(
-                    TypeFlags::DISJOINT_DOMAINS.intersection(TypeFlags::DISJOINT_DOMAINS.not()),
+                    TypeFlags::DISJOINT_DOMAINS.intersection(TypeFlags::NON_PRIMITIVE.not()),
                 )))
             || includes.intersects(TypeFlags::STRING_LIKE)
                 && includes.intersects(
@@ -1082,13 +1181,13 @@ impl<'cx> TyChecker<'cx> {
                     TypeFlags::DISJOINT_DOMAINS.intersection(TypeFlags::VOID_LIKE.not()),
                 )
             || includes.intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
-                && includes.intersects(TypeFlags::STRING_LITERAL)
+                && includes.contains(TypeFlags::STRING_LITERAL)
                 && self.extract_redundant_template_lits(&mut ty_set)
         {
             return self.never_ty;
         }
 
-        if includes.intersects(TypeFlags::ANY) {
+        if includes.contains(TypeFlags::ANY) {
             return if includes.intersects(TypeFlags::INCLUDES_WILDCARD) {
                 self.wildcard_ty
             } else if includes.intersects(TypeFlags::INCLUDES_ERROR) {
@@ -1101,25 +1200,24 @@ impl<'cx> TyChecker<'cx> {
         if !strict_null_checks && includes.intersects(TypeFlags::NULLABLE) {
             if includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT) {
                 return self.never_ty;
-            } else if includes.intersects(TypeFlags::UNDEFINED) {
+            } else if includes.contains(TypeFlags::UNDEFINED) {
                 return self.undefined_ty;
             } else {
                 return self.null_ty;
             }
         }
-        if (includes.intersects(TypeFlags::STRING)
+        if (includes.contains(TypeFlags::STRING)
             && includes.intersects(
                 TypeFlags::STRING_LITERAL
                     .union(TypeFlags::TEMPLATE_LITERAL)
                     .union(TypeFlags::STRING_MAPPING),
             )
-            || includes.intersects(TypeFlags::NUMBER) // TODO: use `contains`
-                && includes.intersects(TypeFlags::NUMBER_LITERAL)
-            || includes.intersects(TypeFlags::BIG_INT)
-                && includes.intersects(TypeFlags::BIG_INT_LITERAL)
-            || includes.intersects(TypeFlags::ES_SYMBOL)
-                && includes.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
-            || includes.intersects(TypeFlags::VOID) && includes.intersects(TypeFlags::UNDEFINED)
+            || includes.contains(TypeFlags::NUMBER) && includes.contains(TypeFlags::NUMBER_LITERAL)
+            || includes.contains(TypeFlags::BIG_INT)
+                && includes.contains(TypeFlags::BIG_INT_LITERAL)
+            || includes.contains(TypeFlags::ES_SYMBOL)
+                && includes.contains(TypeFlags::UNIQUE_ES_SYMBOL)
+            || includes.contains(TypeFlags::VOID) && includes.contains(TypeFlags::UNDEFINED)
             || includes.intersects(TypeFlags::INCLUDES_EMPTY_OBJECT)
                 && includes.intersects(TypeFlags::DEFINITELY_NON_NULLABLE))
             && flags != IntersectionFlags::NoSuperTypeReduction
@@ -1128,7 +1226,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if includes.intersects(TypeFlags::INCLUDES_MISSING_TYPE) {
-            todo!()
+            let idx = ty_set
+                .iter()
+                .position(|ty| *ty == self.undefined_ty)
+                .unwrap();
+            ty_set[idx] = self.missing_ty;
         }
 
         if ty_set.is_empty() {
@@ -1183,19 +1285,33 @@ impl<'cx> TyChecker<'cx> {
         }
         let mut ty_set = key.0;
 
-        let ty = if includes.intersects(TypeFlags::UNION) {
-            if self.intersect_unions_of_prim_tys(&mut ty_set) {
+        let ty = if includes.contains(TypeFlags::UNION) {
+            if self.intersect_unions_of_primitive_tys(&mut ty_set) {
                 self.get_intersection_ty(&ty_set, IntersectionFlags::None, None, None)
             } else if ty_set.iter().all(|ty| {
                 ty.kind
                     .as_union()
-                    .is_some_and(|u| u.tys[0].flags.intersects(TypeFlags::UNDEFINED))
+                    .is_some_and(|u| u.tys[0].flags.contains(TypeFlags::UNDEFINED))
             }) {
-                todo!()
+                let contained_undefined_ty = if ty_set.iter().any(|ty| self.contains_missing_ty(ty))
+                {
+                    self.missing_ty
+                } else {
+                    self.undefined_ty
+                };
+                self.remove_from_each(&mut ty_set, TypeFlags::UNDEFINED);
+                let i = self.get_intersection_ty(&ty_set, flags, None, None);
+                self.get_union_ty::<false>(
+                    &[i, contained_undefined_ty],
+                    UnionReduction::Lit,
+                    alias_symbol,
+                    alias_ty_arguments,
+                    None,
+                )
             } else if ty_set.iter().all(|ty| {
                 ty.kind.as_union().is_some_and(|u| {
-                    u.tys[0].flags.intersects(TypeFlags::NULL)
-                        || u.tys[1].flags.intersects(TypeFlags::NULL)
+                    u.tys[0].flags.contains(TypeFlags::NULL)
+                        || u.tys[1].flags.contains(TypeFlags::NULL)
                 })
             }) {
                 todo!()
@@ -1203,18 +1319,36 @@ impl<'cx> TyChecker<'cx> {
                 let middle = ty_set.len() / 2;
                 let l = self.get_intersection_ty(&ty_set[..middle], flags, None, None);
                 let r = self.get_intersection_ty(&ty_set[middle..], flags, None, None);
-                self.get_intersection_ty(&[l, r], flags, alias_symbol, alias_symbol_ty_args)
+                self.get_intersection_ty(&[l, r], flags, alias_symbol, alias_ty_arguments)
             } else {
                 if !Self::check_cross_product_union(&ty_set) {
                     return self.error_ty;
                 }
                 let constituents = self.get_cross_product_intersections(&ty_set, flags);
-                // TODO: origin
-                self.get_union_ty(&constituents, ty::UnionReduction::Lit, false, None, None)
+                let origin = if constituents
+                    .iter()
+                    .any(|ty| ty.flags.contains(TypeFlags::INTERSECTION))
+                    && self.get_constituent_count_of_tys(&constituents)
+                        > self.get_constituent_count_of_tys(&ty_set)
+                {
+                    let tys = self.alloc(ty_set);
+                    let ty =
+                        self.create_origin_union_or_intersection_ty(TypeFlags::INTERSECTION, tys);
+                    Some(ty)
+                } else {
+                    None
+                };
+                self.get_union_ty::<false>(
+                    &constituents,
+                    ty::UnionReduction::Lit,
+                    alias_symbol,
+                    alias_ty_arguments,
+                    origin,
+                )
             }
         } else {
             let tys = self.alloc(ty_set);
-            self.create_intersection_ty(tys, object_flags, alias_symbol, alias_symbol_ty_args)
+            self.create_intersection_ty(tys, object_flags, alias_symbol, alias_ty_arguments)
         };
         if let Some(old) = self.intersection_tys.get(id) {
             // cycle
@@ -1224,6 +1358,58 @@ impl<'cx> TyChecker<'cx> {
             self.intersection_tys.insert(id, ty);
             ty
         }
+    }
+
+    pub(super) fn create_origin_union_or_intersection_ty(
+        &mut self,
+        flags: TypeFlags,
+        tys: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if flags == TypeFlags::INTERSECTION {
+            let ty = self.alloc(ty::IntersectionTy {
+                tys,
+                object_flags: ObjectFlags::empty(),
+                alias_symbol: None,
+                alias_ty_arguments: None,
+            });
+            self.new_ty(ty::TyKind::Intersection(ty), flags)
+        } else {
+            debug_assert!(flags == TypeFlags::UNION);
+            let fresh_ty_links = self.fresh_ty_links_arena.alloc(Default::default());
+            let union_ty_links = self.union_ty_links_arena.alloc(Default::default());
+            let promise_or_awaitable_links = self
+                .promise_or_awaitable_links_arena
+                .alloc(Default::default());
+            debug_assert!(tys.len() >= 2);
+            let union = self.alloc(ty::UnionTy {
+                tys,
+                object_flags: ObjectFlags::empty(),
+                origin: None,
+                fresh_ty_links,
+                union_ty_links,
+                promise_or_awaitable_links,
+                alias_symbol: None,
+                alias_ty_arguments: None,
+            });
+            self.new_ty(ty::TyKind::Union(union), flags)
+        }
+    }
+
+    fn get_constituent_count(&self, ty: &'cx ty::Ty<'cx>) -> usize {
+        if !ty.flags.intersects(TypeFlags::UNION_OR_INTERSECTION) || ty.alias_symbol().is_some() {
+            1
+        } else if let Some(u) = ty.kind.as_union()
+            && let Some(origin) = u.origin
+        {
+            self.get_constituent_count(origin)
+        } else {
+            self.get_constituent_count_of_tys(ty.kind.tys_of_union_or_intersection().unwrap())
+        }
+    }
+
+    fn get_constituent_count_of_tys(&self, tys: &[&'cx ty::Ty<'cx>]) -> usize {
+        tys.iter()
+            .fold(0, |prev, t| prev + self.get_constituent_count(t))
     }
 
     fn get_cross_product_union_size(tys: &[&'cx ty::Ty<'cx>]) -> usize {
@@ -1269,7 +1455,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let t = self.get_intersection_ty(&constituents, flags, None, None);
-            if !t.flags.intersects(TypeFlags::NEVER) {
+            if !t.flags.contains(TypeFlags::NEVER) {
                 intersections.push(t);
             }
         }
@@ -1284,7 +1470,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if constraint.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
             || base_ty == constraint
-            || base_ty.flags.intersects(TypeFlags::ANY)
+            || base_ty.flags.contains(TypeFlags::ANY)
         {
             base_ty
         } else {
@@ -1297,14 +1483,19 @@ impl<'cx> TyChecker<'cx> {
         base_ty: &'cx ty::Ty<'cx>,
         constraint: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: cache
+        let key = SubstitutionKey::new(base_ty, constraint);
+        if let Some(cached) = self.substitution_tys.get(&key) {
+            return cached;
+        }
         let ty = self.alloc(ty::SubstitutionTy {
             object_flags: ObjectFlags::empty(),
             base_ty,
             constraint,
         });
-
-        self.new_ty(ty::TyKind::Substitution(ty), TypeFlags::SUBSTITUTION)
+        let ty = self.new_ty(ty::TyKind::Substitution(ty), TypeFlags::SUBSTITUTION);
+        let prev = self.substitution_tys.insert(key, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 
     pub(super) fn get_substitution_intersection(
@@ -1341,33 +1532,12 @@ impl<'cx> TyChecker<'cx> {
             !self.is_empty_anonymous_object_ty(ty)
         } else if ty
             .flags
-            .intersects(TypeFlags::INSTANTIABLE & !TypeFlags::SUBSTITUTION)
+            .intersects(TypeFlags::INSTANTIABLE.intersection(TypeFlags::SUBSTITUTION.not()))
         {
-            // TODO: !is_pattern_literal_ty
-            false
+            !ty.is_pattern_lit_ty()
         } else {
             false
         }
-    }
-
-    pub(super) fn create_mapper_ty(
-        &mut self,
-        symbol: SymbolID,
-        decl: &'cx ast::MappedTy<'cx>,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_arguments: Option<ty::Tys<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
-        let links = self.object_mapped_ty_links_arena.alloc(Default::default());
-        let ty = self.alloc(ty::MappedTy {
-            symbol,
-            decl,
-            alias_symbol,
-            alias_ty_arguments,
-            target: None,
-            mapper: None,
-            links,
-        });
-        self.create_object_ty(ty::ObjectTyKind::Mapped(ty), ObjectFlags::MAPPED)
     }
 
     pub(super) fn create_string_mapping_ty(
@@ -1402,7 +1572,8 @@ impl<'cx> TyChecker<'cx> {
         texts: &[bolt_ts_atom::Atom],
         tys: &[&'cx ty::Ty<'cx>],
     ) -> &'cx ty::Ty<'cx> {
-        assert_eq!(texts.len(), tys.len() + 1);
+        debug_assert_eq!(texts.len(), tys.len() + 1);
+
         fn add_spans<'cx>(
             this: &mut TyChecker<'cx>,
             texts: &[bolt_ts_atom::Atom],
@@ -1413,24 +1584,34 @@ impl<'cx> TyChecker<'cx> {
         ) -> bool {
             for i in 0..tys.len() {
                 let t = tys[i];
-                if t.flags
-                    .intersects(TypeFlags::LITERAL | TypeFlags::NULL | TypeFlags::UNDEFINED)
-                {
-                    if let Some(s) = t.kind.as_string_lit() {
-                        text.push_str(this.atoms.get(s.val));
-                    } else if let Some(n) = t.kind.as_number_lit() {
-                        text.push_str(&n.val.val().to_string());
-                    } else if let Some(n) = t.kind.as_bigint_lit() {
-                        if n.neg {
-                            text.push('-');
+                if t.flags.intersects(
+                    TypeFlags::LITERAL
+                        .union(TypeFlags::NULL)
+                        .union(TypeFlags::UNDEFINED),
+                ) {
+                    match t.kind {
+                        ty::TyKind::StringLit(t) => {
+                            text.push_str(this.atoms.get(t.val));
                         }
-                        let s = this.atoms.get(n.val);
-                        text.push_str(s);
-                    } else if t
-                        .flags
-                        .intersects(TypeFlags::BOOLEAN_LITERAL | TypeFlags::NULLABLE)
-                    {
-                        // TODO:
+                        ty::TyKind::NumberLit(t) => {
+                            text.push_str(&t.val.val().to_string());
+                        }
+                        ty::TyKind::BigIntLit(t) => {
+                            if t.neg {
+                                text.push('-');
+                            }
+                            let s = this.atoms.get(t.val);
+                            text.push_str(s);
+                        }
+                        ty::TyKind::Intrinsic(i)
+                            if t.flags.intersects(
+                                TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE),
+                            ) =>
+                        {
+                            text.push_str(this.atoms.get(i.name));
+                        }
+
+                        _ => unreachable!(),
                     }
                     text.push_str(this.atoms.get(texts[i + 1]));
                 } else if let Some(template) = t.kind.as_template_lit_ty() {
@@ -1453,11 +1634,10 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(union_index) = tys
             .iter()
-            .position(|t| t.flags.intersects(TypeFlags::NEVER | TypeFlags::UNION))
+            .position(|t| t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION)))
         {
-            // TODO: check_cross_product_union
-            return self
-                .map_ty(
+            return if Self::check_cross_product_union(&tys) {
+                self.map_ty(
                     tys[union_index],
                     |this, t| {
                         let mut tys = tys.to_vec();
@@ -1466,7 +1646,10 @@ impl<'cx> TyChecker<'cx> {
                     },
                     false,
                 )
-                .unwrap();
+                .unwrap()
+            } else {
+                self.error_ty
+            };
         };
         if tys.contains(&self.wildcard_ty) {
             return self.wildcard_ty;
@@ -1588,13 +1771,8 @@ impl<'cx> TyChecker<'cx> {
                     };
                     return self.get_intersection_ty(tys, IntersectionFlags::None, None, None);
                 }
-                return self.get_intersection_ty(
-                    &[left, right],
-                    IntersectionFlags::None,
-                    None,
-                    None,
-                );
             }
+            return self.get_intersection_ty(&[left, right], IntersectionFlags::None, None, None);
         }
 
         let left_props = self.get_props_of_ty(left);
@@ -1636,10 +1814,10 @@ impl<'cx> TyChecker<'cx> {
                             if left_ty_without_undefined == right_ty_without_undefined {
                                 left_ty
                             } else {
-                                self.get_union_ty(
+                                self.get_union_ty::<false>(
                                     &[left_ty, right_ty_without_undefined],
                                     ty::UnionReduction::Subtype,
-                                    false,
+                                    None,
                                     None,
                                     None,
                                 )
@@ -1650,7 +1828,8 @@ impl<'cx> TyChecker<'cx> {
                             links = links.with_name_ty(name_ty);
                         }
                         // TODO: left_spread, right_spread, declarations
-                        let result = self.create_transient_symbol(name, flags, links, None, None);
+                        let result =
+                            self.create_transient_symbol(name, flags, links, None, None, None);
                         occ.insert(result);
                     }
                 }
@@ -1693,7 +1872,7 @@ impl<'cx> TyChecker<'cx> {
         yield_ty: &'cx ty::Ty<'cx>,
         return_ty: &'cx ty::Ty<'cx>,
         next_ty: &'cx ty::Ty<'cx>,
-    ) -> ty::IterationTys<'cx> {
+    ) -> &'cx ty::IterationTys<'cx> {
         const NEED_CACHED_TYPE_FLAGS: TypeFlags = TypeFlags::ANY
             .union(TypeFlags::NEVER)
             .union(TypeFlags::UNKNOWN)
@@ -1705,22 +1884,22 @@ impl<'cx> TyChecker<'cx> {
         {
             let id = create_iteration_tys_key(yield_ty, return_ty, next_ty);
             if let Some(tys) = self.iteration_tys_map.get(&id) {
-                return *tys;
+                return tys;
             }
-            let tys = ty::IterationTys {
+            let tys = self.alloc(ty::IterationTys {
                 yield_ty,
                 return_ty,
                 next_ty,
-            };
+            });
             let prev = self.iteration_tys_map.insert(id, tys);
             assert!(prev.is_none());
             tys
         } else {
-            ty::IterationTys {
+            self.alloc(ty::IterationTys {
                 yield_ty,
                 return_ty,
                 next_ty,
-            }
+            })
         }
     }
 
@@ -1743,29 +1922,176 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         source: &'cx ty::Ty<'cx>,
         target: &'cx ty::Ty<'cx>,
-        constraint_ty: &'cx ty::Ty<'cx>,
+        constraint: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        assert!(target.kind.is_object_mapped());
-        assert!(constraint_ty.kind.is_index_ty());
+        debug_assert!(target.kind.is_object_mapped());
+        debug_assert!(constraint.kind.is_index_ty());
         if !(self.get_index_info_of_ty(source, self.string_ty).is_some()
             || !self.get_props_of_ty(source).is_empty() && self.is_partially_inferable_ty(source))
         {
-            return None;
-        };
-        if source.kind.is_array(self) {
-            todo!()
-            // let first_ty_arg = self.get_ty_arguments(source).first();
-        } else if source.is_tuple() {
-            todo!()
+            None
+        } else if source.kind.is_array(self) {
+            let first_ty_arg = self.get_ty_arguments(source)[0];
+            let element_ty = self.infer_reverse_mapped_ty(first_ty_arg, target, constraint)?;
+            let readonly = source.is_readonly_array(self);
+            Some(self.create_array_ty(element_ty, readonly))
+        } else if let Some(source_tuple) = source.as_tuple() {
+            let mut element_tys = vec![];
+            for element_ty in self.get_element_tys(source) {
+                let Some(t) = self.infer_reverse_mapped_ty(element_ty, target, constraint) else {
+                    return None;
+                };
+                element_tys.push(t);
+            }
+            let target_mapped_ty = target.kind.as_object_mapped().unwrap();
+            let element_flags = if target_mapped_ty
+                .decl
+                .get_modifiers()
+                .contains(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
+            {
+                let flags = source_tuple
+                    .element_flags
+                    .iter()
+                    .map(|flag| {
+                        if flag.contains(ty::ElementFlags::OPTIONAL) {
+                            ty::ElementFlags::REQUIRED
+                        } else {
+                            *flag
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                self.alloc(flags)
+            } else {
+                source_tuple.element_flags
+            };
+            let element_types = self.alloc(element_tys);
+            Some(self.create_tuple_ty(element_types, Some(element_flags), source_tuple.readonly))
+        } else {
+            let reversed = self.alloc(ty::ReverseMappedTy {
+                source,
+                mapped_ty: target,
+                constraint_ty: constraint,
+            });
+            Some(self.create_object_ty(
+                ty::ObjectTyKind::ReversedMapped(reversed),
+                ObjectFlags::REVERSE_MAPPED.union(ObjectFlags::ANONYMOUS),
+            ))
         }
-        let reversed = self.alloc(ty::ReverseMappedTy {
-            source,
-            mapped_ty: target,
-            constraint_ty,
-        });
-        Some(self.create_object_ty(
-            ty::ObjectTyKind::ReversedMapped(reversed),
-            ObjectFlags::REVERSE_MAPPED.union(ObjectFlags::ANONYMOUS),
-        ))
+    }
+
+    pub(super) fn create_generator_ty(
+        &mut self,
+        yield_ty: &'cx ty::Ty<'cx>,
+        return_ty: &'cx ty::Ty<'cx>,
+        next_ty: &'cx ty::Ty<'cx>,
+        is_async_generator: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if is_async_generator {
+            self.create_generator_ty_worker(yield_ty, return_ty, next_ty, AsyncIterationTysResolver)
+        } else {
+            self.create_generator_ty_worker(yield_ty, return_ty, next_ty, SyncIterationTysResolver)
+        }
+    }
+
+    fn create_generator_ty_worker(
+        &mut self,
+        mut yield_ty: &'cx ty::Ty<'cx>,
+        mut return_ty: &'cx ty::Ty<'cx>,
+        next_ty: &'cx ty::Ty<'cx>,
+        resolver: impl IterationTysResolver<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let global_generator_ty = resolver.get_global_generator_ty::<false>(self);
+        yield_ty = resolver
+            .resolve_iteration_ty(self, yield_ty, None)
+            .unwrap_or(self.unknown_ty);
+        return_ty = resolver
+            .resolve_iteration_ty(self, return_ty, None)
+            .unwrap_or(self.unknown_ty);
+        if global_generator_ty == self.empty_generic_ty() {
+            let global_iterable_iterator_ty =
+                resolver.get_global_iterable_iterator_ty::<false>(self);
+            if global_iterable_iterator_ty != self.empty_generic_ty() {
+                let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
+                self.create_reference_ty(
+                    global_iterable_iterator_ty,
+                    Some(ty_arguments),
+                    ObjectFlags::empty(),
+                )
+            } else {
+                // TODO: report error
+                self.empty_object_ty()
+            }
+        } else {
+            let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
+            self.create_reference_ty(
+                global_generator_ty,
+                Some(ty_arguments),
+                ObjectFlags::empty(),
+            )
+        }
+    }
+
+    fn create_ty_from_generic_global_ty(
+        &mut self,
+        generic_global_ty: &'cx ty::Ty<'cx>,
+        ty_arguments: ty::Tys<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if generic_global_ty != self.empty_object_ty() {
+            self.create_reference_ty(generic_global_ty, Some(ty_arguments), ObjectFlags::empty())
+        } else {
+            self.empty_object_ty()
+        }
+    }
+
+    pub(super) fn create_promise_return_ty(
+        &mut self,
+        node_id: ast::NodeID,
+        promised_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let promise_ty = self.create_promise_ty(promised_ty);
+        if promise_ty == self.unknown_ty {
+            // TODO: error
+            self.error_ty
+        } else if self.get_global_promise_constructor_symbol().is_none() {
+            // TODO: error
+            promise_ty
+        } else {
+            promise_ty
+        }
+    }
+
+    pub(super) fn create_promise_like_ty(
+        &mut self,
+        mut promised_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let global_promise_like_ty = self.get_global_promise_like_ty::<true>();
+        if global_promise_like_ty != self.empty_generic_ty() {
+            let ty = self.unwrap_awaited_ty(promised_ty);
+            promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let resolved_ty_args = self.alloc([promised_ty]);
+            self.create_reference_ty(
+                global_promise_like_ty,
+                Some(resolved_ty_args),
+                ObjectFlags::empty(),
+            )
+        } else {
+            self.unknown_ty
+        }
+    }
+
+    pub(super) fn create_promise_ty(&mut self, promised_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let global_promise_ty = self.get_global_promise_ty::<true>();
+        if global_promise_ty != self.empty_generic_ty() {
+            let ty = self.unwrap_awaited_ty(promised_ty);
+            let promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let resolved_ty_args = self.alloc([promised_ty]);
+            self.create_reference_ty(
+                global_promise_ty,
+                Some(resolved_ty_args),
+                ObjectFlags::empty(),
+            )
+        } else {
+            self.unknown_ty
+        }
     }
 }

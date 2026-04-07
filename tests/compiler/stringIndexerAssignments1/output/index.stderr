@@ -1,0 +1,6 @@
+  × Type '{ one: number; two: string; }' is not assignable to type '{ [index:
+  │ string]: string }'.
+   ╭─[../../tests/compiler/stringIndexerAssignments1/index.ts:9:1]
+ 9 │ x
+   · ─
+   ╰────

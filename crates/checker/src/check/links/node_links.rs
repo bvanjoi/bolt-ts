@@ -15,7 +15,9 @@ links!(
     (non_existent_prop_checked, bool),
     (enum_member_value, EnumMemberValue),
     (assertion_expression_ty, &'cx ty::Ty<'cx>),
-    (context_free_ty, &'cx ty::Ty<'cx>)
+    (context_free_ty, &'cx ty::Ty<'cx>),
+    (is_exhaustive, bool),
+    (switch_tys, ty::Tys<'cx>)
 );
 
 impl NodeLinks<'_> {

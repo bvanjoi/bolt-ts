@@ -1,0 +1,62 @@
+  × An object literal cannot have multiple properties with the same name.
+   ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:7:5]
+ 6 │ 1: 1,
+   · ┬
+   · ╰── Previous definition here
+ 7 │     [1]
+   ·     ───
+   ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:13:5]
+ 12 │ 1: 1,
+    · ┬
+    · ╰── Previous definition here
+ 13 │     [+1]
+    ·     ────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:19:5]
+ 18 │ "1": 1,
+    · ─┬─
+    ·  ╰── Previous definition here
+ 19 │     [+1]
+    ·     ────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:30:5]
+ 29 │ "+1": 1,
+    · ──┬─
+    ·   ╰── Previous definition here
+ 30 │     ["+1"]
+    ·     ──────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:36:5]
+ 35 │ "-1": 1,
+    · ──┬─
+    ·   ╰── Previous definition here
+ 36 │     [-1]
+    ·     ────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:42:5]
+ 41 │ "-1": 1,
+    · ──┬─
+    ·   ╰── Previous definition here
+ 42 │     ["-1"]
+    ·     ──────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName1/index.ts:48:5]
+ 47 │ "2.71828": 1,
+    · ────┬────
+    ·     ╰── Previous definition here
+ 48 │     [2.71828]
+    ·     ─────────
+    ╰────

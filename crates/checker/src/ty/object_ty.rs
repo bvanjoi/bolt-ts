@@ -1,10 +1,10 @@
-use crate::check::{SymbolInfo, TyChecker};
-
 use bolt_ts_ast::{self as ast, pprint_binding};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_ty::ObjectFlags;
 use bolt_ts_utils::FxIndexMap;
 
-use super::flags::ObjectFlags;
+use super::PromiseOrAwaitableTyLinksID;
+use super::TyChecker;
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
 use super::pprint::pprint_reference_ty;
 use super::{Ty, TyMap};
@@ -36,6 +36,31 @@ impl<'cx> ObjectTyKind<'cx> {
             .kind
             .as_object_tuple()
             .filter(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
+    }
+
+    pub fn alias_ty_arguments(&self) -> Option<super::Tys<'cx>> {
+        match self {
+            ObjectTyKind::Mapped(ty) => ty.alias_ty_arguments,
+            ObjectTyKind::Reference(ty) => ty.alias_ty_arguments,
+            ObjectTyKind::Anonymous(ty) => ty.alias_ty_arguments,
+            _ => None,
+        }
+    }
+
+    pub fn alias_symbol(&self) -> Option<SymbolID> {
+        match self {
+            ObjectTyKind::Mapped(ty) => ty.alias_symbol,
+            ObjectTyKind::Reference(ty) => ty.alias_symbol,
+            ObjectTyKind::Anonymous(ty) => ty.alias_symbol,
+            _ => None,
+        }
+    }
+
+    pub fn promise_or_awaitable_ty_links(&self) -> Option<PromiseOrAwaitableTyLinksID<'cx>> {
+        match self {
+            ObjectTyKind::Reference(ty) => Some(ty.promise_or_awaitable_links),
+            _ => None,
+        }
     }
 }
 
@@ -114,7 +139,7 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct TupleTy<'cx> {
     /// shape (an interface type)
     pub ty: &'cx Ty<'cx>,
@@ -156,11 +181,14 @@ impl<'cx> TupleTy<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ReferenceTy<'cx> {
     pub target: &'cx Ty<'cx>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub node: Option<ast::NodeID>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
+    pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
@@ -179,7 +207,7 @@ impl<'cx> ReferenceTy<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct IndexInfo<'cx> {
     pub symbol: SymbolID,
     pub key_ty: &'cx Ty<'cx>,
@@ -195,7 +223,7 @@ impl PartialEq for &IndexInfo<'_> {
 
 pub type IndexInfos<'cx> = &'cx [&'cx IndexInfo<'cx>];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct DeclaredMembers<'cx> {
     pub props: &'cx [SymbolID],
     pub index_infos: IndexInfos<'cx>,
@@ -203,7 +231,7 @@ pub struct DeclaredMembers<'cx> {
     pub call_sigs: super::Sigs<'cx>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct StructuredMembers<'cx> {
     pub members: &'cx FxIndexMap<SymbolName, SymbolID>,
     pub call_sigs: super::Sigs<'cx>,
@@ -212,7 +240,7 @@ pub struct StructuredMembers<'cx> {
     pub props: &'cx [SymbolID],
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct InterfaceTy<'cx> {
     pub symbol: SymbolID,
     pub ty_params: Option<super::Tys<'cx>>,
@@ -223,11 +251,87 @@ pub struct InterfaceTy<'cx> {
 }
 
 impl<'cx> ObjectTyKind<'cx> {
+    fn print_object_pat(&self, pat: &'cx ast::ObjectPat<'cx>, checker: &TyChecker<'cx>) -> String {
+        let mut res = String::from("{ ");
+        for (idx, elem) in pat.elems.iter().enumerate() {
+            match elem.name {
+                ast::ObjectBindingName::Shorthand(n) => res.push_str(checker.atoms.get(n.name)),
+                ast::ObjectBindingName::Prop { prop_name, name } => {
+                    match prop_name.kind {
+                        ast::PropNameKind::Ident(n) => res.push_str(checker.atoms.get(n.name)),
+                        ast::PropNameKind::PrivateIdent(n) => {
+                            res.push('#');
+                            res.push_str(checker.atoms.get(n.name))
+                        }
+                        ast::PropNameKind::StringLit { raw, .. } => {
+                            res.push_str(checker.atoms.get(raw.val))
+                        }
+                        ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
+                        ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
+                        ast::PropNameKind::BigIntLit(_) => todo!(),
+                    }
+                    res.push_str(&": ");
+                    res.push_str(&self.print_binding(name, checker));
+                }
+            }
+            if idx == pat.elems.len() - 1 {
+                break;
+            }
+            res.push_str(", ");
+        }
+        res.push_str(" }");
+        res
+    }
+
+    fn print_array_pat(&self, pat: &'cx ast::ArrayPat<'cx>, checker: &TyChecker<'cx>) -> String {
+        let mut res = String::from("[");
+        for (i, elem) in pat.elems.iter().enumerate() {
+            let is_last = i == pat.elems.len() - 1;
+            match elem.kind {
+                ast::ArrayBindingElemKind::Omit(_) => {
+                    res.push(',');
+                }
+                ast::ArrayBindingElemKind::Binding(n) => {
+                    if n.dotdotdot.is_some() {
+                        res.push_str("...");
+                    }
+                    res.push_str(self.print_binding(n.name, checker).as_str());
+                    if !is_last {
+                        res.push(',');
+                    }
+                }
+            }
+            if !is_last {
+                res.push(' ');
+            }
+        }
+        res.push_str("]");
+        res
+    }
+
+    fn print_binding(&self, n: &'cx ast::Binding<'cx>, checker: &TyChecker<'cx>) -> String {
+        match n.kind {
+            ast::BindingKind::Ident(n) => checker.atoms.get(n.name).to_string(),
+            ast::BindingKind::ObjectPat(pat) => self.print_object_pat(pat, checker),
+            ast::BindingKind::ArrayPat(pat) => self.print_array_pat(pat, checker),
+        }
+    }
+
+    fn print_parameter_name(
+        &self,
+        n: &'cx ast::ParamDecl<'cx>,
+        checker: &TyChecker<'cx>,
+    ) -> String {
+        match n.name.kind {
+            ast::BindingKind::Ident(n) => checker.atoms.get(n.name).to_string(),
+            ast::BindingKind::ObjectPat(pat) => self.print_object_pat(pat, checker),
+            ast::BindingKind::ArrayPat(pat) => self.print_array_pat(pat, checker),
+        }
+    }
+
     pub(super) fn to_string(&self, self_ty: &'cx Ty<'cx>, checker: &mut TyChecker<'cx>) -> String {
         match self {
             ObjectTyKind::Anonymous(a) => {
-                let symbol = a.symbol.unwrap();
-                let symbol = checker.symbol(symbol);
                 let print_fn_like_str =
                     |checker: &mut TyChecker<'cx>, sig: &'cx super::Sig<'cx>| -> String {
                         let params = sig
@@ -235,13 +339,10 @@ impl<'cx> ObjectTyKind<'cx> {
                             .iter()
                             .map(|param| {
                                 let decl = checker.get_symbol_decl(*param).unwrap();
-                                let name = checker.p.node(decl).ident_name().unwrap();
+                                let n = checker.p.node(decl).expect_param_decl();
+                                let name = self.print_parameter_name(n, checker);
                                 let ty = checker.get_type_of_symbol(*param);
-                                format!(
-                                    "{name}: {ty}",
-                                    ty = ty.to_string(checker),
-                                    name = checker.atoms.get(name.name),
-                                )
+                                format!("{name}: {ty}", ty = ty.to_string(checker))
                             })
                             .collect::<Vec<_>>()
                             .join(", ");
@@ -249,7 +350,8 @@ impl<'cx> ObjectTyKind<'cx> {
                         let ret = ret.to_string(checker);
                         format!("({params}) => {ret}")
                     };
-                if symbol.flags.intersects(SymbolFlags::OBJECT_LITERAL) {
+                let symbol_flags = a.symbol.map(|s| checker.symbol(s).flags);
+                if symbol_flags.is_some_and(|s| s.contains(SymbolFlags::OBJECT_LITERAL)) {
                     let members = checker
                         .expect_ty_links(self_ty.id)
                         .expect_structured_members()
@@ -276,12 +378,15 @@ impl<'cx> ObjectTyKind<'cx> {
                         .collect::<Vec<_>>()
                         .join("");
                     format!("{{ {members}}}")
-                } else if symbol.flags.intersects(
-                    SymbolFlags::CLASS
-                        .union(SymbolFlags::VALUE_MODULE)
-                        .union(SymbolFlags::CONST_ENUM),
-                ) {
-                    let name = symbol.name.expect_atom();
+                } else if symbol_flags.is_some_and(|s| {
+                    s.intersects(
+                        SymbolFlags::CLASS
+                            .union(SymbolFlags::VALUE_MODULE)
+                            .union(SymbolFlags::CONST_ENUM),
+                    )
+                }) {
+                    let s = checker.symbol(a.symbol.unwrap());
+                    let name = s.name.expect_atom();
                     format!("typeof {}", checker.atoms.get(name))
                 } else if let Some(sig) = checker
                     .get_signatures_of_type(self_ty, super::SigKind::Call)
@@ -319,11 +424,9 @@ impl<'cx> ObjectTyKind<'cx> {
                         .iter()
                         .map(|(name, symbol)| {
                             let ty = checker.get_type_of_symbol(*symbol);
-                            format!(
-                                "{field_name}: {filed_ty}; ",
-                                filed_ty = ty.to_string(checker),
-                                field_name = checker.atoms.get(name.expect_atom()),
-                            )
+                            let field_name = name.to_string(&checker.atoms);
+                            let field_ty = checker.print_ty(ty);
+                            format!("{field_name}: {field_ty}; ",)
                         })
                         .collect::<Vec<_>>()
                         .join("");
@@ -336,7 +439,7 @@ impl<'cx> ObjectTyKind<'cx> {
             }
             ObjectTyKind::Interface(i) => checker
                 .atoms
-                .get(checker.binder.symbol(i.symbol).name.expect_atom())
+                .get(checker.symbol(i.symbol).name.expect_atom())
                 .to_string(),
             ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
@@ -355,7 +458,7 @@ impl<'cx> ObjectTyKind<'cx> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct AnonymousTy<'cx> {
     pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
@@ -364,17 +467,18 @@ pub struct AnonymousTy<'cx> {
     pub fresh_ty_links: super::FreshTyLinksID<'cx>,
     /// exist for InstantiationExpressionType
     pub node: Option<ast::NodeID>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct SingleSigTy<'cx> {
-    pub symbol: SymbolID,
+    pub symbol: Option<SymbolID>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
-    pub outer_ty_params: Option<super::Tys<'cx>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct MappedTy<'cx> {
     pub symbol: SymbolID,
     pub decl: &'cx ast::MappedTy<'cx>,
@@ -392,7 +496,7 @@ pub enum MappedTyNameTyKind {
     Remapping,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct ReverseMappedTy<'cx> {
     pub source: &'cx Ty<'cx>,
     pub mapped_ty: &'cx Ty<'cx>,

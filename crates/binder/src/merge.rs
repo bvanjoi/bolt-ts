@@ -84,6 +84,9 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atom.get(atom)
     }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        self.atom
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -96,6 +99,7 @@ pub enum SymbolTableLocation {
 
 pub trait MergeSymbol<'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str;
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern;
 
     fn global_loc() -> SymbolTableLocation {
         SymbolTableLocation::Global
@@ -160,11 +164,11 @@ pub trait MergeSymbol<'cx> {
         unidirectional: bool,
     ) {
         // TODO: can we delete clone?
-        for (id, source_symbol) in self.get_symbol_table_by_location(source).0.clone() {
+        for (name, source_symbol) in self.get_symbol_table_by_location(source).0.clone() {
             let target_symbol = self
                 .get_symbol_table_by_location(target)
                 .0
-                .get(&id)
+                .get(&name)
                 .copied();
             let merged = if let Some(target_symbol) = target_symbol {
                 self.merge_symbol(target_symbol, source_symbol, unidirectional)
@@ -173,10 +177,10 @@ pub trait MergeSymbol<'cx> {
                 self.get_merged_symbols()
                     .get_merged_symbol(source_symbol, symbols)
             };
-            // TODO: parent
+            // TODO: module_parent
             self.get_mut_symbol_table_by_location(target)
                 .0
-                .insert(id, merged);
+                .insert(name, merged);
         }
     }
 
@@ -210,6 +214,7 @@ pub trait MergeSymbol<'cx> {
             if let Some(old_decls) = s.decls.clone() {
                 match self.get_mut_symbol(target).decls.as_mut() {
                     Some(decls) => {
+                        debug_assert!(decls.iter().all(|d| !old_decls.contains(d)));
                         decls.extend(old_decls);
                     }
                     None => {
@@ -288,7 +293,7 @@ pub fn merge_global_symbol<'cx>(
 
         if !p.is_external_or_commonjs_module() {
             let target = SymbolTableLocation::Global;
-            let container = parser.get(m.id()).root().id;
+            let container = parser.get(m.id()).root().id();
             let source = SymbolTableLocation::Locals { container };
             c.merge_symbol_table(target, source, false);
         }

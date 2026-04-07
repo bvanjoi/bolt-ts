@@ -1,10 +1,12 @@
 use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+use super::get_iteration_tys::IterationTypeKind;
+
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
+use super::utils::contains_ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
@@ -16,29 +18,29 @@ impl<'cx> TyChecker<'cx> {
         self.get_widened_ty_with_context(ty)
     }
 
+    // TODO: WideningContext
     fn get_widened_ty_with_context(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty
+        if !ty
             .get_object_flags()
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
         {
-            // TODO: cache
-            if ty
-                .flags
-                .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
-            {
-                self.any_ty
-            } else if ty.is_object_literal() {
-                self.get_widened_type_of_object_lit(ty)
-            } else if self.is_array_or_tuple(ty) {
-                let refer = ty.kind.expect_object_reference();
-                let ty_args = self.get_ty_arguments(ty);
-                let ty_args =
-                    self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
-                assert!(ty_args.is_some());
-                self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
-            } else {
-                ty
-            }
+            return ty;
+        }
+        // TODO: widened cache
+        if ty
+            .flags
+            .intersects(TypeFlags::ANY.union(TypeFlags::NULLABLE))
+        {
+            self.any_ty
+        } else if ty.is_object_literal() {
+            self.get_widened_type_of_object_lit(ty)
+        } else if self.is_array_or_tuple(ty) {
+            let refer = ty.kind.expect_object_reference();
+            let ty_args = self.get_ty_arguments(ty);
+            let ty_args =
+                self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
+            assert!(ty_args.is_some());
+            self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
         } else {
             ty
         }
@@ -54,7 +56,7 @@ impl<'cx> TyChecker<'cx> {
             self.number_ty
         } else if ty.kind.is_string_lit() && self.is_fresh_literal_ty(ty) {
             self.string_ty
-        } else if ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
+        } else if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
             self.boolean_ty()
         } else {
             ty
@@ -62,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_widened_prop(&mut self, prop: SymbolID) -> SymbolID {
-        if !self.symbol(prop).flags.intersects(SymbolFlags::PROPERTY) {
+        if !self.symbol(prop).flags.contains(SymbolFlags::PROPERTY) {
             prop
         } else {
             let original = self.get_type_of_symbol(prop);
@@ -100,7 +102,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn get_widened_lit_ty_for_init(
+    pub(super) fn get_widened_lit_ty_for_init(
         &mut self,
         decl: &impl r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
@@ -123,7 +125,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_widened_lit_ty_for_init(decl, ty)
     }
 
-    fn is_literal_of_contextual_ty(
+    pub(super) fn is_literal_of_contextual_ty(
         &mut self,
         candidate_ty: &'cx ty::Ty<'cx>,
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
@@ -153,17 +155,17 @@ impl<'cx> TyChecker<'cx> {
         } else {
             (contextual_ty.flags.intersects(
                 TypeFlags::STRING_LITERAL
-                    | TypeFlags::INDEX
-                    | TypeFlags::TEMPLATE_LITERAL
-                    | TypeFlags::STRING_MAPPING,
+                    .union(TypeFlags::INDEX)
+                    .union(TypeFlags::TEMPLATE_LITERAL)
+                    .union(TypeFlags::STRING_MAPPING),
             ) && candidate_ty.maybe_type_of_kind(TypeFlags::STRING_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::NUMBER_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::NUMBER_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::NUMBER_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::BIG_INT_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::BIG_INT_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::BOOLEAN_LITERAL)
+                || (contextual_ty.flags.contains(TypeFlags::BOOLEAN_LITERAL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::BOOLEAN_LITERAL))
-                || (contextual_ty.flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                || (contextual_ty.flags.contains(TypeFlags::UNIQUE_ES_SYMBOL)
                     && candidate_ty.maybe_type_of_kind(TypeFlags::UNIQUE_ES_SYMBOL))
         }
     }
@@ -181,6 +183,25 @@ impl<'cx> TyChecker<'cx> {
             ty = Some(self.get_widened_lit_like_ty_for_contextual_ty(t, contextual_ty));
         }
         ty
+    }
+
+    pub(super) fn get_widened_lit_like_ty_for_contextual_iteration_ty_if_needed(
+        &mut self,
+        ty: Option<&'cx ty::Ty<'cx>>,
+        contextual_sig_return_ty: Option<&'cx ty::Ty<'cx>>,
+        kind: IterationTypeKind,
+        is_async_generator: bool,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(ty) = ty
+            && ty.is_unit()
+        {
+            let contextual_ty = contextual_sig_return_ty.and_then(|ty| {
+                self.get_iteration_ty_of_generator_fn_return_ty(kind, ty, is_async_generator)
+            });
+            Some(self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty))
+        } else {
+            ty
+        }
     }
 
     pub(super) fn get_widened_lit_like_ty_for_contextual_ty(
@@ -204,20 +225,42 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(contextual_ty) = contextual_ty
             && contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE)
+            && let Some(inference_context) = self.get_inference_context(node)
         {
-            let inference_context = self.get_inference_context(node);
-            if let Some(inference_context) = inference_context
-                && context_flags
-                    .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
+            if context_flags
+                .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
                 && self
                     .inference_infos(inference_context.inference.unwrap())
                     .iter()
                     .any(|i| i.has_inference_candidates_or_default(self))
             {
-                // TODO:
-                return Some(contextual_ty);
+                let mapper = self
+                    .inference(inference_context.inference.unwrap())
+                    .non_fixing_mapper;
+                let ty = self.instantiate_instantiable_tys(contextual_ty, mapper);
+                if !ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+                    return Some(contextual_ty);
+                }
             }
-            // TODO:
+            if let Some(inference) = inference_context.inference
+                && let Some(ret_mapper) = self.inference(inference).ret_mapper
+            {
+                let ty = self.instantiate_instantiable_tys(contextual_ty, ret_mapper);
+                if !ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
+                    return Some(
+                        if ty.kind.as_union().is_some_and(|u| {
+                            contains_ty(u.tys, self.regular_false_ty)
+                                && contains_ty(u.tys, self.regular_true_ty)
+                        }) {
+                            self.filter_type(ty, |this, t| {
+                                t != this.regular_false_ty && t != this.regular_true_ty
+                            })
+                        } else {
+                            ty
+                        },
+                    );
+                }
+            }
         }
         contextual_ty
     }

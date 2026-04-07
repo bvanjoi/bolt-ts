@@ -1,11 +1,12 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::errors;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-use crate::{SignatureFlags, keyword};
+use super::{SignatureFlags, keyword};
 
 pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     let mut id_token = None;
@@ -20,6 +21,10 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
             return true;
         }
         s.next_token();
+    }
+
+    if s.token.kind == TokenKind::Asterisk {
+        return true;
     }
 
     if s.token.kind.is_lit_prop_name() {
@@ -87,6 +92,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
             elems,
         });
         state.set_external_module_indicator_if_has_export_mod(modifiers, id);
+        state.node_flags_map.insert(id, state.node_context_flags);
         state.nodes.insert(decl.id, ast::Node::ClassDecl(decl));
         decl
     }
@@ -117,6 +123,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
             implements,
             elems,
         });
+        state.node_flags_map.insert(id, state.node_context_flags);
         state.nodes.insert(expr.id, ast::Node::ClassExpr(expr));
         expr
     }
@@ -134,9 +141,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         debug_assert!(self.token.kind == TokenKind::Class);
-        let start = self.token.start();
+        let old_awaited_context = self.in_await_context();
         let old_in_strict_mode = self.in_strict_mode;
         self.in_strict_mode = true;
+
+        let start = self.token.start();
         self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
         if let Some(name) = name {
@@ -188,11 +197,12 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
 
-        let elems = self.parse_class_members()?;
+        let elements = self.parse_class_members()?;
         self.in_strict_mode = old_in_strict_mode;
+        self.set_await_context(old_awaited_context);
         let span = self.new_span(start);
         Ok(mode.finish(
-            self, span, modifiers, name, ty_params, extends, implements, elems,
+            self, span, modifiers, name, ty_params, extends, implements, elements,
         ))
     }
 
@@ -211,7 +221,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     let expr = if let ast::ExprKind::ExprWithTyArgs(expr) = expr.kind {
                         expr
                     } else {
-                        let ty_arguments = self.try_parse_ty_args()?;
+                        let ty_arguments = self.try_parse_ty_args();
                         let id = self.next_node_id();
                         let expr = self.alloc(ast::ExprWithTyArgs {
                             id,
@@ -289,24 +299,34 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ClassElem<'cx>> {
-        let name = self.parse_prop_name(true);
+        let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
+        let name = self.parse_prop_name::<true>();
+        let question_token = self.parse_optional(TokenKind::Question);
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params();
             let params = self.parse_params();
-            let ty = self.parse_ret_ty(true)?;
-            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
-                SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            let ty = self.parse_return_ty::<true, false>()?;
+            let flags = if asterisk.is_some() {
+                SignatureFlags::YIELD
             } else {
                 SignatureFlags::empty()
             };
+            let flags = if modifiers.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
+                flags | SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
+            } else {
+                flags
+            };
             let body = self.parse_fn_block_or_semi(flags);
-            let method =
-                self.create_class_method_elem(start, modifiers, name, ty_params, params, ty, body);
+            let span = self.new_span(start);
+            let method = self.create_class_method_elem(
+                span, modifiers, asterisk, name, ty_params, params, ty, body,
+            );
             self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Method(method),
             })
         } else {
+            debug_assert!(asterisk.is_none());
             // prop
             if let ast::PropNameKind::StringLit { raw, .. } = name.kind
                 && raw.val == keyword::KW_CONSTRUCTOR
@@ -315,7 +335,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 self.push_error(Box::new(error));
             }
             self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
-                let excl = if !this.has_preceding_line_break() {
+                let excl = if question_token.is_none() && !this.has_preceding_line_break() {
                     this.parse_optional(TokenKind::Excl)
                 } else {
                     None
@@ -323,14 +343,23 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
                 if let Some(init) = init
-                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Ambient))
+                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
                 {
                     let error =
                         errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
                     this.push_error(Box::new(error));
                 }
-                let prop = this.create_class_prop_elem(start, modifiers, name, ty, init, excl);
-                this.parse_semi_after_prop_name();
+                let span = this.new_span(start);
+                let prop = this.create_class_prop_elem(
+                    span,
+                    modifiers,
+                    name,
+                    ty,
+                    init,
+                    excl,
+                    question_token.map(|t| t.span),
+                );
+                this.parse_semi_after_prop_name(name.span());
                 Ok(this.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Prop(prop),
                 }))
@@ -369,17 +398,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
                 let params = this.p().parse_params();
-                this.p().check_params(params, true);
-                let ret = this.p().parse_ret_ty(true)?;
-                let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierKind::Async)) {
+                this.p().check_params::<true>(params);
+                let ret = this.p().parse_return_ty::<true, false>()?;
+                let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
                 } else {
                     SignatureFlags::empty()
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
+                let span = this.p().new_span(start);
                 let ctor = this
                     .p()
-                    .create_class_ctor(start, mods, ty_params, name_span, params, ret, body);
+                    .create_class_ctor(span, mods, ty_params, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -393,30 +423,42 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start();
 
-        if self.token.kind == TokenKind::Static
-            && self.lookahead(|l| {
-                l.p().next_token();
-                l.p().token.kind == TokenKind::LBrace
-            })
-        {
-            return self.parse_class_static_block_decl();
+        let token = self.token.kind;
+        match token {
+            TokenKind::Semi => {
+                self.next_token();
+                let span = self.new_span(start);
+                let elem = self.create_semi_class_elem(span);
+                return Ok(self.alloc(ast::ClassElem {
+                    kind: ast::ClassElemKind::Semi(elem),
+                }));
+            }
+            TokenKind::Static
+                if self.lookahead(|l| {
+                    l.p().next_token();
+                    l.p().token.kind == TokenKind::LBrace
+                }) =>
+            {
+                return self.parse_class_static_block_decl();
+            }
+            _ => {}
         }
 
         let modifiers = self.parse_modifiers::<false, true>(true);
 
         if let Some(ms) = modifiers {
             for m in ms.list {
-                let error = match m.kind {
+                let error = match m.kind() {
                     ast::ModifierKind::Const => {
                         Box::new(errors::AClassMemberCannotHaveTheModifierKeyword {
-                            span: m.span,
-                            modifier: m.kind,
+                            span: m.span(),
+                            modifier: m.kind(),
                         }) as Box<_>
                     }
                     ast::ModifierKind::Export => {
                         Box::new(errors::ModifierCannotAppearOnClassElementsOfThisKind {
-                            span: m.span,
-                            modifier: m.kind,
+                            span: m.span(),
+                            modifier: m.kind(),
                         }) as Box<_>
                     }
                     _ => continue,
@@ -427,7 +469,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_getter_accessor_decl(
                 start,
                 modifiers,
@@ -439,7 +481,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
             let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Abstract));
+                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_setter_accessor_decl(
                 start,
                 modifiers,
@@ -454,6 +496,17 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         {
             Ok(ctor)
         } else if self.is_index_sig() {
+            if let Some(ms) = modifiers {
+                for m in ms.list {
+                    use ast::ModifierKind;
+                    if !matches!(m.kind(), ModifierKind::Readonly | ModifierKind::Static) {
+                        self.push_error(Box::new(errors::ModifierCannotAppearOnAnIndexSignature {
+                            span: m.span(),
+                            kind: m.kind(),
+                        }));
+                    }
+                }
+            }
             let decl = self.parse_index_sig_decl(start, modifiers)?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::IndexSig(decl),
@@ -469,7 +522,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.next_token(); // consume `static`
         let body =
             self.do_inside_of_parse_context(ParseContext::CLASS_STATIC_BLOCK, Self::parse_block);
-        let block = self.create_class_static_block_decl(start as u32, body);
+        let span = self.new_span(start as u32);
+        let block = self.create_class_static_block_decl(span, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),
         }))

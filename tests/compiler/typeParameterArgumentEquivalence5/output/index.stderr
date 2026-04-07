@@ -1,0 +1,13 @@
+  × Type '() => (item: any) => T' is not assignable to type '() => (item: any)
+  │ => U'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence5/index.ts:7:5]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Type '() => (item: any) => U' is not assignable to type '() => (item: any)
+  │ => T'.
+   ╭─[../../tests/compiler/typeParameterArgumentEquivalence5/index.ts:9:5]
+ 9 │ y
+   · ─
+   ╰────

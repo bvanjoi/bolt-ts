@@ -2,7 +2,7 @@ use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_binder::NodeQuery;
 
 pub trait VarLike<'cx>: bolt_ts_ast::r#trait::VarLike<'cx> {
-    fn is_var_const(&self, node_query: &NodeQuery) -> bool {
+    fn is_var_const(&self, _node_query: &NodeQuery) -> bool {
         false
     }
 }
@@ -12,11 +12,9 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
         let block_scope_kind = node_query
             .get_combined_node_flags(self.id)
             .intersection(NodeFlags::BLOCK_SCOPED);
-        block_scope_kind.intersects(
-            NodeFlags::CONST
-                .union(NodeFlags::USING)
-                .union(NodeFlags::AWAIT_USING),
-        )
+        block_scope_kind == ast::NodeFlags::CONST
+            || block_scope_kind == ast::NodeFlags::USING
+            || block_scope_kind == ast::NodeFlags::AWAIT_USING
     }
 }
 

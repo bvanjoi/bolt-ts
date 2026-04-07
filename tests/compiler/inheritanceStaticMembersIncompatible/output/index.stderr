@@ -1,0 +1,6 @@
+  × Class static side 'typeof b' incorrectly extends base class static side
+  │ 'typeof a'.
+   ╭─[../../tests/compiler/inheritanceStaticMembersIncompatible/index.ts:7:7]
+ 7 │ b
+   · ─
+   ╰────

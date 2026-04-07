@@ -1,0 +1,55 @@
+  × Type '[]' is not assignable to type '[string]'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:12:9]
+ 12 │ c
+    · ─
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:35:9]
+ 35 │ a
+    · ─
+    ╰────
+
+  × Type '1' is not assignable to type '0'.
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:42:9]
+ 42 │ a
+    · ─
+    ╰────
+
+  × Type 'never[]' is not assignable to type 'EmptyObject'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:187:9]
+ 187 │ foo
+     · ───
+     ╰────
+
+  × Non-abstract class 'WrongConcreteExtendedBar' does not implement inherited
+  │ abstract member 'barMethod' from class 'ExtendedBar<typeof Bar> & Bar'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:264:3]
+ 264 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
+     · ──────────────────────────────────────────────────────
+     ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:290:9]
+ 290 │ a0
+     · ──
+     ╰────
+
+  × Element implicitly has an 'any' type because expression of type '1' can't
+  │ be used to index type '{ 0: string; }'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:325:3]
+ 325 │ a1[1]
+     · ─────
+     ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:336:9]
+ 336 │ a1
+     · ──
+     ╰────
+
+  × Type '"other value"' is not assignable to type '"some value"'.
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:344:9]
+ 344 │ c
+     · ─
+     ╰────

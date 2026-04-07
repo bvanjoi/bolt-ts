@@ -1,48 +1,53 @@
 use std::sync::{Arc, Mutex};
 
-use bolt_ts_fs::{MemoryFS, PathId};
-use bolt_ts_module_resolve::PackageJsonInfoContents;
+use bolt_ts_fs::PathId;
+use bolt_ts_middle::Extension;
 use bolt_ts_module_resolve::ResolveFlags;
 use bolt_ts_module_resolve::{ResolveError, Resolver};
 
-#[cfg(test)]
-fn build_memory_fs(atoms: &mut bolt_ts_atom::AtomIntern, map: serde_json::Value) -> MemoryFS {
-    let mut content_map = bolt_ts_utils::FxIndexMap::default();
-    let mut symlink_map = bolt_ts_utils::FxIndexMap::default();
+use compile_test::TempDir;
 
-    let map: bolt_ts_utils::FxIndexMap<String, String> = serde_json::from_value(map).unwrap();
-    for (k, v) in map {
-        const SYMLINK_PREFIX: &str = "symlink:";
-        if v.starts_with(SYMLINK_PREFIX) {
-            let target = &v[SYMLINK_PREFIX.len()..];
-            assert!(target.starts_with('/'));
-            assert!(std::path::Path::new(target).is_absolute());
-            symlink_map.insert(k, target.to_string());
-        } else {
-            assert!(v.is_empty() || serde_json::from_str::<PackageJsonInfoContents>(&v).is_ok());
-            content_map.insert(k, v);
-        }
-    }
-    bolt_ts_fs::MemoryFS::new(content_map.into_iter(), symlink_map.into_iter(), atoms).unwrap()
+#[cfg(test)]
+fn build_fs(atoms: &mut bolt_ts_atom::AtomIntern) -> bolt_ts_fs::LocalFS {
+    bolt_ts_fs::LocalFS::new(atoms)
 }
 
 #[cfg(test)]
 fn build_and_resolve(
-    map: serde_json::Value,
-    base_dir: &str,
+    file: &std::path::Path,
     target: &str,
+    options: &bolt_ts_config::NormalizedCompilerOptions,
 ) -> Result<String, ResolveError> {
+    use bolt_ts_module_resolve::{ContainingFile, get_resolution_mode_for_usage_location};
+
+    let file_ext = Extension::extension_of_file_name(file.as_os_str().as_encoded_bytes());
+
     let mut atoms = bolt_ts_atom::AtomIntern::prefill(&[]);
-    let fs = build_memory_fs(&mut atoms, map);
+    let fs = build_fs(&mut atoms);
     let fs = Arc::new(Mutex::new(fs));
 
-    let base_dir = PathId::new(std::path::Path::new(base_dir), &mut atoms);
+    let base_dir = file.parent().unwrap();
+    let base_dir = PathId::new(base_dir, &mut atoms);
     let target = atoms.atom(target);
 
     let atoms = Arc::new(Mutex::new(atoms));
-    let resolver = Resolver::new(fs.clone(), atoms.clone(), ResolveFlags::empty());
-    let ret = resolver.resolve(base_dir, target)?;
-    drop(resolver);
+    let containing_file = ContainingFile::new(base_dir);
+    let resolution_mode = get_resolution_mode_for_usage_location(file_ext, Some(options));
+    let options = bolt_ts_module_resolve::ResolverOptions {
+        module_resolution: *options.module_resolution(),
+        custom_conditions: options.custom_conditions(),
+        flags: ResolveFlags::empty(),
+    };
+    let cache = bolt_ts_module_resolve::ModuleResolutionCache::new();
+    let ret = Resolver::resolve_module_name(
+        target,
+        containing_file,
+        options,
+        &cache,
+        &atoms,
+        &fs,
+        resolution_mode,
+    )?;
     let atoms = Arc::try_unwrap(atoms).unwrap();
     let atoms = atoms.into_inner().unwrap();
     Ok(atoms.get(ret.into()).to_string())
@@ -50,14 +55,73 @@ fn build_and_resolve(
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub fn should_eq(map: serde_json::Value, base_dir: &str, target: &str, expected: &str) {
-    let ret = build_and_resolve(map, base_dir, target).unwrap();
-    assert_eq!(ret, expected);
+#[track_caller]
+fn should_eq_worker(
+    from: &std::path::Path,
+    target: &str,
+    expected: std::path::PathBuf,
+    options: &bolt_ts_config::NormalizedCompilerOptions,
+) {
+    use bolt_ts_utils::path::NormalizePath;
+
+    let ret = build_and_resolve(from, target, options).unwrap();
+    assert!(std::path::PathBuf::from(&ret).is_normalized());
+    let expected = expected.normalize();
+    assert_eq!(ret, expected.to_string_lossy());
 }
 
 #[cfg(test)]
 #[allow(dead_code)]
-pub fn should_not_found(map: serde_json::Value, base_dir: &str, target: &str) {
-    let res = build_and_resolve(map, base_dir, target);
+pub fn should_eq(from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
+    let options = serde_json::json!({
+        "compilerOptions": {
+            "moduleResolution": "node16"
+        }
+    });
+    let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
+    let options = options.normalize();
+    should_eq_worker(from, target, expected, &options);
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub fn should_not_found(from: &std::path::Path, target: &str) {
+    let options = serde_json::json!({
+        "compilerOptions": {
+            "moduleResolution": "node16"
+        }
+    });
+    let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
+    let options = options.normalize();
+    let res = build_and_resolve(from, target, &options);
     assert!(matches!(res, Err(ResolveError::NotFound(_))))
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+pub struct Project {
+    tsconfig: bolt_ts_config::NormalizedTsConfig,
+    dir: TempDir,
+}
+
+impl Project {
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub fn new(tsconfig: bolt_ts_config::NormalizedTsConfig, dir: TempDir) -> Self {
+        Self { tsconfig, dir }
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub fn dir_path(&self) -> &std::path::Path {
+        self.dir.path()
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)]
+    #[track_caller]
+    pub fn should_eq(&self, from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
+        let options = self.tsconfig.compiler_options();
+        should_eq_worker(from, target, expected, options);
+    }
 }

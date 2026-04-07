@@ -1,19 +1,21 @@
-use rustc_hash::FxHashSet;
+use std::borrow::Cow;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword::IDENT_LENGTH;
-use bolt_ts_binder::{SymbolFlags, SymbolID};
-use bolt_ts_utils::fx_hashset_with_capacity;
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_ty::TypeFacts;
+use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
+use rustc_hash::FxHashSet;
 
 use super::errors;
 use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
+use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
-use super::symbol_info::SymbolInfo;
+use super::ty::{self, Ty, TyKind, TypeFlags};
+use super::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 use super::utils::contains_ty;
 use super::{Ternary, TyChecker};
-use crate::ty::{self, Ty, TyKind, TypeFlags};
-use crate::ty::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, Sig, SigFlags, SigKind};
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq)]
@@ -46,25 +48,29 @@ impl<'cx> TyChecker<'cx> {
             error_node.is_some(),
             IntersectionState::empty(),
         );
+        // if c.overflow {
+        //     let key = self.get_relation_key::<false>(
+        //         source,
+        //         target,
+        //         IntersectionState::empty(),
+        //         relation,
+        //     );
+        //     // TODO: ensure prev is none
+        //     self.relations.insert(key, RelationComparisonResult::FAILED);
+        // }
         result != Ternary::FALSE
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct RelationKey {
-    source: ty::TyID,
-    target: ty::TyID,
-    relation: RelationKind,
 }
 
 pub(super) struct TypeRelatedChecker<'cx, 'checker> {
     pub(super) c: &'checker mut TyChecker<'cx>,
     relation: RelationKind,
-    maybe_keys_set: FxHashSet<RelationKey>,
+    maybe_keys_set: FxIndexSet<RelationKey<'cx>>,
     expanding_flags: RecursionFlags,
     source_stack: Vec<&'cx ty::Ty<'cx>>,
     target_stack: Vec<&'cx ty::Ty<'cx>>,
     error_node: Option<ast::NodeID>,
+    overflow: bool,
 }
 
 impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
@@ -76,11 +82,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         TypeRelatedChecker {
             c,
             relation,
-            maybe_keys_set: fx_hashset_with_capacity(32),
+            maybe_keys_set: fx_indexset_with_capacity(32),
             expanding_flags: RecursionFlags::empty(),
             source_stack: Vec::with_capacity(32),
             target_stack: Vec::with_capacity(32),
             error_node,
+            overflow: false,
         }
     }
 
@@ -145,7 +152,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             } else if source.flags.intersects(TypeFlags::SINGLETON) {
                 Ternary::TRUE
             } else {
-                self.recur_ty_related_to(
+                self.recursive_ty_related_to(
                     source,
                     target,
                     false,
@@ -158,33 +165,34 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source.kind.is_param()
             && self
                 .c
-                .get_constraint_of_ty(source)
+                .get_constraint_of_ty_param(source)
                 .is_some_and(|constraint| constraint == target)
         {
             return Ternary::TRUE;
         }
 
-        if source.flags.intersects(TypeFlags::DEFINITELY_NON_NULLABLE) && target.kind.is_union() {
-            let t = target.kind.expect_union();
-            let candidate = match t.tys.len() {
-                2 if t.tys[0].flags.intersects(TypeFlags::NULLABLE) => Some(t.tys[1]),
-                3 if t.tys[0].flags.intersects(TypeFlags::NULLABLE)
-                    && t.tys[1].flags.intersects(TypeFlags::NULLABLE) =>
+        if source.flags.intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
+            && let Some(u) = target.kind.as_union()
+        {
+            let candidate = match u.tys.len() {
+                2 if u.tys[0].flags.intersects(TypeFlags::NULLABLE) => Some(u.tys[1]),
+                3 if u.tys[0].flags.intersects(TypeFlags::NULLABLE)
+                    && u.tys[1].flags.intersects(TypeFlags::NULLABLE) =>
                 {
-                    Some(t.tys[1])
+                    Some(u.tys[1])
                 }
                 _ => None,
             };
             if let Some(candidate) = candidate
                 && !candidate.flags.intersects(TypeFlags::NULLABLE)
-                && candidate.id == source.id
+                && candidate == source
             {
                 return Ternary::TRUE;
             }
         }
 
         if self.relation == RelationKind::Comparable
-            && !target.flags.intersects(TypeFlags::NEVER)
+            && !target.flags.contains(TypeFlags::NEVER)
             && self
                 .c
                 .is_simple_type_related_to(target, source, self.relation)
@@ -199,18 +207,51 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             || target.kind.is_structured_or_instantiable()
         {
             let is_performing_excess_property_check = !intersection_state
-                .intersects(IntersectionState::TARGET)
-                && source.is_fresh_object_literal();
+                .contains(IntersectionState::TARGET)
+                && source.is_fresh_object_literal()
+                && source
+                    .get_object_flags()
+                    .contains(ObjectFlags::FRESH_LITERAL);
             if is_performing_excess_property_check
                 && self.has_excess_properties(source, target, report_error)
             {
                 if report_error {
+                    // TODO: return false
                     return Ternary::TRUE;
-                } else {
-                    return Ternary::FALSE;
                 }
+                return Ternary::FALSE;
             }
-            return self.recur_ty_related_to(
+
+            let is_performing_common_property_checks = (self.relation != RelationKind::Comparable
+                || source.is_unit())
+                && !intersection_state.contains(IntersectionState::TARGET)
+                && source.flags.intersects(
+                    TypeFlags::PRIMITIVE
+                        .union(TypeFlags::OBJECT)
+                        .union(TypeFlags::INTERSECTION),
+                )
+                && source != self.c.global_object_ty()
+                && target
+                    .flags
+                    .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
+                && self.c.is_weak_ty(target)
+                && (!self.c.get_props_of_ty(source).is_empty()
+                    || self.c.ty_has_call_or_ctor_sigs(source));
+
+            if is_performing_common_property_checks
+                && let is_compare_jsx_attribute = source
+                    .get_object_flags()
+                    .contains(ObjectFlags::JSX_ATTRIBUTES)
+                && !self
+                    .c
+                    .has_common_props(source, target, is_compare_jsx_attribute)
+            {
+                if report_error {
+                    // TODO: report error
+                }
+                return Ternary::FALSE;
+            }
+            return self.recursive_ty_related_to(
                 source,
                 target,
                 report_error,
@@ -222,18 +263,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         Ternary::FALSE
     }
 
-    fn get_relation_key(
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
-        relation: RelationKind,
-    ) -> RelationKey {
-        RelationKey {
-            source: source.id,
-            target: target.id,
-            relation,
-        }
-    }
-
     fn is_property_symbol_ty_related(
         &mut self,
         source_prop: SymbolID,
@@ -242,11 +271,27 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let effective_target = self.c.get_non_missing_type_of_symbol(target_prop);
-        let effective_source = get_ty_of_source_prop(self, source_prop);
+        let target_is_optional = self.c.config.compiler_options().strict_null_checks()
+            && self
+                .c
+                .get_check_flags(target_prop)
+                .intersects(ty::CheckFlags::PARTIAL);
+        let effective_target_ty = {
+            let t = self.c.get_non_missing_type_of_symbol(target_prop);
+            self.c.add_optionality::<false>(t, target_is_optional)
+        };
+        let flags = if self.relation == RelationKind::StrictSubtype {
+            TypeFlags::ANY
+        } else {
+            TypeFlags::ANY_OR_UNKNOWN
+        };
+        if effective_target_ty.flags.intersects(flags) {
+            return Ternary::TRUE;
+        }
+        let effective_source_ty = get_ty_of_source_prop(self, source_prop);
         self.is_related_to(
-            effective_source,
-            effective_target,
+            effective_source_ty,
+            effective_target_ty,
             RecursionFlags::BOTH,
             report_error,
             intersection_state,
@@ -264,6 +309,30 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> Ternary {
+        let source_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(source_prop, None);
+        let target_prop_flags = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(target_prop, None);
+        if source_prop_flags.contains(ast::ModifierFlags::PRIVATE)
+            || target_prop_flags.contains(ast::ModifierFlags::PRIVATE)
+        {
+            if self.c.symbol(source_prop).value_decl != self.c.symbol(target_prop).value_decl {
+                if report_error {
+                    //TODO:
+                }
+                return Ternary::FALSE;
+            }
+        } else if target_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
+            // TODO:
+        } else if source_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
+            if report_error {
+                // TODO:
+            }
+            return Ternary::FALSE;
+        }
+
         let related = self.is_property_symbol_ty_related(
             source_prop,
             target_prop,
@@ -283,12 +352,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 .c
                 .symbol(source_prop)
                 .flags
-                .intersects(SymbolFlags::OPTIONAL)
+                .contains(SymbolFlags::OPTIONAL)
             && {
                 let target_prop_flags = self.c.symbol(target_prop).flags;
 
                 target_prop_flags.intersects(SymbolFlags::CLASS_MEMBER)
-                    && !target_prop_flags.intersects(SymbolFlags::OPTIONAL)
+                    && !target_prop_flags.contains(SymbolFlags::OPTIONAL)
             }
         {
             if report_error {
@@ -333,11 +402,32 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         result
     }
 
+    fn should_report_unmatched_prop_error(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> bool {
+        if self.c.get_props_of_object_ty(source).is_empty()
+            && let source_call_sigs = self.c.get_signatures_of_type(source, SigKind::Call)
+            && let source_ctor_sigs = self.c.get_signatures_of_type(source, SigKind::Constructor)
+            && (!source_call_sigs.is_empty() || !source_ctor_sigs.is_empty())
+        {
+            let target_call_sigs = self.c.get_signatures_of_type(target, SigKind::Call);
+            let target_ctor_sigs = self.c.get_signatures_of_type(target, SigKind::Constructor);
+            return (!target_call_sigs.is_empty() && !source_call_sigs.is_empty())
+                || (!target_ctor_sigs.is_empty() && !source_ctor_sigs.is_empty());
+        }
+
+        true
+    }
+
     fn props_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         report_error: bool,
+        excluded_props: Option<&FxHashSet<SymbolName>>,
+        optionals_only: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if self.relation == RelationKind::Identity {
@@ -393,31 +483,39 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     };
                     let target_flags = t_tuple.element_flags[target_pos];
 
-                    if target_flags.intersects(ElementFlags::VARIADIC)
-                        && !source_flags.intersects(ElementFlags::VARIADIC)
+                    if target_flags.contains(ElementFlags::VARIADIC)
+                        && !source_flags.contains(ElementFlags::VARIADIC)
                     {
                         // TODO: report
                         return Ternary::FALSE;
-                    } else if source_flags.intersects(ElementFlags::VARIADIC)
+                    } else if source_flags.contains(ElementFlags::VARIADIC)
                         && !target_flags.intersects(ElementFlags::VARIABLE)
                     {
                         // TODO: report
                         return Ternary::FALSE;
-                    } else if target_flags.intersects(ElementFlags::REQUIRED)
-                        && !source_flags.intersects(ElementFlags::REQUIRED)
+                    } else if target_flags.contains(ElementFlags::REQUIRED)
+                        && !source_flags.contains(ElementFlags::REQUIRED)
                     {
                         // TODO: report
                         return Ternary::FALSE;
                     }
 
-                    let source_ty = source_ty_args[source_pos];
+                    let source_ty = self.c.remove_missing_ty(
+                        source_ty_args[source_pos],
+                        source_flags
+                            .intersection(target_flags)
+                            .contains(ElementFlags::OPTIONAL),
+                    );
                     let target_ty = target_ty_args[target_pos];
-                    let target_check_ty = if source_flags.intersects(ElementFlags::VARIADIC)
-                        && target_flags.intersects(ElementFlags::REST)
+                    let target_check_ty = if source_flags.contains(ElementFlags::VARIADIC)
+                        && target_flags.contains(ElementFlags::REST)
                     {
                         self.c.create_array_ty(target_ty, false)
                     } else {
-                        target_ty
+                        self.c.remove_missing_ty(
+                            target_ty,
+                            target_flags.contains(ElementFlags::OPTIONAL),
+                        )
                     };
                     let is_related = self.is_related_to(
                         source_ty,
@@ -445,48 +543,47 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && !self.c.is_empty_array_lit_ty(source)
             && !source.is_tuple();
 
-        if let Some((mut unmatched, target_symbol)) =
+        if let Some(mut unmatched) =
             self.c
-                .get_unmatched_prop(source, target, require_optional_properties)
+                .get_unmatched_prop(source, target, require_optional_properties, false)
         {
-            assert!(!unmatched.is_empty());
-            if report_error {
-                // report unmatched properties
-                let symbol = self.c.symbol(target_symbol);
-                let decl = symbol.decls.as_ref().unwrap()[0];
-                let d = self.c.p.node(decl);
-                let target_span = if symbol.flags.contains(SymbolFlags::CLASS) {
-                    d.as_class_decl().unwrap().name.unwrap().span
-                } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
-                    d.as_interface_decl().unwrap().name.span
-                } else {
-                    d.span()
-                };
-                let Some(source_symbol) = source.symbol() else {
+            debug_assert!(!unmatched.is_empty());
+            if report_error && self.should_report_unmatched_prop_error(source, target) {
+                if source.symbol().is_none() {
                     // TODO: unreachable!()
                     return Ternary::TRUE;
-                };
-                unmatched.sort();
+                }
+                // report unmatched properties
+                unmatched.sort_by(|a, b| {
+                    if a.module().as_usize() <= b.module().as_usize()
+                        && a.index_as_u32() < b.index_as_u32()
+                    {
+                        std::cmp::Ordering::Less
+                    } else {
+                        std::cmp::Ordering::Greater
+                    }
+                });
                 if unmatched.len() < 3 {
-                    for name in unmatched {
-                        let field = self.c.atoms.get(name).to_string();
-                        let defined = errors::DefinedHere {
-                            span: target_span,
-                            kind: errors::DeclKind::Property,
-                            name: field.to_string(),
+                    for symbol in unmatched {
+                        let Some(name) = self.c.symbol(symbol).name.as_atom() else {
+                            continue;
                         };
+                        let field = self.c.atoms.get(name).to_string();
+                        // let decl = self.c.symbol(symbol).decls.as_ref().unwrap()[0];
                         let span = self.c.p.node(self.error_node.unwrap()).span();
                         let error = errors::PropertyXIsMissing {
                             span,
                             field,
-                            related: [defined],
+                            // related: [],
                         };
                         self.c.push_error(Box::new(error));
                     }
-                } else {
+                } else if let Some(name0) = self.c.symbol(unmatched[0]).name.as_atom()
+                    && let Some(name1) = self.c.symbol(unmatched[1]).name.as_atom()
+                {
                     let props = vec![
-                        self.c.atoms.get(unmatched[0]).to_string(),
-                        self.c.atoms.get(unmatched[1]).to_string(),
+                        self.c.atoms.get(name0).to_string(),
+                        self.c.atoms.get(name1).to_string(),
                     ];
                     let len = unmatched.len() - 2;
                     let span = self.c.p.node(self.error_node.unwrap()).span();
@@ -506,14 +603,19 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::FALSE;
         }
 
-        let props = self.c.properties_of_ty(target);
-        for target_prop in props {
-            let s = self.c.symbol(*target_prop);
-            let name = s.name;
-            if !s.flags.intersects(SymbolFlags::PROTOTYPE)
+        let props = self.c.get_props_of_ty(target);
+        let props = match excluded_props {
+            Some(excluded) => Cow::Owned(self.c.exclude_props(props, excluded).collect()),
+            None => Cow::Borrowed(props),
+        };
+        for target_prop in props.iter() {
+            let target_s = self.c.symbol(*target_prop);
+            let name = target_s.name;
+            if !target_s.flags.contains(SymbolFlags::PROTOTYPE)
                 && (!(source.is_tuple() && target.is_tuple())
                     || name.is_numeric()
                     || name.expect_atom() == IDENT_LENGTH)
+                && (!optionals_only || target_s.flags.contains(SymbolFlags::OPTIONAL))
                 && let Some(source_prop) = self.c.get_prop_of_ty(source, name)
                 && !source_prop.eq(target_prop)
             {
@@ -706,13 +808,21 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let TyKind::Union(s) = source.kind else {
-            unreachable!()
-        };
+        debug_assert!(source.flags.contains(TypeFlags::UNION));
+        let source_union = source.kind.expect_union();
         let mut result = Ternary::TRUE;
-        // TODO: getUndefinedStrippedTargetIfNeeded
-        let undefined_stripped_target = target;
-        let source_tys = s.tys;
+        let undefined_stripped_target = {
+            // get_undefined_stripped_target_if_needed;
+            let target_union = target.kind.as_union();
+            if !source_union.tys[0].flags.contains(TypeFlags::UNDEFINED)
+                && target_union.is_some_and(|u| u.tys[0].flags.contains(TypeFlags::UNDEFINED))
+            {
+                self.c.extract_tys_of_kind(target, !TypeFlags::UNDEFINED)
+            } else {
+                target
+            }
+        };
+        let source_tys = source_union.tys;
         for (i, source_ty) in source_tys.iter().enumerate() {
             if let Some(target_union) = undefined_stripped_target.kind.as_union()
                 && source_tys.len() >= target_union.tys.len()
@@ -827,12 +937,59 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        if let Some(unions) = target.kind.as_union()
-            && contains_ty(unions.tys, source)
-        {
-            return Ternary::TRUE;
+        if let Some(unions) = target.kind.as_union() {
+            if contains_ty(unions.tys, source) {
+                return Ternary::TRUE;
+            }
+            if self.relation != RelationKind::Comparable
+                && target
+                    .get_object_flags()
+                    .contains(ObjectFlags::PRIMITIVE_UNION)
+                && !source.flags.contains(TypeFlags::ENUM_LITERAL)
+                && source.flags.intersects(
+                    TypeFlags::STRING_LITERAL
+                        .union(TypeFlags::BOOLEAN_LITERAL)
+                        .union(TypeFlags::BIG_INT_LITERAL),
+                )
+                || matches!(
+                    self.relation,
+                    RelationKind::Subtype | RelationKind::StrictSubtype
+                ) && source.flags.contains(TypeFlags::NUMBER_LITERAL)
+            {
+                if let Some(primitive) = match source.kind {
+                    TyKind::StringLit(_) => Some(self.c.string_ty),
+                    TyKind::NumberLit(_) => Some(self.c.number_ty),
+                    TyKind::BigIntLit(_) => Some(self.c.bigint_ty),
+                    _ => None,
+                } && target_tys.contains(&primitive)
+                {
+                    return Ternary::TRUE;
+                }
+                let regular_ty = self.c.get_regular_ty(source);
+                if let Some(alternate_from) = if regular_ty.is_some_and(|r| r == source) {
+                    self.c.get_fresh_ty(source)
+                } else {
+                    regular_ty
+                } && target_tys.contains(&alternate_from)
+                {
+                    return Ternary::TRUE;
+                }
+                return Ternary::FALSE;
+            }
+
+            if let Some(m) = self.c.get_matching_union_constituent_for_ty(target) {
+                let related = self.is_related_to(
+                    source,
+                    m,
+                    RecursionFlags::TARGET,
+                    false,
+                    intersection_state,
+                );
+                if related != Ternary::FALSE {
+                    return related;
+                }
+            }
         }
-        // TODO:
 
         for ty in target_tys {
             let related = self.is_related_to(
@@ -846,6 +1003,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return related;
             }
         }
+
+        // TODO: report error
 
         Ternary::FALSE
     }
@@ -896,7 +1055,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         report_error: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
-        let mut result = Ternary::TRUE;
+        let mut result;
         let source_flags = source.flags;
         let target_flags = target.flags;
         if self.relation == RelationKind::Identity {
@@ -906,7 +1065,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     result &= self.each_type_related_to_some_type(target, source);
                 }
                 return result;
-            } else if let Some(s_index) = source.kind.as_index_ty() {
+            }
+            if let Some(s_index) = source.kind.as_index_ty() {
                 let t_index = target.kind.expect_index_ty();
                 return self.is_related_to(
                     s_index.ty,
@@ -915,7 +1075,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     false,
                     IntersectionState::empty(),
                 );
-            } else if let Some(s_indexed_access) = source.kind.as_indexed_access() {
+            }
+            if let Some(s_indexed_access) = source.kind.as_indexed_access() {
                 let t_indexed_access = target.kind.expect_indexed_access();
                 result = self.is_related_to(
                     s_indexed_access.object_ty,
@@ -936,7 +1097,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         return result;
                     }
                 }
-            } else if let Some(s_cond) = source.kind.as_cond_ty() {
+            }
+            if let Some(s_cond) = source.kind.as_cond_ty() {
                 let t_cond = target.kind.expect_cond_ty();
                 if s_cond.root.is_distributive == t_cond.root.is_distributive {
                     result = self.is_related_to(
@@ -955,8 +1117,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             IntersectionState::empty(),
                         );
                         if result != Ternary::FALSE {
-                            let s = self.c.get_true_ty_from_cond_ty(source, s_cond);
-                            let t = self.c.get_true_ty_from_cond_ty(target, t_cond);
+                            let s = self.c.get_true_ty_from_cond_ty(s_cond);
+                            let t = self.c.get_true_ty_from_cond_ty(t_cond);
                             result &= self.is_related_to(
                                 s,
                                 t,
@@ -965,8 +1127,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                                 IntersectionState::empty(),
                             );
                             if result != Ternary::FALSE {
-                                let s = self.c.get_false_ty_from_cond_ty(source, s_cond);
-                                let t = self.c.get_false_ty_from_cond_ty(target, t_cond);
+                                let s = self.c.get_false_ty_from_cond_ty(s_cond);
+                                let t = self.c.get_false_ty_from_cond_ty(t_cond);
                                 result &= self.is_related_to(
                                     s,
                                     t,
@@ -981,7 +1143,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         }
                     }
                 }
-            } else if let Some(s_sub) = source.kind.as_substitution_ty() {
+            }
+            if let Some(s_sub) = source.kind.as_substitution_ty() {
                 let t_sub = target.kind.expect_substitution_ty();
                 result = self.is_related_to(
                     s_sub.base_ty,
@@ -1002,7 +1165,47 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         return result;
                     }
                 }
-            } else if !source.kind.is_object() {
+            }
+            if let Some(s_template_literal) = source.kind.as_template_lit_ty() {
+                let t_template_literal = target.kind.expect_template_lit_ty();
+                if s_template_literal
+                    .texts
+                    .iter()
+                    .zip(t_template_literal.texts.iter())
+                    .all(|(s_text, t_text)| s_text == t_text)
+                {
+                    let source_tys = s_template_literal.tys;
+                    let target_tys = t_template_literal.tys;
+                    let mut result = Ternary::TRUE;
+                    for i in 0..source_tys.len() {
+                        let related = self.is_related_to(
+                            source_tys[i],
+                            target_tys[i],
+                            RecursionFlags::BOTH,
+                            report_error,
+                            intersection_state,
+                        );
+                        result &= related;
+                        if result == Ternary::FALSE {
+                            return Ternary::FALSE;
+                        }
+                    }
+                    return result;
+                }
+            }
+            if let Some(s_string_mapping) = source.kind.as_string_mapping_ty() {
+                let t_string_mapping = target.kind.expect_string_mapping_ty();
+                if s_string_mapping.symbol == t_string_mapping.symbol {
+                    return self.is_related_to(
+                        s_string_mapping.ty,
+                        t_string_mapping.ty,
+                        RecursionFlags::BOTH,
+                        false,
+                        intersection_state,
+                    );
+                }
+            }
+            if !source.kind.is_object() {
                 return Ternary::FALSE;
             }
         } else if source.kind.is_union_or_intersection() || target.kind.is_union_or_intersection() {
@@ -1043,12 +1246,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return result;
         }
 
-        if target_flags.intersects(TypeFlags::TYPE_PARAMETER) {
+        if target_flags.contains(TypeFlags::TYPE_PARAMETER) {
             if let Some(source_mapped_ty) = source.kind.as_object_mapped()
                 && source_mapped_ty.decl.name_ty.is_none()
             {
                 let index_ty = self.c.get_index_ty(target, IndexFlags::empty());
-                let c = self.c.get_constraint_ty_from_mapped_ty(source);
+                let c = self.c.get_constraint_ty_from_mapped_ty(source_mapped_ty);
                 if self.is_related_to(
                     index_ty,
                     c,
@@ -1059,12 +1262,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     && !source_mapped_ty
                         .decl
                         .get_modifiers()
-                        .intersects(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
+                        .contains(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
                 {
-                    let template_ty = self.c.get_template_ty_from_mapped_ty(source);
-                    let index_ty = self.c.get_ty_param_from_mapped_ty(source);
-                    let indexed_access_ty =
-                        self.c.get_indexed_access_ty(target, index_ty, None, None);
+                    let template_ty = self.c.get_template_ty_from_mapped_ty(source_mapped_ty);
+                    let index_ty = self.c.get_ty_param_from_mapped_ty(source_mapped_ty);
+                    let indexed_access_ty = self
+                        .c
+                        .get_indexed_access_ty(target, index_ty, None, None, None, None);
                     result = self.is_related_to(
                         template_ty,
                         indexed_access_ty,
@@ -1078,13 +1282,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
             if self.relation == RelationKind::Comparable
-                && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
+                && source_flags.contains(TypeFlags::TYPE_PARAMETER)
             {
                 // TODO:
             }
-        } else if target_flags.intersects(TypeFlags::INDEX) {
+        } else if target_flags.contains(TypeFlags::INDEX) {
             let target_ty = target.kind.expect_index_ty();
-            if source_flags.intersects(TypeFlags::INDEX) {
+            if source_flags.contains(TypeFlags::INDEX) {
                 let source_ty = source.kind.expect_index_ty().ty;
                 result = self.is_related_to(
                     target_ty.ty,
@@ -1172,6 +1376,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         base_index_ty,
                         Some(access_flags),
                         None,
+                        None,
+                        None,
                     );
                     if let Some(constraint) = constraint {
                         result = self.is_related_to(
@@ -1212,7 +1418,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 result = if skip_true {
                     Ternary::TRUE
                 } else {
-                    let target = self.c.get_true_ty_from_cond_ty(target, target_cond);
+                    let target = self.c.get_true_ty_from_cond_ty(target_cond);
                     self.is_related_to(
                         source,
                         target,
@@ -1225,7 +1431,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     result &= if skip_false {
                         Ternary::TRUE
                     } else {
-                        let target = self.c.get_false_ty_from_cond_ty(target, target_cond);
+                        let target = self.c.get_false_ty_from_cond_ty(target_cond);
                         self.is_related_to(
                             source,
                             target,
@@ -1239,15 +1445,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     }
                 }
             }
-        } else if target.kind.is_template_lit_ty() {
+        } else if let Some(t) = target.kind.as_template_lit_ty() {
             if source.kind.is_template_lit_ty() {
                 // TODO:
             }
-            if self.c.is_ty_matched_by_template_lit_ty(source, target) {
+            if self.c.is_ty_matched_by_template_lit_ty(source, t) {
                 return Ternary::TRUE;
             }
-        } else if target_flags.intersects(TypeFlags::STRING_MAPPING)
-            && !source_flags.intersects(TypeFlags::STRING_MAPPING)
+        } else if target_flags.contains(TypeFlags::STRING_MAPPING)
+            && !source_flags.contains(TypeFlags::STRING_MAPPING)
             && self.c.is_member_of_string_mapping(source, target)
         {
             return Ternary::TRUE;
@@ -1270,7 +1476,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     return result;
                 }
             }
-        } else if source.flags.intersects(TypeFlags::INDEX) {
+        } else if let Some(source_index) = source.kind.as_index_ty() {
             result = self.is_related_to(
                 self.c.string_number_symbol_ty(),
                 target,
@@ -1281,12 +1487,43 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if result != Ternary::FALSE {
                 return result;
             }
+            let is_deferred_mapped_index = self
+                .c
+                .should_defer_index_ty(source_index.ty, source_index.index_flags)
+                && source_index
+                    .ty
+                    .get_object_flags()
+                    .contains(ObjectFlags::MAPPED);
+            if is_deferred_mapped_index {
+                let mapped_ty = source_index.ty.kind.expect_object_mapped();
+                let name_ty = self.c.get_name_ty_from_mapped_ty(mapped_ty);
+                let source_mapped_keys = if let Some(name_ty) = name_ty
+                    && self.c.is_mapped_ty_with_keyof_constraint_decl(mapped_ty)
+                {
+                    self.c.get_apparent_mapped_ty_keys(name_ty, mapped_ty)
+                } else {
+                    name_ty.unwrap_or(self.c.get_constraint_ty_from_mapped_ty(mapped_ty))
+                };
+
+                let result = self.is_related_to(
+                    source_mapped_keys,
+                    target,
+                    RecursionFlags::SOURCE,
+                    report_error,
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
+            }
         } else if let Some(source_cond) = source.kind.as_cond_ty() {
             if self.c.is_deeply_nested_type(source, &self.source_stack, 10) {
                 return Ternary::MAYBE;
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
                 let source_extends = source_cond.extends_ty;
                 let mapper = None;
+                // TODO: source_params
+
                 if self
                     .c
                     .is_type_identical_to(source_extends, target_cond.extends_ty)
@@ -1307,10 +1544,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 {
                     result = {
                         let source_true_ty = {
-                            let true_ty = self.c.get_true_ty_from_cond_ty(source, source_cond);
+                            let true_ty = self.c.get_true_ty_from_cond_ty(source_cond);
                             self.c.instantiate_ty(true_ty, mapper)
                         };
-                        let target_true_ty = self.c.get_true_ty_from_cond_ty(target, target_cond);
+                        let target_true_ty = self.c.get_true_ty_from_cond_ty(target_cond);
                         self.is_related_to(
                             source_true_ty,
                             target_true_ty,
@@ -1320,8 +1557,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         )
                     };
                     if result != Ternary::FALSE {
-                        let source_false_ty = self.c.get_false_ty_from_cond_ty(source, source_cond);
-                        let target_false_ty = self.c.get_false_ty_from_cond_ty(target, target_cond);
+                        let source_false_ty = self.c.get_false_ty_from_cond_ty(source_cond);
+                        let target_false_ty = self.c.get_false_ty_from_cond_ty(target_cond);
                         result &= self.is_related_to(
                             source_false_ty,
                             target_false_ty,
@@ -1336,7 +1573,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     }
                 }
             }
-            let default_constraint = self.c.get_default_constraint_of_cond_ty(source);
+            let default_constraint = self.c.get_default_constraint_of_cond_ty(source_cond);
             result = self.is_related_to(
                 default_constraint,
                 target,
@@ -1347,7 +1584,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if result != Ternary::FALSE {
                 return result;
             }
-            let distributive_constraint = if !target_flags.intersects(TypeFlags::CONDITIONAL)
+            let distributive_constraint = if !target_flags.contains(TypeFlags::CONDITIONAL)
                 && self.c.has_non_circular_constraint(source)
             {
                 self.c.get_constraint_of_distributive_cond_ty(source)
@@ -1368,6 +1605,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
         } else {
+            if !matches!(
+                self.relation,
+                RelationKind::Subtype | RelationKind::StrictSubtype
+            ) && target.kind.as_object_mapped().is_some_and(|m| {
+                m.decl
+                    .get_modifiers()
+                    .contains(ast::MappedTyModifiers::INCLUDE_OPTIONAL)
+            }) && self.c.is_empty_object_ty(source)
+            {
+                return Ternary::TRUE;
+            }
             if self.c.is_generic_mapped_ty(target) {
                 if self.c.is_generic_mapped_ty(source) {
                     result = self.mapped_ty_related_to(source, target, report_error);
@@ -1390,7 +1638,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
             if let Some(source_refer) = source.kind.as_object_reference()
                 && let Some(target_refer) = target.kind.as_object_reference()
-                && source_refer.target == target_refer.target
+                && let Some(source_interface) = source_refer.interface_target()
+                && let Some(target_interface) = target_refer.interface_target()
+                && source_interface == target_interface
                 && !source.is_tuple()
                 && !self.c.is_marker_ty(source)
                 && !self.c.is_marker_ty(target)
@@ -1451,46 +1701,192 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 };
             }
 
-            if source.kind.is_object_or_intersection() && target.kind.is_object() {
-                let report_error = report_error && !source_is_primitive;
-
-                let mut res =
-                    self.props_related_to(source, target, report_error, intersection_state);
-                if res != Ternary::FALSE {
-                    res &= self.sigs_related_to(
+            if source.kind.is_object_or_intersection() {
+                if target.kind.is_object() {
+                    let report_error = report_error && !source_is_primitive;
+                    let mut res = self.props_related_to(
                         source,
                         target,
-                        SigKind::Call,
                         report_error,
+                        None,
+                        false,
                         intersection_state,
                     );
                     if res != Ternary::FALSE {
                         res &= self.sigs_related_to(
                             source,
                             target,
-                            SigKind::Constructor,
+                            SigKind::Call,
                             report_error,
                             intersection_state,
                         );
                         if res != Ternary::FALSE {
-                            res &= self.index_sigs_related_to(
+                            res &= self.sigs_related_to(
                                 source,
                                 target,
-                                source_is_primitive,
+                                SigKind::Constructor,
                                 report_error,
                                 intersection_state,
                             );
+                            if res != Ternary::FALSE {
+                                res &= self.index_sigs_related_to(
+                                    source,
+                                    target,
+                                    source_is_primitive,
+                                    report_error,
+                                    intersection_state,
+                                );
+                            }
+                        }
+                    }
+                    return res;
+                }
+
+                if target.kind.is_union() {
+                    // When source type is object type and target type is a discriminated union:
+                    // ```
+                    // type Source = {a: 'x' | 'y', b: number};
+                    // type Target = {a: 'x', b: number} | {a: 'y', b: number};
+                    // ```
+                    let object_only_target = self.c.extract_tys_of_kind(
+                        target,
+                        TypeFlags::OBJECT
+                            .union(TypeFlags::INTERSECTION)
+                            .union(TypeFlags::SUBSTITUTION),
+                    );
+                    if object_only_target.flags.contains(TypeFlags::UNION) {
+                        let result =
+                            self.ty_related_to_discriminated_ty(source, object_only_target);
+                        if result != Ternary::FALSE {
+                            return result;
                         }
                     }
                 }
-                return res;
             }
         }
 
         Ternary::FALSE
     }
 
-    fn recur_ty_related_to(
+    fn ty_related_to_discriminated_ty(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+    ) -> Ternary {
+        let target_union = target.kind.expect_union();
+        let source_props_filtered = {
+            let source_props = self.c.get_props_of_ty(source);
+            self.c.find_discriminant_props(source_props, target)
+        };
+        if source_props_filtered.is_empty() {
+            return Ternary::FALSE;
+        }
+
+        let mut num_combinations = 1;
+        for &source_prop in &source_props_filtered {
+            num_combinations *= {
+                let ty = self.c.get_non_missing_type_of_symbol(source_prop);
+                ty.count()
+            };
+            if num_combinations > 25 {
+                // limitation
+                return Ternary::FALSE;
+            }
+        }
+
+        let mut source_discriminant_tys = Vec::with_capacity(source_props_filtered.len());
+        let mut excluded_props = fx_hashset_with_capacity(source_props_filtered.len());
+        for &source_prop in &source_props_filtered {
+            let source_prop_ty = self.c.get_non_missing_type_of_symbol(source_prop);
+            source_discriminant_tys.push(if let Some(u) = source_prop_ty.kind.as_union() {
+                Cow::Borrowed(u.tys)
+            } else {
+                Cow::Owned(vec![source_prop_ty])
+            });
+            excluded_props.insert(self.c.symbol(source_prop).name);
+        }
+
+        let discriminant_combinations = ty_cartesian_product(source_discriminant_tys.as_ref());
+        let mut matching_tys = vec![];
+        let skip_optional = self.c.config.compiler_options().strict_null_checks()
+            || self.relation == RelationKind::Comparable;
+        for combination in discriminant_combinations {
+            let mut has_match = false;
+            'outer: for ty in target_union.tys {
+                for (i, &source_prop) in source_props_filtered.iter().enumerate() {
+                    let name = self.c.symbol(source_prop).name;
+                    let Some(target_prop) = self.c.get_prop_of_ty(ty, name) else {
+                        continue 'outer;
+                    };
+                    if source_prop == target_prop {
+                        continue;
+                    }
+                    let related = self.prop_related_to(
+                        source,
+                        target,
+                        source_prop,
+                        target_prop,
+                        |_, _| combination[i],
+                        false,
+                        IntersectionState::empty(),
+                        skip_optional,
+                    );
+                    if related == Ternary::FALSE {
+                        continue 'outer;
+                    }
+                }
+                if !matching_tys.contains(ty) {
+                    matching_tys.push(ty);
+                }
+                has_match = true;
+            }
+            if !has_match {
+                return Ternary::FALSE;
+            }
+        }
+
+        let mut res = Ternary::TRUE;
+        for ty in matching_tys {
+            res = self.props_related_to(
+                source,
+                ty,
+                false,
+                Some(&excluded_props),
+                false,
+                IntersectionState::empty(),
+            );
+            if res != Ternary::FALSE {
+                res = self.sigs_related_to(
+                    source,
+                    ty,
+                    SigKind::Call,
+                    false,
+                    IntersectionState::empty(),
+                );
+                if res != Ternary::FALSE {
+                    res = self.sigs_related_to(
+                        source,
+                        ty,
+                        SigKind::Constructor,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if res != Ternary::FALSE && !(source.is_tuple() && ty.is_tuple()) {
+                        res = self.index_sigs_related_to(
+                            source,
+                            ty,
+                            false,
+                            false,
+                            IntersectionState::empty(),
+                        );
+                    }
+                }
+            }
+        }
+        res
+    }
+
+    fn recursive_ty_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -1498,24 +1894,29 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
     ) -> Ternary {
-        let key = Self::get_relation_key(source, target, self.relation);
+        let key =
+            self.c
+                .get_relation_key::<false>(source, target, intersection_state, self.relation);
+        // let maybe_start = self.maybe_keys_set.len();
         if !self.maybe_keys_set.insert(key) {
             // already being compared.
             return Ternary::MAYBE;
         }
 
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
+        let saved_expanding_flags = self.expanding_flags;
+
+        if recursion_flags.contains(RecursionFlags::SOURCE) {
             self.source_stack.push(source);
-            if !self.expanding_flags.intersects(RecursionFlags::SOURCE)
+            if !self.expanding_flags.contains(RecursionFlags::SOURCE)
                 && self.c.is_deeply_nested_type(source, &self.source_stack, 3)
             {
                 self.expanding_flags |= RecursionFlags::SOURCE;
             }
         }
 
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
+        if recursion_flags.contains(RecursionFlags::TARGET) {
             self.target_stack.push(target);
-            if !self.expanding_flags.intersects(RecursionFlags::TARGET)
+            if !self.expanding_flags.contains(RecursionFlags::TARGET)
                 && self.c.is_deeply_nested_type(target, &self.target_stack, 3)
             {
                 self.expanding_flags |= RecursionFlags::TARGET;
@@ -1528,15 +1929,49 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to(source, target, report_error, intersection_state)
         };
 
-        if recursion_flags.intersects(RecursionFlags::TARGET) {
+        if recursion_flags.contains(RecursionFlags::TARGET) {
             self.target_stack.pop();
         }
 
-        if recursion_flags.intersects(RecursionFlags::SOURCE) {
+        if recursion_flags.contains(RecursionFlags::SOURCE) {
             self.source_stack.pop();
         }
 
-        self.maybe_keys_set.remove(&key);
+        self.expanding_flags = saved_expanding_flags;
+        let prev = self.maybe_keys_set.pop();
+        debug_assert!(prev.is_some());
+
+        // let reset_maybe_stack = |this: &mut Self, mark_all_as_succeeded: bool| {
+        //     debug_assert!(maybe_start < this.maybe_keys_set.len());
+        //     let mut pop_count = this.maybe_keys_set.len() - maybe_start;
+        //     while pop_count > 0 {
+        //         let Some(prev) = this.maybe_keys_set.pop() else {
+        //             unreachable!()
+        //         };
+        //         pop_count -= 1;
+        //         if mark_all_as_succeeded {
+        //             // TODO: ensure prev is none
+        //             this.c
+        //                 .relations
+        //                 .insert(prev, RelationComparisonResult::SUCCEEDED);
+        //         }
+        //     }
+        // };
+
+        // if res == Ternary::TRUE || (self.source_stack.is_empty() && self.target_stack.is_empty()) {
+        //     if res == Ternary::TRUE || res == Ternary::MAYBE {
+        //         reset_maybe_stack(self, true);
+        //     } else {
+        //         reset_maybe_stack(self, false);
+        //     }
+        // } else if res == Ternary::FALSE {
+        //     // TODO: ensure prev is none
+        //     self.c
+        //         .relations
+        //         .insert(key, RelationComparisonResult::FAILED);
+        //     reset_maybe_stack(self, false);
+        // }
+
         res
     }
 
@@ -1580,19 +2015,39 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut res = Ternary::TRUE;
         let props = self.c.get_props_of_ty(source);
         for prop in props {
-            let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
-            let ty = prop_ty;
-            let related = self.is_related_to(
-                ty,
-                target.val_ty,
-                RecursionFlags::BOTH,
-                report_error,
-                intersection_state,
+            // TODO: ignore jsx
+            let lit_ty = self.c.get_literal_ty_from_prop(
+                *prop,
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                false,
             );
-            if related == Ternary::FALSE {
-                return Ternary::FALSE;
+            if self.c.is_applicable_index_ty(lit_ty, target.key_ty) {
+                let prop_ty = self.c.get_non_missing_type_of_symbol(*prop);
+                let ty = if self
+                    .c
+                    .config
+                    .compiler_options()
+                    .exact_optional_property_types()
+                    || prop_ty.flags.contains(TypeFlags::UNDEFINED)
+                    || target.key_ty == self.c.number_ty
+                    || !self.c.symbol(*prop).flags.contains(SymbolFlags::OPTIONAL)
+                {
+                    prop_ty
+                } else {
+                    self.c.get_ty_with_facts(prop_ty, TypeFacts::NE_UNDEFINED)
+                };
+                let related = self.is_related_to(
+                    ty,
+                    target.val_ty,
+                    RecursionFlags::BOTH,
+                    report_error,
+                    intersection_state,
+                );
+                if related == Ternary::FALSE {
+                    return Ternary::FALSE;
+                }
+                res &= related;
             }
-            res &= related;
         }
 
         for info in self.c.get_index_infos_of_ty(source) {
@@ -1617,11 +2072,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         if let Some(source) = self.c.get_applicable_index_info(source, target.key_ty) {
             self.index_info_related_to(source, target, intersection_state, report_error)
-        } else if !intersection_state.intersects(IntersectionState::SOURCE)
+        } else if !intersection_state.contains(IntersectionState::SOURCE)
             && (self.relation != RelationKind::StrictSubtype
                 || source
                     .get_object_flags()
-                    .intersects(ObjectFlags::FRESH_LITERAL))
+                    .contains(ObjectFlags::FRESH_LITERAL))
             && self.c.is_object_ty_with_inferable_index(source)
         {
             self.members_related_to_index_info(source, target, report_error, intersection_state)
@@ -1662,11 +2117,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let related = if self.relation != RelationKind::StrictSubtype
                 && !source_is_primitive
                 && target_has_string_index
-                && target_info.val_ty.flags.intersects(TypeFlags::ANY)
+                && target_info.val_ty.flags.contains(TypeFlags::ANY)
             {
                 Ternary::TRUE
             } else if target_has_string_index && self.c.is_generic_mapped_ty(source) {
-                let s = self.c.get_template_ty_from_mapped_ty(source);
+                let source_mapped_ty = source.kind.expect_object_mapped();
+                let s = self.c.get_template_ty_from_mapped_ty(source_mapped_ty);
                 self.is_related_to(
                     s,
                     target_info.val_ty,
@@ -1700,6 +2156,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let Some(source_info) = self.c.get_index_info_of_ty(source, target_info.key_ty) else {
                 return Ternary::FALSE;
             };
+            if source_info.is_readonly != target_info.is_readonly {
+                return Ternary::FALSE;
+            }
             let source_val_ty = source_info.val_ty;
             if self.is_related_to(
                 source_val_ty,
@@ -1711,7 +2170,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             {
                 return Ternary::FALSE;
             }
-            // TODO: source_info.is_readonly != target_info.is_readonly then return false
         }
         Ternary::TRUE
     }
@@ -1731,15 +2189,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let mut result = Ternary::TRUE;
         for i in 0..source_sigs.len() {
-            let related = self.c.compare_sigs_identical(
+            let related = self.compare_sigs_identical(
                 source_sigs[i],
                 target_sigs[i],
                 false,
                 false,
                 false,
                 |this, s, t| {
-                    let mut c = TypeRelatedChecker::new(this, relation, error_node);
-                    c.is_related_to(
+                    this.is_related_to(
                         s,
                         t,
                         RecursionFlags::BOTH,
@@ -1754,6 +2211,145 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             result &= related
         }
         result
+    }
+
+    fn compare_sigs_identical(
+        &mut self,
+        mut source: &'cx ty::Sig<'cx>,
+        target: &'cx ty::Sig<'cx>,
+        partial_match: bool,
+        ignore_this_tys: bool,
+        ignore_return_tys: bool,
+        compare_tys: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> Ternary {
+        if source == target {
+            return Ternary::TRUE;
+        } else if !self.c.is_matching_sig(source, target, partial_match) {
+            return Ternary::FALSE;
+        }
+        let source_ty_params = self.c.get_sig_links(source.id).get_ty_params();
+        let target_ty_params = self.c.get_sig_links(target.id).get_ty_params();
+        if source_ty_params.map(|t| t.len()) != target_ty_params.map(|t| t.len()) {
+            return Ternary::FALSE;
+        }
+        if let Some(target_ty_params) = target_ty_params {
+            let source_ty_params = source_ty_params.unwrap();
+            let mapper = self.c.create_ty_mapper(source_ty_params, target_ty_params);
+            for i in 0..target_ty_params.len() {
+                let s = source_ty_params[i];
+                let t = target_ty_params[i];
+                if !(s == t
+                    || ({
+                        let s = self
+                            .c
+                            .get_constraint_of_ty_param(s)
+                            .map(|s| self.c.instantiate_ty_worker(s, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        let t = self
+                            .c
+                            .get_constraint_of_ty_param(t)
+                            .map(|t| self.c.instantiate_ty_worker(t, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        compare_tys(self, s, t) != Ternary::FALSE
+                    }) && {
+                        let s = self
+                            .c
+                            .get_default_ty_from_ty_param(s)
+                            .map(|s| self.c.instantiate_ty_worker(s, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        let t = self
+                            .c
+                            .get_default_ty_from_ty_param(t)
+                            .map(|t| self.c.instantiate_ty_worker(t, mapper))
+                            .unwrap_or(self.c.unknown_ty);
+                        compare_tys(self, s, t) != Ternary::FALSE
+                    })
+                {
+                    return Ternary::FALSE;
+                }
+            }
+            source = self.c.instantiate_sig(source, mapper, true);
+        }
+
+        let mut result = Ternary::TRUE;
+        if !ignore_this_tys {
+            // TODO:
+        }
+
+        let target_len = target.get_param_count(self.c);
+        for i in 0..target_len {
+            let s = self.c.get_ty_at_pos(source, i);
+            let t = self.c.get_ty_at_pos(target, i);
+            let related = compare_tys(self, t, s);
+            if related == Ternary::FALSE {
+                return Ternary::FALSE;
+            }
+            result &= related;
+        }
+
+        if !ignore_return_tys {
+            let source_ty_pred = self.c.get_ty_predicate_of_sig(source);
+            let target_ty_pred = self.c.get_ty_predicate_of_sig(target);
+            result &= if source_ty_pred.is_some() || target_ty_pred.is_some() {
+                // TODO:
+                Ternary::TRUE
+            } else {
+                let source_ret_ty = self.c.get_ret_ty_of_sig(source);
+                let target_ret_ty = self.c.get_ret_ty_of_sig(target);
+                compare_tys(self, source_ret_ty, target_ret_ty)
+            }
+        }
+
+        result
+    }
+
+    fn constructor_visibilities_are_compatible(
+        &mut self,
+        source: &'cx Sig<'cx>,
+        target: &'cx Sig<'cx>,
+        report_error: bool,
+    ) -> bool {
+        let Some(source_node_id) = source.node_id else {
+            return true;
+        };
+        let Some(target_node_id) = target.node_id else {
+            return true;
+        };
+        let source_accessibility = self
+            .c
+            .node_query(source_node_id.module())
+            .get_selected_syntactic_modifier_flags(
+                source_node_id,
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+            );
+        let target_accessibility = self
+            .c
+            .node_query(target_node_id.module())
+            .get_selected_syntactic_modifier_flags(
+                target_node_id,
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+            );
+        if target_accessibility == ast::ModifierKind::Private.into_flag() {
+            return true;
+        } else if target_accessibility == ast::ModifierKind::Protected.into_flag()
+            && source_accessibility != ast::ModifierKind::Private.into_flag()
+        {
+            return true;
+        } else if target_accessibility == ast::ModifierKind::Public.into_flag()
+            && source_accessibility == ast::ModifierKind::Public.into_flag()
+        {
+            return true;
+        } else if target_accessibility != ast::ModifierKind::Protected.into_flag()
+            && source_accessibility.is_empty()
+        {
+            return true;
+        }
+
+        if report_error {
+            // TODO:
+        }
+
+        false
     }
 
     fn sigs_related_to(
@@ -1777,17 +2373,24 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let target_sigs = self.c.get_signatures_of_type(target, kind);
 
         if kind == SigKind::Constructor && !source_sigs.is_empty() && !target_sigs.is_empty() {
-            let source_is_abstract = source_sigs[0].flags.intersects(SigFlags::ABSTRACT);
-            let target_is_abstract = target_sigs[0].flags.intersects(SigFlags::ABSTRACT);
+            let source_is_abstract = source_sigs[0].flags.contains(SigFlags::ABSTRACT);
+            let target_is_abstract = target_sigs[0].flags.contains(SigFlags::ABSTRACT);
             if source_is_abstract && !target_is_abstract {
+                return Ternary::FALSE;
+            }
+            if !self.constructor_visibilities_are_compatible(
+                source_sigs[0],
+                target_sigs[0],
+                report_error,
+            ) {
                 return Ternary::FALSE;
             }
         }
         let source_object_flags = source.get_object_flags();
         let target_object_flags = target.get_object_flags();
-        if source_object_flags.intersects(ObjectFlags::INSTANTIATED)
-            && target_object_flags.intersects(ObjectFlags::INSTANTIATED)
-            && source.symbol() == target.symbol()
+        if (source_object_flags.contains(ObjectFlags::INSTANTIATED)
+            && target_object_flags.contains(ObjectFlags::INSTANTIATED)
+            && source.symbol() == target.symbol())
             || source.kind.as_object_reference().is_some_and(|s| {
                 target
                     .kind
@@ -1902,7 +2505,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let is_top_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
-            if sig.ty_params.is_none()
+            if this.c.get_sig_links(sig.id).get_ty_params().is_none()
                 && sig.params.len() == 1
                 && sig.has_rest_param()
                 && (sig.this_param.is_none_or(|this_param| {
@@ -1928,11 +2531,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             false
         };
 
-        if !(check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
+        if !(check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE) && is_top_sig(self, source))
             && is_top_sig(self, target)
         {
             return Ternary::TRUE;
-        } else if check_mode.intersects(SigCheckMode::STRICT_TOP_SIGNATURE)
+        } else if check_mode.contains(SigCheckMode::STRICT_TOP_SIGNATURE)
             && is_top_sig(self, source)
             && !is_top_sig(self, target)
         {
@@ -1942,7 +2545,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut result = Ternary::TRUE;
         let target_count = target.get_param_count(self.c);
         let source_has_more_params = !self.c.has_effective_rest_param(target)
-            && (if check_mode.intersects(SigCheckMode::STRICT_ARITY) {
+            && (if check_mode.contains(SigCheckMode::STRICT_ARITY) {
                 self.c.has_effective_rest_param(source)
                     || source.get_param_count(self.c) > target_count
             } else {
@@ -1951,10 +2554,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source_has_more_params {
             return Ternary::FALSE;
         }
-        if let Some(ty_params) = source.ty_params
-            && target
-                .ty_params
-                .is_none_or(|target_ty_params| !std::ptr::eq(ty_params, target_ty_params))
+        if let Some(source_ty_params) = self.c.get_sig_links(source.id).get_ty_params()
+            && self
+                .c
+                .get_sig_links(target.id)
+                .get_ty_params()
+                .is_none_or(|target_ty_params| !std::ptr::eq(source_ty_params, target_ty_params))
         {
             // when compare signatures, such as:
             // `<G>() => G` and `<T>() => T`
@@ -1968,7 +2573,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         use ast::Node::*;
         let strict_variance = !check_mode.intersects(SigCheckMode::CALLBACK)
-            && self.c.config.strict_function_types()
+            && self.c.config.compiler_options().strict_function_types()
             && !matches!(
                 self.c.p.node(target.def_id()),
                 ClassCtor(_)
@@ -1978,20 +2583,23 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     | ObjectMethodMember(_)
             );
 
-        // if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source) {
-        //     if source_this_ty != self.c.void_ty {
-        //         if let Some(target_this_ty) = self.c.get_this_ty_of_sig(target) {
-        //             let related = compare(self, target_this_ty, source_this_ty, report_error);
-        //             if related == Ternary::FALSE {
-        //                 if report_error {
-        //                     // TODO:
-        //                 }
-        //                 return Ternary::FALSE;
-        //             }
-        //             result &= related;
-        //         }
-        //     }
-        // }
+        if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source)
+            && source_this_ty != self.c.any_ty
+            && let Some(target_this_ty) = self.c.get_this_ty_of_sig(target)
+        {
+            let mut related = Ternary::FALSE;
+            if !strict_variance {
+                related = compare(self, source_this_ty, target_this_ty, false);
+            }
+            if related == Ternary::FALSE {
+                related = compare(self, target_this_ty, source_this_ty, report_error);
+            }
+            if related == Ternary::FALSE {
+                // TODO: report error
+                return Ternary::FALSE;
+            }
+            result &= related;
+        }
 
         let (param_count, rest_index) = if source_rest_ty.is_some() || target_rest_ty.is_some() {
             let param_count = usize::min(source_count, target_count);
@@ -2013,7 +2621,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty
-                && ((source_ty != target_ty) || check_mode.intersects(SigCheckMode::STRICT_ARITY))
+                && ((source_ty != target_ty) || check_mode.contains(SigCheckMode::STRICT_ARITY))
             {
                 let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
                     None
@@ -2087,7 +2695,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        if !check_mode.intersects(SigCheckMode::IGNORE_RETURN_TYPES) {
+        if !check_mode.contains(SigCheckMode::IGNORE_RETURN_TYPES) {
             let ret_ty = |this: &mut Self, sig: &'cx ty::Sig<'cx>| {
                 // TODO: cycle
                 this.c.get_ret_ty_of_sig(sig)
@@ -2097,7 +2705,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::TRUE;
             } else {
                 let source_ret_ty = ret_ty(self, source);
-                // TODO: ty_predict
+                // TODO: ty_predicate
                 let related = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
                     compare(self, source_ret_ty, target_ret_ty, false)
                 } else {
@@ -2124,9 +2732,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let source_prop_access = self.c.decl_modifier_flags_from_symbol(source)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self.c.decl_modifier_flags_from_symbol(target)
-            & ast::ModifierKind::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+            & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
             return Ternary::FALSE;
@@ -2145,8 +2753,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if self.c.is_readonly_symbol(source) != self.c.is_readonly_symbol(target) {
             return Ternary::FALSE;
         }
-        let s = self.c.get_type_of_symbol(source);
-        let t = self.c.get_type_of_symbol(target);
+        let s = self.c.get_non_missing_type_of_symbol(source);
+        let t = self.c.get_non_missing_type_of_symbol(target);
         compare(self, s, t, false)
     }
 
@@ -2170,7 +2778,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if !TyChecker::is_excess_property_check_target(target_ty) {
             return false;
         }
-        let is_comparing_jsx_attrs = source
+        let is_comparing_jsx_attributes = source
             .get_object_flags()
             .contains(ObjectFlags::JSX_ATTRIBUTES);
 
@@ -2180,7 +2788,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         ) && (self
             .c
             .is_ty_sub_type_of(self.c.global_object_ty(), target_ty)
-            || (!is_comparing_jsx_attrs && self.c.is_empty_object_ty(target_ty)))
+            || (!is_comparing_jsx_attributes && self.c.is_empty_object_ty(target_ty)))
         {
             return false;
         }
@@ -2188,13 +2796,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         for prop in self.c.get_props_of_ty(source) {
             if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
                 let name = self.c.symbol(*prop).name;
-                if !self.c.is_known_prop(target_ty, name) {
+                if !self
+                    .c
+                    .is_known_prop(target_ty, name, is_comparing_jsx_attributes)
+                {
                     if report_error && let Some(name) = name.as_atom() {
                         let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
                         let field = self.c.atoms.get(name).to_string();
+                        let ty = target_ty.to_string(self.c);
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                             span,
                             field,
+                            ty,
                         };
                         self.c.push_error(Box::new(error));
                     }
@@ -2222,10 +2835,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     <= self.c.get_combined_mapped_ty_optionality(target)
             });
         if modifiers_related {
-            let target_constraint = self.c.get_constraint_ty_from_mapped_ty(target);
+            let target_constraint = self.c.get_constraint_ty_from_mapped_ty(target_mapped_ty);
             let source_constraint = {
                 // TODO: instantiate
-                self.c.get_constraint_ty_from_mapped_ty(source)
+                self.c.get_constraint_ty_from_mapped_ty(source_mapped_ty)
             };
             let result = self.is_related_to(
                 target_constraint,
@@ -2236,24 +2849,24 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             );
             if result != Ternary::FALSE {
                 let mapper = {
-                    let s = self.c.get_ty_param_from_mapped_ty(source);
-                    let t = self.c.get_ty_param_from_mapped_ty(target);
+                    let s = self.c.get_ty_param_from_mapped_ty(source_mapped_ty);
+                    let t = self.c.get_ty_param_from_mapped_ty(target_mapped_ty);
                     self.c.alloc(ty::TyMapper::make_unary(s, t))
                 };
                 let s = self
                     .c
-                    .get_name_ty_from_mapped_ty(source)
-                    .map(|n| self.c.instantiate_ty(n, Some(mapper)));
+                    .get_name_ty_from_mapped_ty(source_mapped_ty)
+                    .map(|n| self.c.instantiate_ty_worker(n, mapper));
                 let t = self
                     .c
-                    .get_name_ty_from_mapped_ty(target)
-                    .map(|n| self.c.instantiate_ty(n, Some(mapper)));
+                    .get_name_ty_from_mapped_ty(target_mapped_ty)
+                    .map(|n| self.c.instantiate_ty_worker(n, mapper));
                 if s == t {
                     return result & {
-                        let s = self.c.get_template_ty_from_mapped_ty(source);
-                        let s = self.c.instantiate_ty(s, Some(mapper));
-                        let t = self.c.get_template_ty_from_mapped_ty(target);
-                        let t = self.c.instantiate_ty(t, Some(mapper));
+                        let s = self.c.get_template_ty_from_mapped_ty(source_mapped_ty);
+                        let s = self.c.instantiate_ty_worker(s, mapper);
+                        let t = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
+                        let t = self.c.instantiate_ty_worker(t, mapper);
                         self.is_related_to(
                             s,
                             t,
@@ -2266,5 +2879,33 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
         Ternary::FALSE
+    }
+}
+
+fn ty_cartesian_product<'a, T: Copy>(lists: &Vec<Cow<'a, [T]>>) -> Vec<Vec<T>> {
+    let mut result = Vec::new();
+    ty_cartesian_product_worker(&mut result, lists, None, 0);
+    result
+}
+
+fn ty_cartesian_product_worker<'a, T: Copy>(
+    result: &mut Vec<Vec<T>>,
+    lists: &Vec<Cow<'a, [T]>>,
+    outer: Option<Vec<T>>,
+    index: usize,
+) {
+    for element in lists[index].as_ref() {
+        let mut inner;
+        if let Some(outer) = outer.clone() {
+            inner = outer;
+            inner.push(*element)
+        } else {
+            inner = vec![*element];
+        }
+        if index == lists.len() - 1 {
+            result.push(inner);
+        } else {
+            ty_cartesian_product_worker(result, lists, Some(inner), index + 1);
+        }
     }
 }

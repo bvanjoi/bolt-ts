@@ -133,9 +133,9 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const a3:ValueKeys = 2;
 
   const a4: ValueKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+  //~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
   const a5: ValueKeys = 3;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+  //~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
 
   type TupleKeys = ArrayIndices<['a', 2]>;
 
@@ -146,15 +146,15 @@ type ArrayIndices<Element extends readonly unknown[]> =
   const b2: TupleKeys = 1;
 
   const b3: TupleKeys = -1;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
+  //~^ ERROR: Type 'number' is not assignable to type 'TupleKeys'.
   const b4: TupleKeys = 2;
-  //~^ ERROR: Type 'number' is not assignable to type '0 | 1'.
+  //~^ ERROR: Type 'number' is not assignable to type 'TupleKeys'.
 
 	const c0: ArrayIndices<['a', 'b', 'c']> = 0;
 	const c1: ArrayIndices<['a', 'b', 'c']> = 1;
 	const c2: ArrayIndices<['a', 'b', 'c']> = 2;
 	const c3: ArrayIndices<['a', 'b', 'c']> = 3;
-	//~^ ERROR: Type 'number' is not assignable to type '0 | 1 | 2'.
+	//~^ ERROR: Type 'number' is not assignable to type 'ValueKeys'.
 }
 
 // ========= ArrayValues =========
@@ -185,11 +185,11 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
   const b3: TupleValues = {c: true};
 
   const b4: TupleValues = {};
-  //~^ ERROR: Type '{ }' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type '{ }' is not assignable to type '2 | "1" | { c: true; }'.
   const b5: TupleValues = 1;
-  //~^ ERROR: Type 'number' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type 'number' is not assignable to type '2 | "1" | { c: true; }'.
   const b6: TupleValues = '2';
-  //~^ ERROR: Type 'string' is not assignable to type '2 | { c: true; } | "1"'.
+  //~^ ERROR: Type 'string' is not assignable to type '2 | "1" | { c: true; }'.
 
   type AnyStringValues = ArrayValues<string[]>;
   const c0: AnyStringValues = '';
@@ -330,7 +330,7 @@ type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Conditi
   const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
   const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
   const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
-  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist.
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick'.
 }
 
 // ========== ConditionalSimplify ==========
@@ -368,7 +368,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
   const b0: SimplifiedFunctionFail = (a: string) => a;
   const simplifiedFunctionPass: SimplifiedFunctionPass = (a: string) => a;
   const b1: SimplifiedFunctionPass = (a: number) => a;
-  //~^ ERROR: Type '(a: number) => number' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type '(a: number) => number' is not assignable to type 'SomeFunction'.
 
   // Should simplify interface deeply.
   type SomeNode = {
@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type '{
+    //~^ ERROR: Type 'mapped type' is not assignable to type 'MovableCollection'
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'mapped type & Partial'.
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except'.
 
   // Generic properties
   type Example = {
@@ -918,7 +918,7 @@ type IsAny<T> = 0 extends 1 & NoInfer2<T> ? true : false;
   type OnlyAny<T extends IsAny<T> extends true ? any : never> = T;
   type B = OnlyAny<any>;
   type C = OnlyAny<string>;
-  //~^ ERROR: Type 'string' is not assignable to type 'never'.
+  //~^ ERROR: Type 'string' does not satisfy the constraint 'never'.
 }
 
 // ========= IsArrayReadonly =========
@@ -1039,11 +1039,11 @@ type Includes<Value extends readonly any[], Item> =
 
   // Value generic parameter is a string not an array.
   type A2 = Includes<'why a string?', 5>;
-  //~^ ERROR: Type '"why a string?"' is not assignable to type 'any[]'.
+  //~^ ERROR: Type '"why a string?"' does not satisfy the constraint 'any[]'.
 
   // Value generic parameter is an object not an array.
   type A3 = Includes<{key: 'value'}, 7>;
-  //~^ ERROR: Type '{ key: "value"; }' is missing the following properties from type 'any[]'
+  //~^ ERROR: Type '{ key: "value"; }' does not satisfy the constraint 'any[]'.
 }
 
 // =========== IsEqual ===========
@@ -1547,7 +1547,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T`
 	type Assignability1<T, _K extends keyof T> = unknown;
-	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>`
 	type Assignability2<T, _K extends KeysOfUnion<T>> = unknown;
@@ -1559,7 +1559,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `PropertyKey` should NOT be assignable to `KeysOfUnion<T>`
 	type Assignability4<T, _K extends KeysOfUnion<T>> = unknown;
-	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' is not assignable to type 'UnionToIntersection'.
+	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' does not satisfy the constraint 'UnionToIntersection'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability5<T extends Record<string, unknown>, _K extends KeysOfUnion<T>> = unknown;
@@ -1575,11 +1575,11 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability8<T extends Record<string, unknown>, _K extends keyof T> = unknown;
-	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `object`
 	type Assignability9<T extends object, _K extends keyof T> = unknown;
-	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' is not assignable to type 'T'.
+	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
 }
 
 // ======= LastArrayElement =======
@@ -2211,7 +2211,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const someFunction: SimplifiedFunction = {};
   
   const b0: SomeFunction = someFunction;
-  //~^ ERROR: Type 'mapped type' is not assignable to type '(type: string) => string'.
+  //~^ ERROR: Type 'mapped type' is not assignable to type 'SomeFunction'.
 
   const c0: Simplify<{ a: boolean, b: string } & { a: number }> = n();
   const c1: Simplify<{a?: string} & {c:number}> = {c: 42};
@@ -2530,9 +2530,9 @@ type TaggedUnion<
   };
 
   const b0: Union = fails;
-  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type
+  //~^ ERROR: Type '{ tag: "num"; b: string; }' is not assignable to type 'Union'.
   const b1: Union = failsToo;
-  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type
+  //~^ ERROR: Type '{ tag: "str"; b: number; }' is not assignable to type 'Union'.
 }
 
 // ================ Trim ================
@@ -2754,10 +2754,10 @@ type UnknownArray = readonly unknown[];
   const b3: UnknownArray = {0: 1};
   //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]'
   const b4: UnknownArray = 1;
-  //~^ ERROR: Type 'number' is not assignable to type 'unknown[]'.
+  //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
   //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
-  //~| ERROR: Type 'DateConstructor' is not assignable to type 'unknown[]'.
+  //~| ERROR: Type 'DateConstructor' is not assignable to type 'UnknownArray'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;
 
@@ -2780,9 +2780,9 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
 
   foo = [];
-  //~^ ERROR: Type 'undefined[]' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'undefined[]' is not assignable to type 'UnknownRecord'.
   foo = 42;
-  //~^ ERROR: Type 'number' is not assignable to type 'Record'.
+  //~^ ERROR: Type 'number' is not assignable to type 'UnknownRecord'.
   foo = null; // Depends on `strictNullChecks`
 
   const b0: unknown = foo['bar'];

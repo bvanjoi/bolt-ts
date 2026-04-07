@@ -2,8 +2,8 @@ use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_span::Span;
 
+use super::parsing_ctx::ParseContext;
 use super::{PResult, ParserState, errors};
-use crate::parsing_ctx::ParseContext;
 
 #[derive(Copy, Clone)]
 pub(super) struct ParseBreak;

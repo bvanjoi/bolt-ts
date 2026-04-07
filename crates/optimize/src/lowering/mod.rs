@@ -55,7 +55,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     fn lower_program(&mut self, root: &'cx ast::Program<'cx>) {
         debug_assert!(self.current.1 == ir::BasicBlockID::ENTRY);
         let saved = self.current;
-        for stmt in self.lower_stmts(root.stmts) {
+        for stmt in self.lower_stmts(root.stmts()) {
             self.add_stmt_to_basic_block(stmt, saved);
         }
         self.current = saved;
@@ -91,6 +91,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             StmtKind::Throw(n) => Some(Stmt::Throw(self.lower_throw_stmt(n))),
             StmtKind::Enum(n) => Some(Stmt::Enum(self.lower_enum_decl(n))),
             StmtKind::Import(n) => Some(Stmt::Import(self.lower_import_decl(n))),
+            StmtKind::ImportEquals(n) => Some(Stmt::ImportEquals(self.lower_import_equals_decl(n))),
             StmtKind::Export(n) => Some(Stmt::Export(self.lower_export_stmt(n))),
             StmtKind::ExportAssign(n) => Some(Stmt::ExportAssign(self.lower_export_assign(n))),
             StmtKind::Try(n) => Some(Stmt::Try(self.lower_try_stmt(n))),
@@ -215,6 +216,13 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_import_decl(n.span, clause, module)
     }
 
+    fn lower_import_equals_decl(
+        &mut self,
+        n: &'cx ast::ImportEqualsDecl<'cx>,
+    ) -> ir::ImportEqualsDeclID {
+        self.nodes.alloc_import_equals_decl(n.span)
+    }
+
     fn lower_import_clause(&mut self, n: &'cx ast::ImportClause<'cx>) -> ir::ImportClauseID {
         let name = n.name.map(|n| self.lower_ident(n));
         let kind = n.kind.map(|k| match k {
@@ -265,8 +273,17 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         self.nodes.alloc_enum_decl(n.span, modifiers, name, members)
     }
 
+    fn lower_enum_member_name(&mut self, n: &ast::EnumMemberNameKind<'cx>) -> ir::PropName {
+        match n {
+            ast::EnumMemberNameKind::Ident(n) => ir::PropName::Ident(self.lower_ident(n)),
+            ast::EnumMemberNameKind::StringLit { raw, .. } => {
+                ir::PropName::StringLit(self.lower_string_lit(raw))
+            }
+        }
+    }
+
     fn lower_enum_member(&mut self, n: &'cx ast::EnumMember<'cx>) -> ir::EnumMemberID {
-        let name = self.lower_prop_name(n.name);
+        let name = self.lower_enum_member_name(&n.name);
         let init = n.init.map(|init| self.lower_expr(init));
         self.nodes.alloc_enum_member(n.span, name, init)
     }
@@ -296,12 +313,11 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
     fn lower_class_decl(&mut self, n: &'cx ast::ClassDecl<'cx>) -> Option<ir::ClassDeclID> {
         if n.modifiers
-            .is_some_and(|m| m.flags.contains(ast::ModifierKind::Ambient))
+            .is_some_and(|m| m.flags.contains(ast::ModifierFlags::AMBIENT))
         {
             return None;
         }
-        let Some(name) = n.name else { todo!() };
-        let name = self.lower_ident(name);
+        let name = n.name.map(|name| self.lower_ident(name));
         let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let extends = n.extends.map(|e| self.lower_class_extends_clause(e));
         let elems = self.lower_class_elems(n.elems);
@@ -342,6 +358,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 Some(ir::ClassElem::StaticBlock(self.lower_class_static_block(n)))
             }
             ast::ClassElemKind::IndexSig(_) => None,
+            ast::ClassElemKind::Semi(_) => None,
         }
     }
 
@@ -384,7 +401,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         let body = self.lower_block_stmt(body);
         Some(
             self.nodes
-                .alloc_class_method_elem(n.span, modifiers, name, params, body),
+                .alloc_class_method_elem(n.span, modifiers, n.asterisk, name, params, body),
         )
     }
 
@@ -421,7 +438,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
 
         let f = self
             .nodes
-            .alloc_fn_decl(n.span, modifiers, name, params, graph);
+            .alloc_fn_decl(n.span, modifiers, n.asterisk, name, params, graph);
         Some(f)
     }
 
@@ -457,7 +474,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_modifier(&mut self, n: &'cx ast::Modifier) -> ir::ModifierID {
-        self.nodes.alloc_modifier(n.span, n.kind)
+        self.nodes.alloc_modifier(n.span(), n.kind())
     }
 
     fn lower_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) -> ir::BlockStmtID {
@@ -635,9 +652,15 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ast::PropNameKind::NumLit(n) => {
                 ir::PropName::NumLit(self.nodes.alloc_num_lit(n.span, n.val))
             }
+            ast::PropNameKind::BigIntLit(n) => {
+                ir::PropName::BigIntLit(self.nodes.alloc_bigint_lit(n.span, n.val.0, n.val.1))
+            }
             ast::PropNameKind::Computed(n) => {
                 let expr = self.lower_expr(n.expr);
                 ir::PropName::Computed(self.nodes.alloc_computed_prop_name(n.span, expr))
+            }
+            ast::PropNameKind::PrivateIdent(n) => {
+                ir::PropName::PrivateIdent(self.lower_private_ident(n))
             }
         }
     }
@@ -656,6 +679,11 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             .get_resolved_ty()
             .unwrap_or(self.checker.error_ty);
         self.nodes.alloc_ident(ty.id, ident.span, ident.name)
+    }
+
+    fn lower_private_ident(&mut self, private_ident: &'cx ast::PrivateIdent) -> ir::PrivateIdentID {
+        self.nodes
+            .alloc_private_ident(private_ident.span, private_ident.name)
     }
 
     fn lower_bin_expr(&mut self, expr: &'cx ast::BinExpr<'cx>) -> ir::Expr {
@@ -729,8 +757,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                             let params = self.lower_param_decls(n.params);
                             let body = self.lower_block_stmt(n.body);
                             Some(ir::ObjectLitMember::Method(
-                                self.nodes
-                                    .alloc_object_method_member(n.span, name, params, body),
+                                self.nodes.alloc_object_method_member(
+                                    n.span, n.asterisk, name, params, body,
+                                ),
                             ))
                         }
                         ast::ObjectMemberKind::SpreadAssignment(n) => {
@@ -768,7 +797,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                     self.add_stmt_to_basic_block(stmt, (graph, bb));
                 }
                 self.current = saved;
-                ir::Expr::Fn(self.nodes.alloc_fn_expr(n.span, name, params, graph))
+                ir::Expr::Fn(
+                    self.nodes
+                        .alloc_fn_expr(n.span, n.asterisk, name, params, graph),
+                )
             }
             ExprKind::Class(n) => {
                 let name = n.name.map(|name| self.lower_ident(name));
@@ -791,6 +823,7 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 ir::Expr::New(self.nodes.alloc_new_expr(n.span, expr, args))
             }
             ExprKind::ArrowFn(n) => {
+                let modifier = n.async_modifier.as_ref().map(|m| self.lower_modifier(m));
                 let params = self.lower_param_decls(n.params);
                 let saved = self.current;
                 let graph = self.graph_arena.alloc_empty_graph();
@@ -810,7 +843,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                     }
                 };
                 self.current = saved;
-                let f = self.nodes.alloc_arrow_fn_expr(n.span, params, graph);
+                let f = self
+                    .nodes
+                    .alloc_arrow_fn_expr(n.span, modifier, params, graph);
                 ir::Expr::ArrowFn(f)
             }
             ExprKind::PrefixUnary(n) => self.lower_prefix_unary_expr(n),
@@ -866,6 +901,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ExprKind::Await(n) => {
                 let expr = self.lower_expr(n.expr);
                 ir::Expr::Await(self.nodes.alloc_await_expr(n.span, expr))
+            }
+            ExprKind::Yield(n) => {
+                let expr = n.expr.map(|expr| self.lower_expr(expr));
+                ir::Expr::Yield(self.nodes.alloc_yield_expr(n.span, n.asterisk, expr))
             }
         }
     }

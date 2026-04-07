@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 regex = { workspace = true }
-tempfile = "3.21.0"
 serde_json = { workspace = true }
+rand = { version = "0.10.0" }
+symlink = "0.1.0"

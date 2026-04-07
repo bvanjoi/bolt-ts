@@ -1,0 +1,8 @@
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/exportSameNameFuncVar/index.ts:7:17]
+ 6 │ a = 10;
+   · ┬
+   · ╰── Previous definition here
+ 7 │ export function a
+   ·                 ─
+   ╰────

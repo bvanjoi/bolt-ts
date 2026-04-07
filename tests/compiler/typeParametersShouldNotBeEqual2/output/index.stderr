@@ -1,0 +1,35 @@
+  × Type 'U' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:8:5]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Type 'V' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:10:5]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Type 'T' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:12:5]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Type 'V' is not assignable to type 'U'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:14:5]
+ 14 │ y
+    · ─
+    ╰────
+
+  × Type 'U' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:16:5]
+ 16 │ z
+    · ─
+    ╰────
+
+  × Type 'Object' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual2/index.ts:18:5]
+ 18 │ x
+    · ─
+    ╰────

@@ -1,7 +1,5 @@
-use bolt_ts_binder::set_value_declaration;
-use bolt_ts_binder::{
-    MergeSymbol, MergedSymbols, ResolveResult, SymbolFlags, SymbolID, SymbolName, SymbolTable,
-};
+use bolt_ts_binder::{BinderResult, set_value_declaration};
+use bolt_ts_binder::{MergeSymbol, MergedSymbols, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleArena;
 
@@ -10,7 +8,7 @@ use super::resolve_external_module_name;
 struct MergeModuleAugmentation<'p, 'cx> {
     pub p: &'p ParsedMap<'cx>,
     pub atoms: &'p bolt_ts_atom::AtomIntern,
-    pub bind_list: Vec<ResolveResult>,
+    pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
 }
@@ -62,22 +60,25 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
     }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        &self.atoms
+    }
 }
 
-pub struct MergeModuleAugmentationResult {
-    pub bind_list: Vec<ResolveResult>,
+pub struct MergeModuleAugmentationResult<'cx> {
+    pub bind_list: Vec<BinderResult<'cx>>,
     pub merged_symbols: MergedSymbols,
     pub global_symbols: SymbolTable,
 }
 
-pub fn merge_module_augmentation_list_for_global(
-    parser: &ParsedMap,
+pub fn merge_module_augmentation_list_for_global<'cx>(
+    parser: &ParsedMap<'cx>,
     atoms: &bolt_ts_atom::AtomIntern,
-    bind_list: Vec<ResolveResult>,
+    bind_list: Vec<BinderResult<'cx>>,
     module_arena: &ModuleArena,
     global_symbols: SymbolTable,
     merged_symbols: MergedSymbols,
-) -> MergeModuleAugmentationResult {
+) -> MergeModuleAugmentationResult<'cx> {
     let mut c = MergeModuleAugmentation {
         p: parser,
         bind_list,
@@ -136,13 +137,13 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         }
     }
     fn get_merged_symbols(&self) -> &MergedSymbols {
-        self.merged_symbols
+        &self.merged_symbols
     }
     fn get_global_symbols(&self) -> &SymbolTable {
-        self.global_symbols
+        &self.global_symbols
     }
     fn get_mut_global_symbols(&mut self) -> &mut SymbolTable {
-        self.global_symbols
+        &mut self.global_symbols
     }
     fn get_locals(&self, container: bolt_ts_ast::NodeID) -> &SymbolTable {
         self.binder.bind_results[container.module().as_usize()]
@@ -158,7 +159,7 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
-        set_value_declaration(symbol, symbols, node, self.p);
+        set_value_declaration(symbol, symbols, node, &self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
         let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;
@@ -169,10 +170,14 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
     fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
         self.atoms.get(atom)
     }
+    fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
+        &self.atoms
+    }
 }
 
 impl<'cx> super::TyChecker<'cx> {
     pub(super) fn merge_module_augmentation_list_for_non_global(&mut self) {
+        let mut queue = Vec::new();
         for (idx, (m, p)) in self
             .module_arena
             .modules()
@@ -190,8 +195,12 @@ impl<'cx> super::TyChecker<'cx> {
                 if ns.is_global_argument {
                     continue;
                 }
-                self.merge_module_augmentation_for_non_global(*augmentation, ns);
+                queue.push((ns, *augmentation));
             }
+        }
+
+        for (ns, augmentation) in queue {
+            self.merge_module_augmentation_for_non_global(augmentation, ns);
         }
     }
 
@@ -209,7 +218,7 @@ impl<'cx> super::TyChecker<'cx> {
             assert!(decls.len() > 1);
             return;
         }
-        let Some(main_module) = resolve_external_module_name(self.mg, module_name, self.p) else {
+        let Some(main_module) = resolve_external_module_name(&self.mg, module_name, &self.p) else {
             return;
         };
         // TODO: resolve_external_module_symbol

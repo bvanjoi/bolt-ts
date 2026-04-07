@@ -1,0 +1,5 @@
+  × Type '{ a: number; }' is not assignable to type '1'.
+    ╭─[../../tests/compiler/contextualTypingArrayDestructuringWithDefaults/index.ts:13:10]
+ 13 │ length
+    · ──────
+    ╰────

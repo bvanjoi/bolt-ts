@@ -1,13 +1,14 @@
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
+use crate::check::links::SigLinks;
+
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::CheckFlags;
 use super::ty::SigID;
@@ -18,11 +19,81 @@ use super::type_predicate::TyPred;
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn new_sig(&mut self, sig: Sig<'cx>) -> &'cx Sig<'cx> {
-        assert!(sig.id == SigID::dummy(), "TODO: hidden id");
-        let sig = sig.with_id(self.sigs.len());
+        debug_assert!(sig.id == SigID::dummy(), "TODO: hidden id");
+        let sig = sig.with_id(self.sigs.len() as u32);
         let s = self.alloc(sig);
         self.sigs.push(s);
         s
+    }
+
+    fn create_optional_call_sig(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        call_chain_flags: SigFlags,
+    ) -> &'cx Sig<'cx> {
+        let new = ty::Sig {
+            id: SigID::dummy(),
+            flags: sig.flags | call_chain_flags,
+            params: sig.params,
+            this_param: sig.this_param,
+            min_args_count: sig.min_args_count,
+            ret: sig.ret,
+            node_id: sig.node_id,
+            target: sig.target,
+            mapper: sig.mapper,
+            class_decl: sig.class_decl,
+            composite_sigs: sig.composite_sigs,
+            composite_kind: sig.composite_kind,
+        };
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            let links = SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(new.id, links);
+            debug_assert!(prev.is_none());
+        }
+
+        self.new_sig(new)
+    }
+
+    pub(super) fn get_optional_call_sig(
+        &mut self,
+        sig: &'cx Sig<'cx>,
+        call_chain_flags: SigFlags,
+    ) -> &'cx Sig<'cx> {
+        if sig.flags.intersection(SigFlags::CALL_CHAIN_FLAGS) == call_chain_flags {
+            return sig;
+        }
+        if call_chain_flags.contains(SigFlags::IS_INNER_CALL_CHAIN) {
+            if let Some(cached) = self.get_sig_links(sig.id).get_inner_optional_call_sig() {
+                return cached;
+            };
+            let new = self.create_optional_call_sig(sig, call_chain_flags);
+            self.get_mut_sig_links(sig.id)
+                .set_inner_optional_call_sig(new);
+            new
+        } else {
+            debug_assert!(call_chain_flags.contains(SigFlags::IS_OUTER_CALL_CHAIN),);
+            if let Some(cached) = self.get_sig_links(sig.id).get_outer_optional_call_sig() {
+                return cached;
+            };
+            let new = self.create_optional_call_sig(sig, call_chain_flags);
+            self.get_mut_sig_links(sig.id)
+                .set_outer_optional_call_sig(new);
+            new
+        }
+    }
+
+    fn get_ty_params_from_decl(&mut self, decl: ast::NodeID) -> Option<ty::Tys<'cx>> {
+        let mut result = vec![];
+        let ty_params = self.get_effective_ty_param_decls(decl);
+        self.append_ty_params(&mut result, ty_params);
+        if !ty_params.is_empty() {
+            Some(self.alloc(result))
+        } else if self.p.node(decl).is_fn_decl() {
+            self.get_sig_of_ty_tag(decl)
+                .and_then(|sig| self.get_sig_links(sig.id).get_ty_params())
+        } else {
+            None
+        }
     }
 
     pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
@@ -42,16 +113,16 @@ impl<'cx> TyChecker<'cx> {
             let r = class_ty.kind.expect_object_reference();
             let i = r.target.kind.expect_object_interface();
             i.local_ty_params
-        } else if let Some(ty_params) = decl.ty_params() {
-            let mut res = Vec::with_capacity(ty_params.len());
-            self.append_ty_params(&mut res, ty_params);
-            let ty_params: ty::Tys<'cx> = self.alloc(res);
-            Some(ty_params)
         } else {
-            None
+            self.get_ty_params_from_decl(id)
         };
-        let sig = get_sig_from_decl(self, decl, ty_params);
+        let sig = get_sig_from_decl(self, decl);
         let sig = self.new_sig(sig);
+        if let Some(ty_params) = ty_params {
+            let links = super::links::SigLinks::default().with_ty_params(ty_params);
+            let prev = self.sig_links.insert(sig.id, links);
+            debug_assert!(prev.is_none());
+        }
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
@@ -105,6 +176,11 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_sig_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
+        let n = self.p.node(id);
+        // TODO: js
+        if n.is_fn_decl_like() {
+            return None;
+        }
         None
     }
 
@@ -150,8 +226,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
-        if let Some(ty_params) = sig.ty_params {
-            // TODO: cache
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
+            // TODO: baseSignatureCache
             let ty_eraser = self.create_ty_eraser(ty_params);
             let targets = {
                 let tys = ty_params
@@ -166,7 +242,7 @@ impl<'cx> TyChecker<'cx> {
             let base_constraint_mapper = self.create_ty_mapper(ty_params, targets);
             let base_constraints = ty_params
                 .iter()
-                .map(|ty| self.instantiate_ty(ty, Some(base_constraint_mapper)))
+                .map(|ty| self.instantiate_ty_worker(ty, base_constraint_mapper))
                 .collect::<Vec<_>>();
             let mut base_constraints: ty::Tys<'cx> = self.alloc(base_constraints);
             for _ in 0..ty_params.len() - 1 {
@@ -186,7 +262,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_erased_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
-        if let Some(ty_params) = sig.ty_params {
+        if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
             // TODO: cache
             self.create_erased_sig(sig, ty_params)
         } else {
@@ -329,17 +405,16 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
             };
-            let candidate = if sigs.len() == 1 && sigs[0].ty_params.is_none() {
-                Some(sigs[0])
+            let sig = if sigs.len() == 1
+                && self.get_sig_links(sigs[0].id).get_ty_params().is_none()
+                && self.has_ty_pred_or_never_ret_ty(sigs[0])
+            {
+                sigs[0]
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                // TODO: get_resolved_sig(node)
-                Some(self.get_resolved_sig(node))
+                self.get_resolved_sig(node)
             } else {
-                None
+                self.unknown_sig()
             };
-            let sig = candidate
-                .filter(|sig| self.has_ty_pred_or_never_ret_ty(sig))
-                .unwrap_or(self.unknown_sig());
             self.get_mut_node_links(node).set_effects_sig(sig);
             sig
         };
@@ -433,11 +508,7 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn get_sig_from_decl<'cx>(
-    checker: &TyChecker<'cx>,
-    node: ast::Node<'cx>,
-    ty_params: Option<ty::Tys<'cx>>,
-) -> Sig<'cx> {
+fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
     debug_assert!(
         node.is_fn_decl()
             || node.is_fn_expr()
@@ -496,6 +567,21 @@ fn get_sig_from_decl<'cx>(
     if has_rest_param {
         flags.insert(SigFlags::HAS_REST_PARAMETER);
     }
+    match node {
+        ast::Node::CtorTy(n)
+            if n.modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT)) =>
+        {
+            flags |= SigFlags::ABSTRACT;
+        }
+        ast::Node::ClassCtor(n)
+            if n.modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT)) =>
+        {
+            flags |= SigFlags::ABSTRACT;
+        }
+        _ => {}
+    }
     let params: &[SymbolID] = checker.alloc(params);
     let ret = match node {
         ast::Node::FnDecl(decl) => decl.ty.map(|ty| ty.id()),
@@ -516,17 +602,18 @@ fn get_sig_from_decl<'cx>(
         ast::Node::SetterDecl(_) => None,
         _ => unreachable!(),
     };
-    Sig {
+    ty::Sig {
         flags,
-        ty_params,
         this_param,
         params,
-        min_args_count,
+        min_args_count: min_args_count as u32,
         ret,
         node_id: Some(node.id()),
         target: None,
         mapper: None,
         id: SigID::dummy(),
         class_decl: None,
+        composite_sigs: None,
+        composite_kind: None,
     }
 }

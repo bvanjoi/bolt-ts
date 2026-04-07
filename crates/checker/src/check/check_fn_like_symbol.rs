@@ -1,19 +1,19 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::ArrowFnExprBody;
-use bolt_ts_ast::ModifierKind;
-use bolt_ts_ast::keyword;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_span::Span;
 
 use super::TyChecker;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
-use super::symbol_info::SymbolInfo;
 use super::ty;
 use super::{Ternary, errors};
 
-const FLAGS_TO_CHECK: enumflags2::BitFlags<ast::ModifierKind> =
-    enumflags2::make_bitflags!(ModifierKind::{Export | Ambient | Private | Protected | Abstract});
+const FLAGS_TO_CHECK: ast::ModifierFlags = ast::ModifierFlags::EXPORT
+    .union(ast::ModifierFlags::AMBIENT)
+    .union(ast::ModifierFlags::PRIVATE)
+    .union(ast::ModifierFlags::PROTECTED)
+    .union(ast::ModifierFlags::ABSTRACT);
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
@@ -23,26 +23,33 @@ impl<'cx> TyChecker<'cx> {
 
         let mut has_overloads = false;
         let mut body_declaration = None;
-        let mut some_node_flags = enumflags2::BitFlags::empty();
+        let mut some_node_flags = ast::ModifierFlags::empty();
         let mut all_node_flags = FLAGS_TO_CHECK;
-        let is_ctor = s.flags.intersects(SymbolFlags::CONSTRUCTOR);
+        let is_ctor = s.flags.contains(SymbolFlags::CONSTRUCTOR);
 
         let mut last_seen_non_ambient_decl = None;
-        let mut multiple_constructor_implement = false;
         let mut duplicate_function_declaration = false;
+        let mut multiple_constructor_implement = false;
+        let mut has_non_ambient_class = false;
         let mut fn_decls = vec![];
 
         for decl in decls {
             let node = self.p.node(*decl);
-            let is_ambient_context = self.p.node_flags(*decl).intersects(ast::NodeFlags::AMBIENT);
-            let is_ambient_context_or_interface = self.parent(*decl).is_some_and(|parent| {
-                let p = self.p.node(parent);
-                p.is_interface_decl() || p.is_object_lit_ty()
-            }) || is_ambient_context;
+            let is_ambient_context = self.p.node_flags(*decl).contains(ast::NodeFlags::AMBIENT);
+            let is_ambient_context_or_interface = is_ambient_context
+                || self.parent(*decl).is_some_and(|parent| {
+                    let p = self.p.node(parent);
+                    p.is_interface_decl() || p.is_object_lit_ty()
+                });
+
+            if node.is_class_like() && !is_ambient_context {
+                has_non_ambient_class = true;
+            }
 
             if node.is_fn_decl()
-                || node.is_method_signature()
                 || node.is_class_method_elem()
+                || node.is_object_method_member()
+                || node.is_method_signature()
                 || node.is_class_ctor()
             {
                 fn_decls.push(*decl);
@@ -97,15 +104,45 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        if has_non_ambient_class && !is_ctor && s.flags.contains(SymbolFlags::FUNCTION) {
+            for decl in decls {
+                debug_assert!(decls.len() >= 1);
+                let n = self.p.node(*decl);
+                match n {
+                    ast::Node::ClassDecl(n) => {
+                        let name = n.name.unwrap();
+                        let error = errors::ClassDeclarationCannotImplementOverloadListForX {
+                            span: name.span,
+                            name: self.atoms.get(name.name).to_string(),
+                        };
+                        self.diags.push(bolt_ts_errors::Diag {
+                            inner: Box::new(error),
+                        });
+                    }
+                    ast::Node::FnDecl(n) => {
+                        let name = n.name.unwrap();
+                        let error =
+                            errors::FunctionWithBodiesCanOnlyMergeWithClassesThatAreAmbient {
+                                span: name.span,
+                            };
+                        self.diags.push(bolt_ts_errors::Diag {
+                            inner: Box::new(error),
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl
             && let n = self.p.node(last_seen_non_ambient_decl)
             && n.fn_body().is_none()
-            && !n.has_syntactic_modifier(ast::ModifierKind::Abstract.into())
+            && !n.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
         {
-            if s.flags.intersects(SymbolFlags::CONSTRUCTOR) {
+            if s.flags.contains(SymbolFlags::CONSTRUCTOR) {
                 let node = self.p.node(decls[0]).expect_class_ctor();
                 let lo = node.span.lo();
-                let hi = lo + keyword::KW_CONSTRUCTOR_STR.len() as u32;
+                let hi = lo + "constructor".len() as u32;
                 let span = Span::new(lo, hi, node.span.module());
                 let error = errors::ConstructorImplementationIsMissing { span };
                 self.diags.push(bolt_ts_errors::Diag {
@@ -163,8 +200,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         symbol: SymbolID,
         implementation: Option<ast::NodeID>,
-        some_overload_flags: enumflags2::BitFlags<ModifierKind>,
-        allow_overload_flags: enumflags2::BitFlags<ModifierKind>,
+        some_overload_flags: ast::ModifierFlags,
+        allow_overload_flags: ast::ModifierFlags,
     ) {
         let s = self.binder.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
@@ -177,8 +214,8 @@ impl<'cx> TyChecker<'cx> {
             for o in decls.clone() {
                 let flags = self.get_effective_declaration_flags(o, FLAGS_TO_CHECK);
                 let deviation_in_file = flags ^ cannoical_flags;
-                if deviation_in_file.contains(ast::ModifierKind::Export) {
-                } else if deviation_in_file.contains(ast::ModifierKind::Ambient) {
+                if deviation_in_file.contains(ast::ModifierFlags::EXPORT) {
+                } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
                     let span = self
                         .node_query(o.module())
                         .get_name_of_decl(o)

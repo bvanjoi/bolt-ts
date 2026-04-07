@@ -1,0 +1,5 @@
+  × Type 'number' is not assignable to type 'void'.
+    ╭─[../../tests/compiler/superCallAssignResult/index.ts:12:9]
+ 12 │ x
+    · ─
+    ╰────

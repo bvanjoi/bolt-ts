@@ -1,3 +1,5 @@
+use bolt_ts_binder::SymbolName;
+
 macro_rules! links {
     ($s: ident, $(($x: ident, $ty: ty)),* $( , )? ) => {
         #[derive(Debug, Default, Clone, Copy)]
@@ -5,6 +7,7 @@ macro_rules! links {
             $(
                 $x: Option<$ty>,
             )*
+            phantom: std::marker::PhantomData<&'cx ()>
         }
 
         impl<'cx> $s<'cx> {
@@ -80,5 +83,26 @@ links!(
     (template_ty, &'cx super::Ty<'cx>),
     (modifiers_ty, &'cx super::Ty<'cx>),
     (resolved_apparent_ty, &'cx super::Ty<'cx>),
-    (contains_error, bool),
+    (contains_error, bool)
+);
+
+links!(UnionTyLinks, (key_prop_name, SymbolName),);
+
+links!(
+    PromiseOrAwaitableTyLinks,
+    (promise_ty_of_promise_ctor, &'cx super::Ty<'cx>),
+    (promised_ty_of_promise, &'cx super::Ty<'cx>),
+    (awaited_ty_of_ty, &'cx super::Ty<'cx>),
+);
+
+links!(
+    ConditionalLinks,
+    (resolved_default_constraint, &'cx super::Ty<'cx>),
+    (resolved_inferred_true_ty, &'cx super::Ty<'cx>),
+    (resolved_true_ty, &'cx super::Ty<'cx>),
+    (resolved_false_ty, &'cx super::Ty<'cx>),
+    (
+        resolved_constraint_of_distribute,
+        Option<&'cx super::Ty<'cx>>
+    ),
 );

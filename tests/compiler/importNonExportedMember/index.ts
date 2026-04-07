@@ -5,3 +5,6 @@ import { foo, bar } from "./a";
 
 foo(1);
 //~^ ERROR: Expected 0 arguments, but got 1.
+
+import { foo as far } from "./a";
+far();

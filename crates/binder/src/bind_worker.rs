@@ -1,14 +1,19 @@
 use bolt_ts_ast as ast;
-use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
+use super::AssignmentDeclarationKind;
 use super::BinderState;
+use super::Symbol;
+use super::argument_name_from_element_access_node;
 use super::create::DeclareSymbolProperty;
 use super::node_query::ModuleInstanceState;
+use super::param_index_in_parameter_list;
+use super::prop_name;
 use super::symbol::SymbolFlags;
 use super::symbol::SymbolTableLocation;
 use super::symbol::{SymbolID, SymbolName};
+use super::symbol_name_from_enum_member_name;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
@@ -39,7 +44,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         name: SymbolName,
         ns: &'cx ast::ModuleDecl<'cx>,
     ) -> SymbolID {
-        let state = self.node_query().get_module_instance_state(ns, None);
+        let nq = self.node_query();
+        let state = nq.get_module_instance_state(ns, None, |_, index| {
+            if self.block_parent_stack.len() == index {
+                None
+            } else {
+                let index = self.block_parent_stack.len() - 1 - index;
+                Some(self.block_parent_stack[index])
+            }
+        });
         let instantiated = state != ModuleInstanceState::NonInstantiated;
         let (includes, excludes) = if instantiated {
             (
@@ -151,8 +164,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_fn_expr(&mut self, f: &impl r#trait::FnExprLike<'cx>) {
-        let name = f.name().map(SymbolName::Atom).unwrap_or(SymbolName::Fn);
         let id = f.id();
+        if let Some(current_flow) = self.current_flow {
+            self.flow_nodes.insert_flow_of_node(id, current_flow);
+        }
+        let name = f.name().map(SymbolName::Atom).unwrap_or(SymbolName::Fn);
         let symbol = self.bind_anonymous_decl(id, SymbolFlags::FUNCTION, name);
         self.create_final_res(id, symbol);
     }
@@ -181,8 +197,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 let symbol = self.bind_var(n.id, name.name);
                 self.create_final_res(n.id, symbol);
             }
-            ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_) => return,
-        };
+            ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_) => (),
+        }
     }
 
     fn bind_object_binding_ele(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -200,11 +216,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let ast::BindingKind::Ident(name) = name.kind {
                     let symbol = self.bind_var(n.id, name.name);
                     self.create_final_res(n.id, symbol);
-                } else {
-                    return;
                 }
             }
-        };
+        }
     }
 
     fn bind_array_binding(&mut self, n: &ast::ArrayBinding<'cx>) {
@@ -213,12 +227,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
 
         use bolt_ts_ast::BindingKind::*;
-        match n.name.kind {
-            Ident(ident) => {
-                let symbol = self.bind_var(n.id, ident.name);
-                self.create_final_res(n.id, symbol);
-            }
-            _ => {}
+        if let Ident(ident) = n.name.kind {
+            let symbol = self.bind_var(n.id, ident.name);
+            self.create_final_res(n.id, symbol);
         };
     }
 
@@ -250,9 +261,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_param_decl(&mut self, n: &ast::ParamDecl<'cx>) {
-        if self.in_strict_mode && !self.p.node_flags(n.id).intersects(NodeFlags::AMBIENT) {
-            // TODO: check
-        }
         use bolt_ts_ast::BindingKind::*;
         match n.name.kind {
             Ident(ident) => {
@@ -266,12 +274,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(n.id, symbol);
             }
             ArrayPat(_) | ObjectPat(_) => {
-                let idx = {
-                    let p = self.node_query().parent(n.id).unwrap();
-                    let params = self.p.node(p).params().unwrap();
-                    params.iter().position(|p| p.id == n.id).unwrap()
-                };
-                let name = SymbolName::ParamIdx(idx as u32);
+                let p = self.node_query().parent(n.id).unwrap();
+                let params = self.p.node(p).params().unwrap();
+                let name = param_index_in_parameter_list(n.id, params);
                 let symbol =
                     self.bind_anonymous_decl(n.id, SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
                 self.create_final_res(n.id, symbol);
@@ -308,51 +313,51 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn _bind(&mut self, node: ast::NodeID) {
+    pub(super) fn bind_worker(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
         use ast::Node::*;
         match n {
             Ident(_) => {
                 // TODO: identifier with NodeFlags.IdentifierIsInJSDocNamespace
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             ThisExpr(_) => {
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             QualifiedName(_) => {
                 if let Some(flow) = self.current_flow
                     && self.node_query().is_part_of_ty_query(node)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
             }
             // TODO: meta
             SuperExpr(_) => {
                 if let Some(flow) = self.current_flow {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 } else {
-                    self.flow_nodes.reset_container_map(node);
+                    self.flow_nodes.reset_flow_of_node(node);
                 }
             }
             // TODO: private
-            PropAccessExpr(p) => {
+            PropAccessExpr(n) => {
                 if let Some(flow) = self.current_flow
-                    && self.is_narrowable_reference(p.expr)
+                    && self.is_narrowable_reference(n.expr)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js
             }
-            EleAccessExpr(e) => {
+            EleAccessExpr(n) => {
                 if let Some(flow) = self.current_flow
-                    && self.ele_access_is_narrowable_reference(e)
+                    && self.ele_access_is_narrowable_reference(n)
                 {
-                    self.flow_nodes.insert_container_map(node, flow);
+                    self.flow_nodes.insert_flow_of_node(node, flow);
                 }
                 // TODO: is_special_prop_decl
                 // TODO: js
@@ -380,7 +385,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             VarDecl(n) => self.bind_var_decl(n),
             ObjectBindingElem(n) => {
                 // self.flow_nodes
-                //     .insert_container_map(node, self.current_flow.unwrap());
+                //     .insert_container_map(n.id, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
             ArrayBinding(n) => self.bind_array_binding(n),
@@ -393,18 +398,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     } else {
                         SymbolFlags::empty()
                     };
-                let symbol = self.bind_prop_or_method_or_access(
+                let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    name,
+                    || prop_name(name),
                     includes,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
                 self.create_final_res(node, symbol);
             }
             ObjectPropAssignment(n) => {
-                let symbol = self.bind_prop_or_method_or_access(
+                let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    n.name,
+                    || prop_name(n.name),
                     SymbolFlags::PROPERTY,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -421,9 +426,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node, symbol);
             }
             EnumMember(m) => {
-                let symbol = self.bind_prop_or_method_or_access(
+                let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
-                    m.name,
+                    || symbol_name_from_enum_member_name(&m.name),
                     SymbolFlags::ENUM_MEMBER,
                     SymbolFlags::ENUM_MEMBER_EXCLUDES,
                 );
@@ -454,9 +459,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     } else {
                         SymbolFlags::empty()
                     };
-                let symbol = self.bind_prop_or_method_or_access(
+                let symbol = self.bind_prop_or_method_or_access::<false>(
                     node.id,
-                    node.name,
+                    || prop_name(node.name),
                     includes,
                     SymbolFlags::METHOD_EXCLUDES,
                 );
@@ -465,20 +470,32 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassMethodElem(node) => {
                 // TODO: is_optional
                 let includes = SymbolFlags::METHOD;
-                let symbol = self.bind_prop_or_method_or_access(
-                    node.id,
-                    node.name,
-                    includes,
-                    SymbolFlags::METHOD_EXCLUDES,
-                );
+                let bind_flow = self
+                    .parent
+                    .is_some_and(|p| matches!(self.p.node(p), ast::Node::ClassExpr(_)));
+                let symbol = if bind_flow {
+                    self.bind_prop_or_method_or_access::<true>(
+                        node.id,
+                        || prop_name(node.name),
+                        includes,
+                        SymbolFlags::METHOD_EXCLUDES,
+                    )
+                } else {
+                    self.bind_prop_or_method_or_access::<false>(
+                        node.id,
+                        || prop_name(node.name),
+                        includes,
+                        SymbolFlags::METHOD_EXCLUDES,
+                    )
+                };
                 self.create_final_res(node.id, symbol);
             }
             ObjectMethodMember(node) => {
                 // TODO: is_optional
                 let includes = SymbolFlags::METHOD;
-                let symbol = self.bind_prop_or_method_or_access(
+                let symbol = self.bind_prop_or_method_or_access::<true>(
                     node.id,
-                    node.name,
+                    || prop_name(node.name),
                     includes,
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
@@ -497,21 +514,51 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node.id, symbol);
             }
             GetterDecl(node) => {
-                let symbol = self.bind_prop_or_method_or_access(
-                    node.id,
-                    node.name,
-                    SymbolFlags::GET_ACCESSOR,
-                    SymbolFlags::GET_ACCESSOR_EXCLUDES,
-                );
+                let bind_flow = self.parent.is_some_and(|p| {
+                    matches!(
+                        self.p.node(p),
+                        ast::Node::ClassExpr(_) | ast::Node::ObjectLit(_)
+                    )
+                });
+                let symbol = if bind_flow {
+                    self.bind_prop_or_method_or_access::<true>(
+                        node.id,
+                        || prop_name(node.name),
+                        SymbolFlags::GET_ACCESSOR,
+                        SymbolFlags::GET_ACCESSOR_EXCLUDES,
+                    )
+                } else {
+                    self.bind_prop_or_method_or_access::<false>(
+                        node.id,
+                        || prop_name(node.name),
+                        SymbolFlags::GET_ACCESSOR,
+                        SymbolFlags::GET_ACCESSOR_EXCLUDES,
+                    )
+                };
                 self.create_final_res(node.id, symbol);
             }
             SetterDecl(node) => {
-                let symbol = self.bind_prop_or_method_or_access(
-                    node.id,
-                    node.name,
-                    SymbolFlags::SET_ACCESSOR,
-                    SymbolFlags::SET_ACCESSOR_EXCLUDES,
-                );
+                let bind_flow = self.parent.is_some_and(|p| {
+                    matches!(
+                        self.p.node(p),
+                        ast::Node::ClassExpr(_) | ast::Node::ObjectLit(_)
+                    )
+                });
+                let symbol = if bind_flow {
+                    self.bind_prop_or_method_or_access::<true>(
+                        node.id,
+                        || prop_name(node.name),
+                        SymbolFlags::SET_ACCESSOR,
+                        SymbolFlags::SET_ACCESSOR_EXCLUDES,
+                    )
+                } else {
+                    self.bind_prop_or_method_or_access::<false>(
+                        node.id,
+                        || prop_name(node.name),
+                        SymbolFlags::SET_ACCESSOR,
+                        SymbolFlags::SET_ACCESSOR_EXCLUDES,
+                    )
+                };
                 self.create_final_res(node.id, symbol);
             }
             FnTy(_) => {
@@ -548,11 +595,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
             ModuleDecl(node) => self.bind_ns_decl(node),
-            ImportExportShorthandSpec(ast::ImportExportShorthandSpec { id, name, .. })
+            ImportEqualsDecl(ast::ImportEqualsDecl { id, name, .. })
+            | ImportNamedSpec(ast::ImportNamedSpec { id, name, .. })
+            | ImportShorthandSpec(ast::ImportShorthandSpec { id, name, .. })
+            | ExportShorthandSpec(ast::ExportShorthandSpec { id, name, .. })
             | NsImport(ast::NsImport { id, name, .. }) => {
-                // import { name } from 'xxx'
-                // import * as name from 'xxx'
-                // export { name } from 'xxx'
+                // importEqualsDeclaration:
+                //  - import name = xxx
+                //  - import name = xxx.yyy
+                // ImportNamedSpec:
+                //  - import { prop_name as name } from 'xxx'
+                // ImportShorthandSpec:
+                //  - import { name } from 'xxx'
+                // ExportShorthandSpec:
+                //  - export { name } from 'xxx'
+                // NsImport:
+                //  - import * as name from 'xxx'
                 let name = SymbolName::Atom(name.name);
                 let symbol = self.declare_symbol_and_add_to_symbol_table(
                     name,
@@ -583,7 +641,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExportDecl(node) => self.bind_export_decl(node),
             ExportAssign(node) => self.bind_export_assign(node),
             Program(node) => {
-                self.update_strict_mode_statement_list(node.stmts);
+                self.update_strict_mode_statement_list(node.stmts());
                 self.bind_source_file_if_external_module(node);
             }
             BlockStmt(n)
@@ -598,8 +656,138 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ThisTy(_) => {
                 self.seen_this_keyword = true;
             }
+            AssignExpr(n) => {
+                let special_kind = self
+                    .node_query()
+                    .get_assignment_declaration_kind_for_assign_expr(n);
+                match special_kind {
+                    AssignmentDeclarationKind::Property => self.bind_special_prop_assignment(n),
+                    _ => {
+                        // TODO
+                    }
+                }
+            }
             _ => {}
         }
+    }
+
+    fn bind_special_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
+        if node.left.is_bindable_static_name_expr::<false>() {
+            self.bind_static_prop_assignment(node.left);
+        }
+    }
+
+    fn bind_static_prop_assignment(&mut self, node: &'cx ast::Expr<'cx>) {
+        match node.kind {
+            ast::ExprKind::EleAccess(n) => {
+                let node_id = node.id();
+                // self.parent_map.insert(n.expr.id(), node_id);
+                let Some(key_name) = argument_name_from_element_access_node(n) else {
+                    return;
+                };
+                self.bind_prop_assignment::<false, false>(n.expr, key_name, node_id);
+            }
+            ast::ExprKind::Ident(_) => unreachable!(),
+            _ => {}
+        }
+    }
+
+    fn bind_prop_assignment<const IS_PROTOTYPE_PROPERTY: bool, const CONTAINER_IS_CLASS: bool>(
+        &mut self,
+        prop_name: &'cx ast::Expr<'cx>,
+        key_name: SymbolName,
+        prop_access: ast::NodeID,
+    ) -> Option<SymbolID> {
+        let namespace_symbol = self.lookup_symbol_for_prop_access(
+            prop_name.id(),
+            self.block_scope_container
+                .unwrap_or(self.container.unwrap()),
+        );
+        self.bind_potentially_new_expando_member_to_namespace::<IS_PROTOTYPE_PROPERTY>(
+            prop_access,
+            namespace_symbol,
+            key_name,
+        )
+    }
+
+    fn lookup_symbol_for_prop_access(
+        &self,
+        node: ast::NodeID,
+        lookup_container: ast::NodeID,
+    ) -> Option<SymbolID> {
+        let n = self.p.node(node);
+        let symbol = match n {
+            ast::Node::Ident(ident) => {
+                return self.lookup_symbol_for_name(lookup_container, SymbolName::Atom(ident.name));
+            }
+            ast::Node::EleAccessExpr(p) => {
+                self.lookup_symbol_for_prop_access(p.expr.id(), self.container.unwrap())
+            }
+            ast::Node::PropAccessExpr(_p) => {
+                // TODO:
+                return None;
+            }
+            _ => unreachable!(),
+        }?;
+        let exports = self.symbols.get(symbol).exports.as_ref()?;
+        let name = match n {
+            ast::Node::EleAccessExpr(p) => argument_name_from_element_access_node(p)?,
+            _ => unreachable!(),
+        };
+        exports.0.get(&name).copied()
+    }
+
+    fn lookup_symbol_for_name(&self, container: ast::NodeID, name: SymbolName) -> Option<SymbolID> {
+        let c = self.p.node(container);
+        if c.has_locals()
+            && let Some(local) = self
+                .locals
+                .get(&container)
+                .and_then(|locals| locals.0.get(&name).copied())
+        {
+            return Some(self.symbols.get(local).export_symbol.unwrap_or(local));
+        }
+
+        //TODO: source file level
+
+        if Symbol::can_have_symbol(self.p.node(container)) {
+            let symbol = self.final_res.get(&container)?;
+            let exports = self.symbols.get(*symbol).exports.as_ref()?;
+            return exports.0.get(&name).copied();
+        }
+
+        None
+    }
+
+    fn bind_potentially_new_expando_member_to_namespace<const IS_PROTOTYPE_PROPERTY: bool>(
+        &mut self,
+        decl: ast::NodeID,
+        namespace_symbol: Option<SymbolID>,
+        key_name: SymbolName,
+    ) -> Option<SymbolID> {
+        let namespace_symbol = namespace_symbol?;
+        if !self.symbols.get(namespace_symbol).is_expando_symbol() {
+            return None;
+        }
+
+        let location = if IS_PROTOTYPE_PROPERTY {
+            SymbolTableLocation::symbol_members(namespace_symbol)
+        } else {
+            SymbolTableLocation::symbol_exports(namespace_symbol)
+        };
+
+        let includes = SymbolFlags::METHOD;
+        let excludes = SymbolFlags::METHOD_EXCLUDES;
+
+        Some(self.declare_symbol(
+            Some(key_name),
+            location,
+            Some(namespace_symbol),
+            decl,
+            includes | SymbolFlags::ASSIGNMENT,
+            excludes & !SymbolFlags::ASSIGNMENT,
+            DeclareSymbolProperty::empty(),
+        ))
     }
 
     fn update_strict_mode_statement_list(&mut self, stmts: ast::Stmts<'cx>) {
@@ -636,11 +824,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
-        // TODO: is const
-        let (includes, excludes) = if node
-            .modifiers
-            .is_some_and(|ms| ms.flags.contains(ast::ModifierKind::Const))
-        {
+        let (includes, excludes) = if node.is_const() {
             (SymbolFlags::CONST_ENUM, SymbolFlags::CONST_ENUM_EXCLUDES)
         } else {
             (
@@ -650,7 +834,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         };
         let name = SymbolName::Atom(node.name.name);
         let symbol = self.bind_block_scoped_decl(node.id, name, includes, excludes);
-        self.final_res.insert(node.id, symbol);
+        self.create_final_res(node.id, symbol);
     }
 
     fn bind_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) {
@@ -689,7 +873,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_source_file_if_external_module(&mut self, node: &'cx ast::Program<'cx>) {
-        if self.p.is_external_or_commonjs_module() {
+        if self.p.is_external_module() {
             self.bind_source_file_as_external_module(node);
         }
         // TODO: json source file
@@ -697,16 +881,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_source_file_as_external_module(&mut self, node: &'cx ast::Program<'cx>) {
         let s = self.bind_anonymous_decl(
-            node.id,
+            node.id(),
             SymbolFlags::VALUE_MODULE,
             SymbolName::Atom(self.p.filepath),
         );
-        assert_eq!(s, SymbolID::container(node.id.module()));
-        self.final_res.insert(node.id, s);
+        assert_eq!(s, SymbolID::container(node.id().module()));
+        self.create_final_res(node.id(), s);
     }
 
     fn ele_access_is_narrowable_reference(&self, n: &ast::EleAccessExpr) -> bool {
-        (n.arg.is_string_or_number_lit_like() || n.arg.is_prop_access_entity_name_expr())
+        (n.arg.is_string_or_number_lit_like() || n.arg.is_entity_name_expr())
             && self.is_narrowable_reference(n.expr)
     }
 
@@ -717,14 +901,61 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Ident(_) | This(_) | Super(_) => true,
             PropAccess(n) => self.is_narrowable_reference(n.expr),
             Paren(n) => self.is_narrowable_reference(n.expr),
-            NonNull(n) => self.is_narrowable_reference(n.expr),
             EleAccess(n) => self.ele_access_is_narrowable_reference(n),
+            NonNull(n) => self.is_narrowable_reference(n.expr),
             Bin(_) => {
                 // TODO: n.op.kind == Comma
                 false
             }
             Assign(n) => n.left.is_left_hand_side_expr_kind(),
             _ => false,
+        }
+    }
+
+    pub(super) fn is_narrowable_expression(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+        use ast::ExprKind::*;
+        match expr.kind {
+            Ident(_) | This(_) | Super(_) => true,
+            PropAccess(_) | EleAccess(_) => self.contains_narrowable_reference(expr),
+            Paren(n) => {
+                // TODO: return false if expr is js
+                self.is_narrowable_expression(n.expr)
+            }
+            Call(n) => self.has_narrowable_argument(n),
+            // TODO: other case
+            _ => false,
+        }
+    }
+
+    fn has_narrowable_argument(&self, expr: &'cx ast::CallExpr<'cx>) -> bool {
+        for argument in expr.args {
+            if self.contains_narrowable_reference(argument) {
+                return true;
+            }
+        }
+
+        match expr.expr.kind {
+            ast::ExprKind::PropAccess(n) if self.contains_narrowable_reference(n.expr) => true,
+            _ => false,
+        }
+    }
+
+    fn contains_narrowable_reference(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+        self.is_narrowable_reference(expr) || {
+            let nq = self.node_query();
+            if !nq
+                .node_flags(expr.id())
+                .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+            {
+                return false;
+            }
+            match expr.kind {
+                ast::ExprKind::PropAccess(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::EleAccess(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::Call(n) => self.contains_narrowable_reference(n.expr),
+                ast::ExprKind::NonNull(n) => self.contains_narrowable_reference(n.expr),
+                _ => false,
+            }
         }
     }
 }

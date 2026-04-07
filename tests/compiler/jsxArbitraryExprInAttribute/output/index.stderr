@@ -3,3 +3,31 @@
  1 │ bar
    · ───
    ╰────
+
+  × Expected '\'.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:13]
+ 1 │ (
+   · ─
+   ╰────
+
+  × Expected '>'.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:13]
+ 1 │ (
+   · ─
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:14]
+ 1 │ )
+   · ─
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:17]
+ 1 │ >
+   · ─
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:7:32]
+   ╰────

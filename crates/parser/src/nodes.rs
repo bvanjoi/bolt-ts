@@ -6,15 +6,15 @@ use super::ast::Node::*;
 pub struct Nodes<'cx>(pub(super) Vec<Node<'cx>>);
 
 impl<'cx> Nodes<'cx> {
+    pub(super) fn insert(&mut self, id: ast::NodeID, node: Node<'cx>) {
+        debug_assert_eq!(id.index_as_usize(), self.0.len());
+        self.0.push(node);
+    }
+
     pub fn get(&self, id: ast::NodeID) -> Node<'cx> {
         let idx = id.index_as_usize();
         debug_assert!(idx < self.0.len(), "idx: {idx}, len: {}", self.0.len());
         *unsafe { self.0.get_unchecked(idx) }
-    }
-
-    pub(crate) fn insert(&mut self, id: ast::NodeID, node: Node<'cx>) {
-        debug_assert_eq!(id.index_as_usize(), self.0.len());
-        self.0.push(node);
     }
 
     pub fn root(&self) -> &'cx ast::Program<'cx> {
@@ -50,20 +50,22 @@ impl<'cx> Nodes<'cx> {
 
     pub fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {
         // TODO: has_syntactic_modifier
-        param
-            .modifiers
-            .is_some_and(|mods| mods.flags.intersects(ast::ModifierKind::PARAMETER_PROPERTY))
-            && self.get(parent).is_class_ctor()
+        param.modifiers.is_some_and(|mods| {
+            mods.flags
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+        }) && self.get(parent).is_class_ctor()
     }
 
     pub fn is_alias_symbol_decl(&self, id: ast::NodeID) -> bool {
         let node = self.get(id);
         use ast::Node::*;
         match node {
-            ImportNamedSpec(_) |  // `import { a as b } from 'xxx'`
-            ImportExportShorthandSpec(_) |    // `export { spec }` or `import { spec } from 'xxx'`
-            ExportNamedSpec(_) |  // `export { a as b }`
-            NsImport(_)           // `import * as ns from 'xxx'`
+            ImportEqualsDecl(_) |
+            ImportNamedSpec(_) |                // `import { a as b } from 'xxx'`
+            ImportShorthandSpec(_) |            // `import { spec } from 'xxx'`
+            ExportShorthandSpec(_) |            // `export { spec }`
+            ExportNamedSpec(_) |                // `export { a as b }`
+            NsImport(_)                         // `import * as ns from 'xxx'`
             => true,
             ImportClause(n) => n.name.is_some(), // `import a from 'xxx'`
             ExportAssign(n) => n.is_aliasable(),

@@ -71,6 +71,7 @@ decl_nodes!(
     setter_decl: SetterDecl,
     enum_decl: EnumDecl,
     import_decl: ImportDecl,
+    import_equals_decl: ImportEqualsDecl,
     export_decl: ExportDecl,
     export_assign: ExportAssign,
 
@@ -96,6 +97,7 @@ decl_nodes!(
     tagged_template_expr: TaggedTemplateExpr,
     delete_expr: DeleteExpr,
     await_expr: AwaitExpr,
+    yield_expr: YieldExpr,
     num_lit: NumLit,
     bigint_lit: BigIntLit,
     bool_lit: BoolLit,
@@ -105,6 +107,7 @@ decl_nodes!(
     array_lit: ArrayLit,
     object_lit: ObjectLit,
     ident: Ident,
+    private_ident: PrivateIdent,
     computed_prop_name: ComputedPropName,
 
     param_decl: ParamDecl,
@@ -533,6 +536,7 @@ impl Nodes {
     pub fn alloc_arrow_fn_expr(
         &mut self,
         span: Span,
+        modifier: Option<ModifierID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
     ) -> ArrowFnExprID {
@@ -540,6 +544,7 @@ impl Nodes {
         let id = self.arrow_fn_expr_nodes.0.alloc(ArrowFnExpr {
             id: idx,
             span,
+            modifier,
             params,
             body,
         });
@@ -584,6 +589,7 @@ impl Nodes {
     pub fn alloc_fn_expr(
         &mut self,
         span: Span,
+        asterisk: Option<Span>,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
@@ -592,6 +598,7 @@ impl Nodes {
         let id = self.fn_expr_nodes.0.alloc(FnExpr {
             id: idx,
             span,
+            asterisk,
             name,
             params,
             body,
@@ -641,6 +648,7 @@ impl Nodes {
     pub fn alloc_object_method_member(
         &mut self,
         span: Span,
+        asterisk: Option<Span>,
         name: PropName,
         params: Vec<ParamDeclID>,
         body: BlockStmtID,
@@ -649,6 +657,7 @@ impl Nodes {
         let id = self.object_method_member_nodes.0.alloc(ObjectMethodMember {
             id: idx,
             span,
+            asterisk,
             name,
             params,
             body,
@@ -961,6 +970,17 @@ impl Nodes {
     }
 
     #[inline]
+    pub fn alloc_import_equals_decl(&mut self, span: Span) -> ImportEqualsDeclID {
+        let idx = ImportEqualsDeclID(usize_into_idx(self.import_equals_decl_nodes.0.len()));
+        let id = self
+            .import_equals_decl_nodes
+            .0
+            .alloc(ImportEqualsDecl { id: idx, span });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
     pub fn alloc_import_named_spec(
         &mut self,
         span: Span,
@@ -1163,6 +1183,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
+        asterisk: Option<Span>,
         name: PropName,
         params: Vec<ParamDeclID>,
         body: BlockStmtID,
@@ -1172,6 +1193,7 @@ impl Nodes {
             id: idx,
             span,
             modifiers,
+            asterisk,
             name,
             params,
             body,
@@ -1217,7 +1239,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
-        name: IdentID,
+        name: Option<IdentID>,
         extends: Option<ClassExtendsClauseID>,
         elems: Vec<ClassElem>,
     ) -> ClassDeclID {
@@ -1226,7 +1248,7 @@ impl Nodes {
             id: idx,
             span,
             modifiers,
-            name: Some(name),
+            name,
             extends,
             elems,
         });
@@ -1257,6 +1279,7 @@ impl Nodes {
         &mut self,
         span: Span,
         modifiers: Option<Modifiers>,
+        asterisk: Option<Span>,
         name: Option<IdentID>,
         params: Vec<ParamDeclID>,
         body: ir::GraphID,
@@ -1265,6 +1288,7 @@ impl Nodes {
         let id = self.fn_decl_nodes.0.alloc(FnDecl {
             id: idx,
             span,
+            asterisk,
             modifiers,
             name,
             params,
@@ -1482,6 +1506,18 @@ impl Nodes {
         let id = self.ident_nodes.0.alloc(Ident {
             id: idx,
             ty,
+            span,
+            name,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    #[inline]
+    pub fn alloc_private_ident(&mut self, span: Span, name: Atom) -> PrivateIdentID {
+        let idx = PrivateIdentID(usize_into_idx(self.private_ident_nodes.0.len()));
+        let id = self.private_ident_nodes.0.alloc(PrivateIdent {
+            id: idx,
             span,
             name,
         });
@@ -1758,6 +1794,24 @@ impl Nodes {
         debug_assert_eq!(id, idx.0);
         idx
     }
+
+    #[inline]
+    pub fn alloc_yield_expr(
+        &mut self,
+        span: Span,
+        asterisk: Option<Span>,
+        expr: Option<Expr>,
+    ) -> YieldExprID {
+        let idx = YieldExprID(usize_into_idx(self.yield_expr_nodes.0.len()));
+        let id = self.yield_expr_nodes.0.alloc(YieldExpr {
+            id: idx,
+            span,
+            asterisk,
+            expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
 }
 
 #[derive(Debug)]
@@ -1787,6 +1841,25 @@ impl AwaitExpr {
         self.span
     }
     pub fn expr(&self) -> Expr {
+        self.expr
+    }
+}
+
+#[derive(Debug)]
+pub struct YieldExpr {
+    id: YieldExprID,
+    span: Span,
+    asterisk: Option<Span>,
+    expr: Option<Expr>,
+}
+impl YieldExpr {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
+    }
+    pub fn expr(&self) -> Option<Expr> {
         self.expr
     }
 }
@@ -2321,6 +2394,7 @@ impl SpreadElement {
 pub struct ArrowFnExpr {
     id: ArrowFnExprID,
     span: Span,
+    modifier: Option<ModifierID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
 }
@@ -2336,6 +2410,10 @@ impl ArrowFnExpr {
 
     pub fn body(&self) -> ir::GraphID {
         self.body
+    }
+
+    pub fn modifier(&self) -> Option<ModifierID> {
+        self.modifier
     }
 }
 
@@ -2418,6 +2496,7 @@ impl ClassExpr {
 pub struct FnExpr {
     id: FnExprID,
     span: Span,
+    asterisk: Option<Span>,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
@@ -2438,6 +2517,10 @@ impl FnExpr {
 
     pub fn body(&self) -> ir::GraphID {
         self.body
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 }
 
@@ -2484,6 +2567,7 @@ impl SpreadAssignment {
 pub struct ObjectMethodMember {
     id: ObjectMethodMemberID,
     span: Span,
+    asterisk: Option<Span>,
     name: PropName,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
@@ -2492,6 +2576,10 @@ pub struct ObjectMethodMember {
 impl ObjectMethodMember {
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 
     pub fn name(&self) -> PropName {
@@ -3160,6 +3248,18 @@ impl ImportDecl {
 }
 
 #[derive(Debug)]
+pub struct ImportEqualsDecl {
+    id: ImportEqualsDeclID,
+    span: Span,
+}
+
+impl ImportEqualsDecl {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+#[derive(Debug)]
 pub struct ImportClause {
     id: ImportClauseID,
     span: Span,
@@ -3484,6 +3584,7 @@ pub struct ClassMethodElem {
     id: ClassMethodElemID,
     span: Span,
     modifiers: Option<Modifiers>,
+    asterisk: Option<Span>,
     name: PropName,
     params: Vec<ParamDeclID>,
     body: BlockStmtID,
@@ -3500,6 +3601,10 @@ impl ClassMethodElem {
 
     pub fn name(&self) -> PropName {
         self.name
+    }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
     }
 
     pub fn params(&self) -> &[ParamDeclID] {
@@ -3818,6 +3923,7 @@ pub struct FnDecl {
     id: FnDeclID,
     span: Span,
     modifiers: Option<Modifiers>,
+    asterisk: Option<Span>,
     name: Option<IdentID>,
     params: Vec<ParamDeclID>,
     body: ir::GraphID,
@@ -3843,6 +3949,10 @@ impl FnDecl {
     pub fn body(&self) -> ir::GraphID {
         self.body
     }
+
+    pub fn asterisk(&self) -> Option<Span> {
+        self.asterisk
+    }
 }
 
 #[derive(Debug)]
@@ -3854,16 +3964,16 @@ pub struct Modifier {
 
 #[derive(Debug)]
 pub struct Modifiers {
-    flags: enumflags2::BitFlags<ast::ModifierKind>,
+    flags: ast::ModifierFlags,
     list: Vec<ModifierID>,
 }
 
 impl Modifiers {
-    pub fn new(flags: enumflags2::BitFlags<ast::ModifierKind>, list: Vec<ModifierID>) -> Self {
+    pub fn new(flags: ast::ModifierFlags, list: Vec<ModifierID>) -> Self {
         Self { flags, list }
     }
 
-    pub fn flags(&self) -> enumflags2::BitFlags<ast::ModifierKind> {
+    pub fn flags(&self) -> ast::ModifierFlags {
         self.flags
     }
 
@@ -3979,6 +4089,24 @@ impl Ident {
     }
 }
 
+#[derive(Debug)]
+pub struct PrivateIdent {
+    id: PrivateIdentID,
+    span: Span,
+    name: Atom,
+}
+impl PrivateIdent {
+    #[inline(always)]
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    #[inline(always)]
+    pub fn name(&self) -> Atom {
+        self.name
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Stmt {
     Var(VarStmtID),
@@ -3997,6 +4125,7 @@ pub enum Stmt {
     Module(ModuleDeclID),
     Enum(EnumDeclID),
     Import(ImportDeclID),
+    ImportEquals(ImportEqualsDeclID),
     Export(ExportDeclID),
     ExportAssign(ExportAssignID),
     Labeled(LabeledStmtID),
@@ -4033,6 +4162,7 @@ pub enum Expr {
     TaggedTemplate(TaggedTemplateExprID),
     Template(TemplateExprID),
     Await(AwaitExprID),
+    Yield(YieldExprID),
     Delete(DeleteExprID),
     SpreadElem(SpreadElementID),
     ArrowFn(ArrowFnExprID),
@@ -4056,7 +4186,9 @@ pub enum Binding {
 #[derive(Debug, Clone, Copy)]
 pub enum PropName {
     Ident(IdentID),
+    PrivateIdent(PrivateIdentID),
     StringLit(StringLitID),
+    BigIntLit(BigIntLitID),
     NumLit(NumLitID),
     Computed(ComputedPropNameID),
 }

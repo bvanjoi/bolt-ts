@@ -2,7 +2,7 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TyMapper;
@@ -24,13 +24,26 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_variances(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx [VarianceFlags] {
-        assert!(ty.kind.is_object_reference(), "ty: {:#?}", ty);
-        if ty == self.global_array_ty() || ty == self.global_readonly_array_ty() || ty.is_tuple() {
+        if ty == self.global_array_ty()
+            || ty == self.global_readonly_array_ty()
+            || ty.get_object_flags().contains(ObjectFlags::TUPLE)
+        {
             return self.array_variances();
         }
-        let r = ty.kind.expect_object_reference();
-        let i = r.target.kind.expect_object_interface();
-        self._get_variances(i.symbol, i.ty_params)
+        let object_ty = ty.kind.expect_object();
+        match object_ty.kind {
+            ty::ObjectTyKind::Interface(i) => self.get_variances_worker(i.symbol, i.ty_params),
+            ty::ObjectTyKind::Reference(r) => {
+                let i = r.target.kind.expect_object_interface();
+                self.get_variances_worker(i.symbol, i.ty_params)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    pub(super) fn get_alias_variances(&mut self, symbol: SymbolID) -> &'cx [VarianceFlags] {
+        let ty_params = self.get_symbol_links(symbol).get_ty_params();
+        self.get_variances_worker(symbol, ty_params)
     }
 
     fn create_marker_ty(
@@ -78,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
         self.mark_tys.contains(&ty.id)
     }
 
-    fn _get_variances(
+    fn get_variances_worker(
         &mut self,
         symbol: SymbolID,
         ty_params: Option<ty::Tys<'cx>>,
@@ -98,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
                 VarianceFlags::COVARIANT
             } else {
                 VarianceFlags::INVARIANT
-            } | if self.is_type_assignable_to(ty_with_sub, ty_with_super) {
+            } | if self.is_type_assignable_to(ty_with_super, ty_with_sub) {
                 VarianceFlags::CONTRAVARIANT
             } else {
                 VarianceFlags::INVARIANT

@@ -8,22 +8,8 @@
  12 │ ╰─▶ }
     ╰────
 
-Advice: 
-  ☞ Property 'x' is defined here
-   ╭─[../../tests/compiler/classImplementsClass4/index.ts:3:7]
- 3 │ A
-   · ─
-   ╰────
-
   × Property 'x' is missing.
     ╭─[../../tests/compiler/classImplementsClass4/index.ts:19:1]
  19 │ c2
-    · ──
-    ╰────
-
-Advice: 
-  ☞ Property 'x' is defined here
-    ╭─[../../tests/compiler/classImplementsClass4/index.ts:14:7]
- 14 │ C2
     · ──
     ╰────

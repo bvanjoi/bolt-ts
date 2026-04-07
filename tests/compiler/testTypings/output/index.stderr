@@ -3,10 +3,3 @@
  12 │ { }
     · ───
     ╰────
-
-Advice: 
-  ☞ Property 'compareTo' is defined here
-   ╭─[../../tests/compiler/testTypings/index.ts:3:11]
- 3 │ IComparable
-   · ───────────
-   ╰────

@@ -3,7 +3,7 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use bolt_ts_span::ModuleID;
 
 use super::TyChecker;
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 
 pub(super) fn create_transient_symbol(symbols: &mut Symbols, symbol: Symbol) -> SymbolID {
@@ -22,6 +22,7 @@ impl<'cx> TyChecker<'cx> {
         links: crate::check::SymbolLinks<'cx>,
         decls: Option<thin_vec::ThinVec<ast::NodeID>>,
         value_declaration: Option<ast::NodeID>,
+        parent: Option<SymbolID>,
     ) -> SymbolID {
         debug_assert!(flags.contains(SymbolFlags::TRANSIENT));
         let symbol = Symbol {
@@ -31,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
             value_decl: value_declaration,
             members: None,
             exports: None,
-            parent: None,
+            parent,
             merged_id: None,
             export_symbol: None,
             const_enum_only_module: None,
@@ -61,6 +62,7 @@ impl<'cx> TyChecker<'cx> {
             links,
             None,
             s.value_decl,
+            s.parent,
         )
     }
 
@@ -89,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
                 .as_ref()
                 .and_then(|decls| decls.first().copied())
         } else {
-            symbol.opt_decl(self.binder)
+            symbol.opt_decl(&self.binder)
         }
     }
 
@@ -104,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         flags.contains(SymbolFlags::PROPERTY)
             && self
                 .decl_modifier_flags_from_symbol(symbol)
-                .contains(ast::ModifierKind::Readonly)
+                .contains(ast::ModifierFlags::READONLY)
             || flags.contains(SymbolFlags::ENUM_MEMBER)
     }
 

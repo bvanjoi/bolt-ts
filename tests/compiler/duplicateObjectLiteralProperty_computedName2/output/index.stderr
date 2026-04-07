@@ -1,0 +1,53 @@
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:11:5]
+ 10 │ [n]: 1,
+    · ─┬─
+    ·  ╰── Previous definition here
+ 11 │     [n]
+    ·     ───
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:17:5]
+ 16 │ [s]: 1,
+    · ─┬─
+    ·  ╰── Previous definition here
+ 17 │     [s]
+    ·     ───
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:23:5]
+ 22 │ [E1.A]: 1,
+    · ───┬──
+    ·    ╰── Previous definition here
+ 23 │     [E1.A]
+    ·     ──────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:29:5]
+ 28 │ [E2.B]: 1,
+    · ───┬──
+    ·    ╰── Previous definition here
+ 29 │     [E2.B]
+    ·     ──────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:35:3]
+ 34 │ [E1.A]: 1,
+    · ───┬──
+    ·    ╰── Previous definition here
+ 35 │   "ENUM_KEY"
+    ·   ──────────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/duplicateObjectLiteralProperty_computedName2/index.ts:41:3]
+ 40 │ "ENUM_KEY": 1, // duplicate
+    · ─────┬────
+    ·      ╰── Previous definition here
+ 41 │   [E1.A]
+    ·   ──────
+    ╰────

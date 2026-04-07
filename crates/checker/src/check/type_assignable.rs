@@ -1,6 +1,5 @@
-use crate::ty::{Ty, TypeFlags};
-
 use super::TyChecker;
+use super::ty::{Ty, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn all_types_assignable_to_kind(

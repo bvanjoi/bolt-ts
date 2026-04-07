@@ -1,23 +1,25 @@
-use crate::errors;
-
+use super::errors;
 use super::symbol::SymbolFlags;
-use super::{BinderState, SymbolID, SymbolName, prop_name};
-use bolt_ts_ast::r#trait;
+use super::{BinderState, SymbolID, SymbolName};
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::r#trait;
 
 impl<'cx> BinderState<'cx, '_, '_> {
-    pub(super) fn bind_prop_or_method_or_access(
+    pub(super) fn bind_prop_or_method_or_access<const BIND_FLOW_NODE: bool>(
         &mut self,
         decl_id: ast::NodeID,
-        name: &'cx ast::PropName<'cx>,
+        name: impl FnOnce() -> SymbolName,
         includes: SymbolFlags,
         excludes: SymbolFlags,
     ) -> SymbolID {
+        if BIND_FLOW_NODE && let Some(current_flow) = self.current_flow {
+            self.flow_nodes.insert_flow_of_node(decl_id, current_flow);
+        }
         if self.node_query().has_dynamic_name(decl_id) {
             self.bind_anonymous_decl(decl_id, includes, SymbolName::Computed)
         } else {
-            let name = prop_name(name);
+            let name = name();
             self.declare_symbol_and_add_to_symbol_table(name, decl_id, includes, excludes)
         }
     }
@@ -55,7 +57,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
                     .p
                     .node(self.symbols.get(*symbol_export).decls.as_ref().unwrap()[0])
                     .span(),
-                name: ast::keyword::IDENT_PROTOTYPE_STR.to_string(),
+                name: "prototype".to_string(),
                 original_span: c.name().map(|name| name.span).unwrap_or(c.span()),
             };
             self.push_error(Box::new(error));

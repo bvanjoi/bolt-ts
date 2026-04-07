@@ -1,3 +1,4 @@
+use bolt_ts_config::parse_tsconfig;
 use project_root::get_project_root;
 
 const BENCH_REPO: &str = "https://github.com/bvanjoi/typescript-compiler-bench";
@@ -5,7 +6,12 @@ const BENCH_CASE_DIR_NAME: &str = "benchmarks";
 
 fn clone_bench_repo() -> std::path::PathBuf {
     let repo_path = std::env::temp_dir().join("typescript-compiler-bench");
-    git2::Repository::clone(BENCH_REPO, &repo_path).unwrap();
+    std::process::Command::new("git")
+        .arg("clone")
+        .arg(BENCH_REPO)
+        .arg(&repo_path)
+        .status()
+        .expect("Failed to clone bench repo");
     println!("temp bench dir: {:?}", &repo_path);
     assert!(repo_path.join(BENCH_CASE_DIR_NAME).is_dir());
     repo_path
@@ -60,12 +66,12 @@ fn setup() -> Vec<Case> {
 static CASES: std::sync::LazyLock<Vec<Case>> = std::sync::LazyLock::new(setup);
 
 fn compile(input_dir: std::path::PathBuf) {
-    debug_assert!(input_dir.is_dir(), "'{input_dir:#?}' not found.",);
+    assert!(input_dir.is_dir(), "'{input_dir:#?}' not found.",);
     let tsconfig_path = input_dir.join(bolt_ts_compiler::DEFAULT_TSCONFIG);
-    debug_assert!(tsconfig_path.is_file());
+    assert!(tsconfig_path.is_file());
     let tsconfig = {
         let s = std::fs::read_to_string(tsconfig_path).unwrap();
-        let raw: bolt_ts_config::RawTsConfig = serde_json::from_str(&s).unwrap();
+        let raw: bolt_ts_config::RawTsConfig = parse_tsconfig(&s).unwrap();
         raw.normalize()
     };
     // ==== atom init ====
@@ -83,21 +89,26 @@ fn compile(input_dir: std::path::PathBuf) {
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
-    let output = bolt_ts_compiler::eval_with_fs(
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut output = bolt_ts_compiler::eval_with_fs(
         input_dir,
-        &tsconfig,
+        tsconfig,
         default_lib_dir,
         default_libs,
+        &parser_arena,
+        &type_arena,
         fs,
         atoms,
     );
-    assert!(output.diags.is_empty());
+    assert!(output.steal_diags().is_empty());
 }
 
-#[divan::bench(args = CASES.clone().into_iter())]
+#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 10)]
 fn bench_compile(bencher: divan::Bencher, case: &Case) {
     bencher.bench(|| {
         compile(case.dir.clone());
+        divan::black_box(());
     });
 }
 

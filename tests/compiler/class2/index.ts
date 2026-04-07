@@ -2,4 +2,6 @@
 
 class foo { constructor() { static f = 3; } }
 //~^ ERROR: Declaration or statement expected.
-//~| ERROR: Cannot find name 'f'.
+//~| ERROR: '}' expected.
+//~| ERROR: Declaration or statement expected.
+

@@ -1,6 +1,12 @@
-  × Cannot access 'T.abc' because 'T' is a type, but not a namespace. Did you
-  │ mean to retrieve the type of the property 'abc' in 'T' with 'T["abc"]'?
+  × Cannot find name 'T'.
    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType02/index.ts:5:16]
- 5 │ T.abc
-   · ─────
+ 5 │ T
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+   ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType02/index.ts:4:18]
+ 4 │ T
+   · ─
    ╰────

@@ -1,3 +1,4 @@
+use super::errors;
 use super::{TyChecker, ty};
 
 use bolt_ts_ast as ast;
@@ -61,6 +62,10 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
+        let error = errors::AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface {
+            span: node.span,
+        };
+        self.push_error(Box::new(error));
         self.error_ty
     }
 }

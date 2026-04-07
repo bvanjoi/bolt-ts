@@ -1,0 +1,5 @@
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/conditionalTypeSimplification/index.ts:13:10]
+ 13 │ D<'ten'>
+    · ────────
+    ╰────

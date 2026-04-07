@@ -1,4 +1,4 @@
-  × Type 'C' is not assignable to type 'Foo<C, string>'.
+  × Type 'C' does not satisfy the constraint 'Foo<C, string>'.
     ╭─[../../tests/compiler/instantiatedBaseTypeConstraints/index.ts:12:24]
  12 │ C
     · ─

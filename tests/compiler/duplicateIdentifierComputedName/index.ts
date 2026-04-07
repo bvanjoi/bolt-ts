@@ -12,3 +12,7 @@ class D {
     a: string;
     //~^ ERROR: Duplicate identifier 'a'.
 }
+
+const fooBar: {} = {
+	[Symbol(42)]: true,
+};

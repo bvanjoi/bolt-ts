@@ -6,7 +6,7 @@ for (let {[a]: a} of [{ }]) continue;
 //~| ERROR: Block-scoped variable 'a' used before its declaration.
 //~| ERROR: Type 'any' cannot be used as an index type.
 
-// // 2:
+// 2:
 for (let {[a]: a} = { }; false; ) continue;
 //~^ ERROR: Block-scoped variable 'a' used before its declaration.
 //~| ERROR: Block-scoped variable 'a' used before its declaration.

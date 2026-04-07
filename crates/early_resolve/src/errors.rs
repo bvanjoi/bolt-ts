@@ -47,6 +47,9 @@ pub(super) enum CannotFindNameHelperKind {
     InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(
         InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor,
     ),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    CannotUseTypeAsNamespace(CannotUseTypeAsNamespace),
 }
 
 impl CannotFindNameHelperKind {
@@ -65,6 +68,9 @@ impl CannotFindNameHelperKind {
                 diag,
             ) => Box::new(diag),
             CannotFindNameHelperKind::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(diag) => Box::new(diag),
+            CannotFindNameHelperKind::CannotUseTypeAsNamespace(diag) => {
+                Box::new(diag)
+            },
         }
     }
 }
@@ -105,6 +111,14 @@ pub(super) struct AnInterfaceCannotExtendAPrimTy {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot use type as a namespace.")]
+#[diagnostic(severity(Advice))]
+pub(super) struct CannotUseTypeAsNamespace {
+    #[label(primary)]
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]

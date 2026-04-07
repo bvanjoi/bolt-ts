@@ -1,0 +1,17 @@
+  × Cannot find name 'deltaOffset'.
+   ╭─[../../tests/compiler/undefinedSymbolReferencedInArrayLiteral1/index.ts:5:29]
+ 5 │ deltaOffset
+   · ───────────
+   ╰────
+
+  × Cannot find name 'anotherNonExistingMethod'.
+    ╭─[../../tests/compiler/undefinedSymbolReferencedInArrayLiteral1/index.ts:11:5]
+ 11 │ anotherNonExistingMethod
+    · ────────────────────────
+    ╰────
+
+  × Property 'NonexistantMethod' does not exist on type 'number[]'.
+   ╭─[../../tests/compiler/undefinedSymbolReferencedInArrayLiteral1/index.ts:9:15]
+ 9 │ NonexistantMethod
+   · ─────────────────
+   ╰────

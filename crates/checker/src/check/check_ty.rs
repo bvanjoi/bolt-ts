@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::ast;
 use super::errors;
-use super::symbol_info::SymbolInfo;
+use super::ty;
 use super::ty::ElementFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -19,18 +19,21 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(n.false_ty);
             }
             ObjectLit(n) => self.check_object_lit_ty(n),
-            TyOp(n) => self.check_ty_op(n),
+            TypeOp(n) => self.check_ty_op(n),
             Tuple(n) => self.check_tuple_ty(n),
             Fn(n) => {
                 // TODO: check_signature_decl
                 if let Some(ty_params) = n.ty_params {
                     self.check_ty_params(ty_params);
                 }
+                for param in n.params {
+                    self.check_var_like_decl(*param);
+                }
                 self.check_ty(n.ty);
             }
             Pred(n) => self.check_pred_ty(n),
             Mapped(n) => self.check_mapped_ty(n),
-            Array(n) => (),
+            Array(n) => self.check_array_ty(n),
             Ctor(n) => (),
             Lit(n) => (),
             NamedTuple(n) => (),
@@ -48,12 +51,16 @@ impl<'cx> TyChecker<'cx> {
         self.current_node = saved_current_node;
     }
 
+    fn check_array_ty(&mut self, n: &'cx ast::ArrayTy<'cx>) {
+        self.check_ty(n.ele);
+    }
+
     fn check_type_query(&mut self, n: &'cx ast::TypeofTy<'cx>) {
-        self.get_ty_from_type_query(n);
+        self.get_ty_from_typeof_node(n);
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {
-        if n.ty.is_none() && self.config.no_implicit_any() {
+        if n.ty.is_none() && self.config.compiler_options().no_implicit_any() {
             // TODO: skip when check js file
             let error = errors::MappedObjectTypeImplicitlyHasAnAnyTemplateType { span: n.span };
             self.push_error(Box::new(error));
@@ -61,6 +68,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_pred_ty(&mut self, n: &'cx ast::PredTy<'cx>) {
+        let Some(parent) = self.parent(n.id) else {
+            unreachable!()
+        };
+        let sig = self.get_sig_from_decl(parent);
+        let Some(ty_predicate) = self.get_ty_predicate_of_sig(sig) else {
+            return;
+        };
         if let Some(ty) = n.ty {
             self.check_ty(ty);
         }
@@ -107,7 +121,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_from_tuple_node(n);
     }
 
-    fn check_ty_op(&mut self, n: &'cx ast::TyOp<'cx>) {
+    fn check_ty_op(&mut self, n: &'cx ast::TypeOp<'cx>) {
         self.check_ty(n.ty);
     }
 
@@ -127,7 +141,7 @@ impl<'cx> TyChecker<'cx> {
             match &prop.kind {
                 IndexSig(n) => self.check_index_sig_decl(n),
                 Prop(_) => (),
-                Method(_) => (),
+                Method(n) => self.check_method_sig(n),
                 CallSig(_) => (),
                 CtorSig(_) => (),
                 Setter(_) => (),
@@ -140,9 +154,22 @@ impl<'cx> TyChecker<'cx> {
         // TODO: duplicate index signatures check
     }
 
+    fn check_method_sig(&mut self, n: &'cx ast::MethodSignature<'cx>) {
+        self.check_fn_like_decl(n);
+    }
+
     fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
         let ty = self.get_ty_from_type_node(n.key_ty);
-        if !self.every_type(ty, |this, ty| this.is_valid_index_key_ty(ty)) {
+        if self.some_type(ty, |this, t| {
+            t.flags
+                .intersects(ty::TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+                || this.is_generic_ty(ty)
+        }) {
+            let error = errors::AnIndexSignatureParameterTypeCannotBeALiteralTypeOrGenericTypeConsiderUsingAMappedObjectTypeInstead {
+                span: n.span,
+            };
+            self.push_error(Box::new(error));
+        } else if !self.every_type(ty, |this, ty| this.is_valid_index_key_ty(ty)) {
             let error = errors::AnIndexSignatureParameterTypeMustBeStringNumberSymbolOrATemplateLiteralType {
                 span: n.span,
             };

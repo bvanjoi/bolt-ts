@@ -2,7 +2,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-use super::symbol_info::SymbolInfo;
+
 use super::ty;
 use super::{TyChecker, errors};
 
@@ -13,6 +13,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let symbol = self.get_symbol_of_decl(interface.id);
+        self.check_ty_param_lists_identical(symbol);
 
         let first_interface_decl = self
             .binder
@@ -61,7 +62,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_ty_member(&mut self, member: &'cx ast::ObjectTyMember<'cx>) {
         match member.kind {
-            ast::ObjectTyMemberKind::Prop(n) => self.check_var_like_decl(n),
+            ast::ObjectTyMemberKind::Prop(n) => {
+                let decl_name = ast::DeclarationName::from_prop_name(n.name);
+                self.check_invalid_dynamic_name(decl_name, |this| {
+                    let error = errors::AComputedPropertyNameInAnInterfaceMustReferToAnExpressionWhoseTypeIsALiteralTypeOrAUniqueSymbolType {
+                        span: n.name.span(),
+                    };
+                    this.push_error(Box::new(error));
+                });
+                self.check_var_like_decl(n)
+            }
             _ => {
                 // TODO:
             }

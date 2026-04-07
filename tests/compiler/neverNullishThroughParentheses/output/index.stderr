@@ -1,0 +1,55 @@
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:11:13]
+ 11 │ x?.y ?? `oops`
+    · ──────────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:13:14]
+ 13 │ x?.y ?? `oops`
+    · ──────────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:17:15]
+ 17 │ x?.y ?? `oops`
+    · ──────────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:19:16]
+ 19 │ x?.y ?? `oops`
+    · ──────────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:23:15]
+ 23 │ "literal"
+    · ─────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:25:16]
+ 25 │ "nested"
+    · ────────
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:27:17]
+ 27 │ "a"
+    · ───
+    ╰────
+
+  × Right operand of ?? is unreachable because the left operand is never
+  │ nullish.
+    ╭─[../../tests/compiler/neverNullishThroughParentheses/index.ts:27:17]
+ 27 │ "a" ?? "b"
+    · ──────────
+    ╰────

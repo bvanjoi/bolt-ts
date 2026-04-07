@@ -1,11 +1,10 @@
-use std::{borrow::Cow, str};
+use std::borrow::Cow;
 
+use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 use bolt_ts_span::Span;
 
+use super::{CommentDirective, scan_integer::parse_integer, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
-use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-
-use crate::{CommentDirective, scan_integer::parse_integer};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -47,7 +46,7 @@ fn is_ascii_identifier_part(ch: u8) -> bool {
 }
 
 #[inline(always)]
-fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
+pub fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
     if ch <= 127 {
         is_ascii_identifier_part(ch as u8)
     } else if is_es5_target {
@@ -201,7 +200,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
             if self.ch() == Some(b'_') {
                 self.token_flags |=
-                    TokenFlags::CONTAINS_SEPARATOR | TokenFlags::CONTAINS_INVALID_ESCAPE;
+                    TokenFlags::CONTAINS_SEPARATOR.union(TokenFlags::CONTAINS_INVALID_ESCAPE);
                 self.push_error(Box::new(errors::NumericSeparatorsAreNotAllowedHere {
                     span: Span::new(self.pos as u32, (self.pos + 1) as u32, self.module_id),
                 }));
@@ -260,7 +259,7 @@ impl ParserState<'_, '_> {
             }
         }
 
-        let result = if self.token_flags.intersects(TokenFlags::CONTAINS_SEPARATOR) {
+        let result = if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
             debug_assert!(self.input[start..end].contains(&b'_'));
             Cow::Owned(
                 self.input[start..end]
@@ -372,7 +371,7 @@ impl ParserState<'_, '_> {
             } else if is_ascii_identifier_part(self.ch_unchecked()) {
                 self.pos += 1;
             } else if self.ch_unchecked() == b'\\' {
-                result.extend(self.scan_identifier_parts());
+                result.extend(self.scan_identifier_parts()?);
             } else if self.ch_unchecked() < 128 {
                 break;
             } else {
@@ -459,6 +458,26 @@ impl ParserState<'_, '_> {
         self.next_token_without_checked();
     }
 
+    fn check_bigint_suffix<const RADIX: u8>(&mut self, start: usize, s: &str) -> Token {
+        debug_assert!(matches!(RADIX, 2 | 8 | 16));
+        if self.ch() == Some(b'n') {
+            let s = parse_pseudo_bigint(s);
+            let value = self.atoms.lock().unwrap().atom(&s);
+            self.token_value = Some(TokenValue::Ident { value });
+            self.pos += 1;
+            Token::new(
+                TokenKind::BigInt,
+                Span::new(start as u32, self.pos as u32, self.module_id),
+            )
+        } else {
+            let value = parse_integer::<RADIX>(s);
+            self.token_value = Some(TokenValue::Number { value });
+            Token::new(
+                TokenKind::Number,
+                Span::new(start as u32, self.pos as u32, self.module_id),
+            )
+        }
+    }
     pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
@@ -683,11 +702,20 @@ impl ParserState<'_, '_> {
                     }
                 }
                 b'?' => {
-                    let kind = if self.next_ch() == Some(b'.')
+                    let next_ch = self.next_ch();
+                    let kind = if next_ch == Some(b'.')
                         && self.next_next_ch().is_none_or(|c| !c.is_ascii_digit())
                     {
                         self.pos += 2;
                         TokenKind::QuestionDot
+                    } else if next_ch == Some(b'?') {
+                        if self.next_next_ch() == Some(b'=') {
+                            self.pos += 3;
+                            TokenKind::QuestionQuestionEq
+                        } else {
+                            self.pos += 2;
+                            TokenKind::QuestionQuestion
+                        }
                     } else {
                         self.pos += 1;
                         TokenKind::Question
@@ -802,7 +830,7 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (v, key_value) = self.scan_string(ch, false);
+                    let (v, key_value) = self.scan_string::<false>(ch);
                     let len = v.len();
                     let atom = self
                         .atoms
@@ -826,6 +854,34 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'`' => self.scan_template_and_set_token_value(false),
+                b'#' => {
+                    let char_after_hash = self.next_ch();
+                    if let Some(ch) = char_after_hash
+                        && is_ascii_identifier_start(ch)
+                    {
+                        self.pos += 1;
+                        if let Some(token) = self.scan_identifier(ch)
+                            && token.kind == TokenKind::Ident
+                        {
+                            debug_assert!(
+                                self.token_value
+                                    .is_some_and(|value| matches!(value, TokenValue::Ident { .. }))
+                            );
+                            Token::new(
+                                TokenKind::PrivateIdent,
+                                Span::new(start as u32, self.pos as u32, self.module_id),
+                            )
+                        } else {
+                            let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                            self.push_error(Box::new(errors::InvalidCharacter { span }));
+                            Token::new(TokenKind::Unknown, span)
+                        }
+                    } else {
+                        let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                        self.push_error(Box::new(errors::InvalidCharacter { span }));
+                        Token::new(TokenKind::Unknown, span)
+                    }
+                }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'X' | b'x')) =>
                 {
@@ -834,15 +890,9 @@ impl ParserState<'_, '_> {
                     if v.is_empty() {
                         todo!("throw error")
                     }
-                    self.token_flags = TokenFlags::HEX_SPECIFIER;
+                    self.token_flags |= TokenFlags::HEX_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    // TODO: check bigint suffix
-                    let v = parse_integer::<16>(s);
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<16>(start, s)
                 }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
@@ -852,15 +902,9 @@ impl ParserState<'_, '_> {
                     if v.is_empty() {
                         todo!()
                     }
-                    self.token_flags = TokenFlags::BINARY_SPECIFIER;
+                    self.token_flags |= TokenFlags::BINARY_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    let v = parse_integer::<2>(s);
-                    // TODO: check bigint suffix
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<2>(start, s)
                 }
                 b'0' if self.pos + 2 < self.end()
                     && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
@@ -872,13 +916,7 @@ impl ParserState<'_, '_> {
                     }
                     self.token_flags = TokenFlags::OCTAL_SPECIFIER;
                     let s = unsafe { str::from_utf8_unchecked(&v) };
-                    // TODO: check bigint suffix
-                    let v = parse_integer::<8>(s);
-                    self.token_value = Some(TokenValue::Number { value: v });
-                    Token::new(
-                        TokenKind::Number,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
+                    self.check_bigint_suffix::<8>(start, s)
                 }
                 b'0'..=b'9' => self.scan_number(),
                 b'\\' => {
@@ -886,8 +924,11 @@ impl ParserState<'_, '_> {
                         && is_identifier_start(extended_cooked_char, false)
                     {
                         let mut unicode = self.scan_extended_unicode_escape(true);
-                        let ident_parts = self.scan_identifier_parts();
-                        unicode.extend(ident_parts);
+                        if let Some(ident_parts) = self.scan_identifier_parts() {
+                            unicode.extend(ident_parts);
+                        } else {
+                            continue;
+                        };
                         self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
                         return;
                     }
@@ -902,8 +943,11 @@ impl ParserState<'_, '_> {
                             std::char::from_u32_unchecked(cooked_char)
                         };
                         let mut s = ch.to_string().into_bytes();
-                        let ident_parts = self.scan_identifier_parts();
-                        s.extend(ident_parts);
+                        if let Some(ident_parts) = self.scan_identifier_parts() {
+                            s.extend(ident_parts);
+                        } else {
+                            continue;
+                        };
                         self.token = self.get_ident_token(Cow::Owned(s), start as u32);
                         return;
                     }
@@ -957,7 +1001,7 @@ impl ParserState<'_, '_> {
 
     fn scan_template_and_set_token_value(
         &mut self,
-        should_emit_invalid_escape_error: bool,
+        _should_emit_invalid_escape_error: bool,
     ) -> Token {
         let started_with_backtick = self.ch_unchecked() == b'`';
         let start = self.pos;
@@ -1080,9 +1124,9 @@ impl ParserState<'_, '_> {
             b'\n' => vec![],
             // TODO: more case
             _ => {
-                if flags.intersects(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
-                    || flags.intersects(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
-                        && !flags.intersects(EscapeSequenceScanningFlags::ANNEX_B)
+                if flags.contains(EscapeSequenceScanningFlags::ANY_UNICODE_MODE)
+                    || flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                        && !flags.contains(EscapeSequenceScanningFlags::ANNEX_B)
                         && is_ascii_identifier_start(ch)
                 {
                     todo!("error handle")
@@ -1194,21 +1238,21 @@ impl ParserState<'_, '_> {
         value_chars
     }
 
-    pub(super) fn scan_string(
+    pub(super) fn scan_string<const IS_JSX_ATTRIBUTE_STRING: bool>(
         &mut self,
         quote: u8,
-        jsx_attribute_string: bool,
     ) -> (Vec<u8>, Vec<u8>) {
         assert_eq!(self.ch_unchecked(), quote);
         self.pos += 1;
-        let mut v = Vec::with_capacity(32);
+        let mut v = Vec::with_capacity(4);
         let mut prev = 0;
-        let mut key = Vec::with_capacity(32);
+        let mut key = Vec::with_capacity(4);
         loop {
             if self.pos >= self.end() {
                 self.token_flags |= TokenFlags::UNTERMINATED;
+                let start = self.pos - v.len();
                 self.push_error(Box::new(errors::UnterminatedStringLiteral {
-                    span: Span::new(self.token.end(), self.pos as u32, self.module_id),
+                    span: Span::new(start as u32, self.pos as u32, self.module_id),
                 }));
                 break;
             }
@@ -1216,7 +1260,7 @@ impl ParserState<'_, '_> {
             if ch == quote {
                 self.pos += 1;
                 break;
-            } else if ch == b'\\' && !jsx_attribute_string {
+            } else if ch == b'\\' && !IS_JSX_ATTRIBUTE_STRING {
                 let t = self.scan_escape_sequence(
                     EscapeSequenceScanningFlags::STRING
                         .union(EscapeSequenceScanningFlags::REPORT_ERRORS),
@@ -1231,6 +1275,17 @@ impl ParserState<'_, '_> {
             } else {
                 key.pop();
             }
+
+            if (ch == b'\n' || ch == b'\r') && !IS_JSX_ATTRIBUTE_STRING {
+                v.push(ch);
+                self.pos += 1;
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                self.push_error(Box::new(errors::UnterminatedStringLiteral {
+                    span: Span::new(self.token.end(), self.pos as u32, self.module_id),
+                }));
+                break;
+            }
+
             self.pos += 1;
             v.push(ch);
             prev = ch;
@@ -1355,7 +1410,7 @@ impl ParserState<'_, '_> {
             self.pos += 1;
         }
         let end_of_regexp_body = self.pos;
-        if self.token_flags.intersects(TokenFlags::UNTERMINATED) {
+        if self.token_flags.contains(TokenFlags::UNTERMINATED) {
             self.pos = start_of_regexp_body as usize;
             in_escape = false;
             let mut character_class_depth = 0;
@@ -1400,7 +1455,7 @@ impl ParserState<'_, '_> {
             }
 
             let error = errors::UnterminatedRegularExpressionLiteral {
-                span: Span::new(start as u32, self.pos as u32, self.module_id),
+                span: Span::new(start, self.pos as u32, self.module_id),
             };
             self.push_error(Box::new(error));
         } else {
@@ -1574,7 +1629,11 @@ impl ParserState<'_, '_> {
                 continue;
             } else {
                 let old_pos = self.pos;
-                v.extend(self.scan_identifier_parts());
+                if let Some(ident_parts) = self.scan_identifier_parts() {
+                    v.extend(ident_parts);
+                } else {
+                    todo!()
+                }
                 if self.pos == old_pos {
                     break;
                 }
@@ -1598,7 +1657,7 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_identifier_parts(&mut self) -> Vec<u8> {
+    fn scan_identifier_parts(&mut self) -> Option<Vec<u8>> {
         let mut result = Vec::with_capacity(32);
         let mut start = self.pos;
         while let Some(ch) = self.ch() {
@@ -1614,8 +1673,17 @@ impl ParserState<'_, '_> {
                     continue;
                 }
                 let ch = self.peek_unicode_escape();
-                if !(ch.is_some_and(|ch| is_identifier_part(ch, false))) {
-                    break;
+                match ch {
+                    Some(ch) => {
+                        if !is_identifier_part(ch, false) {
+                            self.pos += 6;
+                            return None;
+                        }
+                    }
+                    None => {
+                        self.pos += 1;
+                        return None;
+                    }
                 }
                 self.token_flags |= TokenFlags::UNICODE_ESCAPE;
                 result.extend(self.input[start..self.pos].iter());
@@ -1632,7 +1700,7 @@ impl ParserState<'_, '_> {
             }
         }
         result.extend_from_slice(&self.input[start..self.pos]);
-        result
+        Some(result)
     }
 
     pub(super) fn scan_jsx_attr_value(&mut self) {
@@ -1641,7 +1709,7 @@ impl ParserState<'_, '_> {
         let ch = self.ch();
         match self.ch() {
             Some(b'\'') | Some(b'"') => {
-                let (value, _) = self.scan_string(unsafe { ch.unwrap_unchecked() }, true);
+                let (value, _) = self.scan_string::<true>(unsafe { ch.unwrap_unchecked() });
                 self.token_value = Some(TokenValue::Ident {
                     value: self
                         .atoms

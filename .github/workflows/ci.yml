@@ -1,80 +1,76 @@
 name: CI
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: read
-
-defaults:
-  run:
-    shell: bash
-
+on: push
 jobs:
-  check:
+  cargo-test:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-
+    - name: Set up Rust
+      uses: moonrepo/setup-rust@v1.3
+      with:
+        inherit-toolchain: true
     - name: Set up Node
       uses: actions/setup-node@v4
       with:
-        node-version: 24
-
+        node-version: '24'
+    - name: Run cargo test
+      run: cargo test -q
+    - name: Run wasm-pack build and test
+      working-directory: crates/wasm
+      run: |-
+        cargo install wasm-pack
+        wasm-pack test --node
+  javascript-check-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up Rust
+      uses: moonrepo/setup-rust@v1.3
+      with:
+        targets: wasm32-wasip1-threads
+        inherit-toolchain: true
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
     - name: Set up pnpm
       uses: pnpm/action-setup@v4
-
-    - name: Set up Rust
-      uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
-        override: true
-
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-index-
-
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-build-target-
-
-    - name: Run cargo test 
-      run: cargo test
-
-    - name: Install wasm-pack
-      run: cargo install wasm-pack
-    
-    - name: Run wasm tests
-      working-directory: crates/wasm
-      run: wasm-pack test --node
-
-    - name: Install and Build Packages
-      run: pnpm i && pnpm build
-
-    - name: Test For Packages Under Headless
+        run_install: true
+    - name: Run pnpm build packages
+      run: pnpm build
+    - name: Run biome format and lint check
+      run: |-
+        npx biome format
+        npx biome lint
+    - name: Test packages under headless
       uses: coactions/setup-xvfb@v1
       with:
         run: pnpm test
+  codspeed-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Set up Rust
+      uses: moonrepo/setup-rust@v1.3
+      with:
+        bins: cargo-codspeed
+        inherit-toolchain: true
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+    - name: Run CodSpeed build
+      run: cargo codspeed build -m walltime
+    - name: Run CodSpeed benchmark
+      uses: CodSpeedHQ/action@v4
+      with:
+        run: cargo codspeed run bench -m walltime
+        token: ${{ secrets.CODSPEED_TOKEN }}
+        mode: walltime
+        cache-instruments: 'false'

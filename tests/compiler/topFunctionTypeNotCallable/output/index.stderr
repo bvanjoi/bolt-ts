@@ -1,0 +1,5 @@
+  × Argument of type '[]' is not assignable to parameter of type 'never'.
+   ╭─[../../tests/compiler/topFunctionTypeNotCallable/index.ts:8:1]
+ 8 │ foo()
+   · ─────
+   ╰────

@@ -7,7 +7,7 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum SymbolName {
-    ParamIdx(u32),
+    ParamIndex(u32),
     ESSymbol {
         escaped_name: Atom,
         symbol_id: SymbolID,
@@ -25,7 +25,6 @@ pub enum SymbolName {
     /// constructor sigs
     New,
     Call,
-    Interface,
     Index,
     Type,
     Missing,
@@ -61,6 +60,26 @@ impl SymbolName {
 
     pub fn is_numeric(&self) -> bool {
         self.as_numeric().is_some()
+    }
+
+    pub fn is_late_bound(&self) -> bool {
+        matches!(
+            self,
+            SymbolName::Call
+                | SymbolName::Constructor
+                | SymbolName::New
+                | SymbolName::Index
+                | SymbolName::ESSymbol { .. }
+                // TODO: | SymbolName::GLOBAL
+                | SymbolName::Type
+                | SymbolName::Object
+                // TODO: | SymbolName::JSX_ATTRIBUTES
+                | SymbolName::ClassExpr
+                | SymbolName::Fn
+                | SymbolName::Computed
+                | SymbolName::Resolving
+                | SymbolName::InstantiationExpression // TODO: ImportAttributes
+        )
     }
 }
 
@@ -140,52 +159,52 @@ bitflags::bitflags! {
 impl SymbolFlags {
     pub const fn get_excluded(&self) -> Self {
         let mut result = SymbolFlags::empty();
-        if self.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
+        if self.contains(SymbolFlags::BLOCK_SCOPED_VARIABLE) {
             result = result.union(SymbolFlags::BLOCK_SCOPED_VARIABLE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+        if self.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
             result = result.union(SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::PROPERTY) {
+        if self.contains(SymbolFlags::PROPERTY) {
             result = result.union(SymbolFlags::PROPERTY_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::ENUM_MEMBER) {
+        if self.contains(SymbolFlags::ENUM_MEMBER) {
             result = result.union(SymbolFlags::ENUM_MEMBER_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::FUNCTION) {
+        if self.contains(SymbolFlags::FUNCTION) {
             result = result.union(SymbolFlags::FUNCTION_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::CLASS) {
+        if self.contains(SymbolFlags::CLASS) {
             result = result.union(SymbolFlags::CLASS_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::INTERFACE) {
+        if self.contains(SymbolFlags::INTERFACE) {
             result = result.union(SymbolFlags::INTERFACE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::REGULAR_ENUM) {
+        if self.contains(SymbolFlags::REGULAR_ENUM) {
             result = result.union(SymbolFlags::REGULAR_ENUM_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::CONST_ENUM) {
+        if self.contains(SymbolFlags::CONST_ENUM) {
             result = result.union(SymbolFlags::CONST_ENUM_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::VALUE_MODULE) {
+        if self.contains(SymbolFlags::VALUE_MODULE) {
             result = result.union(SymbolFlags::VALUE_MODULE_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::METHOD) {
+        if self.contains(SymbolFlags::METHOD) {
             result = result.union(SymbolFlags::METHOD_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::GET_ACCESSOR) {
+        if self.contains(SymbolFlags::GET_ACCESSOR) {
             result = result.union(SymbolFlags::GET_ACCESSOR_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::SET_ACCESSOR) {
+        if self.contains(SymbolFlags::SET_ACCESSOR) {
             result = result.union(SymbolFlags::SET_ACCESSOR_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::TYPE_PARAMETER) {
+        if self.contains(SymbolFlags::TYPE_PARAMETER) {
             result = result.union(SymbolFlags::TYPE_PARAMETER_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::TYPE_ALIAS) {
+        if self.contains(SymbolFlags::TYPE_ALIAS) {
             result = result.union(SymbolFlags::TYPE_ALIAS_EXCLUDES);
         };
-        if self.intersects(SymbolFlags::ALIAS) {
+        if self.contains(SymbolFlags::ALIAS) {
             result = result.union(SymbolFlags::ALIAS_EXCLUDES);
         };
         result
@@ -286,6 +305,9 @@ impl Symbol {
                 .as_module_decl()
                 .is_some_and(|ns| ns.block.is_none())
         })
+    }
+    pub fn is_expando_symbol(&self) -> bool {
+        self.flags.contains(SymbolFlags::FUNCTION)
     }
 }
 
@@ -397,8 +419,21 @@ impl Symbols {
 pub type GlobalSymbols = SymbolTable;
 
 #[derive(Debug, Clone, Copy)]
+pub enum Container {
+    Node(NodeID),
+    Symbol(SymbolID),
+}
+impl Container {
+    pub fn expect_node(&self) -> NodeID {
+        match self {
+            Container::Node(id) => *id,
+            Container::Symbol(_) => panic!("Expected a Node container, found a Symbol container"),
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
 pub(super) struct SymbolTableLocation {
-    pub(super) container: bolt_ts_ast::NodeID,
+    pub(super) container: Container,
     pub(super) kind: SymbolTableLocationKind,
 }
 
@@ -412,19 +447,31 @@ pub(super) enum SymbolTableLocationKind {
 impl SymbolTableLocation {
     pub(super) fn locals(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
             kind: SymbolTableLocationKind::ContainerLocals,
         }
     }
     pub(super) fn members(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
             kind: SymbolTableLocationKind::SymbolMember,
         }
     }
     pub(super) fn exports(container: bolt_ts_ast::NodeID) -> Self {
         Self {
-            container,
+            container: Container::Node(container),
+            kind: SymbolTableLocationKind::SymbolExports,
+        }
+    }
+    pub(super) fn symbol_members(container: SymbolID) -> Self {
+        Self {
+            container: Container::Symbol(container),
+            kind: SymbolTableLocationKind::SymbolMember,
+        }
+    }
+    pub(super) fn symbol_exports(container: SymbolID) -> Self {
+        Self {
+            container: Container::Symbol(container),
             kind: SymbolTableLocationKind::SymbolExports,
         }
     }

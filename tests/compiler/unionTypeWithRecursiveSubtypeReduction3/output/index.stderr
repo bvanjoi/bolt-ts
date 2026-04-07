@@ -1,0 +1,6 @@
+  × Type '{ prop: number; } | { prop: ...; }' is not assignable to type
+  │ 'string'.
+   ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction3/index.ts:9:5]
+ 9 │ s
+   · ─
+   ╰────

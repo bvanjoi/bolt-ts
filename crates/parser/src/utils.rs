@@ -1,12 +1,11 @@
-use bolt_ts_ast::ModifierKind;
 use bolt_ts_ast::{TokenFlags, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
-use crate::lookahead::Lookahead;
-use crate::parsing_ctx::{ParseContext, ParsingContext};
-use crate::{SignatureFlags, keyword};
-
+use super::lookahead::Lookahead;
+use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
+use super::{SignatureFlags, keyword};
 use super::{ast, errors};
 
 pub(super) trait ParseSuccess {
@@ -43,9 +42,11 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_fn_block(&mut self, flags: SignatureFlags) -> &'cx ast::BlockStmt<'cx> {
+        let saved_yield_context = self.in_yield_context();
         let saved_await_context = self.in_await_context();
-        let saved_labels = std::mem::take(&mut self.labels);
 
+        let saved_labels = std::mem::take(&mut self.labels);
+        self.set_yield_context(flags.contains(SignatureFlags::YIELD));
         self.set_await_context(flags.contains(SignatureFlags::AWAIT));
 
         let ret = self.do_outside_of_parse_context(
@@ -63,6 +64,7 @@ impl<'cx> ParserState<'cx, '_> {
         );
 
         self.labels = saved_labels;
+        self.set_yield_context(saved_yield_context);
         self.set_await_context(saved_await_context);
 
         ret
@@ -202,29 +204,28 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn is_start_of_left_hand_side_expr(&mut self) -> bool {
         use TokenKind::*;
-        if self.token.kind == TokenKind::Import {
-            self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot)
-        } else {
-            matches!(
-                self.token.kind,
-                This | Super
-                    | Null
-                    | True
-                    | False
-                    | Number
-                    | String
-                    | NoSubstitutionTemplate
-                    | LBrace
-                    | LBracket
-                    | LParen
-                    | Function
-                    | Class
-                    | New
-                    | Slash
-                    | SlashEq
-                    | Ident
-                    | TemplateHead
-            ) || self.is_ident()
+        match self.token.kind {
+            This
+            | Super
+            | Null
+            | True
+            | False
+            | Number
+            | BigInt
+            | String
+            | NoSubstitutionTemplate
+            | LBrace
+            | LBracket
+            | LParen
+            | Function
+            | Class
+            | New
+            | Slash
+            | SlashEq
+            | Ident
+            | TemplateHead => true,
+            Import => self.lookahead(Lookahead::next_token_is_lparen_or_less_or_dot),
+            _ => self.is_ident(),
         }
     }
 
@@ -295,8 +296,20 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn parse_const_modifier(&mut self) -> Option<&'cx ast::Modifier> {
+        if self.token.kind == TokenKind::Const {
+            let span = self.token.span;
+            self.next_token();
+            let kind = ast::ModifierKind::Const;
+            Some(self.create_modifier(span, kind))
+        } else {
+            None
+        }
+    }
+
     fn parse_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
+        let const_modifier = self.parse_const_modifier();
         let name = self.parse_binding_ident();
         let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
             if self.is_start_of_ty(false) || !self.is_start_of_expr() {
@@ -312,16 +325,9 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let ty_param = self.alloc(ast::TyParam {
-            id,
-            span: self.new_span(start),
-            name,
-            constraint,
-            default,
-        });
-        self.nodes.insert(id, ast::Node::TyParam(ty_param));
-        Ok(ty_param)
+        let span = self.new_span(start);
+        let const_modifier = const_modifier.map(|m| m.span());
+        Ok(self.create_type_parameter(span, const_modifier, name, constraint, default))
     }
 
     pub(super) fn parse_ident(
@@ -345,9 +351,8 @@ impl<'cx> ParserState<'cx, '_> {
         })
     }
 
-    pub(super) fn parse_prop_name(
+    pub(super) fn parse_prop_name<const ALLOW_COMPUTED_PROP_NAMES: bool>(
         &mut self,
-        allow_computed_prop_names: bool,
     ) -> &'cx ast::PropName<'cx> {
         let kind = match self.token.kind {
             TokenKind::String => {
@@ -360,34 +365,48 @@ impl<'cx> ParserState<'cx, '_> {
                 Some(ast::PropNameKind::NumLit(lit))
             }
             TokenKind::BigInt => {
-                todo!()
-                // let lit = self.parse_big_int_lit();
-                // ast::PropNameKind::BigIntLit(lit)
+                let val = self.ident_token();
+                let n = self.parse_bigint_lit(false, val);
+                Some(ast::PropNameKind::BigIntLit(n))
             }
             _ => None,
         };
         if let Some(kind) = kind {
-            let prop_name = self.alloc(ast::PropName { kind });
-            prop_name
-        } else if allow_computed_prop_names && self.token.kind == TokenKind::LBracket {
+            (self.alloc(ast::PropName { kind })) as _
+        } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
             let Ok(expr) = self.allow_in_and(Self::parse_expr) else {
                 todo!("remove error result")
             };
             self.expect(TokenKind::RBracket);
-            let kind = self.create_computed_prop_name(start, expr);
-            let prop_name = self.alloc(ast::PropName {
+            let span = self.new_span(start);
+            let kind = self.create_computed_prop_name(span, expr);
+
+            (self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
-            });
-            prop_name
+            })) as _
+        } else if self.token.kind == TokenKind::PrivateIdent {
+            let ident = self.parse_private_ident();
+            let kind = ast::PropNameKind::PrivateIdent(ident);
+            self.alloc(ast::PropName { kind })
         } else {
-            // TODO: Private
             let ident = self.parse_ident_name();
             let kind = ast::PropNameKind::Ident(ident);
-            let prop_name = self.alloc(ast::PropName { kind });
-            prop_name
+            self.alloc(ast::PropName { kind })
         }
+    }
+
+    fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
+        debug_assert!(self.token.kind == TokenKind::PrivateIdent);
+        let name = self.ident_token();
+        let span = self.token.span;
+        let id = self.next_node_id();
+        let private_ident = self.alloc(ast::PrivateIdent { id, span, name });
+        self.nodes
+            .insert(id, ast::Node::PrivateIdent(private_ident));
+        self.next_token();
+        private_ident
     }
 
     #[inline(always)]
@@ -405,13 +424,22 @@ impl<'cx> ParserState<'cx, '_> {
         const PERMIT_CONST_AS_MODIFIER: bool,
     >(
         &mut self,
-        allow_decorators: bool,
+        _allow_decorators: bool,
     ) -> Option<&'cx ast::Modifiers<'cx>> {
+        let push_precede_error = |this: &mut Self, x: &ast::Modifier, y: ast::ModifierKind| {
+            let error = errors::XModifierMustPrecedeYModifier {
+                span: x.span(),
+                x: x.kind(),
+                y,
+            };
+            this.push_error(Box::new(error));
+        };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
-        let has_seen_static_modifier = false;
-        let has_leading_modifier = false;
-        let has_trailing_decorator = false;
+        let mut has_seen_static_modifier = false;
+        let _has_leading_modifier = false;
+        let _has_trailing_decorator = false;
+        let mut flags = ast::ModifierFlags::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
@@ -420,21 +448,55 @@ impl<'cx> ParserState<'cx, '_> {
             else {
                 break;
             };
+            if m.kind() == ast::ModifierKind::Static {
+                has_seen_static_modifier = true;
+            }
+            flags.insert(m.kind().into_flag());
             list.push(m);
+
+            match m.kind() {
+                ast::ModifierKind::Override => {
+                    if flags.contains(ast::ModifierFlags::READONLY) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Public
+                | ast::ModifierKind::Protected
+                | ast::ModifierKind::Private => {
+                    if flags.contains(ast::ModifierFlags::STATIC) {
+                        push_precede_error(self, m, ast::ModifierKind::Static);
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierFlags::READONLY) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    }
+                }
+                ast::ModifierKind::Static => {
+                    if flags.contains(ast::ModifierFlags::READONLY) {
+                        push_precede_error(self, m, ast::ModifierKind::Readonly);
+                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
+                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                        push_precede_error(self, m, ast::ModifierKind::Accessor);
+                    } else if flags.contains(ast::ModifierFlags::OVERRIDE) {
+                        push_precede_error(self, m, ast::ModifierKind::Override);
+                    }
+                }
+                _ => {}
+            }
         }
         if list.is_empty() {
             None
         } else {
             let span = self.new_span(start);
-            let flags = list
-                .iter()
-                .fold(Default::default(), |flags, m| flags | m.kind);
-            let ms = self.alloc(ast::Modifiers {
-                span,
-                flags,
-                list: self.alloc(list),
-            });
-            Some(ms)
+            let modifiers = self.alloc(list);
+            Some(self.create_modifiers(span, modifiers, flags))
         }
     }
 
@@ -443,9 +505,28 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_ident(is_ident, None)
     }
 
+    pub(super) fn try_parse_semi(&mut self) -> bool {
+        if !self.can_parse_semi() {
+            false
+        } else {
+            if self.token.kind == TokenKind::Semi {
+                self.next_token();
+            }
+            true
+        }
+    }
+
     #[inline(always)]
-    pub(super) fn parse_semi_after_prop_name(&mut self) {
-        self.parse_semi();
+    pub(super) fn parse_semi_after_prop_name(&mut self, node_span: Span) {
+        if self.try_parse_semi() {
+            return;
+        }
+        self.parse_error_for_missing_semicolon_after(node_span);
+    }
+
+    fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
+        let error = errors::UnexpectedKeywordOrIdentifier { span: node_span };
+        self.push_error(Box::new(error));
     }
 
     pub(super) fn is_implements_clause(&mut self) -> bool {
@@ -495,11 +576,26 @@ impl<'cx> ParserState<'cx, '_> {
 
     pub(super) fn parse_params_worker(
         &mut self,
-        allow_ambiguity_name: bool,
+        flags: SignatureFlags,
+        allow_ambiguity: bool,
     ) -> ast::ParamsDecl<'cx> {
+        let saved_yield_context = self
+            .node_context_flags
+            .contains(ast::NodeFlags::YIELD_CONTEXT);
+        let saved_await_context = self
+            .node_context_flags
+            .contains(ast::NodeFlags::AWAIT_CONTEXT);
+
+        self.set_yield_context(flags.contains(SignatureFlags::YIELD));
+        self.set_await_context(flags.contains(SignatureFlags::AWAIT));
+
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
-            Self::parse_param(this, allow_ambiguity_name)
+            if allow_ambiguity {
+                Self::parse_param(this, allow_ambiguity)
+            } else {
+                Self::parse_param(this, false)
+            }
         });
         let has_error = self.diags.len() > old_error;
         if !has_error {
@@ -524,6 +620,10 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
         }
+
+        self.set_yield_context(saved_yield_context);
+        self.set_await_context(saved_await_context);
+
         params
     }
 
@@ -532,7 +632,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.expect(LParen) {
             return &[];
         }
-        let params = self.parse_params_worker(true);
+        let params = self.parse_params_worker(SignatureFlags::empty(), true);
         self.expect(RParen);
         params
     }
@@ -546,15 +646,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.create_ident(true, None)
         };
-        let kind = ast::BindingKind::Ident(ident);
-        let id = self.next_node_id();
-        let name = self.alloc(ast::Binding {
-            id,
-            span: ident.span,
-            kind,
-        });
-        self.nodes.insert(id, ast::Node::Binding(name));
-        name
+        self.create_binding(ast::BindingKind::Ident(ident))
     }
 
     pub(super) fn parse_param(
@@ -563,22 +655,22 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.token.start();
         let modifiers = self.parse_modifiers::<false, false>(false);
-        const INVALID_MODIFIERS: enumflags2::BitFlags<ModifierKind, u32> =
-            enumflags2::make_bitflags!(ModifierKind::{Static | Export});
+        const INVALID_MODIFIERS: ast::ModifierFlags =
+            ast::ModifierFlags::STATIC.union(ast::ModifierFlags::EXPORT);
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
             .unwrap_or_default()
             && let Some(ms) = modifiers.map(|ms| {
                 ms.list
                     .iter()
-                    .filter(|m| INVALID_MODIFIERS.intersects(m.kind))
+                    .filter(|m| INVALID_MODIFIERS.contains(m.kind().into_flag()))
                     .copied()
             })
         {
             for m in ms {
                 let error = errors::ModifierCannotAppearOnAParameter {
-                    span: m.span,
-                    kind: m.kind,
+                    span: m.span(),
+                    kind: m.kind(),
                 };
                 self.push_error(Box::new(error));
             }
@@ -613,14 +705,14 @@ impl<'cx> ParserState<'cx, '_> {
         self.check_contextual_binding(name);
         if dotdotdot.is_some()
             && let Some(ms) = modifiers
-            && ms.flags.intersects(ModifierKind::PARAMETER_PROPERTY)
+            && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
         {
             let kinds = ms
                 .list
                 .iter()
                 .filter_map(|m| {
-                    if ModifierKind::PARAMETER_PROPERTY.intersects(m.kind) {
-                        Some(m.kind)
+                    if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
+                        Some(m.kind())
                     } else {
                         None
                     }
@@ -735,8 +827,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn has_preceding_line_break(&self) -> bool {
-        self.token_flags
-            .intersects(TokenFlags::PRECEDING_LINE_BREAK)
+        self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
     fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
@@ -810,10 +901,18 @@ impl<'cx> ParserState<'cx, '_> {
                     errors::AnIndexSignatureParameterCannotHaveAnInitializer { span: init.span() };
                 self.push_error(Box::new(error));
             }
+
+            if let Some(dotdotdot) = param.dotdotdot {
+                let error = errors::AnIndexSignatureCannotHaveARestParameter { span: dotdotdot };
+                self.push_error(Box::new(error));
+            }
         }
 
         let (name, name_ty) = if let Some(param) = params.first() {
-            (param.name, param.ty.unwrap())
+            (
+                param.name,
+                param.ty.unwrap_or_else(|| self.create_missing_ty()),
+            )
         } else {
             let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
             let name = self.parse_binding_with_ident(Some(missing_ident));
@@ -830,7 +929,8 @@ impl<'cx> ParserState<'cx, '_> {
             }
         };
         self.parse_ty_member_semi();
-        let sig = self.create_index_sig_decl(start, modifiers, name, name_ty, ty);
+        let span = self.new_span(start);
+        let sig = self.create_index_sig_decl(span, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 
@@ -862,15 +962,15 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
-        let ty_params = self.parse_ty_params();
+        let name = self.parse_prop_name::<false>();
+        let _ty_params = self.parse_ty_params();
         if !self.parse_params().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
                 span: name.span(),
             }));
         }
         // TODO: assert params.is_none
-        let ty = self.parse_ret_ty(true)?;
+        let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
@@ -893,8 +993,8 @@ impl<'cx> ParserState<'cx, '_> {
         ambient: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name(false);
-        let ty_params = self.parse_ty_params();
+        let name = self.parse_prop_name::<false>();
+        let _ty_params = self.parse_ty_params();
         let params = self.parse_params();
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
@@ -909,7 +1009,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             params
         };
-        let ty = self.parse_ret_ty(true)?;
+        let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(ambient, &mut body);
         let id = self.next_node_id();
@@ -938,4 +1038,87 @@ impl<'cx> ParserState<'cx, '_> {
 pub(super) fn is_declaration_filename(filename: &[u8]) -> bool {
     const SUFFIX: &[u8] = b".d.ts";
     filename.ends_with(SUFFIX)
+}
+
+pub fn parse_pseudo_bigint<'a>(s: &'a str) -> std::borrow::Cow<'a, str> {
+    let s = s.trim();
+    let (s, log2_base) = if let Some(rest) = s.strip_prefix("0b") {
+        (rest.strip_suffix('n').unwrap_or(rest), 1u32)
+    } else if let Some(rest) = s.strip_prefix("0o") {
+        (rest.strip_suffix('n').unwrap_or(rest), 3u32)
+    } else if let Some(rest) = s.strip_prefix("0x") {
+        (rest.strip_suffix('n').unwrap_or(rest), 4u32)
+    } else {
+        // Decimal: omit trailing 'n'
+        let rest = s.strip_suffix('n').unwrap_or(s);
+        let rest = rest.trim_start_matches('0'); // skip leading zeros
+        return if rest.is_empty() {
+            std::borrow::Cow::Borrowed("0")
+        } else {
+            std::borrow::Cow::Borrowed(rest)
+        };
+    };
+
+    // For binary, octal, hex: skip leading zeros in digits
+    let digits = s.trim_start_matches('0');
+    let digits = if digits.is_empty() { "0" } else { digits };
+
+    let base = match log2_base {
+        1 => 2,
+        3 => 8,
+        4 => 16,
+        _ => unreachable!(),
+    };
+
+    // Big number: use a vector to store 16-bit LE "segments"
+    let bits_needed = digits.len() as u32 * log2_base;
+    let segments_len = ((bits_needed >> 4) + if bits_needed & 15 != 0 { 1 } else { 0 }) as usize;
+    let mut segments = vec![0u16; segments_len];
+
+    // Add each digit, one at a time, lowest digit last
+    let chars: Vec<char> = digits.chars().collect();
+    let start_idx = 0; // skip already-trimmed prefix
+    let end_idx = chars.len();
+
+    let mut bit_offset = 0u32;
+    for i in (start_idx..end_idx).rev() {
+        let c = chars[i];
+        // Hex-digit to numeric value
+        let digit = match c {
+            '0'..='9' => (c as u8 - b'0') as u16,
+            'a'..='f' => 10 + (c as u8 - b'a') as u16,
+            'A'..='F' => 10 + (c as u8 - b'A') as u16,
+            _ => unreachable!(),
+        };
+        let segment = (bit_offset >> 4) as usize;
+        let shifted_digit = (digit as u32) << (bit_offset & 15);
+        segments[segment] |= (shifted_digit & 0xFFFF) as u16;
+        let residual = shifted_digit >> 16;
+        if residual != 0 && segment + 1 < segments.len() {
+            segments[segment + 1] |= residual as u16;
+        }
+        bit_offset += log2_base;
+    }
+
+    // Repeatedly divide segments by 10 and collect remainders for decimal string
+    let mut base10_value = String::new();
+    let mut first_nonzero_segment = segments.len().saturating_sub(1);
+    let mut segments_remaining = true;
+    while segments_remaining {
+        let mut mod10 = 0u32;
+        segments_remaining = false;
+        for segment in (0..=first_nonzero_segment).rev() {
+            let new_segment = (mod10 << 16) | segments[segment] as u32;
+            let segment_value = new_segment / 10;
+            segments[segment] = segment_value as u16;
+            mod10 = new_segment - segment_value * 10;
+            if segment_value != 0 && !segments_remaining {
+                first_nonzero_segment = segment;
+                segments_remaining = true;
+            }
+        }
+        base10_value.insert(0, std::char::from_digit(mod10, 10).unwrap());
+    }
+
+    std::borrow::Cow::Owned(base10_value)
 }

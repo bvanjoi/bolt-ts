@@ -29,7 +29,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intersection(n) => n.span,
             TyKind::Typeof(n) => n.span,
             TyKind::Mapped(n) => n.span,
-            TyKind::TyOp(n) => n.span,
+            TyKind::TypeOp(n) => n.span,
             TyKind::Ctor(n) => n.span,
             TyKind::Pred(n) => n.span,
             TyKind::Lit(n) => n.span,
@@ -57,7 +57,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intersection(n) => n.id,
             TyKind::Typeof(n) => n.id,
             TyKind::Mapped(n) => n.id,
-            TyKind::TyOp(n) => n.id,
+            TyKind::TypeOp(n) => n.id,
             TyKind::Ctor(n) => n.id,
             TyKind::Pred(n) => n.id,
             TyKind::Lit(n) => n.id,
@@ -147,7 +147,7 @@ pub enum TyKind<'cx> {
     Intersection(&'cx IntersectionTy<'cx>),
     Typeof(&'cx TypeofTy<'cx>),
     Mapped(&'cx MappedTy<'cx>),
-    TyOp(&'cx TyOp<'cx>),
+    TypeOp(&'cx TypeOp<'cx>),
     Pred(&'cx PredTy<'cx>),
     Paren(&'cx ParenTy<'cx>),
     Infer(&'cx InferTy<'cx>),
@@ -377,28 +377,20 @@ pub struct PropName<'cx> {
 
 impl PropName<'_> {
     pub fn span(&self) -> Span {
-        match self.kind {
-            PropNameKind::Ident(ident) => ident.span,
-            PropNameKind::NumLit(num) => num.span,
-            PropNameKind::StringLit { raw, .. } => raw.span,
-            PropNameKind::Computed(n) => n.span,
-        }
+        self.kind.span()
     }
 
     pub fn id(&self) -> NodeID {
-        match self.kind {
-            PropNameKind::Ident(ident) => ident.id,
-            PropNameKind::NumLit(num) => num.id,
-            PropNameKind::StringLit { raw, .. } => raw.id,
-            PropNameKind::Computed(n) => n.id,
-        }
+        self.kind.id()
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum PropNameKind<'cx> {
     Ident(&'cx Ident),
+    PrivateIdent(&'cx PrivateIdent),
     StringLit { raw: &'cx StringLit, key: Atom },
+    BigIntLit(&'cx BigIntLit),
     NumLit(&'cx NumLit),
     Computed(&'cx ComputedPropName<'cx>),
 }
@@ -428,6 +420,42 @@ impl<'cx> PropNameKind<'cx> {
                 super::ExprKind::NumLit(n) => Some(atoms.atom(&n.val.to_string())),
                 _ => None,
             },
+            PropNameKind::PrivateIdent(private_ident) => Some(private_ident.name),
+            PropNameKind::BigIntLit(_lit) => None,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self {
+            PropNameKind::Ident(ident) => ident.id,
+            PropNameKind::NumLit(num) => num.id,
+            PropNameKind::StringLit { raw, .. } => raw.id,
+            PropNameKind::Computed(n) => n.id,
+            PropNameKind::PrivateIdent(ident) => ident.id,
+            PropNameKind::BigIntLit(n) => n.id,
+        }
+    }
+
+    pub fn to_string(&self, atoms: &AtomIntern) -> String {
+        match self {
+            PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
+            PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
+            PropNameKind::NumLit(num) => num.val.to_string(),
+            PropNameKind::Computed(_n) => todo!(),
+            PropNameKind::PrivateIdent(ident) => {
+                format!("#{}", atoms.get(ident.name))
+            }
+            PropNameKind::BigIntLit(_lit) => todo!(),
+        }
+    }
+    pub fn span(&self) -> Span {
+        match self {
+            PropNameKind::Ident(ident) => ident.span,
+            PropNameKind::NumLit(num) => num.span,
+            PropNameKind::StringLit { raw, .. } => raw.span,
+            PropNameKind::Computed(n) => n.span,
+            PropNameKind::PrivateIdent(ident) => ident.span,
+            PropNameKind::BigIntLit(n) => n.span,
         }
     }
 }
@@ -489,6 +517,7 @@ pub struct SpreadAssignment<'cx> {
 pub struct ObjectMethodMember<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub asterisk: Option<Span>,
     pub name: &'cx PropName<'cx>,
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
@@ -593,7 +622,7 @@ pub enum TyOpKind {
 }
 
 #[derive(Debug, Clone)]
-pub struct TyOp<'cx> {
+pub struct TypeOp<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub op: TyOpKind,
@@ -612,7 +641,7 @@ pub struct EntityName<'cx> {
     pub kind: EntityNameKind<'cx>,
 }
 
-impl EntityName<'_> {
+impl<'cx> EntityName<'cx> {
     pub fn span(&self) -> Span {
         use EntityNameKind::*;
         match self.kind {
@@ -626,6 +655,13 @@ impl EntityName<'_> {
         match self.kind {
             Ident(ident) => ident.id,
             Qualified(name) => name.id,
+        }
+    }
+
+    pub fn get_first_identifier(&self) -> &'cx Ident {
+        match self.kind {
+            EntityNameKind::Ident(ident) => ident,
+            EntityNameKind::Qualified(q) => q.left.get_first_identifier(),
         }
     }
 }
