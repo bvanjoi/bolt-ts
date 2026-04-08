@@ -524,6 +524,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
             false
         });
 
+        let last_super_call = last_super_call.map(|pos| block.stmts().len() - 1 - pos);
+
         let (prev_stmts, after_stmts) = if let Some(last_super_call) = last_super_call {
             block.stmts().split_at(last_super_call + 1)
         } else {

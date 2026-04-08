@@ -96,7 +96,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
+    pub(crate) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
         }

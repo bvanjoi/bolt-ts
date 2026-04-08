@@ -3,8 +3,7 @@ class Foo {
 }
 class Bar extends Foo {
   x
-  constructor() {super();
-    this.x = 2;}
+  constructor() {super();this.x = 2;}
   bar() {
     super.bar();
     (super.bar)();

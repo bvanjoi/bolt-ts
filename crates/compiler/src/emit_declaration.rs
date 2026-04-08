@@ -370,10 +370,14 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx, 'a> 
             },
         );
         self.emitter.print().p_r_paren();
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
         if let Some(ty) = node.ty {
-            self.emitter.print().p_colon();
-            self.emitter.print().p_whitespace();
             self.visit_ty(ty);
+        } else {
+            let ty = self.resolver.ensure_type_for_function_declaration(node);
+            let ty_str = self.resolver.print_type(ty);
+            self.emitter.print().p(&ty_str);
         }
         self.emitter.print().p_semi();
     }

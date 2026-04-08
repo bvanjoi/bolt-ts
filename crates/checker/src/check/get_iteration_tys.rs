@@ -356,15 +356,16 @@ impl<'cx> TyChecker<'cx> {
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
         let method = self.get_prop_of_ty(ty, name);
-        let method_name_is_next = method_name != keyword::IDENT_NEXT;
-        if method.is_none() && method_name_is_next {
+        let method_name_is_not_next = method_name != keyword::IDENT_NEXT;
+        if method.is_none() && method_name_is_not_next {
             return None;
         };
         let method_ty = if let Some(method) = method
-            && !(method_name_is_next && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
+            && !(!method_name_is_not_next
+                && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
         {
             let mut ty = self.get_type_of_symbol(method);
-            if !method_name_is_next {
+            if method_name_is_not_next {
                 ty = self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
             }
             Some(ty)
@@ -383,7 +384,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(error_node) = error_node {
                 todo!()
             }
-            return if method_name_is_next {
+            return if !method_name_is_not_next {
                 Some(self.no_iteration_tys())
             } else {
                 None
@@ -421,7 +422,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty_arguments = self.get_ty_arguments(global_ty);
                 let yield_ty = self.get_mapped_ty(mapper, ty_arguments[0]);
                 let return_ty = self.get_mapped_ty(mapper, ty_arguments[1]);
-                let next_ty = if method_name_is_next {
+                let next_ty = if method_name_is_not_next {
                     self.get_mapped_ty(mapper, ty_arguments[2])
                 } else {
                     self.unknown_ty
@@ -467,7 +468,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.unknown_ty
             };
-            if method_name_is_next {
+            if method_name_is_not_next {
                 next_ty = Some(method_param_ty);
             } else if method_name == keyword::KW_RETURN {
                 let resolved_method_param_ty = resolver

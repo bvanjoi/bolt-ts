@@ -7,6 +7,10 @@ function f<T>(x: T): T {
     return x;
 }
 
+function g<T>(x: T) {
+    return x;
+}
+
 enum E { A, B, C, "non identifier" }
 
 const c1 = "abc";

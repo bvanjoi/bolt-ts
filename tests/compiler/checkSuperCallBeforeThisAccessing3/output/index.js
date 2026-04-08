@@ -5,6 +5,6 @@ class Derived extends Based {
       y
       constructor() {this.y = true;}
     }
-    super();
-    this.x = 10;var that = this;}
+    super();this.x = 10;
+    var that = this;}
 }

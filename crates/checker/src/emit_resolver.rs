@@ -44,6 +44,14 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         links.expect_ty()
     }
 
+    pub fn ensure_type_for_function_declaration(
+        &mut self,
+        n: &'cx ast::FnDecl<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let sig = self.checker.get_sig_from_decl(n.id);
+        self.checker.get_ret_ty_of_sig(sig)
+    }
+
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         ty.to_string(self.checker)
     }

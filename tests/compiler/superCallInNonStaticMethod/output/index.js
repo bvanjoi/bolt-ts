@@ -25,8 +25,7 @@ class Other extends Doing {
   set accessor(value) {
     super.instanceMethod();
   }
-  constructor() {super();
-    super.instanceMethod();}
+  constructor() {super();super.instanceMethod();}
   propertyInitializer = super.instanceMethod()
   functionProperty = () => {
     super.instanceMethod();

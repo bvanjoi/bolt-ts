@@ -7,6 +7,7 @@ use bolt_ts_checker::check::{TyChecker, node_query};
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_parser::get_touching_property_name;
 use bolt_ts_span::{ModuleArena, ModuleID};
+
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
