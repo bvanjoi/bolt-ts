@@ -170,6 +170,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
     }
 
     fn emit_var_decls(&mut self, decls: &'ir [ir::VarDeclID]) {
+        // TODO: modifier
         self.emit_list(
             decls,
             |this, decl| this.emit_var_decl(*decl),

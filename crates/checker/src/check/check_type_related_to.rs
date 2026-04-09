@@ -2793,6 +2793,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return false;
         }
 
+        if target_ty.flags.contains(TypeFlags::UNION) {
+            // TODO:
+        }
+
         for prop in self.c.get_props_of_ty(source) {
             if self.should_check_as_excess_prop(*prop, source.symbol().unwrap()) {
                 let name = self.c.symbol(*prop).name;

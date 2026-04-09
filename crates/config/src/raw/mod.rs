@@ -64,6 +64,7 @@ with_option!(
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
+    (es_module_interop, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),

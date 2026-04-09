@@ -33,8 +33,71 @@ impl<'cx> TyChecker<'cx> {
         match node {
             ArrayLit(node) => self.elaborate_array_lit(node, source, target, relation),
             ObjectLit(node) => self.elaborate_object_lit(node, source, target, relation),
+            ArrowFnExpr(node) => {
+                self.elaborate_arrow_fn_expr(node, source, target, relation, error_node)
+            }
             _ => false,
         }
+    }
+
+    fn elaborate_arrow_fn_expr(
+        &mut self,
+        node: &'cx ast::ArrowFnExpr<'cx>,
+        source: &'cx ty::Ty<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        relation: RelationKind,
+        error_output_container: Option<ast::NodeID>,
+    ) -> bool {
+        let ast::ArrowFnExprBody::Expr(return_expr) = node.body else {
+            return false;
+        };
+        if node.params.iter().any(|p| p.ty.is_some()) {
+            return false;
+        }
+        let Some(source_sig) = self.get_single_call_sig(source) else {
+            return false;
+        };
+        let target_sigs = self.get_signatures_of_type(target, ty::SigKind::Call);
+        if target_sigs.is_empty() {
+            return false;
+        }
+        let source_return = self.get_ret_ty_of_sig(source_sig);
+        let tys = target_sigs
+            .iter()
+            .map(|sig| self.get_ret_ty_of_sig(*sig))
+            .collect::<Vec<_>>();
+        let target_return =
+            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+        dbg!(source_return.to_string(self));
+        dbg!(target_return.to_string(self));
+        if !self.check_type_related_to(source_return, target_return, relation, None) {
+            if self.elaborate_error(
+                Some(return_expr.id()),
+                source_return,
+                target_return,
+                relation,
+                error_output_container,
+            ) {
+                return true;
+            }
+            if !self.check_type_related_to(
+                source_return,
+                target_return,
+                relation,
+                error_output_container,
+            ) {
+                let span = return_expr.span();
+                let error = errors::TypeIsNotAssignableToType {
+                    span,
+                    ty1: self.print_ty(source_return).to_string(),
+                    ty2: self.print_ty(target_return).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+
+            return true;
+        }
+        false
     }
 
     fn elaborate_object_lit(
@@ -51,7 +114,7 @@ impl<'cx> TyChecker<'cx> {
             return false;
         }
 
-        let node = node
+        let nodes = node
             .members
             .iter()
             .filter_map(|member| {
@@ -87,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
             .collect::<Vec<_>>();
-        self.elaborate_element_wise(&node, source, target, relation)
+        self.elaborate_element_wise(&nodes, source, target, relation)
     }
 
     fn generate_limited_tuple_elements(
@@ -160,6 +223,7 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(target_union) = target.kind.as_union()
             && let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
+                dbg!(123);
                 if this.is_type_related_to(s, t, RelationKind::Assignable) {
                     Ternary::TRUE
                 } else {
@@ -179,8 +243,90 @@ impl<'cx> TyChecker<'cx> {
         target_union: &'cx ty::UnionTy<'cx>,
         cmp: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO:
-        None
+        // TODO: findMatchingDiscriminantType
+        // TODO: findMatchingTypeReferenceOrTypeAliasReference
+        self.find_best_ty_for_object_literal(source, target_union)
+            .or_else(|| self.find_best_ty_for_invokable(source, target_union))
+            .or_else(|| {
+                // find_most_overlappy_ty
+                let mut best_match = None;
+                if !source
+                    .flags
+                    .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::INSTANTIABLE_PRIMITIVE))
+                {
+                    let mut matching_count = 0;
+                    for target in target_union.tys {
+                        if !target.flags.intersects(
+                            TypeFlags::PRIMITIVE.union(TypeFlags::INSTANTIABLE_PRIMITIVE),
+                        ) {
+                            let tys = &[
+                                self.get_index_ty(source, ty::IndexFlags::empty()),
+                                self.get_index_ty(target, ty::IndexFlags::empty()),
+                            ];
+                            let overlap = self.get_intersection_ty(
+                                tys,
+                                super::IntersectionFlags::None,
+                                None,
+                                None,
+                            );
+                            if overlap.flags.contains(TypeFlags::INDEX) {
+                                return Some(*target);
+                            } else if overlap.is_unit() && 1 >= matching_count {
+                                best_match = Some(*target);
+                                matching_count = 1;
+                            } else if let Some(tys) = overlap.kind.as_union().map(|u| u.tys) {
+                                let len = tys.iter().filter(|t| t.is_unit()).count();
+                                if len >= matching_count {
+                                    best_match = Some(*target);
+                                    matching_count = len;
+                                }
+                            }
+                        }
+                    }
+                }
+                best_match
+            })
+    }
+
+    fn find_best_ty_for_object_literal(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target_union: &'cx ty::UnionTy<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if source
+            .get_object_flags()
+            .contains(ty::ObjectFlags::OBJECT_LITERAL)
+            && target_union.tys.iter().any(|ty| self.is_array_like_ty(ty))
+        {
+            target_union
+                .tys
+                .iter()
+                .find(|t| self.is_array_like_ty(t))
+                .copied()
+        } else {
+            None
+        }
+    }
+
+    fn find_best_ty_for_invokable(
+        &mut self,
+        source: &'cx ty::Ty<'cx>,
+        target_union: &'cx ty::UnionTy<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let mut kind = ty::SigKind::Call;
+        let has_sigs = !self.get_signatures_of_type(source, kind).is_empty() || {
+            kind = ty::SigKind::Constructor;
+            !self.get_signatures_of_type(source, kind).is_empty()
+        };
+        if has_sigs {
+            target_union
+                .tys
+                .iter()
+                .find(|t| !self.get_signatures_of_type(t, kind).is_empty())
+                .copied()
+        } else {
+            None
+        }
     }
 
     fn elaborate_element_wise(
