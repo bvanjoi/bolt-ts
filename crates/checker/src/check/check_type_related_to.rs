@@ -32,6 +32,8 @@ bitflags::bitflags! {
     }
 }
 
+pub const NOOP_HEADING_ERROR: Option<fn(&mut TyChecker)> = None;
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_type_related_to(
         &mut self,
@@ -39,8 +41,10 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         relation: RelationKind,
         error_node: Option<ast::NodeID>,
+        heading_error: Option<impl FnOnce(&mut TyChecker<'cx>)>,
     ) -> bool {
         let mut c = TypeRelatedChecker::new(self, relation, error_node);
+        let current_error_count = c.c.diags.len();
         let result = c.is_related_to(
             source,
             target,
@@ -48,6 +52,13 @@ impl<'cx> TyChecker<'cx> {
             error_node.is_some(),
             IntersectionState::empty(),
         );
+        let has_false = result == Ternary::FALSE;
+        if has_false
+            && c.c.diags.len() == current_error_count
+            && let Some(heading_error) = heading_error
+        {
+            heading_error(c.c);
+        }
         // if c.overflow {
         //     let key = self.get_relation_key::<false>(
         //         source,
@@ -58,7 +69,7 @@ impl<'cx> TyChecker<'cx> {
         //     // TODO: ensure prev is none
         //     self.relations.insert(key, RelationComparisonResult::FAILED);
         // }
-        result != Ternary::FALSE
+        !has_false
     }
 }
 
@@ -215,10 +226,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if is_performing_excess_property_check
                 && self.has_excess_properties(source, target, report_error)
             {
-                if report_error {
-                    // TODO: return false
-                    return Ternary::TRUE;
-                }
                 return Ternary::FALSE;
             }
 
@@ -597,7 +604,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         };
                     self.c.push_error(Box::new(error));
                 }
-                return Ternary::TRUE;
             }
 
             return Ternary::FALSE;
@@ -663,7 +669,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let source = source_ty_args[i];
                 let target = target_ty_args[i];
                 let mut related;
-                if variance_flags.intersects(VarianceFlags::UNMEASURABLE) {
+                if variance_flags.contains(VarianceFlags::UNMEASURABLE) {
                     related = if self.relation == RelationKind::Identity {
                         self.is_related_to(
                             source,
@@ -1018,30 +1024,63 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let mut result =
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
-        if self.relation != RelationKind::Identity
-            && result == Ternary::FALSE
-            && (source
-                .flags
-                .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
-                && target.flags.intersects(TypeFlags::UNION))
-        {
-            let tys = if let Some(i) = source.kind.as_intersection() {
-                i.tys
-            } else {
-                &[source]
-            };
-            if let Some(constraint) = self.c.get_effective_constraint_of_intersection(
-                tys,
-                target.flags.intersects(TypeFlags::UNION),
-            ) && self.c.every_type(constraint, |_, c| c != source)
+        if self.relation != RelationKind::Identity {
+            if result == Ternary::FALSE
+                && (source
+                    .flags
+                    .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
+                    && target.flags.contains(TypeFlags::UNION))
             {
-                result = self.is_related_to(
-                    constraint,
+                let tys = if let Some(i) = source.kind.as_intersection() {
+                    i.tys
+                } else {
+                    &[source]
+                };
+                if let Some(constraint) = self.c.get_effective_constraint_of_intersection(
+                    tys,
+                    target.flags.contains(TypeFlags::UNION),
+                ) && self.c.every_type(constraint, |_, c| c != source)
+                {
+                    result = self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        false,
+                        intersection_state,
+                    )
+                }
+            }
+
+            if result != Ternary::FALSE
+                && !intersection_state.contains(IntersectionState::TARGET)
+                && target.kind.is_intersection()
+                && !self.c.is_generic_object_ty(target)
+                && source
+                    .flags
+                    .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
+            {
+                result &= self.props_related_to(
+                    source,
                     target,
-                    RecursionFlags::SOURCE,
+                    report_error,
+                    None,
                     false,
-                    intersection_state,
-                )
+                    IntersectionState::empty(),
+                );
+                if result != Ternary::FALSE
+                    && source.is_object_literal()
+                    && source
+                        .get_object_flags()
+                        .contains(ObjectFlags::FRESH_LITERAL)
+                {
+                    result &= self.index_sigs_related_to(
+                        source,
+                        target,
+                        false,
+                        report_error,
+                        IntersectionState::empty(),
+                    );
+                }
             }
         }
 
@@ -2759,14 +2798,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     }
 
     fn should_check_as_excess_prop(&self, prop: SymbolID, container: SymbolID) -> bool {
-        if let Some(p) = self.c.symbol(prop).value_decl
-            && let Some(c) = self.c.symbol(container).value_decl
-            && let Some(p) = self.c.parent(p)
-        {
-            p == c
-        } else {
-            false
-        }
+        let Some(p) = self.c.symbol(prop).value_decl else {
+            return false;
+        };
+        let Some(c) = self.c.symbol(container).value_decl else {
+            return false;
+        };
+        self.c.parent(p) == Some(c)
     }
 
     fn has_excess_properties(

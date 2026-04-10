@@ -683,44 +683,38 @@
       · ──
       ╰────
 
-  × Type 'DateConstructor' is not assignable to type 'UnknownArray'.
-      ╭─[../../tests/compiler/fest/index.ts:2758:9]
- 2758 │ b5
-      · ──
-      ╰────
-
   × Type 'undefined[]' is not assignable to type 'UnknownRecord'.
-      ╭─[../../tests/compiler/fest/index.ts:2782:3]
- 2782 │ foo
+      ╭─[../../tests/compiler/fest/index.ts:2781:3]
+ 2781 │ foo
       · ───
       ╰────
 
   × Type 'number' is not assignable to type 'UnknownRecord'.
-      ╭─[../../tests/compiler/fest/index.ts:2784:3]
- 2784 │ foo
+      ╭─[../../tests/compiler/fest/index.ts:2783:3]
+ 2783 │ foo
       · ───
       ╰────
 
   × Type 'number' is not assignable to type 'string'.
-      ╭─[../../tests/compiler/fest/index.ts:2801:36]
- 2801 │ 42
+      ╭─[../../tests/compiler/fest/index.ts:2800:36]
+ 2800 │ 42
       · ──
       ╰────
 
   × Type '3' is not assignable to type '4'.
-      ╭─[../../tests/compiler/fest/index.ts:2813:9]
- 2813 │ a1
+      ╭─[../../tests/compiler/fest/index.ts:2812:9]
+ 2812 │ a1
       · ──
       ╰────
 
   × Type '1' is not assignable to type '2'.
-      ╭─[../../tests/compiler/fest/index.ts:2821:9]
- 2821 │ b1
+      ╭─[../../tests/compiler/fest/index.ts:2820:9]
+ 2820 │ b1
       · ──
       ╰────
 
   × Type '1' is not assignable to type '3'.
-      ╭─[../../tests/compiler/fest/index.ts:2823:9]
- 2823 │ b2
+      ╭─[../../tests/compiler/fest/index.ts:2822:9]
+ 2822 │ b2
       · ──
       ╰────

@@ -169,9 +169,8 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_export_assign(&mut self, n: &'cx ast::ExportAssign<'cx>) -> ir::ExportAssignID {
-        let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let expr = self.lower_expr(n.expr);
-        self.nodes.alloc_export_assign(n.span, modifiers, expr)
+        self.nodes.alloc_export_assign(n.span, expr)
     }
 
     fn lower_export_stmt(&mut self, n: &'cx ast::ExportDecl<'cx>) -> ir::ExportDeclID {

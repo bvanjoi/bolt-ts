@@ -88,6 +88,7 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashs
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::check_expr::IterationUse;
+use self::check_type_related_to::NOOP_HEADING_ERROR;
 use self::check_type_related_to::RecursionFlags;
 use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
@@ -3014,8 +3015,19 @@ impl<'cx> TyChecker<'cx> {
         right: &'cx ast::Expr,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        self.check_type_assignable_to(left_ty, self.string_number_symbol_ty(), Some(left.id()));
-        if !self.check_type_assignable_to(right_ty, self.non_primitive_ty, Some(right.id())) {
+        // TODO: private
+        self.check_type_assignable_to(
+            left_ty,
+            self.string_number_symbol_ty(),
+            Some(left.id()),
+            NOOP_HEADING_ERROR,
+        );
+        if !self.check_type_assignable_to(
+            right_ty,
+            self.non_primitive_ty,
+            Some(right.id()),
+            NOOP_HEADING_ERROR,
+        ) {
             let right_ty = self.get_widened_literal_ty(right_ty);
             let error = bolt_ts_ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),
@@ -3025,6 +3037,16 @@ impl<'cx> TyChecker<'cx> {
         }
         self.boolean_ty()
     }
+
+    // fn has_empty_object_intersection(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    //     self.some_type(ty, |this, t| {
+    //         t == this.unknown_empty_object_ty()
+    //             || (t.flags.contains(TypeFlags::INTERSECTION) && {
+    //                 let base = this.get_base_constraint_or_ty(t);
+    //                 this.is_empty_anonymous_object_ty(base)
+    //             })
+    //     })
+    // }
 
     fn check_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         if let Some(constraint) = ty_param.constraint {
@@ -3455,7 +3477,7 @@ impl<'cx> TyChecker<'cx> {
         ty.kind.as_object_anonymous().is_some_and(|_| {
             if let Some(symbol) = ty.symbol() {
                 let s = self.symbol(symbol);
-                s.flags.intersects(SymbolFlags::TYPE_LITERAL)
+                s.flags.contains(SymbolFlags::TYPE_LITERAL)
                     && self.get_members_of_symbol(symbol).0.is_empty()
             } else if let Some(ty_link) = self.ty_links.get(&ty.id) {
                 if let Some(t) = ty_link.get_structured_members() {
@@ -4029,15 +4051,20 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_prototype_prop(&self, symbol: SymbolID) -> bool {
-        let flags = self.symbol(symbol).flags;
+        let s = self.symbol(symbol);
+        let flags = s.flags;
         if flags.contains(SymbolFlags::METHOD)
             || self
                 .get_check_flags(symbol)
                 .contains(CheckFlags::SYNTHETIC_METHOD)
         {
             true
+        } else if let Some(value_declaration) = s.value_decl
+            && let nq = self.node_query(value_declaration.module())
+            && nq.is_in_js_file(value_declaration)
+        {
+            todo!()
         } else {
-            // TODO: is_in_js_file
             false
         }
     }
@@ -5244,6 +5271,23 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         let exports = self.get_exports_of_symbol(module_symbol);
+        if let Some(export_equals_symbol) = exports.0.get(&SymbolName::ExportEquals)
+            && exports
+                .0
+                .iter()
+                .any(|(item_name, _)| *item_name != SymbolName::ExportEquals)
+            && let s = self.binder.symbol(*export_equals_symbol)
+            && let Some(decl) = s.get_decl_of_alias_symbol(&self.p).or(s.value_decl)
+            && let nq = self.node_query(decl.module())
+            && !nq.is_top_level_in_external_module_augmentation(decl)
+            && !nq.is_in_js_file(decl)
+        {
+            let error = errors::AnExportAssignmentCannotBeUsedInAModuleWithOtherExportedElements {
+                span: self.p.node(decl).span(),
+            };
+            self.push_error(Box::new(error));
+        }
+
         let redeclared_exports = exports
             .0
             .iter()
@@ -6406,7 +6450,12 @@ impl<'cx> TyChecker<'cx> {
             generator_next_ty,
             is_async,
         );
-        self.check_type_assignable_to(generator_instantiation, return_ty, error_node)
+        self.check_type_assignable_to(
+            generator_instantiation,
+            return_ty,
+            error_node,
+            NOOP_HEADING_ERROR,
+        )
     }
 
     fn get_awaited_ty_of_promise(

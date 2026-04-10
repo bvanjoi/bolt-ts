@@ -838,17 +838,11 @@ impl Nodes {
     }
 
     #[inline]
-    pub fn alloc_export_assign(
-        &mut self,
-        span: Span,
-        modifiers: Option<Modifiers>,
-        expr: Expr,
-    ) -> ExportAssignID {
+    pub fn alloc_export_assign(&mut self, span: Span, expr: Expr) -> ExportAssignID {
         let idx = ExportAssignID(usize_into_idx(self.export_assign_nodes.0.len()));
         let id = self.export_assign_nodes.0.alloc(ExportAssign {
             id: idx,
             span,
-            modifiers,
             expr,
         });
         debug_assert_eq!(id, idx.0);
@@ -3187,7 +3181,6 @@ pub enum ForInit {
 pub struct ExportAssign {
     id: ExportAssignID,
     span: Span,
-    modifiers: Option<Modifiers>,
     expr: Expr,
 }
 

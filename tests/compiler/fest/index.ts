@@ -2757,7 +2757,6 @@ type UnknownArray = readonly unknown[];
   //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
   //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
-  //~| ERROR: Type 'DateConstructor' is not assignable to type 'UnknownArray'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;
 

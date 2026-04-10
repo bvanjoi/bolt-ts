@@ -14,6 +14,7 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::errors;
 use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
@@ -875,7 +876,12 @@ impl<'cx> TyChecker<'cx> {
                     false
                 };
                 if diag {
-                    self.check_type_assignable_to(send_ty, iteration_tys.next_ty, error_node);
+                    self.check_type_assignable_to(
+                        send_ty,
+                        iteration_tys.next_ty,
+                        error_node,
+                        NOOP_HEADING_ERROR,
+                    );
                 }
             }
             if iteration_tys.is_some() || uplevel_iteration {

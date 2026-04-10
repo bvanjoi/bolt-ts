@@ -463,17 +463,24 @@ impl<'cx> TyChecker<'cx> {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
                 && result
                 && let target = self.instantiate_ty_worker(constraint, mapper)
-                && !self.check_type_assignable_to(ty_arg, target, None)
+                && !self.check_type_assignable_to(
+                    ty_arg,
+                    target,
+                    None,
+                    Some(|this: &mut Self| {
+                        if let Some(error_node) =
+                            node.ty_args().and_then(|ty_args| ty_args.list.get(idx))
+                        {
+                            let error = errors::TypeXDoesNotSatisfyTheConstraintY {
+                                span: error_node.span(),
+                                x: this.print_ty(ty_arg).to_string(),
+                                y: this.print_ty(target).to_string(),
+                            };
+                            this.push_error(Box::new(error));
+                        };
+                    }),
+                )
             {
-                if let Some(error_node) = node.ty_args().and_then(|ty_args| ty_args.list.get(idx)) {
-                    let error = errors::TypeXDoesNotSatisfyTheConstraintY {
-                        span: error_node.span(),
-                        x: self.print_ty(ty_arg).to_string(),
-                        y: self.print_ty(target).to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                };
-
                 result = false;
             }
         }

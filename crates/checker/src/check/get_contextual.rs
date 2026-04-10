@@ -95,9 +95,11 @@ impl<'cx> TyChecker<'cx> {
             ObjectShorthandMember(parent) => {
                 self.get_contextual_ty_for_object_literal_ele(parent, flags)
             }
-            ParenExpr(parent) => {
-                // TODO: is_in_js_file
-                self.get_contextual_ty(parent.id, flags)
+            ParenExpr(n) => {
+                if self.node_query(n.id.module()).is_in_js_file(n.id) {
+                    todo!()
+                }
+                self.get_contextual_ty(n.id, flags)
             }
             _ => None,
         }

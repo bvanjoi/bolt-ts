@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use super::ExpectedArgsCount;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
@@ -9,7 +11,6 @@ use super::ty::TypeFlags;
 use super::ty::{self, TypeFacts};
 use super::ty::{Sig, SigFlags, Sigs};
 use super::{CheckMode, errors};
-use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 
 use bolt_ts_ast as ast;
@@ -697,7 +698,13 @@ impl<'cx> TyChecker<'cx> {
                 let this_argument_ty = self.get_this_argument_ty(this_argument_node);
                 let error_node = report_error
                     .then(|| this_argument_node.unwrap_or(n.expect_call_expr().expr).id());
-                if !self.check_type_related_to(this_argument_ty, this_ty, relation, error_node) {
+                if !self.check_type_related_to(
+                    this_argument_ty,
+                    this_ty,
+                    relation,
+                    error_node,
+                    NOOP_HEADING_ERROR,
+                ) {
                     return true;
                 }
             }
@@ -733,7 +740,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     regular_arg_ty
                 };
-                if self.check_type_related_to_and_optionally_elaborate(
+                if !self.check_type_related_to_and_optionally_elaborate(
                     check_arg_ty,
                     param_ty,
                     relation,
@@ -747,8 +754,7 @@ impl<'cx> TyChecker<'cx> {
                             param_ty: this.print_ty(target).to_string(),
                         })
                     },
-                ) == Ternary::FALSE
-                {
+                ) {
                     has_error = true
                 }
             }
@@ -767,13 +773,21 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: synthetic
                 None
             };
-            if !self.check_type_related_to(spared_ty, rest_ty, relation, error_node) {
-                let error = errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
-                    span: expr.span(),
-                    arg_ty: self.print_ty(spared_ty).to_string(),
-                    param_ty: self.print_ty(rest_ty).to_string(),
-                };
-                self.push_error(Box::new(error));
+            if !self.check_type_related_to(
+                spared_ty,
+                rest_ty,
+                relation,
+                error_node,
+                Some(|this: &mut Self| {
+                    let arg_ty = this.print_ty(spared_ty).to_string();
+                    let error = Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
+                        span: expr.span(),
+                        arg_ty,
+                        param_ty: this.print_ty(rest_ty).to_string(),
+                    });
+                    this.push_error(error);
+                }),
+            ) {
                 has_error = true;
             }
         }
@@ -816,15 +830,17 @@ impl<'cx> TyChecker<'cx> {
                 ty_arg,
                 target,
                 report_error.then_some(ty_args.list[i].id()),
+                Some(|this: &mut Self| {
+                    if report_error {
+                        let error = errors::TypeXDoesNotSatisfyTheConstraintY {
+                            span: ty_args.list[i].span(),
+                            x: this.print_ty(ty_arg).to_string(),
+                            y: this.print_ty(target).to_string(),
+                        };
+                        this.push_error(Box::new(error));
+                    }
+                }),
             ) {
-                if report_error {
-                    let error = errors::TypeXDoesNotSatisfyTheConstraintY {
-                        span: ty_args.list[i].span(),
-                        x: self.print_ty(ty_arg).to_string(),
-                        y: self.print_ty(target).to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                }
                 return None;
             }
         }

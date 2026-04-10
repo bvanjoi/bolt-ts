@@ -260,6 +260,14 @@ pub(super) struct AccessibilityModifierAlreadySeen {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("{modifier} modifier already seen.")]
+pub(super) struct ModifierAlreadySeen {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected token. Did you mean `{{'}}'}}` or `&rbrace;`?")]
 pub(super) struct UnexpectedTokenDidYouMeanOrRBrace {
     #[label(primary)]
@@ -633,6 +641,20 @@ pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected keyword or identifier.")]
 pub(super) struct UnexpectedKeywordOrIdentifier {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An export assignment cannot have modifiers.")]
+pub(super) struct AnExportAssignmentCannotHaveModifiers {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A class declaration without the 'default' modifier must have a name.")]
+pub(super) struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
     #[label(primary)]
     pub span: Span,
 }

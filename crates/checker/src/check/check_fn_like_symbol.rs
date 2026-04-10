@@ -4,6 +4,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_span::Span;
 
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
 use super::ty;
@@ -266,7 +267,10 @@ impl<'cx> TyChecker<'cx> {
             check_mode,
             false,
             |this, source, target, report_error| {
-                if this.c.check_type_assignable_to(source, target, None) {
+                if this
+                    .c
+                    .check_type_assignable_to(source, target, None, NOOP_HEADING_ERROR)
+                {
                     Ternary::TRUE
                 } else {
                     Ternary::FALSE

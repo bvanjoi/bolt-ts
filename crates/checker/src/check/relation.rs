@@ -8,9 +8,9 @@ use bolt_ts_utils::{fx_indexmap_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashMap;
 
 use super::check_type_related_to::IntersectionState;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::get_declared_ty::EnumMemberValue;
-
 use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use super::ty::{Ty, TyKind};
 use super::{SymbolLinks, errors};
@@ -23,7 +23,6 @@ pub(super) enum RelationKind {
     Assignable,
     Comparable,
     Identity,
-    Enum,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -421,7 +420,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            self.check_type_related_to(source, target, relation, None)
+            self.check_type_related_to(source, target, relation, None, NOOP_HEADING_ERROR)
         } else {
             false
         }
@@ -433,7 +432,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
-    ) -> Ternary {
+    ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
@@ -465,26 +464,34 @@ impl<'cx> TyChecker<'cx> {
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> bolt_ts_errors::BoxedDiag,
-    ) -> Ternary {
+    ) -> bool {
         if self.is_type_related_to(source, target, relation) {
-            return Ternary::TRUE;
+            return true;
         }
-        if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
-        {
-            if !self.check_type_related_to(source, target, relation, error_node) {
-                if error_node.is_none() {
-                    return Ternary::FALSE;
-                }
-                let span = self.p.node(error_node.unwrap()).span();
-                let error = error(self, span, source, target);
-                self.push_error(error);
-                return Ternary::FALSE;
-            } else {
-                return Ternary::TRUE;
-            }
+        let Some(error_node) = error_node else {
+            return self.check_type_related_to(
+                source,
+                target,
+                relation,
+                error_node,
+                NOOP_HEADING_ERROR,
+            );
+        };
+        if !self.elaborate_error(expr, source, target, relation, Some(error_node)) {
+            return self.check_type_related_to(
+                source,
+                target,
+                relation,
+                Some(error_node),
+                Some(|this: &mut Self| {
+                    let span = this.p.node(error_node).span();
+                    let error = error(this, span, source, target);
+                    this.push_error(error);
+                }),
+            );
         }
 
-        Ternary::FALSE
+        false
     }
 
     pub(super) fn check_type_assignable_to(
@@ -492,8 +499,15 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
+        heading_error: Option<impl FnOnce(&mut TyChecker<'cx>)>,
     ) -> bool {
-        self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
+        self.check_type_related_to(
+            source,
+            target,
+            RelationKind::Assignable,
+            error_node,
+            heading_error,
+        )
     }
 
     pub(super) fn check_type_comparable_to(
@@ -501,8 +515,15 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
+        heading_error: Option<impl FnOnce(&mut TyChecker<'cx>)>,
     ) -> bool {
-        self.check_type_related_to(source, target, RelationKind::Comparable, error_node)
+        self.check_type_related_to(
+            source,
+            target,
+            RelationKind::Comparable,
+            error_node,
+            heading_error,
+        )
     }
 
     pub(super) fn are_types_comparable(

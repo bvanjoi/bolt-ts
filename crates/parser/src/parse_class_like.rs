@@ -148,8 +148,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
+
         if let Some(name) = name {
             self.check_contextual_ident(name);
+        } else if let Some(modifiers) = modifiers
+            && !modifiers.flags.contains(ast::ModifierFlags::DEFAULT)
+        {
+            let error = errors::AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
         }
         let ty_params = self.parse_ty_params();
         let mut extends = self.parse_class_extends_clause()?;

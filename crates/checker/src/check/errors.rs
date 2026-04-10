@@ -1381,3 +1381,10 @@ pub(super) struct InAmbientEnumDeclarationsMemberInitializerMustBeConstantExpres
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An export assignment cannot be used in a module with other exported elements.")]
+pub(super) struct AnExportAssignmentCannotBeUsedInAModuleWithOtherExportedElements {
+    #[label(primary)]
+    pub span: Span,
+}

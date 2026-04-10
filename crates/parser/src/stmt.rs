@@ -605,7 +605,7 @@ impl<'cx> ParserState<'cx, '_> {
         mods.flags.contains(ast::ModifierFlags::AMBIENT)
     }
 
-    fn _parse_decl(
+    fn parse_decl_worker(
         &mut self,
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::Stmt<'cx>> {
@@ -659,11 +659,15 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<&'cx ast::ExportAssign<'cx>> {
+        if let Some(ms) = modifiers {
+            let error = errors::AnExportAssignmentCannotHaveModifiers { span: ms.span };
+            self.push_error(Box::new(error));
+        }
         self.has_export_decl = true;
         let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
         let span = self.new_span(start);
-        Ok(self.create_export_assign::<IS_EXPORT_EQUALS>(span, modifiers, expr))
+        Ok(self.create_export_assign::<IS_EXPORT_EQUALS>(span, expr))
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {
@@ -902,9 +906,9 @@ impl<'cx> ParserState<'cx, '_> {
             self.check_export_default_error(self.token.span);
         }
         if is_ambient {
-            self.do_inside_of_node_flags(NodeFlags::AMBIENT, |this| this._parse_decl(mods))
+            self.do_inside_of_node_flags(NodeFlags::AMBIENT, |this| this.parse_decl_worker(mods))
         } else {
-            self._parse_decl(mods)
+            self.parse_decl_worker(mods)
         }
     }
 

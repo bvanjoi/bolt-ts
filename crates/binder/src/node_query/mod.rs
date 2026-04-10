@@ -1419,4 +1419,17 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             false
         }
     }
+
+    pub fn is_top_level_in_external_module_augmentation(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        if !self.node(p).is_module_block() {
+            return false;
+        };
+        let Some(g) = self.parent(p) else {
+            return false;
+        };
+        self.is_external_module_augmentation(g)
+    }
 }

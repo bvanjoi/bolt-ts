@@ -69,14 +69,19 @@ impl<'cx> TyChecker<'cx> {
                 Case(n) => {
                     let case_ty = self.check_expr(n.expr);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
-                        if !self.check_type_comparable_to(case_ty, expr_ty, Some(n.expr.id())) {
-                            let error = errors::TypeXIsNotComparableToTypeY {
-                                span: n.expr.span(),
-                                ty1: case_ty.to_string(self),
-                                ty2: expr_ty.to_string(self),
-                            };
-                            self.push_error(Box::new(error));
-                        }
+                        self.check_type_comparable_to(
+                            case_ty,
+                            expr_ty,
+                            Some(n.expr.id()),
+                            Some(|this: &mut Self| {
+                                let error = errors::TypeXIsNotComparableToTypeY {
+                                    span: n.expr.span(),
+                                    ty1: this.print_ty(case_ty).to_string(),
+                                    ty2: this.print_ty(expr_ty).to_string(),
+                                };
+                                this.push_error(Box::new(error));
+                            }),
+                        );
                     }
                 }
                 Default(n) => {

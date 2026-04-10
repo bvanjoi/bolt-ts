@@ -687,7 +687,6 @@ impl<'cx> Node<'cx> {
             Node::InterfaceDecl(n) => n.modifiers,
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
-            Node::ExportAssign(n) => n.modifiers,
             Node::EnumDecl(n) => n.modifiers,
             _ => None,
         }

@@ -38,14 +38,14 @@ impl<'cx> TyChecker<'cx> {
             && !self.is_type_related_to(target_ty, widened_ty, RelationKind::Comparable)
         {
             // TODO: report error in `check_type_comparable_to`
-            if !self.check_type_comparable_to(expr_ty, target_ty, Some(node_id)) {
+            self.check_type_comparable_to(expr_ty, target_ty, Some(node_id), Some(|this: &mut Self| {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
                     span: span,
-                    source_ty: widened_ty.to_string(self),
-                    target_ty: target_ty.to_string(self),
+                    source_ty: widened_ty.to_string(this),
+                    target_ty: target_ty.to_string(this),
                 };
-                self.push_error(Box::new(error));
-            }
+                this.push_error(Box::new(error));
+            }));
         }
     }
 

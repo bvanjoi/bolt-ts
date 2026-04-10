@@ -6,6 +6,7 @@ use bolt_ts_ty::TypeFacts;
 
 use super::TyChecker;
 use super::check_expr::IterationUse;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::ty;
 
@@ -662,7 +663,7 @@ impl<'cx> TyChecker<'cx> {
                 && !all_sigs.is_empty()
             {
                 let target = resolver.get_global_iterable_ty::<true>(self);
-                self.check_type_assignable_to(ty, target, Some(error_node));
+                self.check_type_assignable_to(ty, target, Some(error_node), NOOP_HEADING_ERROR);
             }
             let tys = self.no_iteration_tys();
             return if no_cache {

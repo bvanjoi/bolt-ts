@@ -1,8 +1,8 @@
 use super::Ternary;
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::errors;
 use super::relation::RelationKind;
-
 use super::ty;
 use super::ty::TypeFlags;
 
@@ -68,9 +68,13 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
         let target_return =
             self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
-        dbg!(source_return.to_string(self));
-        dbg!(target_return.to_string(self));
-        if !self.check_type_related_to(source_return, target_return, relation, None) {
+        if !self.check_type_related_to(
+            source_return,
+            target_return,
+            relation,
+            None,
+            NOOP_HEADING_ERROR,
+        ) {
             if self.elaborate_error(
                 Some(return_expr.id()),
                 source_return,
@@ -80,21 +84,23 @@ impl<'cx> TyChecker<'cx> {
             ) {
                 return true;
             }
-            if !self.check_type_related_to(
+            self.check_type_related_to(
                 source_return,
                 target_return,
                 relation,
                 error_output_container,
-            ) {
-                let span = return_expr.span();
-                let error = errors::TypeIsNotAssignableToType {
-                    span,
-                    ty1: self.print_ty(source_return).to_string(),
-                    ty2: self.print_ty(target_return).to_string(),
-                };
-                self.push_error(Box::new(error));
-            }
-
+                Some(|this: &mut Self| {
+                    let span = return_expr.span();
+                    let source_return = this.print_ty(source_return).to_string();
+                    let target_return = this.print_ty(target_return).to_string();
+                    let error = Box::new(errors::TypeIsNotAssignableToType {
+                        span,
+                        ty1: source_return,
+                        ty2: target_return,
+                    });
+                    this.push_error(error);
+                }),
+            );
             return true;
         }
         false
@@ -223,7 +229,6 @@ impl<'cx> TyChecker<'cx> {
 
         if let Some(target_union) = target.kind.as_union()
             && let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
-                dbg!(123);
                 if this.is_type_related_to(s, t, RelationKind::Assignable) {
                     Ternary::TRUE
                 } else {
@@ -352,7 +357,13 @@ impl<'cx> TyChecker<'cx> {
             else {
                 continue;
             };
-            if !self.check_type_related_to(source_prop_ty, target_prop_ty, relation, None) {
+            if !self.check_type_related_to(
+                source_prop_ty,
+                target_prop_ty,
+                relation,
+                None,
+                NOOP_HEADING_ERROR,
+            ) {
                 let elaborated = self.elaborate_error(
                     e.inner_expr,
                     source_prop_ty,
@@ -362,21 +373,23 @@ impl<'cx> TyChecker<'cx> {
                 );
                 reported_error = true;
                 if !elaborated {
-                    let res = self.check_type_related_to(
+                    self.check_type_related_to(
                         source_prop_ty,
                         target_prop_ty,
                         relation,
                         Some(error_node),
+                        Some(|this: &mut Self| {
+                            let span = this.p.node(error_node).span();
+                            let source_prop_ty = this.print_ty(source_prop_ty).to_string();
+                            let target_prop_ty = this.print_ty(target_prop_ty).to_string();
+                            let error = Box::new(errors::TypeIsNotAssignableToType {
+                                span,
+                                ty1: source_prop_ty,
+                                ty2: target_prop_ty,
+                            });
+                            this.push_error(error);
+                        }),
                     );
-                    if !res {
-                        let span = self.p.node(error_node).span();
-                        let error = errors::TypeIsNotAssignableToType {
-                            span,
-                            ty1: self.print_ty(source_prop_ty).to_string(),
-                            ty2: self.print_ty(target_prop_ty).to_string(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
                 }
             }
         }

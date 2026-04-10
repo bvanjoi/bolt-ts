@@ -434,27 +434,30 @@ impl<'cx> ParserState<'cx, '_> {
             };
             this.push_error(Box::new(error));
         };
+        let push_already_seen_error = |this: &mut Self, x: &ast::Modifier| {
+            let error = errors::ModifierAlreadySeen {
+                span: x.span(),
+                modifier: x.kind(),
+            };
+            this.push_error(Box::new(error));
+        };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
-        let mut has_seen_static_modifier = false;
         let _has_leading_modifier = false;
         let _has_trailing_decorator = false;
         let mut flags = ast::ModifierFlags::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
-                    has_seen_static_modifier,
+                    flags.contains(ast::ModifierFlags::STATIC),
                 )
             else {
                 break;
             };
-            if m.kind() == ast::ModifierKind::Static {
-                has_seen_static_modifier = true;
-            }
-            flags.insert(m.kind().into_flag());
-            list.push(m);
+            let modifier_kind = m.kind();
+            let modifier_flag = modifier_kind.into_flag();
 
-            match m.kind() {
+            match modifier_kind {
                 ast::ModifierKind::Override => {
                     if flags.contains(ast::ModifierFlags::READONLY) {
                         push_precede_error(self, m, ast::ModifierKind::Readonly);
@@ -488,8 +491,16 @@ impl<'cx> ParserState<'cx, '_> {
                         push_precede_error(self, m, ast::ModifierKind::Override);
                     }
                 }
+                ast::ModifierKind::Export => {
+                    if flags.contains(ast::ModifierFlags::EXPORT) {
+                        push_already_seen_error(self, m);
+                    }
+                }
                 _ => {}
             }
+
+            flags.insert(modifier_flag);
+            list.push(m);
         }
         if list.is_empty() {
             None

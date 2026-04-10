@@ -939,7 +939,6 @@ pub trait ASTFactory<'cx> {
     fn create_export_assign<const IS_EXPORT_EQUALS: bool>(
         &mut self,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ast::ExportAssign<'cx> {
         let id = self.next_node_id();
@@ -947,7 +946,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             expr,
-            modifiers,
             is_export_equals: IS_EXPORT_EQUALS,
         });
         self.set_external_module_indicator(id);
