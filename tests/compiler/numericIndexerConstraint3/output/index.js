@@ -1,9 +1,9 @@
 class A {
-  foo
+  foo;
 }
 class B extends A {
-  bar
+  bar;
 }
 class C {
-  0
+  0;
 }

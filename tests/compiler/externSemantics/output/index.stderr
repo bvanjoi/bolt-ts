@@ -1,0 +1,29 @@
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/externSemantics/index.ts:6:15]
+ 6 │ 10
+   · ──
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/externSemantics/index.ts:8:22]
+ 8 │ 3
+   · ─
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/externSemantics/index.ts:12:19]
+ 12 │ 0
+    · ─
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/externSemantics/index.ts:21:9]
+ 21 │ "a"
+    · ───
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/externSemantics/index.ts:27:9]
+ 27 │ "a"
+    · ───
+    ╰────

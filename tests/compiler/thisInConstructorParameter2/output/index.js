@@ -1,6 +1,6 @@
 class P {
-  x = this
-  static y = this
+  x = this;
+  static y = this;
   constructor(z = this, zz = this, zzz = (p = this) => (this)) {
     zzz = (p = this) => (this);
     zz.x;

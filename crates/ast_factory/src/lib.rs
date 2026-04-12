@@ -409,7 +409,11 @@ pub trait ASTFactory<'cx> {
             excl: excl.map(|e| e.span),
         });
         self.insert_node(id, ast::Node::ClassPropElem(prop));
-        self.insert_node_flags(id, ast::NodeFlags::empty());
+        let mut node_flags = self.node_context_flags();
+        if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT)) {
+            node_flags |= ast::NodeFlags::AMBIENT;
+        }
+        self.insert_node_flags(id, node_flags);
         prop
     }
 
@@ -422,7 +426,7 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ComputedPropName { id, span, expr });
         self.insert_node(id, ast::Node::ComputedPropName(node));
-        self.insert_node_flags(id, ast::NodeFlags::empty());
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -435,6 +439,7 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ClassStaticBlockDecl { id, span, body });
         self.insert_node(id, ast::Node::ClassStaticBlockDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -1148,6 +1153,51 @@ pub trait ASTFactory<'cx> {
             ty_args: type_arguments,
         });
         self.insert_node(id, ast::Node::ReferTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_setter_decl(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        params: ast::ParamsDecl<'cx>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::SetterDecl<'cx> {
+        debug_assert!(params.len() <= 2);
+        let id = self.next_node_id();
+        let node = self.alloc(ast::SetterDecl {
+            id,
+            modifiers,
+            span,
+            name,
+            params,
+            body,
+        });
+        self.insert_node(id, ast::Node::SetterDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_getter_decl(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::GetterDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::GetterDecl {
+            id,
+            modifiers,
+            span,
+            name,
+            ty,
+            body,
+        });
+        self.insert_node(id, ast::Node::GetterDecl(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

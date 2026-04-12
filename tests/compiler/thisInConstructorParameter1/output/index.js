@@ -1,4 +1,4 @@
 class Foo {
-  y
+  y;
   constructor(x = this.y) {}
 }

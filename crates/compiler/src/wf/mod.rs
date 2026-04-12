@@ -27,7 +27,7 @@ pub fn well_formed_check_parallel(
                 compiler_options,
                 &resolve_results[m.id().as_usize()],
             );
-            assert!(!m.is_default_lib() || diags.is_empty());
+            debug_assert!(!m.is_default_lib() || diags.is_empty());
             diags
         })
         .collect::<Vec<_>>()
@@ -193,7 +193,7 @@ impl<'cx> CheckState<'cx> {
 
     fn check_stmt_in_ambient(&mut self, node: ast::NodeID) -> bool {
         let flags = self.p.node_flags(node);
-        if flags.intersects(ast::NodeFlags::AMBIENT) {
+        if flags.contains(ast::NodeFlags::AMBIENT) {
             let parent = self.parent(node).unwrap();
             let parent_node = self.p.node(parent);
             if parent_node.is_block_stmt()
@@ -211,11 +211,33 @@ impl<'cx> CheckState<'cx> {
         false
     }
 
+    fn check_implement_in_ambient(&mut self, node: ast::NodeID) {
+        let body = match self.p.node(node) {
+            ast::Node::GetterDecl(n) => n.body,
+            ast::Node::SetterDecl(n) => n.body,
+            ast::Node::ClassMethodElem(n) => n.body,
+            _ => unreachable!(),
+        };
+        let node_flags = self.p.node_flags(node);
+        if node_flags.contains(ast::NodeFlags::AMBIENT) && body.is_some() {
+            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts {
+                span: self.p.node(node).name().unwrap().span(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
     fn check_ambient_initializer(&mut self, node: &impl crate::r#trait::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
         };
-        if node.decl_ty().is_none() && node.is_var_const(&self.node_query()) {
+        let node_flags = self.p.node_flags(node.id());
+        if !node_flags.contains(ast::NodeFlags::AMBIENT) {
+            return;
+        }
+        if node.is_declaration_readonly(&self.node_query())
+            || node.decl_ty().is_none() && node.is_var_const(&self.node_query())
+        {
             let is_invalid_init = !(
                 init.is_string_or_number_lit_like()
             // TODO: simple literal enum reference
@@ -246,6 +268,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
     }
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
         self.check_grammar_modifiers(node.id);
+        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_method_elem(self, node);
     }
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
@@ -278,11 +301,12 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         bolt_ts_ast_visitor::visit_while_stmt(self, node);
     }
     fn visit_var_decl(&mut self, node: &'cx bolt_ts_ast::VarDecl<'cx>) {
-        let node_flags = self.p.node_flags(node.id);
-        if node_flags.intersects(ast::NodeFlags::AMBIENT) {
-            self.check_ambient_initializer(node);
-        }
+        self.check_ambient_initializer(node);
         bolt_ts_ast_visitor::visit_var_decl(self, node);
+    }
+    fn visit_class_prop_elem(&mut self, node: &'cx bolt_ts_ast::ClassPropElem<'cx>) {
+        self.check_ambient_initializer(node);
+        bolt_ts_ast_visitor::visit_class_prop_elem(self, node);
     }
     fn visit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) {
         if let ast::StmtKind::Empty(s) = node.then.kind {
@@ -300,5 +324,13 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
             this.push_error(Box::new(error));
         });
         bolt_ts_ast_visitor::visit_enum_decl(self, node);
+    }
+    fn visit_getter_decl(&mut self, node: &'cx bolt_ts_ast::GetterDecl<'cx>) {
+        self.check_implement_in_ambient(node.id);
+        bolt_ts_ast_visitor::visit_getter_decl(self, node);
+    }
+    fn visit_setter_decl(&mut self, node: &'cx bolt_ts_ast::SetterDecl<'cx>) {
+        self.check_implement_in_ambient(node.id);
+        bolt_ts_ast_visitor::visit_setter_decl(self, node);
     }
 }

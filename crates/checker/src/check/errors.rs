@@ -1388,3 +1388,21 @@ pub(super) struct AnExportAssignmentCannotBeUsedInAModuleWithOtherExportedElemen
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Get and set accessors in a class must both be abstract or non-abstract.")]
+pub(super) struct AccessorsMustBothBeAbstractOrNonAbstract {
+    #[label(primary)]
+    pub getter_span: Span,
+    #[label = "Setter declaration is defined here."]
+    pub setter_span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Get accessor must be at least as accessible as the set accessor.")]
+pub(super) struct AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
+    #[label(primary)]
+    pub getter_span: Span,
+    #[label = "Setter declaration is defined here."]
+    pub setter_span: Span,
+}

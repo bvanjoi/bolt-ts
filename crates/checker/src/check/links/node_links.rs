@@ -17,6 +17,7 @@ links!(
     (assertion_expression_ty, &'cx ty::Ty<'cx>),
     (context_free_ty, &'cx ty::Ty<'cx>),
     (is_exhaustive, bool),
+    (type_checked, bool),
     (switch_tys, ty::Tys<'cx>)
 );
 

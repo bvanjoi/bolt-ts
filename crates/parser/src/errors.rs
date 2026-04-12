@@ -184,8 +184,8 @@ pub(super) struct ModifierCannotAppearOnAnIndexSignature {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An implementation cannot be declared in ambient contexts.")]
-pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+#[error("An implementation cannot be declared in type contexts.")]
+pub(super) struct AnImplementationCannotBeDeclaredInTypeContexts {
     #[label(primary)]
     pub span: Span,
 }
@@ -546,13 +546,6 @@ pub(super) struct InvalidUseOf0InStrictMode {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unterminated regular expression literal.")]
 pub(super) struct UnterminatedRegularExpressionLiteral {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Initializers are not allowed in ambient contexts.")]
-pub(super) struct InitializersAreNotAllowedInAmbientContexts {
     #[label(primary)]
     pub span: Span,
 }

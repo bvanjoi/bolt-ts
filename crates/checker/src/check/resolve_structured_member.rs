@@ -1044,6 +1044,7 @@ impl<'cx> TyChecker<'cx> {
             ctor_sigs = self.empty_array();
             index_infos = self.empty_array();
         } else if symbol_flags.contains(SymbolFlags::CLASS) {
+            let mut base_ctor_index_info = None;
             call_sigs = self.empty_array();
             if let Some(symbol) = self
                 .symbol(symbol_id)
@@ -1064,10 +1065,15 @@ impl<'cx> TyChecker<'cx> {
             ) {
                 let props = self.get_props_of_ty(base_ctor_ty);
                 self.add_inherited_members(&mut members, props);
+            } else if base_ctor_ty == self.any_ty {
+                debug_assert!(base_ctor_index_info.is_none());
+                base_ctor_index_info = Some(self.any_base_type_index_info());
             }
 
             if let Some(index_symbol) = members.get(&SymbolName::Index) {
                 index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
+            } else if let Some(base_ctor_index_info) = base_ctor_index_info {
+                index_infos = self.alloc([base_ctor_index_info]);
             } else {
                 index_infos = self.empty_array();
             }

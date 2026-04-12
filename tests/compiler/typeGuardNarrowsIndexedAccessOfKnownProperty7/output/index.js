@@ -6,6 +6,6 @@ var Foo = {};
   
 })(Foo);
 class C {
-  [Foo.key]
+  [Foo.key];
   constructor() {this[Foo.key] = 'hello';}
 }

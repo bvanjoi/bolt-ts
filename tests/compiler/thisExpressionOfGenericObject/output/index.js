@@ -1,4 +1,4 @@
 class MyClass1 {
-  obj
+  obj;
   constructor() {() => (this);}
 }

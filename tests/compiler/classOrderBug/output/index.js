@@ -1,5 +1,5 @@
 class bar {
-  baz
+  baz;
   constructor() {this.baz = new foo();}
 }
 class baz {}

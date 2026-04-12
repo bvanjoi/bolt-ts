@@ -181,8 +181,8 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
         Prop(n) => v.visit_class_prop_elem(n),
         Method(n) => v.visit_class_method_elem(n),
         IndexSig(n) => v.visit_index_sig_decl(n),
-        Getter(_n) => {}
-        Setter(_n) => {}
+        Getter(n) => v.visit_getter_decl(n),
+        Setter(n) => v.visit_setter_decl(n),
         StaticBlockDecl(_n) => {}
         Semi(_) => {}
     }

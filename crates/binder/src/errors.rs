@@ -40,3 +40,11 @@ pub struct AModuleCannotHaveMultipleDefaultExports {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Declaration name conflicts with built-in global identifier '{name}'.")]
+pub struct DeclarationNameConflictsWithBuiltInGlobalIdentifierX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

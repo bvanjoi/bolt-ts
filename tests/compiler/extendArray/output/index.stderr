@@ -1,0 +1,11 @@
+  × Cannot find name '_element'.
+    ╭─[../../tests/compiler/extendArray/index.ts:12:19]
+ 12 │ _element
+    · ────────
+    ╰────
+
+  × Cannot find name '_element'.
+    ╭─[../../tests/compiler/extendArray/index.ts:12:32]
+ 12 │ _element
+    · ────────
+    ╰────

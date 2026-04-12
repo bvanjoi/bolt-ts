@@ -2,12 +2,12 @@ var M = {};
 (function (M) {
 
   class C1 {
-    value
+    value;
   }
   M.C1 = C1;
   
   class A {
-    dummy
+    dummy;
   }
   M.A = A;
   

@@ -1,5 +1,5 @@
 class a {
-  static b
+  static b;
 }
 var b = (a);
 var b = (a).b;

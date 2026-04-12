@@ -619,6 +619,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
             self.emitter.print().p_whitespace();
             self.emit_expr(init);
         }
+        self.emitter.print().p_semi();
     }
 
     fn emit_class_method_elem(&mut self, elem: ir::ClassMethodElemID) {

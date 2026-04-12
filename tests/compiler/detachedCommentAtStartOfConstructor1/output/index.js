@@ -1,6 +1,6 @@
 class TestFile {
-  message
-  name
+  message;
+  name;
   constructor(message) {var getMessage = () => (message + this.name);
     this.message = getMessage();}
 }

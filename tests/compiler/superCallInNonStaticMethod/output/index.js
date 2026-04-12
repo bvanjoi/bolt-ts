@@ -26,8 +26,8 @@ class Other extends Doing {
     super.instanceMethod();
   }
   constructor() {super();super.instanceMethod();}
-  propertyInitializer = super.instanceMethod()
+  propertyInitializer = super.instanceMethod();
   functionProperty = () => {
     super.instanceMethod();
-  }
+  };
 }

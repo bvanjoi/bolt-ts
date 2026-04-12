@@ -339,7 +339,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
+    pub fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_modifier_flags(id, true, false)
     }
 

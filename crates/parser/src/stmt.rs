@@ -551,7 +551,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn set_export_context_flags(&self, block_exist: bool) -> NodeFlags {
-        if self.node_context_flags.intersects(ast::NodeFlags::AMBIENT)
+        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
             && block_exist
             && !self.has_export_decl
         {

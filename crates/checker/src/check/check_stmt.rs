@@ -846,12 +846,55 @@ impl<'cx> TyChecker<'cx> {
         self.check_accessor_decl(n);
     }
 
-    pub(super) fn check_accessor_decl(
-        &mut self,
-        decl: &impl bolt_ts_ast::r#trait::AccessorLike<'cx>,
-    ) {
-        if let Some(body) = decl.body() {
+    pub(super) fn check_accessor_decl(&mut self, n: &impl ast::r#trait::AccessorLike<'cx>) {
+        if let Some(body) = n.body() {
             self.check_block(body);
+        }
+        let id = n.id();
+        self.check_sig_decl(id);
+
+        if self.has_bindable_name(id) {
+            let symbol = self.get_symbol_of_decl(id);
+            let s = self.binder.symbol(symbol);
+            if let Some(getter) = s.get_declaration_of_kind(|n| self.p.node(n).is_getter_decl())
+                && let Some(setter) = s.get_declaration_of_kind(|n| self.p.node(n).is_setter_decl())
+                && self
+                    .get_node_links(getter)
+                    .get_type_checked()
+                    .is_none_or(|checked| !checked)
+            {
+                self.get_mut_node_links(getter).set_type_checked(true);
+                debug_assert!(getter.module() == setter.module());
+                let getter_flags = self
+                    .node_query(getter.module())
+                    .get_effective_modifier_flags(getter);
+                let setter_flags = self
+                    .node_query(setter.module())
+                    .get_effective_modifier_flags(setter);
+                if getter_flags.contains(ast::ModifierFlags::ABSTRACT)
+                    != setter_flags.contains(ast::ModifierFlags::ABSTRACT)
+                {
+                    let error = errors::AccessorsMustBothBeAbstractOrNonAbstract {
+                        getter_span: self.p.node(getter).name().unwrap().span(),
+                        setter_span: self.p.node(setter).name().unwrap().span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+
+                if (getter_flags.contains(ast::ModifierFlags::PROTECTED)
+                    && !setter_flags.intersects(
+                        ast::ModifierFlags::PROTECTED.union(ast::ModifierFlags::PRIVATE),
+                    ))
+                    || (getter_flags.contains(ast::ModifierFlags::PRIVATE)
+                        && !setter_flags.contains(ast::ModifierFlags::PRIVATE))
+                {
+                    let error = errors::AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
+                        getter_span: self.p.node(getter).name().unwrap().span(),
+                        setter_span: self.p.node(setter).name().unwrap().span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
         }
     }
 }

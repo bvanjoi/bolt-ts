@@ -770,10 +770,10 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false>(false);
 
         let check_invalid_modifiers = |this: &mut Self| {
-            if let Some(ms) = &mods {
+            if let Some(ms) = &modifiers {
                 for m in ms.list {
                     if m.kind() != ModifierKind::Async {
                         let error = errors::ModifierCannotBeUsedHere { span: m.span() };
@@ -786,14 +786,14 @@ impl<'cx> ParserState<'cx, '_> {
         if self.parse_contextual_modifier(TokenKind::Get) {
             check_invalid_modifiers(self);
             let decl =
-                self.parse_getter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
+                self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
             check_invalid_modifiers(self);
             let decl =
-                self.parse_setter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
+                self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Setter(decl),
             }));

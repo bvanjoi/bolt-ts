@@ -2,7 +2,10 @@ use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_binder::NodeQuery;
 
 pub trait VarLike<'cx>: bolt_ts_ast::r#trait::VarLike<'cx> {
-    fn is_var_const(&self, _node_query: &NodeQuery) -> bool {
+    fn is_var_const(&self, _: &NodeQuery) -> bool {
+        false
+    }
+    fn is_declaration_readonly(&self, _: &NodeQuery) -> bool {
         false
     }
 }
@@ -20,9 +23,19 @@ impl<'cx> VarLike<'cx> for ast::VarDecl<'cx> {
 
 impl<'cx> VarLike<'cx> for ast::ParamDecl<'cx> {}
 
-impl<'cx> VarLike<'cx> for ast::ClassPropElem<'cx> {}
+impl<'cx> VarLike<'cx> for ast::ClassPropElem<'cx> {
+    fn is_declaration_readonly(&self, nq: &NodeQuery) -> bool {
+        nq.get_combined_modifier_flags(self.id)
+            .contains(ast::ModifierFlags::READONLY)
+    }
+}
 
-impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {}
+impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {
+    fn is_declaration_readonly(&self, nq: &NodeQuery) -> bool {
+        nq.get_combined_modifier_flags(self.id)
+            .contains(ast::ModifierFlags::READONLY)
+    }
+}
 
 impl<'cx> VarLike<'cx> for ast::ObjectPropAssignment<'cx> {}
 

@@ -1,5 +1,5 @@
 class X {
-  y = 0
+  y = 0;
   getSettings(keys) {
     var ret;
     return ret.always(() => {

@@ -1,5 +1,5 @@
 class a {
-  static x
+  static x;
 }
 class b extends a {
   static x() {

@@ -948,13 +948,13 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn check_body_during_parse_accessor(
         &mut self,
-        ambient: bool,
+        under_type_context: bool,
         body: &mut Option<&'cx ast::BlockStmt<'cx>>,
     ) {
-        if ambient {
+        if under_type_context {
             if let Some(body) = body {
                 let error =
-                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                    errors::AnImplementationCannotBeDeclaredInTypeContexts { span: body.span };
                 self.push_error(Box::new(error));
             }
             *body = None;
@@ -971,7 +971,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ambient: bool,
+        under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
@@ -984,25 +984,16 @@ impl<'cx> ParserState<'cx, '_> {
         // TODO: assert params.is_none
         let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        self.check_body_during_parse_accessor(ambient, &mut body);
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::GetterDecl {
-            id,
-            modifiers,
-            span: self.new_span(start),
-            name,
-            ty,
-            body,
-        });
-        self.nodes.insert(id, ast::Node::GetterDecl(decl));
-        Ok(decl)
+        self.check_body_during_parse_accessor(under_type_context, &mut body);
+        let span = self.new_span(start);
+        Ok(self.create_getter_decl(span, modifiers, name, ty, body))
     }
 
     pub(super) fn parse_setter_accessor_decl(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ambient: bool,
+        under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
@@ -1023,19 +1014,9 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        self.check_body_during_parse_accessor(ambient, &mut body);
-        let id = self.next_node_id();
-        debug_assert!(params.len() <= 2);
-        let decl = self.alloc(ast::SetterDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            name,
-            params,
-            body,
-        });
-        self.nodes.insert(id, ast::Node::SetterDecl(decl));
-        Ok(decl)
+        self.check_body_during_parse_accessor(under_type_context, &mut body);
+        let span = self.new_span(start);
+        Ok(self.create_setter_decl(span, modifiers, name, params, body))
     }
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {

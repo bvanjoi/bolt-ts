@@ -1,5 +1,5 @@
 class A {
-  blub = 6
+  blub = 6;
 }
 class B extends A {
   constructor(x) {

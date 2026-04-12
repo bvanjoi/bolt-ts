@@ -586,10 +586,9 @@ impl<'cx> TyChecker<'cx> {
             (undefined_symbol,          SymbolName::Atom(keyword::KW_UNDEFINED),        SymbolFlags::PROPERTY,      None,                                               UNDEFINED),
         });
 
-        let prev = global_symbols
+        global_symbols
             .0
             .insert(global_this_symbol_name, global_this_symbol);
-        assert!(prev.is_none());
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);

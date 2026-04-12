@@ -1,6 +1,6 @@
 class C {
   static foo(x) {}
-  type
+  type;
 }
 var M = {};
 (function (M) {

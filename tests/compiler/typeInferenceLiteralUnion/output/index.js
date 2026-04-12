@@ -1,5 +1,5 @@
 class NumCoercible {
-  a
+  a;
   constructor(a) {this.a = a;}
   valueOf() {
     return this.a

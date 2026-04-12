@@ -1,8 +1,8 @@
 class Based {}
 class Derived extends Based {
-  x
+  x;
   constructor() {class innver {
-      y
+      y;
       constructor() {this.y = true;}
     }
     super();this.x = 10;
