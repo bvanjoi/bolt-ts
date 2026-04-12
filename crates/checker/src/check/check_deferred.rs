@@ -68,6 +68,12 @@ impl<'cx> TyChecker<'cx> {
             AsExpr(n) => {
                 self.check_assertion_deferred(n.id, n.span, n.ty);
             }
+            CallExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
+            NewExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

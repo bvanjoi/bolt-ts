@@ -414,7 +414,7 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
+    pub(super) fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         for arg in node.args() {
             self.check_expr(arg);
         }
@@ -1333,7 +1333,7 @@ impl<'cx> TyChecker<'cx> {
         args: &Cow<'cx, [&'cx ast::Expr<'cx>]>,
     ) -> (usize, &'cx ty::Sig<'cx>) {
         assert!(!candidates.is_empty());
-        // self.check_node_deferred(expr.id());
+        self.check_node_deferred(expr.id());
         if candidates.len() == 1
             || candidates.iter().any(|c| {
                 self.get_sig_links(c.id)

@@ -1,0 +1,63 @@
+  × Cannot find name 'loc'.
+    ╭─[../../tests/compiler/baseCheck/index.ts:13:18]
+ 13 │ loc
+    · ───
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/baseCheck/index.ts:33:9]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/baseCheck/index.ts:35:7]
+ 35 │ x
+    · ─
+    ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/baseCheck/index.ts:39:9]
+ 39 │ x
+    · ─
+    ╰────
+
+  × Expected 2 arguments, but got 1.
+    ╭─[../../tests/compiler/baseCheck/index.ts:22:53]
+ 22 │ super
+    · ─────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/baseCheck/index.ts:25:62]
+ 25 │ this
+    · ────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/baseCheck/index.ts:27:59]
+ 27 │ "hello"
+    · ───────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/baseCheck/index.ts:27:68]
+ 27 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/baseCheck/index.ts:27:68]
+ 27 │ this
+    · ────
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/baseCheck/index.ts:22:59]
+ 22 │ this
+    · ────
+    ╰────
