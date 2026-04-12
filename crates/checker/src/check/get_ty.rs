@@ -327,7 +327,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        let target = links.get_target().unwrap();
+        let target = links.expect_target();
         let mapper = links.get_ty_mapper();
 
         let ty = self.get_type_of_symbol(target);

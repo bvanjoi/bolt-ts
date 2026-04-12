@@ -1387,9 +1387,11 @@ impl<'cx> TyChecker<'cx> {
             let resolving_default_type = self.resolving_default_type();
             self.get_mut_ty_links(ty.id)
                 .set_default(resolving_default_type);
-            let default_decl = self.ty_param_nodes(param).iter().find_map(|decl| {
-                let ty_param_node = self.p.node(*decl).expect_ty_param();
-                ty_param_node.default
+            let default_decl = self.ty_param_nodes(param).and_then(|decls| {
+                decls.iter().find_map(|decl| {
+                    let ty_param_node = self.p.node(*decl).expect_ty_param();
+                    ty_param_node.default
+                })
             });
             let default_ty = if let Some(default_decl) = default_decl {
                 self.get_ty_from_type_node(default_decl)
@@ -1406,8 +1408,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn ty_param_nodes(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &[bolt_ts_ast::NodeID] {
-        let symbol = self.binder.symbol(ty_param.symbol);
-        symbol.decls.as_ref().unwrap()
+    pub(super) fn ty_param_nodes(
+        &self,
+        ty_param: &'cx ty::ParamTy<'cx>,
+    ) -> Option<&[bolt_ts_ast::NodeID]> {
+        let symbol = self.binder.symbol(ty_param.symbol?);
+        symbol.decls.as_ref().map(|decls| decls.as_slice())
     }
 }

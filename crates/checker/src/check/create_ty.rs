@@ -307,7 +307,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_interface_ty(
         &mut self,
-        symbol: SymbolID,
+        symbol: Option<SymbolID>,
         ty_params: Option<ty::Tys<'cx>>,
         outer_ty_params: Option<ty::Tys<'cx>>,
         local_ty_params: Option<ty::Tys<'cx>>,
@@ -429,7 +429,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_param_ty(
         &mut self,
-        symbol: SymbolID,
+        symbol: Option<SymbolID>,
         offset: Option<usize>,
         is_this_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
@@ -555,11 +555,11 @@ impl<'cx> TyChecker<'cx> {
                     .union(TypeFlags::TEMPLATE_LITERAL)
                     .union(TypeFlags::STRING_MAPPING),
             ) && includes.contains(TypeFlags::STRING))
-                || (flags.intersects(TypeFlags::NUMBER_LITERAL)
+                || (flags.contains(TypeFlags::NUMBER_LITERAL)
                     && includes.contains(TypeFlags::NUMBER))
-                || (flags.intersects(TypeFlags::BIG_INT_LITERAL)
+                || (flags.contains(TypeFlags::BIG_INT_LITERAL)
                     && includes.contains(TypeFlags::BIG_INT))
-                || (flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL)
+                || (flags.contains(TypeFlags::UNIQUE_ES_SYMBOL)
                     && includes.contains(TypeFlags::ES_SYMBOL))
                 || (reduce_void_undefined
                     && flags.contains(TypeFlags::UNDEFINED)
@@ -851,7 +851,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut _ty_params = Vec::with_capacity(arity);
                 debug_assert_eq!(arity, element_flags.len());
                 for (i, flag) in element_flags.iter().enumerate() {
-                    let ty_param = this.create_param_ty(Symbol::ERR, Some(i), false);
+                    let ty_param = this.create_param_ty(None, Some(i), false);
                     _ty_params.push(ty_param);
                     combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
@@ -901,9 +901,9 @@ impl<'cx> TyChecker<'cx> {
             props.push(length_symbol);
 
             const OBJECT_FLAGS: ObjectFlags = ObjectFlags::TUPLE.union(ObjectFlags::REFERENCE);
-            let this_ty = this.create_param_ty(Symbol::ERR, None, true);
+            let this_ty = this.create_param_ty(None, None, true);
             let ty = this.create_interface_ty(
-                Symbol::ERR,
+                None,
                 ty_params,
                 None,
                 ty_params,

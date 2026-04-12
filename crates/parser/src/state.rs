@@ -254,7 +254,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn ident_token(&self) -> Atom {
-        assert!(
+        debug_assert!(
             self.token.kind.is_ident_or_keyword()
                 || matches!(self.token.kind, TokenKind::BigInt | TokenKind::Regexp),
             "{:#?}",

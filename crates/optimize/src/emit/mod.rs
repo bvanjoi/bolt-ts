@@ -6,7 +6,9 @@ use bolt_ts_ast as ast;
 use bolt_ts_atom::{Atom, AtomIntern};
 use rustc_hash::FxHashSet;
 
-use crate::{emit::print::PPrint, ir, lowering::LoweringResult};
+use super::emit::print::PPrint;
+use super::ir;
+use super::lowering::LoweringResult;
 
 #[derive(Clone, Copy)]
 pub struct EmitterOptions {
@@ -17,7 +19,7 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult) -> String {
+pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult, origin: &str) -> String {
     let emitter = Emitter::new();
     let scope = ScopeID::root();
     let max_scope = ScopeID::root().next();
@@ -30,6 +32,7 @@ pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult) -> String {
         graph_arena: &ir.graph_arena,
         current_graph: ir.entry_graph,
         nodes: &ir.nodes,
+        origin,
     };
     js_emitter.emit_root(ir.entry_graph)
 }
@@ -78,6 +81,7 @@ struct JSEmitter<'cx, 'ir> {
     nodes: &'ir ir::Nodes,
     graph_arena: &'ir ir::GraphArena,
     current_graph: ir::GraphID,
+    origin: &'ir str,
 }
 
 impl<'ir> JSEmitter<'_, 'ir> {
@@ -214,10 +218,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let s = self.nodes.get_string_lit(&s);
         let val = s.val();
         if s.is_template() {
-            self.emitter.print().p("`");
-            let content = self.atoms.get(val);
+            let content = get_source_text_from_source(self.origin, s.span());
             self.emitter.print().p(content);
-            self.emitter.print().p("`");
         } else {
             self.emit_as_string(val);
         }
@@ -1510,7 +1512,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p("`");
         let head = self.nodes.get_template_head(&n.head());
         let content = self.atoms.get(head.text());
-        self.emitter.print().p(content);
+        let content = escape_snippet_text(content);
+        self.emitter.print().p(&content);
         for span in n.spans() {
             self.emitter.print().p("${");
             let span = self.nodes.get_template_span(span);
@@ -1865,4 +1868,15 @@ impl<'ir> JSEmitter<'_, 'ir> {
             self.emit_basic_block_with_brace(n.body(), ir::BasicBlockID::ENTRY);
         }
     }
+}
+
+fn get_source_text_from_source(source: &str, span: bolt_ts_span::Span) -> &str {
+    let lo = span.lo() as usize;
+    let hi = span.hi() as usize;
+    debug_assert!(lo < hi);
+    &source[lo..hi]
+}
+
+fn escape_snippet_text(s: &str) -> String {
+    s.replace('$', "\\$")
 }

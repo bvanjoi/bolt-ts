@@ -242,7 +242,7 @@ pub struct StructuredMembers<'cx> {
 
 #[derive(Debug)]
 pub struct InterfaceTy<'cx> {
-    pub symbol: SymbolID,
+    pub symbol: Option<SymbolID>,
     pub ty_params: Option<super::Tys<'cx>>,
     pub outer_ty_params: Option<super::Tys<'cx>>,
     pub local_ty_params: Option<super::Tys<'cx>>,
@@ -437,10 +437,13 @@ impl<'cx> ObjectTyKind<'cx> {
                 assert!(ty.element_flags.is_empty());
                 "[]".to_string()
             }
-            ObjectTyKind::Interface(i) => checker
-                .atoms
-                .get(checker.symbol(i.symbol).name.expect_atom())
-                .to_string(),
+            ObjectTyKind::Interface(i) => match i.symbol {
+                Some(symbol) => checker
+                    .atoms
+                    .get(checker.symbol(symbol).name.expect_atom())
+                    .to_string(),
+                _ => "{tuple_interface}".to_string(),
+            },
             ObjectTyKind::Reference(_) => pprint_reference_ty(self_ty, checker),
             ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
             ObjectTyKind::Mapped(m) => {

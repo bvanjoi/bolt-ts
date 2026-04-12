@@ -549,7 +549,8 @@ impl<'cx> TyChecker<'cx> {
         if let Some(c) = self.interface_ty_links_arena[i.links].get_declared_members() {
             return c;
         }
-        let members = &self.get_members_of_symbol(i.symbol).0;
+        let symbol = i.symbol.unwrap();
+        let members = &self.get_members_of_symbol(symbol).0;
         let props = self.get_props_from_members(members);
         let call_sigs = members
             .get(&SymbolName::Call)
@@ -561,7 +562,7 @@ impl<'cx> TyChecker<'cx> {
             .copied()
             .map(|s| self.get_sigs_of_symbol(s))
             .unwrap_or_default();
-        let index_infos = self.get_index_infos_of_symbol(i.symbol);
+        let index_infos = self.get_index_infos_of_symbol(symbol);
         let declared_members = self.alloc(ty::DeclaredMembers {
             props,
             index_infos,
@@ -597,7 +598,7 @@ impl<'cx> TyChecker<'cx> {
             ty_args
         } else {
             let mut padded_type_arguments = ty_args.to_vec();
-            padded_type_arguments.push(target);
+            padded_type_arguments.push(ty);
             self.alloc(padded_type_arguments)
         };
         let declared_members = if let Some(i) = target.kind.as_object_interface() {
@@ -668,7 +669,8 @@ impl<'cx> TyChecker<'cx> {
         let base_sigs = self.get_signatures_of_type(base_ctor_ty, SigKind::Constructor);
         let r = class_ty.kind.expect_object_reference();
         let i = r.target.kind.expect_object_interface();
-        let decl = self.get_class_like_decl_of_symbol(i.symbol);
+        let symbol = i.symbol.unwrap();
+        let decl = self.get_class_like_decl_of_symbol(symbol);
         let is_abstract = decl.is_some_and(|decl| {
             self.p
                 .node(decl)

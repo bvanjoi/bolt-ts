@@ -354,12 +354,11 @@ impl<'cx> Ty<'cx> {
             }),
 
             TyKind::Param(param) => {
-                if param.symbol == Symbol::ERR {
-                    "error_param".to_string()
-                } else {
-                    let name = checker.binder.symbol(param.symbol).name;
-                    checker.atoms.get(name.expect_atom()).to_string()
-                }
+                let Some(symbol) = param.symbol else {
+                    return "dummy_parameter".to_string();
+                };
+                let name = checker.binder.symbol(symbol).name;
+                checker.atoms.get(name.expect_atom()).to_string()
             }
             TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
             TyKind::Cond(n) => {
@@ -398,13 +397,13 @@ impl<'cx> Ty<'cx> {
     pub fn symbol(&self) -> Option<SymbolID> {
         match self.kind {
             TyKind::Object(ty) => match ty.kind {
-                ObjectTyKind::Interface(ty) => Some(ty.symbol),
+                ObjectTyKind::Interface(ty) => ty.symbol,
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 ObjectTyKind::Anonymous(ty) => ty.symbol,
                 ObjectTyKind::Mapped(ty) => Some(ty.symbol),
                 _ => None,
             },
-            TyKind::Param(ty) => Some(ty.symbol),
+            TyKind::Param(ty) => ty.symbol,
             TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => None,
@@ -719,7 +718,7 @@ pub struct BigIntLitTy<'cx> {
 
 #[derive(Debug)]
 pub struct ParamTy<'cx> {
-    pub symbol: SymbolID,
+    pub symbol: Option<SymbolID>,
     pub offset: Option<usize>,
     pub target: Option<&'cx self::Ty<'cx>>,
     pub is_this_ty: bool,

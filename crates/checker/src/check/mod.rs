@@ -882,9 +882,9 @@ impl<'cx> TyChecker<'cx> {
             (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (unknown_empty_object_ty,       this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
-            (mark_sub_ty,                   this.create_param_ty(Symbol::ERR, None, false)),
-            (mark_other_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
-            (mark_super_ty,                 this.create_param_ty(Symbol::ERR, None, false)),
+            (mark_sub_ty,                   this.create_param_ty(None, None, false)),
+            (mark_other_ty,                 this.create_param_ty(None, None, false)),
+            (mark_super_ty,                 this.create_param_ty(None, None, false)),
             (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (no_iteration_tys,              this.alloc(ty::IterationTys {yield_ty: error_ty, return_ty: error_ty, next_ty: error_ty})),
@@ -5043,7 +5043,10 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let tp = ty.kind.expect_param();
-        let Some(decls) = &self.symbol(tp.symbol).decls else {
+        let Some(tp_symbol) = tp.symbol else {
+            return true;
+        };
+        let Some(decls) = &self.symbol(tp_symbol).decls else {
             return true;
         };
         if decls.len() != 1 {
@@ -5591,14 +5594,19 @@ impl<'cx> TyChecker<'cx> {
         }
         use ty::TyKind::*;
         match ty.kind {
-            Param(t) => self.symbol(t.symbol).decls.as_ref().is_some_and(|decls| {
-                decls.iter().any(|decl| {
-                    self.p
-                        .node(*decl)
-                        .modifiers()
-                        .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::CONST))
+            Param(t) => {
+                let Some(symbol) = t.symbol else {
+                    return false;
+                };
+                self.symbol(symbol).decls.as_ref().is_some_and(|decls| {
+                    decls.iter().any(|decl| {
+                        self.p
+                            .node(*decl)
+                            .modifiers()
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::CONST))
+                    })
                 })
-            }),
+            }
             Union(ty::UnionTy { tys, .. }) | Intersection(ty::IntersectionTy { tys, .. }) => tys
                 .iter()
                 .any(|ty| self.is_const_ty_variable_worker(ty, depth)),
@@ -5773,7 +5781,13 @@ impl<'cx> TyChecker<'cx> {
                 TypeFacts::BIGINT_FACTS
             }
         } else if flags.contains(TypeFlags::BIG_INT_LITERAL) {
-            todo!()
+            let is_zero = ty.kind.expect_bigint_lit().val == keyword::NUMBER_ZERO;
+            match (strict_null_checks, is_zero) {
+                (true, true) => TypeFacts::ZERO_BIGINT_STRICT_FACTS,
+                (true, false) => TypeFacts::NON_ZERO_BIGINT_STRICT_FACTS,
+                (false, true) => TypeFacts::ZERO_BIGINT_FACTS,
+                (false, false) => TypeFacts::NON_ZERO_BIGINT_FACTS,
+            }
         } else if flags.contains(TypeFlags::BOOLEAN) {
             if strict_null_checks {
                 TypeFacts::BOOLEAN_STRICT_FACTS
@@ -6134,7 +6148,10 @@ impl<'cx> TyChecker<'cx> {
                     continue;
                 };
                 let target_param_ty = target.kind.expect_param();
-                if source.name.name != self.symbol(target_param_ty.symbol).name.expect_atom() {
+                let Some(target_param_ty_symbol) = target_param_ty.symbol else {
+                    unreachable!()
+                };
+                if source.name.name != self.symbol(target_param_ty_symbol).name.expect_atom() {
                     return false;
                 }
                 if let Some(source_constraint) = self.get_effective_constraint_of_ty_param(source)
@@ -6391,7 +6408,8 @@ impl<'cx> TyChecker<'cx> {
         if bases.len() != 1 {
             return None;
         }
-        if !self.get_members_of_symbol(target_i.symbol).0.is_empty() {
+        let target_i_symbol = target_i.symbol.unwrap();
+        if !self.get_members_of_symbol(target_i_symbol).0.is_empty() {
             return None;
         }
         let len = target_i.ty_params.map(|ty_params| ty_params.len());

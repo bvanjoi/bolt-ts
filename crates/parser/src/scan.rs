@@ -853,7 +853,7 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
-                b'`' => self.scan_template_and_set_token_value(false),
+                b'`' => self.scan_template_and_set_token_value::<false>(),
                 b'#' => {
                     let char_after_hash = self.next_ch();
                     if let Some(ch) = char_after_hash
@@ -999,13 +999,13 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_template_and_set_token_value(
+    fn scan_template_and_set_token_value<const SHOULD_EMIT_INVALID_ESCAPE_ERROR: bool>(
         &mut self,
-        _should_emit_invalid_escape_error: bool,
     ) -> Token {
         let started_with_backtick = self.ch_unchecked() == b'`';
-        let start = self.pos;
+        let token_start = self.pos;
         self.pos += 1;
+        let mut start = self.pos;
         let mut contents = Vec::with_capacity(32);
         let kind = loop {
             if self.pos == self.end() {
@@ -1015,39 +1015,57 @@ impl ParserState<'_, '_> {
                 self.push_error(Box::new(error));
                 return Token::new(
                     TokenKind::EOF,
-                    Span::new(start as u32, start as u32, self.module_id),
+                    Span::new(token_start as u32, start as u32, self.module_id),
                 );
             }
             let ch = self.ch_unchecked();
-            if ch == b'`' {
-                self.pos += 1;
-                let s = unsafe { str::from_utf8_unchecked(&contents) };
-                let atom = self.atoms.lock().unwrap().atom(s);
-                self.token_value = Some(TokenValue::Ident { value: atom });
-                break if started_with_backtick {
-                    TokenKind::NoSubstitutionTemplate
-                } else {
-                    TokenKind::TemplateTail
-                };
-            } else if ch == b'$' && self.next_ch() == Some(b'{') {
-                // `${`
-                let s = unsafe { str::from_utf8_unchecked(&contents) };
-                let atom = self.atoms.lock().unwrap().atom(s);
-                self.token_value = Some(TokenValue::Ident { value: atom });
-                self.pos += 2;
-                break if started_with_backtick {
-                    TokenKind::TemplateHead
-                } else {
-                    TokenKind::TemplateMiddle
-                };
-            } else {
-                contents.push(ch);
-                self.pos += 1;
+            match ch {
+                b'`' => {
+                    self.pos += 1;
+                    let s = unsafe { str::from_utf8_unchecked(&contents) };
+                    let atom = self.atoms.lock().unwrap().atom(s);
+                    self.token_value = Some(TokenValue::Ident { value: atom });
+                    break if started_with_backtick {
+                        TokenKind::NoSubstitutionTemplate
+                    } else {
+                        TokenKind::TemplateTail
+                    };
+                }
+                b'$' if self.next_ch() == Some(b'{') => {
+                    let s = unsafe { str::from_utf8_unchecked(&contents) };
+                    let atom = self.atoms.lock().unwrap().atom(s);
+                    self.token_value = Some(TokenValue::Ident { value: atom });
+                    self.pos += 2;
+                    break if started_with_backtick {
+                        TokenKind::TemplateHead
+                    } else {
+                        TokenKind::TemplateMiddle
+                    };
+                }
+                b'\\' => {
+                    contents.extend(&self.input[start..self.pos]);
+                    let flags = EscapeSequenceScanningFlags::STRING.union(
+                        if SHOULD_EMIT_INVALID_ESCAPE_ERROR {
+                            EscapeSequenceScanningFlags::REPORT_ERRORS
+                        } else {
+                            EscapeSequenceScanningFlags::empty()
+                        },
+                    );
+                    contents.extend(self.scan_escape_sequence(flags));
+                    start = self.pos;
+                }
+                b'\r' => {
+                    todo!()
+                }
+                _ => {
+                    contents.push(ch);
+                    self.pos += 1;
+                }
             }
         };
         Token::new(
             kind,
-            Span::new(start as u32, self.pos as u32, self.module_id),
+            Span::new(token_start as u32, self.pos as u32, self.module_id),
         )
     }
 
@@ -1359,9 +1377,13 @@ impl ParserState<'_, '_> {
         self.token.kind
     }
 
-    pub(super) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> Token {
+    pub(super) fn re_scan_template_token<const IS_TAGGED_TEMPLATE: bool>(&mut self) -> Token {
         self.pos = self.token.start() as usize;
-        self.token = self.scan_template_and_set_token_value(!is_tagged_template);
+        self.token = if IS_TAGGED_TEMPLATE {
+            self.scan_template_and_set_token_value::<false>()
+        } else {
+            self.scan_template_and_set_token_value::<true>()
+        };
         self.token
     }
 

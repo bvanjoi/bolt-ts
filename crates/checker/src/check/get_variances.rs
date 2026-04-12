@@ -32,10 +32,14 @@ impl<'cx> TyChecker<'cx> {
         }
         let object_ty = ty.kind.expect_object();
         match object_ty.kind {
-            ty::ObjectTyKind::Interface(i) => self.get_variances_worker(i.symbol, i.ty_params),
+            ty::ObjectTyKind::Interface(i) => {
+                let symbol = i.symbol.unwrap();
+                self.get_variances_worker(symbol, i.ty_params)
+            }
             ty::ObjectTyKind::Reference(r) => {
                 let i = r.target.kind.expect_object_interface();
-                self.get_variances_worker(i.symbol, i.ty_params)
+                let symbol = i.symbol.unwrap();
+                self.get_variances_worker(symbol, i.ty_params)
             }
             _ => unreachable!(),
         }

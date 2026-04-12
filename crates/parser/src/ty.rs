@@ -159,7 +159,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_ty_or_ty_predicate(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        if self.token.kind.is_ident() {
+        if self.is_ident() {
             let start = self.token.start();
             if let Ok(Some(name)) = self.try_parse(|l| l.p().parse_ty_predicate_prefix()) {
                 let ty = self.parse_ty()?;
@@ -444,7 +444,7 @@ impl<'cx> ParserState<'cx, '_> {
         entity
     }
 
-    fn parse_ty_args_of_ty_reference(&mut self) -> Option<&'cx ast::Tys<'cx>> {
+    pub(super) fn parse_ty_args_of_ty_reference(&mut self) -> Option<&'cx ast::Tys<'cx>> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
             let start = self.token.start();
             let list = self.parse_bracketed_list::<false, _>(
@@ -465,27 +465,19 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> &'cx ast::ReferTy<'cx> {
-        let start = self.token.start();
-        let name = self.parse_entity_name::<true>();
-        let ty_args = self.parse_ty_args_of_ty_reference();
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::ReferTy {
-            id,
-            span: self.new_span(start),
-            name,
-            ty_args,
-        });
-        self.nodes.insert(id, ast::Node::ReferTy(ty));
-        ty
+    pub(super) fn parse_entity_name_of_ty_reference(&mut self) -> &'cx ast::EntityName<'cx> {
+        self.parse_entity_name::<true>()
     }
 
     fn parse_ty_reference(&mut self) -> &'cx ast::Ty<'cx> {
-        let refer = self.parse_entity_name_of_ty_reference();
-
-        (self.alloc(ast::Ty {
-            kind: ast::TyKind::Refer(refer),
-        })) as _
+        let start = self.token.start();
+        let name = self.parse_entity_name_of_ty_reference();
+        let type_arguments = self.parse_ty_args_of_ty_reference();
+        let span = self.new_span(start);
+        let ty = self.create_reference_type(span, name, type_arguments);
+        self.alloc(ast::Ty {
+            kind: ast::TyKind::Refer(ty),
+        })
     }
 
     fn parse_keyword_and_not_dot(&mut self) -> Option<Token> {
@@ -662,7 +654,7 @@ impl<'cx> ParserState<'cx, '_> {
             let ret = l.p().parse_keyword_and_not_dot();
             Ok(ret)
         }) {
-            (match node.kind {
+            match node.kind {
                 Number => {
                     let val = token_val.number();
                     let val = if neg { -val } else { val };
@@ -691,9 +683,8 @@ impl<'cx> ParserState<'cx, '_> {
                         kind: ast::TyKind::Lit(lit),
                     })
                 }
-
                 _ => unreachable!(),
-            }) as _
+            }
         } else {
             self.parse_ty_reference()
         }
@@ -701,7 +692,7 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_template_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let head = self.parse_template_head(false)?;
+        let head = self.parse_template_head::<false>()?;
         let spans = self
             .parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))?;
         let id = self.next_node_id();
@@ -721,7 +712,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_template_ty_span(&mut self) -> PResult<&'cx ast::TemplateSpanTy<'cx>> {
         let start = self.token.start();
         let ty = self.parse_ty()?;
-        let (text, is_tail) = self.parse_template_span_text(false);
+        let (text, is_tail) = self.parse_template_span_text::<false>();
         let id = self.next_node_id();
         let node = self.alloc(ast::TemplateSpanTy {
             id,

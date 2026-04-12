@@ -1512,6 +1512,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 );
                 if result != Ternary::FALSE {
+                    // TODO: this_ty & mapped_ty_generic_indexed_access
                     return result;
                 }
             }
@@ -2438,10 +2439,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             })
         {
             assert_eq!(source_sigs.len(), target_sigs.len());
-            for i in 0..source_sigs.len() {
+            for (source_sig, target_sig) in source_sigs.iter().zip(target_sigs) {
                 let related = self.sig_related_to(
-                    source_sigs[i],
-                    target_sigs[i],
+                    source_sig,
+                    target_sig,
                     true,
                     report_error,
                     intersection_state,
@@ -2647,6 +2648,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             (usize::max(source_count, target_count), usize::MAX)
         };
 
+        let is_instantiated_generic_parameter =
+            |this: &mut Self, sig: &'cx ty::Sig<'cx>, i: usize| {
+                let Some(sig_target) = sig.target else {
+                    return false;
+                };
+                let ty = this.c.get_ty_at_pos(sig_target, i);
+                this.c.is_generic_ty(ty)
+            };
         for i in 0..param_count {
             let source_ty = if i == rest_index {
                 Some(self.c.get_rest_or_any_ty_at_pos(source, i))
@@ -2662,13 +2671,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && let Some(target_ty) = target_ty
                 && ((source_ty != target_ty) || check_mode.contains(SigCheckMode::STRICT_ARITY))
             {
-                let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
+                let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK)
+                    || is_instantiated_generic_parameter(self, source, i)
+                {
                     None
                 } else {
                     let source_ty = self.c.get_non_nullable_ty(source_ty);
                     self.c.get_single_call_sig(source_ty)
                 };
-                let target_sig = if check_mode.intersects(SigCheckMode::CALLBACK) {
+                let target_sig = if check_mode.intersects(SigCheckMode::CALLBACK)
+                    || is_instantiated_generic_parameter(self, target, i)
+                {
                     None
                 } else {
                     let target_ty = self.c.get_non_nullable_ty(target_ty);
@@ -2707,7 +2720,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 };
 
                 if related != Ternary::FALSE
-                    && check_mode.intersects(SigCheckMode::STRICT_ARITY)
+                    && check_mode.contains(SigCheckMode::STRICT_ARITY)
                     && i >= self.c.get_min_arg_count(source)
                     && i < self.c.get_min_arg_count(target)
                     && compare(self, source_ty, target_ty, false) != Ternary::FALSE

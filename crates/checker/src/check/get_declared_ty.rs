@@ -82,7 +82,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_params = container.ty_params();
         let offset =
             ty_params.and_then(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id));
-        let ty = self.create_param_ty(symbol, offset, false);
+        let ty = self.create_param_ty(Some(symbol), offset, false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -313,9 +313,9 @@ impl<'cx> TyChecker<'cx> {
             } {
             let ty_params = self.concatenate(outer_ty_params, local_ty_params);
             assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
-            let this_ty = self.create_param_ty(symbol, None, true);
+            let this_ty = self.create_param_ty(Some(symbol), None, true);
             let target = self.create_interface_ty(
-                symbol,
+                Some(symbol),
                 Some(ty_params),
                 outer_ty_params,
                 local_ty_params,
@@ -341,7 +341,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiation_ty_map.insert(id, ty);
             ty
         } else {
-            self.create_interface_ty(symbol, None, None, None, None, ObjectFlags::INTERFACE)
+            self.create_interface_ty(Some(symbol), None, None, None, None, ObjectFlags::INTERFACE)
         };
 
         self.get_mut_symbol_links(symbol).override_declared_ty(ty);

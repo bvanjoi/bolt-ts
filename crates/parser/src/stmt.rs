@@ -19,20 +19,12 @@ impl<'cx> ParserState<'cx, '_> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let kind = self.token.kind;
-        match kind {
-            Const | Enum => {
+        let kind = match kind {
+            Const => {
                 debug_assert!(self.is_start_of_decl());
                 return self.parse_decl();
             }
-            Async | Export | Import | Abstract | Declare if self.is_start_of_decl() => {
-                return self.parse_decl();
-            }
-            _ => {}
-        }
-
-        let kind = match kind {
-            Semi => ast::StmtKind::Empty(self.parse_empty_stmt()),
-            Var | Const => ast::StmtKind::Var(self.parse_var_stmt(None)),
+            Var => ast::StmtKind::Var(self.parse_var_stmt(None)),
             Let => {
                 if self
                     .lookahead(|l| l.next_token_is_binding_ident_or_start_of_destructuring())
@@ -50,14 +42,40 @@ impl<'cx> ParserState<'cx, '_> {
                     self.parse_expr_or_labeled_stmt()?
                 }
             }
+            Async | Export | Import | Declare | Private | Protected | Public | Abstract
+            | Static | Readonly => {
+                if self.is_start_of_decl() {
+                    return self.parse_decl();
+                } else {
+                    self.parse_expr_or_labeled_stmt()?
+                }
+            }
+            Interface => {
+                if self.is_start_of_decl() {
+                    ast::StmtKind::Interface(self.parse_interface_decl(None))
+                } else {
+                    self.parse_expr_or_labeled_stmt()?
+                }
+            }
+            Type => {
+                if self.is_start_of_decl() {
+                    ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?)
+                } else {
+                    self.parse_expr_or_labeled_stmt()?
+                }
+            }
+            Namespace | Module => {
+                if self.is_start_of_decl() {
+                    ast::StmtKind::Module(self.parse_module_decl(None)?)
+                } else {
+                    self.parse_expr_or_labeled_stmt()?
+                }
+            }
             Function => ast::StmtKind::Fn(self.parse_fn_decl(None)?),
             If => ast::StmtKind::If(self.parse_if_stmt()?),
             LBrace => ast::StmtKind::Block(self.parse_block()),
             Return => ast::StmtKind::Ret(self.parse_ret_stmt()?),
             Class => ast::StmtKind::Class(self.parse_class_decl(None)?),
-            Interface => ast::StmtKind::Interface(self.parse_interface_decl(None)),
-            Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(None)?),
-            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(None)?),
             Throw => ast::StmtKind::Throw(self.parse_throw_stmt()?),
             For => self.parse_for_stmt()?,
             Break => ast::StmtKind::Break(self.parse_break_or_continue(&ParseBreak)?),
@@ -66,7 +84,12 @@ impl<'cx> ParserState<'cx, '_> {
             While => ast::StmtKind::While(self.parse_while_stmt()?),
             Debugger => ast::StmtKind::Debugger(self.parse_debugger_stmt()?),
             Do => ast::StmtKind::Do(self.parse_do_stmt()?),
+            Enum => {
+                debug_assert!(self.is_start_of_decl());
+                return self.parse_decl();
+            }
             Switch => ast::StmtKind::Switch(self.parse_switch_stmt()?),
+            Semi => ast::StmtKind::Empty(self.parse_empty_stmt()),
             _ => self.parse_expr_or_labeled_stmt()?,
         };
         Ok(self.alloc(ast::Stmt { kind }))
@@ -786,11 +809,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `import`
         let after_import_pos = self.token.start();
         let mut is_type_only = false;
-        let mut name = self
-            .token
-            .kind
-            .is_ident()
-            .then(|| self.create_ident(true, None));
+        let mut name = self.is_ident().then(|| self.create_ident(true, None));
         if let Some(i) = name {
             let t = self.token.kind;
             if (i.name == keyword::KW_TYPE)
@@ -929,7 +948,14 @@ impl<'cx> ParserState<'cx, '_> {
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(
                 ParsingContext::HERITAGE_CLAUSE_ELEMENT,
-                |this| Ok(this.parse_entity_name_of_ty_reference()),
+                |this| {
+                    // parse expression with type arguments
+                    let start = this.token.start();
+                    let name = this.parse_entity_name_of_ty_reference();
+                    let type_arguments = this.parse_ty_args_of_ty_reference();
+                    let span = this.new_span(start);
+                    Ok(this.create_reference_type(span, name, type_arguments))
+                },
             );
             let span = self.new_span(start);
             let id = self.next_node_id();
@@ -987,7 +1013,13 @@ impl<'cx> ParserState<'cx, '_> {
             self.next_token();
             let list = self.parse_delimited_list::<false, _>(
                 ParsingContext::HERITAGE_CLAUSE_ELEMENT,
-                |this| Ok(this.parse_entity_name_of_ty_reference()),
+                |this| {
+                    let start = this.token.start();
+                    let name = this.parse_entity_name_of_ty_reference();
+                    let type_arguments = this.parse_ty_args_of_ty_reference();
+                    let span = this.new_span(start);
+                    Ok(this.create_reference_type(span, name, type_arguments))
+                },
             );
             let span = self.new_span(start);
             let id = self.next_node_id();

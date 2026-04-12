@@ -200,6 +200,9 @@ prefilled_atom_map!(
         SPECIAL_IDENTIFIER: {
             SPECIAL_IDENT_ERROR:                    ["<error>", 138]
         },
+        NUMBER: {
+            NUMBER_ZERO:                            ["0", 139],
+        },
     }
 );
 

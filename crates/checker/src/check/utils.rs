@@ -281,7 +281,10 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
-        self.ty_param_nodes(ty_param).iter().any(|decl| {
+        let Some(decls) = self.ty_param_nodes(ty_param) else {
+            return false;
+        };
+        decls.iter().any(|decl| {
             let ty_param_node = self.p.node(*decl).expect_ty_param();
             ty_param_node.default.is_some()
         })

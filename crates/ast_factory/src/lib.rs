@@ -32,6 +32,19 @@ pub trait ASTFactory<'cx> {
     fn set_external_module_indicator(&mut self, node_id: NodeID);
 
     #[inline(always)]
+    fn create_void_expr(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::VoidExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::VoidExpr { id, span, expr });
+        self.insert_node(id, ast::Node::VoidExpr(node));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        node
+    }
+
+    #[inline(always)]
     fn create_numeric_literal(&mut self, val: f64, span: Span) -> &'cx ast::NumLit {
         let id = self.next_node_id();
         let node = self.alloc(ast::NumLit { id, val, span });
@@ -1099,5 +1112,43 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::EnumMember(member));
         self.insert_node_flags(id, self.node_context_flags());
         member
+    }
+
+    fn create_conditional_expr(
+        &mut self,
+        span: Span,
+        cond: &'cx ast::Expr<'cx>,
+        when_true: &'cx ast::Expr<'cx>,
+        when_false: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::CondExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CondExpr {
+            id,
+            span,
+            cond,
+            when_true,
+            when_false,
+        });
+        self.insert_node(id, ast::Node::CondExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_reference_type(
+        &mut self,
+        span: Span,
+        name: &'cx ast::EntityName<'cx>,
+        type_arguments: Option<&'cx ast::Tys<'cx>>,
+    ) -> &'cx ast::ReferTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ReferTy {
+            id,
+            span,
+            name,
+            ty_args: type_arguments,
+        });
+        self.insert_node(id, ast::Node::ReferTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
     }
 }
