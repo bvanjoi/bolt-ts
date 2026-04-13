@@ -23,10 +23,10 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
         If(node) => v.visit_if_stmt(node),
         Enum(node) => v.visit_enum_decl(node),
         Fn(node) => v.visit_fn_decl(node),
+        Ret(node) => v.visit_ret_stmt(node),
         Export(_) => {}
         ExportAssign(_) => {}
         Empty(_) => (),
-        Ret(_) => (),
         Throw(_) => (),
         For(_) => (),
         ForOf(_) => (),

@@ -1,5 +1,6 @@
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
+use bolt_ts_ast_visitor::Visitor;
 
 use super::TyChecker;
 
@@ -31,14 +32,25 @@ impl TyChecker<'_> {
         let node = self.p.node(id);
         if node.ty_params().is_some() {
             false
-        } else if let Some(ast::ArrowFnExprBody::Expr(e)) = node.fn_body() {
-            self.is_context_sensitive(e.id())
+        } else if let Some(fn_body) = node.fn_body() {
+            match fn_body {
+                ast::ArrowFnExprBody::Expr(n) => self.is_context_sensitive(n.id()),
+                ast::ArrowFnExprBody::Block(n) => {
+                    let mut visitor = FindContextSensitiveInArrowFnBlock {
+                        checker: self,
+                        found: false,
+                    };
+                    visitor.visit_block_stmt(n);
+                    visitor.found
+                }
+            }
         } else {
             false
         }
     }
 
     fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {
+        // TODO: has_context_sensitive_yield_expression
         self.has_context_sensitive_params(id) || self.has_context_sensitive_return_expr(id)
     }
 
@@ -63,6 +75,21 @@ impl TyChecker<'_> {
             ObjectPropAssignment(n) => self.is_context_sensitive(n.init.id()),
             ParenExpr(n) => self.is_context_sensitive(n.expr.id()),
             _ => false,
+        }
+    }
+}
+
+struct FindContextSensitiveInArrowFnBlock<'a, 'cx> {
+    checker: &'a TyChecker<'cx>,
+    found: bool,
+}
+
+impl<'a, 'cx> Visitor<'cx> for FindContextSensitiveInArrowFnBlock<'a, 'cx> {
+    fn visit_ret_stmt(&mut self, node: &'cx bolt_ts_ast::RetStmt<'cx>) {
+        if let Some(n) = node.expr {
+            if self.checker.is_context_sensitive(n.id()) {
+                self.found = true;
+            }
         }
     }
 }

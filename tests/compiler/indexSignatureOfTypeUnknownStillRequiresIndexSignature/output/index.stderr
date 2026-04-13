@@ -1,0 +1,6 @@
+  × Argument of type '{ name: string; age: number; }[]' is not assignable to
+  │ parameter of type '{ [x: string]: unknown }'.
+    ╭─[../../tests/compiler/indexSignatureOfTypeUnknownStillRequiresIndexSignature/index.ts:13:3]
+ 13 │ stooges
+    · ───────
+    ╰────

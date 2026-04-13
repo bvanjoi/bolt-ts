@@ -11,7 +11,7 @@ use bolt_ts_binder::SymbolName;
 
 struct Elaboration<'cx> {
     error_node: ast::NodeID,
-    inner_expr: Option<ast::NodeID>,
+    inner_expr: Option<&'cx ast::Expr<'cx>>,
     name_ty: &'cx ty::Ty<'cx>,
 }
 
@@ -142,7 +142,7 @@ impl<'cx> TyChecker<'cx> {
                     }),
                     PropAssignment(n) => Some(Elaboration {
                         error_node: n.name.id(),
-                        inner_expr: Some(n.init.id()),
+                        inner_expr: Some(n.init),
                         name_ty: ty,
                     }),
                     Method(n) => Some(Elaboration {
@@ -179,7 +179,7 @@ impl<'cx> TyChecker<'cx> {
                     let check_node = self.get_effective_check_node(ele.id());
                     Some(Elaboration {
                         error_node: check_node,
-                        inner_expr: Some(check_node),
+                        inner_expr: Some(*ele),
                         name_ty,
                     })
                 }
@@ -365,26 +365,34 @@ impl<'cx> TyChecker<'cx> {
                 NOOP_HEADING_ERROR,
             ) {
                 let elaborated = self.elaborate_error(
-                    e.inner_expr,
+                    e.inner_expr.map(|e| e.id()),
                     source_prop_ty,
                     target_prop_ty,
                     relation,
-                    e.inner_expr,
+                    e.inner_expr.map(|e| e.id()),
                 );
                 reported_error = true;
                 if !elaborated {
+                    let specific_source = if let Some(next) = e.inner_expr {
+                        self.check_expression_for_mutable_location_with_contextual_type(
+                            next,
+                            source_prop_ty,
+                        )
+                    } else {
+                        source_prop_ty
+                    };
                     self.check_type_related_to(
-                        source_prop_ty,
+                        specific_source,
                         target_prop_ty,
                         relation,
                         Some(error_node),
                         Some(|this: &mut Self| {
                             let span = this.p.node(error_node).span();
-                            let source_prop_ty = this.print_ty(source_prop_ty).to_string();
+                            let specific_source = this.print_ty(specific_source).to_string();
                             let target_prop_ty = this.print_ty(target_prop_ty).to_string();
                             let error = Box::new(errors::TypeIsNotAssignableToType {
                                 span,
-                                ty1: source_prop_ty,
+                                ty1: specific_source,
                                 ty2: target_prop_ty,
                             });
                             this.push_error(error);

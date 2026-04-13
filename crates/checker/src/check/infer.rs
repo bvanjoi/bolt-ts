@@ -2540,7 +2540,7 @@ impl<'cx> InferenceState<'cx, '_> {
 
             self.bivariant = save_bivariant;
         }
-        self.apply_to_ret_ty(source, target, |this, source, target| {
+        self.apply_to_return_ty(source, target, |this, source, target| {
             this.infer_from_tys(source, target);
         });
     }
@@ -2565,7 +2565,7 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
-    fn apply_to_ret_ty(
+    fn apply_to_return_ty(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,

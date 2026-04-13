@@ -1058,6 +1058,7 @@ impl<'cx> TyChecker<'cx> {
                 .is_none();
 
         let mut argument_check_mode = CheckMode::empty();
+
         if !is_single_non_generic_candidate
             && args.iter().any(|arg| self.is_context_sensitive(arg.id()))
         {

@@ -1,0 +1,5 @@
+  × Type 'I3' is not assignable to type '{ one: number; }'.
+    ╭─[../../tests/compiler/i3/index.ts:10:1]
+ 10 │ x
+    · ─
+    ╰────

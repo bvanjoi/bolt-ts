@@ -195,7 +195,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if self.instantiation_count >= 5_000_000 {
+        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 1000 {
             let current_node = self.current_node.unwrap();
             let error = errors::TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
                 span: self.p.node(current_node).span(),
@@ -215,7 +215,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.instantiation_count += 1;
+        self.instantiation_depth += 1;
         let ret = self.instantiate(ty, mapper, alias_symbol, alias_ty_arguments);
+        self.instantiation_depth -= 1;
 
         if let Some(index) = cached_index {
             let prev = self.activity_ty_mapper_caches[index].insert(id, ret);

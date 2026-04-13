@@ -412,7 +412,7 @@
       · ─
       ╰────
 
-  × Type 'boolean' is not assignable to type 'string'.
+  × Type 'true' is not assignable to type 'string'.
       ╭─[../../tests/compiler/fest/index.ts:2124:97]
  2124 │ b
       · ─

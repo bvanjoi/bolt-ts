@@ -1640,6 +1640,8 @@ impl<'cx> TyChecker<'cx> {
                             .set_resolved_ret_ty(resolved_ret_ty);
                         self.append_sig(&mut ctor_sigs, cloned);
                     }
+                } else {
+                    self.append_sigs(&mut ctor_sigs, sigs);
                 }
             }
 

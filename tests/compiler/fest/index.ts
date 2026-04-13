@@ -2123,7 +2123,7 @@ type SetFieldType<BaseType, Keys extends keyof BaseType, NewType, Options extend
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const variation2: SetFieldType<{a: number; b: boolean; c: Date}, 'a' | 'b', string> = {a: 42, b: true, c: new Date() };
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
-  //~| ERROR: Type 'boolean' is not assignable to type 'string'.
+  //~| ERROR: Type 'true' is not assignable to type 'string'.
   const variation3: SetFieldType<{a: string; b: boolean; c: Date}, 'b' | 'c', number> = {a: '42', b: 42, c: 42 };
   const variation4: SetFieldType<{a: string; b: string; c: string}, 'b', number> = {a: '42', b: 42, c: '42' };
 

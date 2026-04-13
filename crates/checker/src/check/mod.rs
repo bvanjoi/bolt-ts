@@ -210,6 +210,7 @@ pub struct TyChecker<'cx> {
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
+    instantiation_depth: u32,
     instantiation_count: u32,
     activity_ty_mapper_caches: Vec<nohash_hasher::IntMap<TyKey, &'cx ty::Ty<'cx>>>,
     type_contextual: Vec<TyContextual<'cx>>,
@@ -832,6 +833,7 @@ impl<'cx> TyChecker<'cx> {
             reverse_expanding_flags: RecursionFlags::empty(),
             activity_ty_mapper: Vec::with_capacity(128),
             activity_ty_mapper_caches: Vec::with_capacity(128),
+            instantiation_depth: 0,
             instantiation_count: 0,
             awaited_ty_stack: Vec::with_capacity(8),
 
@@ -3258,7 +3260,7 @@ impl<'cx> TyChecker<'cx> {
         let mut has_ret_with_no_expr = self.fn_has_implicit_return(f);
         let mut has_ret_of_ty_never = false;
 
-        fn t<'cx, T: Copy + Debug>(
+        fn for_each_return_stmt<'cx, T: Copy + Debug>(
             id: ast::NodeID,
             checker: &mut TyChecker<'cx>,
             f: impl Fn(&mut TyChecker<'cx>, &'cx ast::RetStmt<'cx>) -> T + Copy,
@@ -3280,19 +3282,19 @@ impl<'cx> TyChecker<'cx> {
                     v.push(ty)
                 }
                 ast::Node::BlockStmt(n) => {
-                    for stmt in n.stmts {
-                        t(
+                    n.stmts.iter().for_each(|stmt| {
+                        for_each_return_stmt(
                             stmt.id(),
                             checker,
                             f,
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
-                        );
-                    }
+                        )
+                    });
                 }
                 ast::Node::IfStmt(n) => {
-                    t(
+                    for_each_return_stmt(
                         n.then.id(),
                         checker,
                         f,
@@ -3301,7 +3303,7 @@ impl<'cx> TyChecker<'cx> {
                         has_ret_of_ty_never,
                     );
                     if let Some(else_then) = n.else_then {
-                        t(
+                        for_each_return_stmt(
                             else_then.id(),
                             checker,
                             f,
@@ -3318,7 +3320,7 @@ impl<'cx> TyChecker<'cx> {
                             ast::CaseOrDefaultClause::Default(clause) => clause.stmts,
                         };
                         for stmt in stmts {
-                            t(
+                            for_each_return_stmt(
                                 stmt.id(),
                                 checker,
                                 f,
@@ -3334,7 +3336,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let mut aggregated_tys = Vec::with_capacity(8);
-        t(
+        for_each_return_stmt(
             body.id,
             self,
             |this, ret| {
@@ -6612,6 +6614,20 @@ impl<'cx> TyChecker<'cx> {
         } else {
             str_val == self.atoms.get(bigint.val)
         }
+    }
+
+    fn check_expression_for_mutable_location_with_contextual_type(
+        &mut self,
+        next: &'cx ast::Expr<'cx>,
+        source_prop_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        self.push_type_context(next.id(), Some(source_prop_ty), false);
+        let old_check_mode = self.check_mode;
+        self.check_mode = Some(CheckMode::CONTEXTUAL);
+        let result = self.check_expr_for_mutable_location(next);
+        self.check_mode = old_check_mode;
+        self.pop_type_context();
+        return result;
     }
 }
 

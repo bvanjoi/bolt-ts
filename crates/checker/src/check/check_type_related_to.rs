@@ -1052,34 +1052,57 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             }
 
-            if result != Ternary::FALSE
-                && !intersection_state.contains(IntersectionState::TARGET)
-                && target.kind.is_intersection()
-                && !self.c.is_generic_object_ty(target)
-                && source
-                    .flags
-                    .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
-            {
-                result &= self.props_related_to(
-                    source,
-                    target,
-                    report_error,
-                    None,
-                    false,
-                    IntersectionState::empty(),
-                );
-                if result != Ternary::FALSE
-                    && source.is_object_literal()
+            if result != Ternary::FALSE {
+                if !intersection_state.contains(IntersectionState::TARGET)
+                    && target.kind.is_intersection()
+                    && !self.c.is_generic_object_ty(target)
                     && source
-                        .get_object_flags()
-                        .contains(ObjectFlags::FRESH_LITERAL)
+                        .flags
+                        .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
                 {
-                    result &= self.index_sigs_related_to(
+                    result &= self.props_related_to(
                         source,
                         target,
-                        false,
                         report_error,
+                        None,
+                        false,
                         IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE
+                        && source.is_object_literal()
+                        && source
+                            .get_object_flags()
+                            .contains(ObjectFlags::FRESH_LITERAL)
+                    {
+                        result &= self.index_sigs_related_to(
+                            source,
+                            target,
+                            false,
+                            report_error,
+                            IntersectionState::empty(),
+                        );
+                    }
+                } else if self.c.is_non_generic_object_ty(target)
+                    && !self.c.is_array_or_tuple(target)
+                    && let Some(s) = source.kind.as_intersection()
+                    && self
+                        .c
+                        .get_apparent_ty(source)
+                        .flags
+                        .intersects(TypeFlags::STRUCTURED_TYPE)
+                    && !s.tys.iter().all(|t| {
+                        target.eq(t)
+                            || t.get_object_flags()
+                                .contains(ObjectFlags::NON_INFERRABLE_TYPE)
+                    })
+                {
+                    result &= self.props_related_to(
+                        source,
+                        target,
+                        report_error,
+                        None,
+                        true,
+                        intersection_state,
                     );
                 }
             }
@@ -1358,6 +1381,35 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if self.is_related_to(
                     source,
                     index_ty,
+                    RecursionFlags::TARGET,
+                    report_error,
+                    IntersectionState::empty(),
+                ) == Ternary::TRUE
+                {
+                    return Ternary::TRUE;
+                }
+            } else if self.c.is_generic_mapped_ty(target_ty.ty) {
+                let m = target_ty.ty.kind.expect_object_mapped();
+                let name_ty = self.c.get_name_ty_from_mapped_ty(m);
+                let target_keys = if let Some(name_ty) = name_ty
+                    && self.c.is_mapped_ty_with_keyof_constraint_decl(m)
+                {
+                    let mapped_keys = self.c.get_apparent_mapped_ty_keys(name_ty, m);
+                    self.c.get_union_ty::<false>(
+                        &[mapped_keys, name_ty],
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                    )
+                } else {
+                    let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(m);
+                    name_ty.unwrap_or(constraint_ty)
+                };
+
+                if self.is_related_to(
+                    source,
+                    target_keys,
                     RecursionFlags::TARGET,
                     report_error,
                     IntersectionState::empty(),
