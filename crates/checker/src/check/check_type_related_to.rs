@@ -7,6 +7,7 @@ use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashSet;
 
+use super::create_ty::IntersectionFlags;
 use super::errors;
 use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
@@ -1430,6 +1431,112 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             return result;
                         }
                     }
+                }
+            }
+        } else if self.relation != RelationKind::Identity && self.c.is_generic_mapped_ty(target) {
+            let target_mapped_ty = target.kind.expect_object_mapped();
+            let keys_mapped = target_mapped_ty.decl.name_ty.is_some();
+            let template_ty = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
+            let modifiers = target_mapped_ty.decl.get_modifiers();
+            if !modifiers.contains(ast::MappedTyModifiers::EXCLUDE_OPTIONAL) {
+                if !keys_mapped
+                    && template_ty.flags.contains(TypeFlags::INDEXED_ACCESS)
+                    && let Some(template_indexed_access_ty) = template_ty.kind.as_indexed_access()
+                    && template_indexed_access_ty.object_ty == source
+                    && template_indexed_access_ty.index_ty
+                        == self.c.get_ty_param_from_mapped_ty(target_mapped_ty)
+                {
+                    return Ternary::TRUE;
+                }
+                if !self.c.is_generic_mapped_ty(source) {
+                    let target_keys = if keys_mapped {
+                        self.c.get_name_ty_from_mapped_ty(target_mapped_ty).unwrap()
+                    } else {
+                        self.c.get_constraint_ty_from_mapped_ty(target_mapped_ty)
+                    };
+                    let source_keys = self
+                        .c
+                        .get_index_ty(source, ty::IndexFlags::NO_INDEX_SIGNATURES);
+                    let include_optional =
+                        modifiers.contains(ast::MappedTyModifiers::INCLUDE_OPTIONAL);
+                    let filtered_by_applicability = if include_optional {
+                        // intersect_types
+                        Some(self.c.get_intersection_ty(
+                            &[target_keys, source_keys],
+                            IntersectionFlags::None,
+                            None,
+                            None,
+                        ))
+                    } else {
+                        None
+                    };
+                    if if include_optional {
+                        filtered_by_applicability
+                            .unwrap()
+                            .flags
+                            .contains(TypeFlags::NEVER)
+                    } else {
+                        self.is_related_to(
+                            target_keys,
+                            source_keys,
+                            RecursionFlags::BOTH,
+                            false,
+                            IntersectionState::empty(),
+                        ) != Ternary::FALSE
+                    } {
+                        let template_ty = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
+                        let ty_param = self.c.get_ty_param_from_mapped_ty(target_mapped_ty);
+                        let non_null_component = self
+                            .c
+                            .extract_tys_of_kind(template_ty, TypeFlags::NULLABLE.complement());
+                        if !keys_mapped
+                            && let Some(i) = non_null_component.kind.as_indexed_access()
+                            && i.index_ty == ty_param
+                        {
+                            result = self.is_related_to(
+                                source,
+                                i.object_ty,
+                                RecursionFlags::TARGET,
+                                report_error,
+                                IntersectionState::empty(),
+                            );
+                            if result != Ternary::FALSE {
+                                return result;
+                            }
+                        } else {
+                            let indexing_ty = if keys_mapped {
+                                filtered_by_applicability.unwrap_or(target_keys)
+                            } else if let Some(t) = filtered_by_applicability {
+                                self.c.get_intersection_ty(
+                                    &[t, ty_param],
+                                    IntersectionFlags::None,
+                                    None,
+                                    None,
+                                )
+                            } else {
+                                ty_param
+                            };
+                            let indexed_access_ty = self.c.get_indexed_access_ty(
+                                source,
+                                indexing_ty,
+                                None,
+                                None,
+                                None,
+                                None,
+                            );
+                            result = self.is_related_to(
+                                indexed_access_ty,
+                                template_ty,
+                                RecursionFlags::BOTH,
+                                report_error,
+                                IntersectionState::empty(),
+                            );
+                            if result != Ternary::FALSE {
+                                return result;
+                            }
+                        }
+                    }
+                    // TODO: reset error info
                 }
             }
         } else if let Some(target_cond) = target.kind.as_cond_ty() {
