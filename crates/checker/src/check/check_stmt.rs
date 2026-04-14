@@ -742,7 +742,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_unwrapped_ret_ty_undefined_void_or_any(
+    pub(super) fn is_unwrapped_ret_ty_undefined_void_or_any(
         &mut self,
         func: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,

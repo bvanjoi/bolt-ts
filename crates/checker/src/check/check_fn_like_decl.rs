@@ -1,8 +1,10 @@
 use super::TyChecker;
+use super::errors;
 use super::ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
     fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
@@ -14,7 +16,7 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.get_type_of_symbol(symbol);
             let ty = self.get_reduced_ty(ty);
             if !self.is_type_assignable_to(ty, self.any_readonly_array_ty()) {
-                let error = super::errors::ARestParameterMustBeOfAnArrayType { span: param.span };
+                let error = errors::ARestParameterMustBeOfAnArrayType { span: param.span };
                 self.push_error(Box::new(error));
             }
         }
@@ -90,17 +92,50 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // let fn_flags = n.fn_flags();
+        let error_span = |this: &Self| {
+            this.get_effective_ret_type_node(func.id())
+                .map(|n| n.span())
+                .unwrap_or_else(|| this.p.node(func.id()).name().unwrap().span())
+        };
         let has_explicit_return = self
             .p
             .node_flags(fn_id)
             .contains(ast::NodeFlags::HAS_EXPLICIT_RETURN);
         if let Some(ty) = ty
+            && ty.flags.contains(TypeFlags::NEVER)
+        {
+            todo!()
+        } else if let Some(ty) = ty
             && !has_explicit_return
         {
-            let span = n
-                .name()
-                .map_or_else(|| n.ret_ty().unwrap().span(), |name| name.span());
-            let error = super::errors::AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue { span };
+            let error =
+                errors::AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustReturnAValue {
+                    span: error_span(self),
+                };
+            self.push_error(Box::new(error));
+        } else if let Some(ty) = ty
+            && self.config.compiler_options().strict_null_checks()
+            && !self.is_type_assignable_to(self.undefined_ty, ty)
+        {
+            let error =
+                errors::FunctionLacksEndingReturnStatementAndReturnTypeDoesNotIncludeUndefined {
+                    span: error_span(self),
+                };
+            self.push_error(Box::new(error));
+        } else if self.config.compiler_options().no_implicit_returns() {
+            if ty.is_none() {
+                if !has_explicit_return {
+                    return;
+                }
+                let sig = self.get_sig_from_decl(fn_id);
+                let inferred_return_ty = self.get_ret_ty_of_sig(sig);
+                if self.is_unwrapped_ret_ty_undefined_void_or_any(fn_id, inferred_return_ty) {
+                    return;
+                }
+            }
+            let error = errors::NotAllCodePathsReturnAValue {
+                span: error_span(self),
+            };
             self.push_error(Box::new(error));
         }
     }

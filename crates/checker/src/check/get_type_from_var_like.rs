@@ -432,7 +432,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_for_var_like_decl<const INCLUDE_OPTIONALITY: bool>(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> Option<&'cx Ty<'cx>> {
         // TODO: for in stmt
         // TODO: for of stmt
@@ -513,7 +513,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn widen_ty_inferred_from_initializer(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         let widened = self.get_widened_lit_ty_for_init(decl, ty);

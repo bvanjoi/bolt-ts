@@ -4,7 +4,7 @@ use bolt_ts_ast::pprint_entity_name;
 use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait;
 use bolt_ts_binder::Symbols;
-use bolt_ts_binder::{MergeSymbol, ResolveResult, Symbol};
+use bolt_ts_binder::{MergeSymbol, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_utils::{fx_hashmap_with_capacity, fx_hashset_with_capacity};
 
@@ -17,25 +17,16 @@ use super::ty;
 use super::ty::CheckFlags;
 use super::{SymbolLinks, errors};
 
-fn symbol_of_resolve_results(
-    resolve_results: &[ResolveResult],
-    symbol: SymbolID,
-) -> &bolt_ts_binder::Symbol {
-    let idx = symbol.module().as_usize();
-    debug_assert!(idx < resolve_results.len());
-    unsafe { resolve_results.get_unchecked(idx).symbols.get(symbol) }
-}
-
 fn decls_of_symbol<'a>(
     symbol: SymbolID,
     this: &'a TyChecker<'_>,
 ) -> Option<&'a thin_vec::ThinVec<bolt_ts_ast::NodeID>> {
-    let s = symbol_of_resolve_results(&this.binder.bind_results, symbol);
+    let s = this.binder.symbol(symbol);
     s.decls.as_ref()
 }
 
 fn binder_symbol<'a>(this: &'a TyChecker<'_>, symbol: SymbolID) -> &'a bolt_ts_binder::Symbol {
-    symbol_of_resolve_results(&this.binder.bind_results, symbol)
+    this.binder.symbol(symbol)
 }
 
 impl<'cx> super::TyChecker<'cx> {
@@ -145,7 +136,7 @@ impl<'cx> super::TyChecker<'cx> {
         };
         self.get_mut_symbol_links(symbol)
             .set_alias_target(Symbol::RESOLVING);
-        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
+        let s = binder_symbol(self, symbol);
         assert!(s.flags.contains(SymbolFlags::ALIAS), "symbol: {s:#?}");
         let node = s.get_decl_of_alias_symbol(&self.p).unwrap_or_else(|| {
             let decls = s
@@ -166,7 +157,12 @@ impl<'cx> super::TyChecker<'cx> {
             let v = target.unwrap_or(Symbol::ERR);
             self.get_mut_symbol_links(symbol).override_alias_target(v);
         } else {
-            // TODO: report circle error
+            let s = binder_symbol(self, symbol);
+            let error = errors::CircularDefinitionOfImportAliasX {
+                span: self.p.node(node).span(),
+                name: s.name.to_string(&self.atoms),
+            };
+            self.push_error(Box::new(error));
         }
         self.get_symbol_links(symbol).expect_alias_target()
     }
@@ -296,7 +292,7 @@ impl<'cx> super::TyChecker<'cx> {
         name: SymbolName,
         dont_resolve_alias: bool,
     ) -> Option<SymbolID> {
-        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
+        let s = binder_symbol(self, symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
             let export_symbol = self.get_exports_of_module(symbol).0.get(&name).copied();
 
@@ -679,7 +675,7 @@ impl<'cx> super::TyChecker<'cx> {
             && let Some(symbol) = symbols.0.get(&name).copied()
         {
             let symbol = self.get_merged_symbol(symbol);
-            let flags = symbol_of_resolve_results(&self.binder.bind_results, symbol).flags;
+            let flags = binder_symbol(self, symbol).flags;
             if flags.intersects(meaning) {
                 return Some(symbol);
             } else if flags.intersects(SymbolFlags::ALIAS) {
@@ -729,7 +725,7 @@ impl<'cx> super::TyChecker<'cx> {
             return symbol;
         }
         let symbol = self.get_merged_symbol(symbol);
-        let s = symbol_of_resolve_results(&self.binder.bind_results, symbol);
+        let s = binder_symbol(self, symbol);
         if s.flags.contains(SymbolFlags::EXPORT_VALUE) {
             s.export_symbol.unwrap_or(symbol)
         } else {
@@ -1059,7 +1055,7 @@ fn report_non_exported_member(
     module_symbol: SymbolID,
     module_name: bolt_ts_atom::Atom,
 ) {
-    let s = symbol_of_resolve_results(&this.binder.bind_results, module_symbol);
+    let s = binder_symbol(this, module_symbol);
     let local_symbol = if let Some(value_decl) = s.value_decl {
         this.locals(value_decl.module())
             .get(&value_decl)
@@ -1074,7 +1070,7 @@ fn report_non_exported_member(
         let decl = s.exports().and_then(|exports| {
             exports.0.values().find_map(|export| {
                 // TODO: use `get_symbol_if_same_reference`
-                let s = symbol_of_resolve_results(&this.binder.bind_results, *export);
+                let s = binder_symbol(this, *export);
                 if s.flags == SymbolFlags::ALIAS {
                     let decl = s.decls.as_ref().unwrap()[0];
                     if let Some(spec) = this.p.node(decl).as_export_named_spec() {
@@ -1376,7 +1372,7 @@ impl<'cx> TyChecker<'cx> {
         if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
             self.get_transient_symbols().get(symbol)
         } else {
-            symbol_of_resolve_results(&self.binder.bind_results, symbol)
+            binder_symbol(self, symbol)
         }
     }
 }

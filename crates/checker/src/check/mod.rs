@@ -803,8 +803,8 @@ impl<'cx> TyChecker<'cx> {
             union_ty_constituent_map: no_hashmap_with_capacity(32),
             enum_relation: EnumRelationMap::new(),
 
-            resolution_tys: thin_vec::ThinVec::with_capacity(128),
-            resolution_res: thin_vec::ThinVec::with_capacity(128),
+            resolution_tys: thin_vec::ThinVec::with_capacity(8),
+            resolution_res: thin_vec::ThinVec::with_capacity(8),
             resolution_start: 0,
 
             flow_loop_start: 0,
@@ -6229,10 +6229,8 @@ impl<'cx> TyChecker<'cx> {
                 })
             };
         } else {
-            let ty = {
-                let ty = self.check_expr_cached(n.expr);
-                self.get_base_constraint_or_ty(ty)
-            };
+            let ty = self.check_expr_cached(n.expr);
+            let ty = self.get_base_constraint_or_ty(ty);
             if !ty.is_literal_ty() {
                 return false;
             }

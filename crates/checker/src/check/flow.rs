@@ -1822,6 +1822,42 @@ impl<'cx> TyChecker<'cx> {
                     }
                     flow = antecedent;
                 }
+                FlowNodeKind::Call(n) => {
+                    let antecedent = n.antecedent;
+                    let node = n.node;
+                    if let Some(sig) = self.get_effects_sig(node.id) {
+                        if let Some(predicate) = self.get_ty_predicate_of_sig(sig)
+                            && let TyPredKind::AssertsIdent(pred) = predicate.kind
+                            && pred.ty.is_none()
+                            && let Some(predicate_arg) = node.args.get(pred.param_index as usize)
+                            && predicate_arg.kind.is_false()
+                        {
+                            return false;
+                        }
+                        if self.get_ret_ty_of_sig(sig).flags.contains(TypeFlags::NEVER) {
+                            return false;
+                        }
+                    }
+                    flow = antecedent;
+                }
+                FlowNodeKind::Label(n) => {
+                    if f.flags.contains(FlowFlags::BRANCH_LABEL) {
+                        let Some(antecedent) = n.antecedent.clone() else {
+                            return false;
+                        };
+                        return antecedent
+                            .iter()
+                            .any(|flow| self.is_reachable_flow_node_worker(*flow, false));
+                    } else if f.flags.contains(FlowFlags::LOOP_LABEL) {
+                        let Some(antecedent) = n.antecedent.as_ref() else {
+                            return false;
+                        };
+                        if antecedent.is_empty() {
+                            return false;
+                        }
+                        flow = antecedent[0];
+                    }
+                }
                 _ => return !flags.contains(FlowFlags::UNREACHABLE),
             }
         }

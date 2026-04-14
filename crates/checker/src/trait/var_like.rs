@@ -40,3 +40,7 @@ impl<'cx> VarLike<'cx> for ast::PropSignature<'cx> {
 impl<'cx> VarLike<'cx> for ast::ObjectPropAssignment<'cx> {}
 
 impl<'cx> VarLike<'cx> for ast::ObjectShorthandMember<'cx> {}
+
+impl<'cx> VarLike<'cx> for ast::ArrayBinding<'cx> {}
+
+impl<'cx> VarLike<'cx> for ast::ObjectBindingElem<'cx> {}

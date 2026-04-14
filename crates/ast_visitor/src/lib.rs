@@ -378,6 +378,7 @@ pub fn visit_intersection_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Inters
     }
 }
 pub fn visit_typeof_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TypeofTy<'cx>) {
+    v.visit_entity_name(n.name);
     if let Some(ty_args) = n.ty_args {
         for ty in ty_args.list {
             v.visit_ty(ty);

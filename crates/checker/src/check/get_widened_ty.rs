@@ -2,7 +2,6 @@ use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
 use super::get_iteration_tys::IterationTypeKind;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
@@ -104,13 +103,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_lit_ty_for_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
         let id = decl.id();
-        let flags = self.node_query(id.module()).get_combined_node_flags(id);
-        if flags.intersects(ast::NodeFlags::CONSTANT) {
+        let nq = self.node_query(id.module());
+        let flags = nq.get_combined_node_flags(id);
+        if flags.intersects(ast::NodeFlags::CONSTANT) || decl.is_declaration_readonly(&nq) {
             ty
         } else {
             self.get_widened_literal_ty(ty)
@@ -119,7 +119,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn widened_ty_from_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.get_widened_lit_ty_for_init(decl, ty)
@@ -267,7 +267,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_ty_for_var_like_decl(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let save_check_mode = self.check_mode;
         self.check_mode = Some(CheckMode::empty());

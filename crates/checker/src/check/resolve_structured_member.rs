@@ -413,29 +413,28 @@ impl<'cx> TyChecker<'cx> {
             return tys;
         }
         if self.push_ty_resolution(ResolutionKey::ResolvedBaseTypes(ty.id)) {
+            let mut cycle_reported = false;
             if let Some(t) = ty.as_tuple() {
-                if let Some(old) = self.get_ty_links(ty.id).get_resolved_base_tys() {
-                    return old;
-                }
                 let base_ty = self.get_tuple_base_ty(t);
                 let tys = self.alloc([base_ty]);
                 self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-                return tys;
-            }
-            let id = ty.symbol().unwrap();
-            let symbol = self.binder.symbol(id);
-            let mut cycle_reported = false;
-            if symbol.flags.contains(SymbolFlags::CLASS) {
-                let tys = self.resolve_base_tys_of_class(ty);
-                self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-            } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
-                self.resolve_base_tys_of_interface(ty, &mut cycle_reported);
             } else {
-                unreachable!()
-            };
-            if !cycle_reported
-                && let Cycle::Some(_) = self.pop_ty_resolution()
-                && let Some(decl) = id.opt_decl(&self.binder)
+                let id = ty.symbol().unwrap();
+                let symbol = self.binder.symbol(id);
+                if symbol.flags.contains(SymbolFlags::CLASS) {
+                    let tys = self.resolve_base_tys_of_class(ty);
+                    self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
+                } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
+                    self.resolve_base_tys_of_interface(ty, &mut cycle_reported);
+                } else {
+                    unreachable!()
+                };
+            }
+
+            if let Cycle::Some(_) = self.pop_ty_resolution()
+                && let symbol = ty.symbol().unwrap()
+                && let Some(decl) = symbol.opt_decl(&self.binder)
+                && !cycle_reported
             {
                 let p = self.p.node(decl);
                 if p.is_class_decl() || p.is_interface_decl() {
@@ -448,7 +447,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_ty_links(ty.id).expect_resolved_base_tys()
     }
 
-    fn resolve_object_type_members(
+    fn resolve_object_type_members<const MAYBE_CYCLE: bool>(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         source: &'cx ty::Ty<'cx>,
@@ -456,6 +455,13 @@ impl<'cx> TyChecker<'cx> {
         ty_params: ty::Tys<'cx>,
         ty_args: ty::Tys<'cx>,
     ) {
+        let set_structured_members = |this: &mut Self, m: &'cx ty::StructuredMembers<'cx>| {
+            if MAYBE_CYCLE && this.get_ty_links(ty.id).get_structured_members().is_some() {
+                // TODO: delay bug
+                return;
+            }
+            this.get_mut_ty_links(ty.id).set_structured_members(m)
+        };
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
         let base_tys = self.get_base_tys(source);
 
@@ -480,7 +486,7 @@ impl<'cx> TyChecker<'cx> {
                     index_infos: declared.index_infos,
                     props: declared.props,
                 });
-                self.get_mut_ty_links(ty.id).set_structured_members(m);
+                set_structured_members(self, m);
                 return;
             }
             call_sigs = declared.call_sigs.to_vec();
@@ -499,38 +505,41 @@ impl<'cx> TyChecker<'cx> {
                 .to_vec();
         }
 
-        for base_ty in base_tys {
-            let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
-                let ty = self.instantiate_ty(base_ty, mapper);
-                self.get_ty_with_this_arg(ty, Some(this_arg), false)
-            } else {
-                base_ty
-            };
-            let props = self.get_props_of_ty(instantiated_base_ty);
-            self.add_inherited_members(&mut members, props);
-            call_sigs.extend(
-                self.signatures_of_type(instantiated_base_ty, SigKind::Call)
-                    .iter(),
-            );
-            ctor_sigs.extend(
-                self.signatures_of_type(instantiated_base_ty, SigKind::Constructor)
-                    .iter(),
-            );
-            if instantiated_base_ty != self.any_ty {
-                let instantiated_index_infos = self
-                    .get_index_infos_of_ty(instantiated_base_ty)
-                    .into_iter()
-                    .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
-                    .collect::<Vec<_>>();
-                index_infos.extend(instantiated_index_infos);
-            } else if {
-                let key_ty = self.any_base_type_index_info().key_ty;
-                self.find_index_info(&index_infos, key_ty).is_none()
-            } {
-                index_infos.push(self.any_base_type_index_info());
+        if !base_tys.is_empty() {
+            // TODO: if (source.symbol && members === getMembersOfSymbol(source.symbol)) {
+
+            for base_ty in base_tys {
+                let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
+                    let ty = self.instantiate_ty(base_ty, mapper);
+                    self.get_ty_with_this_arg(ty, Some(this_arg), false)
+                } else {
+                    base_ty
+                };
+                let props = self.get_props_of_ty(instantiated_base_ty);
+                self.add_inherited_members(&mut members, props);
+                call_sigs.extend(
+                    self.signatures_of_type(instantiated_base_ty, SigKind::Call)
+                        .iter(),
+                );
+                ctor_sigs.extend(
+                    self.signatures_of_type(instantiated_base_ty, SigKind::Constructor)
+                        .iter(),
+                );
+                if instantiated_base_ty != self.any_ty {
+                    let instantiated_index_infos = self
+                        .get_index_infos_of_ty(instantiated_base_ty)
+                        .into_iter()
+                        .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
+                        .collect::<Vec<_>>();
+                    index_infos.extend(instantiated_index_infos);
+                } else if {
+                    let key_ty = self.any_base_type_index_info().key_ty;
+                    self.find_index_info(&index_infos, key_ty).is_none()
+                } {
+                    index_infos.push(self.any_base_type_index_info());
+                }
             }
         }
-
         let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
             members: self.alloc(members),
@@ -539,7 +548,7 @@ impl<'cx> TyChecker<'cx> {
             index_infos: self.alloc(index_infos),
             props,
         });
-        self.get_mut_ty_links(ty.id).set_structured_members(m);
+        set_structured_members(self, m);
     }
 
     fn resolve_declared_members(
@@ -576,10 +585,10 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_interface_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let interface_ty = ty.kind.expect_object_interface();
         let declared_members = self.resolve_declared_members(interface_ty);
-        self.resolve_object_type_members(ty, ty, declared_members, &[], &[]);
+        self.resolve_object_type_members::<false>(ty, ty, declared_members, &[], &[]);
     }
 
-    fn resolve_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
+    fn resolve_type_reference_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let target = if let Some(t) = ty.as_tuple() {
             t.ty
         } else if let Some(refer) = ty.kind.as_object_reference() {
@@ -620,7 +629,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             unreachable!("{:#?}", ty)
         };
-        self.resolve_object_type_members(
+        self.resolve_object_type_members::<true>(
             ty,
             source,
             declared_members,
@@ -800,13 +809,14 @@ impl<'cx> TyChecker<'cx> {
         self.reverse_mapped_source_stack.push(source);
         self.reverse_mapped_target_stack.push(target);
         let save_expanding_flags = self.reverse_expanding_flags;
+
         if self.is_deeply_nested_type(source, self.reverse_mapped_source_stack.as_ref(), 2) {
             self.reverse_expanding_flags |= RecursionFlags::SOURCE;
         }
-
         if self.is_deeply_nested_type(source, self.reverse_mapped_target_stack.as_ref(), 2) {
             self.reverse_expanding_flags |= RecursionFlags::TARGET;
         }
+
         let ty = if self.reverse_expanding_flags != RecursionFlags::BOTH {
             let target_mapped_ty = target.kind.expect_object_mapped();
             let index_ty = self.get_ty_param_from_mapped_ty(target_mapped_ty);
@@ -2122,7 +2132,7 @@ impl<'cx> TyChecker<'cx> {
         if ty.kind.is_object() {
             let object_flags = ty.get_object_flags();
             if object_flags.contains(ObjectFlags::REFERENCE) {
-                self.resolve_reference_members(ty);
+                self.resolve_type_reference_members(ty);
             } else if ty.kind.is_object_interface() {
                 self.resolve_interface_members(ty);
             } else if ty.kind.is_object_reverse_mapped() {

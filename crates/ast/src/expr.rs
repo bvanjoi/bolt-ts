@@ -417,6 +417,19 @@ impl<'cx> ExprKind<'cx> {
             _ => None,
         }
     }
+
+    pub fn is_false(&self) -> bool {
+        let n = self.skip_paren();
+        match n {
+            ExprKind::BoolLit(lit) => !lit.val,
+            ExprKind::Bin(bin) => match bin.op.kind {
+                BinOpKind::LogicalOr => bin.left.kind.is_false() && bin.right.kind.is_false(),
+                BinOpKind::LogicalAnd => bin.left.kind.is_false() || bin.right.kind.is_false(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

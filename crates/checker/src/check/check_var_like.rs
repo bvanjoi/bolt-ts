@@ -36,7 +36,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         name_id: ast::NodeID,
         decl_id: ast::NodeID,
-        decl: &'cx impl r#trait::VarLike<'cx>,
+        decl: &'cx impl crate::r#trait::VarLike<'cx>,
     ) {
         if !self.p.node(name_id).is_object_binding_elem()
             && let Some(ty) = decl.decl_ty()
@@ -97,7 +97,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
+    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl crate::r#trait::VarLike<'cx>) {
         use bolt_ts_ast::r#trait::VarLikeName::*;
         let id = decl.id();
         let name = decl.name();

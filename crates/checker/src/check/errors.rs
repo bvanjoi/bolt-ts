@@ -941,6 +941,13 @@ pub(super) struct AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustRetu
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Function lacks ending return statement and return type does not include 'undefined'.")]
+pub(super) struct FunctionLacksEndingReturnStatementAndReturnTypeDoesNotIncludeUndefined {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("A parameter initializer is only allowed in a function or constructor implementation.")]
 pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
     #[label(primary)]
@@ -1405,4 +1412,46 @@ pub(super) struct AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
     pub getter_span: Span,
     #[label = "Setter declaration is defined here."]
     pub setter_span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type arguments for '{name}' circularly reference themselves.")]
+pub(super) struct TypeArgumentsForXCircularlyReferenceThemselves {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Tuple type arguments circularly reference themselves.")]
+pub(super) struct TupleTypeArgumentsCircularlyReferenceThemselves {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Circular definition of import alias '{name}'.")]
+pub(super) struct CircularDefinitionOfImportAliasX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' is referenced directly or indirectly in its own type annotation.")]
+pub(super) struct XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'{name}' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer."
+)]
+pub(super) struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferencedDirectlyOrIndirectlyInItsOwnInitializer
+{
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
 }

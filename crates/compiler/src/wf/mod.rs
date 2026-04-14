@@ -227,7 +227,7 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_ambient_initializer(&mut self, node: &impl crate::r#trait::VarLike<'cx>) {
+    fn check_ambient_initializer(&mut self, node: &impl bolt_ts_checker::r#trait::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
         };

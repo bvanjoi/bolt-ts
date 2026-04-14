@@ -3,12 +3,10 @@ use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
-use crate::check::links::SigLinks;
-
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
-
+use super::links::SigLinks;
 use super::ty;
 use super::ty::CheckFlags;
 use super::ty::SigID;

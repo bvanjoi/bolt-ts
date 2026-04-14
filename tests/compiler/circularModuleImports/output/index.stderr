@@ -1,0 +1,5 @@
+  × Circular definition of import alias 'A'.
+   ╭─[../../tests/compiler/circularModuleImports/index.ts:9:5]
+ 9 │ import A = B;
+   · ─────────────
+   ╰────

@@ -65,9 +65,20 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             None => self.emitter.print().p("any"),
         }
     }
+
+    fn emit_type_arguments(&mut self, n: Option<&'cx ast::Tys<'cx>>) {
+        if let Some(n) = n {
+            debug_assert!(!n.list.is_empty());
+            self.emitter.print().p_less();
+            for ty in n.list {
+                self.visit_ty(ty);
+            }
+            self.emitter.print().p_great();
+        }
+    }
 }
 
-impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
+impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_program(&mut self, node: &'cx bolt_ts_ast::Program<'cx>) {
         for stmt in node.stmts() {
             self.visit_stmt(stmt);
@@ -374,15 +385,7 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx, 'a> 
 
     fn visit_refer_ty(&mut self, n: &'cx ast::ReferTy<'cx>) {
         self.visit_entity_name(n.name);
-        if let Some(ty_args) = n.ty_args
-            && !ty_args.list.is_empty()
-        {
-            self.emitter.print().p_less();
-            for ty in ty_args.list {
-                self.visit_ty(ty);
-            }
-            self.emitter.print().p_great();
-        }
+        self.emit_type_arguments(n.ty_args);
     }
 
     fn visit_ident(&mut self, node: &'cx ast::Ident) {
@@ -503,5 +506,12 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for DeclarationEmitter<'cx, 'a> 
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }
+    }
+
+    fn visit_typeof_ty(&mut self, node: &'cx bolt_ts_ast::TypeofTy<'cx>) {
+        self.emitter.print().p("typeof");
+        self.emitter.print().p_whitespace();
+        self.visit_entity_name(node.name);
+        self.emit_type_arguments(node.ty_args);
     }
 }
