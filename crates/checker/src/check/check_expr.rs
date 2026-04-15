@@ -16,6 +16,7 @@ use super::ObjectFlags;
 use super::TyChecker;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::errors;
+use super::eval::EvalResult;
 use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
 use super::node_check_flags::NodeCheckFlags;
@@ -945,6 +946,14 @@ impl<'cx> TyChecker<'cx> {
                 tys.push(self.string_ty);
             }
         }
+        let p = self.parent(node.id).unwrap();
+        if !self.p.node(p).is_tagged_template_expr()
+            && let EvalResult::Str(evaluated) = self.eval_template_expr(node, None)
+        {
+            let ty = self.get_string_literal_type::<false>(evaluated, None);
+            return self.get_fresh_ty_of_literal_ty(ty);
+        }
+
         if self.is_const_context(node.id) || {
             let t = self
                 .get_contextual_ty(node.id, None)

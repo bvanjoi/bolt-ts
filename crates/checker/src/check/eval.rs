@@ -13,6 +13,38 @@ pub(crate) enum EvalResult {
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn eval_template_expr(
+        &mut self,
+        expr: &'cx ast::TemplateExpr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        debug_assert!(location.is_none_or(|location| self.p.node(location).is_decl()));
+        self.eval_template_expr_worker(expr, location)
+    }
+
+    fn eval_template_expr_worker(
+        &mut self,
+        expr: &'cx ast::TemplateExpr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        let mut result = self.atoms.get(expr.head.text).to_string();
+        // let mut resolved_other_files = false;
+        // let mut has_external_references = false;
+        for span in expr.spans {
+            let span_result = self.eval_expr(span.expr, location);
+            match span_result {
+                EvalResult::Number(n) => result += &n.to_string(),
+                EvalResult::Str(s) => {
+                    let s = self.atoms.get(s);
+                    result += s;
+                }
+                EvalResult::Err => return EvalResult::Err,
+            }
+            // resolved_other_files |= span_result == EvalResult::resolved_other_files;
+        }
+        EvalResult::Str(self.atoms.atom(&result))
+    }
+
     pub(super) fn eval_expr(
         &mut self,
         expr: &'cx ast::Expr<'cx>,

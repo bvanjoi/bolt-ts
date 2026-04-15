@@ -358,7 +358,8 @@ impl<'cx> TyChecker<'cx> {
                 'base_prop_check: for base_prop in base_properties {
                     let base = self.get_target_symbol(*base_prop);
                     let base_s = self.symbol(base);
-                    if base_s.flags.contains(SymbolFlags::PROTOTYPE) {
+                    let base_flags = base_s.flags;
+                    if base_flags.contains(SymbolFlags::PROTOTYPE) {
                         continue;
                     }
                     let base_s_name = base_s.name;
@@ -402,6 +403,39 @@ impl<'cx> TyChecker<'cx> {
                         }
                     } else {
                         // TODO:
+                        let derived_declaration_flags =
+                            self.get_declaration_modifier_flags_from_symbol(derived, None);
+                        if base_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
+                            || derived_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
+                        {
+                            continue;
+                        }
+                        let base_property_flags =
+                            base_flags.intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        let derived_symbol = self.symbol(derived);
+                        let derived_property_flags = derived_symbol
+                            .flags
+                            .intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        if base_property_flags && derived_property_flags {
+                            // TODO:
+                        } else if self.is_prototype_prop(base) {
+                            // TODO:
+                        } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
+                            // TODO:
+                        } else {
+                            let span = if let Some(decl) = derived_symbol.value_decl {
+                                self.p.node(decl).name().unwrap().span()
+                            } else {
+                                unreachable!()
+                            };
+                            let error = errors::ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction {
+                                span: span,
+                                class_name: base_ty.to_string(self),
+                                property_name: base_s_name.to_string(&self.atoms),
+                                extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
                     }
                 }
 

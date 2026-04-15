@@ -689,6 +689,7 @@ impl<'cx> TyChecker<'cx> {
         report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
+        // TODO: is_jsx_call_like
         if let Some(this_ty) = self.get_this_ty_of_sig(sig)
             && this_ty != self.void_ty
         {
@@ -729,7 +730,7 @@ impl<'cx> TyChecker<'cx> {
                     self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode)
                 };
                 let error_node = report_error.then(|| arg.id());
-                let regular_arg_ty = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                let regular_arg_ty = if check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                     self.get_regular_ty_of_object_literal(arg_ty)
                 } else {
                     arg_ty

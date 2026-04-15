@@ -3,7 +3,6 @@ use super::check_expr::IterationUse;
 use super::errors;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 
 impl<'cx> TyChecker<'cx> {

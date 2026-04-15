@@ -407,6 +407,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node, symbol);
             }
             ObjectPropAssignment(n) => {
+                debug_assert!(n.id == node);
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
                     || prop_name(n.name),

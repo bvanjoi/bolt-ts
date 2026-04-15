@@ -1455,3 +1455,16 @@ pub(super) struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsR
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Class '{class_name}' defines instance member property '{property_name}', but extended class '{extended_class_name}' defines it as instance member function."
+)]
+pub(super) struct ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub property_name: String,
+    pub extended_class_name: String,
+}

@@ -2,6 +2,7 @@ use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::AssignmentDeclarationKind;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::CheckFlags;
 
@@ -24,6 +25,21 @@ bitflags::bitflags! {
         const NO_CONSTRAINTS        = 1 << 1;
         const COMPLETIONS           = 1 << 2;
         const SKIP_BINDING_PATTERNS = 1 << 3;
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(super) struct DiscriminateContextualTyByObjectLiteral {
+    node: ast::NodeID,
+    ty: ty::TyID,
+}
+
+impl DiscriminateContextualTyByObjectLiteral {
+    fn new(node: &ast::ObjectLit, ty: &ty::Ty<'_>) -> Self {
+        Self {
+            node: node.id,
+            ty: ty.id,
+        }
     }
 }
 
@@ -645,9 +661,179 @@ impl<'cx> TyChecker<'cx> {
         n: &'cx ast::ObjectLit<'cx>,
         contextual_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let u = contextual_ty.kind.expect_union();
-        // TODO:
-        contextual_ty
+        debug_assert!(contextual_ty.kind.is_union());
+        let key = DiscriminateContextualTyByObjectLiteral::new(n, contextual_ty);
+        if let Some(cached) = self
+            .discriminant_context_ty_by_object_literal_cache
+            .get(&key)
+        {
+            return cached;
+        }
+
+        let res = self
+            .get_matching_union_constituent_for_object_literal(contextual_ty, n)
+            .unwrap_or_else(|| {
+                enum DiscriminatingItem<'cx> {
+                    Node(&'cx ast::ObjectMember<'cx>),
+                    Prop(SymbolID),
+                }
+                #[derive(Debug, Clone, Copy)]
+                enum DiscriminatingContext<'cx> {
+                    Ident(&'cx ast::Ident),
+                    Init(&'cx ast::Expr<'cx>),
+                    None,
+                }
+                let discriminators = n
+                    .members
+                    .iter()
+                    .map(|item| DiscriminatingItem::Node(*item))
+                    .chain(
+                        self.get_props_of_ty(contextual_ty)
+                            .iter()
+                            .map(|item| DiscriminatingItem::Prop(*item)),
+                    )
+                    .filter_map(|item| match item {
+                        DiscriminatingItem::Node(item) => match item.kind {
+                            ast::ObjectMemberKind::Shorthand(n) => {
+                                let name = self.binder.symbol(self.final_res(n.id)).name;
+                                if self.is_discriminant_prop(contextual_ty, name) {
+                                    Some((DiscriminatingContext::Ident(n.name), name))
+                                } else {
+                                    None
+                                }
+                            }
+                            ast::ObjectMemberKind::PropAssignment(n) => {
+                                let name = self.binder.symbol(self.final_res(n.id)).name;
+                                if n.init.kind.is_possibly_discriminant_value()
+                                    && self.is_discriminant_prop(contextual_ty, name)
+                                {
+                                    Some((DiscriminatingContext::Init(n.init), name))
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        },
+                        DiscriminatingItem::Prop(item) => {
+                            let prop_symbol = self.symbol(item);
+                            if !prop_symbol.flags.contains(SymbolFlags::OPTIONAL) {
+                                return None;
+                            }
+                            let s = self.binder.symbol(self.final_res(n.id));
+                            let Some(members) = s.members.as_ref() else {
+                                return None;
+                            };
+                            let name = s.name;
+                            if !members.0.contains_key(&name)
+                                && self.is_discriminant_prop(contextual_ty, name)
+                            {
+                                Some((DiscriminatingContext::None, name))
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .map(|(item, name)| {
+                        (
+                            move |this: &mut Self| match item {
+                                DiscriminatingContext::Ident(n) => {
+                                    this.get_context_free_ty_of_ident(n)
+                                }
+                                DiscriminatingContext::Init(n) => {
+                                    this.get_context_free_ty_of_expr(n)
+                                }
+                                DiscriminatingContext::None => this.undefined_ty,
+                            },
+                            name,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                self.discriminate_ty_by_discriminable_items(
+                    contextual_ty,
+                    &discriminators,
+                    |this, s, t| {
+                        if this.is_type_assignable_to(s, t) {
+                            Ternary::TRUE
+                        } else {
+                            Ternary::FALSE
+                        }
+                    },
+                )
+            });
+
+        let prev = self
+            .discriminant_context_ty_by_object_literal_cache
+            .insert(key, res);
+        debug_assert!(prev.is_none());
+        res
+    }
+
+    fn discriminate_ty_by_discriminable_items<F>(
+        &mut self,
+        target: &'cx ty::Ty<'cx>,
+        discriminators: &[(F, SymbolName)],
+        related: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> &'cx ty::Ty<'cx>
+    where
+        F: Fn(&mut Self) -> &'cx ty::Ty<'cx>,
+    {
+        let u = target.kind.expect_union();
+        let tys = u.tys;
+        let mut include: Vec<Ternary> = tys
+            .iter()
+            .map(|t| {
+                if t.flags.intersects(TypeFlags::PRIMITIVE)
+                    || self.get_reduced_ty(t).flags.contains(TypeFlags::NEVER)
+                {
+                    Ternary::FALSE
+                } else {
+                    Ternary::TRUE
+                }
+            })
+            .collect();
+        for (get_discriminating_ty, property_name) in discriminators {
+            let mut matched = false;
+            for i in 0..tys.len() {
+                if include[i] != Ternary::FALSE {
+                    if let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name) {
+                        let discriminating_ty = get_discriminating_ty(self);
+                        if self.some_type(discriminating_ty, |this, t| {
+                            related(this, t, target_ty) != Ternary::FALSE
+                        }) {
+                            matched = true;
+                        } else {
+                            include[i] = Ternary::MAYBE;
+                        }
+                    }
+                }
+            }
+            for i in 0..tys.len() {
+                if include[i] == Ternary::MAYBE {
+                    include[i] = if matched {
+                        Ternary::FALSE
+                    } else {
+                        Ternary::TRUE
+                    };
+                }
+            }
+        }
+        let filtered = if include.iter().any(|&t| t == Ternary::FALSE) {
+            let filtered_tys: Vec<_> = tys
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| include[*i] != Ternary::FALSE)
+                .map(|(_, t)| *t)
+                .collect();
+            self.get_union_ty::<false>(&filtered_tys, ty::UnionReduction::None, None, None, None)
+        } else {
+            target
+        };
+        if filtered.flags.contains(TypeFlags::NEVER) {
+            target
+        } else {
+            filtered
+        }
     }
 
     pub(super) fn get_apparent_ty_of_contextual_ty(

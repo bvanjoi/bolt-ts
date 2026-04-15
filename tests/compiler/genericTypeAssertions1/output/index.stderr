@@ -1,0 +1,19 @@
+  × Type 'A<number>' is not assignable to type 'A<string>'.
+   ╭─[../../tests/compiler/genericTypeAssertions1/index.ts:7:5]
+ 7 │ r
+   · ─
+   ╰────
+
+  × Type 'A<A<number>>' is not assignable to type 'A<number>'.
+   ╭─[../../tests/compiler/genericTypeAssertions1/index.ts:9:5]
+ 9 │ r2
+   · ──
+   ╰────
+
+  × Conversion of type 'A<number>' to type 'A<A<number>>' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/genericTypeAssertions1/index.ts:9:21]
+ 9 │ <A<A<number>>>foo
+   · ─────────────────
+   ╰────

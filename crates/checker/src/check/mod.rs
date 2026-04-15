@@ -97,6 +97,7 @@ use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
+use self::get_contextual::DiscriminateContextualTyByObjectLiteral;
 pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_simplified_ty::SimplifiedKind;
@@ -241,6 +242,8 @@ pub struct TyChecker<'cx> {
     interface_ty_links_arena: ty::InterfaceTyLinksArena<'cx>,
     object_mapped_ty_links_arena: ty::ObjectMappedTyLinksArena<'cx>,
     conditional_links_arena: ty::ConditionalLinksArena<'cx>,
+    discriminant_context_ty_by_object_literal_cache:
+        FxHashMap<DiscriminateContextualTyByObjectLiteral, &'cx ty::Ty<'cx>>,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -632,6 +635,7 @@ impl<'cx> TyChecker<'cx> {
             ty_instantiation_map: TyInstantiationMap::new(1024),
             iteration_tys_map: no_hashmap_with_capacity(1024),
             mark_tys: no_hashset_with_capacity(1024),
+            discriminant_context_ty_by_object_literal_cache: fx_hashmap_with_capacity(64),
 
             shared_flow_info: Vec::with_capacity(1024),
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
@@ -3600,6 +3604,62 @@ impl<'cx> TyChecker<'cx> {
         prop_ty.and_then(|prop_ty| self.get_constituent_ty_for_key_ty(ty, prop_ty))
     }
 
+    fn get_matching_union_constituent_for_object_literal(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        node: &'cx ast::ObjectLit<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(ty.kind.is_union());
+        let key_prop_name = self.get_key_prop_name(ty);
+        let prop_node = key_prop_name.and_then(|key_prop_name| {
+            node.members.iter().find(|item| {
+                let ast::ObjectMemberKind::PropAssignment(n) = item.kind else {
+                    return false;
+                };
+                let s = self.final_res(n.id);
+                self.binder.symbol(s).name == key_prop_name
+                    && n.init.kind.is_possibly_discriminant_value()
+            })
+        });
+        let prop_ty = prop_node.map(|prop_node| {
+            let ast::ObjectMemberKind::PropAssignment(n) = prop_node.kind else {
+                unreachable!();
+            };
+            self.get_context_free_ty_of_expr(n.init)
+        });
+        prop_ty.and_then(|prop_ty| self.get_constituent_ty_for_key_ty(ty, prop_ty))
+    }
+
+    fn get_context_free_ty_of_ident(&mut self, ident: &'cx ast::Ident) -> &'cx ty::Ty<'cx> {
+        let id = ident.id;
+        if let Some(ty) = self.get_node_links(id).get_context_free_ty() {
+            return ty;
+        };
+        self.push_type_context(id, Some(self.any_ty), false);
+        let old_check_mode = self.check_mode;
+        self.check_mode = Some(CheckMode::SKIP_GENERIC_FUNCTIONS);
+        let ty = self.check_ident(ident);
+        self.check_mode = old_check_mode;
+        self.pop_type_context();
+        self.get_mut_node_links(id).set_context_free_ty(ty);
+        ty
+    }
+
+    fn get_context_free_ty_of_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
+        let id = expr.id();
+        if let Some(ty) = self.get_node_links(id).get_context_free_ty() {
+            return ty;
+        };
+        self.push_type_context(id, Some(self.any_ty), false);
+        let old_check_mode = self.check_mode;
+        self.check_mode = Some(CheckMode::SKIP_GENERIC_FUNCTIONS);
+        let ty = self.check_expr(expr);
+        self.check_mode = old_check_mode;
+        self.pop_type_context();
+        self.get_mut_node_links(id).set_context_free_ty(ty);
+        ty
+    }
+
     fn empty_array<T>(&self) -> &'cx [T] {
         cast_empty_array(self.empty_array)
     }
@@ -4415,6 +4475,7 @@ impl<'cx> TyChecker<'cx> {
         !self.get_generic_object_flags(ty).is_empty()
     }
 
+    /// for example, normalize `{ [S in string]: number; }[string]` to `number`.
     fn get_normalized_ty(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
@@ -4438,19 +4499,21 @@ impl<'cx> TyChecker<'cx> {
                 self.get_regular_ty(ty).unwrap()
             } else if ty.kind.is_generic_tuple_type() {
                 // get normalized tuple type
-                let reduced = self.get_reduced_ty(ty);
-                if reduced != ty {
-                    reduced
-                } else if let Some(i) = ty.kind.as_intersection()
-                    && should_normalize_intersection(self, i)
-                    && let normalized_tys = self
-                        .same_map_tys(Some(i.tys), |this, t, _| this.get_normalized_ty(t, kind))
-                        .unwrap()
-                    && !std::ptr::eq(normalized_tys, i.tys)
-                {
-                    self.get_intersection_ty(normalized_tys, IntersectionFlags::None, None, None)
-                } else {
+                let elements = self.get_element_tys(ty);
+                let normalized_elements = self
+                    .same_map_tys(Some(elements), |this, t, _| {
+                        if t.flags.intersects(TypeFlags::SIMPLIFIABLE) {
+                            this.get_simplified_ty(t, kind)
+                        } else {
+                            t
+                        }
+                    })
+                    .unwrap();
+                if std::ptr::eq(normalized_elements, elements) {
                     ty
+                } else {
+                    let target = ty.kind.expect_object_reference().target;
+                    self.create_normalized_tuple_ty(target, normalized_elements)
                 }
             } else if ty.get_object_flags().contains(ObjectFlags::REFERENCE) {
                 let (node, target) = match ty.kind.expect_object().kind {
@@ -4464,6 +4527,22 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     self.get_single_base_for_non_augmenting_subtype(ty)
                         .unwrap_or(ty)
+                }
+            } else if ty.flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+                // get_normalize_union_or_intersection_ty
+                let reduced = self.get_reduced_ty(ty);
+                if reduced != ty {
+                    reduced
+                } else if let Some(i) = ty.kind.as_intersection()
+                    && should_normalize_intersection(self, i)
+                    && let normalized_tys = self
+                        .same_map_tys(Some(i.tys), |this, t, _| this.get_normalized_ty(t, kind))
+                        .unwrap()
+                    && !std::ptr::eq(normalized_tys, i.tys)
+                {
+                    self.get_intersection_ty(normalized_tys, IntersectionFlags::None, None, None)
+                } else {
+                    ty
                 }
             } else if let Some(s) = ty.kind.as_substitution_ty() {
                 if kind == SimplifiedKind::Writing {

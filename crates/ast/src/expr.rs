@@ -430,6 +430,23 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+
+    pub fn is_possibly_discriminant_value(&self) -> bool {
+        match self {
+            ExprKind::Paren(n) => n.expr.kind.is_possibly_discriminant_value(),
+            ExprKind::PropAccess(n) => n.expr.kind.is_possibly_discriminant_value(),
+            ExprKind::StringLit(_)
+            | ExprKind::NumLit(_)
+            | ExprKind::BigIntLit(_)
+            | ExprKind::NoSubstitutionTemplateLit(_)
+            | ExprKind::Template(_)
+            | ExprKind::BoolLit(_)
+            | ExprKind::NullLit(_)
+            | ExprKind::Ident(_) => true,
+            // TODO: jsx
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -71,6 +71,10 @@ impl<'cx> TyChecker<'cx> {
                 });
                 self.check_var_like_decl(n)
             }
+            ast::ObjectTyMemberKind::Method(n) => {
+                // check_method_declaration
+                self.check_fn_like_decl(n);
+            }
             _ => {
                 // TODO:
             }

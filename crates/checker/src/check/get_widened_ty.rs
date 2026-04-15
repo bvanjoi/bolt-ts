@@ -8,7 +8,6 @@ use super::ty::TypeFlags;
 use super::utils::contains_ty;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
