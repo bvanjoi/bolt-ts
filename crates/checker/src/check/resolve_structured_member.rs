@@ -1984,7 +1984,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         let modifiers_prop = if key_ty.useable_as_prop_name() {
                             let symbol_name = this.get_prop_name_from_ty(key_ty);
-                            this.get_prop_of_ty(modifiers_ty, symbol_name)
+                            this.get_prop_of_ty::<false>(modifiers_ty, symbol_name)
                         } else {
                             None
                         };

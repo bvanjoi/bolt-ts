@@ -170,7 +170,7 @@ impl<'cx> TyChecker<'cx> {
             .flat_map(|(i, ele)| {
                 if self.is_tuple_like(target)
                     && self
-                        .get_prop_of_ty(target, SymbolName::EleNum((i as f64).into()))
+                        .get_prop_of_ty::<false>(target, SymbolName::EleNum((i as f64).into()))
                         .is_none()
                 {
                     None

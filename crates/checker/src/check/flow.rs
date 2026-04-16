@@ -1585,7 +1585,7 @@ impl<'cx> TyChecker<'cx> {
             } else if check_derived {
                 return self.filter_type(ty, |this, t| !this.is_ty_derived_from(t, candidate));
             }
-            let ty = if ty.flags.intersects(TypeFlags::UNKNOWN) {
+            let ty = if ty.flags.contains(TypeFlags::UNKNOWN) {
                 todo!()
             } else {
                 ty

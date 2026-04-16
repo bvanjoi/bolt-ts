@@ -42,8 +42,7 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
         {
             restrictive_instantiation
         } else {
-            let restrictive_instantiation =
-                checker.create_param_ty(param.symbol, param.offset, false);
+            let restrictive_instantiation = checker.create_param_ty(param.symbol, false);
             let no_constraint_ty = checker.no_constraint_ty();
             checker.ty_links.insert(
                 restrictive_instantiation.id,

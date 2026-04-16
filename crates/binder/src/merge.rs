@@ -206,12 +206,12 @@ pub trait MergeSymbol<'cx> {
         let s_const_enum_only_module = s.const_enum_only_module;
 
         if !t_flags.intersects(s_flags.get_excluded())
-            || s_flags.union(t_flags).intersects(SymbolFlags::ASSIGNMENT)
+            || s_flags.union(t_flags).contains(SymbolFlags::ASSIGNMENT)
         {
             if source == target {
                 return target;
             }
-            if !t_flags.intersects(SymbolFlags::TRANSIENT) {
+            if !t_flags.contains(SymbolFlags::TRANSIENT) {
                 // TODO:
             }
             if let Some(old_decls) = s.decls.clone() {

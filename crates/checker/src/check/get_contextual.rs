@@ -573,7 +573,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let prop = self.get_prop_of_ty(ty, name)?;
+        let prop = self.get_prop_of_ty::<false>(ty, name)?;
         if self.is_circular_mapped_prop(prop) {
             return None;
         }

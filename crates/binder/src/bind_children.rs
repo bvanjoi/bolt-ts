@@ -225,6 +225,54 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    pub(super) fn declare_symbol_and_add_to_symbol_table_for_fn_like_container(
+        &mut self,
+        name: SymbolName,
+        current: ast::NodeID,
+        container: ast::NodeID,
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) -> SymbolID {
+        use ast::Node::*;
+        debug_assert_eq!(self.container, Some(container));
+        debug_assert!(matches!(
+            self.p.node(container),
+            FnTy(_)
+                | ClassCtor(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
+                | IndexSigDecl(_)
+                | ClassMethodElem(_)
+                | ObjectMethodMember(_)
+                | MethodSignature(_)
+                | CtorTy(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | FnDecl(_)
+                | FnExpr(_)
+                | ArrowFnExpr(_)
+                | TypeAliasDecl(_)
+                | MappedTy(_)
+                | ClassStaticBlockDecl(_)
+        ));
+        debug_assert!(
+            self.p.node(container).has_locals(),
+            "container({:?}) should have locals, but it doesn't",
+            self.p.node(container).span()
+        );
+        let table = SymbolTableLocation::locals(container);
+        let container_symbol = self.final_res[&container];
+        self.declare_symbol(
+            Some(name),
+            table,
+            Some(container_symbol),
+            current,
+            symbol_flags,
+            symbol_excludes,
+            DeclareSymbolProperty::empty(),
+        )
+    }
+
     pub(super) fn declare_symbol_and_add_to_symbol_table(
         &mut self,
         name: SymbolName,
@@ -286,24 +334,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
             | MappedTy(_)
-            | ClassStaticBlockDecl(_) => {
-                debug_assert!(
-                    c.has_locals(),
-                    "container({:?}) should have locals, but it doesn't",
-                    c.span()
-                );
-                let table = SymbolTableLocation::locals(container);
-                let container_symbol = self.final_res[&container];
-                self.declare_symbol(
-                    Some(name),
-                    table,
-                    Some(container_symbol),
+            | ClassStaticBlockDecl(_) => self
+                .declare_symbol_and_add_to_symbol_table_for_fn_like_container(
+                    name,
                     current,
+                    container,
                     symbol_flags,
                     symbol_excludes,
-                    DeclareSymbolProperty::empty(),
-                )
-            }
+                ),
             _ => unreachable!(),
         }
     }

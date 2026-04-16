@@ -160,8 +160,8 @@ impl<'cx> TyChecker<'cx> {
 
             if let Some(declared_prop) = declared_prop
                 && let name = self.binder.symbol(declared_prop).name
-                && let Some(prop) = self.get_prop_of_ty(ty_with_this, name)
-                && let Some(base_prop) = self.get_prop_of_ty(base_with_this, name)
+                && let Some(prop) = self.get_prop_of_ty::<false>(ty_with_this, name)
+                && let Some(base_prop) = self.get_prop_of_ty::<false>(base_with_this, name)
                 && let prop_ty = self.get_type_of_symbol(prop)
                 && let base_prop_ty = self.get_type_of_symbol(base_prop)
                 && !self.check_type_assignable_to(

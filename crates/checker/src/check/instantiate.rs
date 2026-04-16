@@ -10,7 +10,6 @@ use thin_vec::thin_vec;
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
-
 use super::ty::{self, ObjectMappedTyLinks};
 use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
@@ -1296,9 +1295,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_min_ty_arg_count_of_ty_params(&self, ty_params: ty::Tys<'cx>) -> usize {
         let mut min = 0;
-        for (i, param) in ty_params.iter().enumerate() {
-            let param = param.kind.expect_param();
-            if !self.has_ty_param_default(param) {
+        for (i, ty_param) in ty_params.iter().enumerate() {
+            let ty_param = ty_param.kind.expect_param();
+            if !self.has_ty_param_default(ty_param) {
                 min = i + 1;
             }
         }

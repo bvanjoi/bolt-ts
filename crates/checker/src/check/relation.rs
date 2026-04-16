@@ -164,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
         let source_props = self.get_props_of_ty(source_enum_ty);
         for source_prop in source_props {
             let source_name = self.symbol(*source_prop).name;
-            let target_prop = self.get_prop_of_ty(target_enum_ty, source_name);
+            let target_prop = self.get_prop_of_ty::<false>(target_enum_ty, source_name);
             let Some(target_prop) = target_prop else {
                 // TODO: report error
                 self.enum_relation
@@ -563,14 +563,23 @@ impl<'cx> TyChecker<'cx> {
         let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
             unreachable!()
         };
-        let mut members = fx_indexmap_with_capacity(16);
+        let mut members = fx_indexmap_with_capacity(0);
         for current in tys {
-            for prop in self.get_props_of_ty(current) {
+            let props = self.get_props_of_ty(current);
+            members.reserve_exact(props.len());
+            for prop in props {
                 let name = self.symbol(*prop).name;
-                if let indexmap::map::Entry::Vacant(vac) = members.entry(name)
-                    && let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
-                {
-                    vac.insert(combined_prop);
+                if let indexmap::map::Entry::Vacant(vac) = members.entry(name) {
+                    let skip_object_function_property_assignment =
+                        ty.flags.contains(TypeFlags::INTERSECTION);
+                    let combine_prop = if skip_object_function_property_assignment {
+                        self.get_prop_of_union_or_intersection_ty::<true>(ty, name)
+                    } else {
+                        self.get_prop_of_union_or_intersection_ty::<false>(ty, name)
+                    };
+                    if let Some(combined_prop) = combine_prop {
+                        vac.insert(combined_prop);
+                    }
                 }
             }
 
@@ -622,7 +631,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn get_prop_of_ty(
+    pub(super) fn get_prop_of_ty<const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool>(
         &mut self,
         ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -662,39 +671,88 @@ impl<'cx> TyChecker<'cx> {
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
-        } else if ty.kind.is_intersection() || ty.kind.is_union() {
-            self.get_prop_of_union_or_intersection_ty(ty, name)
+        } else if ty.kind.is_intersection() {
+            if let Some(prop) = self.get_prop_of_union_or_intersection_ty::<true>(ty, name) {
+                Some(prop)
+            } else if !SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT {
+                self.get_prop_of_union_or_intersection_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(
+                    ty, name,
+                )
+            } else {
+                None
+            }
+        } else if ty.kind.is_union() {
+            self.get_prop_of_union_or_intersection_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(
+                ty, name,
+            )
         } else {
             None
         }
     }
 
-    fn get_prop_of_union_or_intersection_ty(
+    fn get_prop_of_union_or_intersection_ty<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT: bool,
+    >(
         &mut self,
         ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        let prop = self.get_union_or_intersection_prop(ty, name)?;
-        if !self
-            .get_check_flags(prop)
-            .contains(CheckFlags::READ_PARTIAL)
-        {
+        let prop = self
+            .get_union_or_intersection_prop::<SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT>(ty, name)?;
+        let check_flags = self.get_check_flags(prop);
+        if !check_flags.contains(CheckFlags::READ_PARTIAL) {
             Some(prop)
         } else {
             None
         }
     }
 
-    pub(super) fn get_union_or_intersection_prop(
+    pub(super) fn get_union_or_intersection_prop<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT: bool,
+    >(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        // TODO: cache
-        self.create_union_or_intersection_prop(containing_ty, name)
+        let key = UnionOrIntersectionTyPropertyKey::new(containing_ty, name);
+        if let Some(cached) = if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
+            self.union_or_intersection_property_cache_without_object_function_property_augment
+                .get(&key)
+        } else {
+            self.union_or_intersection_property_cache.get(&key)
+        } {
+            return *cached;
+        }
+
+        let ret = self
+            .create_union_or_intersection_prop::<SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT>(
+                containing_ty,
+                name,
+            );
+        // TODO: should we only store the result when `ret.is_some()`?
+        if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
+            let prev = self
+                .union_or_intersection_property_cache_without_object_function_property_augment
+                .insert(key, ret);
+            // debug_assert!(prev.is_none())
+            if let Some(ret) = ret
+                && !self.get_check_flags(ret).contains(CheckFlags::PARTIAL)
+                && !self.union_or_intersection_property_cache.contains_key(&key)
+            {
+                let prev = self
+                    .union_or_intersection_property_cache
+                    .insert(key, Some(ret));
+                debug_assert!(prev.is_none())
+            }
+        } else {
+            let prev = self.union_or_intersection_property_cache.insert(key, ret);
+            debug_assert!(prev.is_none());
+        };
+
+        ret
     }
 
-    fn create_union_or_intersection_prop(
+    fn create_union_or_intersection_prop<const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool>(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -721,7 +779,9 @@ impl<'cx> TyChecker<'cx> {
             if self.is_error(ty) || ty.flags.contains(TypeFlags::NEVER) {
                 continue;
             }
-            if let Some(prop) = self.get_prop_of_ty(ty, name) {
+            if let Some(prop) =
+                self.get_prop_of_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(ty, name)
+            {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop, None);
                 let symbol_flags = self.symbol(prop).flags;
                 if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
@@ -993,7 +1053,8 @@ impl<'cx> TyChecker<'cx> {
                         .intersects(CheckFlags::PARTIAL))
             {
                 let target_prop_name = target_prop_symbol.name;
-                let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
+                let Some(source_prop) = self.get_prop_of_ty::<false>(source, target_prop_name)
+                else {
                     unmatched.push(*target_prop);
                     continue;
                 };
@@ -1129,5 +1190,16 @@ impl<'cx> TyChecker<'cx> {
             relation,
             has_intersection_state,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct UnionOrIntersectionTyPropertyKey {
+    ty: ty::TyID,
+    name: SymbolName,
+}
+impl UnionOrIntersectionTyPropertyKey {
+    pub fn new(ty: &ty::Ty, name: SymbolName) -> Self {
+        Self { ty: ty.id, name }
     }
 }

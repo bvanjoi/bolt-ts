@@ -84,7 +84,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let parent = self.parent_map.parent(ty_param.id).unwrap();
         // TODO: is_js_doc_template_tag
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
-            assert!(ty_param.default.is_none());
+            debug_assert!(ty_param.default.is_none());
             let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
                 let n_id = n.id();
                 let p = self.parent_map.parent(n_id)?;
@@ -265,9 +265,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.name.kind {
             Ident(ident) => {
                 let name = SymbolName::Atom(ident.name);
-                let symbol = self.declare_symbol_and_add_to_symbol_table(
+                let container = self.container.unwrap();
+                let symbol = self.declare_symbol_and_add_to_symbol_table_for_fn_like_container(
                     name,
                     n.id,
+                    container,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     SymbolFlags::PARAMETER_EXCLUDES,
                 );

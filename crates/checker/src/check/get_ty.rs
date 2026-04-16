@@ -990,7 +990,7 @@ impl<'cx> TyChecker<'cx> {
                         .unwrap_or(self.any_ty),
                 );
             }
-            if let Some(prop) = self.get_prop_of_ty(object_ty, prop_name) {
+            if let Some(prop) = self.get_prop_of_ty::<false>(object_ty, prop_name) {
                 if let Some(access_expr) = access_expr
                     && let assignment_target_kind = self
                         .node_query(access_expr.module())

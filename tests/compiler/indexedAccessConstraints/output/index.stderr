@@ -1,0 +1,5 @@
+  × Type 'T[keyof T]' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/indexedAccessConstraints/index.ts:6:9]
+ 6 │ b
+   · ─
+   ╰────

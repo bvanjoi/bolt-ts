@@ -356,7 +356,7 @@ impl<'cx> TyChecker<'cx> {
         error_output_container: Option<ast::NodeID>,
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
-        let method = self.get_prop_of_ty(ty, name);
+        let method = self.get_prop_of_ty::<false>(ty, name);
         let method_name_is_not_next = method_name != keyword::IDENT_NEXT;
         if method.is_none() && method_name_is_not_next {
             return None;
@@ -639,7 +639,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::IterationTys<'cx> {
         let name = bolt_ts_binder::SymbolName::Atom(resolver.iterator_symbol_name());
         let name = self.get_prop_name_for_known_symbol_name(name);
-        let method = self.get_prop_of_ty(ty, name);
+        let method = self.get_prop_of_ty::<false>(ty, name);
         let method_ty = if let Some(method) = method
             && !self.symbol(method).flags.contains(SymbolFlags::OPTIONAL)
         {

@@ -430,12 +430,10 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn create_param_ty(
         &mut self,
         symbol: Option<SymbolID>,
-        offset: Option<usize>,
         is_this_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
         let ty = ty::ParamTy {
             symbol,
-            offset,
             target: None,
             is_this_ty,
         };
@@ -851,7 +849,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut _ty_params = Vec::with_capacity(arity);
                 debug_assert_eq!(arity, element_flags.len());
                 for (i, flag) in element_flags.iter().enumerate() {
-                    let ty_param = this.create_param_ty(None, Some(i), false);
+                    let ty_param = this.create_param_ty(None, false);
                     _ty_params.push(ty_param);
                     combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
@@ -901,7 +899,7 @@ impl<'cx> TyChecker<'cx> {
             props.push(length_symbol);
 
             const OBJECT_FLAGS: ObjectFlags = ObjectFlags::TUPLE.union(ObjectFlags::REFERENCE);
-            let this_ty = this.create_param_ty(None, None, true);
+            let this_ty = this.create_param_ty(None, true);
             let ty = this.create_interface_ty(
                 None,
                 ty_params,

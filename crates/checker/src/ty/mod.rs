@@ -360,7 +360,11 @@ impl<'cx> Ty<'cx> {
                 let name = checker.binder.symbol(symbol).name;
                 checker.atoms.get(name.expect_atom()).to_string()
             }
-            TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
+            TyKind::IndexedAccess(n) => {
+                let object = checker.print_ty(n.object_ty).to_string();
+                let index = checker.print_ty(n.index_ty);
+                format!("{object}[{index}]")
+            }
             TyKind::Cond(n) => {
                 if let Some(symbol) = n.root.alias_symbol {
                     let name = checker.binder.symbol(symbol).name;
@@ -369,7 +373,10 @@ impl<'cx> Ty<'cx> {
                     "cond".to_string()
                 }
             }
-            TyKind::Index(n) => n.ty.to_string(checker),
+            TyKind::Index(n) => {
+                let ty = n.ty.to_string(checker);
+                format!("keyof {ty}")
+            }
             TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
             TyKind::Substitution(_) => "substitution".to_string(),
             TyKind::StringMapping(s) => {
@@ -719,7 +726,6 @@ pub struct BigIntLitTy<'cx> {
 #[derive(Debug)]
 pub struct ParamTy<'cx> {
     pub symbol: Option<SymbolID>,
-    pub offset: Option<usize>,
     pub target: Option<&'cx self::Ty<'cx>>,
     pub is_this_ty: bool,
 }

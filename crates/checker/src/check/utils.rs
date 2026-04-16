@@ -285,7 +285,15 @@ impl<'cx> TyChecker<'cx> {
             return false;
         };
         decls.iter().any(|decl| {
-            let ty_param_node = self.p.node(*decl).expect_ty_param();
+            let Some(ty_param_node) = self.p.node(*decl).as_ty_param() else {
+                // The declaration maybe not only type parameter, it also could be a parameter, for example:
+                // ```
+                // function foo<A>(A: number) {}
+                //              |  ~ decl
+                //              ~ decl
+                // ```
+                return false;
+            };
             ty_param_node.default.is_some()
         })
     }

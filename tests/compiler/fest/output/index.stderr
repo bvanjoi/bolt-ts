@@ -299,26 +299,29 @@
       · ─────────
       ╰────
 
-  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+  × Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof
+  │ T'.
       ╭─[../../tests/compiler/fest/index.ts:1550:36]
  1550 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
-  × Type 'symbol | number | string' does not satisfy the constraint
-  │ 'UnionToIntersection'.
+  × Type 'symbol | number | string' does not satisfy the constraint 'keyof
+  │ UnionToIntersection'.
       ╭─[../../tests/compiler/fest/index.ts:1562:36]
  1562 │ PropertyKey
       · ───────────
       ╰────
 
-  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+  × Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof
+  │ T'.
       ╭─[../../tests/compiler/fest/index.ts:1578:68]
  1578 │ KeysOfUnion<T>
       · ──────────────
       ╰────
 
-  × Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+  × Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof
+  │ T'.
       ╭─[../../tests/compiler/fest/index.ts:1582:51]
  1582 │ KeysOfUnion<T>
       · ──────────────

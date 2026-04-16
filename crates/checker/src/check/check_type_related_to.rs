@@ -623,7 +623,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     || name.is_numeric()
                     || name.expect_atom() == IDENT_LENGTH)
                 && (!optionals_only || target_s.flags.contains(SymbolFlags::OPTIONAL))
-                && let Some(source_prop) = self.c.get_prop_of_ty(source, name)
+                && let Some(source_prop) = self.c.get_prop_of_ty::<false>(source, name)
                 && !source_prop.eq(target_prop)
             {
                 let related = self.prop_related_to(
@@ -1523,7 +1523,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         None
                     };
                     if if include_optional {
-                        filtered_by_applicability
+                        !filtered_by_applicability
                             .unwrap()
                             .flags
                             .contains(TypeFlags::NEVER)
@@ -2014,7 +2014,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             'outer: for ty in target_union.tys {
                 for (i, &source_prop) in source_props_filtered.iter().enumerate() {
                     let name = self.c.symbol(source_prop).name;
-                    let Some(target_prop) = self.c.get_prop_of_ty(ty, name) else {
+                    let Some(target_prop) = self.c.get_prop_of_ty::<false>(ty, name) else {
                         continue 'outer;
                     };
                     if source_prop == target_prop {

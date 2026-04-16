@@ -84,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
         if ty.kind.is_union()
-            && let Some(prop) = self.get_union_or_intersection_prop(ty, name)
+            && let Some(prop) = self.get_union_or_intersection_prop::<false>(ty, name)
             && let check_flags = self.get_check_flags(prop)
             && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
         {
@@ -131,6 +131,6 @@ impl<'cx> TyChecker<'cx> {
             && self
                 .get_type_of_symbol(symbol)
                 .flags
-                .intersects(ty::TypeFlags::NEVER)
+                .contains(ty::TypeFlags::NEVER)
     }
 }

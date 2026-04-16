@@ -71,7 +71,7 @@ use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr}
 use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery, prop_name};
+use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
@@ -121,6 +121,7 @@ use self::node_check_flags::NodeCheckFlags;
 use self::relation::EnumRelationMap;
 use self::relation::RelationComparisonResult;
 use self::relation::RelationKey;
+use self::relation::UnionOrIntersectionTyPropertyKey;
 pub use self::resolve::ExpectedArgsCount;
 use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
@@ -244,6 +245,10 @@ pub struct TyChecker<'cx> {
     conditional_links_arena: ty::ConditionalLinksArena<'cx>,
     discriminant_context_ty_by_object_literal_cache:
         FxHashMap<DiscriminateContextualTyByObjectLiteral, &'cx ty::Ty<'cx>>,
+    union_or_intersection_property_cache:
+        FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
+    union_or_intersection_property_cache_without_object_function_property_augment:
+        FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -480,17 +485,20 @@ impl<'cx> TyChecker<'cx> {
 
         let mut tys = Vec::with_capacity(cap);
         let mut common_ty_links_arena = ty::CommonTyLinksArena::with_capacity(cap);
+        let mut never_intersection_tys = no_hashmap_with_capacity(1024);
 
         macro_rules! make_intrinsic_type {
             ( { $( ($name: ident, $atom_id: expr, $ty_flags: expr, $object_flags: expr) ),* $(,)? } ) => {
                 $(
                     let $name = {
                         let ty = ty::IntrinsicTy {
-                            object_flags: $object_flags,
+                            object_flags: $object_flags | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED,
                             name: $atom_id,
                         };
                         let kind = ty::TyKind::Intrinsic(ty_arena.alloc(ty));
-                        TyChecker::make_ty(kind, $ty_flags, &mut tys, &mut common_ty_links_arena, ty_arena)
+                        let ty = TyChecker::make_ty(kind, $ty_flags, &mut tys, &mut common_ty_links_arena, ty_arena);
+                        never_intersection_tys.insert(ty.id, false);
+                        ty
                     };
                 )*
             };
@@ -636,6 +644,9 @@ impl<'cx> TyChecker<'cx> {
             iteration_tys_map: no_hashmap_with_capacity(1024),
             mark_tys: no_hashset_with_capacity(1024),
             discriminant_context_ty_by_object_literal_cache: fx_hashmap_with_capacity(64),
+            union_or_intersection_property_cache: fx_hashmap_with_capacity(64),
+            union_or_intersection_property_cache_without_object_function_property_augment:
+                fx_hashmap_with_capacity(64),
 
             shared_flow_info: Vec::with_capacity(1024),
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
@@ -785,7 +796,7 @@ impl<'cx> TyChecker<'cx> {
             resolving_sig: Default::default(),
             silent_never_sig: Default::default(),
 
-            never_intersection_tys: no_hashmap_with_capacity(1024),
+            never_intersection_tys,
 
             type_name: no_hashmap_with_capacity(1024 * 8),
 
@@ -887,9 +898,9 @@ impl<'cx> TyChecker<'cx> {
             (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
             (unknown_empty_object_ty,       this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None)),
-            (mark_sub_ty,                   this.create_param_ty(None, None, false)),
-            (mark_other_ty,                 this.create_param_ty(None, None, false)),
-            (mark_super_ty,                 this.create_param_ty(None, None, false)),
+            (mark_sub_ty,                   this.create_param_ty(None, false)),
+            (mark_other_ty,                 this.create_param_ty(None, false)),
+            (mark_super_ty,                 this.create_param_ty(None, false)),
             (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (no_iteration_tys,              this.alloc(ty::IterationTys {yield_ty: error_ty, return_ty: error_ty, next_ty: error_ty})),
@@ -1116,11 +1127,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_reduced_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.as_union().is_some_and(|union| {
-            union
-                .object_flags
-                .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
-        }) {
+        if let Some(u) = ty.kind.as_union()
+            && u.object_flags.contains(ObjectFlags::CONTAINS_INTERSECTIONS)
+        {
             // TODO:
         } else if ty.flags.contains(TypeFlags::INTERSECTION) {
             if let Some(is_never_intersection_ty) = self.never_intersection_tys.get(&ty.id).copied()
@@ -1690,7 +1699,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let ty = self.get_type_of_symbol(symbol);
         let name = SymbolName::Atom(name);
-        let Some(prop) = self.get_prop_of_ty(ty, name) else {
+        let Some(prop) = self.get_prop_of_ty::<false>(ty, name) else {
             return false;
         };
         let decl = prop.decl(&self.binder);
@@ -1774,7 +1783,11 @@ impl<'cx> TyChecker<'cx> {
         let name = SymbolName::Atom(right.name);
         let skip_object_function_property_augment = self.is_const_enum_object_ty(apparent_left_ty);
         let include_type_only_members = self.p.node(node).is_qualified_name();
-        let prop = self.get_prop_of_ty(apparent_left_ty, name);
+        let prop = if skip_object_function_property_augment {
+            self.get_prop_of_ty::<true>(apparent_left_ty, name)
+        } else {
+            self.get_prop_of_ty::<false>(apparent_left_ty, name)
+        };
         let prop_ty = if let Some(prop) = prop {
             self.check_prop_not_used_before_declaration(prop, node, right);
             // TODO: mark_prop_as_referenced
@@ -1877,7 +1890,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 class_ty = this.get_intersection_ty(x, IntersectionFlags::None, None, None);
                 // ===
-                if let Some(super_prop) = this.get_prop_of_ty(class_ty, parent_name) {
+                if let Some(super_prop) = this.get_prop_of_ty::<false>(class_ty, parent_name) {
                     if this.symbol(super_prop).value_decl.is_some() {
                         return true;
                     }
@@ -3590,7 +3603,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        self.get_prop_of_ty(ty, name)
+        self.get_prop_of_ty::<false>(ty, name)
             .map(|prop| self.get_type_of_symbol(prop))
     }
 
@@ -4242,7 +4255,7 @@ impl<'cx> TyChecker<'cx> {
                         })
                     }))
             || self
-                .get_prop_of_ty(ty, SymbolName::EleNum((0.).into()))
+                .get_prop_of_ty::<false>(ty, SymbolName::EleNum((0.).into()))
                 .is_some()
     }
 
@@ -5300,7 +5313,7 @@ impl<'cx> TyChecker<'cx> {
         for elem in pattern.elems {
             if elem.init.is_some() {
                 if let Some(name) = self.get_prop_name_from_object_binding_element(elem)
-                    && self.get_prop_of_ty(ty, name).is_none()
+                    && self.get_prop_of_ty::<false>(ty, name).is_none()
                 {
                     missing_elements.push(elem);
                 }

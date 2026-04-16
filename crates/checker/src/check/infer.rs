@@ -2597,7 +2597,7 @@ impl<'cx> InferenceState<'cx, '_> {
         for &target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
                 .c
-                .get_prop_of_ty(source, self.c.symbol(target_prop).name)
+                .get_prop_of_ty::<false>(source, self.c.symbol(target_prop).name)
             {
                 let s = remove_missing_ty(self, source_prop);
                 let t = remove_missing_ty(self, target_prop);

@@ -1,5 +1,3 @@
-use serde::ser;
-
 use super::OutDir;
 use super::normalized::get_module;
 use super::normalized::get_module_resolution;
