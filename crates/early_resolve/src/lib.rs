@@ -1203,7 +1203,8 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             && !resolver.p.get(id.module()).is_global_source_file(id)
             && let Some(symbol) = get_symbol(resolver, locals, key, meaning)
         {
-            let res_flags = resolver.symbol(symbol).flags;
+            let res = resolver.symbol(symbol);
+            let res_flags = res.flags;
             if res_flags.contains(SymbolFlags::ALIAS) {
                 // handle this case in late_resolve
                 return ResolvedResult {
@@ -1218,20 +1219,47 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             let mut use_result = true;
             let n = resolver.p.node(id);
             if n.is_fn_like()
-                && last_location.is_some_and(|last_location| match n {
-                    FnDecl(f) => f.body.is_none_or(|body| last_location != body.id),
+                && let Some(last_location) = last_location
+                && match n {
+                    FnDecl(n) => n.body.is_none_or(|body| last_location != body.id),
+                    ClassMethodElem(n) => n.body.is_none_or(|body| last_location != body.id),
                     _ => false, //TODO: other function decl,
-                })
+                }
             {
                 let flags = meaning.intersection(res_flags);
-                if flags.contains(SymbolFlags::TYPE) {
-                    // TODO:
+                if flags.intersects(SymbolFlags::TYPE) {
+                    // TODO: last_location != JsDoc
+
+                    use_result = if res_flags.contains(SymbolFlags::TYPE_PARAMETER) {
+                        // TODO: last_location is synthesized
+                        (match n {
+                            FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
+                            ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
+                            _ => false,
+                        }) || matches!(
+                            resolver.p.node(last_location),
+                            ast::Node::ParamDecl(_) | ast::Node::TyParam(_)
+                        )
+                    } else {
+                        false
+                    };
                 }
                 if flags.intersects(SymbolFlags::VARIABLE)
                     && res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
                 {
-                    let last = resolver.p.node(last_location.unwrap());
-                    use_result = last.is_param_decl();
+                    let last = resolver.p.node(last_location);
+                    // TODO: last_location is synthesized
+                    use_result = last.is_param_decl()
+                        || (match n {
+                            FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
+                            ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
+                            _ => false,
+                        } && res.value_decl.is_some_and(|n| {
+                            resolver
+                                .node_query()
+                                .find_ancestor(n, |current| current.is_param_decl().then_some(true))
+                                .is_some()
+                        }))
                 };
             } else if let Some(cond) = n.as_cond_ty() {
                 use_result = last_location.is_some_and(|last| last == cond.true_ty.id());
@@ -1389,12 +1417,12 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     let container = resolver.parent(parent_id).unwrap();
                     let c = resolver.p.node(container);
                     if c.is_class_like()
-                        && let Some(res) = resolver
-                            .symbol(resolver.symbol_of_decl(container))
-                            .members()
-                            .and_then(|m| get_symbol(resolver, m, key, meaning & SymbolFlags::TYPE))
+                        && let symbol = resolver.symbol_of_decl(container)
+                        && let Some(members) = resolver.symbol(symbol).members()
+                        && let Some(res) =
+                            get_symbol(resolver, members, key, meaning & SymbolFlags::TYPE)
                     {
-                        assert!(!resolver.symbol(res).flags.intersects(SymbolFlags::ALIAS));
+                        debug_assert!(!resolver.symbol(res).flags.contains(SymbolFlags::ALIAS));
                         return ResolvedResult {
                             symbol: Symbol::ERR,
                             associated_declaration_for_containing_initializer_or_binding_name,
@@ -1403,6 +1431,25 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                             property_with_invalid_initializer,
                         };
                     }
+                }
+            }
+            ComputedPropName(_) => {
+                let grand_parent_id = resolver.parent(resolver.parent(id).unwrap()).unwrap();
+                let grand_parent = resolver.p.node(grand_parent_id);
+                if (grand_parent.is_class_like() || grand_parent.is_interface_decl())
+                    && let symbol = resolver.symbol_of_decl(grand_parent_id)
+                    && let Some(members) = resolver.symbol(symbol).members()
+                    && let Some(res) =
+                        get_symbol(resolver, members, key, meaning & SymbolFlags::TYPE)
+                {
+                    debug_assert!(!resolver.symbol(res).flags.contains(SymbolFlags::ALIAS));
+                    return ResolvedResult {
+                        symbol: Symbol::ERR,
+                        associated_declaration_for_containing_initializer_or_binding_name,
+                        within_deferred_context,
+                        base_class_expression_cannot_reference_class_type_parameters: true,
+                        property_with_invalid_initializer,
+                    };
                 }
             }
             ArrowFnExpr(_) if *resolver.options.target() >= Target::ES2015 => {}

@@ -1556,7 +1556,7 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         if let Some(pred_ty) = pred.ty() {
-            if ty.flags.intersects(TypeFlags::ANY)
+            if ty.flags.contains(TypeFlags::ANY)
                 && (pred_ty == self.global_object_ty() || pred_ty == self.global_fn_ty())
             {
                 return ty;
@@ -1595,7 +1595,9 @@ impl<'cx> TyChecker<'cx> {
             return self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
         } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || ty == candidate {
             return candidate;
-        };
+        } else if ty == candidate {
+            return ty;
+        }
 
         let is_related = if check_derived {
             Self::is_ty_derived_from

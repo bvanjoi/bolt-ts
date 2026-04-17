@@ -2642,13 +2642,22 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if symbol == self.arguments_symbol {
-            return self.get_type_of_symbol(symbol);
+            return if self
+                .node_query(ident.id.module())
+                .is_in_prop_initializer_or_class_static_block(ident.id, true)
+            {
+                self.error_ty
+            } else {
+                self.get_type_of_symbol(symbol)
+            };
         }
 
         let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
         // TODO: move into name resolution.
         // TODO: dont duplicate check more than once.
-        if self.symbol(local_or_export_symbol).flags.intersects(
+        let local_or_export_s = self.symbol(local_or_export_symbol);
+        let mut decl = local_or_export_s.value_decl;
+        if local_or_export_s.flags.intersects(
             SymbolFlags::BLOCK_SCOPED_VARIABLE
                 .union(SymbolFlags::CLASS)
                 .union(SymbolFlags::ENUM),
@@ -2685,14 +2694,6 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let mut decl = if symbol == self.global_this_symbol {
-            return ty;
-        } else if let Some(decl) = local_or_export_symbol.opt_decl(&self.binder) {
-            decl
-        } else {
-            return ty;
-        };
-
         let s = self.binder.symbol(local_or_export_symbol);
         let is_alias = s.flags.contains(SymbolFlags::ALIAS);
 
@@ -2702,13 +2703,14 @@ impl<'cx> TyChecker<'cx> {
                 return ty;
             }
         } else if is_alias {
-            let Some(d) = s.get_decl_of_alias_symbol(&self.p) else {
-                return ty;
-            };
-            decl = d;
+            decl = s.get_decl_of_alias_symbol(&self.p)
         } else {
             return ty;
         }
+
+        let Some(decl) = decl else {
+            return ty;
+        };
 
         let immediate_decl = decl;
 

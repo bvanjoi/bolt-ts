@@ -10,6 +10,11 @@ use super::ty::ElementFlags;
 use super::ty::TypeFlags;
 use super::ty::{self, TypeFacts};
 use super::ty::{Sig, SigFlags, Sigs};
+use super::type_predicate::AssertsIdentTyPred;
+use super::type_predicate::AssertsThisTyPred;
+use super::type_predicate::IdentTyPred;
+use super::type_predicate::ThisTyPred;
+use super::type_predicate::{TyPred, TyPredKind};
 use super::{CheckMode, errors};
 use super::{InferenceContextId, TyChecker};
 
@@ -160,19 +165,63 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         is_intersection: bool,
-        union_reduction: Option<ty::UnionReduction>,
+        union_reduction: ty::UnionReduction,
     ) -> &'cx ty::Ty<'cx> {
         if !is_intersection {
-            self.get_union_ty::<false>(
-                tys,
-                union_reduction.unwrap_or(ty::UnionReduction::Lit),
-                None,
-                None,
-                None,
-            )
+            self.get_union_ty::<false>(tys, union_reduction, None, None, None)
         } else {
             self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
         }
+    }
+
+    pub(super) fn get_union_or_intersection_ty_pred(
+        &mut self,
+        sigs: ty::Sigs<'cx>,
+        is_intersection: bool,
+    ) -> Option<&'cx TyPred<'cx>> {
+        let mut last: Option<TyPred<'cx>> = None;
+        let mut tys = vec![];
+        for sig in sigs {
+            if let Some(pred) = self.get_ty_predicate_of_sig(sig) {
+                if !matches!(pred.kind, TyPredKind::This(_) | TyPredKind::Ident(_))
+                    || last.is_some_and(|last| !last.kind_match(pred))
+                {
+                    return None;
+                };
+                last = Some(*pred);
+                tys.push(pred.ty().unwrap());
+            } else {
+                let return_ty = if !is_intersection {
+                    self.get_ret_ty_of_sig(sig)
+                } else {
+                    return None;
+                };
+                if return_ty != self.false_ty && return_ty != self.regular_false_ty {
+                    return None;
+                }
+            }
+        }
+        let last = last?;
+        let composite_ty =
+            self.get_union_or_intersection_ty(&tys, is_intersection, ty::UnionReduction::Lit);
+        let kind = match last.kind {
+            TyPredKind::Ident(last) => TyPredKind::Ident(IdentTyPred {
+                ty: composite_ty,
+                ..last
+            }),
+            TyPredKind::This(last) => TyPredKind::This(ThisTyPred {
+                ty: composite_ty,
+                ..last
+            }),
+            TyPredKind::AssertsThis(_) => TyPredKind::AssertsThis(AssertsThisTyPred {
+                ty: Some(composite_ty),
+            }),
+            TyPredKind::AssertsIdent(last) => TyPredKind::AssertsIdent(AssertsIdentTyPred {
+                ty: Some(composite_ty),
+                ..last
+            }),
+        };
+        Some(self.alloc(TyPred { kind }))
     }
 
     pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
@@ -186,15 +235,16 @@ impl<'cx> TyChecker<'cx> {
             let ret_ty = self.get_ret_ty_of_sig(target);
             self.instantiate_ty(ret_ty, sig.mapper)
         } else if let Some(composite_sigs) = sig.composite_sigs {
-            let composite_sigs = composite_sigs
+            let tys = composite_sigs
                 .iter()
                 .map(|s| self.get_ret_ty_of_sig(s))
                 .collect::<Vec<_>>();
+
             let is_intersection = sig.composite_kind == Some(TypeFlags::INTERSECTION);
             let ty = self.get_union_or_intersection_ty(
-                &composite_sigs,
+                &tys,
                 is_intersection,
-                Some(ty::UnionReduction::Subtype),
+                ty::UnionReduction::Subtype,
             );
             self.instantiate_ty(ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {

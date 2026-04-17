@@ -153,7 +153,7 @@ fn parse(input: std::path::PathBuf) {
     assert!(result.diags.is_empty());
 }
 
-#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 10)]
+#[divan::bench(args = CASES.clone().into_iter(), sample_size = 1, sample_count = 5)]
 fn bench_project(bencher: divan::Bencher, case: &Case) {
     let CaseKind::Project { dir } = &case.kind else {
         return;
