@@ -1,0 +1,10 @@
+var func;
+func('');
+func(3);
+var x;
+func(x);
+var func2;
+func2(x, x);
+func2('', '');
+func2(x, '');
+func2('', x);

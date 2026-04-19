@@ -965,7 +965,6 @@ impl<'cx> TyChecker<'cx> {
                             argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
                             infer,
                         ));
-
                         if self.inferences[infer.as_usize()]
                             .flags
                             .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)

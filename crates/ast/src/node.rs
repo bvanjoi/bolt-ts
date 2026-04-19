@@ -1,7 +1,6 @@
 use bolt_ts_span::ModuleID;
 
-use crate::ModifierFlags;
-
+use super::ModifierFlags;
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -1056,6 +1055,15 @@ impl<'cx> Node<'cx> {
                 | Node::NoSubstitutionTemplateLit(_)
                 | Node::NumLit(_)
         )
+    }
+
+    pub fn is_non_null_access(&self) -> bool {
+        let expr = match self {
+            Node::PropAccessExpr(n) => n.expr,
+            Node::EleAccessExpr(n) => n.expr,
+            _ => return false,
+        };
+        matches!(expr.kind, super::ExprKind::NonNull(_))
     }
 }
 

@@ -98,7 +98,7 @@ impl<'cx> TyChecker<'cx> {
         if target.kind.is_object_tuple() {
             self.create_normalized_tuple_ty(target, resolved_ty_args)
         } else {
-            self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
+            self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty())
         }
     }
 
@@ -149,7 +149,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_tuple();
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
-            return self.create_reference_ty(ty, Some(element_types), ObjectFlags::empty());
+            return self.create_type_reference(ty, Some(element_types), ObjectFlags::empty());
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE)
             && element_types.iter().enumerate().any(|(i, t)| {
                 target.element_flags[i].contains(ElementFlags::VARIADIC)
@@ -241,7 +241,7 @@ impl<'cx> TyChecker<'cx> {
         if expanded_flags.is_empty() {
             tuple_target
         } else {
-            self.create_reference_ty(
+            self.create_type_reference(
                 tuple_target,
                 Some(self.alloc(expanded_tys)),
                 ObjectFlags::empty(),
@@ -249,55 +249,36 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn create_reference_ty(
+    pub(super) fn create_type_reference(
         &mut self,
         target: &'cx ty::Ty<'cx>,
         resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
-        let promise_or_awaitable_links = self
-            .promise_or_awaitable_links_arena
-            .alloc(Default::default());
-        let ty = ty::ReferenceTy {
-            target,
-            mapper: None,
-            node: None,
-            alias_symbol: None,
-            alias_ty_arguments: None,
-            promise_or_awaitable_links,
-        };
-        if !flags.is_empty() {
-            // TODO: delete branch
-            let object_flags = flags
-                | ObjectFlags::REFERENCE
-                | ty::Ty::get_propagating_flags_of_tys(resolved_ty_args.unwrap_or_default(), None);
-            let ty =
-                self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
-            assert!(!self.ty_links.contains_key(&ty.id));
-            if let Some(resolved_ty_args) = resolved_ty_args {
-                self.ty_links.insert(
-                    ty.id,
-                    TyLinks::default().with_resolved_ty_args(resolved_ty_args),
-                );
-            }
-            return ty;
-        }
-
-        let id = InstantiationTyMap::create_id(ty.target.id, resolved_ty_args.unwrap_or_default());
+        let id = InstantiationTyMap::create_id(target.id, resolved_ty_args.unwrap_or_default());
         if let Some(res) = self.instantiation_ty_map.get(id) {
             res
         } else {
+            let promise_or_awaitable_links = self
+                .promise_or_awaitable_links_arena
+                .alloc(Default::default());
+            let ty = ty::ReferenceTy {
+                target,
+                mapper: None,
+                node: None,
+                alias_symbol: None,
+                alias_ty_arguments: None,
+                promise_or_awaitable_links,
+            };
             let object_flags = flags
                 | ObjectFlags::REFERENCE
                 | ty::Ty::get_propagating_flags_of_tys(resolved_ty_args.unwrap_or_default(), None);
-            let ty =
-                self.create_object_ty(ty::ObjectTyKind::Reference(self.alloc(ty)), object_flags);
-            assert!(!self.ty_links.contains_key(&ty.id));
+            let ty = ty::ObjectTyKind::Reference(self.alloc(ty));
+            let ty = self.create_object_ty(ty, object_flags);
+            debug_assert!(!self.ty_links.contains_key(&ty.id));
             if let Some(resolved_ty_args) = resolved_ty_args {
-                let prev = self.ty_links.insert(
-                    ty.id,
-                    TyLinks::default().with_resolved_ty_args(resolved_ty_args),
-                );
+                let links = TyLinks::default().with_resolved_ty_args(resolved_ty_args);
+                let prev = self.ty_links.insert(ty.id, links);
                 debug_assert!(prev.is_none());
             }
             self.instantiation_ty_map.insert(id, ty);
@@ -534,7 +515,7 @@ impl<'cx> TyChecker<'cx> {
             self.global_array_ty()
         };
         let resolved_ty_args = self.alloc([element_ty]);
-        self.create_reference_ty(target, Some(resolved_ty_args), ObjectFlags::empty())
+        self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty())
     }
 
     fn remove_redundant_lit_tys(
@@ -2010,7 +1991,7 @@ impl<'cx> TyChecker<'cx> {
                 resolver.get_global_iterable_iterator_ty::<false>(self);
             if global_iterable_iterator_ty != self.empty_generic_ty() {
                 let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
-                self.create_reference_ty(
+                self.create_type_reference(
                     global_iterable_iterator_ty,
                     Some(ty_arguments),
                     ObjectFlags::empty(),
@@ -2021,7 +2002,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let ty_arguments = self.alloc([yield_ty, return_ty, next_ty]);
-            self.create_reference_ty(
+            self.create_type_reference(
                 global_generator_ty,
                 Some(ty_arguments),
                 ObjectFlags::empty(),
@@ -2035,7 +2016,7 @@ impl<'cx> TyChecker<'cx> {
         ty_arguments: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if generic_global_ty != self.empty_object_ty() {
-            self.create_reference_ty(generic_global_ty, Some(ty_arguments), ObjectFlags::empty())
+            self.create_type_reference(generic_global_ty, Some(ty_arguments), ObjectFlags::empty())
         } else {
             self.empty_object_ty()
         }
@@ -2067,7 +2048,7 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.unwrap_awaited_ty(promised_ty);
             promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
             let resolved_ty_args = self.alloc([promised_ty]);
-            self.create_reference_ty(
+            self.create_type_reference(
                 global_promise_like_ty,
                 Some(resolved_ty_args),
                 ObjectFlags::empty(),
@@ -2083,7 +2064,7 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.unwrap_awaited_ty(promised_ty);
             let promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
             let resolved_ty_args = self.alloc([promised_ty]);
-            self.create_reference_ty(
+            self.create_type_reference(
                 global_promise_ty,
                 Some(resolved_ty_args),
                 ObjectFlags::empty(),

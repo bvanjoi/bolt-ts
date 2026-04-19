@@ -236,7 +236,8 @@ pub struct TyChecker<'cx> {
     common_ty_links_arena: ty::CommonTyLinksArena<'cx>,
     fresh_ty_links_arena: ty::FreshTyLinksArena<'cx>,
     union_ty_links_arena: ty::UnionTyLinksArena<'cx>,
-    constituent_map_for_union_ty: FxHashMap<TyID, FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>>,
+    constituent_map_for_union_ty:
+        FxHashMap<ty::UnionTyLinksID<'cx>, Option<FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>>>,
     promise_or_awaitable_links_arena: ty::PromiseOrAwaitableTyLinksArena<'cx>,
     union_ty_constituent_map:
         nohash_hasher::IntMap<TyID, FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>>,
@@ -2125,7 +2126,7 @@ impl<'cx> TyChecker<'cx> {
             .then(|| self.expect_ty_links(ty.id).expect_param_ty_mapper())
     }
 
-    fn check_destructing_assign(
+    fn check_destructing_assignment(
         &mut self,
         node: &'cx ast::AssignExpr<'cx>,
         source_ty: &'cx ty::Ty<'cx>,
@@ -2330,7 +2331,7 @@ impl<'cx> TyChecker<'cx> {
                 let r = ty.kind.expect_object_reference();
                 (r.target, self.get_ty_links(ty.id).get_resolved_ty_args())
             };
-            let literal_ty = self.create_reference_ty(target, resolved_ty_args, object_flags);
+            let literal_ty = self.create_type_reference(target, resolved_ty_args, object_flags);
             self.get_mut_ty_links(ty.id).set_literal_ty(literal_ty);
             literal_ty
         }
@@ -2694,7 +2695,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let s = self.binder.symbol(local_or_export_symbol);
+        let s = self.symbol(local_or_export_symbol);
         let is_alias = s.flags.contains(SymbolFlags::ALIAS);
 
         if s.flags.intersects(SymbolFlags::VARIABLE) {
@@ -2844,9 +2845,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_non_null_assertion(&mut self, n: &'cx ast::NonNullExpr<'cx>) -> &'cx ty::Ty<'cx> {
-        // TODO: NonNullChain
-        let ty = self.check_expr(n.expr);
-        self.get_non_nullable_ty(ty)
+        let flags = self.p.node_flags(n.id);
+        if flags.contains(ast::NodeFlags::OPTIONAL_CHAIN) {
+            todo!("check non null chain")
+        } else {
+            let ty = self.check_expr(n.expr);
+            self.get_non_nullable_ty(ty)
+        }
     }
 
     fn check_non_null_type(&mut self, ty: &'cx ty::Ty<'cx>, node: ast::NodeID) -> &'cx ty::Ty<'cx> {
@@ -2949,10 +2954,15 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_binary_like_expr_for_add(
         &mut self,
+        left: &'cx ast::Expr<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
+        right: &'cx ast::Expr<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        if self.is_type_assignable_to_kind(left_ty, TypeFlags::NUMBER_LIKE, true)
+        token: ast::TokenKind,
+        node_span: bolt_ts_span::Span,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(token == ast::TokenKind::Plus || token == ast::TokenKind::PlusEq);
+        let result_ty = if self.is_type_assignable_to_kind(left_ty, TypeFlags::NUMBER_LIKE, true)
             && self.is_type_assignable_to_kind(right_ty, TypeFlags::NUMBER_LIKE, true)
         {
             Some(self.number_ty)
@@ -2964,7 +2974,26 @@ impl<'cx> TyChecker<'cx> {
             Some(self.any_ty)
         } else {
             None
+        };
+
+        if let Some(result_ty) = result_ty
+            && !self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty)
+        {
+            return result_ty;
         }
+
+        let Some(result_ty) = result_ty else {
+            // report_operator_error
+            let error = errors::OperatorCannotBeAppliedToTypesXAndY {
+                op: token.as_str().to_string(),
+                ty1: left_ty.to_string(self),
+                ty2: right_ty.to_string(self),
+                span: node_span,
+            };
+            self.push_error(Box::new(error));
+            return self.any_ty;
+        };
+        result_ty
     }
 
     fn check_for_disallowed_es_symbol_operation(
@@ -2973,7 +3002,6 @@ impl<'cx> TyChecker<'cx> {
         left_ty: &'cx ty::Ty<'cx>,
         right: &'cx ast::Expr,
         right_ty: &'cx ty::Ty<'cx>,
-        op: BinOp,
     ) -> bool {
         if let Some(offending_symbol_op) = if self
             .maybe_type_of_kind_considering_base_constraint(left_ty, TypeFlags::ES_SYMBOL_LIKE)
@@ -3565,8 +3593,20 @@ impl<'cx> TyChecker<'cx> {
             return None;
         }
 
-        if let Some(ret) = self.union_ty_links_arena[u.union_ty_links].get_key_prop_name() {
-            return Some(ret);
+        let get_result = |symbol: SymbolName| -> Option<SymbolName> {
+            return if symbol
+                .as_atom()
+                .is_some_and(|atom| atom == keyword::IDENT_EMPTY)
+            {
+                None
+            } else {
+                Some(symbol)
+            };
+        };
+
+        let id = u.union_ty_links;
+        if let Some(ret) = self.union_ty_links_arena[id].get_key_prop_name() {
+            return get_result(ret);
         }
         let key_prop_name = tys.iter().find_map(|ty| {
             if ty
@@ -3583,21 +3623,62 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let map_by_key_prop = key_prop_name.and_then(|name| self.map_tys_by_key_prop(tys, name));
-        // TODO:
-        // let map_by_key_prop = key_prop_name.map(|name| {
+        let key_prop_name = if map_by_key_prop.is_some() {
+            key_prop_name.unwrap_or(SymbolName::Atom(keyword::IDENT_EMPTY))
+        } else {
+            SymbolName::Atom(keyword::IDENT_EMPTY)
+        };
+        self.union_ty_links_arena[id].set_key_prop_name(key_prop_name);
+        let prev = self
+            .constituent_map_for_union_ty
+            .insert(id, map_by_key_prop);
+        debug_assert!(prev.is_none());
 
-        // })
-
-        None
+        get_result(key_prop_name)
     }
 
     fn map_tys_by_key_prop(
         &mut self,
         tys: ty::Tys<'cx>,
-        key_prop_name: SymbolName,
-    ) -> Option<FxHashMap<SymbolID, &'cx ty::Ty<'cx>>> {
-        None
-        // TODO:
+        name: SymbolName,
+    ) -> Option<FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>> {
+        let mut map: FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>> = fx_hashmap_with_capacity(0);
+        let mut count = 0;
+        for ty in tys {
+            if ty.flags.intersects(
+                TypeFlags::OBJECT
+                    .union(TypeFlags::INTERSECTION)
+                    .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
+            ) {
+                let discriminant = self.get_ty_of_prop_of_ty(ty, name)?;
+                if !discriminant.is_literal_ty() {
+                    return None;
+                }
+                let mut duplicate = false;
+                self.for_each_ty(discriminant, |this, t| {
+                    let t = this.get_regular_ty_of_literal_ty(t);
+                    let existing = map.get(t).copied();
+                    match existing {
+                        Some(existing) if existing != this.unknown_ty => {
+                            map.insert(t, this.unknown_ty);
+                            duplicate = true;
+                        }
+                        None => {
+                            map.insert(t, ty);
+                        }
+                        _ => {}
+                    }
+                });
+                if !duplicate {
+                    count += 1;
+                }
+            }
+        }
+        if count >= 10 && count * 2 >= tys.len() {
+            Some(map)
+        } else {
+            None
+        }
     }
 
     fn get_ty_of_prop_of_ty(
@@ -4035,11 +4116,10 @@ impl<'cx> TyChecker<'cx> {
         self.is_matching_reference(source, target)
     }
 
-    fn has_matching_arg(&mut self, expr: &'cx ast::Expr<'cx>, refer: ast::NodeID) -> bool {
-        use bolt_ts_ast::ExprKind::*;
-        let (args, expr) = match expr.kind {
-            Call(call) => (call.args, call.expr),
-            New(new) => (new.args.unwrap_or_default(), new.expr),
+    fn has_matching_arg(&mut self, expr: ast::NodeID, refer: ast::NodeID) -> bool {
+        let (args, expr) = match self.p.node(expr) {
+            ast::Node::CallExpr(call) => (call.args, call.expr),
+            ast::Node::NewExpr(new) => (new.args.unwrap_or_default(), new.expr),
             _ => unreachable!(),
         };
         for arg in args {
@@ -4178,11 +4258,11 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         key_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        debug_assert!(ty.kind.is_union());
+        let uid = ty.kind.expect_union().union_ty_links;
+        debug_assert!(self.union_ty_links_arena[uid].get_key_prop_name().is_some());
         let id = self.get_regular_ty_of_literal_ty(key_ty);
-        let result = self
-            .constituent_map_for_union_ty
-            .get(&ty.id)
+        let result = self.constituent_map_for_union_ty[&uid]
+            .as_ref()
             .and_then(|map| map.get(id))?;
 
         if self.unknown_ty.eq(result) {
@@ -4538,7 +4618,7 @@ impl<'cx> TyChecker<'cx> {
                 };
                 if node.is_some() {
                     let type_arguments = self.get_ty_arguments(ty);
-                    self.create_reference_ty(target, Some(type_arguments), ObjectFlags::empty())
+                    self.create_type_reference(target, Some(type_arguments), ObjectFlags::empty())
                 } else {
                     self.get_single_base_for_non_augmenting_subtype(ty)
                         .unwrap_or(ty)

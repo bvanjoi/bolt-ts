@@ -4,7 +4,6 @@ use super::ContextFlags;
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
 use super::create_ty::IntersectionFlags;
-
 use super::ty::typeof_ne_facts;
 use super::ty::{self, ObjectFlags, TypeFacts, TypeFlags};
 use super::type_predicate::TyPred;
@@ -175,6 +174,7 @@ impl<'cx> TyChecker<'cx> {
                     shared_flow_start,
                     declared_ty,
                     init_ty,
+                    flow_container,
                     key,
                 ) else {
                     flow = match &self.flow_node(flow).kind {
@@ -320,7 +320,9 @@ impl<'cx> TyChecker<'cx> {
             if self.config.compiler_options().strict_null_checks() {
                 // TODO:
             }
-            if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty) {
+            if let Some(access) =
+                self.get_discriminant_prop_access(refer, expr.id(), ty, declared_ty)
+            {
                 ty = self.narrow_ty_by_switch_on_discriminant_prop(ty, access, flow)
             }
         }
@@ -651,7 +653,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let result = {
-            // TODO: finalize_evolving_array_ty;
+            // TODO: let tys = self
+            //     .same_map_tys(tys, |this, ty, _| this.finalize_evolving_array_ty(ty))
+            //     .unwrap();
             let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None);
             self.recombine_unknown_ty(ty)
         };
@@ -731,11 +735,12 @@ impl<'cx> TyChecker<'cx> {
         shared_flow_start: usize,
         declared_ty: &'cx ty::Ty<'cx>,
         init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
         key: &mut OnceCell<Option<FlowCacheKey>>,
     ) -> Option<FlowTy<'cx>> {
-        let node = match &self.flow_node(flow).kind {
-            FlowNodeKind::Switch(n) => n.node.id,
-            FlowNodeKind::Assign(n) => n.node,
+        let (node, antecedent) = match &self.flow_node(flow).kind {
+            FlowNodeKind::Switch(n) => (n.node.id, n.antecedent),
+            FlowNodeKind::Assign(n) => (n.node, n.antecedent),
             _ => unreachable!(),
         };
         if self.is_matching_reference(refer, node) {
@@ -744,20 +749,32 @@ impl<'cx> TyChecker<'cx> {
             }
             let nq = self.node_query(node.module());
             if nq.get_assignment_target_kind(node) == AssignmentKind::Compound {
-                // TODO:
+                let flow_ty = self.get_ty_at_flow_node(
+                    antecedent,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                );
+                let ty = self.get_ty_from_flow_ty(flow_ty);
+                let ty = self.get_base_ty_of_literal_ty(ty);
+                let is_incomplete = flow_ty.is_incomplete();
+                return Some(self.create_flow_ty(ty, is_incomplete));
             }
-            {}
             if declared_ty == self.auto_ty || declared_ty == self.auto_array_ty() {
-                // TODO:
+                // TODO: is_empty_array_assignment
             }
+            let nq = self.node_query(node.module());
             let t = if nq.is_in_compound_like_assignment(node) {
                 self.get_base_ty_of_literal_ty(declared_ty)
             } else {
                 declared_ty
             };
             let t = if t.kind.is_union() {
-                let init_ty = self.get_init_or_assigned_ty(flow, refer);
-                self.get_assign_reduced_ty(t, init_ty)
+                let assigned_ty = self.get_init_or_assigned_ty(flow, refer);
+                self.get_assign_reduced_ty(t, assigned_ty)
             } else {
                 t
             };
@@ -791,7 +808,7 @@ impl<'cx> TyChecker<'cx> {
             }
             return Some(FlowTy::Ty(declared_ty));
         }
-
+        // TODO: is_variable_declaration
         None
     }
 
@@ -942,14 +959,43 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
+    fn optional_chain_contains_reference(
+        &mut self,
+        mut source: ast::NodeID,
+        target: ast::NodeID,
+    ) -> bool {
+        while self.node_query(source.module()).is_optional_chain(source) {
+            match self.p.node(source) {
+                ast::Node::PropAccessExpr(n) => {
+                    source = n.expr.id();
+                }
+                ast::Node::EleAccessExpr(n) => {
+                    source = n.expr.id();
+                }
+                ast::Node::CallExpr(n) => {
+                    source = n.expr.id();
+                }
+                ast::Node::NonNullExpr(n) => {
+                    source = n.expr.id();
+                }
+                _ => unreachable!(),
+            }
+            if self.is_matching_reference(source, target) {
+                return true;
+            }
+        }
+        false
+    }
+
     fn narrow_ty_by_truthiness(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        mut ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr: ast::NodeID,
         assume_true: bool,
+        declared_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_matching_reference(refer, expr.id()) {
+        if self.is_matching_reference(refer, expr) {
             return self.get_adjusted_ty_with_facts(
                 ty,
                 if assume_true {
@@ -959,8 +1005,24 @@ impl<'cx> TyChecker<'cx> {
                 },
             );
         }
-        // TODO: other case
-        ty
+        if self.config.compiler_options().strict()
+            && assume_true
+            && self.optional_chain_contains_reference(expr, refer)
+        {
+            ty = self.get_adjusted_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL);
+        }
+        if let Some(access) = self.get_discriminant_prop_access(refer, expr, ty, declared_ty) {
+            self.narrow_ty_by_discriminant(access, ty, |this, t| {
+                let facts = if assume_true {
+                    TypeFacts::TRUTHY
+                } else {
+                    TypeFacts::FALSY
+                };
+                this.get_ty_with_facts(t, facts)
+            })
+        } else {
+            ty
+        }
     }
 
     fn narrow_ty_optionality(
@@ -968,10 +1030,10 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr: ast::NodeID,
         assume_present: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if self.is_matching_reference(refer, expr.id()) {
+        if self.is_matching_reference(refer, expr) {
             let facts = if assume_present {
                 TypeFacts::NE_UNDEFINED_OR_NULL
             } else {
@@ -998,17 +1060,16 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr: ast::NodeID,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
-        use bolt_ts_ast::ExprKind::*;
-        let expr_id = expr.id();
+        use ast::Node::*;
         if self
-            .node_query(expr_id.module())
-            .is_expression_of_optional_chain_root(expr_id)
-            || self.parent(expr_id).is_some_and(|p| {
+            .node_query(expr.module())
+            .is_expression_of_optional_chain_root(expr)
+            || self.parent(expr).is_some_and(|p| {
                 self.p.node(p).as_bin_expr().is_some_and(|e| {
-                    matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr_id
+                    matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr
                 })
             })
         {
@@ -1016,9 +1077,10 @@ impl<'cx> TyChecker<'cx> {
             return self.narrow_ty_optionality(ty, declared_ty, refer, expr, assume_true);
         }
 
-        if let Ident(node) = expr.kind
+        let expr_node = self.p.node(expr);
+        if let ast::Node::Ident(node) = expr_node
             && !self.is_matching_reference(refer, node.id)
-            && let symbol = self.final_res(expr.id())
+            && let symbol = self.final_res(expr)
             && let s = self.symbol(symbol)
             && self.is_constant_variable(s)
         {
@@ -1026,15 +1088,15 @@ impl<'cx> TyChecker<'cx> {
             let value_decl = s.value_decl.unwrap();
         }
 
-        match expr.kind {
-            Ident(_) | PropAccess(_) | EleAccess(_) | This(_) | Super(_) => {
-                self.narrow_ty_by_truthiness(ty, refer, expr, assume_true)
+        match expr_node {
+            Ident(_) | PropAccessExpr(_) | EleAccessExpr(_) | ThisExpr(_) | SuperExpr(_) => {
+                self.narrow_ty_by_truthiness(ty, refer, expr, assume_true, declared_ty)
             }
-            Call(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
-            PrefixUnary(node) if node.op == ast::PrefixUnaryOp::Excl => {
-                self.narrow_ty(ty, declared_ty, refer, node.expr, !assume_true)
+            CallExpr(node) => self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true),
+            PrefixUnaryExpr(node) if node.op == ast::PrefixUnaryOp::Excl => {
+                self.narrow_ty(ty, declared_ty, refer, node.expr.id(), !assume_true)
             }
-            Bin(node) => self.narrow_ty_by_bin_expr(ty, declared_ty, refer, node, assume_true),
+            BinExpr(node) => self.narrow_ty_by_bin_expr(ty, declared_ty, refer, node, assume_true),
             _ => ty,
         }
     }
@@ -1110,9 +1172,38 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn narrow_ty_by_bin_expr(
+    fn narrow_ty_by_optional_chain_containment(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        op: ast::BinOpKind,
+        value: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let equal_op = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::EqEqEq);
+        let nullable_flags = if matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEq) {
+            TypeFlags::NULLABLE
+        } else {
+            TypeFlags::UNDEFINED
+        };
+        let value_ty = self.get_ty_of_expr(value);
+        let remove_nullable = if equal_op == assume_true {
+            self.every_type(value_ty, |_, t| {
+                let flags = TypeFlags::ANY_OR_UNKNOWN.union(nullable_flags);
+                !t.flags.intersects(flags)
+            })
+        } else {
+            self.every_type(value_ty, |_, t| t.flags.intersects(nullable_flags))
+        };
+        if remove_nullable {
+            self.get_adjusted_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
+        } else {
+            ty
+        }
+    }
+
+    fn narrow_ty_by_bin_expr(
+        &mut self,
+        mut ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         binary_expr: &'cx ast::BinExpr<'cx>,
@@ -1155,11 +1246,25 @@ impl<'cx> TyChecker<'cx> {
                 }
 
                 if self.config.compiler_options().strict_null_checks() {
-                    // TODO:
+                    if self.optional_chain_contains_reference(left.id(), refer) {
+                        ty = self.narrow_ty_by_optional_chain_containment(
+                            ty,
+                            binary_expr.op.kind,
+                            right,
+                            assume_true,
+                        );
+                    } else if self.optional_chain_contains_reference(right.id(), refer) {
+                        ty = self.narrow_ty_by_optional_chain_containment(
+                            ty,
+                            binary_expr.op.kind,
+                            left,
+                            assume_true,
+                        );
+                    }
                 }
 
                 if let Some(left_access) =
-                    self.get_discriminant_prop_access(refer, left, ty, declared_ty)
+                    self.get_discriminant_prop_access(refer, left.id(), ty, declared_ty)
                 {
                     return self.narrow_ty_by_discriminant_prop(
                         ty,
@@ -1170,6 +1275,21 @@ impl<'cx> TyChecker<'cx> {
                         assume_true,
                     );
                 }
+
+                if let Some(right_acess) =
+                    self.get_discriminant_prop_access(refer, right.id(), ty, declared_ty)
+                {
+                    return self.narrow_ty_by_discriminant_prop(
+                        ty,
+                        right_acess,
+                        refer,
+                        binary_expr.op.kind,
+                        left,
+                        assume_true,
+                    );
+                }
+
+                // TODO:
 
                 ty
             }
@@ -1186,7 +1306,7 @@ impl<'cx> TyChecker<'cx> {
         value: &'cx ast::Expr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
-        if matches!(op, ast::BinOpKind::EqEqEq | ast::BinOpKind::EqEq)
+        if matches!(op, ast::BinOpKind::EqEqEq | ast::BinOpKind::NEqEq)
             && ty.kind.is_union()
             && let Some(key_prop_name) = self.get_key_prop_name(ty)
             && self
@@ -1195,7 +1315,20 @@ impl<'cx> TyChecker<'cx> {
             && let key_ty = self.get_ty_of_expr(value)
             && let Some(candidate) = self.get_constituent_ty_for_key_ty(ty, key_ty)
         {
-            // TODO: key_prop_name ==  match access {}
+            return if if assume_true {
+                op == ast::BinOpKind::EqEqEq
+            } else {
+                op == ast::BinOpKind::NEqEq
+            } {
+                candidate
+            } else if self
+                .get_ty_of_prop_of_ty(candidate, key_prop_name)
+                .is_some_and(|t| t.is_unit())
+            {
+                self.remove_ty(ty, candidate)
+            } else {
+                ty
+            };
         }
 
         self.narrow_ty_by_discriminant(access, ty, |this, t| {
@@ -1214,16 +1347,21 @@ impl<'cx> TyChecker<'cx> {
         };
         let optional_chain = self.node_query(access.module()).is_optional_chain(access);
         let remove_nullable = self.config.compiler_options().strict_null_checks()
-            && (optional_chain || matches!(self.p.node(access), ast::Node::NonNullExpr(_)))
+            && (optional_chain || self.p.node(access).is_non_null_access())
             && ty.maybe_type_of_kind(TypeFlags::NULLABLE);
-        let Some(prop_ty) =
-            self.get_ty_of_prop_of_ty(if remove_nullable { todo!() } else { ty }, prop_name)
-        else {
+        let facts_ty = if remove_nullable {
+            self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
+        } else {
+            ty
+        };
+        let Some(prop_ty) = self.get_ty_of_prop_of_ty(facts_ty, prop_name) else {
             return ty;
         };
-        if remove_nullable && optional_chain {
-            todo!()
-        }
+        let prop_ty = if remove_nullable && optional_chain {
+            self.get_optional_ty::<false>(prop_ty)
+        } else {
+            prop_ty
+        };
         let narrowed_prop_ty = narrow_ty(self, prop_ty);
         self.filter_type(ty, |this, t| {
             let discriminant_ty = this
@@ -1256,7 +1394,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.is_matching_reference(refer, target_id) {
             // TODO: optional chain
             if let Some(prop_access) =
-                self.get_discriminant_prop_access(refer, target, ty, declared_ty)
+                self.get_discriminant_prop_access(refer, target_id, ty, declared_ty)
             {
                 return self.narrow_ty_by_discriminant(prop_access, ty, |this, t| {
                     this.narrow_ty_by_lit(t, lit, assume_true)
@@ -1357,11 +1495,9 @@ impl<'cx> TyChecker<'cx> {
                         )
                     }
                 }
-                keyword::KW_UNDEFINED => self.narrow_ty_by_ty_facts(
-                    ty,
-                    self.undefined_ty,
-                    TypeFacts::TYPEOF_EQ_HOST_OBJECT,
-                ),
+                keyword::KW_UNDEFINED => {
+                    self.narrow_ty_by_ty_facts(ty, self.undefined_ty, TypeFacts::EQ_UNDEFINED)
+                }
                 _ => self.narrow_ty_by_ty_facts(
                     ty,
                     self.non_primitive_ty,
@@ -1490,10 +1626,10 @@ impl<'cx> TyChecker<'cx> {
                         None,
                     )
                 } else {
-                    self.narrow_ty(ty, declared_ty, refer, n.left, true)
+                    self.narrow_ty(ty, declared_ty, refer, n.left.id(), true)
                 }
             }
-            _ => self.narrow_ty(ty, declared_ty, refer, expr, true),
+            _ => self.narrow_ty(ty, declared_ty, refer, expr.id(), true),
         }
     }
 
@@ -1501,7 +1637,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr: ast::NodeID,
         call_expr: &'cx ast::CallExpr<'cx>,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
@@ -1586,13 +1722,13 @@ impl<'cx> TyChecker<'cx> {
                 return self.filter_type(ty, |this, t| !this.is_ty_derived_from(t, candidate));
             }
             let ty = if ty.flags.contains(TypeFlags::UNKNOWN) {
-                todo!()
+                self.unknown_union_ty()
             } else {
                 ty
             };
             let true_ty = self.get_narrowed_ty(ty, candidate, true, false);
-            // TODO: self.recombine_unknown_ty()
-            return self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
+            let ty = self.filter_type(ty, |this, t| !this.is_ty_sub_type_of(t, true_ty));
+            return self.recombine_unknown_ty(ty);
         } else if ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) || ty == candidate {
             return candidate;
         } else if ty == candidate {

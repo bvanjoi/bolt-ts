@@ -1,0 +1,13 @@
+  × Argument of type '(x: "bye") => number' is not assignable to parameter of
+  │ type '(x: "hi") => number'.
+    ╭─[../../tests/compiler/overloadOnConstNoStringImplementation2/index.ts:23:9]
+ 23 │ (x: 'bye') => { return 1; }
+    · ───────────────────────────
+    ╰────
+
+  × Argument of type '(x: number) => number' is not assignable to parameter of
+  │ type '(x: "hi") => number'.
+    ╭─[../../tests/compiler/overloadOnConstNoStringImplementation2/index.ts:26:9]
+ 26 │ (x: number) => { return 1; }
+    · ────────────────────────────
+    ╰────

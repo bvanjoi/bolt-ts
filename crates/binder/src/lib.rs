@@ -3,7 +3,6 @@ mod bind_children;
 mod bind_class_like;
 mod bind_container;
 mod bind_for_in_for_of;
-mod bind_prop_or_ele_access;
 mod bind_ret_or_throw;
 mod bind_worker;
 mod container_flags;

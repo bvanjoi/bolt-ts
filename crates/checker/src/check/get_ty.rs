@@ -3,7 +3,6 @@ use std::ops::Not;
 use super::create_ty::IntersectionFlags;
 use super::get_iteration_tys::IterationTypeKind;
 use super::infer::{InferenceFlags, InferencePriority};
-
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper};
 use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
@@ -1333,7 +1332,9 @@ impl<'cx> TyChecker<'cx> {
 
         let apparent_object_ty = self.get_reduced_apparent_ty(object_ty);
 
-        if let Some(union) = index_ty.kind.as_union() {
+        if !index_ty.flags.contains(TypeFlags::BOOLEAN)
+            && let Some(union) = index_ty.kind.as_union()
+        {
             let mut prop_tys = Vec::with_capacity(union.tys.len());
             let was_missing_prop = false;
             for t in union.tys.iter() {
@@ -1855,7 +1856,7 @@ impl<'cx> TyChecker<'cx> {
             .into_iter()
             .flat_map(|symbol| {
                 let s = self.binder.symbol(symbol);
-                if s.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                if s.flags.contains(SymbolFlags::TYPE_PARAMETER) {
                     Some(self.get_declared_ty_of_symbol(symbol))
                 } else {
                     None
@@ -1884,14 +1885,17 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 None
             }
-        } else if let Some(all_outer_ty_params) = all_outer_ty_params {
-            // TODO:
-            // let params = all_outer_ty_params
-            //     .iter()
-            //     .filter(|tp| self.is_ty_param_possibly_referenced(tp, node.id))
-            //     .copied()
-            //     .collect::<Vec<_>>();
-            // Some(self.alloc(params))
+        } else if let Some(mut all_outer_ty_params) = all_outer_ty_params {
+            let mut i = 0;
+            let mut j = 0;
+            while i < all_outer_ty_params.len() {
+                if self.is_ty_param_possibly_referenced(all_outer_ty_params[i], node.id) {
+                    all_outer_ty_params[j] = all_outer_ty_params[i];
+                    j += 1;
+                }
+                i += 1;
+            }
+            all_outer_ty_params.truncate(j);
             Some(self.alloc(all_outer_ty_params))
         } else {
             None

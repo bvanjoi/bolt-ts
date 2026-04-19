@@ -186,7 +186,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
         debug_assert!(node.op.kind == ast::BinOpKind::Nullish);
-        let left_target = ast::Expr::skip_outer_expr(node.left);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let left_target = ast::Expr::skip_outer_expr::<FLAGS>(node.left);
         let semantics = self.get_syntactic_nullishness_semantics(left_target);
         if semantics != PredicateSemantics::SOMETIMES {
             if semantics == PredicateSemantics::ALWAYS {
@@ -260,28 +261,21 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: &'cx ast::BinExpr,
         op: ast::BinOp,
-        left: &'cx ast::Expr,
+        left: &'cx ast::Expr<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
-        right: &'cx ast::Expr,
+        right: &'cx ast::Expr<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::BinOpKind::*;
         match op.kind {
-            Add => {
-                (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
-                    Some(ty) => ty,
-                    None => {
-                        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-                            op: op.kind.to_string(),
-                            ty1: left_ty.to_string(self),
-                            ty2: right_ty.to_string(self),
-                            span: node.span,
-                        };
-                        self.push_error(Box::new(error));
-                        self.any_ty
-                    }
-                }) as _
-            }
+            Add => self.check_binary_like_expr_for_add(
+                left,
+                left_ty,
+                right,
+                right_ty,
+                ast::TokenKind::Plus,
+                node.span,
+            ),
             Sub | Mul | Div | Mod => {
                 if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
                     return self.silent_never_ty;
@@ -360,8 +354,7 @@ impl<'cx> TyChecker<'cx> {
                 self.boolean_ty()
             }
             Less | LessEq | Great | GreatEq => {
-                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
-                {
+                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty) {
                     let left_ty = {
                         let t = self.check_non_null_type(left_ty, left.id());
                         self.get_base_ty_of_literal_ty_for_comparison(t)
@@ -1804,7 +1797,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx ty::Ty<'cx> {
         if let Eq = assign.op {
             let right = self.check_expr(assign.right);
-            return self.check_destructing_assign(assign, right, false);
+            return self.check_destructing_assignment(assign, right, false);
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
@@ -1820,9 +1813,14 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::AssignOp::*;
         match assign.op {
             Eq => unreachable!(),
-            AddEq => self
-                .check_binary_like_expr_for_add(l, r)
-                .unwrap_or(self.any_ty),
+            AddEq => self.check_binary_like_expr_for_add(
+                assign.left,
+                l,
+                assign.right,
+                r,
+                ast::TokenKind::PlusEq,
+                assign.span,
+            ),
             SubEq => self.undefined_ty,
             MulEq => self.undefined_ty,
             DivEq => self.undefined_ty,
@@ -1848,9 +1846,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let op_ty = self.check_expr(expr.expr);
-        if op_ty == self.silent_never_ty {
-            return op_ty;
+        let ty = self.check_expr(expr.expr);
+        if ty == self.silent_never_ty {
+            return ty;
         }
 
         match expr.expr.kind {
@@ -1884,21 +1882,22 @@ impl<'cx> TyChecker<'cx> {
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    op_ty
+                if let ty::TyKind::NumberLit(n) = ty.kind {
+                    ty
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::Minus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                if let ty::TyKind::NumberLit(n) = ty.kind {
                     self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
-                let ok = self.check_arithmetic_op_ty(op_ty, false, |_| {});
+                let ty = self.check_non_null_type(ty, expr.expr.id());
+                let ok = self.check_arithmetic_op_ty(ty, false, |_| {});
                 if ok {
                     self.check_reference_expr(
                         expr.expr,
@@ -1923,14 +1922,14 @@ impl<'cx> TyChecker<'cx> {
 
                 match expr.op {
                     ast::PrefixUnaryOp::PlusPlus => {
-                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        if let ty::TyKind::NumberLit(n) = ty.kind {
                             self.get_number_literal_type_from_number(n.val.val() + 1.)
                         } else {
                             self.number_ty
                         }
                     }
                     ast::PrefixUnaryOp::MinusMinus => {
-                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        if let ty::TyKind::NumberLit(n) = ty.kind {
                             self.get_number_literal_type_from_number(n.val.val() - 1.)
                         } else {
                             self.number_ty
@@ -1950,7 +1949,9 @@ impl<'cx> TyChecker<'cx> {
         push_invalid_reference_error: impl FnOnce(&mut Self),
         push_invalid_optional_chain_error: impl FnOnce(&mut Self),
     ) -> bool {
-        let n = ast::Expr::skip_outer_expr(op);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS
+            | ast::SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+        let n = ast::Expr::skip_outer_expr::<FLAGS>(op);
         if !matches!(
             n.kind,
             ast::ExprKind::Ident(_) | ast::ExprKind::PropAccess(_) | ast::ExprKind::EleAccess(_)
@@ -1989,7 +1990,8 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PostfixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
-        let ok = self.check_arithmetic_op_ty(op_ty, false, |this| {
+        let ty = self.check_non_null_type(op_ty, expr.expr.id());
+        let ok = self.check_arithmetic_op_ty(ty, false, |this| {
             let error = errors::AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
                 span: expr.span,
             };
@@ -2067,7 +2069,7 @@ impl<'cx> TyChecker<'cx> {
         let non_optional_ty = self.get_optional_expression_ty(expr_ty, node.expr);
         let non_optional_expr_ty = self.check_non_null_type(non_optional_ty, node.expr.id());
         let ty = self.check_element_access_expr_worker(node, non_optional_expr_ty);
-        self.propagate_optional_ty_marker(ty, node.id, non_optional_ty == expr_ty)
+        self.propagate_optional_ty_marker(ty, node.id, non_optional_ty != expr_ty)
     }
 
     fn check_element_access_expr_worker(

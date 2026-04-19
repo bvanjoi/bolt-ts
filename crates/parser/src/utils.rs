@@ -999,6 +999,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name::<false>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_params();
+        self.check_params::<false>(params);
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),

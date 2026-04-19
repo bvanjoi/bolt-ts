@@ -915,6 +915,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    pub(super) fn is_narrowable_operand(&self, n: &'cx ast::Expr<'cx>) -> bool {
+        match n.kind {
+            ast::ExprKind::Paren(n) => self.is_narrowable_operand(n.expr),
+            ast::ExprKind::Assign(n) if n.op == ast::AssignOp::Eq => {
+                self.is_narrowable_operand(n.left)
+            }
+            ast::ExprKind::Bin(n) if n.op.kind == ast::BinOpKind::Comma => {
+                self.is_narrowable_operand(n.right)
+            }
+            _ => self.contains_narrowable_reference(n),
+        }
+    }
+
     pub(super) fn is_narrowable_expression(&self, expr: &'cx ast::Expr<'cx>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {

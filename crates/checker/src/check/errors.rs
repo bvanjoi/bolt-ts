@@ -1468,3 +1468,23 @@ pub(super) struct ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsIns
     pub property_name: String,
     pub extended_class_name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Value of type '{ty1}' has no properties in common with type '{ty2}'. Did you mean to call it?"
+)]
+pub(super) struct ValueOfTypeHasNoPropertiesInCommonWithTypeDidYouMeanToCallIt {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty1}' has no properties in common with type '{ty2}'.")]
+pub(super) struct TypeXHasNoPropertiesInCommonWithTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}

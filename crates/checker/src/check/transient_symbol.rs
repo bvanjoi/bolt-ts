@@ -3,7 +3,6 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, Symbols};
 use bolt_ts_span::ModuleID;
 
 use super::TyChecker;
-
 use super::ty;
 
 pub(super) fn create_transient_symbol(symbols: &mut Symbols, symbol: Symbol) -> SymbolID {

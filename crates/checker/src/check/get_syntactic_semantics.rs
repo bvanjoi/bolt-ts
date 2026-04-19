@@ -18,7 +18,8 @@ impl<'cx> TyChecker<'cx> {
         &self,
         node: &'cx ast::Expr<'cx>,
     ) -> PredicateSemantics {
-        let node = ast::Expr::skip_outer_expr(node);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let node = ast::Expr::skip_outer_expr::<FLAGS>(node);
         match node.kind {
             Await(_) | Call(_) | TaggedTemplate(_) | EleAccess(_) | New(_) | PropAccess(_)
             | Yield(_) | This(_) => return PredicateSemantics::SOMETIMES,
@@ -60,7 +61,8 @@ impl<'cx> TyChecker<'cx> {
         &self,
         node: &'cx ast::Expr<'cx>,
     ) -> PredicateSemantics {
-        let node = ast::Expr::skip_outer_expr(node);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let node = ast::Expr::skip_outer_expr::<FLAGS>(node);
         match node.kind {
             NumLit(n) => {
                 if n.val == 0. || n.val == 1. {

@@ -85,7 +85,7 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!("target: {:#?}", target)
             };
             let ty_args = self.instantiate_tys(ty_params.unwrap_or_default(), mapper);
-            self.create_reference_ty(ty, Some(ty_args), ObjectFlags::empty())
+            self.create_type_reference(ty, Some(ty_args), ObjectFlags::empty())
         };
         self.mark_tys.insert(result.id);
         result

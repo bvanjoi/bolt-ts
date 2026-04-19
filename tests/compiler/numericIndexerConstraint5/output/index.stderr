@@ -1,0 +1,6 @@
+  × Type '{ name: string; 0: Date; }' is not assignable to type '{ [name:
+  │ number]: string }'.
+   ╭─[../../tests/compiler/numericIndexerConstraint5/index.ts:6:5]
+ 6 │ z
+   · ─
+   ╰────

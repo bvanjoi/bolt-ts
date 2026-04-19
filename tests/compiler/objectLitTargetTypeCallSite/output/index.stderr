@@ -1,0 +1,5 @@
+  × Type 'true' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/objectLitTargetTypeCallSite/index.ts:9:10]
+ 9 │ a
+   · ─
+   ╰────

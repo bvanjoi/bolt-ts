@@ -111,8 +111,8 @@ impl ParserState<'_, '_> {
         Span::new(lo, self.full_start_pos as u32, self.module_id)
     }
 
-    fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {
-        assert!(base == 2 || base == 8);
+    fn scan_binary_or_octal_digits<const BASE: u8>(&mut self) -> Vec<u8> {
+        debug_assert!(BASE == 2 || BASE == 8);
         let mut sep_allowed = false;
         let mut is_prev_token_sep = false;
         let mut v = Vec::with_capacity(16);
@@ -132,7 +132,7 @@ impl ParserState<'_, '_> {
                 continue;
             }
             sep_allowed = true;
-            if !ch.is_ascii_digit() || ch - b'0' >= base {
+            if !ch.is_ascii_digit() || ch - b'0' >= BASE {
                 break;
             }
             v.push(self.input[self.pos]);
@@ -898,7 +898,7 @@ impl ParserState<'_, '_> {
                     && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
                 {
                     self.pos += 2;
-                    let v = self.scan_binary_or_octal_digits(8);
+                    let v = self.scan_binary_or_octal_digits::<2>();
                     if v.is_empty() {
                         todo!()
                     }
@@ -910,7 +910,7 @@ impl ParserState<'_, '_> {
                     && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
                 {
                     self.pos += 2;
-                    let v = self.scan_binary_or_octal_digits(8);
+                    let v = self.scan_binary_or_octal_digits::<8>();
                     if v.is_empty() {
                         todo!()
                     }

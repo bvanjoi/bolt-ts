@@ -437,7 +437,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     unreachable!("{:#?}", ty)
                 };
-                self.create_reference_ty(target, Some(ty_args), ObjectFlags::empty())
+                self.create_type_reference(target, Some(ty_args), ObjectFlags::empty())
             } else {
                 ty
             }
@@ -998,7 +998,8 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::NewExpr(_) => return None,
             _ => unreachable!(),
         };
-        let callee = ast::Expr::skip_outer_expr(expr);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let callee = ast::Expr::skip_outer_expr::<FLAGS>(expr);
         match callee.kind {
             ast::ExprKind::PropAccess(n) => Some(n.expr),
             ast::ExprKind::EleAccess(n) => Some(n.expr),
@@ -2128,15 +2129,65 @@ impl<'cx> InferenceState<'cx, '_> {
                 self.infer_with_priority(inferred_ty, info_target, priority);
             }
             true
-        } else if let Some(param) = constraint_ty.kind.as_param() {
-            // TODO:
-            false
+        } else if constraint_ty.kind.is_param() {
+            // TODO: source.pattern
+            let index_ty = self.c.get_index_ty(source, ty::IndexFlags::empty());
+            self.infer_with_priority(
+                index_ty,
+                constraint_ty,
+                InferencePriority::MAPPED_TYPE_CONSTRAINT,
+            );
+            if let Some(extended_constraint) = self.c.get_constraint_of_ty(constraint_ty)
+                && self.infer_to_mapped_ty(source, target, target_mapped_ty, extended_constraint)
+            {
+                return true;
+            }
+            let prop_tys = self
+                .c
+                .get_props_of_ty(source)
+                .into_iter()
+                .map(|&s| self.c.get_type_of_symbol(s))
+                .collect::<Vec<_>>();
+            let index_tys = self
+                .c
+                .get_index_infos_of_ty(source)
+                .into_iter()
+                .map(|info| {
+                    if !std::ptr::eq(info, &self.c.enum_number_index_info()) {
+                        info.val_ty
+                    } else {
+                        self.c.never_ty
+                    }
+                });
+            let tys = prop_tys.into_iter().chain(index_tys).collect::<Vec<_>>();
+            let source =
+                self.c
+                    .get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            let target = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
+            self.infer_from_tys(source, target);
+            true
         } else {
             false
         }
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        if let Some(source_reference) = source.kind.as_object_reference()
+            && let Some(target_reference) = target.kind.as_object_reference()
+            && (source_reference.target == target_reference.target
+                || source.kind.is_array(self.c) && target.kind.is_array(self.c))
+        {
+            let source_type_arguments = self.c.get_ty_arguments(source);
+            let target_type_arguments = self.c.get_ty_arguments(target);
+            let variances = self.c.get_variances(source_reference.target);
+            self.infer_from_ty_arguments(source_type_arguments, target_type_arguments, variances);
+            return;
+        }
+
+        if self.c.is_generic_mapped_ty(source) && self.c.is_generic_mapped_ty(target) {
+            self.infer_from_generic_mapped_tys(source, target);
+        }
+
         if let Some(target_mapped_ty) = target.kind.as_object_mapped()
             && target_mapped_ty.decl.name_ty.is_none()
         {

@@ -34,7 +34,7 @@ pub struct FlowNode<'cx> {
 #[derive(Debug)]
 pub enum FlowNodeKind<'cx> {
     Start(FlowStart),
-    Cond(FlowCond<'cx>),
+    Cond(FlowCond),
     Label(FlowLabel),
     Unreachable(FlowUnreachable),
     Assign(FlowAssign),
@@ -63,8 +63,8 @@ pub struct FlowAssign {
 }
 
 #[derive(Clone, Debug)]
-pub struct FlowCond<'cx> {
-    pub node: &'cx ast::Expr<'cx>,
+pub struct FlowCond {
+    pub node: ast::NodeID,
     pub antecedent: FlowID,
 }
 
@@ -244,7 +244,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
         &mut self,
         flags: FlowFlags,
         antecedent: FlowID,
-        expr: Option<&'cx ast::Expr<'cx>>,
+        expr: Option<ast::NodeID>,
     ) -> FlowID {
         let antecedent_flags = self.flow_nodes.get_flow_node(antecedent).flags;
         if antecedent_flags.contains(FlowFlags::UNREACHABLE) {
@@ -257,15 +257,11 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
                 self.unreachable_flow_node
             };
         };
-        if match &expr.kind {
-            ast::ExprKind::BoolLit(lit)
-                if lit.val && flags.contains(FlowFlags::FALSE_CONDITION) =>
-            {
+        if match self.p.node(expr) {
+            ast::Node::BoolLit(lit) if lit.val && flags.contains(FlowFlags::FALSE_CONDITION) => {
                 true
             }
-            ast::ExprKind::BoolLit(lit)
-                if !lit.val && flags.contains(FlowFlags::TRUE_CONDITION) =>
-            {
+            ast::Node::BoolLit(lit) if !lit.val && flags.contains(FlowFlags::TRUE_CONDITION) => {
                 true
             }
             _ => false,

@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_args =
                 self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
             assert!(ty_args.is_some());
-            self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
+            self.create_type_reference(refer.target, ty_args, ObjectFlags::empty())
         } else {
             ty
         }

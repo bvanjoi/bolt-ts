@@ -255,7 +255,63 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .has_common_props(source, target, is_compare_jsx_attribute)
             {
                 if report_error {
-                    // TODO: report error
+                    let span = self.c.p.node(self.error_node.unwrap()).span();
+                    let source_string = if original_source.alias_symbol().is_some() {
+                        self.c.print_ty(original_source)
+                    } else {
+                        self.c.print_ty(source)
+                    }
+                    .to_string();
+                    let target_string = if original_target.alias_symbol().is_some() {
+                        self.c.print_ty(original_target)
+                    } else {
+                        self.c.print_ty(target)
+                    }
+                    .to_string();
+                    let calls = self.c.get_signatures_of_type(source, SigKind::Call);
+                    let ctors = self.c.get_signatures_of_type(source, SigKind::Constructor);
+                    if let Some(sig) = calls.first()
+                        && let ret_ty = self.c.get_ret_ty_of_sig(sig)
+                        && self.is_related_to(
+                            ret_ty,
+                            target,
+                            RecursionFlags::SOURCE,
+                            false,
+                            IntersectionState::empty(),
+                        ) != Ternary::FALSE
+                    {
+                        let error =
+                            errors::ValueOfTypeHasNoPropertiesInCommonWithTypeDidYouMeanToCallIt {
+                                span,
+                                ty1: source_string,
+                                ty2: target_string,
+                            };
+                        self.c.push_error(Box::new(error));
+                    } else if let Some(sig) = ctors.first()
+                        && let ret_ty = self.c.get_ret_ty_of_sig(sig)
+                        && self.is_related_to(
+                            ret_ty,
+                            target,
+                            RecursionFlags::SOURCE,
+                            false,
+                            IntersectionState::empty(),
+                        ) != Ternary::FALSE
+                    {
+                        let error =
+                            errors::ValueOfTypeHasNoPropertiesInCommonWithTypeDidYouMeanToCallIt {
+                                span,
+                                ty1: source_string,
+                                ty2: target_string,
+                            };
+                        self.c.push_error(Box::new(error));
+                    } else {
+                        let error = errors::TypeXHasNoPropertiesInCommonWithTypeY {
+                            span,
+                            ty1: source_string,
+                            ty2: target_string,
+                        };
+                        self.c.push_error(Box::new(error));
+                    }
                 }
                 return Ternary::FALSE;
             }

@@ -132,25 +132,59 @@ impl<'cx> Expr<'cx> {
         }
     }
 
-    fn is_outer_expr(&self) -> bool {
+    fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
         match self.kind {
-            ExprKind::Paren(_) => true,
-            // TODO: handle more case
+            ExprKind::Paren(_) => {
+                // TODO: js
+                (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
+            }
+            ExprKind::TyAssertion(_) | ExprKind::As(_) => {
+                (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
+            }
+            ExprKind::Satisfies(_) => {
+                (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
+            }
+            ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
+            // TODO: partially_emitted_expression
             _ => false,
         }
     }
 
-    pub fn skip_outer_expr(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
-        while expr.is_outer_expr() {
-            if let ExprKind::Paren(child) = expr.kind {
-                expr = child.expr;
+    pub fn skip_outer_expr<const FLAGS: u8>(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        loop {
+            match expr.kind {
+                ExprKind::Paren(n) if (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0 => {
+                    expr = n.expr;
+                }
+                ExprKind::TyAssertion(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0 =>
+                {
+                    expr = n.expr;
+                }
+                ExprKind::As(n) if (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0 => {
+                    expr = n.expr;
+                }
+                ExprKind::Satisfies(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS)
+                        != 0 =>
+                {
+                    expr = n.expr;
+                }
+                ExprKind::NonNull(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0 =>
+                {
+                    expr = n.expr
+                }
+                // TODO: partially_emitted_expression
+                _ => return expr,
             }
         }
-        expr
     }
 
     pub fn skip_parens(expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
-        Self::skip_outer_expr(expr)
+        // TODO: js doc
+        const FLAGS: u8 = SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+        Self::skip_outer_expr::<FLAGS>(expr)
     }
 
     pub fn as_super_call(&self) -> Option<&'cx CallExpr<'cx>> {
@@ -260,6 +294,21 @@ impl<'cx> Expr<'cx> {
     }
 }
 
+pub const SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS: u8 = 1 << 0;
+pub const SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS: u8 = 1 << 1;
+pub const SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS: u8 = 1 << 2;
+pub const SKIP_OUTER_EXPRESSION_PARTIALLY_EMITTED_EXPRESSIONS_FLAGS: u8 = 1 << 3;
+pub const SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS: u8 = 1 << 4;
+pub const SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS: u8 = 1 << 5;
+pub const SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS: u8 = SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS;
+pub const SKIP_OUTER_EXPRESSION_ALL_FLAGS: u8 = SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS
+    | SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_PARTIALLY_EMITTED_EXPRESSIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS;
+pub const SKIP_OUTER_EXPRESSION_EXCLUDE_JSDOC_TYPE_ASSERTION_FLAGS: u8 = 1 << 6;
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
     Assign(&'cx AssignExpr<'cx>),
@@ -318,7 +367,7 @@ impl<'cx> ExprKind<'cx> {
         self.is_string_literal_like() || matches!(self, ExprKind::NumLit(_))
     }
 
-    fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
+    fn skip_paren(&self) -> &ExprKind<'cx> {
         match self {
             ExprKind::Paren(p) => p.expr.kind.skip_paren(),
             _ => self,
