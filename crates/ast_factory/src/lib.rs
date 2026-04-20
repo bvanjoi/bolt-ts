@@ -30,6 +30,15 @@ pub trait ASTFactory<'cx> {
     fn alloc<T>(&self, val: T) -> &'cx T;
     fn node_context_flags(&self) -> ast::NodeFlags;
     fn set_external_module_indicator(&mut self, node_id: NodeID);
+    fn set_external_module_indicator_if_has_export_modifier(
+        &mut self,
+        node: NodeID,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) {
+        if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT)) {
+            self.set_external_module_indicator(node);
+        }
+    }
 
     #[inline(always)]
     fn create_void_expr(
@@ -1198,6 +1207,50 @@ pub trait ASTFactory<'cx> {
             body,
         });
         self.insert_node(id, ast::Node::GetterDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_module_decl<const IS_GLOBAL_ARGUMENT: bool>(
+        &mut self,
+        span: bolt_ts_span::Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: ast::ModuleName<'cx>,
+        block: Option<&'cx ast::ModuleBlock<'cx>>,
+        has_export_decl: bool,
+    ) -> &'cx ast::ModuleDecl<'cx> {
+        let flags = self.node_context_flags();
+        // set_export_context_flags
+        let flags =
+            if flags.contains(ast::NodeFlags::AMBIENT) && block.is_some() && !has_export_decl {
+                flags | ast::NodeFlags::EXPORT_CONTEXT
+            } else {
+                flags & ast::NodeFlags::EXPORT_CONTEXT.complement()
+            };
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ModuleDecl {
+            id,
+            span,
+            modifiers,
+            name,
+            block,
+            is_global_argument: IS_GLOBAL_ARGUMENT,
+        });
+        self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
+        self.insert_node(id, ast::Node::ModuleDecl(node));
+        self.insert_node_flags(id, flags);
+        node
+    }
+
+    fn create_type_assertion_expression(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::TyAssertion<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::TyAssertion { id, span, expr, ty });
+        self.insert_node(id, ast::Node::TyAssertionExpr(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

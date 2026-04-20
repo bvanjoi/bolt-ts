@@ -965,8 +965,36 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emit_string_lit(n.module());
     }
 
-    fn emit_import_equals_decl(&mut self, _n: ir::ImportEqualsDeclID) {
-        // TODO:
+    fn emit_import_equals_decl(&mut self, n: ir::ImportEqualsDeclID) {
+        let n = self.nodes.get_import_equals_decl(&n);
+        self.emitter.print().p("var");
+        self.emitter.print().p_whitespace();
+        self.emit_ident(n.name());
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_eq();
+        self.emitter.print().p_whitespace();
+        self.emit_module_reference(n.module_reference());
+    }
+
+    fn emit_module_reference(&mut self, reference: ir::ModuleReferenceKind) {
+        match reference {
+            ir::ModuleReferenceKind::Require(n) => self.emit_string_lit(n),
+            ir::ModuleReferenceKind::EntityName(n) => self.emit_entity_name(n),
+        }
+    }
+
+    fn emit_qualified_name(&mut self, n: ir::QualifiedNameID) {
+        let n = self.nodes.get_qualified_name(&n);
+        self.emit_entity_name(n.left());
+        self.emitter.print().p_dot();
+        self.emit_ident(n.right());
+    }
+
+    fn emit_entity_name(&mut self, name: ir::EntityName) {
+        match name {
+            ir::EntityName::Ident(n) => self.emit_ident(n),
+            ir::EntityName::QualifiedName(n) => self.emit_qualified_name(n),
+        }
     }
 
     fn emit_import_clause(&mut self, clause: ir::ImportClauseID) {

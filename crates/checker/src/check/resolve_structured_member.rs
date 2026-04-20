@@ -217,7 +217,7 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let error = errors::TypeXRecursivelyReferencesItselfAsABaseType {
             span: self.p.node(decl).ident_name().unwrap().span,
-            x: self.print_ty(ty).to_string(),
+            x: self.print_ty(ty, None).to_string(),
             base_defined_span,
         };
         self.push_error(Box::new(error));

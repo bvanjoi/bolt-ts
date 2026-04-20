@@ -257,15 +257,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 if report_error {
                     let span = self.c.p.node(self.error_node.unwrap()).span();
                     let source_string = if original_source.alias_symbol().is_some() {
-                        self.c.print_ty(original_source)
+                        self.c.print_ty(original_source, None)
                     } else {
-                        self.c.print_ty(source)
+                        self.c.print_ty(source, None)
                     }
                     .to_string();
                     let target_string = if original_target.alias_symbol().is_some() {
-                        self.c.print_ty(original_target)
+                        self.c.print_ty(original_target, None)
                     } else {
-                        self.c.print_ty(target)
+                        self.c.print_ty(target, None)
                     }
                     .to_string();
                     let calls = self.c.get_signatures_of_type(source, SigKind::Call);
@@ -654,8 +654,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let error =
                         errors::TypeIsMissingTheFollowingPropertiesFromType1Colon2And3More {
                             span,
-                            ty1: self.c.print_ty(source).to_string(),
-                            ty2: self.c.print_ty(target).to_string(),
+                            ty1: self.c.print_ty(source, None).to_string(),
+                            ty2: self.c.print_ty(target, None).to_string(),
                             props,
                             len,
                         };
@@ -2250,7 +2250,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
                 let error = errors::IndexSignaturesAreIncompatible {
                     span,
-                    ty: target.val_ty.to_string(self.c),
+                    ty: self.c.print_ty(target.val_ty, None).to_string(),
                 };
                 self.c.push_error(Box::new(error));
             } else {
@@ -3073,7 +3073,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     if report_error && let Some(name) = name.as_atom() {
                         let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
                         let field = self.c.atoms.get(name).to_string();
-                        let ty = target_ty.to_string(self.c);
+                        let ty = self.c.print_ty(target_ty, None).to_string();
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                             span,
                             field,

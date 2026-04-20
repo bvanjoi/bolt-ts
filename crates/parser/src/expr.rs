@@ -463,14 +463,8 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = self.parse_ty()?;
         self.expect(TokenKind::Great);
         let expr = self.parse_simple_unary_expr()?;
-        let id = self.next_node_id();
-        let expr = self.alloc(ast::TyAssertion {
-            id,
-            span: self.new_span(start),
-            ty,
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::TyAssertionExpr(expr));
+        let span = self.new_span(start);
+        let expr = self.create_type_assertion_expression(span, expr, ty);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TyAssertion(expr),
         });

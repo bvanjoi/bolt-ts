@@ -247,7 +247,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let error = errors::TypeXIsNotAConstructorFunctionType {
                 span: extends.expr_with_ty_args.expr.span(),
-                ty: base_ctor_ty.to_string(self),
+                ty: self.print_ty(base_ctor_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
             let e = self.error_ty;

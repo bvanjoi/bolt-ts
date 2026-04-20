@@ -6,7 +6,6 @@ use super::cycle_check::ResolutionKey;
 use super::fn_mapper;
 use super::get_simplified_ty::SimplifiedKind;
 use super::is_deeply_nested_type::RecursionId;
-
 use super::ty;
 use super::ty::IndexFlags;
 use super::ty::TypeFlags;
@@ -299,7 +298,7 @@ impl<'cx> TyChecker<'cx> {
                     && let Some(decl) = checker.get_constraint_decl(ty)
                 {
                     let error = errors::TypeParameterXHasACircularConstraint {
-                        ty: checker.print_ty(ty).to_string(),
+                        ty: checker.print_ty(ty, None).to_string(),
                         span: decl.span(),
                     };
                     checker.push_error(Box::new(error));
@@ -473,8 +472,8 @@ impl<'cx> TyChecker<'cx> {
                         {
                             let error = errors::TypeXDoesNotSatisfyTheConstraintY {
                                 span: error_node.span(),
-                                x: this.print_ty(ty_arg).to_string(),
-                                y: this.print_ty(target).to_string(),
+                                x: this.print_ty(ty_arg, None).to_string(),
+                                y: this.print_ty(target, None).to_string(),
                             };
                             this.push_error(Box::new(error));
                         };

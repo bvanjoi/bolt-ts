@@ -172,8 +172,8 @@ impl<'cx> TyChecker<'cx> {
                         let span = this.p.node(member_name.unwrap()).span();
                         let error = errors::TypeIsNotAssignableToType {
                             span,
-                            ty1: this.print_ty(prop_ty).to_string(),
-                            ty2: this.print_ty(base_prop_ty).to_string(),
+                            ty1: this.print_ty(prop_ty, None).to_string(),
+                            ty2: this.print_ty(base_prop_ty, None).to_string(),
                         };
                         this.push_error(Box::new(error));
                     }),
@@ -339,8 +339,8 @@ impl<'cx> TyChecker<'cx> {
                             let error =
                                 errors::ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
                                     span: class.name().map_or(class.span(), |name| name.span),
-                                    class: static_ty.to_string(this),
-                                    base: target.to_string(this),
+                                    class: this.print_ty(static_ty, None).to_string(),
+                                    base: this.print_ty(target, None).to_string(),
                                 };
                             this.push_error(Box::new(error));
                         }),
@@ -430,7 +430,7 @@ impl<'cx> TyChecker<'cx> {
                             };
                             let error = errors::ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction {
                                 span: span,
-                                class_name: base_ty.to_string(self),
+                                class_name: self.print_ty(base_ty, None).to_string(),
                                 property_name: base_s_name.to_string(&self.atoms),
                                 extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
                             };
@@ -447,7 +447,7 @@ impl<'cx> TyChecker<'cx> {
                                 let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
                                     span: class.span(),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
-                                    class: base_ty.to_string(self),
+                                    class: self.print_ty(base_ty, None).to_string(),
                                 };
                                 self.push_error(Box::new(error));
                             } else {
@@ -455,7 +455,7 @@ impl<'cx> TyChecker<'cx> {
                                     span: class.span(),
                                     non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
-                                    abstract_class: base_ty.to_string(self),
+                                    abstract_class: self.print_ty(base_ty, None).to_string(),
                                 };
                                 self.push_error(Box::new(error));
                             }
@@ -478,7 +478,7 @@ impl<'cx> TyChecker<'cx> {
                 } else if t.flags.intersects(TypeFlags::PRIMITIVE) {
                     let error = errors::AClassCannotImplementAPrimTy {
                         span: ty_ref_node.span,
-                        ty: self.print_ty(t).to_string(),
+                        ty: self.print_ty(t, None).to_string(),
                     };
                     self.push_error(Box::new(error));
                 } else if self.is_valid_base_ty(t) {

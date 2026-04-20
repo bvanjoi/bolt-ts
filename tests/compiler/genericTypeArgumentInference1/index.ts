@@ -14,7 +14,7 @@ namespace Underscore {
 declare var _: Underscore.Static;
 
 var r = _.all([true, 1, null, 'yes'], _.identity);
-//~^ ERROR: Argument of type '(value: T) => T' is not assignable to parameter of type 'Iterator<false | true | number | string, boolean>'.
+//~^ ERROR: Argument of type '(value: T) => T' is not assignable to parameter of type 'Underscore.Iterator<false | true | number | string, boolean>'.
 var r2 = _.all([true], _.identity);
 var r3 = _.all([], _.identity);
 var r4 = _.all([<any>true], _.identity);

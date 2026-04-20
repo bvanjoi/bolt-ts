@@ -41,8 +41,8 @@ impl<'cx> TyChecker<'cx> {
                         Some(|this: &mut Self| {
                             let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
                                 span: interface.name.span,
-                                base: this.print_ty(base_ty).to_string(),
-                                derived: this.print_ty(ty).to_string(),
+                                base: this.print_ty(base_ty, None).to_string(),
+                                derived: this.print_ty(ty, None).to_string(),
                             };
                             this.push_error(Box::new(error));
                         }),
@@ -148,9 +148,9 @@ impl<'cx> TyChecker<'cx> {
                         ok = false;
                         let error = errors::InterfaceCannotSimultaneouslyExtendTypes1And2 {
                             span: ty_node.span,
-                            interface: ty.to_string(self),
-                            ty1: existing.1.to_string(self),
-                            ty2: base.to_string(self),
+                            interface: self.print_ty(ty, None).to_string(),
+                            ty1: self.print_ty(existing.1, None).to_string(),
+                            ty2: self.print_ty(base, None).to_string(),
                         };
                         self.push_error(Box::new(error));
                     }

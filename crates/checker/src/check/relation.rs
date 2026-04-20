@@ -449,8 +449,8 @@ impl<'cx> TyChecker<'cx> {
                 };
                 Box::new(errors::TypeIsNotAssignableToType {
                     span,
-                    ty1: this.print_ty(source).to_string(),
-                    ty2: this.print_ty(target).to_string(),
+                    ty1: this.print_ty(source, None).to_string(),
+                    ty2: this.print_ty(target, None).to_string(),
                 })
             },
         )

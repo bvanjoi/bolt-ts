@@ -91,8 +91,8 @@ impl<'cx> TyChecker<'cx> {
                 error_output_container,
                 Some(|this: &mut Self| {
                     let span = return_expr.span();
-                    let source_return = this.print_ty(source_return).to_string();
-                    let target_return = this.print_ty(target_return).to_string();
+                    let source_return = this.print_ty(source_return, None).to_string();
+                    let target_return = this.print_ty(target_return, None).to_string();
                     let error = Box::new(errors::TypeIsNotAssignableToType {
                         span,
                         ty1: source_return,
@@ -388,8 +388,8 @@ impl<'cx> TyChecker<'cx> {
                         Some(error_node),
                         Some(|this: &mut Self| {
                             let span = this.p.node(error_node).span();
-                            let specific_source = this.print_ty(specific_source).to_string();
-                            let target_prop_ty = this.print_ty(target_prop_ty).to_string();
+                            let specific_source = this.print_ty(specific_source, None).to_string();
+                            let target_prop_ty = this.print_ty(target_prop_ty, None).to_string();
                             let error = Box::new(errors::TypeIsNotAssignableToType {
                                 span,
                                 ty1: specific_source,

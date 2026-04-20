@@ -119,7 +119,7 @@ pub fn visit_module_decl<'cx>(v: &mut impl Visitor<'cx>, decl: &'cx ast::ModuleD
     }
 }
 
-fn visit_module_name<'cx>(v: &mut impl Visitor<'cx>, name: ast::ModuleName<'cx>) {
+pub fn visit_module_name<'cx>(v: &mut impl Visitor<'cx>, name: ast::ModuleName<'cx>) {
     match name {
         ast::ModuleName::Ident(ident) => v.visit_ident(ident),
         ast::ModuleName::StringLit(lit) => v.visit_string_lit(lit),

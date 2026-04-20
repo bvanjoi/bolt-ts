@@ -1,4 +1,4 @@
-  × Property 'saltbar' does not exist on type 'C'.
+  × Property 'saltbar' does not exist on type 'M.C'.
     ╭─[../../tests/compiler/undeclaredMethod/index.ts:12:3]
  12 │ saltbar
     · ───────

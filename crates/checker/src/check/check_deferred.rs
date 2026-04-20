@@ -41,8 +41,8 @@ impl<'cx> TyChecker<'cx> {
             self.check_type_comparable_to(expr_ty, target_ty, Some(node_id), Some(|this: &mut Self| {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
                     span: span,
-                    source_ty: widened_ty.to_string(this),
-                    target_ty: target_ty.to_string(this),
+                    source_ty: this.print_ty(widened_ty, None).to_string(),
+                    target_ty: this.print_ty(target_ty, None).to_string(),
                 };
                 this.push_error(Box::new(error));
             }));

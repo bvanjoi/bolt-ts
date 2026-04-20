@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_ast_visitor::Visitor;
+use bolt_ts_ast_visitor::{Visitor, visit_module_name};
 use bolt_ts_checker::{check::TyChecker, emit_resolver::EmitResolver};
 use bolt_ts_optimize::Emitter;
 use bolt_ts_span::ModuleID;
@@ -33,15 +33,27 @@ pub fn emit_declarations<'cx, 'a>(
 pub fn emit_declaration<'cx, 'a>(module_id: ModuleID, checker: &'a mut TyChecker<'cx>) -> String {
     let emitter = Emitter::new();
     let resolver = EmitResolver::new(checker);
-    let mut emitter = DeclarationEmitter { emitter, resolver };
+    let mut emitter = DeclarationEmitter {
+        emitter,
+        resolver,
+        flags: EmitDeclarationFlags::NEED_DECLARE,
+    };
     let root = emitter.resolver.program(module_id);
     emitter.visit_program(root);
     emitter.emitter.print().take_content()
 }
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy)]
+    pub struct EmitDeclarationFlags: u8 {
+        const STRIP_EXPORT_MODIFIER = 1 << 0;
+        const NEED_DECLARE          = 1 << 1;
+    }
+}
 struct DeclarationEmitter<'cx, 'a> {
     emitter: Emitter,
     resolver: EmitResolver<'cx, 'a>,
+    flags: EmitDeclarationFlags,
 }
 
 impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
@@ -86,6 +98,33 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
     }
 
+    fn visit_module_decl(&mut self, node: &'cx bolt_ts_ast::ModuleDecl<'cx>) {
+        self.emitter.print().p("declare");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("namespace");
+        self.emitter.print().p_whitespace();
+        visit_module_name(self, node.name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_l_brace();
+        if let Some(block) = node.block {
+            let saved_flags = self.flags;
+            self.flags
+                .insert(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER);
+            self.flags.remove(EmitDeclarationFlags::NEED_DECLARE);
+            self.emitter.increment_indent();
+            self.emitter.print().p_newline();
+            self.emit_list(
+                block.stmts,
+                |this, stmt| this.visit_stmt(stmt),
+                |this, _| this.emitter.print().p_newline(),
+            );
+            self.emitter.decrement_indent();
+            self.emitter.print().p_newline();
+            self.flags = saved_flags;
+        }
+        self.emitter.print().p_r_brace();
+    }
+
     fn visit_ty_param(&mut self, node: &'cx bolt_ts_ast::TyParam<'cx>) {
         self.visit_ident(node.name);
         if let Some(constraint) = node.constraint {
@@ -126,8 +165,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
-        self.emitter.print().p("declare");
-        self.emitter.print().p_whitespace();
+        if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
+            self.emitter.print().p("declare");
+            self.emitter.print().p_whitespace();
+        }
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name.map(|name| name.name) {

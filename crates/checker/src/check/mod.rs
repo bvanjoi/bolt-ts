@@ -54,6 +54,7 @@ mod is_valid;
 mod links;
 mod merge;
 mod node_check_flags;
+mod print;
 mod relation;
 mod resolve;
 mod resolve_structured_member;
@@ -992,20 +993,6 @@ impl<'cx> TyChecker<'cx> {
         this
     }
 
-    pub fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &str {
-        if self.type_name.contains_key(&ty.id) {
-            return &self.type_name[&ty.id];
-        }
-        self.type_name
-            .insert(ty.id, std::borrow::Cow::Borrowed("..."));
-        let type_name = ty.to_string(self);
-        let prev = self
-            .type_name
-            .insert(ty.id, std::borrow::Cow::Owned(type_name));
-        debug_assert!(prev.is_some_and(|s| s == "..."));
-        &self.type_name[&ty.id]
-    }
-
     pub fn any_sig(&self) -> &'cx Sig<'cx> {
         self.any_sig.get().unwrap()
     }
@@ -1220,9 +1207,9 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
                     span: prop_node.span(),
                     prop: prop_name,
-                    ty_b: self.print_ty(prop_ty).to_string(),
-                    ty_c: self.print_ty(index_info.key_ty).to_string(),
-                    index_ty_d: self.print_ty(index_info.val_ty).to_string(),
+                    ty_b: self.print_ty(prop_ty, None).to_string(),
+                    ty_c: self.print_ty(index_info.key_ty, None).to_string(),
+                    index_ty_d: self.print_ty(index_info.val_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
                 return;
@@ -1728,13 +1715,13 @@ impl<'cx> TyChecker<'cx> {
             let mut error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
                 prop: missing_prop,
-                ty: self.print_ty(containing_ty).to_string(),
+                ty: self.print_ty(containing_ty, None).to_string(),
                 related: vec![],
             };
             error.related.push(errors::PropertyXDoesNotExistOnTypeYHelperKind::DidYourMeanToAccessTheStaticMemberInstead(
                 errors::DidYourMeanToAccessTheStaticMemberInstead {
                     span: prop_node.span,
-                    class_name: self.print_ty(containing_ty).to_string(),
+                    class_name: self.print_ty(containing_ty, None).to_string(),
                     prop_name: pprint_ident(prop_node, &self.atoms),
                 }),
             );
@@ -1743,7 +1730,7 @@ impl<'cx> TyChecker<'cx> {
             let error = errors::PropertyXDoesNotExistOnTypeY {
                 span: prop_node.span,
                 prop: missing_prop,
-                ty: self.print_ty(containing_ty).to_string(),
+                ty: self.print_ty(containing_ty, None).to_string(),
                 related: vec![],
             };
             self.push_error(Box::new(error));
@@ -2986,8 +2973,8 @@ impl<'cx> TyChecker<'cx> {
             // report_operator_error
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
                 op: token.as_str().to_string(),
-                ty1: left_ty.to_string(self),
-                ty2: right_ty.to_string(self),
+                ty1: self.print_ty(left_ty, None).to_string(),
+                ty2: self.print_ty(right_ty, None).to_string(),
                 span: node_span,
             };
             self.push_error(Box::new(error));
@@ -3079,7 +3066,7 @@ impl<'cx> TyChecker<'cx> {
             let right_ty = self.get_widened_literal_ty(right_ty);
             let error = bolt_ts_ecma_rules::TheRightValueOfTheInOperatorMustBeAnObjectButGotTy {
                 span: right.span(),
-                ty: right_ty.to_string(self),
+                ty: self.print_ty(right_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         }
@@ -3134,8 +3121,8 @@ impl<'cx> TyChecker<'cx> {
 
         let error = errors::TypeCannotBeUsedToIndexType {
             span: n.span,
-            ty: self.print_ty(indexed_access_ty.index_ty).to_string(),
-            index_ty: self.print_ty(indexed_access_ty.object_ty).to_string(),
+            ty: self.print_ty(indexed_access_ty.index_ty, None).to_string(),
+            index_ty: self.print_ty(indexed_access_ty.object_ty, None).to_string(),
         };
         self.push_error(Box::new(error));
         self.error_ty

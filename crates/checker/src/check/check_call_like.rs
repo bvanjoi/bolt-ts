@@ -801,8 +801,8 @@ impl<'cx> TyChecker<'cx> {
                         let source = this.get_base_ty_of_literal_ty(source);
                         Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
                             span,
-                            arg_ty: this.print_ty(source).to_string(),
-                            param_ty: this.print_ty(target).to_string(),
+                            arg_ty: this.print_ty(source, None).to_string(),
+                            param_ty: this.print_ty(target, None).to_string(),
                         })
                     },
                 ) {
@@ -830,11 +830,11 @@ impl<'cx> TyChecker<'cx> {
                 relation,
                 error_node,
                 Some(|this: &mut Self| {
-                    let arg_ty = this.print_ty(spared_ty).to_string();
+                    let arg_ty = this.print_ty(spared_ty, None).to_string();
                     let error = Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
                         span: expr.span(),
                         arg_ty,
-                        param_ty: this.print_ty(rest_ty).to_string(),
+                        param_ty: this.print_ty(rest_ty, None).to_string(),
                     });
                     this.push_error(error);
                 }),
@@ -885,8 +885,8 @@ impl<'cx> TyChecker<'cx> {
                     if report_error {
                         let error = errors::TypeXDoesNotSatisfyTheConstraintY {
                             span: ty_args.list[i].span(),
-                            x: this.print_ty(ty_arg).to_string(),
-                            y: this.print_ty(target).to_string(),
+                            x: this.print_ty(ty_arg, None).to_string(),
+                            y: this.print_ty(target, None).to_string(),
                         };
                         this.push_error(Box::new(error));
                     }

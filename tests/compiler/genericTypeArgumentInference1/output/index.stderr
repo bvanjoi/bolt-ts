@@ -1,5 +1,5 @@
   × Argument of type '(value: T) => T' is not assignable to parameter of type
-  │ 'Iterator<false | true | number | string, boolean>'.
+  │ 'Underscore.Iterator<false | true | number | string, boolean>'.
     ╭─[../../tests/compiler/genericTypeArgumentInference1/index.ts:16:39]
  16 │ _.identity
     · ──────────

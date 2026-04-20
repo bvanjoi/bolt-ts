@@ -1,0 +1,29 @@
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/chainedAssignment1/index.ts:26:6]
+ 26 │ c2
+    · ──
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/chainedAssignment1/index.ts:26:6]
+ 26 │ c2
+    · ──
+    ╰────
+
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/chainedAssignment1/index.ts:26:1]
+ 26 │ c1
+    · ──
+    ╰────
+
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/chainedAssignment1/index.ts:31:1]
+ 31 │ c2
+    · ──
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/chainedAssignment1/index.ts:31:1]
+ 31 │ c2
+    · ──
+    ╰────

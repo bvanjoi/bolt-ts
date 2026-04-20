@@ -207,13 +207,13 @@ impl<'cx> TyChecker<'cx> {
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node_span,
-                        ty: self.print_ty(ty).to_string(),
+                        ty: self.print_ty(ty, None).to_string(),
                         n: ty_params.len(),
                     })
                 } else {
                     Box::new(errors::GenericTypeXRequiresBetweenXAndYTypeArguments {
                         span: node_span,
-                        ty: self.print_ty(ty).to_string(),
+                        ty: self.print_ty(ty, None).to_string(),
                         x: min_ty_arg_count,
                         y: ty_params.len(),
                     })

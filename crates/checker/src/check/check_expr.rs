@@ -251,8 +251,8 @@ impl<'cx> TyChecker<'cx> {
         let error = errors::OperatorCannotBeAppliedToTypesXAndY {
             span: error_span,
             op: op.kind.to_string(),
-            ty1: effective_left_ty.to_string(self),
-            ty2: effective_right_ty.to_string(self),
+            ty1: self.print_ty(effective_left_ty, None).to_string(),
+            ty2: self.print_ty(effective_right_ty, None).to_string(),
         };
         self.push_error(Box::new(error));
     }
@@ -820,7 +820,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let error = errors::TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),
-                ty: self.print_ty(ty).to_string(),
+                ty: self.print_ty(ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         };
@@ -893,7 +893,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(error_node) = error_node {
                 let error = errors::TypeXIsNotAnArrayType {
                     span: self.p.node(error_node).span(),
-                    ty: self.print_ty(input_ty).to_string(),
+                    ty: self.print_ty(input_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
             }

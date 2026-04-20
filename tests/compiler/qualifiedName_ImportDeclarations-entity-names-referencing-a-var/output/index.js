@@ -8,7 +8,7 @@ var Alpha = {};
 var Beta = {};
 (function (Beta) {
 
-  
+  var p = Alpha.x
   
 })(Beta);
 var x = Alpha.x;

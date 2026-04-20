@@ -10,7 +10,6 @@ use bolt_ts_ty::TypeFacts;
 use super::TyChecker;
 use super::ast;
 use super::errors;
-
 use super::ty;
 use super::ty::TypeFlags;
 
@@ -76,8 +75,8 @@ impl<'cx> TyChecker<'cx> {
                             Some(|this: &mut Self| {
                                 let error = errors::TypeXIsNotComparableToTypeY {
                                     span: n.expr.span(),
-                                    ty1: this.print_ty(case_ty).to_string(),
-                                    ty2: this.print_ty(expr_ty).to_string(),
+                                    ty1: this.print_ty(case_ty, None).to_string(),
+                                    ty2: this.print_ty(expr_ty, None).to_string(),
                                 };
                                 this.push_error(Box::new(error));
                             }),
@@ -333,7 +332,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType {
                 span: node.expr.span(),
-                ty: self.print_ty(right_ty).to_string(),
+                ty: self.print_ty(right_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         }

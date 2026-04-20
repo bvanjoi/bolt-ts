@@ -53,6 +53,6 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     }
 
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
-        ty.to_string(self.checker)
+        self.checker.print_ty(ty, None).to_string()
     }
 }

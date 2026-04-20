@@ -1,0 +1,5 @@
+  × Import declaration conflicts with local declaration of 'x'.
+    ╭─[../../tests/compiler/importAndVariableDeclarationConflict4/index.ts:10:1]
+ 10 │ import x = m.m;
+    · ───────────────
+    ╰────

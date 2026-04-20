@@ -88,8 +88,8 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
                     span: self.p.node(name_id).span(),
                     var: self.atoms.get(name.name).to_string(),
-                    ty1: ty.to_string(self),
-                    ty2: decl_ty.to_string(self),
+                    ty1: self.print_ty(ty, None).to_string(),
+                    ty2: self.print_ty(decl_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
             }

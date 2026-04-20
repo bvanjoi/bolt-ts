@@ -66,7 +66,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Namespace | Module => {
                 if self.is_start_of_decl() {
-                    ast::StmtKind::Module(self.parse_module_decl(None)?)
+                    ast::StmtKind::Module(self.parse_module_decl(None))
                 } else {
                     self.parse_expr_or_labeled_stmt()?
                 }
@@ -472,7 +472,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_module_decl(
         &mut self,
         mods: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
+    ) -> &'cx ast::ModuleDecl<'cx> {
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
@@ -492,15 +492,18 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         let name = self.parse_ident_name();
-        let block = self.parse_module_block()?;
+        let block = self.parse_module_block();
         let span = self.new_span(start);
-        let id = self.next_node_id();
-        let decl =
-            self.create_ns_decl::<false>(id, span, mods, ast::ModuleName::Ident(name), Some(block));
-        Ok(decl)
+        self.create_module_decl::<false>(
+            span,
+            mods,
+            ast::ModuleName::Ident(name),
+            Some(block),
+            self.has_export_decl,
+        )
     }
 
-    fn parse_module_block(&mut self) -> PResult<&'cx ast::ModuleBlock<'cx>> {
+    fn parse_module_block(&mut self) -> &'cx ast::ModuleBlock<'cx> {
         self.do_inside_of_parse_context(ParseContext::MODULE_BLOCK, |this| {
             let start = this.token.start();
             this.expect(TokenKind::LBrace);
@@ -524,7 +527,7 @@ impl<'cx> ParserState<'cx, '_> {
                 stmts,
             });
             this.nodes.insert(id, ast::Node::ModuleBlock(block));
-            Ok(block)
+            block
         })
     }
 
@@ -533,55 +536,20 @@ impl<'cx> ParserState<'cx, '_> {
         start: u32,
         mods: Option<&'cx ast::Modifiers<'cx>>,
         name: ast::ModuleName<'cx>,
-    ) -> PResult<&'cx ast::ModuleDecl<'cx>> {
+    ) -> &'cx ast::ModuleDecl<'cx> {
         let _flags = if IS_GLOBAL_ARGUMENT {
             NodeFlags::GLOBAL_AUGMENTATION
         } else {
             ast::NodeFlags::empty()
         };
         let block = if self.token.kind == TokenKind::LBrace {
-            Some(self.parse_module_block()?)
+            Some(self.parse_module_block())
         } else {
             self.parse_semi();
             None
         };
         let span = self.new_span(start);
-        let id = self.next_node_id();
-        Ok(self.create_ns_decl::<IS_GLOBAL_ARGUMENT>(id, span, mods, name, block))
-    }
-
-    fn set_export_context_flags(&self, block_exist: bool) -> NodeFlags {
-        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
-            && block_exist
-            && !self.has_export_decl
-        {
-            self.node_context_flags | NodeFlags::EXPORT_CONTEXT
-        } else {
-            self.node_context_flags & !NodeFlags::EXPORT_CONTEXT
-        }
-    }
-
-    fn create_ns_decl<const IS_GLOBAL_ARGUMENT: bool>(
-        &mut self,
-        id: ast::NodeID,
-        span: bolt_ts_span::Span,
-        modifiers: Option<&'cx bolt_ts_ast::Modifiers<'cx>>,
-        name: bolt_ts_ast::ModuleName<'cx>,
-        block: Option<&'cx bolt_ts_ast::ModuleBlock<'cx>>,
-    ) -> &'cx ast::ModuleDecl<'cx> {
-        let flags = self.set_export_context_flags(block.is_some());
-        let decl = self.alloc(ast::ModuleDecl {
-            id,
-            span,
-            modifiers,
-            name,
-            block,
-            is_global_argument: IS_GLOBAL_ARGUMENT,
-        });
-        self.node_flags_map.insert(id, flags);
-        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::ModuleDecl(decl));
-        decl
+        self.create_module_decl::<IS_GLOBAL_ARGUMENT>(span, mods, name, block, self.has_export_decl)
     }
 
     fn parse_type_alias_decl(
@@ -637,11 +605,11 @@ impl<'cx> ParserState<'cx, '_> {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(mods)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
-            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(mods)?),
+            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(mods)),
             Ident => {
                 let id = self.ident_token();
                 if id == keyword::IDENT_GLOBAL {
-                    ast::StmtKind::Module(self.parse_module_decl(mods)?)
+                    ast::StmtKind::Module(self.parse_module_decl(mods))
                 } else {
                     unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
                 }

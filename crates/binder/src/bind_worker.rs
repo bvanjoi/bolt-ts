@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
@@ -883,11 +884,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_source_file_as_external_module(&mut self, node: &'cx ast::Program<'cx>) {
-        let s = self.bind_anonymous_decl(
-            node.id(),
-            SymbolFlags::VALUE_MODULE,
-            SymbolName::Atom(self.p.filepath),
-        );
+        let name = if cfg!(debug_assertions) {
+            SymbolName::Atom(keyword::IDENT_EMPTY)
+        } else {
+            SymbolName::Atom(self.p.filepath)
+        };
+        let s = self.bind_anonymous_decl(node.id(), SymbolFlags::VALUE_MODULE, name);
         assert_eq!(s, SymbolID::container(node.id().module()));
         self.create_final_res(node.id(), s);
     }

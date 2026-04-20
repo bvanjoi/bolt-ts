@@ -1045,7 +1045,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                     let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
                         span: self.p.node(index_node).span(),
-                        x: self.print_ty(object_ty).to_string(),
+                        x: self.print_ty(object_ty, None).to_string(),
                         y: TyChecker::get_ty_reference_arity(object_ty),
                         z: index as usize,
                     };
@@ -1124,8 +1124,8 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
                             span: self.p.node(access_expr).span(),
-                            prop: self.print_ty(index_ty).to_string(),
-                            ty: self.print_ty(object_ty).to_string(),
+                            prop: self.print_ty(index_ty, None).to_string(),
+                            ty: self.print_ty(object_ty, None).to_string(),
                             related: vec![],
                         });
                         self.push_error(error);
@@ -1166,8 +1166,8 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let error = Box::new(errors::PropertyXDoesNotExistOnTypeY {
                         span: self.p.node(access_expr).span(),
-                        prop: self.print_ty(index_ty).to_string(),
-                        ty: self.print_ty(object_ty).to_string(),
+                        prop: self.print_ty(index_ty, None).to_string(),
+                        ty: self.print_ty(object_ty, None).to_string(),
                         related: vec![],
                     });
                     self.push_error(error);
@@ -1185,8 +1185,8 @@ impl<'cx> TyChecker<'cx> {
                         let error = Box::new(
                             errors::ElementImplicitlyHasAnAnyTypeBecauseExpressionOfTypeXCanTBeUsedToIndexTypeY {
                                 span: self.p.node(access_expr).span(),
-                                x: self.print_ty(index_ty).to_string(),
-                                y: self.print_ty(object_ty).to_string(),
+                                x: self.print_ty(index_ty, None).to_string(),
+                                y: self.print_ty(object_ty, None).to_string(),
                             },
                         );
                         self.push_error(error);
@@ -1210,8 +1210,8 @@ impl<'cx> TyChecker<'cx> {
             {
                 Box::new(errors::PropertyXDoesNotExistOnTypeY {
                     span,
-                    prop: self.print_ty(index_ty).to_string(),
-                    ty: self.print_ty(object_ty).to_string(),
+                    prop: self.print_ty(index_ty, None).to_string(),
+                    ty: self.print_ty(object_ty, None).to_string(),
                     related: vec![],
                 })
             } else if index_ty
@@ -1220,13 +1220,13 @@ impl<'cx> TyChecker<'cx> {
             {
                 Box::new(errors::TypeXHasNoMatchingIndexSignatureForTypeY {
                     span,
-                    x: self.print_ty(object_ty).to_string(),
-                    y: self.print_ty(index_ty).to_string(),
+                    x: self.print_ty(object_ty, None).to_string(),
+                    y: self.print_ty(index_ty, None).to_string(),
                 })
             } else {
                 Box::new(errors::TypeCannotBeUsedAsAnIndexType {
                     span,
-                    ty: self.print_ty(index_ty).to_string(),
+                    ty: self.print_ty(index_ty, None).to_string(),
                 })
             };
             self.push_error(error);
@@ -2253,7 +2253,10 @@ impl<'cx> TyChecker<'cx> {
                         let error = errors::ObjectLiteralSPropertyXImplicitlyHasAnYType {
                             span: self.p.node(*value_declaration).span(),
                             prop: s.name.to_string(&self.atoms),
-                            ty: self.get_widened_ty(t).to_string(self),
+                            ty: {
+                                let ty = self.get_widened_ty(t);
+                                self.print_ty(ty, None).to_string()
+                            },
                         };
                         self.push_error(Box::new(error));
                         error_reported = true;
@@ -2295,7 +2298,8 @@ impl<'cx> TyChecker<'cx> {
         widening_kind: Option<WideningKind>,
     ) {
         // TODO: is_js
-        let ty_as_string = self.get_widened_ty(ty).to_string(self);
+        let ty = self.get_widened_ty(ty);
+        let ty_as_string = self.print_ty(ty, None).to_string();
         match self.p.node(decl) {
             ast::Node::ObjectMethodMember(_)
             | ast::Node::ClassMethodElem(_)

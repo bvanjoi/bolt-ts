@@ -28,7 +28,7 @@ declare namespace MoversAndShakers {
 }
 
 interface MoverShaker2 extends MoversAndShakers.Mover, MoversAndShakers.Shaker { } // error
-//~^ ERROR: Interface 'MoverShaker2' cannot simultaneously extend types 'Mover' and 'Shaker'.
+//~^ ERROR: Interface 'MoverShaker2' cannot simultaneously extend types 'MoversAndShakers.Mover' and 'MoversAndShakers.Shaker'.
 
 interface MoverShaker3 extends MoversAndShakers.Mover, MoversAndShakers.Shaker {
     getStatus(): { speed: number; frequency: number; }; // ok because this getStatus overrides the conflicting ones above
