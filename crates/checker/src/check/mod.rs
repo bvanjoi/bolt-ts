@@ -2757,6 +2757,9 @@ impl<'cx> TyChecker<'cx> {
             || is_alias
             || (is_outer_variable && !is_never_initialized)
             || self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT)
+            || self
+                .node_query(ident.id.module())
+                .is_same_scoped_binding_element(ident, decl)
             || (ty != self.auto_ty
                 && ty != self.auto_array_ty()
                 && (!self.config.compiler_options().strict_null_checks()
@@ -5033,9 +5036,38 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn is_nullable_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
-        // TODO: has_ty_facts
-        false
+    fn is_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.has_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)
+    }
+
+    fn is_generic_ty_with_undefined_constraint(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags.intersects(TypeFlags::INSTANTIABLE) && {
+            let base_ty = self
+                .get_base_constraint_of_ty(ty)
+                .unwrap_or(self.unknown_ty);
+            base_ty.maybe_type_of_kind(TypeFlags::UNDEFINED)
+        }
+    }
+
+    fn get_non_undefined_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let ty_or_constraint = if self.some_type(ty, Self::is_generic_ty_with_undefined_constraint)
+        {
+            self.map_ty(
+                ty,
+                |this, t| {
+                    Some(if t.flags.intersects(TypeFlags::INSTANTIABLE) {
+                        this.get_base_constraint_or_ty(t)
+                    } else {
+                        t
+                    })
+                },
+                false,
+            )
+            .unwrap()
+        } else {
+            ty
+        };
+        self.get_ty_with_facts(ty_or_constraint, TypeFacts::NE_UNDEFINED)
     }
 
     fn get_non_nullable_ty_if_needed(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

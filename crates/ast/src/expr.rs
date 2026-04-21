@@ -386,7 +386,7 @@ impl<'cx> ExprKind<'cx> {
         }
     }
 
-    fn is_logical_or_coalescing_binary(&self) -> bool {
+    pub fn is_logical_or_coalescing_binary(&self) -> bool {
         match self {
             ExprKind::Bin(bin) => bin.op.kind.is_logical_or_coalescing_op(),
             _ => false,

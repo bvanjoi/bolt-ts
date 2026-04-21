@@ -135,7 +135,6 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 }
                 s
             }),
-
             ty::TyKind::Param(param) => {
                 let Some(symbol) = param.symbol else {
                     return "dummy_parameter".to_string();
@@ -200,9 +199,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
         }
     }
 
-    fn print_enum_symbol(&self, symbol: bolt_ts_binder::SymbolID) -> String {
-        let name = self.c.binder.symbol(symbol).name;
-        self.c.atoms.get(name.expect_atom()).to_string()
+    fn print_enum_symbol(&mut self, symbol: bolt_ts_binder::SymbolID) -> String {
+        self.print_enum_lit_symbol(symbol)
     }
 
     fn print_enum_lit_symbol(&mut self, symbol: bolt_ts_binder::SymbolID) -> String {

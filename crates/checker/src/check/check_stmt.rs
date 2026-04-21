@@ -377,7 +377,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_if_stmt(&mut self, i: &'cx ast::IfStmt) {
-        self.check_expr(i.expr);
+        let ty = self.check_truthiness_expr(i.expr);
+        self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+            i.expr,
+            ty,
+            Some(i.then.id()),
+        );
         self.check_stmt(i.then);
         if let Some(else_then) = i.else_then {
             self.check_stmt(else_then);

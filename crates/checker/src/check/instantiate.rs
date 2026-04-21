@@ -1357,7 +1357,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        assert!(ty.kind.is_param());
+        debug_assert!(ty.kind.is_param());
         let default_ty = self.get_resolved_ty_param_default(ty);
         if default_ty != self.no_constraint_ty() && default_ty != self.circular_constraint_ty() {
             Some(default_ty)
@@ -1389,10 +1389,9 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_ty_links(ty.id)
                 .set_default(resolving_default_type);
             let default_decl = self.ty_param_nodes(param).and_then(|decls| {
-                decls.iter().find_map(|decl| {
-                    let ty_param_node = self.p.node(*decl).expect_ty_param();
-                    ty_param_node.default
-                })
+                decls
+                    .iter()
+                    .find_map(|decl| self.p.node(*decl).as_ty_param().and_then(|n| n.default))
             });
             let default_ty = if let Some(default_decl) = default_decl {
                 self.get_ty_from_type_node(default_decl)

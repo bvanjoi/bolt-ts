@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.p.node(parent_id);
         use bolt_ts_ast::Node::*;
         match parent {
-            VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id),
+            VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id, flags),
             ParamDecl(parent) => self.get_contextual_ty_for_param_decl(parent, id),
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
@@ -347,16 +347,28 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         parent: &'cx ast::VarDecl<'cx>,
         node: ast::NodeID,
+        flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
-        if parent.init.is_some()
-            && let Some(decl_ty) = parent.ty
-        {
-            // TODO: js
-            Some(self.get_ty_from_type_node(decl_ty))
-        } else {
-            None
+        if parent.init.is_some() {
+            if let Some(decl_ty) = parent.ty {
+                // TODO: js
+                return Some(self.get_ty_from_type_node(decl_ty));
+            } else if !flags
+                .is_some_and(|flags| flags.contains(ContextFlags::SKIP_BINDING_PATTERNS))
+            {
+                match parent.name.kind {
+                    ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
+                        return Some(self.get_ty_from_binding_pat::<true>(parent.name));
+                    }
+                    ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
+                        return Some(self.get_ty_from_binding_pat::<true>(parent.name));
+                    }
+                    _ => {}
+                }
+            };
         }
+        None
     }
 
     fn get_contextual_ty_for_array_binding(

@@ -591,19 +591,20 @@ impl<'cx> TyChecker<'cx> {
         let mut member_ty_list = Vec::with_capacity(decls.len());
         for decl in decls {
             for member in decl.members.iter() {
-                // TODO: has_bindable_name
-                let member_symbol = self.get_symbol_of_decl(member.id);
-                let _ = self.get_symbol_links(member_symbol);
-                let value = self.get_enum_member_value(member);
-                let member_ty = match value {
-                    EnumMemberValue::Str(_) | EnumMemberValue::Number(_) => {
-                        self.get_enum_literal_ty(value, symbol, member_symbol)
-                    }
-                    EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
+                if self.has_bindable_name(member.id) {
+                    let member_symbol = self.get_symbol_of_decl(member.id);
+                    let _ = self.get_symbol_links(member_symbol);
+                    let value = self.get_enum_member_value(member);
+                    let member_ty = match value {
+                        EnumMemberValue::Str(_) | EnumMemberValue::Number(_) => {
+                            self.get_enum_literal_ty(value, symbol, member_symbol)
+                        }
+                        EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
+                    };
+                    self.get_mut_symbol_links(member_symbol)
+                        .set_declared_ty(member_ty);
+                    member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty))
                 };
-                self.get_mut_symbol_links(member_symbol)
-                    .set_declared_ty(member_ty);
-                member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty));
             }
         }
 

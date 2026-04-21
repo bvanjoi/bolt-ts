@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::FlowFlags;
@@ -1325,8 +1326,95 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+        &mut self,
+        n: &'cx ast::Expr<'cx>,
+        cond_ty: &'cx ty::Ty<'cx>,
+        body: Option<ast::NodeID>,
+    ) {
+        if !self.config.compiler_options().strict_null_checks() {
+            return;
+        }
+
+        fn both_helper<'cx>(
+            this: &mut TyChecker<'cx>,
+            mut cond_expr: &'cx ast::Expr<'cx>,
+            cond_ty: &'cx ty::Ty<'cx>,
+            body: Option<ast::NodeID>,
+        ) {
+            cond_expr = ast::Expr::skip_parens(cond_expr);
+            helper(this, cond_expr, cond_ty, body);
+            loop {
+                let ast::ExprKind::Bin(bin) = cond_expr.kind else {
+                    break;
+                };
+                if matches!(
+                    bin.op.kind,
+                    ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish
+                ) {
+                    cond_expr = ast::Expr::skip_parens(bin.left);
+                    helper(this, cond_expr, cond_ty, body);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        fn helper<'cx>(
+            this: &mut TyChecker<'cx>,
+            cond_expr: &'cx ast::Expr<'cx>,
+            cond_ty: &'cx ty::Ty<'cx>,
+            body: Option<ast::NodeID>,
+        ) {
+            let loc = if let ast::ExprKind::Bin(bin) = cond_expr.kind
+                && bin.op.kind.is_logical_or_coalescing_op()
+            {
+                ast::Expr::skip_parens(bin.right)
+            } else {
+                cond_expr
+            };
+            // TODO: is_module_exports_access_expression(loc) then return
+            if loc.kind.is_logical_or_coalescing_binary() {
+                both_helper(this, loc, cond_ty, body);
+                return;
+            }
+
+            let ty = if std::ptr::eq(loc, cond_expr) {
+                debug_assert!(loc.id() == cond_expr.id());
+                cond_ty
+            } else {
+                this.check_expr(loc)
+            };
+            if ty.flags.contains(TypeFlags::ENUM_LITERAL)
+                && let ast::ExprKind::PropAccess(access) = loc.kind
+                && let s = this.final_res(access.expr.id())
+                // && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
+                && this.binder.symbol(s).flags.intersects(SymbolFlags::ENUM)
+            {
+                let result = match ty.kind {
+                    ty::TyKind::NumberLit(n) => n.val.val() != 0.,
+                    ty::TyKind::StringLit(n) => n.val != keyword::IDENT_EMPTY,
+                    _ => unreachable!(),
+                };
+                let error = errors::ThisConditionWillAlwaysReturnX {
+                    span: loc.span(),
+                    result,
+                };
+                this.push_error(Box::new(error));
+                return;
+            }
+        }
+
+        both_helper(self, n, cond_ty, body)
+    }
+
+    fn check_cond(&mut self, cond: &'cx ast::CondExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = self.check_expr(cond.cond);
+        self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+            cond.cond,
+            ty,
+            Some(cond.when_true.id()),
+        );
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
         self.get_union_ty::<false>(&[ty1, ty2], ty::UnionReduction::Subtype, None, None, None)

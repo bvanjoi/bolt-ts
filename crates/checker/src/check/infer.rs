@@ -691,13 +691,24 @@ impl<'cx> TyChecker<'cx> {
 
         let node_id = node.id();
         if !self.p.node(node_id).is_bin_expr()
-            && let Some(contextual_ty) =
-                self.get_contextual_ty(node_id, Some(ContextFlags::empty()))
+            && let skip_binding_patterns = sig_ty_params
+                .iter()
+                .all(|tp| self.get_default_ty_from_ty_param(tp).is_some())
+            && let Some(contextual_ty) = self.get_contextual_ty(
+                node_id,
+                Some(if skip_binding_patterns {
+                    ContextFlags::SKIP_BINDING_PATTERNS
+                } else {
+                    ContextFlags::empty()
+                }),
+            )
         {
             let inference_target_ty = self.get_ret_ty_of_sig(sig);
             if self.could_contain_ty_var(inference_target_ty) {
                 let outer_context = self.get_inference_context(node_id);
-                let is_from_binding_pattern = false; // TODO: `is_from_binding_pattern`
+                let is_from_binding_pattern = !skip_binding_patterns
+                    && self.get_contextual_ty(node_id, Some(ContextFlags::SKIP_BINDING_PATTERNS))
+                        != Some(contextual_ty);
                 if !is_from_binding_pattern {
                     let outer_mapper = outer_context
                         .and_then(|ctx| ctx.inference)

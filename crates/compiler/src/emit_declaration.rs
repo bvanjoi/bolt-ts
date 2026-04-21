@@ -482,8 +482,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_enum_decl(&mut self, node: &'cx bolt_ts_ast::EnumDecl<'cx>) {
-        self.emitter.print().p("declare");
-        self.emitter.print().p_whitespace();
+        if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
+            self.emitter.print().p("declare");
+            self.emitter.print().p_whitespace();
+        }
         self.emitter.print().p("enum");
         self.emitter.print().p_whitespace();
         self.emitter

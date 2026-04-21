@@ -1488,3 +1488,11 @@ pub(super) struct TypeXHasNoPropertiesInCommonWithTypeY {
     pub ty1: String,
     pub ty2: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This condition will always return '{result}'.")]
+pub(super) struct ThisConditionWillAlwaysReturnX {
+    #[label(primary)]
+    pub span: Span,
+    pub result: bool,
+}

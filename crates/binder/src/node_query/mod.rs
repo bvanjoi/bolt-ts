@@ -1432,4 +1432,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         };
         self.is_external_module_augmentation(g)
     }
+
+    pub fn is_same_scoped_binding_element(
+        &self,
+        node: &ast::Ident,
+        declaration: ast::NodeID,
+    ) -> bool {
+        debug_assert!(node.id.module() == declaration.module());
+        let d = self.node(declaration);
+        match d {
+            ast::Node::ArrayBinding(_) => (),
+            ast::Node::ObjectBindingElem(_) => (),
+            _ => return false,
+        };
+        let Some(binding_element) = self.find_ancestor(node.id, |n| match n {
+            ast::Node::ArrayBinding(_) => Some(true),
+            ast::Node::ObjectBindingElem(_) => Some(true),
+            _ => None,
+        }) else {
+            return false;
+        };
+        self.get_root_decl(binding_element) == self.get_root_decl(declaration)
+    }
 }
