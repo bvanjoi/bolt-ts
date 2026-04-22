@@ -951,6 +951,30 @@ impl<'cx> TyChecker<'cx> {
         }
         let n = self.p.node(expr);
         if self.is_readonly_symbol(symbol) {
+            // Allow assignments to readonly properties within constructors of the same class declaration.
+            // if (
+            //     symbol.flags & SymbolFlags.Property &&
+            //     isAccessExpression(expr) &&
+            //     expr.expression.kind === SyntaxKind.ThisKeyword
+            // ) {
+            //     // Look for if this is the constructor for the class that `symbol` is a property of.
+            //     const ctor = getControlFlowContainer(expr);
+            //     if (!(ctor && (ctor.kind === SyntaxKind.Constructor || isJSConstructor(ctor)))) {
+            //         return true;
+            //     }
+            //     if (symbol.valueDeclaration) {
+            //         const isAssignmentDeclaration = isBinaryExpression(symbol.valueDeclaration);
+            //         const isLocalPropertyDeclaration = ctor.parent === symbol.valueDeclaration.parent;
+            //         const isLocalParameterProperty = ctor === symbol.valueDeclaration.parent;
+            //         const isLocalThisPropertyAssignment = isAssignmentDeclaration && symbol.parent?.valueDeclaration === ctor.parent;
+            //         const isLocalThisPropertyAssignmentConstructorFunction = isAssignmentDeclaration && symbol.parent?.valueDeclaration === ctor;
+            //         const isWriteableSymbol = isLocalPropertyDeclaration
+            //             || isLocalParameterProperty
+            //             || isLocalThisPropertyAssignment
+            //             || isLocalThisPropertyAssignmentConstructorFunction;
+            //         return !isWriteableSymbol;
+            //     }
+            // }
             // TODO: more case
             return true;
         } else if n.is_access_expr() {

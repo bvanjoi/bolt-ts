@@ -331,9 +331,9 @@ impl<'cx> TyChecker<'cx> {
         if source == target {
             return Ternary::TRUE;
         }
-        let source_prop_access = self.decl_modifier_flags_from_symbol(source)
+        let source_prop_access = self.get_declaration_modifier_flags_from_symbol(source, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
-        let target_prop_access = self.decl_modifier_flags_from_symbol(target)
+        let target_prop_access = self.get_declaration_modifier_flags_from_symbol(target, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
@@ -773,6 +773,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             CheckFlags::READONLY
         };
+        let mut merged_instantiations = false;
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
@@ -802,13 +803,39 @@ impl<'cx> TyChecker<'cx> {
                 }
                 if let Some(single_prop) = single_prop {
                     if single_prop != prop {
-                        if let Some(prop_set) = &mut prop_set {
-                            prop_set.insert(prop);
+                        let is_instantiation =
+                            self.get_target_symbol(prop) == self.get_target_symbol(single_prop);
+                        if is_instantiation
+                            && self.compare_props(single_prop, prop, |this, a, b, _| {
+                                if a == b {
+                                    Ternary::TRUE
+                                } else {
+                                    Ternary::FALSE
+                                }
+                            }) == Ternary::TRUE
+                        {
+                            merged_instantiations =
+                                self.symbol(single_prop).parent.is_some_and(|p| {
+                                    self.get_local_ty_params_of_class_or_interface_or_type_alias(p)
+                                        .map_or(false, |params| !params.is_empty())
+                                });
                         } else {
-                            let mut t = fx_indexset_with_capacity(tys.len());
-                            t.insert(single_prop);
-                            t.insert(prop);
-                            prop_set = Some(t);
+                            if let Some(prop_set) = &mut prop_set {
+                                prop_set.insert(prop);
+                            } else {
+                                let mut t = fx_indexset_with_capacity(tys.len());
+                                t.insert(single_prop);
+                                t.insert(prop);
+                                prop_set = Some(t);
+                            }
+                        }
+                        if prop_flags.intersects(SymbolFlags::ACCESSOR)
+                            && self.symbol(prop).flags.intersection(SymbolFlags::ACCESSOR)
+                                != prop_flags.intersection(SymbolFlags::ACCESSOR)
+                        {
+                            prop_flags = prop_flags
+                                .intersection(SymbolFlags::ACCESSOR.complement())
+                                .union(SymbolFlags::PROPERTY);
                         }
                     }
                 } else {
@@ -849,7 +876,9 @@ impl<'cx> TyChecker<'cx> {
                 if !name.is_late_bound()
                     && let Some(index_info) = self.get_applicable_index_info_for_name(ty, name)
                 {
-                    // TODO: prop_flags
+                    prop_flags = prop_flags
+                        .intersection(SymbolFlags::ACCESSOR.complement())
+                        .union(SymbolFlags::PROPERTY);
                     check_flags |= CheckFlags::WRITE_PARTIAL
                         | if index_info.is_readonly {
                             CheckFlags::READONLY
@@ -886,11 +915,84 @@ impl<'cx> TyChecker<'cx> {
         }
         let single_prop = single_prop?;
 
+        let get_common_declaration_of_symbols =
+            |this: &mut Self, symbols: &FxIndexSet<SymbolID>| {
+                let mut common_declarations: Option<FxIndexSet<ast::NodeID>> = None;
+                for &symbol in symbols {
+                    let s = this.symbol(symbol);
+                    let Some(decls) = s.decls.as_ref() else {
+                        return None;
+                    };
+                    if common_declarations.is_none() {
+                        common_declarations = Some(decls.iter().copied().collect());
+                    }
+                    let common_declarations = common_declarations.as_mut().unwrap();
+                    common_declarations.retain(|d| decls.contains(d));
+                    if common_declarations.is_empty() {
+                        return None;
+                    }
+                }
+                common_declarations
+            };
+
+        if is_union
+            && (!prop_flags.is_empty() || check_flags.contains(CheckFlags::PARTIAL))
+            && check_flags
+                .intersects(CheckFlags::CONTAINS_PRIVATE.union(CheckFlags::CONTAINS_PROTECTED))
+            && !prop_set
+                .as_ref()
+                .is_some_and(|prop_set| get_common_declaration_of_symbols(self, prop_set).is_some())
+        {
+            return None;
+        }
+
         if prop_set.is_none()
             && !check_flags.intersects(CheckFlags::READ_PARTIAL)
             && index_tys.is_none()
         {
-            return Some(single_prop);
+            return Some(if merged_instantiations {
+                let old = if single_prop.is_transient() {
+                    let links = self.get_transient_symbol_links(single_prop);
+                    Some((links.get_ty(), links.get_ty_mapper()))
+                } else {
+                    None
+                };
+                let write_ty = self.get_write_type_of_symbol(single_prop);
+                let links = SymbolLinks::default()
+                    .with_containing_ty(containing_ty)
+                    .with_write_ty(write_ty)
+                    .with_target(single_prop);
+                let links = if let Some((ty, mapper)) = old {
+                    match (ty, mapper) {
+                        (Some(ty), Some(mapper)) => links.with_ty(ty).with_ty_mapper(mapper),
+                        (Some(ty), None) => links.with_ty(ty),
+                        (None, Some(mapper)) => links.with_ty_mapper(mapper),
+                        (None, None) => links,
+                    }
+                } else {
+                    links
+                };
+                let links = if let Some(name_ty) = self.get_symbol_links(single_prop).get_name_ty()
+                {
+                    links.with_name_ty(name_ty)
+                } else {
+                    links
+                };
+                let check_flags =
+                    self.get_check_flags(single_prop) & crate::ty::CheckFlags::READONLY;
+                let links = links.with_check_flags(check_flags);
+                let s = self.symbol(single_prop);
+                self.create_transient_symbol(
+                    name,
+                    s.flags | SymbolFlags::TRANSIENT,
+                    links,
+                    s.decls.clone(),
+                    s.value_decl,
+                    s.parent,
+                )
+            } else {
+                single_prop
+            });
         }
 
         let props = prop_set
@@ -945,13 +1047,12 @@ impl<'cx> TyChecker<'cx> {
             if first_ty != Some(ty) {
                 check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE;
             }
-
             if ty.is_literal_ty() || ty.is_pattern_lit_ty() {
                 check_flags |= CheckFlags::HAS_LITERAL_TYPE;
             }
-
-            // TODO: if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {}
-
+            if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {
+                check_flags |= CheckFlags::HAS_NEVER_TYPE;
+            }
             prop_tys.push(ty);
         }
 

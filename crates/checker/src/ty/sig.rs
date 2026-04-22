@@ -74,16 +74,19 @@ impl<'cx> Sig<'cx> {
         self.flags.contains(SigFlags::HAS_LITERAL_TYPES)
     }
 
-    pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
+    pub fn get_effective_rest_ty(
+        &self,
+        checker: &mut TyChecker<'cx>,
+    ) -> Option<&'cx super::Ty<'cx>> {
         if self.has_rest_param() {
             let symbol = *self.params.last().unwrap();
             let rest_ty = checker.get_type_of_symbol(symbol);
             if let Some(t) = rest_ty.as_tuple() {
                 if t.combined_flags.intersects(ElementFlags::VARIABLE) {
-                    // TODO: return slice_tuple_ty
+                    return Some(checker.slice_tuple_ty(rest_ty, t.fixed_length, 0));
                 }
             } else {
-                return if rest_ty.flags.intersects(TypeFlags::ANY) {
+                return if rest_ty.flags.contains(TypeFlags::ANY) {
                     Some(checker.any_array_ty())
                 } else {
                     Some(rest_ty)
@@ -97,8 +100,8 @@ impl<'cx> Sig<'cx> {
         &self,
         checker: &mut TyChecker<'cx>,
     ) -> Option<&'cx super::Ty<'cx>> {
-        self.get_rest_ty(checker).and_then(|ty| {
-            if !ty.kind.is_array(checker) && !ty.flags.intersects(TypeFlags::ANY) {
+        self.get_effective_rest_ty(checker).and_then(|ty| {
+            if !ty.kind.is_array(checker) && !ty.flags.contains(TypeFlags::ANY) {
                 Some(ty)
             } else {
                 None

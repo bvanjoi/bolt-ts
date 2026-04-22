@@ -1146,7 +1146,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         .get_apparent_ty(source)
                         .flags
                         .intersects(TypeFlags::STRUCTURED_TYPE)
-                    && !s.tys.iter().all(|t| {
+                    && !s.tys.iter().any(|t| {
                         target.eq(t)
                             || t.get_object_flags()
                                 .contains(ObjectFlags::NON_INFERRABLE_TYPE)
@@ -2998,9 +2998,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if source == target {
             return Ternary::TRUE;
         }
-        let source_prop_access = self.c.decl_modifier_flags_from_symbol(source)
+        let source_prop_access = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(source, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
-        let target_prop_access = self.c.decl_modifier_flags_from_symbol(target)
+        let target_prop_access = self
+            .c
+            .get_declaration_modifier_flags_from_symbol(target, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {

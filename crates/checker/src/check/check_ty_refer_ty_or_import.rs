@@ -41,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
             && node.ty_args().is_some()
             && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node)
         {
-            self.check_ty_arg_constraints(node, ty_params);
+            self.check_ty_argument_constraints(node, ty_params);
         }
     }
 
@@ -449,7 +449,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 
-    fn check_ty_arg_constraints(
+    fn check_ty_argument_constraints(
         &mut self,
         node: &impl TyReferTyOrImport<'cx>,
         ty_params: ty::Tys<'cx>,

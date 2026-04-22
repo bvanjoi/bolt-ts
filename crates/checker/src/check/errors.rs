@@ -1496,3 +1496,11 @@ pub(super) struct ThisConditionWillAlwaysReturnX {
     pub span: Span,
     pub result: bool,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot assign to '{name}' because it is a constant.")]
+pub(super) struct CannotAssignToXBecauseItIsAConstant {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

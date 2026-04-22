@@ -339,6 +339,10 @@ impl SymbolID {
         index: 5,
     };
 
+    pub fn is_transient(&self) -> bool {
+        self.module == ModuleID::TRANSIENT
+    }
+
     pub fn container(module: ModuleID) -> Self {
         assert_ne!(module.as_u32(), ModuleID::TRANSIENT.as_u32());
         Self { module, index: 0 }

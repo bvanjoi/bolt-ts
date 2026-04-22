@@ -2530,8 +2530,8 @@ impl<'cx> InferenceState<'cx, '_> {
     ) {
         let source_count = source.get_param_count(self.c);
         let target_count = target.get_param_count(self.c);
-        let source_rest_ty = source.get_rest_ty(self.c);
-        let target_rest_ty = target.get_rest_ty(self.c);
+        let source_rest_ty = source.get_effective_rest_ty(self.c);
+        let target_rest_ty = target.get_effective_rest_ty(self.c);
         let target_non_rest_count = if target_rest_ty.is_some() {
             target_count - 1
         } else {

@@ -293,7 +293,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let param_count = source.get_param_count(self);
         let min_arg_count = self.get_min_arg_count(source);
-        let rest_ty = source.get_rest_ty(self);
+        let rest_ty = source.get_effective_rest_ty(self);
         if let Some(rest_ty) = rest_ty
             && pos >= param_count - 1
         {

@@ -59,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
             s.name,
             s.flags | SymbolFlags::TRANSIENT,
             links,
-            None,
+            s.decls.clone(),
             s.value_decl,
             s.parent,
         )
@@ -97,16 +97,31 @@ impl<'cx> TyChecker<'cx> {
     pub(crate) fn is_readonly_symbol(&self, symbol: SymbolID) -> bool {
         if self
             .get_check_flags(symbol)
-            .intersects(ty::CheckFlags::READONLY)
+            .contains(ty::CheckFlags::READONLY)
         {
             return true;
         }
-        let flags = self.symbol(symbol).flags;
-        flags.contains(SymbolFlags::PROPERTY)
+        let s = self.symbol(symbol);
+        let flags = s.flags;
+        (flags.contains(SymbolFlags::PROPERTY)
             && self
-                .decl_modifier_flags_from_symbol(symbol)
-                .contains(ast::ModifierFlags::READONLY)
+                .get_declaration_modifier_flags_from_symbol(symbol, None)
+                .contains(ast::ModifierFlags::READONLY))
             || flags.contains(SymbolFlags::ENUM_MEMBER)
+            || (flags.intersects(SymbolFlags::VARIABLE)
+                && self
+                    .get_declaration_node_flags_from_symbol(s)
+                    .intersects(ast::NodeFlags::CONSTANT))
+            || (flags.intersects(SymbolFlags::ACCESSOR)
+                && !flags.contains(SymbolFlags::SET_ACCESSOR))
+        // TODO: || decls is is_readonly_assignment
+    }
+
+    fn get_declaration_node_flags_from_symbol(&self, s: &Symbol) -> ast::NodeFlags {
+        let Some(decl) = s.value_decl else {
+            return ast::NodeFlags::empty();
+        };
+        self.node_query(decl.module()).get_combined_node_flags(decl)
     }
 
     pub(crate) fn get_late_flag(&self, symbol: SymbolID) -> ty::CheckFlags {

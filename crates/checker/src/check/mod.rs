@@ -284,6 +284,7 @@ pub struct TyChecker<'cx> {
     pub silent_never_ty: &'cx ty::Ty<'cx>,
     pub implicit_never_ty: &'cx ty::Ty<'cx>,
     pub unreachable_never_ty: &'cx ty::Ty<'cx>,
+    pub unique_literal_ty: &'cx ty::Ty<'cx>,
     pub void_ty: &'cx ty::Ty<'cx>,
     pub optional_ty: &'cx ty::Ty<'cx>,
     pub null_ty: &'cx ty::Ty<'cx>,
@@ -532,6 +533,7 @@ impl<'cx> TyChecker<'cx> {
             (silent_never_ty,       keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
             (implicit_never_ty,     keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
             (unreachable_never_ty,  keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::NON_INFERRABLE_TYPE),
+            (unique_literal_ty,     keyword::IDENT_NEVER,   TypeFlags::NEVER,           ObjectFlags::empty()),
         });
 
         let undefined_or_missing_ty = if config.compiler_options().exact_optional_property_types() {
@@ -679,6 +681,7 @@ impl<'cx> TyChecker<'cx> {
             undefined_or_missing_ty,
             undefined_widening_ty,
             unreachable_never_ty,
+            unique_literal_ty,
             never_ty,
             silent_never_ty,
             implicit_never_ty,
@@ -1556,7 +1559,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_params = self.get_ty_params_for_mapper(sig);
             self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty())
         };
-        let rest_ty = contextual_sig.get_rest_ty(self);
+        let rest_ty = contextual_sig.get_effective_rest_ty(self);
         let mut mapper = None;
         if let Some(inference_context) = inference_context {
             if let Some(rest_ty) = rest_ty {
@@ -2678,6 +2681,21 @@ impl<'cx> TyChecker<'cx> {
                     ty: ty.to_string(),
                 };
                 self.push_error(Box::new(error));
+                return self.error_ty;
+            } else if self.is_readonly_symbol(symbol) {
+                if flags.intersects(SymbolFlags::VARIABLE) {
+                    let error = errors::CannotAssignToXBecauseItIsAConstant {
+                        span: ident.span,
+                        name: self.atoms.get(ident.name).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
+                        span: ident.span,
+                        prop: self.atoms.get(ident.name).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
                 return self.error_ty;
             }
         }
@@ -4942,29 +4960,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn decl_modifier_flags_from_symbol(&self, symbol: SymbolID) -> ast::ModifierFlags {
-        if let Some(decl) = self.symbol(symbol).value_decl {
-            let flags = self
-                .node_query(decl.module())
-                .get_combined_modifier_flags(decl);
-
-            return if self
-                .symbol(symbol)
-                .parent
-                .is_some_and(|p| self.binder.symbol(p).flags.contains(SymbolFlags::CLASS))
-            {
-                flags
-            } else {
-                flags.intersection(ast::ModifierFlags::ACCESSIBILITY.complement())
-            };
-        }
-
-        if self.symbol(symbol).flags.contains(SymbolFlags::PROPERTY) {
-            return ast::ModifierFlags::PUBLIC.union(ast::ModifierFlags::STATIC);
-        }
-        ast::ModifierFlags::empty()
-    }
-
     fn get_mapped_ty_optionality(&self, ty: &'cx ty::MappedTy<'cx>) -> i32 {
         let ms = ty.decl.get_modifiers();
         if ms.contains(ast::MappedTyModifiers::EXCLUDE_OPTIONAL) {
@@ -5716,8 +5711,8 @@ impl<'cx> TyChecker<'cx> {
     ) {
         let source_count = source.get_param_count(self);
         let target_count = target.get_param_count(self);
-        let source_rest_ty = source.get_rest_ty(self);
-        let target_rest_ty = target.get_rest_ty(self);
+        let source_rest_ty = source.get_effective_rest_ty(self);
+        let target_rest_ty = target.get_effective_rest_ty(self);
         let target_non_rest_count = if target_rest_ty.is_some() {
             target_count - 1
         } else {

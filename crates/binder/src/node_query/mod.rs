@@ -598,7 +598,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     return Some(n.id);
                 }
                 // TODO: for_in and for_of
-                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = self.parent(p).unwrap(),
+                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
                     id = self.parent(self.parent(p).unwrap()).unwrap();
                 }

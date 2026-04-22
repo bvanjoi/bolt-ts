@@ -199,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
                                 contextual_sig,
                                 inference,
                             );
-                            let rest_ty = contextual_sig.get_rest_ty(self);
+                            let rest_ty = contextual_sig.get_effective_rest_ty(self);
                             if let Some(rest_ty) = rest_ty
                                 && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
                             {

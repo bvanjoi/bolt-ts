@@ -419,7 +419,7 @@ impl<'cx> TyChecker<'cx> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         constraint_ty.kind.as_index_ty().and_then(|index_ty| {
             let ty_var = self.get_actual_ty_variable(index_ty.ty);
-            if ty_var.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            if ty_var.flags.contains(TypeFlags::TYPE_PARAMETER) {
                 Some(ty_var)
             } else {
                 None
@@ -583,7 +583,7 @@ impl<'cx> TyChecker<'cx> {
             mapper: &'cx dyn ty::TyMap<'cx>,
             object_flags: ObjectFlags,
         ) -> &'cx ty::Ty<'cx> {
-            let mapped_ty = ty.kind.expect_object_mapped();
+            debug_assert!(ty.kind.as_object_mapped().is_some());
             if mapped_ty_var.flags.intersects(
                 TypeFlags::ANY_OR_UNKNOWN
                     .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
@@ -592,6 +592,7 @@ impl<'cx> TyChecker<'cx> {
             ) && mapped_ty_var != c.wildcard_ty
                 && !c.is_error(mapped_ty_var)
             {
+                let mapped_ty = ty.kind.expect_object_mapped();
                 if mapped_ty.decl.name_ty.is_none() {
                     if mapped_ty_var.kind.is_array(c)
                         || (mapped_ty_var.flags.intersects(TypeFlags::ANY)
@@ -606,12 +607,25 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
                         return c.instantiate_mapped_array_ty(mapped_ty_var, ty, mapper);
-                    }
-
-                    if mapped_ty_var.is_tuple() {
+                    } else if mapped_ty_var.is_tuple() {
                         return c.instantiate_mapped_tuple_ty(mapped_ty_var, ty, ty_var, mapper);
+                    } else if c.is_array_or_tuple_or_intersection(mapped_ty_var) {
+                        let tys = mapped_ty_var.kind.expect_intersection().tys;
+                        let tys = tys
+                            .iter()
+                            .map(|mapped_ty_var| {
+                                instantiate_constituent(
+                                    c,
+                                    ty,
+                                    ty_var,
+                                    mapped_ty_var,
+                                    mapper,
+                                    object_flags,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        return c.get_intersection_ty(&tys, IntersectionFlags::None, None, None);
                     }
-                    // TODO: is_array_or_tuple_intersection()
                 }
                 let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
                 c.instantiate_anonymous_for_mapped_ty(ty, mapper, object_flags, None, None)

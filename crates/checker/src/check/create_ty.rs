@@ -1293,7 +1293,16 @@ impl<'cx> TyChecker<'cx> {
                         || u.tys[1].flags.contains(TypeFlags::NULL)
                 })
             }) {
-                todo!()
+                self.remove_from_each(&mut ty_set, TypeFlags::NULL);
+                let a = self.get_intersection_ty(&ty_set, flags, None, None);
+                let tys = vec![a, self.null_ty];
+                self.get_union_ty::<false>(
+                    &tys,
+                    UnionReduction::Lit,
+                    alias_symbol,
+                    alias_ty_arguments,
+                    None,
+                )
             } else if ty_set.len() >= 3 && tys.len() > 2 {
                 let middle = ty_set.len() / 2;
                 let l = self.get_intersection_ty(&ty_set[..middle], flags, None, None);

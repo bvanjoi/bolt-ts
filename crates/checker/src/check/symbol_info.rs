@@ -1334,10 +1334,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn symbol_links(&self, symbol: SymbolID) -> Option<&SymbolLinks<'cx>> {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            let index = symbol.index_as_usize();
-            debug_assert!(index < self.transient_symbol_links.len());
-            let links = unsafe { self.transient_symbol_links.get_unchecked(index) };
+        if symbol.is_transient() {
+            let links = self.get_transient_symbol_links(symbol);
             Some(links)
         } else {
             self.symbol_links.get(&symbol)
@@ -1345,19 +1343,22 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_symbol_links(&mut self, symbol: SymbolID) -> &SymbolLinks<'cx> {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
-            debug_assert!(symbol.index_as_usize() < self.transient_symbol_links.len());
-            unsafe {
-                self.transient_symbol_links
-                    .get_unchecked(symbol.index_as_usize())
-            }
+        if symbol.is_transient() {
+            self.get_transient_symbol_links(symbol)
         } else {
             self.symbol_links.entry(symbol).or_default()
         }
     }
 
+    pub(super) fn get_transient_symbol_links(&self, symbol: SymbolID) -> &SymbolLinks<'cx> {
+        debug_assert!(symbol.is_transient());
+        debug_assert!(symbol.index_as_usize() < self.transient_symbol_links.len());
+        let links = &self.transient_symbol_links;
+        unsafe { links.get_unchecked(symbol.index_as_usize()) }
+    }
+
     pub(super) fn get_mut_symbol_links(&mut self, symbol: SymbolID) -> &mut SymbolLinks<'cx> {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+        if symbol.is_transient() {
             debug_assert!(symbol.index_as_usize() < self.transient_symbol_links.len());
             unsafe {
                 self.transient_symbol_links
@@ -1369,7 +1370,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub fn symbol(&self, symbol: SymbolID) -> &bolt_ts_binder::Symbol {
-        if symbol.module() == bolt_ts_span::ModuleID::TRANSIENT {
+        if symbol.is_transient() {
             self.get_transient_symbols().get(symbol)
         } else {
             binder_symbol(self, symbol)
