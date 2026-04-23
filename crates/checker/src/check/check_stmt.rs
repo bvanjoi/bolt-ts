@@ -795,7 +795,7 @@ impl<'cx> TyChecker<'cx> {
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 let fn_flags = self.p.node(container).fn_flags();
                 let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
-                self.check_ret_expr(container, unwrapped_ret_ty, node.expr, expr_ty);
+                self.check_ret_expr::<false>(container, unwrapped_ret_ty, node.expr, expr_ty);
             }
         } else if self.config.compiler_options().no_implicit_returns()
             && !self.p.node(container).is_class_ctor()
@@ -806,13 +806,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ret_expr(
+    pub(super) fn check_ret_expr<const IS_CONDITIONAL_EXPRESSION: bool>(
         &mut self,
         container: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
         ret_expr: Option<&'cx ast::Expr<'cx>>,
         expr_ty: &'cx ty::Ty<'cx>,
     ) {
+        if let Some(ret_expr) = ret_expr {
+            let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
+            if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
+                let expr_ty = self.check_expr(n.when_true);
+                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_true), expr_ty);
+                let expr_ty = self.check_expr(n.when_false);
+                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_false), expr_ty);
+                return;
+            }
+        }
+
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {

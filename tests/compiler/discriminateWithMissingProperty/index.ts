@@ -4,6 +4,9 @@
 //@compiler-options: strict
 //@compiler-options: noEmit
 
+const a: number = new Uint8Array([1, 2, 3]);
+//~^ ERROR: Type 'Uint8Array<ArrayBuffer>' is not assignable to type 'number'.
+
 type Arg = {
     mode: "numeric",
     data: number,

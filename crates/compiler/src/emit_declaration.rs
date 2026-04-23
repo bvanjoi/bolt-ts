@@ -164,6 +164,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_r_brace();
     }
 
+    fn visit_call_expr(&mut self, _: &'cx bolt_ts_ast::CallExpr<'cx>) {}
+
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
         if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
             self.emitter.print().p("declare");
@@ -556,5 +558,16 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.visit_entity_name(node.name);
         self.emit_type_arguments(node.ty_args);
+    }
+
+    fn visit_export_assign(&mut self, node: &'cx bolt_ts_ast::ExportAssign<'cx>) {
+        if node.is_export_equals {
+            self.emitter.print().p("export =");
+        } else {
+            self.emitter.print().p("export default");
+        }
+        self.emitter.print().p_whitespace();
+        self.visit_expr(node.expr);
+        self.emitter.print().p_semi();
     }
 }

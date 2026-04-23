@@ -260,6 +260,14 @@ pub(super) struct AccessibilityModifierAlreadySeen {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A '{modifier}' modifier cannot be used with an import declaration.")]
+pub(super) struct AModifierCannotBeUsedWithAnImportDeclaration {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("{modifier} modifier already seen.")]
 pub(super) struct ModifierAlreadySeen {
     #[label(primary)]

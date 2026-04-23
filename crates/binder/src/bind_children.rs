@@ -1763,6 +1763,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
         // TODO:
     }
+
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {
         let pre_loop_label = {
             let label = self.flow_nodes.create_loop_label();

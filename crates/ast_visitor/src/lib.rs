@@ -6,6 +6,10 @@ pub fn visit_program<'cx>(v: &mut impl Visitor<'cx>, program: &'cx ast::Program<
     }
 }
 
+pub fn visit_export_assign<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ExportAssign<'cx>) {
+    v.visit_expr(n.expr);
+}
+
 pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
     use ast::StmtKind::*;
     match stmt.kind {
@@ -25,7 +29,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
         Fn(node) => v.visit_fn_decl(node),
         Ret(node) => v.visit_ret_stmt(node),
         Export(_) => {}
-        ExportAssign(_) => {}
+        ExportAssign(node) => v.visit_export_assign(node),
         Empty(_) => (),
         Throw(_) => (),
         For(_) => (),
@@ -463,6 +467,7 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Expr<'cx>) {
         Call(n) => v.visit_call_expr(n),
         Assign(n) => v.visit_assign_expr(n),
         Yield(n) => v.visit_yield_expr(n),
+        Ident(n) => v.visit_ident(n),
         _ => {}
     }
 }
@@ -646,6 +651,7 @@ make_visitor!(
     (visit_ctor_sig_decl, ast::CtorSigDecl<'cx>),
     (visit_setter_decl, ast::SetterDecl<'cx>),
     (visit_getter_decl, ast::GetterDecl<'cx>),
+    (visit_export_assign, ast::ExportAssign<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

@@ -616,7 +616,23 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
-            Import => self.parse_import_decl(),
+            Import => {
+                if let Some(mods) = mods
+                    && mods.flags.contains(ast::ModifierFlags::AMBIENT)
+                {
+                    let m = mods
+                        .list
+                        .iter()
+                        .find(|m| m.kind() == ast::ModifierKind::Ambient)
+                        .unwrap();
+                    let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                        span: m.span(),
+                        modifier: m.kind(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                self.parse_import_decl()
+            }
             Export => {
                 let start = self.token.start();
                 self.next_token(); // consume `export`

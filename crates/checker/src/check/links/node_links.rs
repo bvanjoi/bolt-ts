@@ -1,7 +1,7 @@
+use super::super::get_declared_ty::EnumMemberValue;
+use super::super::ty;
+use super::NodeCheckFlags;
 use super::links;
-use crate::check::NodeCheckFlags;
-use crate::check::get_declared_ty::EnumMemberValue;
-use crate::ty;
 
 links!(
     NodeLinks,

@@ -16,7 +16,6 @@ use super::errors;
 use super::eval::EvalResult;
 use super::links::TyLinks;
 use super::node_check_flags::NodeCheckFlags;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;

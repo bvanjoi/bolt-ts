@@ -3700,12 +3700,13 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_matching_union_constituent_for_ty(
         &mut self,
+        union_ty: &'cx ty::Ty<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        debug_assert!(ty.kind.is_union());
-        let key_prop_name = self.get_key_prop_name(ty);
-        let prop_ty = key_prop_name.and_then(|name| self.get_ty_of_prop_of_ty(ty, name));
-        prop_ty.and_then(|prop_ty| self.get_constituent_ty_for_key_ty(ty, prop_ty))
+        debug_assert!(union_ty.kind.is_union());
+        let key_prop_name = self.get_key_prop_name(union_ty);
+        let prop_ty = key_prop_name.and_then(|n| self.get_ty_of_prop_of_ty(ty, n));
+        prop_ty.and_then(|prop_ty| self.get_constituent_ty_for_key_ty(union_ty, prop_ty))
     }
 
     fn get_matching_union_constituent_for_object_literal(
@@ -6814,6 +6815,61 @@ impl<'cx> TyChecker<'cx> {
         self.check_mode = old_check_mode;
         self.pop_type_context();
         return result;
+    }
+
+    fn find_matching_discriminant_ty(
+        &mut self,
+        s: &'cx ty::Ty<'cx>,
+        t: &'cx ty::Ty<'cx>,
+        is_related_to: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if t.flags.contains(TypeFlags::UNION)
+            && s.flags
+                .intersects(TypeFlags::INTERSECTION.union(TypeFlags::OBJECT))
+        {
+            if let Some(matching) = self.get_matching_union_constituent_for_ty(t, s) {
+                return Some(matching);
+            }
+            let source_props = self.get_props_of_ty(s);
+            if !source_props.is_empty() {
+                let source_props_filtered = self.find_discriminant_props(source_props, t);
+                if !source_props_filtered.is_empty() {
+                    let discriminators = source_props_filtered
+                        .iter()
+                        .map(|&p| {
+                            let name = self.symbol(p).name;
+                            let f = move |this: &mut Self| this.get_type_of_symbol(p);
+                            (f, name)
+                        })
+                        .collect::<Vec<_>>();
+                    let discriminant = self.discriminate_ty_by_discriminable_items(
+                        t,
+                        &discriminators,
+                        is_related_to,
+                    );
+                    if discriminant != t {
+                        return Some(discriminant);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn filter_primitives_if_contains_non_primitive(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(ty.kind.is_union());
+        if ty.maybe_type_of_kind(TypeFlags::NON_PRIMITIVE)
+            && let result = self.filter_type(ty, |_, t| !t.flags.contains(TypeFlags::PRIMITIVE))
+            && result.flags.contains(TypeFlags::NEVER)
+        {
+            result
+        } else {
+            ty
+        }
     }
 }
 

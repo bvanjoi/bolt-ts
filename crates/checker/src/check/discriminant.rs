@@ -92,7 +92,7 @@ impl<'cx> TyChecker<'cx> {
             return match self.get_symbol_links(prop).get_is_discriminant_property() {
                 Some(is_discriminant) => is_discriminant,
                 None => {
-                    let is_discriminant = check_flags.intersects(CheckFlags::DISCRIMINANT) && {
+                    let is_discriminant = check_flags.contains(CheckFlags::DISCRIMINANT) && {
                         let ty = self.get_type_of_symbol(prop);
                         !self.is_generic_ty(ty)
                     };

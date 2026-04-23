@@ -320,6 +320,12 @@ impl<'cx> TyChecker<'cx> {
                     None
                 }
             }
+            AssignmentDeclarationKind::Property => {
+                // TODO: isPossiblyAliasedThisProperty
+                // TODO: !can_have_symbol
+                // TODO: let decl = self.final_res(parent.left.id());
+                None
+            }
             _ => {
                 // TODO: other case
                 None
@@ -505,7 +511,8 @@ impl<'cx> TyChecker<'cx> {
                             this.append_contextual_prop_ty_constituent(&mut tys, sub);
                             continue;
                         }
-                        let prop_ty = this.get_ty_of_concrete_prop_of_contextual_ty(ty, name);
+                        let prop_ty =
+                            this.get_ty_of_concrete_prop_of_contextual_ty(constituent_ty, name);
                         if let Some(prop_ty) = prop_ty {
                             ignore_index_infos = true;
                             index_info_candidates.clear();
@@ -532,7 +539,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         Some(this.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
                     }
-                } else if !t.flags.intersects(TypeFlags::OBJECT) {
+                } else if !t.flags.contains(TypeFlags::OBJECT) {
                     None
                 } else if this.is_generic_mapped_ty(t)
                     && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
@@ -781,7 +788,7 @@ impl<'cx> TyChecker<'cx> {
         res
     }
 
-    fn discriminate_ty_by_discriminable_items<F>(
+    pub(super) fn discriminate_ty_by_discriminable_items<F>(
         &mut self,
         target: &'cx ty::Ty<'cx>,
         discriminators: &[(F, SymbolName)],

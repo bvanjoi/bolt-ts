@@ -89,6 +89,7 @@ fn early_resolve<'cx>(
 }
 
 const MEANING_FOR_VALUE: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::EXPORT_VALUE);
+const MEANING_FOR_IMPORT_EQUAL: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::NAMESPACE);
 
 pub struct Resolver<'cx, 'r, 'atoms> {
     states: &'r [BinderResult<'cx>],
@@ -231,7 +232,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Switch(n) => self.resolve_switch_stmt(n),
             ImportEquals(n) => {
                 if let ast::ModuleReferenceKind::EntityName(n) = n.module_reference {
-                    self.resolve_entity_name::<false>(n, MEANING_FOR_VALUE);
+                    self.resolve_entity_name::<false>(n, MEANING_FOR_IMPORT_EQUAL);
                 }
             }
         };
@@ -409,7 +410,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Ident(ident) => {
                 if meaning == MEANING_FOR_VALUE {
                     self.resolve_value_by_ident(ident);
-                } else if meaning == SymbolFlags::NAMESPACE {
+                } else if meaning == SymbolFlags::NAMESPACE || meaning == MEANING_FOR_IMPORT_EQUAL {
                     let res = self.resolve_symbol_by_ident(ident, meaning);
                     if res.symbol == Symbol::ERR {
                         let name = self.atoms.get(ident.name).to_string();

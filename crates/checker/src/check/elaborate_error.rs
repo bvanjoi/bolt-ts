@@ -227,8 +227,8 @@ impl<'cx> TyChecker<'cx> {
             return Some(idx);
         }
 
-        if let Some(target_union) = target.kind.as_union()
-            && let Some(best) = self.get_best_matching_ty(source, target_union, |this, s, t| {
+        if target.kind.is_union()
+            && let Some(best) = self.get_best_matching_ty(source, target, |this, s, t| {
                 if this.is_type_related_to(s, t, RelationKind::Assignable) {
                     Ternary::TRUE
                 } else {
@@ -245,52 +245,56 @@ impl<'cx> TyChecker<'cx> {
     fn get_best_matching_ty(
         &mut self,
         source: &'cx ty::Ty<'cx>,
-        target_union: &'cx ty::UnionTy<'cx>,
+        target: &'cx ty::Ty<'cx>,
         cmp: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO: findMatchingDiscriminantType
+        debug_assert!(target.kind.is_union());
+        if let Some(best) = self.find_matching_discriminant_ty(source, target, cmp) {
+            return Some(best);
+        }
+        let target_union = target.kind.expect_union();
         // TODO: findMatchingTypeReferenceOrTypeAliasReference
-        self.find_best_ty_for_object_literal(source, target_union)
-            .or_else(|| self.find_best_ty_for_invokable(source, target_union))
-            .or_else(|| {
-                // find_most_overlappy_ty
-                let mut best_match = None;
-                if !source
+        if let Some(best) = self.find_best_ty_for_object_literal(source, target_union) {
+            return Some(best);
+        };
+        if let Some(best) = self.find_best_ty_for_invokable(source, target_union) {
+            return Some(best);
+        };
+
+        // find_most_overlappy_ty
+        let mut best = None;
+        if !source
+            .flags
+            .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::INSTANTIABLE_PRIMITIVE))
+        {
+            let mut matching_count = 0;
+            for target in target_union.tys {
+                if !target
                     .flags
                     .intersects(TypeFlags::PRIMITIVE.union(TypeFlags::INSTANTIABLE_PRIMITIVE))
                 {
-                    let mut matching_count = 0;
-                    for target in target_union.tys {
-                        if !target.flags.intersects(
-                            TypeFlags::PRIMITIVE.union(TypeFlags::INSTANTIABLE_PRIMITIVE),
-                        ) {
-                            let tys = &[
-                                self.get_index_ty(source, ty::IndexFlags::empty()),
-                                self.get_index_ty(target, ty::IndexFlags::empty()),
-                            ];
-                            let overlap = self.get_intersection_ty(
-                                tys,
-                                super::IntersectionFlags::None,
-                                None,
-                                None,
-                            );
-                            if overlap.flags.contains(TypeFlags::INDEX) {
-                                return Some(*target);
-                            } else if overlap.is_unit() && 1 >= matching_count {
-                                best_match = Some(*target);
-                                matching_count = 1;
-                            } else if let Some(tys) = overlap.kind.as_union().map(|u| u.tys) {
-                                let len = tys.iter().filter(|t| t.is_unit()).count();
-                                if len >= matching_count {
-                                    best_match = Some(*target);
-                                    matching_count = len;
-                                }
-                            }
+                    let tys = &[
+                        self.get_index_ty(source, ty::IndexFlags::empty()),
+                        self.get_index_ty(target, ty::IndexFlags::empty()),
+                    ];
+                    let overlap =
+                        self.get_intersection_ty(tys, super::IntersectionFlags::None, None, None);
+                    if overlap.flags.contains(TypeFlags::INDEX) {
+                        return Some(*target);
+                    } else if overlap.is_unit() && 1 >= matching_count {
+                        best = Some(*target);
+                        matching_count = 1;
+                    } else if let Some(tys) = overlap.kind.as_union().map(|u| u.tys) {
+                        let len = tys.iter().filter(|t| t.is_unit()).count();
+                        if len >= matching_count {
+                            best = Some(*target);
+                            matching_count = len;
                         }
                     }
                 }
-                best_match
-            })
+            }
+        }
+        best
     }
 
     fn find_best_ty_for_object_literal(
@@ -351,12 +355,12 @@ impl<'cx> TyChecker<'cx> {
             if target_prop_ty.flags.contains(TypeFlags::INDEXED_ACCESS) {
                 continue;
             }
-            let error_node = e.error_node;
             let Some(source_prop_ty) =
                 self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None, None, None)
             else {
                 continue;
             };
+            let error_node = e.error_node;
             if !self.check_type_related_to(
                 source_prop_ty,
                 target_prop_ty,

@@ -225,7 +225,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .get_object_flags()
                     .contains(ObjectFlags::FRESH_LITERAL);
             if is_performing_excess_property_check
-                && self.has_excess_properties(source, target, report_error)
+                && self.has_excess_properties(
+                    source,
+                    target,
+                    recursion_flags,
+                    report_error,
+                    intersection_state,
+                )
             {
                 return Ternary::FALSE;
             }
@@ -1040,7 +1046,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::FALSE;
             }
 
-            if let Some(m) = self.c.get_matching_union_constituent_for_ty(target) {
+            if let Some(m) = self.c.get_matching_union_constituent_for_ty(target, source) {
                 let related = self.is_related_to(
                     source,
                     m,
@@ -3043,7 +3049,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         &mut self,
         source: &'cx Ty<'cx>,
         target_ty: &'cx Ty<'cx>,
+        recursion_flags: RecursionFlags,
         report_error: bool,
+        intersection_state: IntersectionState,
     ) -> bool {
         if !TyChecker::is_excess_property_check_target(target_ty) {
             return false;
@@ -3063,8 +3071,21 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return false;
         }
 
+        let mut reduced_target = target_ty;
+
         if target_ty.flags.contains(TypeFlags::UNION) {
-            // TODO:
+            let relation = self.relation;
+            let error_node = self.error_node;
+            reduced_target = self
+                .c
+                .find_matching_discriminant_ty(source, target_ty, |this, s, t| {
+                    let mut checker = TypeRelatedChecker::new(this, relation, error_node);
+                    checker.is_related_to(s, t, recursion_flags, report_error, intersection_state)
+                })
+                .unwrap_or_else(|| {
+                    self.c
+                        .filter_primitives_if_contains_non_primitive(target_ty)
+                });
         }
 
         for prop in self.c.get_props_of_ty(source) {
@@ -3072,12 +3093,15 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let name = self.c.symbol(*prop).name;
                 if !self
                     .c
-                    .is_known_prop(target_ty, name, is_comparing_jsx_attributes)
+                    .is_known_prop(reduced_target, name, is_comparing_jsx_attributes)
                 {
                     if report_error && let Some(name) = name.as_atom() {
+                        let error_target = self.c.filter_type(reduced_target, |_, t| {
+                            TyChecker::is_excess_property_check_target(t)
+                        });
                         let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
                         let field = self.c.atoms.get(name).to_string();
-                        let ty = self.c.print_ty(target_ty, None).to_string();
+                        let ty = self.c.print_ty(error_target, None).to_string();
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                             span,
                             field,
