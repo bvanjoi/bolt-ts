@@ -7,6 +7,7 @@ use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashSet;
 
+use super::RelationComparisonResult;
 use super::create_ty::IntersectionFlags;
 use super::errors;
 use super::get_simplified_ty::SimplifiedKind;
@@ -82,7 +83,7 @@ pub(super) struct TypeRelatedChecker<'cx, 'checker> {
     source_stack: Vec<&'cx ty::Ty<'cx>>,
     target_stack: Vec<&'cx ty::Ty<'cx>>,
     error_node: Option<ast::NodeID>,
-    overflow: bool,
+    origin_diag_len: usize,
 }
 
 impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
@@ -92,6 +93,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         error_node: Option<ast::NodeID>,
     ) -> Self {
         TypeRelatedChecker {
+            origin_diag_len: c.diags.len(),
             c,
             relation,
             maybe_keys_set: fx_indexset_with_capacity(32),
@@ -99,7 +101,6 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             source_stack: Vec::with_capacity(32),
             target_stack: Vec::with_capacity(32),
             error_node,
-            overflow: false,
         }
     }
 
@@ -742,50 +743,24 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             IntersectionState::empty(),
                         )
                     } else {
-                        todo!()
-                    }
-                } else if variance == VarianceFlags::COVARIANT {
-                    related = self.is_related_to(
-                        source,
-                        target,
-                        RecursionFlags::BOTH,
-                        report_error,
-                        intersection_state,
-                    );
-                } else if variance == VarianceFlags::CONTRAVARIANT {
-                    related = self.is_related_to(
-                        target,
-                        source,
-                        RecursionFlags::BOTH,
-                        report_error,
-                        intersection_state,
-                    );
-                } else if variance == VarianceFlags::BIVARIANT {
-                    related = self.is_related_to(
-                        target,
-                        source,
-                        RecursionFlags::BOTH,
-                        false,
-                        IntersectionState::empty(),
-                    );
-                    if related == Ternary::FALSE {
-                        related = self.is_related_to(
-                            source,
-                            target,
-                            RecursionFlags::BOTH,
-                            report_error,
-                            intersection_state,
-                        );
+                        self.c.compare_types_identical(source, target)
                     }
                 } else {
-                    related = self.is_related_to(
-                        source,
-                        target,
-                        RecursionFlags::BOTH,
-                        report_error,
-                        intersection_state,
-                    );
-                    if related != Ternary::FALSE {
+                    if self.c.in_variance_computation
+                        && variance_flags.contains(VarianceFlags::UNRELIABLE)
+                    {
+                        let mapper = self.c.report_unreliable_mapper;
+                        self.c.instantiate_ty_worker(source, mapper);
+                    }
+                    if variance == VarianceFlags::COVARIANT {
+                        related = self.is_related_to(
+                            source,
+                            target,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            intersection_state,
+                        );
+                    } else if variance == VarianceFlags::CONTRAVARIANT {
                         related = self.is_related_to(
                             target,
                             source,
@@ -793,6 +768,40 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             report_error,
                             intersection_state,
                         );
+                    } else if variance == VarianceFlags::BIVARIANT {
+                        related = self.is_related_to(
+                            target,
+                            source,
+                            RecursionFlags::BOTH,
+                            false,
+                            IntersectionState::empty(),
+                        );
+                        if related == Ternary::FALSE {
+                            related = self.is_related_to(
+                                source,
+                                target,
+                                RecursionFlags::BOTH,
+                                report_error,
+                                intersection_state,
+                            );
+                        }
+                    } else {
+                        related = self.is_related_to(
+                            source,
+                            target,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            intersection_state,
+                        );
+                        if related != Ternary::FALSE {
+                            related = self.is_related_to(
+                                target,
+                                source,
+                                RecursionFlags::BOTH,
+                                report_error,
+                                intersection_state,
+                            );
+                        }
                     }
                 }
 
@@ -815,6 +824,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Option<Ternary> {
         let res =
             self.type_args_related_to(source, target, variances, report_error, intersection_state);
+        if variances
+            .iter()
+            .any(|v| v.intersects(VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
+        {
+            // TODO: reset error
+            self.c.diags.truncate(self.origin_diag_len);
+            return None;
+        }
         Some(res)
     }
 
@@ -1344,30 +1361,83 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if result != Ternary::FALSE {
                 return result;
             }
+
+            const OBJET_OR_UNION_OR_INSTANTIABLE: TypeFlags = TypeFlags::OBJECT
+                .union(TypeFlags::UNION)
+                .union(TypeFlags::INSTANTIABLE);
+            if !source_flags.intersects(TypeFlags::INSTANTIABLE)
+                && !(source_flags.contains(TypeFlags::OBJECT)
+                    && target_flags.contains(TypeFlags::UNION))
+                && !(source_flags.contains(TypeFlags::INTERSECTION)
+                    && target_flags.intersects(OBJET_OR_UNION_OR_INSTANTIABLE))
+            {
+                return Ternary::FALSE;
+            }
         }
 
-        // TODO: handle `source/target.kind.readonly` and `isMutableArrayOrTuple`
-        if (source.kind.is_single_element_generic_tuple_type() && {
-            let ty_arg = self.c.get_ty_arguments(source)[0];
-            result = self.is_related_to(
-                ty_arg,
-                target,
-                RecursionFlags::SOURCE,
-                false,
-                IntersectionState::empty(),
+        if source_flags.intersects(TypeFlags::OBJECT.union(TypeFlags::CONDITIONAL))
+            && let Some(source_alias_symbol) = source.alias_symbol()
+            && let Some(source_alias_ty_arguments) = source.alias_ty_arguments()
+            && let Some(target_alias_symbol) = target.alias_symbol()
+            && source_alias_symbol == target_alias_symbol
+            && !self.c.is_marker_ty(source)
+            && !self.c.is_marker_ty(target)
+        {
+            let variances = self.c.get_alias_variances(source_alias_symbol);
+            if variances == self.c.empty_array() {
+                return Ternary::UNKNOWN;
+            }
+            let target_alias_ty_arguments = target.alias_ty_arguments().unwrap();
+            let ty_params = self
+                .c
+                .get_symbol_links(source_alias_symbol)
+                .expect_ty_params();
+            let min_ty_params = self.c.get_min_ty_arg_count_of_ty_params(ty_params);
+            let source_tys = self.c.fill_missing_ty_args(
+                Some(source_alias_ty_arguments),
+                Some(ty_params),
+                min_ty_params,
             );
-            result != Ternary::FALSE
-        }) || (target.kind.is_single_element_generic_tuple_type() && {
-            let ty_arg = self.c.get_ty_arguments(target)[0];
-            result = self.is_related_to(
-                source,
-                ty_arg,
-                RecursionFlags::TARGET,
-                false,
-                IntersectionState::empty(),
+            let target_tys = self.c.fill_missing_ty_args(
+                Some(target_alias_ty_arguments),
+                Some(ty_params),
+                min_ty_params,
             );
-            result != Ternary::FALSE
-        }) {
+            let source = source_tys.unwrap_or(self.c.empty_array());
+            let target = target_tys.unwrap_or(self.c.empty_array());
+            if let Some(variance_result) =
+                self.relate_variances(source, target, variances, report_error, intersection_state)
+            {
+                return variance_result;
+            }
+        }
+
+        // TODO: handle `target.kind.readonly || isMutableArrayOrTuple`
+        if (source.kind.is_single_element_generic_tuple_type()
+            && source.as_tuple().is_some_and(|t| t.readonly)
+            && {
+                let ty_arg = self.c.get_ty_arguments(source)[0];
+                result = self.is_related_to(
+                    ty_arg,
+                    target,
+                    RecursionFlags::SOURCE,
+                    false,
+                    IntersectionState::empty(),
+                );
+                result != Ternary::FALSE
+            })
+            || (target.kind.is_single_element_generic_tuple_type() && {
+                let ty_arg = self.c.get_ty_arguments(target)[0];
+                result = self.is_related_to(
+                    source,
+                    ty_arg,
+                    RecursionFlags::TARGET,
+                    false,
+                    IntersectionState::empty(),
+                );
+                result != Ternary::FALSE
+            })
+        {
             return result;
         }
 
@@ -1409,7 +1479,31 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if self.relation == RelationKind::Comparable
                 && source_flags.contains(TypeFlags::TYPE_PARAMETER)
             {
-                // TODO:
+                let mut constraint = self.c.get_constraint_of_ty_param(source);
+                loop {
+                    let Some(c) = constraint else {
+                        break;
+                    };
+                    if !self
+                        .c
+                        .some_type(c, |_, t| t.flags.contains(TypeFlags::TYPE_PARAMETER))
+                    {
+                        break;
+                    }
+                    result = self.is_related_to(
+                        c,
+                        target,
+                        RecursionFlags::SOURCE,
+                        false,
+                        IntersectionState::empty(),
+                    );
+                    if result != Ternary::FALSE {
+                        return result;
+                    }
+                    constraint = self.c.get_constraint_of_ty_param(c);
+                }
+
+                return Ternary::FALSE;
             }
         } else if target_flags.contains(TypeFlags::INDEX) {
             let target_ty = target.kind.expect_index_ty();
@@ -2184,11 +2278,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
+        let old_propagating_variance_flags = self.c.propagating_variance_flags;
+        if self.c.enable_out_of_band_variance_marker_handler {
+            self.c.propagating_variance_flags = Some(RelationComparisonResult::empty());
+        }
+
         let res = if self.expanding_flags == RecursionFlags::BOTH {
             Ternary::MAYBE
         } else {
             self.structured_ty_related_to(source, target, report_error, intersection_state)
         };
+
+        if self.c.enable_out_of_band_variance_marker_handler {
+            self.c.propagating_variance_flags = old_propagating_variance_flags;
+        }
 
         if recursion_flags.contains(RecursionFlags::TARGET) {
             self.target_stack.pop();
@@ -3135,8 +3238,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if modifiers_related {
             let target_constraint = self.c.get_constraint_ty_from_mapped_ty(target_mapped_ty);
             let source_constraint = {
-                // TODO: instantiate
-                self.c.get_constraint_ty_from_mapped_ty(source_mapped_ty)
+                let mapper: &'cx dyn ty::TyMap<'cx> =
+                    if self.c.get_combined_mapped_ty_optionality(source) < 0 {
+                        self.c.report_unmeasurable_mapper
+                    } else {
+                        self.c.report_unreliable_mapper
+                    };
+                let ty = self.c.get_constraint_ty_from_mapped_ty(source_mapped_ty);
+                self.c.instantiate_ty_worker(ty, mapper)
             };
             let result = self.is_related_to(
                 target_constraint,

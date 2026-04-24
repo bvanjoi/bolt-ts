@@ -95,7 +95,8 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|&d| {
                     let decl = self.p.node(d);
-                    errors::DuplicateFunctionImplementation { span: decl.span() }
+                    let span = decl.name().map_or(decl.span(), |name| name.span());
+                    errors::DuplicateFunctionImplementation { span }
                 })
                 .collect::<Vec<_>>();
             for error in errors {

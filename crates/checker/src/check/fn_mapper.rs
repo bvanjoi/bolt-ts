@@ -1,3 +1,5 @@
+use super::RelationComparisonResult;
+use super::get_variances::VarianceFlags;
 use super::ty;
 use super::{InferenceContextId, TyChecker, links};
 
@@ -129,6 +131,52 @@ impl<'cx> ty::TyMap<'cx> for LazyInferredTyParamMapper<'cx> {
                         .unwrap()[idx]
                 };
             }
+        }
+        ty
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct ReportUnreliableMapper;
+
+impl<'cx> ty::TyMap<'cx> for ReportUnreliableMapper {
+    fn get_mapped_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        checker: &mut TyChecker<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if checker.enable_out_of_band_variance_marker_handler
+            && (ty == checker.mark_super_ty()
+                || ty == checker.mark_sub_ty()
+                || ty == checker.mark_other_ty())
+        {
+            if let Some(flags) = checker.propagating_variance_flags.as_mut() {
+                *flags |= RelationComparisonResult::REPORT_UNRELIABLE;
+            }
+            checker.reliability_flags |= VarianceFlags::UNRELIABLE;
+        }
+        ty
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct ReportUnmeasurableMapper;
+
+impl<'cx> ty::TyMap<'cx> for ReportUnmeasurableMapper {
+    fn get_mapped_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        checker: &mut TyChecker<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if checker.enable_out_of_band_variance_marker_handler
+            && (ty == checker.mark_super_ty()
+                || ty == checker.mark_sub_ty()
+                || ty == checker.mark_other_ty())
+        {
+            if let Some(flags) = checker.propagating_variance_flags.as_mut() {
+                *flags |= RelationComparisonResult::REPORT_UNMEASURABLE;
+            }
+            checker.reliability_flags |= VarianceFlags::UNMEASURABLE;
         }
         ty
     }

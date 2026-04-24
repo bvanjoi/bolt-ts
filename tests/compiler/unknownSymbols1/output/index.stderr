@@ -1,0 +1,77 @@
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols1/index.ts:6:9]
+ 6 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols1/index.ts:7:8]
+ 7 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols1/index.ts:9:17]
+ 9 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols1/index.ts:9:35]
+ 9 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:13:12]
+ 13 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:16:10]
+ 16 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:20:10]
+ 20 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:21:12]
+ 21 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:24:21]
+ 24 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'adsf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:26:21]
+ 26 │ adsf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:32:15]
+ 32 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:41:21]
+ 41 │ asdf
+    · ────
+    ╰────
+
+  × Property 'asdf' does not exist on type 'C5'.
+    ╭─[../../tests/compiler/unknownSymbols1/index.ts:41:14]
+ 41 │ asdf
+    · ────
+    ╰────

@@ -1,0 +1,5 @@
+  × Property 'xyxyxyx' does not exist on type 'HTMLElement'.
+    ╭─[../../tests/compiler/unknownSymbolOffContextualType1/index.ts:20:18]
+ 20 │ xyxyxyx
+    · ───────
+    ╰────

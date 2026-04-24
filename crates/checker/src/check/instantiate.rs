@@ -75,7 +75,10 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [T] {
         let len = list.len();
         for i in 0..len {
-            let item = list[i];
+            let item = *unsafe {
+                // SAFETY
+                list.get_unchecked(i)
+            };
             let mapped = f(self, item, mapper);
             if item != mapped {
                 let mut result = Vec::with_capacity(list.len());

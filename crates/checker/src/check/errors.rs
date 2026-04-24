@@ -24,6 +24,18 @@ pub(super) struct TypeIsNotAssignableToType {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{prop}' in type '{ty1}' is not assignable to the same property in base type '{ty2}'."
+)]
+pub(super) struct PropertyAInTypeXIsNotAssignableToTheSamePropertyInBaseTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Argument of type '{arg_ty}' is not assignable to parameter of type '{param_ty}'.")]
 pub(super) struct ArgumentOfTyIsNotAssignableToParameterOfTy {
     #[label(primary)]

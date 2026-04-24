@@ -94,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
                     | self.get_syntactic_truthy_semantics(n.when_false)
             }
             Ident(n) => {
-                if self.final_res(n.id) == Symbol::ERR {
+                if self.final_res(n.id) == Symbol::UNDEFINED {
                     PredicateSemantics::NEVER
                 } else {
                     PredicateSemantics::SOMETIMES

@@ -34,7 +34,7 @@ impl<'cx> ObjectTyKind<'cx> {
             .target
             .kind
             .as_object_tuple()
-            .filter(|tup| tup.combined_flags.intersects(ElementFlags::VARIADIC))
+            .filter(|tup| tup.combined_flags.contains(ElementFlags::VARIADIC))
     }
 
     pub fn alias_ty_arguments(&self) -> Option<super::Tys<'cx>> {

@@ -1,0 +1,111 @@
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+   ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:5:20]
+ 5 │ new () => void
+   · ──────────────
+   ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+   ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:7:20]
+ 7 │ new (foo: number) => void
+   · ─────────────────────────
+   ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+   ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:9:13]
+ 9 │ new () => number
+   · ────────────────
+   ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:11:13]
+ 11 │ new (foo?: number) => void
+    · ──────────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:13:20]
+ 13 │ new (number: number, foo?: string) => void | number
+    · ───────────────────────────────────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:17:5]
+ 17 │ ╭─▶ new (...args: any[]) => void //~ERROR: Constructor Function type notation must be parenthesized when used in a union type.
+ 18 │ ╰─▶   | number
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:20:20]
+ 20 │ new () => void
+    · ──────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:22:20]
+ 22 │ new (...foo: number[]) => void
+    · ──────────────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:24:13]
+ 24 │ new () => boolean
+    · ─────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:26:13]
+ 26 │ new () => boolean & null
+    · ────────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:28:20]
+ 28 │ new (any: any, any2: any) => any & any
+    · ──────────────────────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:32:5]
+ 32 │ new (foo: any) => void
+    · ──────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:35:38]
+ 35 │ new () => number
+    · ────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:37:32]
+ 37 │ new () => void
+    · ──────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in a
+  │ union type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:39:42]
+ 39 │ new () => void & any
+    · ────────────────────
+    ╰────
+
+  × Constructor Function type notation must be parenthesized when used in an
+  │ intersection type.
+    ╭─[../../tests/compiler/unparenthesizedConstructorTypeInUnionOrIntersection/index.ts:39:17]
+ 39 │ new (foo: any) => void | new () => void & any
+    · ─────────────────────────────────────────────
+    ╰────

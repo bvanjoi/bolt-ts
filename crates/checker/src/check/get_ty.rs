@@ -160,7 +160,7 @@ impl<'cx> TyChecker<'cx> {
         let node = self.p.node(decl);
 
         if node.is_getter_decl() || node.is_setter_decl() {
-            return self.get_type_of_symbol(symbol);
+            return self.get_ty_of_accessor(symbol);
         }
 
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {

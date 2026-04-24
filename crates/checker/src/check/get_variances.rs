@@ -2,7 +2,6 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
 use super::TyChecker;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TyMapper;
@@ -104,11 +103,21 @@ impl<'cx> TyChecker<'cx> {
             return variances;
         }
         // TODO: in/out
+        let old_variance_computation = self.in_variance_computation;
+        let save_resolution_start = self.resolution_start;
+        if !self.in_variance_computation {
+            self.in_variance_computation = true;
+            self.resolution_start = self.resolution_tys.len() as i32;
+        };
         let ty_params = ty_params.unwrap_or_default();
         let empty_array = self.empty_array();
         self.get_mut_symbol_links(symbol).set_variances(empty_array);
         let mut variances = Vec::with_capacity(ty_params.len());
         for tp in ty_params {
+            let old_reliability_flags = self.reliability_flags;
+            let old_enable_out_of_band_variance_marker_handler =
+                self.enable_out_of_band_variance_marker_handler;
+            self.enable_out_of_band_variance_marker_handler = true;
             let ty_with_super = self.create_marker_ty(symbol, tp, self.mark_super_ty());
             let ty_with_sub = self.create_marker_ty(symbol, tp, self.mark_sub_ty());
             let mut variance = if self.is_type_assignable_to(ty_with_sub, ty_with_super) {
@@ -127,7 +136,24 @@ impl<'cx> TyChecker<'cx> {
                 variance = VarianceFlags::INDEPENDENT;
             }
 
+            self.enable_out_of_band_variance_marker_handler =
+                old_enable_out_of_band_variance_marker_handler;
+            if self.reliability_flags.contains(VarianceFlags::UNMEASURABLE) {
+                variance |= VarianceFlags::UNMEASURABLE;
+            }
+
+            if self.reliability_flags.contains(VarianceFlags::UNRELIABLE) {
+                variance |= VarianceFlags::UNRELIABLE;
+            }
+
+            self.reliability_flags = old_reliability_flags;
+
             variances.push(variance);
+        }
+
+        if !old_variance_computation {
+            self.in_variance_computation = false;
+            self.resolution_start = save_resolution_start;
         }
 
         let variances = self.alloc(variances);

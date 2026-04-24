@@ -4,7 +4,7 @@ use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
 use bolt_ts_ast::r#trait::ClassLike;
-use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident};
+use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
@@ -134,7 +134,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         class: &impl ClassLike<'cx>,
         ty_with_this: &'cx ty::Ty<'cx>,
-        base_with_this: &'cx ty::Ty<'cx>,
+        base_ty_with_this: &'cx ty::Ty<'cx>,
         push_error: impl FnOnce(&mut Self),
     ) {
         let mut issued_member_error = false;
@@ -145,36 +145,40 @@ impl<'cx> TyChecker<'cx> {
             use bolt_ts_ast::ClassElemKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
-                Prop(n) => Some(n.name.id()),
-                Method(n) => Some(n.name.id()),
+                Prop(n) => Some(n.name),
+                Method(n) => Some(n.name),
                 IndexSig(_) => None,
-                Getter(n) => Some(n.name.id()),
-                Setter(n) => Some(n.name.id()),
+                Getter(n) => Some(n.name),
+                Setter(n) => Some(n.name),
                 StaticBlockDecl(_) => None,
                 Semi(_) => None,
             };
 
             let declared_prop = member_name
-                .and_then(|name| self.get_symbol_at_location(name))
-                .or_else(|| self.get_symbol_at_location(member.kind.id()));
+                .and_then(|name| self.get_symbol_at_location(name.id()))
+                .or_else(|| self.get_symbol_at_location(member.id()));
 
             if let Some(declared_prop) = declared_prop
                 && let name = self.binder.symbol(declared_prop).name
                 && let Some(prop) = self.get_prop_of_ty::<false>(ty_with_this, name)
-                && let Some(base_prop) = self.get_prop_of_ty::<false>(base_with_this, name)
+                && let Some(base_prop) = self.get_prop_of_ty::<false>(base_ty_with_this, name)
                 && let prop_ty = self.get_type_of_symbol(prop)
                 && let base_prop_ty = self.get_type_of_symbol(base_prop)
                 && !self.check_type_assignable_to(
                     prop_ty,
                     base_prop_ty,
-                    member_name,
+                    member_name.map(|name| name.id()),
                     Some(|this: &mut Self| {
-                        let span = this.p.node(member_name.unwrap()).span();
-                        let error = errors::TypeIsNotAssignableToType {
-                            span,
-                            ty1: this.print_ty(prop_ty, None).to_string(),
-                            ty2: this.print_ty(base_prop_ty, None).to_string(),
-                        };
+                        let name = member_name.unwrap();
+                        let span = name.kind.span();
+                        let prop = print_prop_name(&name.kind, &this.atoms);
+                        let error =
+                            errors::PropertyAInTypeXIsNotAssignableToTheSamePropertyInBaseTypeY {
+                                span,
+                                prop,
+                                ty1: this.print_ty(ty_with_this, None).to_string(),
+                                ty2: this.print_ty(base_ty_with_this, None).to_string(),
+                            };
                         this.push_error(Box::new(error));
                     }),
                 )
@@ -186,7 +190,7 @@ impl<'cx> TyChecker<'cx> {
         if !issued_member_error {
             self.check_type_assignable_to(
                 ty_with_this,
-                base_with_this,
+                base_ty_with_this,
                 Some(class.id()),
                 Some(|this: &mut Self| {
                     push_error(this);

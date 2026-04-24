@@ -67,9 +67,9 @@ mod utils;
 
 use std::fmt::Debug;
 
+use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr};
-use bolt_ts_ast::{BinOp, pprint_ident};
 use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_binder::{AccessKind, AssignmentKind, NodeQuery};
@@ -87,6 +87,8 @@ use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+
+use crate::check::fn_mapper::{ReportUnmeasurableMapper, ReportUnreliableMapper};
 
 use self::check_expr::IterationUse;
 use self::check_type_related_to::NOOP_HEADING_ERROR;
@@ -303,6 +305,12 @@ pub struct TyChecker<'cx> {
 
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
+    report_unreliable_mapper: &'cx ReportUnreliableMapper,
+    report_unmeasurable_mapper: &'cx ReportUnmeasurableMapper,
+    enable_out_of_band_variance_marker_handler: bool,
+    in_variance_computation: bool,
+    propagating_variance_flags: Option<RelationComparisonResult>,
+    reliability_flags: VarianceFlags,
     // =======================
     error_symbol: SymbolID,
     global_this_symbol: SymbolID,
@@ -608,6 +616,8 @@ impl<'cx> TyChecker<'cx> {
 
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
+        let report_unreliable_mapper = ty_arena.alloc(ReportUnreliableMapper);
+        let report_unmeasurable_mapper = ty_arena.alloc(ReportUnmeasurableMapper);
 
         assert_eq!(binder.bind_results.len(), module_arena.modules().len());
         binder.bind_results.push(ResolveResult {
@@ -703,7 +713,12 @@ impl<'cx> TyChecker<'cx> {
 
             restrictive_mapper,
             permissive_mapper,
-
+            report_unreliable_mapper,
+            report_unmeasurable_mapper,
+            enable_out_of_band_variance_marker_handler: false,
+            in_variance_computation: false,
+            propagating_variance_flags: None,
+            reliability_flags: VarianceFlags::empty(),
             is_inference_partially_blocked: false,
             enum_number_index_info: Default::default(),
             any_base_type_index_info: Default::default(),
@@ -1252,7 +1267,7 @@ impl<'cx> TyChecker<'cx> {
             ast::PropNameKind::PrivateIdent(ident) => {
                 self.get_string_literal_type_from_string(ident.name)
             }
-            ast::PropNameKind::BigIntLit(lit) => todo!(),
+            ast::PropNameKind::BigIntLit(_) => todo!(),
         }
     }
 
@@ -6562,7 +6577,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             match ty.kind {
                 ty::TyKind::Substitution(ty) => self.is_weak_ty(ty.base_ty),
-                ty::TyKind::Intersection(i) => i.tys.iter().any(|ty| self.is_weak_ty(ty)),
+                ty::TyKind::Intersection(i) => i.tys.iter().all(|ty| self.is_weak_ty(ty)),
                 _ => false,
             }
         }

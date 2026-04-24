@@ -1934,9 +1934,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.check_expr(expr.expr);
-        if ty == self.silent_never_ty {
-            return ty;
+        let operand_ty = self.check_expr(expr.expr);
+        if operand_ty == self.silent_never_ty {
+            return operand_ty;
         }
 
         match expr.expr.kind {
@@ -1970,21 +1970,21 @@ impl<'cx> TyChecker<'cx> {
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
-                if let ty::TyKind::NumberLit(n) = ty.kind {
-                    ty
+                if let ty::TyKind::NumberLit(n) = operand_ty.kind {
+                    operand_ty
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::Minus => {
-                if let ty::TyKind::NumberLit(n) = ty.kind {
+                if let ty::TyKind::NumberLit(n) = operand_ty.kind {
                     self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
-                let ty = self.check_non_null_type(ty, expr.expr.id());
+                let ty = self.check_non_null_type(operand_ty, expr.expr.id());
                 let ok = self.check_arithmetic_op_ty(ty, false, |_| {});
                 if ok {
                     self.check_reference_expr(
@@ -2027,7 +2027,16 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ast::PrefixUnaryOp::Tilde => self.number_ty,
-            ast::PrefixUnaryOp::Excl => self.boolean_ty(),
+            ast::PrefixUnaryOp::Excl => {
+                self.check_truthiness_of_ty(operand_ty, expr.expr);
+                let facts =
+                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
+                match facts {
+                    TypeFacts::TRUTHY => self.false_ty,
+                    TypeFacts::FALSY => self.true_ty,
+                    _ => self.boolean_ty(),
+                }
+            }
         }
     }
 

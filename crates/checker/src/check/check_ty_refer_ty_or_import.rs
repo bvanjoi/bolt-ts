@@ -109,6 +109,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(ty_param.kind.is_param());
         if self.has_non_circular_constraint(ty_param) {
             self.get_constraint_from_ty_param(ty_param)
         } else {

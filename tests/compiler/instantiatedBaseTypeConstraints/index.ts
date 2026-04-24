@@ -11,6 +11,6 @@ class Bar implements Foo<Bar, string> {
 
 class C implements Foo<C, string> { //~ERROR: Type 'C' does not satisfy the constraint 'Foo<C, string>'.
   foo(bar: number): void {
-  //~^ ERROR: Type '(bar: number) => void' is not assignable to type '(bar: string) => void'.
+  //~^ ERROR: Property 'foo' in type 'C<C>' is not assignable to the same property in base type 'Foo<C, string, C>'.
   }
 }

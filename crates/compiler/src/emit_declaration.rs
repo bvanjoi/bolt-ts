@@ -78,15 +78,58 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         }
     }
 
+    fn emit_type_parameters(&mut self, n: Option<ast::TyParams<'cx>>) {
+        if let Some(n) = n {
+            debug_assert!(!n.is_empty());
+            self.emitter.print().p_less();
+            self.emit_list(
+                n,
+                |this, item| {
+                    this.visit_ident(item.name);
+                    if let Some(constraint) = item.constraint {
+                        this.emitter.print().p_whitespace();
+                        this.emitter.print().p("extends");
+                        this.emitter.print().p_whitespace();
+                        this.visit_ty(constraint);
+                    }
+                    if let Some(default) = item.default {
+                        this.emitter.print().p_whitespace();
+                        this.emitter.print().p_eq();
+                        this.emitter.print().p_whitespace();
+                        this.visit_ty(default);
+                    }
+                },
+                |this, _| {
+                    this.emitter.print().p_comma();
+                    this.emitter.print().p_whitespace();
+                },
+            );
+            self.emitter.print().p_great();
+        }
+    }
+
     fn emit_type_arguments(&mut self, n: Option<&'cx ast::Tys<'cx>>) {
         if let Some(n) = n {
             debug_assert!(!n.list.is_empty());
             self.emitter.print().p_less();
-            for ty in n.list {
-                self.visit_ty(ty);
-            }
+            self.emit_list(
+                n.list,
+                |this, item| {
+                    this.visit_ty(*item);
+                },
+                |this, _| {
+                    this.emitter.print().p_comma();
+                    this.emitter.print().p_whitespace();
+                },
+            );
             self.emitter.print().p_great();
         }
+    }
+
+    fn emit_string_literal(&mut self, atom: bolt_ts_atom::Atom) {
+        self.emitter.print().p_double_quote();
+        self.emitter.emit_atom(self.resolver.atoms(), atom);
+        self.emitter.print().p_double_quote();
     }
 }
 
@@ -250,14 +293,16 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
-        self.emitter.print().p_whitespace();
+        self.emit_type_parameters(node.ty_params);
         if let Some(extends) = node.extends {
+            self.emitter.print().p_whitespace();
             self.emitter.print().p("extends");
             self.emitter.print().p_whitespace();
             for item in extends.list {
                 self.visit_refer_ty(item);
             }
         }
+        self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
         if !node.members.is_empty() {
             self.emitter.increment_indent();
@@ -310,20 +355,27 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.emitter
             .emit_atom(self.resolver.atoms(), node.name.name);
-        if let Some(type_params) = node.ty_params
-            && !type_params.is_empty()
-        {
-            self.emitter.print().p_less();
-            for type_param in type_params {
-                self.visit_ident(type_param.name);
-            }
-            self.emitter.print().p_great();
-        }
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_whitespace();
         self.emitter.print().p_eq();
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
         self.emitter.print().p_semi();
+    }
+
+    fn visit_tuple_ty(&mut self, node: &'cx bolt_ts_ast::TupleTy<'cx>) {
+        self.emitter.print().p_l_bracket();
+        self.emit_list(
+            node.tys,
+            |this, item| {
+                this.visit_ty(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_bracket();
     }
 
     fn visit_lit_ty(&mut self, node: &'cx bolt_ts_ast::LitTy) {
@@ -335,7 +387,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             False => self.emitter.print().p("false"),
             Undefined => self.emitter.print().p("undefined"),
             Num(num) => self.emitter.print().p(&num.to_string()),
-            String(atom) => self.emitter.emit_atom(self.resolver.atoms(), *atom),
+            String(atom) => self.emit_string_literal(*atom),
             BigInt { neg: _, val: _ } => todo!(),
         }
     }
@@ -388,9 +440,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_string_lit(&mut self, node: &'cx bolt_ts_ast::StringLit) {
-        self.emitter.print().p_double_quote();
-        self.emitter.emit_atom(self.resolver.atoms(), node.val);
-        self.emitter.print().p_double_quote();
+        self.emit_string_literal(node.val);
     }
 
     fn visit_prop_signature(&mut self, node: &'cx ast::PropSignature<'cx>) {
@@ -450,15 +500,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         if let Some(name) = node.name.map(|name| name.name) {
             self.emitter.emit_atom(self.resolver.atoms(), name);
         }
-        if let Some(type_params) = node.ty_params
-            && !type_params.is_empty()
-        {
-            self.emitter.print().p_less();
-            for type_param in type_params {
-                self.visit_ident(type_param.name);
-            }
-            self.emitter.print().p_great();
-        }
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
             node.params,
