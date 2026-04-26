@@ -2,7 +2,6 @@ use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-
 use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
@@ -1076,6 +1075,15 @@ impl<'cx> TyChecker<'cx> {
         state.infer_from_tys(original_source, original_target);
     }
 
+    fn ty_pred_kinds_match(a: &super::TyPred<'_>, b: &super::TyPred<'_>) -> bool {
+        use super::type_predicate::TyPredKind::*;
+        match (a.kind, b.kind) {
+            (Ident(a), Ident(b)) => a.param_index == b.param_index,
+            (AssertsIdent(a), AssertsIdent(b)) => a.param_index == b.param_index,
+            _ => false,
+        }
+    }
+
     pub(super) fn apply_to_ret_ty(
         &mut self,
         source: &'cx ty::Sig<'cx>,
@@ -1084,8 +1092,12 @@ impl<'cx> TyChecker<'cx> {
     ) {
         if let Some(target_ty_pred) = self.get_ty_predicate_of_sig(target)
             && let Some(source_ty_pred) = self.get_ty_predicate_of_sig(source)
+            && Self::ty_pred_kinds_match(source_ty_pred, target_ty_pred)
+            && let Some(s) = source_ty_pred.ty()
+            && let Some(t) = target_ty_pred.ty()
         {
-            todo!("type_predicate_kind_match");
+            f(self, s, t);
+            return;
         }
         let target_ret_ty = self.get_ret_ty_of_sig(target);
         if self.could_contain_ty_var(target_ret_ty) {

@@ -1,0 +1,5 @@
+  × Cannot assign to 'item' because it is a read-only property.
+    ╭─[../../tests/compiler/typePartameterConstraintInstantiatedWithDefaultWhenCheckingDefault/index.ts:17:14]
+ 17 │ item
+    · ────
+    ╰────

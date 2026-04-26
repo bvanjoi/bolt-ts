@@ -193,7 +193,7 @@ impl<'cx> TyChecker<'cx> {
             && let Some(name) = nq.get_name_of_decl(id)
             && let ast::DeclarationName::Computed(name) = name
             && let expr_ty = self.check_expr(name.expr)
-            && expr_ty.useable_as_prop_name()
+            && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
             && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
         {

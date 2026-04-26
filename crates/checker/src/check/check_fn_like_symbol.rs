@@ -18,7 +18,7 @@ const FLAGS_TO_CHECK: ast::ModifierFlags = ast::ModifierFlags::EXPORT
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
         assert!(!decls.is_empty());
 
@@ -106,10 +106,13 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        let s = self.symbol(symbol);
         if has_non_ambient_class && !is_ctor && s.flags.contains(SymbolFlags::FUNCTION) {
-            for decl in decls {
-                debug_assert!(decls.len() >= 1);
-                let n = self.p.node(*decl);
+            let decls = s.decls.as_ref().unwrap();
+            assert!(!decls.is_empty());
+            debug_assert!(decls.len() >= 1);
+            for decl in decls.clone() {
+                let n = self.p.node(decl);
                 match n {
                     ast::Node::ClassDecl(n) => {
                         let name = n.name.unwrap();
@@ -139,8 +142,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl
             && let n = self.p.node(last_seen_non_ambient_decl)
             && n.fn_body().is_none()
-            && !n.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
+            && !n.has_abstract_modifier()
         {
+            let s = self.symbol(symbol);
+            let decls = s.decls.as_ref().unwrap();
             if s.flags.contains(SymbolFlags::CONSTRUCTOR) {
                 let node = self.p.node(decls[0]).expect_class_ctor();
                 let lo = node.span.lo();

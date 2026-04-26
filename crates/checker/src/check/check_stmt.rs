@@ -298,6 +298,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::ForInitKind::Expr(_) => {}
         };
+        self.check_stmt(node.body);
     }
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {

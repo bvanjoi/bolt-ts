@@ -251,6 +251,13 @@ impl<'cx> ParserState<'cx, '_> {
             )
     }
 
+    pub(super) fn is_start_of_expr_stmt(&mut self) -> bool {
+        !matches!(
+            self.token.kind,
+            TokenKind::LBrace | TokenKind::Function | TokenKind::Class | TokenKind::At
+        ) && self.is_start_of_expr()
+    }
+
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
         use bolt_ts_ast::TokenKind::*;
         let t = self.token.kind;

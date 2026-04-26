@@ -131,6 +131,13 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         self.emitter.emit_atom(self.resolver.atoms(), atom);
         self.emitter.print().p_double_quote();
     }
+
+    fn emit_declare_if_needed(&mut self) {
+        if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
+            self.emitter.print().p("declare");
+            self.emitter.print().p_whitespace();
+        }
+    }
 }
 
 impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
@@ -142,8 +149,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_module_decl(&mut self, node: &'cx bolt_ts_ast::ModuleDecl<'cx>) {
-        self.emitter.print().p("declare");
-        self.emitter.print().p_whitespace();
+        self.emit_declare_if_needed();
         self.emitter.print().p("namespace");
         self.emitter.print().p_whitespace();
         visit_module_name(self, node.name);
@@ -210,10 +216,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_call_expr(&mut self, _: &'cx bolt_ts_ast::CallExpr<'cx>) {}
 
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
-        if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
-            self.emitter.print().p("declare");
-            self.emitter.print().p_whitespace();
-        }
+        self.emit_declare_if_needed();
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
         if let Some(name) = node.name.map(|name| name.name) {
@@ -526,10 +529,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_enum_decl(&mut self, node: &'cx bolt_ts_ast::EnumDecl<'cx>) {
-        if self.flags.contains(EmitDeclarationFlags::NEED_DECLARE) {
-            self.emitter.print().p("declare");
-            self.emitter.print().p_whitespace();
-        }
+        self.emit_declare_if_needed();
         self.emitter.print().p("enum");
         self.emitter.print().p_whitespace();
         self.emitter

@@ -384,9 +384,9 @@ impl<'cx> TyChecker<'cx> {
         expr_ty = self.get_apparent_ty(expr_ty);
 
         if self.is_error(expr_ty) {
-            // TODO: resolve_error_call
-            return self.unknown_sig();
+            return self.resolve_error_call(expr);
         } else if self.is_type_any(expr_ty) {
+            // TODO: report error when has type arguments;
             return self.any_sig();
         }
 

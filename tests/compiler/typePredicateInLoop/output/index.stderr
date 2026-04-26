@@ -1,0 +1,5 @@
+  × An expression of type 'void' cannot be tested for truthiness.
+    ╭─[../../tests/compiler/typePredicateInLoop/index.ts:19:11]
+ 19 │ otherFunc(ITEM, arg)
+    · ────────────────────
+    ╰────

@@ -887,7 +887,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
-        if index_ty.useable_as_prop_name() {
+        if index_ty.usable_as_prop_name() {
             Some(self.get_prop_name_from_ty(index_ty))
         } else {
             None
@@ -941,7 +941,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_assignment_to_readonly_entity(
-        &mut self,
+        &self,
         expr: ast::NodeID,
         symbol: SymbolID,
         assignment_kind: AssignmentKind,
@@ -951,31 +951,38 @@ impl<'cx> TyChecker<'cx> {
         }
         let n = self.p.node(expr);
         if self.is_readonly_symbol(symbol) {
+            let s = self.symbol(symbol);
             // Allow assignments to readonly properties within constructors of the same class declaration.
-            // if (
-            //     symbol.flags & SymbolFlags.Property &&
-            //     isAccessExpression(expr) &&
-            //     expr.expression.kind === SyntaxKind.ThisKeyword
-            // ) {
-            //     // Look for if this is the constructor for the class that `symbol` is a property of.
-            //     const ctor = getControlFlowContainer(expr);
-            //     if (!(ctor && (ctor.kind === SyntaxKind.Constructor || isJSConstructor(ctor)))) {
-            //         return true;
-            //     }
-            //     if (symbol.valueDeclaration) {
-            //         const isAssignmentDeclaration = isBinaryExpression(symbol.valueDeclaration);
-            //         const isLocalPropertyDeclaration = ctor.parent === symbol.valueDeclaration.parent;
-            //         const isLocalParameterProperty = ctor === symbol.valueDeclaration.parent;
-            //         const isLocalThisPropertyAssignment = isAssignmentDeclaration && symbol.parent?.valueDeclaration === ctor.parent;
-            //         const isLocalThisPropertyAssignmentConstructorFunction = isAssignmentDeclaration && symbol.parent?.valueDeclaration === ctor;
-            //         const isWriteableSymbol = isLocalPropertyDeclaration
-            //             || isLocalParameterProperty
-            //             || isLocalThisPropertyAssignment
-            //             || isLocalThisPropertyAssignmentConstructorFunction;
-            //         return !isWriteableSymbol;
-            //     }
-            // }
-            // TODO: more case
+            if s.flags.contains(SymbolFlags::PROPERTY)
+                && match n {
+                    ast::Node::PropAccessExpr(ast::PropAccessExpr { expr, .. })
+                    | ast::Node::EleAccessExpr(ast::EleAccessExpr { expr, .. }) => {
+                        matches!(expr.kind, ast::ExprKind::This(_))
+                    }
+                    _ => false,
+                }
+            {
+                let ctor = self
+                    .node_query(expr.module())
+                    .get_control_flow_container(expr);
+                // TODO: is_js_constructor
+                if !self.p.node(ctor).is_class_ctor() {
+                    return true;
+                } else if let Some(d) = s.value_decl {
+                    let declaration = self.p.node(d);
+                    let is_assignment_declaration = declaration.is_assign_expr();
+                    let ctor_parent = self.parent(ctor);
+                    let is_writeable_symbol = (ctor_parent == self.parent(d))
+                        || (Some(ctor) == self.parent(d))
+                        || (is_assignment_declaration
+                            && ctor_parent == s.parent.and_then(|p| self.symbol(p).value_decl))
+                        || (is_assignment_declaration
+                            && s.parent
+                                .map_or(false, |p| self.symbol(p).value_decl == Some(ctor)));
+                    return !is_writeable_symbol;
+                }
+            }
+
             return true;
         } else if n.is_access_expr() {
             let expr = match n {
@@ -1004,6 +1011,19 @@ impl<'cx> TyChecker<'cx> {
         access_node: Option<ast::NodeID>,
         access_flags: AccessFlags,
     ) -> Option<&'cx Ty<'cx>> {
+        let error_if_writing_to_readonly_index =
+            |this: &mut Self, index_info: &'cx ty::IndexInfo<'cx>, access_expr: ast::NodeID| {
+                if index_info.is_readonly
+                    && let nq = this.node_query(access_expr.module())
+                    && (nq.is_assignment_target(access_expr) || nq.is_delete_target(access_expr))
+                {
+                    let error = errors::IndexSignatureInTypeXOnlyPermitsReading {
+                        span: this.p.node(access_expr).span(),
+                        ty: this.print_ty(object_ty, None).to_string(),
+                    };
+                    this.push_error(Box::new(error));
+                }
+            };
         let access_expr = access_node.filter(|n| self.p.node(*n).is_ele_access_expr());
         let prop_name = self.get_prop_name_from_index(index_ty);
         if let Some(prop_name) = prop_name {
@@ -1109,6 +1129,9 @@ impl<'cx> TyChecker<'cx> {
                 .get_applicable_index_info(object_ty, index_ty)
                 .or_else(|| self.get_index_info_of_ty(object_ty, self.string_ty));
             if let Some(index_info) = index_info {
+                if let Some(access_expr) = access_expr {
+                    error_if_writing_to_readonly_index(self, index_info, access_expr);
+                }
                 return Some(
                     if access_flags.contains(AccessFlags::INCLUDE_UNDEFINED)
                         && !object_ty.symbol().is_some_and(|object_symbol| {

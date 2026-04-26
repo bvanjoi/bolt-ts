@@ -1020,13 +1020,8 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::Semi);
         let start = self.token.start();
         self.next_token(); // consume `;`
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::EmptyStmt {
-            id,
-            span: self.new_span(start),
-        });
-        self.nodes.insert(id, ast::Node::EmptyStmt(stmt));
-        stmt
+        let span = self.new_span(start);
+        self.create_empty_stmt(span)
     }
 
     fn parse_var_stmt(

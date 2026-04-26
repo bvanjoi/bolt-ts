@@ -26,7 +26,7 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let fn_decl = self.p.node(id);
         let symbol = self.get_symbol_of_decl(id);
-        let first_fn_decl = self.binder.symbol(symbol).decls.as_ref().and_then(|decls| {
+        let first_fn_decl = self.symbol(symbol).decls.as_ref().and_then(|decls| {
             decls
                 .iter()
                 .find(|&&d| self.p.node(d).is_same_kind(&fn_decl))

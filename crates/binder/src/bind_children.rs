@@ -191,8 +191,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false_target,
         );
         let should_add_antecedent = node.is_none_or(|node| {
-            // TODO: optional chain
-            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
+            !node.kind.is_logical_assignment()
+                && !node.kind.is_logical_expr()
+                && !(self.node_query().is_optional_chain(node.id())
+                    && self.node_query().is_outermost_optional_chain(node.id()))
         });
         if should_add_antecedent {
             let t = self.create_flow_condition(
@@ -1503,6 +1505,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.expr.id());
             } else {
+                self.bind(n.expr.id());
                 if let Some(ty_args) = n.ty_args {
                     for ty_arg in ty_args.list {
                         self.bind(ty_arg.id());
@@ -1511,7 +1514,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 for arg in n.args {
                     self.bind(arg.id());
                 }
-                self.bind(n.expr.id());
                 if matches!(n.expr.kind, ast::ExprKind::Super(_)) {
                     let c = self.create_flow_call(self.current_flow.unwrap(), n);
                     self.current_flow = Some(c);
@@ -1615,8 +1617,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             return false;
         }
 
-        // TODO: check optional chain
-        true
+        !(self.node_query().is_optional_chain(parent)
+            && match parent_node {
+                ast::Node::PropAccessExpr(node) => node.expr.id() == n,
+                ast::Node::EleAccessExpr(node) => node.expr.id() == n,
+                ast::Node::CallExpr(node) => node.expr.id() == n,
+                ast::Node::NonNullExpr(node) => node.expr.id() == n,
+                _ => unreachable!(),
+            })
     }
 
     fn bind_bin_expr_flow(&mut self, n: &'cx ast::BinExpr<'cx>) {

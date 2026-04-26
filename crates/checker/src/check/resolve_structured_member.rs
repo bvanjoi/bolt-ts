@@ -680,11 +680,7 @@ impl<'cx> TyChecker<'cx> {
         let i = r.target.kind.expect_object_interface();
         let symbol = i.symbol.unwrap();
         let decl = self.get_class_like_decl_of_symbol(symbol);
-        let is_abstract = decl.is_some_and(|decl| {
-            self.p
-                .node(decl)
-                .has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
-        });
+        let is_abstract = decl.is_some_and(|decl| self.p.node(decl).has_abstract_modifier());
         if base_sigs.is_empty() {
             let sig = self.new_sig(ty::Sig {
                 flags: if is_abstract {
@@ -925,7 +921,6 @@ impl<'cx> TyChecker<'cx> {
             let name = p.name;
             let flags = (SymbolFlags::PROPERTY | p.flags & optional_mask) | SymbolFlags::TRANSIENT;
             let decls = p.decls.clone();
-            let value_decl = p.value_decl;
             let prop_ty = self.get_type_of_symbol(prop);
 
             let mut mapped_ty = r.mapped_ty;
@@ -971,6 +966,7 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_anonymous_type_members(&mut self, ty: &'cx ty::Ty<'cx>) {
         let a = ty.kind.expect_object_anonymous();
         let symbol_id = a.symbol.unwrap();
+        let symbol_id = self.get_merged_symbol(symbol_id);
         let symbol = self.symbol(symbol_id);
         if let Some(target) = a.target {
             let mapper = a.mapper.unwrap();
@@ -1002,8 +998,6 @@ impl<'cx> TyChecker<'cx> {
             !symbol.flags.contains(SymbolFlags::OBJECT_LITERAL),
             "Object literal should be resolved during check"
         );
-        // TODO: get_merged_symbol
-        // let symbol_id = self.get_merged_symbol(symbol_id);
         // let symbol = self.symbol(symbol_id);
         if symbol.flags.contains(SymbolFlags::TYPE_LITERAL) {
             let placeholder = self.structure_members_placeholder;
@@ -1194,12 +1188,15 @@ impl<'cx> TyChecker<'cx> {
         let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
         for i in 0..sigs_list.len() {
             let matched = if i == list_index {
-                Some(sig)
+                sig
+            } else if let Some(sig) = self
+                .find_matching_sig::<false, false, true>(sigs_list[i], sig)
+                .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))
+            {
+                sig
             } else {
-                self.find_matching_sig::<false, false, true>(sigs_list[i], sig)
-                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))
+                return None;
             };
-            let Some(matched) = matched else { return None };
             match &mut result {
                 Some(result) => result.push(matched),
                 None => result = Some(vec![matched]),
@@ -1953,7 +1950,7 @@ impl<'cx> TyChecker<'cx> {
         let include = TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE;
         let mut add_member_for_key_ty_worker =
             |this: &mut Self, key_ty: &'cx ty::Ty<'cx>, prop_name_ty: &'cx ty::Ty<'cx>| {
-                if prop_name_ty.useable_as_prop_name() {
+                if prop_name_ty.usable_as_prop_name() {
                     let symbol_name = this.get_prop_name_from_ty(prop_name_ty);
                     if let Some(existing_prop) = members.get(&symbol_name) {
                         let named_ty = {
@@ -1982,7 +1979,7 @@ impl<'cx> TyChecker<'cx> {
                         this.get_mut_symbol_links(*existing_prop)
                             .override_key_ty(key_ty);
                     } else {
-                        let modifiers_prop = if key_ty.useable_as_prop_name() {
+                        let modifiers_prop = if key_ty.usable_as_prop_name() {
                             let symbol_name = this.get_prop_name_from_ty(key_ty);
                             this.get_prop_of_ty::<false>(modifiers_ty, symbol_name)
                         } else {
@@ -1992,7 +1989,7 @@ impl<'cx> TyChecker<'cx> {
                             .contains(MappedTyModifiers::INCLUDE_OPTIONAL)
                             || !template_modifier.contains(MappedTyModifiers::EXCLUDE_OPTIONAL)
                                 && modifiers_prop.is_some_and(|m| {
-                                    this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)
+                                    this.symbol(m).flags.contains(SymbolFlags::OPTIONAL)
                                 });
                         let is_readonly = template_modifier
                             .contains(MappedTyModifiers::INCLUDE_READONLY)
@@ -2001,7 +1998,7 @@ impl<'cx> TyChecker<'cx> {
                         let strip_optional = this.config.compiler_options().strict_null_checks()
                             && !is_optional
                             && modifiers_prop.is_some_and(|m| {
-                                this.symbol(m).flags.intersects(SymbolFlags::OPTIONAL)
+                                this.symbol(m).flags.contains(SymbolFlags::OPTIONAL)
                             });
                         let late_flag = modifiers_prop
                             .map_or(ty::CheckFlags::default(), |m| this.get_late_flag(m));

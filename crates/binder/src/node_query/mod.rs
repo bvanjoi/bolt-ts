@@ -576,6 +576,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.get_assignment_target(n).is_some()
     }
 
+    pub fn is_delete_target(&self, n: ast::NodeID) -> bool {
+        use ast::Node::*;
+        let node = self.node(n);
+        if !matches!(node, PropAccessExpr(_) | EleAccessExpr(_)) {
+            return false;
+        }
+        let n = self.walk_up_paren_exprs(n);
+        self.node(n).is_delete_expr()
+    }
+
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
         use ast::Node::*;
         use ast::PostfixUnaryOp;
@@ -1302,9 +1312,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
         use ast::Node::*;
         match self.node(p) {
-            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
-            EleAccessExpr(n) => n.question.is_some() || n.expr.id() == node,
-            CallExpr(n) => n.question.is_some() || n.expr.id() == node,
+            PropAccessExpr(p) => p.question_dot.is_some() || p.expr.id() != node,
+            EleAccessExpr(p) => p.question.is_some() || p.expr.id() != node,
+            CallExpr(p) => p.question.is_some() || p.expr.id() != node,
             NonNullExpr(_) => {
                 // TODO: question dot || n.expr.id() == node
                 false

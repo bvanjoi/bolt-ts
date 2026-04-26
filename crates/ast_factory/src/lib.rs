@@ -1254,4 +1254,12 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    fn create_empty_stmt(&mut self, span: Span) -> &'cx ast::EmptyStmt {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::EmptyStmt { id, span });
+        self.insert_node(id, ast::Node::EmptyStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

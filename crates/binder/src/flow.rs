@@ -154,18 +154,17 @@ impl<'cx> FlowNodes<'cx> {
         {
             return;
         }
-        let FlowNodeKind::Label(label) = &mut self.get_mut_flow_node(label).kind else {
+        let FlowNodeKind::Label(f) = &mut self.get_mut_flow_node(label).kind else {
             unreachable!()
         };
-        let contain = label
+        let contain = f
             .antecedent
             .as_ref()
             .is_some_and(|list| list.contains(&antecedent));
         if contain {
             return;
         }
-        label
-            .antecedent
+        f.antecedent
             .get_or_insert_with(std::vec::Vec::new)
             .push(antecedent);
         self.set_flow_node_referenced(antecedent);

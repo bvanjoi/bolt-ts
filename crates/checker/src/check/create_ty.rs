@@ -1476,7 +1476,6 @@ impl<'cx> TyChecker<'cx> {
             return cached;
         }
         let ty = self.alloc(ty::SubstitutionTy {
-            object_flags: ObjectFlags::empty(),
             base_ty,
             constraint,
         });

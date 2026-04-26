@@ -621,7 +621,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_prop_of_ty(ty, name)
         });
         if let Some(unique_ty) = unique_ty
-            && unique_ty.useable_as_prop_name()
+            && unique_ty.usable_as_prop_name()
         {
             self.get_prop_name_from_ty(unique_ty)
         } else {

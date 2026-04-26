@@ -306,7 +306,7 @@ impl<'cx> Ty<'cx> {
         None
     }
 
-    pub fn useable_as_prop_name(&self) -> bool {
+    pub fn usable_as_prop_name(&self) -> bool {
         self.flags
             .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
     }
@@ -619,7 +619,6 @@ pub struct IntrinsicTy {
 /// ```
 #[derive(Debug)]
 pub struct SubstitutionTy<'cx> {
-    pub object_flags: ObjectFlags,
     pub base_ty: &'cx self::Ty<'cx>,
     pub constraint: &'cx self::Ty<'cx>,
 }

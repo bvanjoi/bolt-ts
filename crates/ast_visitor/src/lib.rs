@@ -10,6 +10,10 @@ pub fn visit_export_assign<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ExportAs
     v.visit_expr(n.expr);
 }
 
+pub fn visit_empty_stmt<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::EmptyStmt) {
+    // Empty statements have no child nodes to visit
+}
+
 pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
     use ast::StmtKind::*;
     match stmt.kind {
@@ -30,7 +34,7 @@ pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
         Ret(node) => v.visit_ret_stmt(node),
         Export(_) => {}
         ExportAssign(node) => v.visit_export_assign(node),
-        Empty(_) => (),
+        Empty(node) => v.visit_empty_stmt(node),
         Throw(_) => (),
         For(_) => (),
         ForOf(_) => (),
@@ -652,6 +656,7 @@ make_visitor!(
     (visit_setter_decl, ast::SetterDecl<'cx>),
     (visit_getter_decl, ast::GetterDecl<'cx>),
     (visit_export_assign, ast::ExportAssign<'cx>),
+    (visit_empty_stmt, ast::EmptyStmt)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

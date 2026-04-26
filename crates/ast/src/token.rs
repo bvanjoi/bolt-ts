@@ -616,7 +616,7 @@ impl TokenKind {
             Abstract |
             // Accessor |
             As |
-            // Asserts |
+            Asserts |
             // Assert |
             // Any |
             Async |
@@ -636,7 +636,7 @@ impl TokenKind {
             Readonly |
             // Require |
             // Object |
-            // Satisfies |
+            Satisfies |
             Set |
             // Symbol |
             Type |

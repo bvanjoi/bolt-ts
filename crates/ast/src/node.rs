@@ -670,6 +670,20 @@ impl<'cx> Node<'cx> {
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
 
+    pub fn has_abstract_modifier(&self) -> bool {
+        self.has_syntactic_modifier(ModifierFlags::ABSTRACT)
+    }
+
+    pub fn is_property_without_initializer(&self) -> bool {
+        if self.has_abstract_modifier() {
+            return false;
+        }
+        let Node::ClassPropElem(p) = self else {
+            return false;
+        };
+        p.init.is_none() && p.excl.is_none()
+    }
+
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         match self {
             Node::ClassCtor(n) => n.modifiers,
@@ -832,7 +846,10 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_access_expr(&self) -> bool {
-        self.is_prop_access_expr() || self.is_ele_access_expr()
+        match self {
+            Node::PropAccessExpr(_) | Node::EleAccessExpr(_) => true,
+            _ => false,
+        }
     }
 
     pub fn is_same_kind(&self, other: &Self) -> bool {

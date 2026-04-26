@@ -192,16 +192,17 @@ prefilled_atom_map!(
             IDENT_ITERATOR_RETURN_RESULT:           ["IteratorReturnResult", 133],
             IDENT_DONE:                             ["done", 134],
             IDENT_VALUE:                            ["value", 135],
-            IDENT_REQUIRE:                          ["require", 136]
+            IDENT_REQUIRE:                          ["require", 136],
+            IDENT_RECORD:                           ["Record", 137]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 137]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 138]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 138]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 139]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 139],
+            NUMBER_ZERO:                            ["0", 140],
         },
     }
 );

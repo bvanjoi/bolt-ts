@@ -154,7 +154,7 @@ impl<'cx> ParserState<'cx, '_> {
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat);
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            self.parse_arrow_fn_expr_body(is_async)?
+            self.parse_arrow_fn_expr_body::<true>(is_async)?
         } else {
             ast::ArrowFnExprBody::Expr(self.parse_ident(None))
         };
@@ -166,7 +166,10 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(Some(expr))
     }
 
-    fn parse_arrow_fn_expr_body(&mut self, is_async: bool) -> PResult<ast::ArrowFnExprBody<'cx>> {
+    fn parse_arrow_fn_expr_body<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+        is_async: bool,
+    ) -> PResult<ast::ArrowFnExprBody<'cx>> {
         if self.token.kind == TokenKind::LBrace {
             let flags = if is_async {
                 SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
@@ -175,13 +178,35 @@ impl<'cx> ParserState<'cx, '_> {
             };
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
+        } else if !matches!(
+            self.token.kind,
+            TokenKind::Semi | TokenKind::Function | TokenKind::Class
+        ) && self.is_start_of_stmt()
+            && !self.is_start_of_expr_stmt()
+        {
+            todo!()
         } else {
-            self.parse_assign_expr_or_higher::<false>()
-                .map(ast::ArrowFnExprBody::Expr)
+            let saved_yield_context = self.in_yield_context();
+            // TODO: top_level
+            self.set_yield_context(true);
+
+            let n = if is_async {
+                self.do_in_await_context(|this| {
+                    this.parse_assign_expr_or_higher::<false>()
+                        .map(ast::ArrowFnExprBody::Expr)
+                })
+            } else {
+                self.do_outside_of_await_context(|this| {
+                    this.parse_assign_expr_or_higher::<false>()
+                        .map(ast::ArrowFnExprBody::Expr)
+                })
+            };
+            self.set_yield_context(saved_yield_context);
+            n
         }
     }
 
-    fn parse_simple_arrow_fn_expr(
+    fn parse_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
         param: &'cx ast::Ident,
     ) -> PResult<&'cx ast::Expr<'cx>> {
@@ -201,7 +226,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.nodes.insert(param_id, ast::Node::ParamDecl(param));
         let params = self.alloc([param]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body(false)?;
+        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(false)?;
         let span = self.new_span(param.span.lo());
         let expr = self.create_arrow_fn_expr(span, None, None, params, None, body);
         let expr = self.alloc(ast::Expr {
@@ -263,7 +288,7 @@ impl<'cx> ParserState<'cx, '_> {
         if let ast::ExprKind::Ident(ident) = expr.kind
             && self.token.kind == TokenKind::EqGreat
         {
-            self.parse_simple_arrow_fn_expr(ident)
+            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
             if self.in_strict_mode
                 && let ast::ExprKind::Ident(n) = expr.kind
@@ -728,9 +753,7 @@ impl<'cx> ParserState<'cx, '_> {
         let params = self.parse_params();
         self.check_params::<false>(params);
         let ty = self.parse_return_ty::<true, false>()?;
-        let body = self
-            .parse_fn_block_or_semi(is_generator)
-            .unwrap_or_else(|| panic!("pos: {:#?}", self.pos));
+        let body = self.parse_fn_block(is_generator);
         let span = self.new_span(start);
         let node = self.create_object_method_member(
             span,

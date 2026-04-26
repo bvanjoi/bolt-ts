@@ -455,7 +455,8 @@ impl<'cx> TyChecker<'cx> {
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_like_decl(class);
-                self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
+                let id = self.get_symbol_of_decl(class.id);
+                self.get_type_of_symbol(id)
             }
             EleAccess(node) => self.check_element_access_expr(node),
             PropAccess(node) => self.check_prop_access_expr(node),
@@ -748,7 +749,8 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let class_ty = self.get_declared_ty_of_symbol(self.get_symbol_of_decl(class_like_decl));
+        let symbol = self.get_symbol_of_decl(class_like_decl);
+        let class_ty = self.get_declared_ty_of_symbol(symbol);
         let Some(base_class_ty) = self.get_base_tys(class_ty).first() else {
             return self.error_ty;
         };
@@ -1491,7 +1493,7 @@ impl<'cx> TyChecker<'cx> {
                         _ => unreachable!(),
                     };
                     object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
-                    let member_s = self.binder.symbol(member_symbol);
+                    let member_s = self.symbol(member_symbol);
                     let name = member_s.name;
                     let prop = self.create_transient_symbol(
                         name,
@@ -2190,9 +2192,11 @@ impl<'cx> TyChecker<'cx> {
 
         let index_ty = self.check_expr(node.arg);
 
-        if object_ty == self.error_ty {
-            return self.error_ty;
+        if self.is_error(object_ty) || object_ty == self.silent_never_ty {
+            return object_ty;
         }
+
+        // TODO: is_const_enum_object_ty
 
         let index_ty = if self.is_for_in_variable_for_numeric_prop_names(node.arg) {
             self.number_ty
@@ -2228,14 +2232,15 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.error_ty);
 
         let prop_symbol = self.get_node_links(node.id).get_resolved_symbol();
-        self.get_flow_type_of_prop_access_expr(
+        let flow_ty = self.get_flow_type_of_prop_access_expr(
             node.id,
             prop_symbol,
             indexed_access_ty,
             Some(node.arg.id()),
             self.check_mode,
-        )
+        );
         // TODO: check_indexed_access_index_ty
+        flow_ty
     }
 
     fn check_element_access_expr(

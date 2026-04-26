@@ -112,9 +112,7 @@ impl<'cx> CheckState<'cx> {
             if modifier.kind() == Abstract {
                 let parent = self.parent(node).unwrap();
                 let parent_node = self.p.node(parent);
-                if !(parent_node.is_class_decl()
-                    && parent_node.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT))
-                {
+                if !(parent_node.is_class_decl() && parent_node.has_abstract_modifier()) {
                     let error = if n.is_class_prop_elem() {
                         todo!()
                     } else {
@@ -196,10 +194,10 @@ impl<'cx> CheckState<'cx> {
         if flags.contains(ast::NodeFlags::AMBIENT) {
             let parent = self.parent(node).unwrap();
             let parent_node = self.p.node(parent);
-            if parent_node.is_block_stmt()
-                || parent_node.is_module_block()
-                || parent_node.is_program()
-            {
+            if matches!(
+                parent_node,
+                ast::Node::ModuleBlock(_) | ast::Node::Program(_) | ast::Node::BlockStmt(_)
+            ) {
                 let error = errors::XAreNotAllowedInAmbientContexts {
                     span: self.p.node(node).span(),
                     kind: errors::AmbientContextKind::Statements,
@@ -295,6 +293,9 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
             this.push_error(Box::new(error));
         });
         bolt_ts_ast_visitor::visit_type_alias_decl(self, node);
+    }
+    fn visit_empty_stmt(&mut self, node: &'cx bolt_ts_ast::EmptyStmt) {
+        self.check_stmt_in_ambient(node.id);
     }
     fn visit_while_stmt(&mut self, node: &'cx bolt_ts_ast::WhileStmt<'cx>) {
         self.check_stmt_in_ambient(node.id);

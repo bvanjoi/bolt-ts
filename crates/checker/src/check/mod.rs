@@ -128,6 +128,7 @@ use self::relation::UnionOrIntersectionTyPropertyKey;
 pub use self::resolve::ExpectedArgsCount;
 use self::transient_symbol::create_transient_symbol;
 use self::type_predicate::TyPred;
+use self::type_predicate::TyPredKind;
 use self::utils::contains_ty;
 
 use super::ty::TyMapper;
@@ -2091,7 +2092,8 @@ impl<'cx> TyChecker<'cx> {
         was_optional: bool,
     ) -> &'cx ty::Ty<'cx> {
         if was_optional {
-            if self.node_query(node.module()).is_optional_chain(node) {
+            let nq = self.node_query(node.module());
+            if nq.is_outermost_optional_chain(node) {
                 self.get_optional_ty::<false>(ty)
             } else {
                 self.add_optional_ty_marker(ty)
@@ -2892,7 +2894,7 @@ impl<'cx> TyChecker<'cx> {
         report: impl FnOnce(&mut Self, ast::NodeID, TypeFacts),
     ) -> &'cx ty::Ty<'cx> {
         if self.config.compiler_options().strict_null_checks()
-            && ty.flags.intersects(TypeFlags::UNKNOWN)
+            && ty.flags.contains(TypeFlags::UNKNOWN)
         {
             let error = errors::ObjectIsOfTypeUnknown {
                 span: self.p.node(node).span(),
@@ -4032,10 +4034,10 @@ impl<'cx> TyChecker<'cx> {
             _ => (),
         }
 
-        let is_same = |source: &'cx ast::Ident, target: ast::NodeID| {
-            let s = self.resolve_symbol_by_ident(source);
-            let s = self.get_export_symbol_of_value_symbol_if_exported(s);
-            s == self.get_symbol_of_decl(target)
+        let is_same = |this: &mut Self, source: &'cx ast::Ident, target: ast::NodeID| {
+            let s = this.resolve_symbol_by_ident(source);
+            let s = this.get_export_symbol_of_value_symbol_if_exported(s);
+            s == this.get_symbol_of_decl(target)
         };
 
         match self.p.node(source) {
@@ -4051,15 +4053,15 @@ impl<'cx> TyChecker<'cx> {
                     self.resolve_symbol_by_ident(s_ident) == self.resolve_symbol_by_ident(t_ident)
                 } else if let Some(t_v) = t.as_var_decl() {
                     match t_v.name.kind {
-                        ast::BindingKind::Ident(_) => is_same(s_ident, t_v.id),
+                        ast::BindingKind::Ident(_) => is_same(self, s_ident, t_v.id),
                         ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
                             unreachable!()
                         }
                     }
                 } else if let Some(t) = t.as_object_binding_elem() {
-                    is_same(s_ident, t.id)
+                    is_same(self, s_ident, t.id)
                 } else if let Some(t) = t.as_array_binding() {
-                    is_same(s_ident, t.id)
+                    is_same(self, s_ident, t.id)
                 } else {
                     false
                 }
@@ -4134,30 +4136,6 @@ impl<'cx> TyChecker<'cx> {
             }
             _ => false,
         }
-    }
-
-    fn is_or_contain_matching_refer(&mut self, source: ast::NodeID, target: ast::NodeID) -> bool {
-        self.is_matching_reference(source, target)
-    }
-
-    fn has_matching_arg(&mut self, expr: ast::NodeID, refer: ast::NodeID) -> bool {
-        let (args, expr) = match self.p.node(expr) {
-            ast::Node::CallExpr(call) => (call.args, call.expr),
-            ast::Node::NewExpr(new) => (new.args.unwrap_or_default(), new.expr),
-            _ => unreachable!(),
-        };
-        for arg in args {
-            if self.is_or_contain_matching_refer(refer, arg.id()) {
-                return true;
-            }
-        }
-
-        if let ast::ExprKind::PropAccess(p) = expr.kind
-            && self.is_or_contain_matching_refer(refer, p.expr.id())
-        {
-            return true;
-        }
-        false
     }
 
     #[inline(always)]
@@ -4594,7 +4572,7 @@ impl<'cx> TyChecker<'cx> {
         !self.get_generic_object_flags(ty).is_empty()
     }
 
-    /// for example, normalize `{ [S in string]: number; }[string]` to `number`.
+    /// for example, normalize `{ [S in string]: T; }[string]` to `T`.
     fn get_normalized_ty(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
@@ -5409,7 +5387,7 @@ impl<'cx> TyChecker<'cx> {
         element: &'cx ast::ObjectBindingElem<'cx>,
     ) -> Option<SymbolName> {
         let expr_ty = self.get_literal_ty_from_prop_name(&element.name.name());
-        if expr_ty.useable_as_prop_name() {
+        if expr_ty.usable_as_prop_name() {
             Some(self.get_prop_name_from_ty(expr_ty))
         } else {
             None

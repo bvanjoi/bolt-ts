@@ -3079,9 +3079,67 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let target_ret_ty = ret_ty(self, target);
             if target_ret_ty == self.c.any_ty || target_ret_ty == self.c.void_ty {
                 return Ternary::TRUE;
+            }
+            let source_ret_ty = ret_ty(self, source);
+            if let Some(target_ty_pred) = self.c.get_ty_predicate_of_sig(target) {
+                if let Some(source_ty_pred) = self.c.get_ty_predicate_of_sig(source) {
+                    use super::TyPredKind::*;
+                    // compare_type_predicate_related_to
+                    let compare_ty_predicate_ty_related_to =
+                        |this: &mut Self,
+                         s: Option<&'cx ty::Ty<'cx>>,
+                         t: Option<&'cx ty::Ty<'cx>>| {
+                            let related = if s == t {
+                                Ternary::TRUE
+                            } else if let Some(s) = s
+                                && let Some(t) = t
+                            {
+                                compare(this, s, t, report_error)
+                            } else {
+                                Ternary::FALSE
+                            };
+                            if related == Ternary::FALSE && report_error {
+                                // TODO: report error
+                            }
+                            related
+                        };
+                    match (source_ty_pred.kind, target_ty_pred.kind) {
+                        (Ident(s), Ident(t)) => {
+                            result &= if s.param_index != t.param_index {
+                                // TODO: report error
+                                Ternary::FALSE
+                            } else {
+                                compare_ty_predicate_ty_related_to(self, Some(s.ty), Some(t.ty))
+                            };
+                        }
+                        (AssertsIdent(s), AssertsIdent(t)) => {
+                            result &= if s.param_index != t.param_index {
+                                // TODO: report error
+                                Ternary::FALSE
+                            } else {
+                                compare_ty_predicate_ty_related_to(self, s.ty, t.ty)
+                            }
+                        }
+                        (This(s), This(t)) => {
+                            result &=
+                                compare_ty_predicate_ty_related_to(self, Some(s.ty), Some(t.ty));
+                        }
+                        (AssertsThis(s), AssertsThis(t)) => {
+                            result &= compare_ty_predicate_ty_related_to(self, s.ty, t.ty);
+                        }
+                        _ => {
+                            // TODO: report error
+                            result &= Ternary::FALSE
+                        }
+                    }
+                } else if matches!(
+                    target_ty_pred.kind,
+                    super::TyPredKind::Ident(_) | super::TyPredKind::This(_)
+                ) {
+                    // TODO: report error
+                    return Ternary::FALSE;
+                }
             } else {
-                let source_ret_ty = ret_ty(self, source);
-                // TODO: ty_predicate
                 let related = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
                     compare(self, source_ret_ty, target_ret_ty, false)
                 } else {

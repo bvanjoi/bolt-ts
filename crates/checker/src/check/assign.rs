@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
             }
             let name = elem.name.name();
             let expr_ty = self.get_literal_ty_from_prop_name(&name);
-            if !expr_ty.useable_as_prop_name() {
+            if !expr_ty.usable_as_prop_name() {
                 object_flags |= ty::ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
                 continue;
             }

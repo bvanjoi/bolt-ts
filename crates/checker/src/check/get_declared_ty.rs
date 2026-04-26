@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let flags = self.binder.symbol(id).flags;
+        let flags = self.symbol(id).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             let ty = self.get_declared_ty_of_class_or_interface(id);
             Some(ty)

@@ -33,7 +33,7 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     }
 
     pub fn ensure_type_for_variable_declaration(
-        &self,
+        &mut self,
         n: &'cx ast::VarDecl<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(matches!(n.name.kind, ast::BindingKind::Ident(_)));

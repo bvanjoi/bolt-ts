@@ -578,6 +578,15 @@ pub(super) struct ModuleXHasNoExportedMemberY {
     pub member: String,
 }
 
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Namespace '{namespace}' has no exported member '{member}'.")]
+pub(super) struct NamespaceXHasNoExportedMemberY {
+    #[label(primary)]
+    pub span: Span,
+    pub namespace: String,
+    pub member: String,
+}
+
 #[derive(Debug, Default)]
 pub(super) enum UndefinedOrNull {
     Undefined,
@@ -1515,4 +1524,12 @@ pub(super) struct CannotAssignToXBecauseItIsAConstant {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Index signature in type '{ty}' only permits reading.")]
+pub(super) struct IndexSignatureInTypeXOnlyPermitsReading {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
 }
