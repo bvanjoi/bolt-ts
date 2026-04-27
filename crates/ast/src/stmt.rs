@@ -1085,7 +1085,6 @@ impl<'cx> ExportDecl<'cx> {
 pub struct ExportAssign<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub modifiers: Option<&'cx Modifiers<'cx>>,
     pub expr: &'cx Expr<'cx>,
     pub is_export_equals: bool,
 }

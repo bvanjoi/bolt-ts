@@ -1,0 +1,66 @@
+  × Type 'number[]' is missing the following properties from type
+  │ 'Promise<number[]>': then, catch, and 1 more.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:21:7]
+ 21 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:22:16]
+ 22 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:23:16]
+ 23 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:24:16]
+ 24 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:25:16]
+ 25 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:26:16]
+ 26 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:27:16]
+ 27 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:28:16]
+ 28 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:29:16]
+ 29 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'string' is not assignable to type 'Promise<string>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:30:16]
+ 30 │ "hello"
+    · ───────
+    ╰────
+
+  × Type 'number' is not assignable to type 'Promise<number>'.
+    ╭─[../../tests/compiler/errorOnUnionVsObjectShouldDeeplyDisambiguate/index.ts:31:16]
+ 31 │ 123
+    · ───
+    ╰────

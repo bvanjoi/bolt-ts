@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
             }
             let name = elem.name.name();
             let expr_ty = self.get_literal_ty_from_prop_name(&name);
-            if !expr_ty.useable_as_prop_name() {
+            if !expr_ty.usable_as_prop_name() {
                 object_flags |= ty::ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
                 continue;
             }
@@ -216,19 +216,19 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
         let element_flags = self.alloc(element_flags);
         let res = self.create_tuple_ty(element_types, Some(element_flags), false);
-        if INCLUDE_PATTERN_IN_TY {
-            todo!()
-        };
+        // if INCLUDE_PATTERN_IN_TY {
+        //     todo!()
+        // };
         res
     }
 
-    fn get_ty_from_binding_pat<const INCLUDE_PATTERN_IN_TY: bool>(
+    pub(super) fn get_ty_from_binding_pat<const INCLUDE_PATTERN_IN_TY: bool>(
         &mut self,
         binding: &'cx ast::Binding<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        if INCLUDE_PATTERN_IN_TY {
-            todo!("push")
-        }
+        // if INCLUDE_PATTERN_IN_TY {
+        //     todo!("push")
+        // }
         let ret = match binding.kind {
             ast::BindingKind::Ident(_) => unreachable!(),
             ast::BindingKind::ObjectPat(pat) => {
@@ -238,9 +238,9 @@ impl<'cx> TyChecker<'cx> {
                 self.get_ty_from_array_pat::<INCLUDE_PATTERN_IN_TY>(pat)
             }
         };
-        if INCLUDE_PATTERN_IN_TY {
-            todo!("pop")
-        };
+        // if INCLUDE_PATTERN_IN_TY {
+        //     todo!("pop")
+        // };
         ret
     }
 

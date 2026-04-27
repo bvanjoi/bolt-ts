@@ -143,10 +143,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         check_ident_start: &mut u32,
         check_ident_end: &mut u32,
     ) -> &'cx ast::Ident {
-        *check_ident_is_keyword = self.token.kind.is_keyword() && !self.token.kind.is_ident();
+        *check_ident_is_keyword = self.token.kind.is_keyword() && !self.is_ident();
         *check_ident_start = self.token.start();
         *check_ident_end = self.token.end();
-        let is_ident = self.token.kind.is_ident() || *check_ident_is_keyword;
+        let is_ident = self.is_ident() || *check_ident_is_keyword;
         self.create_ident(is_ident, None)
     }
 
@@ -155,8 +155,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
     ) -> PResult<Spec> {
         let start = self.token.start();
-        let mut check_ident_is_keyword =
-            self.token.kind.is_keyword() && !self.token.kind.is_ident();
+        let mut check_ident_is_keyword = self.token.kind.is_keyword() && !self.is_ident();
         let mut check_ident_start = self.token.start();
         let mut check_ident_end = self.token.end();
         let mut is_type_only = false;

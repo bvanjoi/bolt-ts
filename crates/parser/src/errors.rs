@@ -184,8 +184,8 @@ pub(super) struct ModifierCannotAppearOnAnIndexSignature {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An implementation cannot be declared in ambient contexts.")]
-pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+#[error("An implementation cannot be declared in type contexts.")]
+pub(super) struct AnImplementationCannotBeDeclaredInTypeContexts {
     #[label(primary)]
     pub span: Span,
 }
@@ -257,6 +257,22 @@ pub(super) struct AnEnumMemberCannotHaveANumericName {
 pub(super) struct AccessibilityModifierAlreadySeen {
     #[label(primary)]
     pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A '{modifier}' modifier cannot be used with an import declaration.")]
+pub(super) struct AModifierCannotBeUsedWithAnImportDeclaration {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("{modifier} modifier already seen.")]
+pub(super) struct ModifierAlreadySeen {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -543,13 +559,6 @@ pub(super) struct UnterminatedRegularExpressionLiteral {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Initializers are not allowed in ambient contexts.")]
-pub(super) struct InitializersAreNotAllowedInAmbientContexts {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("'{modifier}' modifier cannot appear on class elements of this kind.")]
 pub(super) struct ModifierCannotAppearOnClassElementsOfThisKind {
     #[label(primary)]
@@ -633,6 +642,20 @@ pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected keyword or identifier.")]
 pub(super) struct UnexpectedKeywordOrIdentifier {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An export assignment cannot have modifiers.")]
+pub(super) struct AnExportAssignmentCannotHaveModifiers {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A class declaration without the 'default' modifier must have a name.")]
+pub(super) struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
     #[label(primary)]
     pub span: Span,
 }

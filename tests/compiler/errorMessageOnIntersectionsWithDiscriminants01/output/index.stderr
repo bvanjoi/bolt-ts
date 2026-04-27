@@ -1,0 +1,5 @@
+  × Type 'A' is not assignable to type 'B'.
+    ╭─[../../tests/compiler/errorMessageOnIntersectionsWithDiscriminants01/index.ts:14:1]
+ 14 │ b
+    · ─
+    ╰────

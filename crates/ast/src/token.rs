@@ -586,16 +586,6 @@ impl TokenKind {
         }
     }
 
-    pub const fn is_ident(&self) -> bool {
-        if matches!(self, TokenKind::Ident) {
-            return true;
-        }
-
-        // TODO: handle yield keyword and await keyword
-
-        self.is_contextual_keyword() || self.is_strict_mode_reserved_word()
-    }
-
     pub fn is_binding_ident(self) -> bool {
         matches!(self, TokenKind::Ident)
             || self.is_strict_mode_reserved_word()
@@ -626,7 +616,7 @@ impl TokenKind {
             Abstract |
             // Accessor |
             As |
-            // Asserts |
+            Asserts |
             // Assert |
             // Any |
             Async |
@@ -646,7 +636,7 @@ impl TokenKind {
             Readonly |
             // Require |
             // Object |
-            // Satisfies |
+            Satisfies |
             Set |
             // Symbol |
             Type |
@@ -654,9 +644,12 @@ impl TokenKind {
                  Unique |
                  // Unknown |
                  // Using |
-                 From // Global |
+                 From | 
+                 // Global |
                       // BigInt |
                       // Override |
+                      Of
+                      // Defer
         )
     }
 
@@ -768,6 +761,7 @@ bitflags::bitflags! {
         const UNTERMINATED                  = 1 << 2;
         const EXTENDED_UNICODE_ESCAPE       = 1 << 3;
         const SCIENTIFIC                    = 1 << 4;
+        const OCTAL                         = 1 << 5;
         const HEX_SPECIFIER                 = 1 << 6;
         const BINARY_SPECIFIER              = 1 << 7;
         const OCTAL_SPECIFIER               = 1 << 8;
@@ -775,8 +769,10 @@ bitflags::bitflags! {
         const CONTAINS_SEPARATOR            = 1 << 9;
         const UNICODE_ESCAPE                = 1 << 10;
         const CONTAINS_INVALID_ESCAPE       = 1 << 11;
+        const CONTAINS_LEADING_ZERO         = 1 << 13;
         /// `0_1`
         const CONTAINS_INVALID_SEPARATOR    = 1 << 14;
         const NUMERIC_LITERAL_FLAGS         = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
+        const IS_INVALID                    = Self::OCTAL.bits() | Self::CONTAINS_LEADING_ZERO.bits() | Self::CONTAINS_INVALID_SEPARATOR.bits() | Self::CONTAINS_INVALID_ESCAPE.bits();
     }
 }

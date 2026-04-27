@@ -16,7 +16,7 @@
     · ─
     ╰────
 
-  × Type 'never[]' is not assignable to type 'EmptyObject'.
+  × Type 'never[]' has no properties in common with type 'EmptyObject'.
      ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:187:9]
  187 │ foo
      · ───

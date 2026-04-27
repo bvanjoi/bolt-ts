@@ -1,0 +1,11 @@
+  × Cannot find name 'T'.
+    ╭─[../../tests/compiler/typeParametersAndParametersInComputedNames/index.ts:10:10]
+ 10 │ T
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/typeParametersAndParametersInComputedNames/index.ts:10:13]
+ 10 │ a
+    · ─
+    ╰────

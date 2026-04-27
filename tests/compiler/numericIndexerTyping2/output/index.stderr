@@ -1,0 +1,11 @@
+  × Type 'Date' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/numericIndexerTyping2/index.ts:13:5]
+ 13 │ r
+    · ─
+    ╰────
+
+  × Type 'Date' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/numericIndexerTyping2/index.ts:17:5]
+ 17 │ r2
+    · ──
+    ╰────

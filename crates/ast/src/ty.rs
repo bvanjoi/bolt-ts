@@ -211,6 +211,11 @@ pub enum PredTyName<'cx> {
     Ident(&'cx Ident),
     This(&'cx ThisTy),
 }
+
+/// ```txt
+/// function isString(x: any): x is string {
+/// //                         ~~~~~~~~~~~
+/// }
 #[derive(Debug, Clone)]
 pub struct PredTy<'cx> {
     pub id: NodeID,
@@ -303,6 +308,12 @@ pub struct TupleTy<'cx> {
     pub tys: &'cx [&'cx Ty<'cx>],
 }
 
+/// ```txt
+/// type D = {
+///     new (): void
+///  // ~~~~~~~~~~~~
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct CtorSigDecl<'cx> {
     pub id: NodeID,

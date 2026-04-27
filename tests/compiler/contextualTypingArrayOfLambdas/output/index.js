@@ -1,10 +1,10 @@
 class A {
-  foo
+  foo;
 }
 class B extends A {
-  bar
+  bar;
 }
 class C extends A {
-  baz
+  baz;
 }
 var xs = [(x) => {}, (x) => {}, (x) => {}];

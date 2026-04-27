@@ -1,0 +1,16 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/heterogeneousArrayAndOverloads/index.ts:14:9]
+  7 │ test(arg1: number[]);
+    · ──┬─
+    ·   ╰── Unmatched call.
+  8 │     test(arg1: string[]);
+    ·     ──┬─
+    ·       ╰── Unmatched call.
+  9 │     test(arg1: any[]) { }
+ 10 │     callTest() {
+ 11 │         this.test([1, 2, 3, 5]);
+ 12 │         this.test(["hi"]);
+ 13 │         this.test([]);
+ 14 │         this.test([1, 2, "hi", 5])
+    ·         ──────────────────────────
+    ╰────

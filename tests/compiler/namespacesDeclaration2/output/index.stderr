@@ -1,0 +1,17 @@
+  × Namespace 'N' has no exported member 'S'.
+    ╭─[../../tests/compiler/namespacesDeclaration2/index.ts:17:13]
+ 17 │ S
+    · ─
+    ╰────
+
+  × Namespace 'M' has no exported member 'F'.
+    ╭─[../../tests/compiler/namespacesDeclaration2/index.ts:19:12]
+ 19 │ F
+    · ─
+    ╰────
+
+  × Namespace 'ns' has no exported member 'A'.
+    ╭─[../../tests/compiler/namespacesDeclaration2/index.ts:21:11]
+ 21 │ A
+    · ─
+    ╰────

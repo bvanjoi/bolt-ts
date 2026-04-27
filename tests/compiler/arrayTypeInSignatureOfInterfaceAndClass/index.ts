@@ -1,0 +1,29 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/arrayTypeInSignatureOfInterfaceAndClass.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+declare namespace WinJS {
+    class Promise<T> {
+        then<U>(success?: (value: T) => Promise<U>, error?: (error: any) => Promise<U>, progress?: (progress: any) => void): Promise<U>;
+    }
+}
+declare namespace Data {
+    export interface IListItem<T> {
+        itemIndex: number;
+        key: any;
+        data: T;
+        group: any;
+        isHeader: boolean;
+        cached: boolean;
+        isNonSourceData: boolean;
+        preventAugmentation: boolean;
+    }
+    export interface IVirtualList<T> {
+        //removeIndices: WinJS.Promise<IListItem<T>[]>;
+        removeIndices(indices: number[], options?: any): WinJS.Promise<IListItem<T>[]>;
+    }
+    export class VirtualList<T> implements IVirtualList<T> {
+        //removeIndices: WinJS.Promise<IListItem<T>[]>;
+        public removeIndices(indices: number[], options?: any): WinJS.Promise<IListItem<T>[]>;
+    }
+}

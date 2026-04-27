@@ -5,3 +5,14 @@ switch(0) {
   //~^ ERROR: Type '1' is not comparable to type '0'.
  break;
 }
+
+function f() {}
+
+const a = { a: void 0, b: f() };
+
+function g() {
+    return {
+      a: a ? "" : "",
+      b: f()
+    };
+}

@@ -1,0 +1,13 @@
+  × Type 'number | ((pos: number) => string)' is not assignable to type
+  │ 'number'.
+   ╭─[../../tests/compiler/objectBindingPatternContextuallyTypesArgument/index.ts:8:7]
+ 8 │ h
+   · ─
+   ╰────
+
+  × Type 'number | ((pos: number) => string)' is not assignable to type
+  │ 'number'.
+    ╭─[../../tests/compiler/objectBindingPatternContextuallyTypesArgument/index.ts:14:9]
+ 14 │ h
+    · ─
+    ╰────

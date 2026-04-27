@@ -10,7 +10,6 @@ use thin_vec::thin_vec;
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
-
 use super::ty::{self, ObjectMappedTyLinks};
 use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
@@ -76,7 +75,10 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx [T] {
         let len = list.len();
         for i in 0..len {
-            let item = list[i];
+            let item = *unsafe {
+                // SAFETY
+                list.get_unchecked(i)
+            };
             let mapped = f(self, item, mapper);
             if item != mapped {
                 let mut result = Vec::with_capacity(list.len());
@@ -195,7 +197,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if self.instantiation_count >= 5_000_000 {
+        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 1000 {
             let current_node = self.current_node.unwrap();
             let error = errors::TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
                 span: self.p.node(current_node).span(),
@@ -215,7 +217,9 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.instantiation_count += 1;
+        self.instantiation_depth += 1;
         let ret = self.instantiate(ty, mapper, alias_symbol, alias_ty_arguments);
+        self.instantiation_depth -= 1;
 
         if let Some(index) = cached_index {
             let prev = self.activity_ty_mapper_caches[index].insert(id, ret);
@@ -418,7 +422,7 @@ impl<'cx> TyChecker<'cx> {
         let constraint_ty = self.get_constraint_ty_from_mapped_ty(ty);
         constraint_ty.kind.as_index_ty().and_then(|index_ty| {
             let ty_var = self.get_actual_ty_variable(index_ty.ty);
-            if ty_var.flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            if ty_var.flags.contains(TypeFlags::TYPE_PARAMETER) {
                 Some(ty_var)
             } else {
                 None
@@ -582,7 +586,7 @@ impl<'cx> TyChecker<'cx> {
             mapper: &'cx dyn ty::TyMap<'cx>,
             object_flags: ObjectFlags,
         ) -> &'cx ty::Ty<'cx> {
-            let mapped_ty = ty.kind.expect_object_mapped();
+            debug_assert!(ty.kind.as_object_mapped().is_some());
             if mapped_ty_var.flags.intersects(
                 TypeFlags::ANY_OR_UNKNOWN
                     .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
@@ -591,6 +595,7 @@ impl<'cx> TyChecker<'cx> {
             ) && mapped_ty_var != c.wildcard_ty
                 && !c.is_error(mapped_ty_var)
             {
+                let mapped_ty = ty.kind.expect_object_mapped();
                 if mapped_ty.decl.name_ty.is_none() {
                     if mapped_ty_var.kind.is_array(c)
                         || (mapped_ty_var.flags.intersects(TypeFlags::ANY)
@@ -605,12 +610,25 @@ impl<'cx> TyChecker<'cx> {
                     {
                         let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
                         return c.instantiate_mapped_array_ty(mapped_ty_var, ty, mapper);
-                    }
-
-                    if mapped_ty_var.is_tuple() {
+                    } else if mapped_ty_var.is_tuple() {
                         return c.instantiate_mapped_tuple_ty(mapped_ty_var, ty, ty_var, mapper);
+                    } else if c.is_array_or_tuple_or_intersection(mapped_ty_var) {
+                        let tys = mapped_ty_var.kind.expect_intersection().tys;
+                        let tys = tys
+                            .iter()
+                            .map(|mapped_ty_var| {
+                                instantiate_constituent(
+                                    c,
+                                    ty,
+                                    ty_var,
+                                    mapped_ty_var,
+                                    mapper,
+                                    object_flags,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        return c.get_intersection_ty(&tys, IntersectionFlags::None, None, None);
                     }
-                    // TODO: is_array_or_tuple_intersection()
                 }
                 let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
                 c.instantiate_anonymous_for_mapped_ty(ty, mapper, object_flags, None, None)
@@ -1294,9 +1312,9 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_min_ty_arg_count_of_ty_params(&self, ty_params: ty::Tys<'cx>) -> usize {
         let mut min = 0;
-        for (i, param) in ty_params.iter().enumerate() {
-            let param = param.kind.expect_param();
-            if !self.has_ty_param_default(param) {
+        for (i, ty_param) in ty_params.iter().enumerate() {
+            let ty_param = ty_param.kind.expect_param();
+            if !self.has_ty_param_default(ty_param) {
                 min = i + 1;
             }
         }
@@ -1356,7 +1374,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        assert!(ty.kind.is_param());
+        debug_assert!(ty.kind.is_param());
         let default_ty = self.get_resolved_ty_param_default(ty);
         if default_ty != self.no_constraint_ty() && default_ty != self.circular_constraint_ty() {
             Some(default_ty)
@@ -1387,9 +1405,10 @@ impl<'cx> TyChecker<'cx> {
             let resolving_default_type = self.resolving_default_type();
             self.get_mut_ty_links(ty.id)
                 .set_default(resolving_default_type);
-            let default_decl = self.ty_param_nodes(param).iter().find_map(|decl| {
-                let ty_param_node = self.p.node(*decl).expect_ty_param();
-                ty_param_node.default
+            let default_decl = self.ty_param_nodes(param).and_then(|decls| {
+                decls
+                    .iter()
+                    .find_map(|decl| self.p.node(*decl).as_ty_param().and_then(|n| n.default))
             });
             let default_ty = if let Some(default_decl) = default_decl {
                 self.get_ty_from_type_node(default_decl)
@@ -1406,8 +1425,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn ty_param_nodes(&self, ty_param: &'cx ty::ParamTy<'cx>) -> &[bolt_ts_ast::NodeID] {
-        let symbol = self.binder.symbol(ty_param.symbol);
-        symbol.decls.as_ref().unwrap()
+    pub(super) fn ty_param_nodes(
+        &self,
+        ty_param: &'cx ty::ParamTy<'cx>,
+    ) -> Option<&[bolt_ts_ast::NodeID]> {
+        let symbol = self.binder.symbol(ty_param.symbol?);
+        symbol.decls.as_ref().map(|decls| decls.as_slice())
     }
 }

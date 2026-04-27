@@ -9,7 +9,7 @@ class CoachMarkAnchorDecorator {
           anchorRef(anchor);
         }
         
-      }
+      };
     }
   }
 }

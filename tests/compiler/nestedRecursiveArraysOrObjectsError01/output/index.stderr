@@ -1,0 +1,6 @@
+  × Object literal may only specify known properties, and 'jj' does not exist
+  │ in type 'Style'.
+    ╭─[../../tests/compiler/nestedRecursiveArraysOrObjectsError01/index.ts:14:9]
+ 14 │ jj: 1
+    · ─────
+    ╰────

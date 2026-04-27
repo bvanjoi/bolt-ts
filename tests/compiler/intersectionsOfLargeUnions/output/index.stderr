@@ -1,0 +1,11 @@
+  × Type 'T' cannot be used to index type 'HTMLElementTagNameMap'.
+    ╭─[../../tests/compiler/intersectionsOfLargeUnions/index.ts:24:15]
+ 24 │ HTMLElementTagNameMap[T]
+    · ────────────────────────
+    ╰────
+
+  × Type 'P' cannot be used to index type 'HTMLElementTagNameMap[T]'.
+    ╭─[../../tests/compiler/intersectionsOfLargeUnions/index.ts:24:15]
+ 24 │ HTMLElementTagNameMap[T][P]
+    · ───────────────────────────
+    ╰────

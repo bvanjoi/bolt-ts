@@ -3,7 +3,6 @@ mod bind_children;
 mod bind_class_like;
 mod bind_container;
 mod bind_for_in_for_of;
-mod bind_prop_or_ele_access;
 mod bind_ret_or_throw;
 mod bind_worker;
 mod container_flags;
@@ -115,7 +114,6 @@ struct BinderState<'cx, 'atoms, 'parser> {
     has_explicit_return: bool,
     in_return_position: bool,
     has_flow_effects: bool,
-    has_explicit_ret: bool,
     current_true_target: Option<FlowID>,
     current_false_target: Option<FlowID>,
     current_exception_target: Option<FlowID>,
@@ -209,7 +207,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             unreachable_flow_node,
             report_unreachable_flow_node,
             has_flow_effects: false,
-            has_explicit_ret: false,
             in_return_position: false,
             has_explicit_return: false,
 

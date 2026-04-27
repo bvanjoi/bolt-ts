@@ -1,4 +1,3 @@
-
 use super::ty;
 use super::ty::CheckFlags;
 use super::{TyChecker, errors};
@@ -208,13 +207,13 @@ impl<'cx> TyChecker<'cx> {
                 let error: bolt_ts_errors::BoxedDiag = if min_ty_arg_count == ty_params.len() {
                     Box::new(errors::GenericTypeXRequiresNTypeArguments {
                         span: node_span,
-                        ty: self.print_ty(ty).to_string(),
+                        ty: self.print_ty(ty, None).to_string(),
                         n: ty_params.len(),
                     })
                 } else {
                     Box::new(errors::GenericTypeXRequiresBetweenXAndYTypeArguments {
                         span: node_span,
-                        ty: self.print_ty(ty).to_string(),
+                        ty: self.print_ty(ty, None).to_string(),
                         x: min_ty_arg_count,
                         y: ty_params.len(),
                     })
@@ -237,7 +236,7 @@ impl<'cx> TyChecker<'cx> {
                     self.fill_missing_ty_args(self_ty_args, i.local_ty_params, min_ty_arg_count);
                 self.concatenate(i.outer_ty_params, self_ty_args)
             };
-            self.create_reference_ty(ty, Some(resolved_ty_args), ty.get_object_flags())
+            self.create_type_reference(ty, Some(resolved_ty_args), ty.get_object_flags())
         } else if self.check_no_ty_args(node_span, ty_args, name, Some(symbol)) {
             ty
         } else {

@@ -10,7 +10,6 @@ use bolt_ts_ty::TypeFacts;
 use super::TyChecker;
 use super::ast;
 use super::errors;
-
 use super::ty;
 use super::ty::TypeFlags;
 
@@ -69,14 +68,19 @@ impl<'cx> TyChecker<'cx> {
                 Case(n) => {
                     let case_ty = self.check_expr(n.expr);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
-                        if !self.check_type_comparable_to(case_ty, expr_ty, Some(n.expr.id())) {
-                            let error = errors::TypeXIsNotComparableToTypeY {
-                                span: n.expr.span(),
-                                ty1: case_ty.to_string(self),
-                                ty2: expr_ty.to_string(self),
-                            };
-                            self.push_error(Box::new(error));
-                        }
+                        self.check_type_comparable_to(
+                            case_ty,
+                            expr_ty,
+                            Some(n.expr.id()),
+                            Some(|this: &mut Self| {
+                                let error = errors::TypeXIsNotComparableToTypeY {
+                                    span: n.expr.span(),
+                                    ty1: this.print_ty(case_ty, None).to_string(),
+                                    ty2: this.print_ty(expr_ty, None).to_string(),
+                                };
+                                this.push_error(Box::new(error));
+                            }),
+                        );
                     }
                 }
                 Default(n) => {
@@ -294,6 +298,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::ForInitKind::Expr(_) => {}
         };
+        self.check_stmt(node.body);
     }
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
@@ -328,7 +333,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType {
                 span: node.expr.span(),
-                ty: self.print_ty(right_ty).to_string(),
+                ty: self.print_ty(right_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         }
@@ -373,7 +378,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_if_stmt(&mut self, i: &'cx ast::IfStmt) {
-        self.check_expr(i.expr);
+        let ty = self.check_truthiness_expr(i.expr);
+        self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+            i.expr,
+            ty,
+            Some(i.then.id()),
+        );
         self.check_stmt(i.then);
         if let Some(else_then) = i.else_then {
             self.check_stmt(else_then);
@@ -737,7 +747,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_unwrapped_ret_ty_undefined_void_or_any(
+    pub(super) fn is_unwrapped_ret_ty_undefined_void_or_any(
         &mut self,
         func: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
@@ -786,7 +796,7 @@ impl<'cx> TyChecker<'cx> {
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 let fn_flags = self.p.node(container).fn_flags();
                 let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
-                self.check_ret_expr(container, unwrapped_ret_ty, node.expr, expr_ty);
+                self.check_ret_expr::<false>(container, unwrapped_ret_ty, node.expr, expr_ty);
             }
         } else if self.config.compiler_options().no_implicit_returns()
             && !self.p.node(container).is_class_ctor()
@@ -797,13 +807,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ret_expr(
+    pub(super) fn check_ret_expr<const IS_CONDITIONAL_EXPRESSION: bool>(
         &mut self,
         container: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
         ret_expr: Option<&'cx ast::Expr<'cx>>,
         expr_ty: &'cx ty::Ty<'cx>,
     ) {
+        if let Some(ret_expr) = ret_expr {
+            let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
+            if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
+                let expr_ty = self.check_expr(n.when_true);
+                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_true), expr_ty);
+                let expr_ty = self.check_expr(n.when_false);
+                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_false), expr_ty);
+                return;
+            }
+        }
+
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {
@@ -841,12 +862,55 @@ impl<'cx> TyChecker<'cx> {
         self.check_accessor_decl(n);
     }
 
-    pub(super) fn check_accessor_decl(
-        &mut self,
-        decl: &impl bolt_ts_ast::r#trait::AccessorLike<'cx>,
-    ) {
-        if let Some(body) = decl.body() {
+    pub(super) fn check_accessor_decl(&mut self, n: &impl ast::r#trait::AccessorLike<'cx>) {
+        if let Some(body) = n.body() {
             self.check_block(body);
+        }
+        let id = n.id();
+        self.check_sig_decl(id);
+
+        if self.has_bindable_name(id) {
+            let symbol = self.get_symbol_of_decl(id);
+            let s = self.binder.symbol(symbol);
+            if let Some(getter) = s.get_declaration_of_kind(|n| self.p.node(n).is_getter_decl())
+                && let Some(setter) = s.get_declaration_of_kind(|n| self.p.node(n).is_setter_decl())
+                && self
+                    .get_node_links(getter)
+                    .get_type_checked()
+                    .is_none_or(|checked| !checked)
+            {
+                self.get_mut_node_links(getter).set_type_checked(true);
+                debug_assert!(getter.module() == setter.module());
+                let getter_flags = self
+                    .node_query(getter.module())
+                    .get_effective_modifier_flags(getter);
+                let setter_flags = self
+                    .node_query(setter.module())
+                    .get_effective_modifier_flags(setter);
+                if getter_flags.contains(ast::ModifierFlags::ABSTRACT)
+                    != setter_flags.contains(ast::ModifierFlags::ABSTRACT)
+                {
+                    let error = errors::AccessorsMustBothBeAbstractOrNonAbstract {
+                        getter_span: self.p.node(getter).name().unwrap().span(),
+                        setter_span: self.p.node(setter).name().unwrap().span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+
+                if (getter_flags.contains(ast::ModifierFlags::PROTECTED)
+                    && !setter_flags.intersects(
+                        ast::ModifierFlags::PROTECTED.union(ast::ModifierFlags::PRIVATE),
+                    ))
+                    || (getter_flags.contains(ast::ModifierFlags::PRIVATE)
+                        && !setter_flags.contains(ast::ModifierFlags::PRIVATE))
+                {
+                    let error = errors::AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
+                        getter_span: self.p.node(getter).name().unwrap().span(),
+                        setter_span: self.p.node(setter).name().unwrap().span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
         }
     }
 }

@@ -1,0 +1,11 @@
+  × Property 'z' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:59]
+ 24 │ c => new B
+    · ──────────
+    ╰────
+
+  × Type 'A' is not assignable to type 'S'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:81]
+ 24 │ new A
+    · ─────
+    ╰────

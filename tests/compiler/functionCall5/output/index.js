@@ -2,7 +2,7 @@ var m1 = {};
 (function (m1) {
 
   class c1 {
-    a
+    a;
   }
   m1.c1 = c1;
   

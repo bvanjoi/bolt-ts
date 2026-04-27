@@ -1,0 +1,11 @@
+  × Property 'length' does not exist on type 'number'.
+    ╭─[../../tests/compiler/genericChainedCalls/index.ts:12:29]
+ 12 │ length
+    · ──────
+    ╰────
+
+  × Property 'length' does not exist on type 'number'.
+    ╭─[../../tests/compiler/genericChainedCalls/index.ts:17:29]
+ 17 │ length
+    · ──────
+    ╰────

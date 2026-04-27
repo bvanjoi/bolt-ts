@@ -3,12 +3,11 @@ mod links;
 mod mapper;
 mod num_lit;
 mod object_ty;
-mod pprint;
 mod sig;
 
 use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+use bolt_ts_binder::{SymbolID, SymbolName};
 
 pub use bolt_ts_ty::CheckFlags;
 pub use bolt_ts_ty::IndexFlags;
@@ -263,148 +262,16 @@ as_ty_kind!(StringMapping, &StringMappingTy<'cx>, string_mapping_ty);
 as_ty_kind!(TemplateLit, &TemplateLitTy<'cx>, template_lit_ty);
 
 impl<'cx> Ty<'cx> {
-    fn print_enum_symbol(&'cx self, checker: &mut TyChecker<'cx>, symbol: SymbolID) -> String {
-        let name = checker.binder.symbol(symbol).name;
-        checker.atoms.get(name.expect_atom()).to_string()
-    }
-
-    fn print_enum_lit_symbol(&'cx self, checker: &TyChecker<'cx>, symbol: SymbolID) -> String {
-        let s = checker.binder.symbol(symbol);
-        let value_decl = s.value_decl.unwrap();
-        let prop = checker.atoms.get(s.name.expect_atom());
-        let p = s.parent.unwrap();
-        let p = checker.binder.symbol(p);
-        let object = checker.atoms.get(p.name.expect_atom());
-        let enum_member = checker.p.node(value_decl).expect_enum_member();
-        match enum_member.name {
-            ast::EnumMemberNameKind::Ident(_) => {
-                format!("{object}.{prop}")
-            }
-            ast::EnumMemberNameKind::StringLit { .. } => {
-                format!("{object}[\"{prop}\"]")
-            }
-        }
-    }
-
-    pub fn to_string(&'cx self, checker: &mut TyChecker<'cx>) -> String {
-        if let Some(alias_symbol) = self.alias_symbol() {
-            let s = checker.binder.symbol(alias_symbol);
-            return s.name.to_string(&checker.atoms);
-        } else if self.kind.is_array(checker) {
-            let ele = checker.get_ty_arguments(self)[0];
-            let ele = ele.to_string(checker);
-            return format!("{ele}[]");
-        } else if self == checker.boolean_ty() {
-            return "boolean".to_string();
-        }
-        match self.kind {
-            TyKind::Object(object) => object.kind.to_string(self, checker),
-            TyKind::NumberLit(lit) => {
-                if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
-                    let symbol = lit.symbol.unwrap();
-                    self.print_enum_lit_symbol(checker, symbol)
-                } else if lit.is(f64::INFINITY) {
-                    "Infinity".to_string()
-                } else if lit.is(f64::NEG_INFINITY) {
-                    "-Infinity".to_string()
-                } else {
-                    format!("{}", lit.val.val())
-                }
-            }
-            TyKind::BigIntLit(lit) => format!("{}n", checker.atoms.get(lit.val)),
-            TyKind::StringLit(lit) => {
-                if self.flags.intersects(TypeFlags::ENUM_LITERAL) {
-                    let symbol = lit.symbol.unwrap();
-                    self.print_enum_lit_symbol(checker, symbol)
-                } else {
-                    format!("\"{}\"", checker.atoms.get(lit.val))
-                }
-            }
-            TyKind::Union(union) => union.tys.iter().fold(String::new(), |mut s, ty| {
-                if !s.is_empty() {
-                    s.push_str(" | ");
-                }
-                if ty.kind.is_object_anonymous()
-                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
-                        || !checker
-                            .get_signatures_of_type(ty, SigKind::Constructor)
-                            .is_empty())
-                {
-                    s.push_str(&format!("({})", checker.print_ty(ty)))
-                } else {
-                    s.push_str(checker.print_ty(ty))
-                }
-                s
-            }),
-            TyKind::Intersection(i) => i.tys.iter().fold(String::new(), |mut s, ty| {
-                if !s.is_empty() {
-                    s.push_str(" & ");
-                }
-                if ty.kind.is_object_anonymous()
-                    && (!checker.get_signatures_of_type(ty, SigKind::Call).is_empty()
-                        || !checker
-                            .get_signatures_of_type(ty, SigKind::Constructor)
-                            .is_empty())
-                {
-                    s.push_str(&format!("({})", checker.print_ty(ty)))
-                } else {
-                    s.push_str(checker.print_ty(ty))
-                }
-                s
-            }),
-
-            TyKind::Param(param) => {
-                if param.symbol == Symbol::ERR {
-                    "error_param".to_string()
-                } else {
-                    let name = checker.binder.symbol(param.symbol).name;
-                    checker.atoms.get(name.expect_atom()).to_string()
-                }
-            }
-            TyKind::IndexedAccess(_) => "indexedAccess".to_string(),
-            TyKind::Cond(n) => {
-                if let Some(symbol) = n.root.alias_symbol {
-                    let name = checker.binder.symbol(symbol).name;
-                    checker.atoms.get(name.expect_atom()).to_string()
-                } else {
-                    "cond".to_string()
-                }
-            }
-            TyKind::Index(n) => n.ty.to_string(checker),
-            TyKind::Intrinsic(i) => checker.atoms.get(i.name).to_string(),
-            TyKind::Substitution(_) => "substitution".to_string(),
-            TyKind::StringMapping(s) => {
-                let name = checker.binder.symbol(s.symbol).name;
-                checker.atoms.get(name.expect_atom()).to_string()
-            }
-            TyKind::TemplateLit(n) => {
-                let mut s = String::with_capacity(32);
-                s.push('`');
-                for i in 0..n.texts.len() {
-                    let text = n.texts[i];
-                    s.push_str(checker.atoms.get(text));
-                    if let Some(ty) = n.tys.get(i) {
-                        s.push_str(&format!("${{{}}}", ty.to_string(checker)));
-                    }
-                }
-                s.push('`');
-                s
-            }
-            TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
-            TyKind::Enum(n) => self.print_enum_symbol(checker, n.symbol),
-        }
-    }
-
     pub fn symbol(&self) -> Option<SymbolID> {
         match self.kind {
             TyKind::Object(ty) => match ty.kind {
-                ObjectTyKind::Interface(ty) => Some(ty.symbol),
+                ObjectTyKind::Interface(ty) => ty.symbol,
                 ObjectTyKind::Reference(ty) => ty.target.symbol(),
                 ObjectTyKind::Anonymous(ty) => ty.symbol,
                 ObjectTyKind::Mapped(ty) => Some(ty.symbol),
                 _ => None,
             },
-            TyKind::Param(ty) => Some(ty.symbol),
+            TyKind::Param(ty) => ty.symbol,
             TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => None,
@@ -439,7 +306,7 @@ impl<'cx> Ty<'cx> {
         None
     }
 
-    pub fn useable_as_prop_name(&self) -> bool {
+    pub fn usable_as_prop_name(&self) -> bool {
         self.flags
             .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
     }
@@ -719,8 +586,7 @@ pub struct BigIntLitTy<'cx> {
 
 #[derive(Debug)]
 pub struct ParamTy<'cx> {
-    pub symbol: SymbolID,
-    pub offset: Option<usize>,
+    pub symbol: Option<SymbolID>,
     pub target: Option<&'cx self::Ty<'cx>>,
     pub is_this_ty: bool,
 }
@@ -753,7 +619,6 @@ pub struct IntrinsicTy {
 /// ```
 #[derive(Debug)]
 pub struct SubstitutionTy<'cx> {
-    pub object_flags: ObjectFlags,
     pub base_ty: &'cx self::Ty<'cx>,
     pub constraint: &'cx self::Ty<'cx>,
 }

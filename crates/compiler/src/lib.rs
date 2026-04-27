@@ -3,7 +3,6 @@ mod compiler_result;
 mod diag;
 mod emit_declaration;
 mod match_files;
-mod r#trait;
 mod wf;
 
 use std::path::PathBuf;

@@ -148,8 +148,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
+
         if let Some(name) = name {
             self.check_contextual_ident(name);
+        } else if let Some(modifiers) = modifiers
+            && !modifiers.flags.contains(ast::ModifierFlags::DEFAULT)
+        {
+            let error = errors::AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
         }
         let ty_params = self.parse_ty_params();
         let mut extends = self.parse_class_extends_clause()?;
@@ -342,13 +350,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
-                if let Some(init) = init
-                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
-                {
-                    let error =
-                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
-                    this.push_error(Box::new(error));
-                }
                 let span = this.new_span(start);
                 let prop = this.create_class_prop_elem(
                     span,
@@ -445,7 +446,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         let modifiers = self.parse_modifiers::<false, true>(true);
-
+        let has_abstract = || {
+            modifiers
+                .as_ref()
+                .map_or(false, |ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+        };
         if let Some(ms) = modifiers {
             for m in ms.list {
                 let error = match m.kind() {
@@ -468,24 +473,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
+            let has_abstract = has_abstract();
             let decl = self.parse_getter_accessor_decl(
                 start,
                 modifiers,
-                ambient,
+                has_abstract,
                 SignatureFlags::empty(),
             )?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
+            let has_abstract = has_abstract();
             let decl = self.parse_setter_accessor_decl(
                 start,
                 modifiers,
-                ambient,
+                has_abstract,
                 SignatureFlags::empty(),
             )?;
             Ok(self.alloc(ast::ClassElem {

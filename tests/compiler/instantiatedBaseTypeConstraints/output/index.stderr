@@ -4,8 +4,8 @@
     · ─
     ╰────
 
-  × Type '(bar: number) => void' is not assignable to type '(bar: string) =>
-  │ void'.
+  × Property 'foo' in type 'C<C>' is not assignable to the same property in
+  │ base type 'Foo<C, string, C>'.
     ╭─[../../tests/compiler/instantiatedBaseTypeConstraints/index.ts:13:3]
  13 │ foo
     · ───

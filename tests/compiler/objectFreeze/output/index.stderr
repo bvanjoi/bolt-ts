@@ -1,0 +1,17 @@
+  × Index signature in type 'number[]' only permits reading.
+    ╭─[../../tests/compiler/objectFreeze/index.ts:13:1]
+ 13 │ a[0]
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/objectFreeze/index.ts:13:1]
+ 13 │ a[0]
+    · ────
+    ╰────
+
+  × Cannot assign to 'b' because it is a read-only property.
+    ╭─[../../tests/compiler/objectFreeze/index.ts:18:3]
+ 18 │ b
+    · ─
+    ╰────

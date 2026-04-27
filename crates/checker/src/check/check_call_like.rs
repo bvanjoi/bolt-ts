@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use super::ExpectedArgsCount;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::infer::InferenceFlags;
@@ -8,8 +10,12 @@ use super::ty::ElementFlags;
 use super::ty::TypeFlags;
 use super::ty::{self, TypeFacts};
 use super::ty::{Sig, SigFlags, Sigs};
+use super::type_predicate::AssertsIdentTyPred;
+use super::type_predicate::AssertsThisTyPred;
+use super::type_predicate::IdentTyPred;
+use super::type_predicate::ThisTyPred;
+use super::type_predicate::{TyPred, TyPredKind};
 use super::{CheckMode, errors};
-use super::{ExpectedArgsCount, Ternary};
 use super::{InferenceContextId, TyChecker};
 
 use bolt_ts_ast as ast;
@@ -159,19 +165,63 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         is_intersection: bool,
-        union_reduction: Option<ty::UnionReduction>,
+        union_reduction: ty::UnionReduction,
     ) -> &'cx ty::Ty<'cx> {
         if !is_intersection {
-            self.get_union_ty::<false>(
-                tys,
-                union_reduction.unwrap_or(ty::UnionReduction::Lit),
-                None,
-                None,
-                None,
-            )
+            self.get_union_ty::<false>(tys, union_reduction, None, None, None)
         } else {
             self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
         }
+    }
+
+    pub(super) fn get_union_or_intersection_ty_pred(
+        &mut self,
+        sigs: ty::Sigs<'cx>,
+        is_intersection: bool,
+    ) -> Option<&'cx TyPred<'cx>> {
+        let mut last: Option<TyPred<'cx>> = None;
+        let mut tys = vec![];
+        for sig in sigs {
+            if let Some(pred) = self.get_ty_predicate_of_sig(sig) {
+                if !matches!(pred.kind, TyPredKind::This(_) | TyPredKind::Ident(_))
+                    || last.is_some_and(|last| !last.kind_match(pred))
+                {
+                    return None;
+                };
+                last = Some(*pred);
+                tys.push(pred.ty().unwrap());
+            } else {
+                let return_ty = if !is_intersection {
+                    self.get_ret_ty_of_sig(sig)
+                } else {
+                    return None;
+                };
+                if return_ty != self.false_ty && return_ty != self.regular_false_ty {
+                    return None;
+                }
+            }
+        }
+        let last = last?;
+        let composite_ty =
+            self.get_union_or_intersection_ty(&tys, is_intersection, ty::UnionReduction::Lit);
+        let kind = match last.kind {
+            TyPredKind::Ident(last) => TyPredKind::Ident(IdentTyPred {
+                ty: composite_ty,
+                ..last
+            }),
+            TyPredKind::This(last) => TyPredKind::This(ThisTyPred {
+                ty: composite_ty,
+                ..last
+            }),
+            TyPredKind::AssertsThis(_) => TyPredKind::AssertsThis(AssertsThisTyPred {
+                ty: Some(composite_ty),
+            }),
+            TyPredKind::AssertsIdent(last) => TyPredKind::AssertsIdent(AssertsIdentTyPred {
+                ty: Some(composite_ty),
+                ..last
+            }),
+        };
+        Some(self.alloc(TyPred { kind }))
     }
 
     pub(crate) fn get_ret_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
@@ -185,15 +235,16 @@ impl<'cx> TyChecker<'cx> {
             let ret_ty = self.get_ret_ty_of_sig(target);
             self.instantiate_ty(ret_ty, sig.mapper)
         } else if let Some(composite_sigs) = sig.composite_sigs {
-            let composite_sigs = composite_sigs
+            let tys = composite_sigs
                 .iter()
                 .map(|s| self.get_ret_ty_of_sig(s))
                 .collect::<Vec<_>>();
+
             let is_intersection = sig.composite_kind == Some(TypeFlags::INTERSECTION);
             let ty = self.get_union_or_intersection_ty(
-                &composite_sigs,
+                &tys,
                 is_intersection,
-                Some(ty::UnionReduction::Subtype),
+                ty::UnionReduction::Subtype,
             );
             self.instantiate_ty(ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {
@@ -242,7 +293,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let param_count = source.get_param_count(self);
         let min_arg_count = self.get_min_arg_count(source);
-        let rest_ty = source.get_rest_ty(self);
+        let rest_ty = source.get_effective_rest_ty(self);
         if let Some(rest_ty) = rest_ty
             && pos >= param_count - 1
         {
@@ -333,9 +384,9 @@ impl<'cx> TyChecker<'cx> {
         expr_ty = self.get_apparent_ty(expr_ty);
 
         if self.is_error(expr_ty) {
-            // TODO: resolve_error_call
-            return self.unknown_sig();
+            return self.resolve_error_call(expr);
         } else if self.is_type_any(expr_ty) {
+            // TODO: report error when has type arguments;
             return self.any_sig();
         }
 
@@ -413,7 +464,7 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
+    pub(super) fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         for arg in node.args() {
             self.check_expr(arg);
         }
@@ -688,6 +739,7 @@ impl<'cx> TyChecker<'cx> {
         report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
+        // TODO: is_jsx_call_like
         if let Some(this_ty) = self.get_this_ty_of_sig(sig)
             && this_ty != self.void_ty
         {
@@ -697,7 +749,13 @@ impl<'cx> TyChecker<'cx> {
                 let this_argument_ty = self.get_this_argument_ty(this_argument_node);
                 let error_node = report_error
                     .then(|| this_argument_node.unwrap_or(n.expect_call_expr().expr).id());
-                if !self.check_type_related_to(this_argument_ty, this_ty, relation, error_node) {
+                if !self.check_type_related_to(
+                    this_argument_ty,
+                    this_ty,
+                    relation,
+                    error_node,
+                    NOOP_HEADING_ERROR,
+                ) {
                     return true;
                 }
             }
@@ -722,7 +780,7 @@ impl<'cx> TyChecker<'cx> {
                     self.check_expr_with_contextual_ty(arg, param_ty, None, check_mode)
                 };
                 let error_node = report_error.then(|| arg.id());
-                let regular_arg_ty = if check_mode.intersects(CheckMode::SKIP_CONTEXT_SENSITIVE) {
+                let regular_arg_ty = if check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                     self.get_regular_ty_of_object_literal(arg_ty)
                 } else {
                     arg_ty
@@ -733,7 +791,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     regular_arg_ty
                 };
-                if self.check_type_related_to_and_optionally_elaborate(
+                if !self.check_type_related_to_and_optionally_elaborate(
                     check_arg_ty,
                     param_ty,
                     relation,
@@ -743,12 +801,11 @@ impl<'cx> TyChecker<'cx> {
                         let source = this.get_base_ty_of_literal_ty(source);
                         Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
                             span,
-                            arg_ty: this.print_ty(source).to_string(),
-                            param_ty: this.print_ty(target).to_string(),
+                            arg_ty: this.print_ty(source, None).to_string(),
+                            param_ty: this.print_ty(target, None).to_string(),
                         })
                     },
-                ) == Ternary::FALSE
-                {
+                ) {
                     has_error = true
                 }
             }
@@ -767,13 +824,21 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: synthetic
                 None
             };
-            if !self.check_type_related_to(spared_ty, rest_ty, relation, error_node) {
-                let error = errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
-                    span: expr.span(),
-                    arg_ty: self.print_ty(spared_ty).to_string(),
-                    param_ty: self.print_ty(rest_ty).to_string(),
-                };
-                self.push_error(Box::new(error));
+            if !self.check_type_related_to(
+                spared_ty,
+                rest_ty,
+                relation,
+                error_node,
+                Some(|this: &mut Self| {
+                    let arg_ty = this.print_ty(spared_ty, None).to_string();
+                    let error = Box::new(errors::ArgumentOfTyIsNotAssignableToParameterOfTy {
+                        span: expr.span(),
+                        arg_ty,
+                        param_ty: this.print_ty(rest_ty, None).to_string(),
+                    });
+                    this.push_error(error);
+                }),
+            ) {
                 has_error = true;
             }
         }
@@ -816,15 +881,17 @@ impl<'cx> TyChecker<'cx> {
                 ty_arg,
                 target,
                 report_error.then_some(ty_args.list[i].id()),
+                Some(|this: &mut Self| {
+                    if report_error {
+                        let error = errors::TypeXDoesNotSatisfyTheConstraintY {
+                            span: ty_args.list[i].span(),
+                            x: this.print_ty(ty_arg, None).to_string(),
+                            y: this.print_ty(target, None).to_string(),
+                        };
+                        this.push_error(Box::new(error));
+                    }
+                }),
             ) {
-                if report_error {
-                    let error = errors::TypeXDoesNotSatisfyTheConstraintY {
-                        span: ty_args.list[i].span(),
-                        x: self.print_ty(ty_arg).to_string(),
-                        y: self.print_ty(target).to_string(),
-                    };
-                    self.push_error(Box::new(error));
-                }
                 return None;
             }
         }
@@ -898,7 +965,6 @@ impl<'cx> TyChecker<'cx> {
                             argument_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
                             infer,
                         ));
-
                         if self.inferences[infer.as_usize()]
                             .flags
                             .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
@@ -1042,6 +1108,7 @@ impl<'cx> TyChecker<'cx> {
                 .is_none();
 
         let mut argument_check_mode = CheckMode::empty();
+
         if !is_single_non_generic_candidate
             && args.iter().any(|arg| self.is_context_sensitive(arg.id()))
         {
@@ -1317,7 +1384,7 @@ impl<'cx> TyChecker<'cx> {
         args: &Cow<'cx, [&'cx ast::Expr<'cx>]>,
     ) -> (usize, &'cx ty::Sig<'cx>) {
         assert!(!candidates.is_empty());
-        // self.check_node_deferred(expr.id());
+        self.check_node_deferred(expr.id());
         if candidates.len() == 1
             || candidates.iter().any(|c| {
                 self.get_sig_links(c.id)

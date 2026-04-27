@@ -2,6 +2,7 @@ use bolt_ts_ast::FnFlags;
 use bolt_ts_binder::AssignmentDeclarationKind;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::CheckFlags;
 
@@ -27,6 +28,21 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(super) struct DiscriminateContextualTyByObjectLiteral {
+    node: ast::NodeID,
+    ty: ty::TyID,
+}
+
+impl DiscriminateContextualTyByObjectLiteral {
+    fn new(node: &ast::ObjectLit, ty: &ty::Ty<'_>) -> Self {
+        Self {
+            node: node.id,
+            ty: ty.id,
+        }
+    }
+}
+
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_contextual_ty(
         &mut self,
@@ -43,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.p.node(parent_id);
         use bolt_ts_ast::Node::*;
         match parent {
-            VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id),
+            VarDecl(parent) => self.get_contextual_ty_for_var_decl(parent, id, flags),
             ParamDecl(parent) => self.get_contextual_ty_for_param_decl(parent, id),
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
@@ -95,9 +111,11 @@ impl<'cx> TyChecker<'cx> {
             ObjectShorthandMember(parent) => {
                 self.get_contextual_ty_for_object_literal_ele(parent, flags)
             }
-            ParenExpr(parent) => {
-                // TODO: is_in_js_file
-                self.get_contextual_ty(parent.id, flags)
+            ParenExpr(n) => {
+                if self.node_query(n.id.module()).is_in_js_file(n.id) {
+                    todo!()
+                }
+                self.get_contextual_ty(n.id, flags)
             }
             _ => None,
         }
@@ -175,7 +193,7 @@ impl<'cx> TyChecker<'cx> {
             && let Some(name) = nq.get_name_of_decl(id)
             && let ast::DeclarationName::Computed(name) = name
             && let expr_ty = self.check_expr(name.expr)
-            && expr_ty.useable_as_prop_name()
+            && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
             && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
         {
@@ -302,6 +320,12 @@ impl<'cx> TyChecker<'cx> {
                     None
                 }
             }
+            AssignmentDeclarationKind::Property => {
+                // TODO: isPossiblyAliasedThisProperty
+                // TODO: !can_have_symbol
+                // TODO: let decl = self.final_res(parent.left.id());
+                None
+            }
             _ => {
                 // TODO: other case
                 None
@@ -329,16 +353,28 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         parent: &'cx ast::VarDecl<'cx>,
         node: ast::NodeID,
+        flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
-        if parent.init.is_some()
-            && let Some(decl_ty) = parent.ty
-        {
-            // TODO: js
-            Some(self.get_ty_from_type_node(decl_ty))
-        } else {
-            None
+        if parent.init.is_some() {
+            if let Some(decl_ty) = parent.ty {
+                // TODO: js
+                return Some(self.get_ty_from_type_node(decl_ty));
+            } else if !flags
+                .is_some_and(|flags| flags.contains(ContextFlags::SKIP_BINDING_PATTERNS))
+            {
+                match parent.name.kind {
+                    ast::BindingKind::ObjectPat(pat) if !pat.elems.is_empty() => {
+                        return Some(self.get_ty_from_binding_pat::<true>(parent.name));
+                    }
+                    ast::BindingKind::ArrayPat(pat) if !pat.elems.is_empty() => {
+                        return Some(self.get_ty_from_binding_pat::<true>(parent.name));
+                    }
+                    _ => {}
+                }
+            };
         }
+        None
     }
 
     fn get_contextual_ty_for_array_binding(
@@ -475,7 +511,8 @@ impl<'cx> TyChecker<'cx> {
                             this.append_contextual_prop_ty_constituent(&mut tys, sub);
                             continue;
                         }
-                        let prop_ty = this.get_ty_of_concrete_prop_of_contextual_ty(ty, name);
+                        let prop_ty =
+                            this.get_ty_of_concrete_prop_of_contextual_ty(constituent_ty, name);
                         if let Some(prop_ty) = prop_ty {
                             ignore_index_infos = true;
                             index_info_candidates.clear();
@@ -502,7 +539,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         Some(this.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
                     }
-                } else if !t.flags.intersects(TypeFlags::OBJECT) {
+                } else if !t.flags.contains(TypeFlags::OBJECT) {
                     None
                 } else if this.is_generic_mapped_ty(t)
                     && this.get_mapped_ty_name_ty_kind(t) != MappedTyNameTyKind::Remapping
@@ -555,7 +592,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let prop = self.get_prop_of_ty(ty, name)?;
+        let prop = self.get_prop_of_ty::<false>(ty, name)?;
         if self.is_circular_mapped_prop(prop) {
             return None;
         }
@@ -643,9 +680,179 @@ impl<'cx> TyChecker<'cx> {
         n: &'cx ast::ObjectLit<'cx>,
         contextual_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let u = contextual_ty.kind.expect_union();
-        // TODO:
-        contextual_ty
+        debug_assert!(contextual_ty.kind.is_union());
+        let key = DiscriminateContextualTyByObjectLiteral::new(n, contextual_ty);
+        if let Some(cached) = self
+            .discriminant_context_ty_by_object_literal_cache
+            .get(&key)
+        {
+            return cached;
+        }
+
+        let res = self
+            .get_matching_union_constituent_for_object_literal(contextual_ty, n)
+            .unwrap_or_else(|| {
+                enum DiscriminatingItem<'cx> {
+                    Node(&'cx ast::ObjectMember<'cx>),
+                    Prop(SymbolID),
+                }
+                #[derive(Debug, Clone, Copy)]
+                enum DiscriminatingContext<'cx> {
+                    Ident(&'cx ast::Ident),
+                    Init(&'cx ast::Expr<'cx>),
+                    None,
+                }
+                let discriminators = n
+                    .members
+                    .iter()
+                    .map(|item| DiscriminatingItem::Node(*item))
+                    .chain(
+                        self.get_props_of_ty(contextual_ty)
+                            .iter()
+                            .map(|item| DiscriminatingItem::Prop(*item)),
+                    )
+                    .filter_map(|item| match item {
+                        DiscriminatingItem::Node(item) => match item.kind {
+                            ast::ObjectMemberKind::Shorthand(n) => {
+                                let name = self.binder.symbol(self.final_res(n.id)).name;
+                                if self.is_discriminant_prop(contextual_ty, name) {
+                                    Some((DiscriminatingContext::Ident(n.name), name))
+                                } else {
+                                    None
+                                }
+                            }
+                            ast::ObjectMemberKind::PropAssignment(n) => {
+                                let name = self.binder.symbol(self.final_res(n.id)).name;
+                                if n.init.kind.is_possibly_discriminant_value()
+                                    && self.is_discriminant_prop(contextual_ty, name)
+                                {
+                                    Some((DiscriminatingContext::Init(n.init), name))
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        },
+                        DiscriminatingItem::Prop(item) => {
+                            let prop_symbol = self.symbol(item);
+                            if !prop_symbol.flags.contains(SymbolFlags::OPTIONAL) {
+                                return None;
+                            }
+                            let s = self.binder.symbol(self.final_res(n.id));
+                            let Some(members) = s.members.as_ref() else {
+                                return None;
+                            };
+                            let name = s.name;
+                            if !members.0.contains_key(&name)
+                                && self.is_discriminant_prop(contextual_ty, name)
+                            {
+                                Some((DiscriminatingContext::None, name))
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .map(|(item, name)| {
+                        (
+                            move |this: &mut Self| match item {
+                                DiscriminatingContext::Ident(n) => {
+                                    this.get_context_free_ty_of_ident(n)
+                                }
+                                DiscriminatingContext::Init(n) => {
+                                    this.get_context_free_ty_of_expr(n)
+                                }
+                                DiscriminatingContext::None => this.undefined_ty,
+                            },
+                            name,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+
+                self.discriminate_ty_by_discriminable_items(
+                    contextual_ty,
+                    &discriminators,
+                    |this, s, t| {
+                        if this.is_type_assignable_to(s, t) {
+                            Ternary::TRUE
+                        } else {
+                            Ternary::FALSE
+                        }
+                    },
+                )
+            });
+
+        let prev = self
+            .discriminant_context_ty_by_object_literal_cache
+            .insert(key, res);
+        debug_assert!(prev.is_none());
+        res
+    }
+
+    pub(super) fn discriminate_ty_by_discriminable_items<F>(
+        &mut self,
+        target: &'cx ty::Ty<'cx>,
+        discriminators: &[(F, SymbolName)],
+        related: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>) -> Ternary,
+    ) -> &'cx ty::Ty<'cx>
+    where
+        F: Fn(&mut Self) -> &'cx ty::Ty<'cx>,
+    {
+        let u = target.kind.expect_union();
+        let tys = u.tys;
+        let mut include: Vec<Ternary> = tys
+            .iter()
+            .map(|t| {
+                if t.flags.intersects(TypeFlags::PRIMITIVE)
+                    || self.get_reduced_ty(t).flags.contains(TypeFlags::NEVER)
+                {
+                    Ternary::FALSE
+                } else {
+                    Ternary::TRUE
+                }
+            })
+            .collect();
+        for (get_discriminating_ty, property_name) in discriminators {
+            let mut matched = false;
+            for i in 0..tys.len() {
+                if include[i] != Ternary::FALSE {
+                    if let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name) {
+                        let discriminating_ty = get_discriminating_ty(self);
+                        if self.some_type(discriminating_ty, |this, t| {
+                            related(this, t, target_ty) != Ternary::FALSE
+                        }) {
+                            matched = true;
+                        } else {
+                            include[i] = Ternary::MAYBE;
+                        }
+                    }
+                }
+            }
+            for i in 0..tys.len() {
+                if include[i] == Ternary::MAYBE {
+                    include[i] = if matched {
+                        Ternary::FALSE
+                    } else {
+                        Ternary::TRUE
+                    };
+                }
+            }
+        }
+        let filtered = if include.iter().any(|&t| t == Ternary::FALSE) {
+            let filtered_tys: Vec<_> = tys
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| include[*i] != Ternary::FALSE)
+                .map(|(_, t)| *t)
+                .collect();
+            self.get_union_ty::<false>(&filtered_tys, ty::UnionReduction::None, None, None, None)
+        } else {
+            target
+        };
+        if filtered.flags.contains(TypeFlags::NEVER) {
+            target
+        } else {
+            filtered
+        }
     }
 
     pub(super) fn get_apparent_ty_of_contextual_ty(

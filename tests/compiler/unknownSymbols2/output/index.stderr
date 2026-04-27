@@ -1,0 +1,59 @@
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols2/index.ts:7:12]
+ 7 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+   ╭─[../../tests/compiler/unknownSymbols2/index.ts:9:17]
+ 9 │ asdf
+   · ────
+   ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:11:14]
+ 11 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:13:9]
+ 13 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'qwerty'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:16:14]
+ 16 │ qwerty
+    · ──────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:25:13]
+ 25 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'qwerty'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:27:14]
+ 27 │ qwerty
+    · ──────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:34:19]
+ 34 │ asdf
+    · ────
+    ╰────
+
+  × Cannot find name 'qwerty'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:36:32]
+ 36 │ qwerty
+    · ──────
+    ╰────
+
+  × Cannot find name 'asdf'.
+    ╭─[../../tests/compiler/unknownSymbols2/index.ts:43:16]
+ 43 │ asdf
+    · ────
+    ╰────

@@ -18,16 +18,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let else_label = self.flow_nodes.create_branch_label();
         let post_if_label = self.flow_nodes.create_branch_label();
         self.bind_cond(Some(n.expr), then_label, else_label);
+
         self.current_flow = Some(self.finish_flow_label(then_label));
         self.bind(n.then.id());
         self.flow_nodes
             .add_antecedent(post_if_label, self.current_flow.unwrap());
+
         self.current_flow = Some(self.finish_flow_label(else_label));
-        if let Some(alt) = n.else_then {
-            self.bind(alt.id());
-        }
+        n.else_then.map(|else_then| self.bind(else_then.id()));
         self.flow_nodes
             .add_antecedent(post_if_label, self.current_flow.unwrap());
+
         self.current_flow = Some(self.finish_flow_label(post_if_label));
     }
 
@@ -190,20 +191,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false_target,
         );
         let should_add_antecedent = node.is_none_or(|node| {
-            // TODO: optional chain
-            !node.kind.is_logical_assignment() && !node.kind.is_logical_expr()
+            !node.kind.is_logical_assignment()
+                && !node.kind.is_logical_expr()
+                && !(self.node_query().is_optional_chain(node.id())
+                    && self.node_query().is_outermost_optional_chain(node.id()))
         });
         if should_add_antecedent {
             let t = self.create_flow_condition(
                 FlowFlags::TRUE_CONDITION,
                 self.current_flow.unwrap(),
-                node,
+                node.map(|n| n.id()),
             );
             self.flow_nodes.add_antecedent(true_target, t);
             let f = self.create_flow_condition(
                 FlowFlags::FALSE_CONDITION,
                 self.current_flow.unwrap(),
-                node,
+                node.map(|n| n.id()),
             );
             self.flow_nodes.add_antecedent(false_target, f);
         }
@@ -223,6 +226,54 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         for param in params {
             self.bind(param.id);
         }
+    }
+
+    pub(super) fn declare_symbol_and_add_to_symbol_table_for_fn_like_container(
+        &mut self,
+        name: SymbolName,
+        current: ast::NodeID,
+        container: ast::NodeID,
+        symbol_flags: SymbolFlags,
+        symbol_excludes: SymbolFlags,
+    ) -> SymbolID {
+        use ast::Node::*;
+        debug_assert_eq!(self.container, Some(container));
+        debug_assert!(matches!(
+            self.p.node(container),
+            FnTy(_)
+                | ClassCtor(_)
+                | CallSigDecl(_)
+                | CtorSigDecl(_)
+                | IndexSigDecl(_)
+                | ClassMethodElem(_)
+                | ObjectMethodMember(_)
+                | MethodSignature(_)
+                | CtorTy(_)
+                | GetterDecl(_)
+                | SetterDecl(_)
+                | FnDecl(_)
+                | FnExpr(_)
+                | ArrowFnExpr(_)
+                | TypeAliasDecl(_)
+                | MappedTy(_)
+                | ClassStaticBlockDecl(_)
+        ));
+        debug_assert!(
+            self.p.node(container).has_locals(),
+            "container({:?}) should have locals, but it doesn't",
+            self.p.node(container).span()
+        );
+        let table = SymbolTableLocation::locals(container);
+        let container_symbol = self.final_res[&container];
+        self.declare_symbol(
+            Some(name),
+            table,
+            Some(container_symbol),
+            current,
+            symbol_flags,
+            symbol_excludes,
+            DeclareSymbolProperty::empty(),
+        )
     }
 
     pub(super) fn declare_symbol_and_add_to_symbol_table(
@@ -286,24 +337,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             | ArrowFnExpr(_)
             | TypeAliasDecl(_)
             | MappedTy(_)
-            | ClassStaticBlockDecl(_) => {
-                debug_assert!(
-                    c.has_locals(),
-                    "container({:?}) should have locals, but it doesn't",
-                    c.span()
-                );
-                let table = SymbolTableLocation::locals(container);
-                let container_symbol = self.final_res[&container];
-                self.declare_symbol(
-                    Some(name),
-                    table,
-                    Some(container_symbol),
+            | ClassStaticBlockDecl(_) => self
+                .declare_symbol_and_add_to_symbol_table_for_fn_like_container(
+                    name,
                     current,
+                    container,
                     symbol_flags,
                     symbol_excludes,
-                    DeclareSymbolProperty::empty(),
-                )
-            }
+                ),
             _ => unreachable!(),
         }
     }
@@ -544,8 +585,24 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             BinExpr(n) => self.bind_bin_expr_flow(n),
             CondExpr(n) => self.bind_cond_expr_flow(n),
             VarDecl(n) => self.bind_var_decl_flow(n),
-            PropAccessExpr(n) => self.bind_access_expr_flow(n),
-            EleAccessExpr(n) => self.bind_access_expr_flow(n),
+            PropAccessExpr(n) => {
+                let node_id = n.id;
+                if self.node_query().is_optional_chain(node_id) {
+                    self.bind_optional_chain_flow(node_id);
+                } else {
+                    self.bind(n.expr.id());
+                    self.bind(n.name.id);
+                }
+            }
+            EleAccessExpr(n) => {
+                let node_id = n.id;
+                if self.node_query().is_optional_chain(node_id) {
+                    self.bind_optional_chain_flow(node_id);
+                } else {
+                    self.bind(n.expr.id());
+                    self.bind(n.arg.id());
+                }
+            }
             CallExpr(n) => self.bind_call_expr_flow(n),
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
             Program(n) => {
@@ -1433,36 +1490,41 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_call_expr_flow(&mut self, n: &'cx ast::CallExpr<'cx>) {
-        // TODO: is_optional_chain
-        let expr = bolt_ts_ast::Expr::skip_parens(n.expr);
-        if matches!(expr.kind, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_)) {
-            if let Some(ty_args) = n.ty_args {
-                for ty_arg in ty_args.list {
-                    self.bind(ty_arg.id());
-                }
-            }
-            for arg in n.args {
-                self.bind(arg.id());
-            }
-            self.bind(n.expr.id());
+        if self.node_query().is_optional_chain(n.id) {
+            self.bind_optional_chain_flow(n.id);
         } else {
-            if let Some(ty_args) = n.ty_args {
-                for ty_arg in ty_args.list {
-                    self.bind(ty_arg.id());
+            let expr = bolt_ts_ast::Expr::skip_parens(n.expr);
+            if matches!(expr.kind, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_)) {
+                if let Some(ty_args) = n.ty_args {
+                    for ty_arg in ty_args.list {
+                        self.bind(ty_arg.id());
+                    }
                 }
-            }
-            for arg in n.args {
-                self.bind(arg.id());
-            }
-            self.bind(n.expr.id());
-            if matches!(n.expr.kind, ast::ExprKind::Super(_)) {
-                let c = self.create_flow_call(self.current_flow.unwrap(), n);
-                self.current_flow = Some(c);
+                for arg in n.args {
+                    self.bind(arg.id());
+                }
+                self.bind(n.expr.id());
+            } else {
+                self.bind(n.expr.id());
+                if let Some(ty_args) = n.ty_args {
+                    for ty_arg in ty_args.list {
+                        self.bind(ty_arg.id());
+                    }
+                }
+                for arg in n.args {
+                    self.bind(arg.id());
+                }
+                if matches!(n.expr.kind, ast::ExprKind::Super(_)) {
+                    let c = self.create_flow_call(self.current_flow.unwrap(), n);
+                    self.current_flow = Some(c);
+                }
             }
         }
 
-        if let ast::ExprKind::PropAccess(_) = n.expr.kind {
-            // TODO:
+        if let ast::ExprKind::PropAccess(prop_access) = n.expr.kind {
+            // TODO: private
+            // && let n = prop_access.name
+            // && self.is_narrowable_operand(prop_access.expr)
         }
     }
 
@@ -1518,12 +1580,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn is_top_level_logical_expr(&self, mut n: ast::NodeID) -> bool {
-        debug_assert!(self.p.node(n).as_bin_expr().is_some_and(|bin| matches!(
-            bin.op.kind,
-            BinOpKind::LogicalAnd | BinOpKind::LogicalOr | BinOpKind::Nullish
-        )));
+        let p = &self.p;
+        debug_assert!(match p.node(n) {
+            ast::Node::BinExpr(bin) => bin.op.kind.is_logical_or_coalescing_op(),
+            _ => p.node_flags(n).contains(ast::NodeFlags::OPTIONAL_CHAIN),
+        });
         let mut parent = self.parent_map.parent(n).unwrap();
-        let mut parent_node = self.p.node(parent);
+        let mut parent_node = p.node(parent);
         while parent_node.is_paren_expr()
             || parent_node
                 .as_prefix_unary_expr()
@@ -1531,7 +1594,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         {
             n = parent;
             parent = self.parent_map.parent(n).unwrap();
-            parent_node = self.p.node(parent);
+            parent_node = p.node(parent);
         }
 
         debug_assert!(parent == self.parent_map.parent(n).unwrap());
@@ -1554,8 +1617,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             return false;
         }
 
-        // TODO: check optional chain
-        true
+        !(self.node_query().is_optional_chain(parent)
+            && match parent_node {
+                ast::Node::PropAccessExpr(node) => node.expr.id() == n,
+                ast::Node::EleAccessExpr(node) => node.expr.id() == n,
+                ast::Node::CallExpr(node) => node.expr.id() == n,
+                ast::Node::NonNullExpr(node) => node.expr.id() == n,
+                _ => unreachable!(),
+            })
     }
 
     fn bind_bin_expr_flow(&mut self, n: &'cx ast::BinExpr<'cx>) {
@@ -1702,6 +1771,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
         // TODO:
     }
+
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {
         let pre_loop_label = {
             let label = self.flow_nodes.create_loop_label();
@@ -1796,5 +1866,124 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
         self.add_declaration_to_symbol(symbol, node, flags);
         symbol
+    }
+
+    pub(super) fn bind_optional_chain_flow(&mut self, node: ast::NodeID) {
+        if self.is_top_level_logical_expr(node) {
+            let post_expr_label = self.flow_nodes.create_branch_label();
+            let save_current_flow = self.current_flow;
+            let save_has_flow_effects = self.has_flow_effects;
+            self.bind_optional_chain(node, post_expr_label, post_expr_label);
+            self.current_flow = if self.has_flow_effects {
+                Some(self.finish_flow_label(post_expr_label))
+            } else {
+                save_current_flow
+            };
+            self.has_flow_effects |= save_has_flow_effects;
+        } else {
+            let t = self.current_true_target.unwrap();
+            let f = self.current_false_target.unwrap();
+            self.bind_optional_chain(node, t, f);
+        }
+    }
+
+    fn bind_optional_expr(
+        &mut self,
+        expr: &'cx ast::Expr<'cx>,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        let expr_id = expr.id();
+        self.do_with_cond_branch(
+            |this, node| {
+                this.bind(node);
+            },
+            expr_id,
+            true_target,
+            false_target,
+        );
+        if !self.node_query().is_optional_chain(expr_id)
+            || self.node_query().is_outermost_optional_chain(expr_id)
+        {
+            let t = self.create_flow_condition(
+                FlowFlags::TRUE_CONDITION,
+                self.current_flow.unwrap(),
+                Some(expr_id),
+            );
+            self.flow_nodes.add_antecedent(true_target, t);
+            let f = self.create_flow_condition(
+                FlowFlags::FALSE_CONDITION,
+                self.current_flow.unwrap(),
+                Some(expr_id),
+            );
+            self.flow_nodes.add_antecedent(false_target, f);
+        }
+    }
+
+    fn bind_optional_chain(
+        &mut self,
+        node: ast::NodeID,
+        true_target: FlowID,
+        false_target: FlowID,
+    ) {
+        let pre_chain_label = if self.node_query().is_optional_chain_root(node) {
+            Some(self.flow_nodes.create_branch_label())
+        } else {
+            None
+        };
+        let expr = match self.p.node(node) {
+            ast::Node::PropAccessExpr(n) => n.expr,
+            ast::Node::EleAccessExpr(n) => n.expr,
+            ast::Node::CallExpr(n) => n.expr,
+            _ => unreachable!(),
+        };
+        self.bind_optional_expr(expr, pre_chain_label.unwrap_or(true_target), false_target);
+        if let Some(pre_chain_label) = pre_chain_label {
+            self.current_flow = Some(self.finish_flow_label(pre_chain_label));
+        }
+        self.do_with_cond_branch(
+            |this, n| {
+                this.bind_optional_chain_rest(n);
+            },
+            node,
+            true_target,
+            false_target,
+        );
+        if self.node_query().is_outermost_optional_chain(node) {
+            let t = self.create_flow_condition(
+                FlowFlags::TRUE_CONDITION,
+                self.current_flow.unwrap(),
+                Some(node),
+            );
+            self.flow_nodes.add_antecedent(true_target, t);
+            let f = self.create_flow_condition(
+                FlowFlags::FALSE_CONDITION,
+                self.current_flow.unwrap(),
+                Some(node),
+            );
+            self.flow_nodes.add_antecedent(false_target, f);
+        }
+    }
+
+    fn bind_optional_chain_rest(&mut self, node: ast::NodeID) {
+        match self.p.node(node) {
+            ast::Node::PropAccessExpr(n) => {
+                self.bind(n.name.id);
+            }
+            ast::Node::EleAccessExpr(n) => {
+                self.bind(n.arg.id());
+            }
+            ast::Node::CallExpr(n) => {
+                if let Some(ty_args) = n.ty_args {
+                    for ty_arg in ty_args.list {
+                        self.bind(ty_arg.id());
+                    }
+                }
+                for arg in n.args {
+                    self.bind(arg.id());
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }

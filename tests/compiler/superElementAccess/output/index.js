@@ -3,9 +3,9 @@ class MyBase {
     return a
   }
   p1() {}
-  m2 = function () {}
-  d1 = 42
-  d2 = 42
+  m2 = function () {};
+  d1 = 42;
+  d2 = 42;
   get value() {
     return 0
   }

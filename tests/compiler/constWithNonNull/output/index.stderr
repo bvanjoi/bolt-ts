@@ -1,0 +1,5 @@
+  × Cannot assign to 'x' because it is a constant.
+   ╭─[../../tests/compiler/constWithNonNull/index.ts:6:1]
+ 6 │ x
+   · ─
+   ╰────

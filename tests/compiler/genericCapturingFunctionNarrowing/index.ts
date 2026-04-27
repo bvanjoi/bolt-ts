@@ -1,0 +1,17 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/genericCapturingFunctionNarrowing.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+function needsToNarrowTheType<First extends { foo: string }, Second extends { bar: string }, SubFirst extends First, SubFirstMore extends First & {other: string}>(thing: First | SubFirst | SubFirstMore | Second) {
+    if (hasAFoo(thing)) {
+        console.log(thing.foo);
+    }
+    else {
+        // I would expect this to work because the type should be narrowed in this branch to `Second`
+        console.log(thing.bar); // Error: Property 'bar' does not exist on type 'First | Second'.
+    }
+
+    function hasAFoo(value: First | Second): value is First {
+        return "foo" in value;
+    }
+}

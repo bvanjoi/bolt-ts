@@ -44,7 +44,7 @@ impl<'cx, Host: LanguageServiceHost<LocalFS>> LanguageService<'cx, LocalFS, Host
 
 impl<'cx, FS: CachedFileSystem, Host: LanguageServiceHost<FS>> LanguageService<'cx, FS, Host> {
     pub fn get_implementation_at_position(
-        &self,
+        &mut self,
         file_name: ModuleID,
         position: usize,
     ) -> Vec<bolt_ts_ast::Node<'cx>> {

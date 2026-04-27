@@ -1,0 +1,3 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/genericCallWithoutArgs/index.ts:8:49]
+   ╰────

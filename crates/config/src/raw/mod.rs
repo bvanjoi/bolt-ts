@@ -64,9 +64,11 @@ with_option!(
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
+    (es_module_interop, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
+    // (lib, RawLib),
     (custom_conditions, Vec<String>)
 );
 
@@ -280,4 +282,41 @@ pub enum RawModule {
     NodeNext,
     #[serde(alias = "preserve")]
     Preserve,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum RawLib {
+    #[default]
+    #[serde(alias = "es5")]
+    ES5,
+    #[serde(alias = "es6")]
+    ES6,
+    #[serde(alias = "es7")]
+    ES7,
+    #[serde(alias = "es2015")]
+    ES2015,
+    #[serde(alias = "es2016")]
+    ES2016,
+    #[serde(alias = "es2017")]
+    ES2017,
+    #[serde(alias = "es2018")]
+    ES2018,
+    #[serde(alias = "es2019")]
+    ES2019,
+    #[serde(alias = "es2020")]
+    ES2020,
+    #[serde(alias = "es2021")]
+    ES2021,
+    #[serde(alias = "es2022")]
+    ES2022,
+    #[serde(alias = "es2023")]
+    ES2023,
+    #[serde(alias = "esnext")]
+    ESNext,
+    #[serde(alias = "dom")]
+    DOM,
+    #[serde(alias = "webworker")]
+    WebWorker,
+    #[serde(alias = "scripthost")]
+    ScriptHost,
 }

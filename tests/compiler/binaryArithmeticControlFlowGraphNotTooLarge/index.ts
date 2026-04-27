@@ -1324,15 +1324,15 @@ function foo1() {
   assertEqual('',       '');
   assertEqual('42',     '42');
 
-  assertEqual(!'',      true);
-  assertEqual(!'42',    false);
+  assertEqual(!'',      true);  //~ERROR: This kind of expression is always falsy.
+  assertEqual(!'42',    false); //~ERROR: This kind of expression is always truthy.
   assertEqual(!true,    false);
   assertEqual(!!true,   true);
-  assertEqual(!123,     false);
+  assertEqual(!123,     false); //~ERROR: This kind of expression is always truthy.
   assertEqual(!0,       true);
   assertEqual(!+0,      true);
   assertEqual(!-0,      true);
-  assertEqual(!null,    true);
+  assertEqual(!null,    true);  //~ERROR: This kind of expression is always falsy.
 
   assertEqual(~123,     -124);
   assertEqual(~32.0,   -33);

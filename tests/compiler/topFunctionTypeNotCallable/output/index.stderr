@@ -3,3 +3,15 @@
  8 │ foo()
    · ─────
    ╰────
+
+  × Type '42' is not assignable to type '2'.
+    ╭─[../../tests/compiler/topFunctionTypeNotCallable/index.ts:21:8]
+ 21 │ a
+    · ─
+    ╰────
+
+  × Type '42' is not assignable to type '1'.
+    ╭─[../../tests/compiler/topFunctionTypeNotCallable/index.ts:27:8]
+ 27 │ e
+    · ─
+    ╰────

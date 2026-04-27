@@ -2,7 +2,6 @@ use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-
 use super::ty;
 use super::{TyChecker, errors};
 
@@ -35,19 +34,19 @@ impl<'cx> TyChecker<'cx> {
                         };
                         self.get_ty_with_this_arg(base_ty, this_ty, false)
                     };
-                    let res = self.check_type_assignable_to(
+                    self.check_type_assignable_to(
                         ty_with_this,
                         target,
                         Some(first_interface_decl),
+                        Some(|this: &mut Self| {
+                            let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
+                                span: interface.name.span,
+                                base: this.print_ty(base_ty, None).to_string(),
+                                derived: this.print_ty(ty, None).to_string(),
+                            };
+                            this.push_error(Box::new(error));
+                        }),
                     );
-                    if !res {
-                        let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
-                            span: interface.name.span,
-                            base: base_ty.to_string(self),
-                            derived: ty.to_string(self),
-                        };
-                        self.push_error(Box::new(error));
-                    }
                 }
                 self.check_index_constraints(ty, false);
             }
@@ -71,6 +70,10 @@ impl<'cx> TyChecker<'cx> {
                     this.push_error(Box::new(error));
                 });
                 self.check_var_like_decl(n)
+            }
+            ast::ObjectTyMemberKind::Method(n) => {
+                // check_method_declaration
+                self.check_fn_like_decl(n);
             }
             _ => {
                 // TODO:
@@ -145,9 +148,9 @@ impl<'cx> TyChecker<'cx> {
                         ok = false;
                         let error = errors::InterfaceCannotSimultaneouslyExtendTypes1And2 {
                             span: ty_node.span,
-                            interface: ty.to_string(self),
-                            ty1: existing.1.to_string(self),
-                            ty2: base.to_string(self),
+                            interface: self.print_ty(ty, None).to_string(),
+                            ty1: self.print_ty(existing.1, None).to_string(),
+                            ty2: self.print_ty(base, None).to_string(),
                         };
                         self.push_error(Box::new(error));
                     }

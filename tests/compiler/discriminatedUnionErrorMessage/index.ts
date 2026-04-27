@@ -8,9 +8,9 @@ type Shape =
     | Rectangle
     | Circle;
 let shape: Shape = {
-//~^ ERROR: Type '{ kind: "sq"; x: number; y: number; }' is not assignable to type 'Shape'.
     kind: "sq",
     x: 12,
+    //~^ ERROR: Object literal may only specify known properties, and 'x' does not exist in type 'Square'.
     y: 13,
 }
 

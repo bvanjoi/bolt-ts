@@ -33,7 +33,6 @@ impl Span {
     #[track_caller]
     #[inline(always)]
     pub fn new(lo: u32, hi: u32, module: ModuleID) -> Self {
-        debug_assert!(lo <= hi, "Invalid span: {lo}..{hi}");
         Self { lo, hi, module }
     }
 

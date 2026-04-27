@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::FlowFlags;
@@ -14,7 +15,9 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::errors;
+use super::eval::EvalResult;
 use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
 use super::node_check_flags::NodeCheckFlags;
@@ -184,7 +187,8 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
         debug_assert!(node.op.kind == ast::BinOpKind::Nullish);
-        let left_target = ast::Expr::skip_outer_expr(node.left);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let left_target = ast::Expr::skip_outer_expr::<FLAGS>(node.left);
         let semantics = self.get_syntactic_nullishness_semantics(left_target);
         if semantics != PredicateSemantics::SOMETIMES {
             if semantics == PredicateSemantics::ALWAYS {
@@ -248,8 +252,8 @@ impl<'cx> TyChecker<'cx> {
         let error = errors::OperatorCannotBeAppliedToTypesXAndY {
             span: error_span,
             op: op.kind.to_string(),
-            ty1: effective_left_ty.to_string(self),
-            ty2: effective_right_ty.to_string(self),
+            ty1: self.print_ty(effective_left_ty, None).to_string(),
+            ty2: self.print_ty(effective_right_ty, None).to_string(),
         };
         self.push_error(Box::new(error));
     }
@@ -258,28 +262,21 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: &'cx ast::BinExpr,
         op: ast::BinOp,
-        left: &'cx ast::Expr,
+        left: &'cx ast::Expr<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
-        right: &'cx ast::Expr,
+        right: &'cx ast::Expr<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::BinOpKind::*;
         match op.kind {
-            Add => {
-                (match self.check_binary_like_expr_for_add(left_ty, right_ty) {
-                    Some(ty) => ty,
-                    None => {
-                        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-                            op: op.kind.to_string(),
-                            ty1: left_ty.to_string(self),
-                            ty2: right_ty.to_string(self),
-                            span: node.span,
-                        };
-                        self.push_error(Box::new(error));
-                        self.any_ty
-                    }
-                }) as _
-            }
+            Add => self.check_binary_like_expr_for_add(
+                left,
+                left_ty,
+                right,
+                right_ty,
+                ast::TokenKind::Plus,
+                node.span,
+            ),
             Sub | Mul | Div | Mod => {
                 if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
                     return self.silent_never_ty;
@@ -358,8 +355,7 @@ impl<'cx> TyChecker<'cx> {
                 self.boolean_ty()
             }
             Less | LessEq | Great | GreatEq => {
-                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, op)
-                {
+                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty) {
                     let left_ty = {
                         let t = self.check_non_null_type(left_ty, left.id());
                         self.get_base_ty_of_literal_ty_for_comparison(t)
@@ -459,7 +455,8 @@ impl<'cx> TyChecker<'cx> {
             PostfixUnary(unary) => self.check_postfix_unary_expr(unary),
             Class(class) => {
                 self.check_class_like_decl(class);
-                self.get_type_of_symbol(self.get_symbol_of_decl(class.id))
+                let id = self.get_symbol_of_decl(class.id);
+                self.get_type_of_symbol(id)
             }
             EleAccess(node) => self.check_element_access_expr(node),
             PropAccess(node) => self.check_prop_access_expr(node),
@@ -468,8 +465,8 @@ impl<'cx> TyChecker<'cx> {
                 self.typeof_ty()
             }
             Void(n) => {
-                self.check_expr(n.expr);
-                self.undefined_ty
+                self.check_node_deferred(n.id);
+                self.undefined_widening_ty
             }
             This(n) => self.check_this_expr(n),
             Super(n) => self.check_super_expr(n),
@@ -752,7 +749,8 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
-        let class_ty = self.get_declared_ty_of_symbol(self.get_symbol_of_decl(class_like_decl));
+        let symbol = self.get_symbol_of_decl(class_like_decl);
+        let class_ty = self.get_declared_ty_of_symbol(symbol);
         let Some(base_class_ty) = self.get_base_tys(class_ty).first() else {
             return self.error_ty;
         };
@@ -825,7 +823,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let error = errors::TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),
-                ty: self.print_ty(ty).to_string(),
+                ty: self.print_ty(ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         };
@@ -875,7 +873,12 @@ impl<'cx> TyChecker<'cx> {
                     false
                 };
                 if diag {
-                    self.check_type_assignable_to(send_ty, iteration_tys.next_ty, error_node);
+                    self.check_type_assignable_to(
+                        send_ty,
+                        iteration_tys.next_ty,
+                        error_node,
+                        NOOP_HEADING_ERROR,
+                    );
                 }
             }
             if iteration_tys.is_some() || uplevel_iteration {
@@ -893,7 +896,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(error_node) = error_node {
                 let error = errors::TypeXIsNotAnArrayType {
                     span: self.p.node(error_node).span(),
-                    ty: self.print_ty(input_ty).to_string(),
+                    ty: self.print_ty(input_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
             }
@@ -939,6 +942,14 @@ impl<'cx> TyChecker<'cx> {
                 tys.push(self.string_ty);
             }
         }
+        let p = self.parent(node.id).unwrap();
+        if !self.p.node(p).is_tagged_template_expr()
+            && let EvalResult::Str(evaluated) = self.eval_template_expr(node, None)
+        {
+            let ty = self.get_string_literal_type::<false>(evaluated, None);
+            return self.get_fresh_ty_of_literal_ty(ty);
+        }
+
         if self.is_const_context(node.id) || {
             let t = self
                 .get_contextual_ty(node.id, None)
@@ -1317,8 +1328,95 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_cond(&mut self, cond: &'cx ast::CondExpr) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+        &mut self,
+        n: &'cx ast::Expr<'cx>,
+        cond_ty: &'cx ty::Ty<'cx>,
+        body: Option<ast::NodeID>,
+    ) {
+        if !self.config.compiler_options().strict_null_checks() {
+            return;
+        }
+
+        fn both_helper<'cx>(
+            this: &mut TyChecker<'cx>,
+            mut cond_expr: &'cx ast::Expr<'cx>,
+            cond_ty: &'cx ty::Ty<'cx>,
+            body: Option<ast::NodeID>,
+        ) {
+            cond_expr = ast::Expr::skip_parens(cond_expr);
+            helper(this, cond_expr, cond_ty, body);
+            loop {
+                let ast::ExprKind::Bin(bin) = cond_expr.kind else {
+                    break;
+                };
+                if matches!(
+                    bin.op.kind,
+                    ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish
+                ) {
+                    cond_expr = ast::Expr::skip_parens(bin.left);
+                    helper(this, cond_expr, cond_ty, body);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        fn helper<'cx>(
+            this: &mut TyChecker<'cx>,
+            cond_expr: &'cx ast::Expr<'cx>,
+            cond_ty: &'cx ty::Ty<'cx>,
+            body: Option<ast::NodeID>,
+        ) {
+            let loc = if let ast::ExprKind::Bin(bin) = cond_expr.kind
+                && bin.op.kind.is_logical_or_coalescing_op()
+            {
+                ast::Expr::skip_parens(bin.right)
+            } else {
+                cond_expr
+            };
+            // TODO: is_module_exports_access_expression(loc) then return
+            if loc.kind.is_logical_or_coalescing_binary() {
+                both_helper(this, loc, cond_ty, body);
+                return;
+            }
+
+            let ty = if std::ptr::eq(loc, cond_expr) {
+                debug_assert!(loc.id() == cond_expr.id());
+                cond_ty
+            } else {
+                this.check_expr(loc)
+            };
+            if ty.flags.contains(TypeFlags::ENUM_LITERAL)
+                && let ast::ExprKind::PropAccess(access) = loc.kind
+                && let s = this.final_res(access.expr.id())
+                // && let Some(s) = this.get_node_links(access.expr.id()).get_resolved_symbol()
+                && this.binder.symbol(s).flags.intersects(SymbolFlags::ENUM)
+            {
+                let result = match ty.kind {
+                    ty::TyKind::NumberLit(n) => n.val.val() != 0.,
+                    ty::TyKind::StringLit(n) => n.val != keyword::IDENT_EMPTY,
+                    _ => unreachable!(),
+                };
+                let error = errors::ThisConditionWillAlwaysReturnX {
+                    span: loc.span(),
+                    result,
+                };
+                this.push_error(Box::new(error));
+                return;
+            }
+        }
+
+        both_helper(self, n, cond_ty, body)
+    }
+
+    fn check_cond(&mut self, cond: &'cx ast::CondExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = self.check_expr(cond.cond);
+        self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
+            cond.cond,
+            ty,
+            Some(cond.when_true.id()),
+        );
         let ty1 = self.check_expr(cond.when_true);
         let ty2 = self.check_expr(cond.when_false);
         self.get_union_ty::<false>(&[ty1, ty2], ty::UnionReduction::Subtype, None, None, None)
@@ -1395,7 +1493,7 @@ impl<'cx> TyChecker<'cx> {
                         _ => unreachable!(),
                     };
                     object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
-                    let member_s = self.binder.symbol(member_symbol);
+                    let member_s = self.symbol(member_symbol);
                     let name = member_s.name;
                     let prop = self.create_transient_symbol(
                         name,
@@ -1789,7 +1887,7 @@ impl<'cx> TyChecker<'cx> {
     fn check_assign_expr(&mut self, assign: &'cx ast::AssignExpr<'cx>) -> &'cx ty::Ty<'cx> {
         if let Eq = assign.op {
             let right = self.check_expr(assign.right);
-            return self.check_destructing_assign(assign, right, false);
+            return self.check_destructing_assignment(assign, right, false);
         };
         let l = self.check_expr(assign.left);
         let r = self.check_expr(assign.right);
@@ -1805,9 +1903,14 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::AssignOp::*;
         match assign.op {
             Eq => unreachable!(),
-            AddEq => self
-                .check_binary_like_expr_for_add(l, r)
-                .unwrap_or(self.any_ty),
+            AddEq => self.check_binary_like_expr_for_add(
+                assign.left,
+                l,
+                assign.right,
+                r,
+                ast::TokenKind::PlusEq,
+                assign.span,
+            ),
             SubEq => self.undefined_ty,
             MulEq => self.undefined_ty,
             DivEq => self.undefined_ty,
@@ -1833,9 +1936,9 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::PrefixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let op_ty = self.check_expr(expr.expr);
-        if op_ty == self.silent_never_ty {
-            return op_ty;
+        let operand_ty = self.check_expr(expr.expr);
+        if operand_ty == self.silent_never_ty {
+            return operand_ty;
         }
 
         match expr.expr.kind {
@@ -1869,21 +1972,22 @@ impl<'cx> TyChecker<'cx> {
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
-                    op_ty
+                if let ty::TyKind::NumberLit(n) = operand_ty.kind {
+                    operand_ty
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::Minus => {
-                if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                if let ty::TyKind::NumberLit(n) = operand_ty.kind {
                     self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
                 }
             }
             ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
-                let ok = self.check_arithmetic_op_ty(op_ty, false, |_| {});
+                let ty = self.check_non_null_type(operand_ty, expr.expr.id());
+                let ok = self.check_arithmetic_op_ty(ty, false, |_| {});
                 if ok {
                     self.check_reference_expr(
                         expr.expr,
@@ -1908,14 +2012,14 @@ impl<'cx> TyChecker<'cx> {
 
                 match expr.op {
                     ast::PrefixUnaryOp::PlusPlus => {
-                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        if let ty::TyKind::NumberLit(n) = ty.kind {
                             self.get_number_literal_type_from_number(n.val.val() + 1.)
                         } else {
                             self.number_ty
                         }
                     }
                     ast::PrefixUnaryOp::MinusMinus => {
-                        if let ty::TyKind::NumberLit(n) = op_ty.kind {
+                        if let ty::TyKind::NumberLit(n) = ty.kind {
                             self.get_number_literal_type_from_number(n.val.val() - 1.)
                         } else {
                             self.number_ty
@@ -1925,7 +2029,16 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ast::PrefixUnaryOp::Tilde => self.number_ty,
-            ast::PrefixUnaryOp::Excl => self.boolean_ty(),
+            ast::PrefixUnaryOp::Excl => {
+                self.check_truthiness_of_ty(operand_ty, expr.expr);
+                let facts =
+                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
+                match facts {
+                    TypeFacts::TRUTHY => self.false_ty,
+                    TypeFacts::FALSY => self.true_ty,
+                    _ => self.boolean_ty(),
+                }
+            }
         }
     }
 
@@ -1935,7 +2048,9 @@ impl<'cx> TyChecker<'cx> {
         push_invalid_reference_error: impl FnOnce(&mut Self),
         push_invalid_optional_chain_error: impl FnOnce(&mut Self),
     ) -> bool {
-        let n = ast::Expr::skip_outer_expr(op);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS
+            | ast::SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+        let n = ast::Expr::skip_outer_expr::<FLAGS>(op);
         if !matches!(
             n.kind,
             ast::ExprKind::Ident(_) | ast::ExprKind::PropAccess(_) | ast::ExprKind::EleAccess(_)
@@ -1974,7 +2089,8 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::PostfixUnaryExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let op_ty = self.check_expr(expr.expr);
-        let ok = self.check_arithmetic_op_ty(op_ty, false, |this| {
+        let ty = self.check_non_null_type(op_ty, expr.expr.id());
+        let ok = self.check_arithmetic_op_ty(ty, false, |this| {
             let error = errors::AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
                 span: expr.span,
             };
@@ -2052,7 +2168,7 @@ impl<'cx> TyChecker<'cx> {
         let non_optional_ty = self.get_optional_expression_ty(expr_ty, node.expr);
         let non_optional_expr_ty = self.check_non_null_type(non_optional_ty, node.expr.id());
         let ty = self.check_element_access_expr_worker(node, non_optional_expr_ty);
-        self.propagate_optional_ty_marker(ty, node.id, non_optional_ty == expr_ty)
+        self.propagate_optional_ty_marker(ty, node.id, non_optional_ty != expr_ty)
     }
 
     fn check_element_access_expr_worker(
@@ -2076,9 +2192,11 @@ impl<'cx> TyChecker<'cx> {
 
         let index_ty = self.check_expr(node.arg);
 
-        if object_ty == self.error_ty {
-            return self.error_ty;
+        if self.is_error(object_ty) || object_ty == self.silent_never_ty {
+            return object_ty;
         }
+
+        // TODO: is_const_enum_object_ty
 
         let index_ty = if self.is_for_in_variable_for_numeric_prop_names(node.arg) {
             self.number_ty
@@ -2114,14 +2232,15 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.error_ty);
 
         let prop_symbol = self.get_node_links(node.id).get_resolved_symbol();
-        self.get_flow_type_of_prop_access_expr(
+        let flow_ty = self.get_flow_type_of_prop_access_expr(
             node.id,
             prop_symbol,
             indexed_access_ty,
             Some(node.arg.id()),
             self.check_mode,
-        )
+        );
         // TODO: check_indexed_access_index_ty
+        flow_ty
     }
 
     fn check_element_access_expr(

@@ -36,15 +36,16 @@ bitflags::bitflags! {
         const STRICT_BIND_CALL_APPLY                    = 1 << 12;
         const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 13;
 
-        const DECLARATION                               = 1 << 14;
-        const ALWAYS_STRICT                             = 1 << 15;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 16;
-        const PRESERVE_SYMLINKS                         = 1 << 17;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 18;
+        const RESOLVE_JSON_MODULE                       = 1 << 14;
+        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 15;
+        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 16;
 
-        const RESOLVE_JSON_MODULE                       = 1 << 19;
-        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 20;
-        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 21;
+        const DECLARATION                               = 1 << 17;
+        const ALWAYS_STRICT                             = 1 << 18;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 19;
+        const PRESERVE_SYMLINKS                         = 1 << 20;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 21;
+        const ES_MODULE_INTEROP                         = 1 << 22;
     }
 }
 

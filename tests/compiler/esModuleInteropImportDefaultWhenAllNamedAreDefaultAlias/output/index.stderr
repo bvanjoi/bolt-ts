@@ -1,0 +1,5 @@
+  × Cannot find module 'm' or its corresponding type declarations.
+   ╭─[../../tests/compiler/esModuleInteropImportDefaultWhenAllNamedAreDefaultAlias/index.ts:7:42]
+ 7 │ "m"
+   · ───
+   ╰────

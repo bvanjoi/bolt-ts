@@ -129,6 +129,17 @@ impl<'cx> TyChecker<'cx> {
         symbol
     }
 
+    pub(super) fn get_global_record_symbol(&mut self) -> Option<SymbolID> {
+        if let Some(symbol) = self.deferred_global_record_symbol.get() {
+            return *symbol;
+        }
+        let symbol =
+            self.get_global_ty_alias_symbol::<2, true>(SymbolName::Atom(keyword::IDENT_RECORD));
+        let res = self.deferred_global_record_symbol.set(symbol);
+        debug_assert!(res.is_ok());
+        symbol
+    }
+
     fn get_global_builtin_tys<const ARITY: u8>(
         &mut self,
         names: &[bolt_ts_atom::Atom],

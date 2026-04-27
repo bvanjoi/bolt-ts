@@ -84,6 +84,10 @@ impl<'cx> super::TyChecker<'cx> {
         self.node_links.get_mut(&node).unwrap()
     }
 
+    pub fn sig_links(&self, sig: SigID) -> Option<&SigLinks<'cx>> {
+        self.sig_links.get(&sig)
+    }
+
     pub fn get_sig_links(&mut self, sig: SigID) -> &SigLinks<'cx> {
         self.sig_links.entry(sig).or_default()
     }

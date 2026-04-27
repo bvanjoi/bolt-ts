@@ -339,7 +339,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
+    pub fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_modifier_flags(id, true, false)
     }
 
@@ -576,6 +576,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.get_assignment_target(n).is_some()
     }
 
+    pub fn is_delete_target(&self, n: ast::NodeID) -> bool {
+        use ast::Node::*;
+        let node = self.node(n);
+        if !matches!(node, PropAccessExpr(_) | EleAccessExpr(_)) {
+            return false;
+        }
+        let n = self.walk_up_paren_exprs(n);
+        self.node(n).is_delete_expr()
+    }
+
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
         use ast::Node::*;
         use ast::PostfixUnaryOp;
@@ -598,7 +608,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     return Some(n.id);
                 }
                 // TODO: for_in and for_of
-                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = self.parent(p).unwrap(),
+                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
                     id = self.parent(self.parent(p).unwrap()).unwrap();
                 }
@@ -1302,9 +1312,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
         use ast::Node::*;
         match self.node(p) {
-            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
-            EleAccessExpr(n) => n.question.is_some() || n.expr.id() == node,
-            CallExpr(n) => n.question.is_some() || n.expr.id() == node,
+            PropAccessExpr(p) => p.question_dot.is_some() || p.expr.id() != node,
+            EleAccessExpr(p) => p.question.is_some() || p.expr.id() != node,
+            CallExpr(p) => p.question.is_some() || p.expr.id() != node,
             NonNullExpr(_) => {
                 // TODO: question dot || n.expr.id() == node
                 false
@@ -1418,5 +1428,40 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         } else {
             false
         }
+    }
+
+    pub fn is_top_level_in_external_module_augmentation(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        if !self.node(p).is_module_block() {
+            return false;
+        };
+        let Some(g) = self.parent(p) else {
+            return false;
+        };
+        self.is_external_module_augmentation(g)
+    }
+
+    pub fn is_same_scoped_binding_element(
+        &self,
+        node: &ast::Ident,
+        declaration: ast::NodeID,
+    ) -> bool {
+        debug_assert!(node.id.module() == declaration.module());
+        let d = self.node(declaration);
+        match d {
+            ast::Node::ArrayBinding(_) => (),
+            ast::Node::ObjectBindingElem(_) => (),
+            _ => return false,
+        };
+        let Some(binding_element) = self.find_ancestor(node.id, |n| match n {
+            ast::Node::ArrayBinding(_) => Some(true),
+            ast::Node::ObjectBindingElem(_) => Some(true),
+            _ => None,
+        }) else {
+            return false;
+        };
+        self.get_root_decl(binding_element) == self.get_root_decl(declaration)
     }
 }

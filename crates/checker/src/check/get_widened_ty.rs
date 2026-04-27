@@ -2,14 +2,12 @@ use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
 use super::get_iteration_tys::IterationTypeKind;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
 use super::utils::contains_ty;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
@@ -40,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_args =
                 self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
             assert!(ty_args.is_some());
-            self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
+            self.create_type_reference(refer.target, ty_args, ObjectFlags::empty())
         } else {
             ty
         }
@@ -104,13 +102,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_lit_ty_for_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
         let id = decl.id();
-        let flags = self.node_query(id.module()).get_combined_node_flags(id);
-        if flags.intersects(ast::NodeFlags::CONSTANT) {
+        let nq = self.node_query(id.module());
+        let flags = nq.get_combined_node_flags(id);
+        if flags.intersects(ast::NodeFlags::CONSTANT) || decl.is_declaration_readonly(&nq) {
             ty
         } else {
             self.get_widened_literal_ty(ty)
@@ -119,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn widened_ty_from_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.get_widened_lit_ty_for_init(decl, ty)
@@ -267,7 +266,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_widened_ty_for_var_like_decl(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let save_check_mode = self.check_mode;
         self.check_mode = Some(CheckMode::empty());

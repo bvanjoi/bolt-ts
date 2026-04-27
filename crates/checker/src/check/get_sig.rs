@@ -3,12 +3,10 @@ use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
-use crate::check::links::SigLinks;
-
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
-
+use super::links::SigLinks;
 use super::ty;
 use super::ty::CheckFlags;
 use super::ty::SigID;
@@ -96,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
+    pub(crate) fn get_sig_from_decl(&mut self, id: ast::NodeID) -> &'cx Sig<'cx> {
         if let Some(sig) = self.get_node_links(id).get_resolved_sig() {
             return sig;
         }
@@ -396,8 +394,11 @@ impl<'cx> TyChecker<'cx> {
             {
                 func_ty = self.get_ty_of_dotted_name(stmt.expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
-                // TODO: is_optional_chain
-                func_ty = Some(self.check_non_null_expr(expr));
+                if self.node_query(node.module()).is_optional_chain(node) {
+                    todo!()
+                } else {
+                    func_ty = Some(self.check_non_null_expr(expr));
+                }
             };
             let sigs = if let Some(func_ty) = func_ty {
                 let apparent_ty = self.get_apparent_ty(func_ty);
@@ -405,13 +406,20 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.get_signatures_of_type(self.unknown_ty, SigKind::Call)
             };
-            let sig = if sigs.len() == 1
-                && self.get_sig_links(sigs[0].id).get_ty_params().is_none()
-                && self.has_ty_pred_or_never_ret_ty(sigs[0])
+            let sig = if sigs.len() == 1 && self.get_sig_links(sigs[0].id).get_ty_params().is_none()
             {
-                sigs[0]
+                if self.has_ty_pred_or_never_ret_ty(sigs[0]) {
+                    sigs[0]
+                } else {
+                    self.unknown_sig()
+                }
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                self.get_resolved_sig(node)
+                let sig = self.get_resolved_sig(node);
+                if self.has_ty_pred_or_never_ret_ty(sig) {
+                    sig
+                } else {
+                    self.unknown_sig()
+                }
             } else {
                 self.unknown_sig()
             };
@@ -480,8 +488,16 @@ impl<'cx> TyChecker<'cx> {
             };
             self.get_mut_sig_links(sig.id).set_resolved_ty_pred(pred);
             pred
+        } else if let Some(composite_sigs) = sig.composite_sigs {
+            let kind = sig.composite_kind.unwrap();
+            let is_intersection = kind == TypeFlags::INTERSECTION;
+            debug_assert!(is_intersection || kind == TypeFlags::UNION);
+            let pred = self
+                .get_union_or_intersection_ty_pred(composite_sigs, is_intersection)
+                .unwrap_or(self.no_ty_pred());
+            self.get_mut_sig_links(sig.id).set_resolved_ty_pred(pred);
+            pred
         } else {
-            // TODO: composite sigs
             let ty = sig
                 .node_id
                 .and_then(|node_id| self.get_effective_ret_type_node(node_id));
@@ -492,7 +508,7 @@ impl<'cx> TyChecker<'cx> {
                     self.no_ty_pred()
                 }
             } else if let Some(decl) = sig.node_id {
-                // TODO:
+                // TODO: is_function_like_decl then get from body
                 self.no_ty_pred()
             } else {
                 self.no_ty_pred()

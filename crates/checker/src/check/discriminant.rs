@@ -11,15 +11,16 @@ impl<'cx> TyChecker<'cx> {
     fn get_candidate_discriminant_prop_access(
         &mut self,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr_id: ast::NodeID,
     ) -> Option<ast::NodeID> {
+        let expr = self.p.node(expr_id);
         let n = self.p.node(refer);
         if n.is_array_pat()
             || n.is_object_pat()
             || n.is_fn_expr_or_arrow_fnc_expr()
             || n.is_object_method_member()
         {
-            if let ast::ExprKind::Ident(n) = expr.kind {
+            if let ast::Node::Ident(n) = expr {
                 let symbol = self.final_res(n.id);
                 let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
                 if let Some(declaration) = self.symbol(symbol).value_decl
@@ -42,13 +43,13 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
             }
-        } else if let ast::ExprKind::PropAccess(ast::PropAccessExpr { expr: target, .. })
-        | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr: target, .. }) = expr.kind
+        } else if let ast::Node::PropAccessExpr(ast::PropAccessExpr { expr: target, .. })
+        | ast::Node::EleAccessExpr(ast::EleAccessExpr { expr: target, .. }) = expr
         {
             if self.is_matching_reference(refer, target.id()) {
                 return Some(expr.id());
             }
-        } else if let ast::ExprKind::Ident(ident) = expr.kind {
+        } else if let ast::Node::Ident(ident) = expr {
             // TODO:
         }
 
@@ -58,7 +59,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_discriminant_prop_access(
         &mut self,
         refer: ast::NodeID,
-        expr: &'cx ast::Expr<'cx>,
+        expr: ast::NodeID,
         computed_ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
     ) -> Option<ast::NodeID> {
@@ -84,14 +85,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn is_discriminant_prop(&mut self, ty: &'cx ty::Ty<'cx>, name: SymbolName) -> bool {
         if ty.kind.is_union()
-            && let Some(prop) = self.get_union_or_intersection_prop(ty, name)
+            && let Some(prop) = self.get_union_or_intersection_prop::<false>(ty, name)
             && let check_flags = self.get_check_flags(prop)
             && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
         {
             return match self.get_symbol_links(prop).get_is_discriminant_property() {
                 Some(is_discriminant) => is_discriminant,
                 None => {
-                    let is_discriminant = check_flags.intersects(CheckFlags::DISCRIMINANT) && {
+                    let is_discriminant = check_flags.contains(CheckFlags::DISCRIMINANT) && {
                         let ty = self.get_type_of_symbol(prop);
                         !self.is_generic_ty(ty)
                     };
@@ -131,6 +132,6 @@ impl<'cx> TyChecker<'cx> {
             && self
                 .get_type_of_symbol(symbol)
                 .flags
-                .intersects(ty::TypeFlags::NEVER)
+                .contains(ty::TypeFlags::NEVER)
     }
 }

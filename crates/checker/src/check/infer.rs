@@ -2,7 +2,6 @@ use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
-
 use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
@@ -437,7 +436,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     unreachable!("{:#?}", ty)
                 };
-                self.create_reference_ty(target, Some(ty_args), ObjectFlags::empty())
+                self.create_type_reference(target, Some(ty_args), ObjectFlags::empty())
             } else {
                 ty
             }
@@ -691,13 +690,24 @@ impl<'cx> TyChecker<'cx> {
 
         let node_id = node.id();
         if !self.p.node(node_id).is_bin_expr()
-            && let Some(contextual_ty) =
-                self.get_contextual_ty(node_id, Some(ContextFlags::empty()))
+            && let skip_binding_patterns = sig_ty_params
+                .iter()
+                .all(|tp| self.get_default_ty_from_ty_param(tp).is_some())
+            && let Some(contextual_ty) = self.get_contextual_ty(
+                node_id,
+                Some(if skip_binding_patterns {
+                    ContextFlags::SKIP_BINDING_PATTERNS
+                } else {
+                    ContextFlags::empty()
+                }),
+            )
         {
             let inference_target_ty = self.get_ret_ty_of_sig(sig);
             if self.could_contain_ty_var(inference_target_ty) {
                 let outer_context = self.get_inference_context(node_id);
-                let is_from_binding_pattern = false; // TODO: `is_from_binding_pattern`
+                let is_from_binding_pattern = !skip_binding_patterns
+                    && self.get_contextual_ty(node_id, Some(ContextFlags::SKIP_BINDING_PATTERNS))
+                        != Some(contextual_ty);
                 if !is_from_binding_pattern {
                     let outer_mapper = outer_context
                         .and_then(|ctx| ctx.inference)
@@ -998,7 +1008,8 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::NewExpr(_) => return None,
             _ => unreachable!(),
         };
-        let callee = ast::Expr::skip_outer_expr(expr);
+        const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+        let callee = ast::Expr::skip_outer_expr::<FLAGS>(expr);
         match callee.kind {
             ast::ExprKind::PropAccess(n) => Some(n.expr),
             ast::ExprKind::EleAccess(n) => Some(n.expr),
@@ -1064,6 +1075,15 @@ impl<'cx> TyChecker<'cx> {
         state.infer_from_tys(original_source, original_target);
     }
 
+    fn ty_pred_kinds_match(a: &super::TyPred<'_>, b: &super::TyPred<'_>) -> bool {
+        use super::type_predicate::TyPredKind::*;
+        match (a.kind, b.kind) {
+            (Ident(a), Ident(b)) => a.param_index == b.param_index,
+            (AssertsIdent(a), AssertsIdent(b)) => a.param_index == b.param_index,
+            _ => false,
+        }
+    }
+
     pub(super) fn apply_to_ret_ty(
         &mut self,
         source: &'cx ty::Sig<'cx>,
@@ -1072,8 +1092,12 @@ impl<'cx> TyChecker<'cx> {
     ) {
         if let Some(target_ty_pred) = self.get_ty_predicate_of_sig(target)
             && let Some(source_ty_pred) = self.get_ty_predicate_of_sig(source)
+            && Self::ty_pred_kinds_match(source_ty_pred, target_ty_pred)
+            && let Some(s) = source_ty_pred.ty()
+            && let Some(t) = target_ty_pred.ty()
         {
-            todo!("type_predicate_kind_match");
+            f(self, s, t);
+            return;
         }
         let target_ret_ty = self.get_ret_ty_of_sig(target);
         if self.could_contain_ty_var(target_ret_ty) {
@@ -2128,15 +2152,65 @@ impl<'cx> InferenceState<'cx, '_> {
                 self.infer_with_priority(inferred_ty, info_target, priority);
             }
             true
-        } else if let Some(param) = constraint_ty.kind.as_param() {
-            // TODO:
-            false
+        } else if constraint_ty.kind.is_param() {
+            // TODO: source.pattern
+            let index_ty = self.c.get_index_ty(source, ty::IndexFlags::empty());
+            self.infer_with_priority(
+                index_ty,
+                constraint_ty,
+                InferencePriority::MAPPED_TYPE_CONSTRAINT,
+            );
+            if let Some(extended_constraint) = self.c.get_constraint_of_ty(constraint_ty)
+                && self.infer_to_mapped_ty(source, target, target_mapped_ty, extended_constraint)
+            {
+                return true;
+            }
+            let prop_tys = self
+                .c
+                .get_props_of_ty(source)
+                .into_iter()
+                .map(|&s| self.c.get_type_of_symbol(s))
+                .collect::<Vec<_>>();
+            let index_tys = self
+                .c
+                .get_index_infos_of_ty(source)
+                .into_iter()
+                .map(|info| {
+                    if !std::ptr::eq(info, &self.c.enum_number_index_info()) {
+                        info.val_ty
+                    } else {
+                        self.c.never_ty
+                    }
+                });
+            let tys = prop_tys.into_iter().chain(index_tys).collect::<Vec<_>>();
+            let source =
+                self.c
+                    .get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            let target = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
+            self.infer_from_tys(source, target);
+            true
         } else {
             false
         }
     }
 
     fn infer_from_object_tys(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) {
+        if let Some(source_reference) = source.kind.as_object_reference()
+            && let Some(target_reference) = target.kind.as_object_reference()
+            && (source_reference.target == target_reference.target
+                || source.kind.is_array(self.c) && target.kind.is_array(self.c))
+        {
+            let source_type_arguments = self.c.get_ty_arguments(source);
+            let target_type_arguments = self.c.get_ty_arguments(target);
+            let variances = self.c.get_variances(source_reference.target);
+            self.infer_from_ty_arguments(source_type_arguments, target_type_arguments, variances);
+            return;
+        }
+
+        if self.c.is_generic_mapped_ty(source) && self.c.is_generic_mapped_ty(target) {
+            self.infer_from_generic_mapped_tys(source, target);
+        }
+
         if let Some(target_mapped_ty) = target.kind.as_object_mapped()
             && target_mapped_ty.decl.name_ty.is_none()
         {
@@ -2468,8 +2542,8 @@ impl<'cx> InferenceState<'cx, '_> {
     ) {
         let source_count = source.get_param_count(self.c);
         let target_count = target.get_param_count(self.c);
-        let source_rest_ty = source.get_rest_ty(self.c);
-        let target_rest_ty = target.get_rest_ty(self.c);
+        let source_rest_ty = source.get_effective_rest_ty(self.c);
+        let target_rest_ty = target.get_effective_rest_ty(self.c);
         let target_non_rest_count = if target_rest_ty.is_some() {
             target_count - 1
         } else {
@@ -2540,7 +2614,7 @@ impl<'cx> InferenceState<'cx, '_> {
 
             self.bivariant = save_bivariant;
         }
-        self.apply_to_ret_ty(source, target, |this, source, target| {
+        self.apply_to_return_ty(source, target, |this, source, target| {
             this.infer_from_tys(source, target);
         });
     }
@@ -2565,7 +2639,7 @@ impl<'cx> InferenceState<'cx, '_> {
         }
     }
 
-    fn apply_to_ret_ty(
+    fn apply_to_return_ty(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,
@@ -2597,7 +2671,7 @@ impl<'cx> InferenceState<'cx, '_> {
         for &target_prop in self.c.get_props_of_ty(target) {
             if let Some(source_prop) = self
                 .c
-                .get_prop_of_ty(source, self.c.symbol(target_prop).name)
+                .get_prop_of_ty::<false>(source, self.c.symbol(target_prop).name)
             {
                 let s = remove_missing_ty(self, source_prop);
                 let t = remove_missing_ty(self, target_prop);

@@ -1,7 +1,10 @@
+use bolt_ts_ast::keyword;
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleArena;
 
+use super::SymbolName;
 use super::create::set_value_declaration;
+use super::errors;
 use super::symbol::SymbolTable;
 use super::{BinderResult, SymbolFlags, SymbolID};
 
@@ -203,12 +206,12 @@ pub trait MergeSymbol<'cx> {
         let s_const_enum_only_module = s.const_enum_only_module;
 
         if !t_flags.intersects(s_flags.get_excluded())
-            || s_flags.union(t_flags).intersects(SymbolFlags::ASSIGNMENT)
+            || s_flags.union(t_flags).contains(SymbolFlags::ASSIGNMENT)
         {
             if source == target {
                 return target;
             }
-            if !t_flags.intersects(SymbolFlags::TRANSIENT) {
+            if !t_flags.contains(SymbolFlags::TRANSIENT) {
                 // TODO:
             }
             if let Some(old_decls) = s.decls.clone() {
@@ -292,9 +295,31 @@ pub fn merge_global_symbol<'cx>(
         assert!(std::ptr::addr_eq(parser.get(m.id()), p));
 
         if !p.is_external_or_commonjs_module() {
-            let target = SymbolTableLocation::Global;
             let container = parser.get(m.id()).root().id();
             let source = SymbolTableLocation::Locals { container };
+            const GLOBAL_THIS_SYMBOL_NAME: SymbolName =
+                SymbolName::Atom(keyword::IDENT_GLOBAL_THIS);
+            if let Some(file_global_this_symbol) = c
+                .get_symbol_table_by_location(source)
+                .0
+                .get(&GLOBAL_THIS_SYMBOL_NAME)
+            {
+                let Some(decls) = c.get_symbol(*file_global_this_symbol).decls.as_ref() else {
+                    unreachable!()
+                };
+                for decl in decls.clone() {
+                    let error = errors::DeclarationNameConflictsWithBuiltInGlobalIdentifierX {
+                        span: parser.node(decl).name().unwrap().span(),
+                        name: c.atom(keyword::IDENT_GLOBAL_THIS).to_string(),
+                    };
+                    c.bind_list[m.id().as_usize()]
+                        .diags
+                        .push(bolt_ts_errors::Diag {
+                            inner: Box::new(error),
+                        });
+                }
+            }
+            let target = SymbolTableLocation::Global;
             c.merge_symbol_table(target, source, false);
         }
     }

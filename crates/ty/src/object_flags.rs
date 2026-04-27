@@ -29,14 +29,11 @@ bitflags::bitflags! {
         const IS_CLASS_INSTANCE_CLONE = 1 << 24;
         const IDENTICAL_BASE_TYPE_CALCULATED = 1 << 25;
         const IDENTICAL_BASE_TYPE_EXISTS = 1 << 26;
-        const IS_GENERIC_TYPE_COMPUTED = 1 << 21;
         const IS_GENERIC_OBJECT_TYPE = 1 << 22;
         const IS_GENERIC_INDEX_TYPE = 1 << 23;
         const IS_NARROWING_TYPE = 1 << 24;
         const CONTAINS_INTERSECTIONS = 1 << 24;
-        const IS_UNKNOWN_LIKE_UNION_COMPUTED = 1 << 25;
         const IS_UNKNOWN_LIKE_UNION = 1 << 26;
-        const IS_NEVER_INTERSECTION_COMPUTED = 1 << 24;
         const IS_NEVER_INTERSECTION = 1 << 25;
         const IS_CONSTRAINED_TYPE_VARIABLE = 1 << 26;
 

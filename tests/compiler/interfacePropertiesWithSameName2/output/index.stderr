@@ -1,0 +1,13 @@
+  × Interface 'MoverShaker' cannot simultaneously extend types 'Mover' and
+  │ 'Shaker'.
+    ╭─[../../tests/compiler/interfacePropertiesWithSameName2/index.ts:14:11]
+ 14 │ MoverShaker
+    · ───────────
+    ╰────
+
+  × Interface 'MoverShaker2' cannot simultaneously extend types
+  │ 'MoversAndShakers.Mover' and 'MoversAndShakers.Shaker'.
+    ╭─[../../tests/compiler/interfacePropertiesWithSameName2/index.ts:30:11]
+ 30 │ MoverShaker2
+    · ────────────
+    ╰────

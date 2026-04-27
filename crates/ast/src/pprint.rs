@@ -5,6 +5,18 @@ pub fn pprint_ident(ident: &super::Ident, atoms: &AtomIntern) -> String {
     atoms.get(ident.name).to_string()
 }
 
+pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> String {
+    use super::PropNameKind::*;
+    match node {
+        Ident(ident) => pprint_ident(ident, atoms),
+        PrivateIdent(private_ident) => format!("#{}", atoms.get(private_ident.name).to_string()),
+        StringLit { raw, key } => atoms.get(raw.val).to_string(),
+        BigIntLit(lit) => atoms.get(lit.val.1).to_string(),
+        NumLit(lit) => lit.val.to_string(),
+        Computed(_) => todo!(),
+    }
+}
+
 pub fn print_declaration_name(node: &super::DeclarationName, atoms: &AtomIntern) -> String {
     use super::DeclarationName::*;
     match node {

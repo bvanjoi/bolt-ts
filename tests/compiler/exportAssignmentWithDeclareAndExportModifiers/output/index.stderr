@@ -1,0 +1,5 @@
+  × An export assignment cannot have modifiers.
+   ╭─[../../tests/compiler/exportAssignmentWithDeclareAndExportModifiers/index.ts:7:1]
+ 7 │ export declare
+   · ──────────────
+   ╰────

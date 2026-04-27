@@ -9,6 +9,7 @@ use super::ty::Ty;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_ty::TypeFacts;
@@ -178,9 +179,39 @@ impl<'cx> TyChecker<'cx> {
             element_ty
         };
 
-        // TODO: widen
-
-        element_ty
+        if binding.init().is_none() {
+            return element_ty;
+        };
+        if let root = self
+            .node_query(binding.id.module())
+            .walkup_binding_elements_and_patterns(binding.id)
+            && self.p.node(root).ty_anno().is_some()
+        {
+            if !self.config.compiler_options().strict_null_checks() {
+                return element_ty;
+            }
+            let old_saved_check_mode = self.check_mode;
+            self.check_mode = Some(CheckMode::empty());
+            let ty = self.check_decl_init(binding, None);
+            let not_has_undefined = !self.has_type_facts(ty, TypeFacts::IS_UNDEFINED);
+            self.check_mode = old_saved_check_mode;
+            if not_has_undefined {
+                self.get_non_undefined_ty(ty)
+            } else {
+                ty
+            }
+        } else {
+            let tys = vec![self.get_non_undefined_ty(element_ty), {
+                let old_saved_check_mode = self.check_mode;
+                self.check_mode = Some(CheckMode::empty());
+                let ty = self.check_decl_init(binding, None);
+                self.check_mode = old_saved_check_mode;
+                ty
+            }];
+            let ty =
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+            self.widen_ty_inferred_from_initializer(binding, ty)
+        }
     }
 
     pub(super) fn get_object_binding_element_ty_from_parent_ty(
@@ -215,7 +246,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let access_flags = AccessFlags::EXPRESSION_POSITION;
-        if binding.dotdotdot.is_some() {
+        let ty = if binding.dotdotdot.is_some() {
             parent_parent_ty = self.get_reduced_ty(parent_parent_ty);
             if parent_parent_ty.flags.contains(ty::TypeFlags::UNKNOWN)
                 || !self.is_valid_spread_ty(parent_parent_ty)
@@ -260,6 +291,39 @@ impl<'cx> TyChecker<'cx> {
             );
             // TODO: getFlowTypeOfDestructuring
             decl_ty
+        };
+        if binding.init().is_none() {
+            return ty;
+        };
+        if let root = self
+            .node_query(binding.id.module())
+            .walkup_binding_elements_and_patterns(binding.id)
+            && self.p.node(root).ty_anno().is_some()
+        {
+            if !self.config.compiler_options().strict_null_checks() {
+                return ty;
+            }
+            let old_saved_check_mode = self.check_mode;
+            self.check_mode = Some(CheckMode::empty());
+            let ty = self.check_decl_init(binding, None);
+            let not_has_undefined = !self.has_type_facts(ty, TypeFacts::IS_UNDEFINED);
+            self.check_mode = old_saved_check_mode;
+            if not_has_undefined {
+                self.get_non_undefined_ty(ty)
+            } else {
+                ty
+            }
+        } else {
+            let tys = vec![self.get_non_undefined_ty(ty), {
+                let old_saved_check_mode = self.check_mode;
+                self.check_mode = Some(CheckMode::empty());
+                let ty = self.check_decl_init(binding, None);
+                self.check_mode = old_saved_check_mode;
+                ty
+            }];
+            let ty =
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+            self.widen_ty_inferred_from_initializer(binding, ty)
         }
     }
 
@@ -432,7 +496,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_for_var_like_decl<const INCLUDE_OPTIONALITY: bool>(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> Option<&'cx Ty<'cx>> {
         // TODO: for in stmt
         // TODO: for of stmt
@@ -513,7 +577,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn widen_ty_inferred_from_initializer(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
         let widened = self.get_widened_lit_ty_for_init(decl, ty);

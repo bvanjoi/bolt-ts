@@ -1,0 +1,6 @@
+  × Class 'a' defines instance member property 'x', but extended class 'b'
+  │ defines it as instance member function.
+    ╭─[../../tests/compiler/inheritanceMemberFuncOverridingProperty/index.ts:12:5]
+ 12 │ x
+    · ─
+    ╰────

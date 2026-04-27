@@ -3,7 +3,6 @@ use super::check_expr::IterationUse;
 use super::errors;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -36,7 +35,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         name_id: ast::NodeID,
         decl_id: ast::NodeID,
-        decl: &'cx impl r#trait::VarLike<'cx>,
+        decl: &'cx impl crate::r#trait::VarLike<'cx>,
     ) {
         if !self.p.node(name_id).is_object_binding_elem()
             && let Some(ty) = decl.decl_ty()
@@ -89,15 +88,15 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
                     span: self.p.node(name_id).span(),
                     var: self.atoms.get(name.name).to_string(),
-                    ty1: ty.to_string(self),
-                    ty2: decl_ty.to_string(self),
+                    ty1: self.print_ty(ty, None).to_string(),
+                    ty2: self.print_ty(decl_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
             }
         }
     }
 
-    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
+    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl crate::r#trait::VarLike<'cx>) {
         use bolt_ts_ast::r#trait::VarLikeName::*;
         let id = decl.id();
         let name = decl.name();

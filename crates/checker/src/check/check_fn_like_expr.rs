@@ -199,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
                                 contextual_sig,
                                 inference,
                             );
-                            let rest_ty = contextual_sig.get_rest_ty(self);
+                            let rest_ty = contextual_sig.get_effective_rest_ty(self);
                             if let Some(rest_ty) = rest_ty
                                 && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
                             {
@@ -223,8 +223,19 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.assign_non_contextual_param_tys(sig);
                     }
+                } else if let Some(contextual_sig) = contextual_sig
+                    && let n = self.p.node(id)
+                    && n.ty_params().is_none()
+                    && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
+                {
+                    if let Some(check_mode) = self.check_mode
+                        && check_mode.contains(CheckMode::INFERENTIAL)
+                    {
+                        let inference_context = self.get_inference_context(id);
+                        let inference = inference_context.unwrap().inference.unwrap();
+                        self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
+                    }
                 }
-
                 if contextual_sig.is_some()
                     && self.get_ret_ty_from_anno(id).is_none()
                     && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
@@ -410,7 +421,18 @@ impl<'cx> TyChecker<'cx> {
         match body {
             Block(block) => self.check_block(block),
             Expr(expr) => {
-                self.check_expr(expr);
+                let expr_ty = self.check_expr(expr);
+                if let Some(return_or_promised_ty) = ret_ty.and_then(|t| {
+                    let fn_flags = self.p.node(func.id()).fn_flags();
+                    self.unwrap_ret_ty(t, fn_flags)
+                }) {
+                    self.check_ret_expr::<false>(
+                        func.id(),
+                        return_or_promised_ty,
+                        Some(expr),
+                        expr_ty,
+                    );
+                }
             }
         }
     }

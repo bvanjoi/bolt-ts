@@ -169,9 +169,8 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     }
 
     fn lower_export_assign(&mut self, n: &'cx ast::ExportAssign<'cx>) -> ir::ExportAssignID {
-        let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
         let expr = self.lower_expr(n.expr);
-        self.nodes.alloc_export_assign(n.span, modifiers, expr)
+        self.nodes.alloc_export_assign(n.span, expr)
     }
 
     fn lower_export_stmt(&mut self, n: &'cx ast::ExportDecl<'cx>) -> ir::ExportDeclID {
@@ -220,7 +219,34 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         &mut self,
         n: &'cx ast::ImportEqualsDecl<'cx>,
     ) -> ir::ImportEqualsDeclID {
-        self.nodes.alloc_import_equals_decl(n.span)
+        let name = self.lower_ident(n.name);
+        let reference = self.lower_module_reference(n.module_reference);
+        self.nodes.alloc_import_equals_decl(n.span, name, reference)
+    }
+
+    fn lower_module_reference(
+        &mut self,
+        n: ast::ModuleReferenceKind<'cx>,
+    ) -> ir::ModuleReferenceKind {
+        match n {
+            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                ir::ModuleReferenceKind::Require(self.lower_string_lit(n.module_spec()))
+            }
+            ast::ModuleReferenceKind::EntityName(n) => {
+                ir::ModuleReferenceKind::EntityName(self.lower_entity_name(n))
+            }
+        }
+    }
+
+    fn lower_entity_name(&mut self, n: &'cx ast::EntityName<'cx>) -> ir::EntityName {
+        match n.kind {
+            ast::EntityNameKind::Ident(n) => ir::EntityName::Ident(self.lower_ident(n)),
+            ast::EntityNameKind::Qualified(n) => {
+                let left = self.lower_entity_name(n.left);
+                let right = self.lower_ident(n.right);
+                ir::EntityName::QualifiedName(self.nodes.alloc_qualified_name(n.span, left, right))
+            }
+        }
     }
 
     fn lower_import_clause(&mut self, n: &'cx ast::ImportClause<'cx>) -> ir::ImportClauseID {

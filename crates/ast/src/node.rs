@@ -1,7 +1,6 @@
 use bolt_ts_span::ModuleID;
 
-use crate::ModifierFlags;
-
+use super::ModifierFlags;
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -323,6 +322,7 @@ impl<'cx> Node<'cx> {
             }
             ImportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -670,6 +670,20 @@ impl<'cx> Node<'cx> {
             .is_some_and(|ms| ms.flags.intersects(flags))
     }
 
+    pub fn has_abstract_modifier(&self) -> bool {
+        self.has_syntactic_modifier(ModifierFlags::ABSTRACT)
+    }
+
+    pub fn is_property_without_initializer(&self) -> bool {
+        if self.has_abstract_modifier() {
+            return false;
+        }
+        let Node::ClassPropElem(p) = self else {
+            return false;
+        };
+        p.init.is_none() && p.excl.is_none()
+    }
+
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
         match self {
             Node::ClassCtor(n) => n.modifiers,
@@ -687,7 +701,6 @@ impl<'cx> Node<'cx> {
             Node::InterfaceDecl(n) => n.modifiers,
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
-            Node::ExportAssign(n) => n.modifiers,
             Node::EnumDecl(n) => n.modifiers,
             _ => None,
         }
@@ -833,7 +846,10 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_access_expr(&self) -> bool {
-        self.is_prop_access_expr() || self.is_ele_access_expr()
+        match self {
+            Node::PropAccessExpr(_) | Node::EleAccessExpr(_) => true,
+            _ => false,
+        }
     }
 
     pub fn is_same_kind(&self, other: &Self) -> bool {
@@ -1057,6 +1073,70 @@ impl<'cx> Node<'cx> {
                 | Node::NoSubstitutionTemplateLit(_)
                 | Node::NumLit(_)
         )
+    }
+
+    pub fn is_non_null_access(&self) -> bool {
+        let expr = match self {
+            Node::PropAccessExpr(n) => n.expr,
+            Node::EleAccessExpr(n) => n.expr,
+            _ => return false,
+        };
+        matches!(expr.kind, super::ExprKind::NonNull(_))
+    }
+
+    pub fn is_expression(&self) -> bool {
+        // TODO: skip_partially_emitted_expr
+        use Node::*;
+        match self {
+            CondExpr(_) | YieldExpr(_) | ArrowFnExpr(_) | BinExpr(_) | SpreadElement(_)
+            | AsExpr(_) | OmitExpr(_) | SatisfiesExpr(_) => true,
+            _ => self.is_unary_expr(),
+        }
+    }
+
+    pub fn is_unary_expr(&self) -> bool {
+        use Node::*;
+        match self {
+            PrefixUnaryExpr(_) | PostfixUnaryExpr(_) | DeleteExpr(_) | TypeofExpr(_)
+            | VoidExpr(_) | AwaitExpr(_) | TyAssertionExpr(_) => true,
+            _ => self.is_left_hand_side_expr_or_higher(),
+        }
+    }
+
+    pub fn is_left_hand_side_expr_or_higher(&self) -> bool {
+        use Node::*;
+        matches!(
+            self,
+            PropAccessExpr(_)
+                | EleAccessExpr(_)
+                | NewExpr(_)
+                | CallExpr(_)
+                | JsxElem(_)
+                | JsxSelfClosingElem(_)
+                | JsxFrag(_)
+                | TaggedTemplateExpr(_)
+                | ArrayLit(_)
+                | ParenExpr(_)
+                | ObjectLit(_)
+                | ClassExpr(_)
+                | FnExpr(_)
+                | Ident(_)
+                | PrivateIdent(_)
+                | RegExpLit(_)
+                | NumLit(_)
+                | BigIntLit(_)
+                | StringLit(_)
+                | NoSubstitutionTemplateLit(_)
+                | TemplateExpr(_)
+                | BoolLit(_)
+                | NullLit(_)
+                | ThisExpr(_)
+                | SuperExpr(_)
+                | NonNullExpr(_)
+                | ExprWithTyArgs(_)
+        )
+        // TODO: SyntaxKind.MetaProperty:
+        // TODO: SyntaxKind.ImportKeyword:
     }
 }
 

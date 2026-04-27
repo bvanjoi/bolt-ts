@@ -1,0 +1,18 @@
+  × Type 'number | string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typePredicatesInUnion3/index.ts:17:13]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Type 'number | string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typePredicatesInUnion3/index.ts:25:13]
+ 25 │ a
+    · ─
+    ╰────
+
+  × Argument of type 'null | number' is not assignable to parameter of type
+  │ 'number'.
+    ╭─[../../tests/compiler/typePredicatesInUnion3/index.ts:66:24]
+ 66 │ val.attribute
+    · ─────────────
+    ╰────

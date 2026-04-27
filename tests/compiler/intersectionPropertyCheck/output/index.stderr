@@ -1,0 +1,26 @@
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type '{ x: string; }'.
+   ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:6:68]
+ 6 │ y: 2
+   · ────
+   ╰────
+
+  × Type '{ a: { y: string; }; }' is not assignable to type '{ a: undefined |
+  │ { x: undefined | number; }; } & { c: undefined | string; }'.
+    ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:10:5]
+ 10 │ weak
+    · ────
+    ╰────
+
+  × Type 'T & { a: boolean; }' is not assignable to type '{ a: undefined |
+  │ string; }'.
+    ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:14:3]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Type 'true' is not assignable to type 'undefined | string[]'.
+    ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:25:22]
+ 25 │ hi
+    · ──
+    ╰────

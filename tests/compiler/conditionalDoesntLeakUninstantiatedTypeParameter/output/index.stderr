@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/conditionalDoesntLeakUninstantiatedTypeParameter/index.ts:11:7]
+ 11 │ z
+    · ─
+    ╰────

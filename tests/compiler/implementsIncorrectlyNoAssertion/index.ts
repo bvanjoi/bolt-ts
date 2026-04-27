@@ -9,6 +9,6 @@ declare class Bar {
 type Wrapper = Foo & Bar;
 class Baz implements Wrapper {
   x: number;
-  //~^ ERROR: Type 'number' is not assignable to type 'string'.
+  //~^ ERROR: Property 'x' in type 'Baz<Baz>' is not assignable to the same property in base type 'Foo<Baz> & Bar<Baz>'.
   y: string;
 }

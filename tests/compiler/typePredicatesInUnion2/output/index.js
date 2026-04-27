@@ -1,0 +1,2 @@
+f(isString);
+f(isNumber);

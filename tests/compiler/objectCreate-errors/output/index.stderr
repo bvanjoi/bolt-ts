@@ -1,0 +1,55 @@
+  × Argument of type 'number' is not assignable to parameter of type 'null |
+  │ object'.
+   ╭─[../../tests/compiler/objectCreate-errors/index.ts:6:24]
+ 6 │ 1
+   · ─
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'null |
+  │ object'.
+   ╭─[../../tests/compiler/objectCreate-errors/index.ts:8:24]
+ 8 │ "string"
+   · ────────
+   ╰────
+
+  × Argument of type 'boolean' is not assignable to parameter of type 'null |
+  │ object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:10:24]
+ 10 │ false
+    · ─────
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type 'null
+  │ | object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:12:24]
+ 12 │ undefined
+    · ─────────
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'null |
+  │ object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:16:24]
+ 16 │ 1
+    · ─
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'null |
+  │ object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:18:24]
+ 18 │ "string"
+    · ────────
+    ╰────
+
+  × Argument of type 'boolean' is not assignable to parameter of type 'null |
+  │ object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:20:24]
+ 20 │ false
+    · ─────
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type 'null
+  │ | object'.
+    ╭─[../../tests/compiler/objectCreate-errors/index.ts:22:24]
+ 22 │ undefined
+    · ─────────
+    ╰────

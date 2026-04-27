@@ -162,7 +162,11 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         set_value_declaration(symbol, symbols, node, &self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
-        let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;
+        let symbols = if source.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            &mut self.binder.bind_results.last_mut().unwrap().symbols
+        } else {
+            &mut self.binder.bind_results[source.module().as_usize()].symbols
+        };
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }

@@ -251,6 +251,13 @@ impl<'cx> ParserState<'cx, '_> {
             )
     }
 
+    pub(super) fn is_start_of_expr_stmt(&mut self) -> bool {
+        !matches!(
+            self.token.kind,
+            TokenKind::LBrace | TokenKind::Function | TokenKind::Class | TokenKind::At
+        ) && self.is_start_of_expr()
+    }
+
     pub(super) fn is_start_of_stmt(&mut self) -> bool {
         use bolt_ts_ast::TokenKind::*;
         let t = self.token.kind;
@@ -334,7 +341,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         missing_ident_kind: Option<errors::MissingIdentKind>,
     ) -> &'cx ast::Expr<'cx> {
-        let ident = self.create_ident(self.token.kind.is_ident(), missing_ident_kind);
+        let ident = self.create_ident(self.is_ident(), missing_ident_kind);
 
         if ident.name == keyword::IDENT_ARGUMENTS
             && self.parse_context.intersects(
@@ -412,11 +419,12 @@ impl<'cx> ParserState<'cx, '_> {
     #[inline(always)]
     pub(super) fn is_ident(&self) -> bool {
         let t = self.token.kind;
-        if t == TokenKind::Ident {
-            return true;
+        match t {
+            TokenKind::Ident => true,
+            TokenKind::Yield if self.in_yield_context() => false,
+            TokenKind::Await if self.in_await_context() => false,
+            _ => t.is_contextual_keyword() || t.is_strict_mode_reserved_word(),
         }
-
-        t.is_contextual_keyword() || t.is_strict_mode_reserved_word()
     }
 
     pub(super) fn parse_modifiers<
@@ -434,27 +442,30 @@ impl<'cx> ParserState<'cx, '_> {
             };
             this.push_error(Box::new(error));
         };
+        let push_already_seen_error = |this: &mut Self, x: &ast::Modifier| {
+            let error = errors::ModifierAlreadySeen {
+                span: x.span(),
+                modifier: x.kind(),
+            };
+            this.push_error(Box::new(error));
+        };
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
-        let mut has_seen_static_modifier = false;
         let _has_leading_modifier = false;
         let _has_trailing_decorator = false;
         let mut flags = ast::ModifierFlags::empty();
         loop {
             let Some(m) = self
                 .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
-                    has_seen_static_modifier,
+                    flags.contains(ast::ModifierFlags::STATIC),
                 )
             else {
                 break;
             };
-            if m.kind() == ast::ModifierKind::Static {
-                has_seen_static_modifier = true;
-            }
-            flags.insert(m.kind().into_flag());
-            list.push(m);
+            let modifier_kind = m.kind();
+            let modifier_flag = modifier_kind.into_flag();
 
-            match m.kind() {
+            match modifier_kind {
                 ast::ModifierKind::Override => {
                     if flags.contains(ast::ModifierFlags::READONLY) {
                         push_precede_error(self, m, ast::ModifierKind::Readonly);
@@ -488,8 +499,16 @@ impl<'cx> ParserState<'cx, '_> {
                         push_precede_error(self, m, ast::ModifierKind::Override);
                     }
                 }
+                ast::ModifierKind::Export => {
+                    if flags.contains(ast::ModifierFlags::EXPORT) {
+                        push_already_seen_error(self, m);
+                    }
+                }
                 _ => {}
             }
+
+            flags.insert(modifier_flag);
+            list.push(m);
         }
         if list.is_empty() {
             None
@@ -653,7 +672,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         allow_ambiguity_name: bool,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
-        let start = self.token.start();
+        let start = self.full_start_pos as u32;
         let modifiers = self.parse_modifiers::<false, false>(false);
         const INVALID_MODIFIERS: ast::ModifierFlags =
             ast::ModifierFlags::STATIC.union(ast::ModifierFlags::EXPORT);
@@ -753,7 +772,7 @@ impl<'cx> ParserState<'cx, '_> {
             if this.token.kind.is_modifier_kind() {
                 this.parse_modifiers::<false, false>(false);
             }
-            if this.token.kind.is_ident() || this.token.kind == TokenKind::This {
+            if this.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();
                 Ok(true)
             } else if matches!(this.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
@@ -936,13 +955,13 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn check_body_during_parse_accessor(
         &mut self,
-        ambient: bool,
+        under_type_context: bool,
         body: &mut Option<&'cx ast::BlockStmt<'cx>>,
     ) {
-        if ambient {
+        if under_type_context {
             if let Some(body) = body {
                 let error =
-                    errors::AnImplementationCannotBeDeclaredInAmbientContexts { span: body.span };
+                    errors::AnImplementationCannotBeDeclaredInTypeContexts { span: body.span };
                 self.push_error(Box::new(error));
             }
             *body = None;
@@ -959,7 +978,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ambient: bool,
+        under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
@@ -972,30 +991,22 @@ impl<'cx> ParserState<'cx, '_> {
         // TODO: assert params.is_none
         let ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        self.check_body_during_parse_accessor(ambient, &mut body);
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::GetterDecl {
-            id,
-            modifiers,
-            span: self.new_span(start),
-            name,
-            ty,
-            body,
-        });
-        self.nodes.insert(id, ast::Node::GetterDecl(decl));
-        Ok(decl)
+        self.check_body_during_parse_accessor(under_type_context, &mut body);
+        let span = self.new_span(start);
+        Ok(self.create_getter_decl(span, modifiers, name, ty, body))
     }
 
     pub(super) fn parse_setter_accessor_decl(
         &mut self,
         start: u32,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ambient: bool,
+        under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<false>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_params();
+        self.check_params::<false>(params);
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),
@@ -1011,19 +1022,9 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
-        self.check_body_during_parse_accessor(ambient, &mut body);
-        let id = self.next_node_id();
-        debug_assert!(params.len() <= 2);
-        let decl = self.alloc(ast::SetterDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            name,
-            params,
-            body,
-        });
-        self.nodes.insert(id, ast::Node::SetterDecl(decl));
-        Ok(decl)
+        self.check_body_during_parse_accessor(under_type_context, &mut body);
+        let span = self.new_span(start);
+        Ok(self.create_setter_decl(span, modifiers, name, params, body))
     }
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {

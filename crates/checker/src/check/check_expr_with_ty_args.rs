@@ -190,8 +190,9 @@ fn get_instantiated_sigs<'cx>(
     checker
         .same_map_sigs(Some(applicable_sigs), |this, sig, _| {
             if let Some(ty_arg_tys) = this.check_ty_args(sig, ty_args, true) {
-                //TODO: is_js
-                let is_js = false;
+                let is_js = sig.node_id.is_some_and(|node_id| {
+                    this.node_query(node_id.module()).is_in_js_file(node_id)
+                });
                 this.get_sig_instantiation(sig, Some(ty_arg_tys), is_js, None)
             } else {
                 sig

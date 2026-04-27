@@ -9,4 +9,4 @@ module __test2__ {
   export var __val__obj2 = obj2;
 }
 __test2__.__val__obj2 = __test1__.__val__obj4
-//~^ ERROR: Type 'interfaceWithPublicAndOptional<number, string>' is not assignable to type 'interfaceTwo<number, string>'.
+//~^ ERROR: Type '__test1__.interfaceWithPublicAndOptional<number, string>' is not assignable to type '__test2__.interfaceTwo<number, string>'.

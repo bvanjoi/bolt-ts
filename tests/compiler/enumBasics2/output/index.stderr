@@ -1,0 +1,29 @@
+  × Property 'b' does not exist on type 'Foo.a'.
+   ╭─[../../tests/compiler/enumBasics2/index.ts:9:9]
+ 9 │ b
+   · ─
+   ╰────
+
+  × Property 'a' does not exist on type 'Foo.b'.
+    ╭─[../../tests/compiler/enumBasics2/index.ts:10:9]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'Foo.y'.
+    ╭─[../../tests/compiler/enumBasics2/index.ts:11:9]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'Foo.a'.
+    ╭─[../../tests/compiler/enumBasics2/index.ts:11:15]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'Foo.a'.
+    ╭─[../../tests/compiler/enumBasics2/index.ts:19:13]
+ 19 │ a
+    · ─
+    ╰────

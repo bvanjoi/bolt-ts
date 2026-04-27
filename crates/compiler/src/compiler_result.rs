@@ -7,6 +7,7 @@ use bolt_ts_checker::check::{TyChecker, node_query};
 use bolt_ts_fs::CachedFileSystem;
 use bolt_ts_parser::get_touching_property_name;
 use bolt_ts_span::{ModuleArena, ModuleID};
+
 use rustc_hash::FxHashMap;
 
 #[derive(Debug)]
@@ -146,7 +147,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     pub fn get_implementation_at_position(
-        &self,
+        &mut self,
         module: ModuleID,
         pos: usize,
     ) -> Vec<ast::Node<'cx>> {
@@ -171,7 +172,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_implementation_reference_entries(
-        &self,
+        &mut self,
         root: &'cx ast::Program<'cx>,
         node: ast::NodeID,
         position: usize,
@@ -202,7 +203,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_reference_entires_for_node(
-        &self,
+        &mut self,
         _position: usize,
         node: ast::NodeID,
         root: &'cx ast::Program<'cx>,
@@ -212,7 +213,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_referenced_symbols_for_node(
-        &self,
+        &mut self,
         node: ast::NodeID,
         flags: FindAllReferenceFlags,
         _root: &'cx ast::Program<'cx>,
@@ -264,7 +265,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_referenced_symbols_for_symbol(
-        &self,
+        &mut self,
         original_symbol: SymbolID,
         node: Option<ast::NodeID>,
         flags: FindAllReferenceFlags,
@@ -303,19 +304,26 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_references_in_container_or_files(
-        &self,
+        &mut self,
         _symbol: SymbolID,
         search: &FindReferencesSearch,
         state: &mut FindReferencesState,
     ) {
         // TODO: symbol scope
-        for &module in self.checker.module_arena.modules() {
-            self.search_for_name(module.id(), search, state);
+        for module_id in self
+            .checker
+            .module_arena
+            .modules()
+            .iter()
+            .map(|m| m.id())
+            .collect::<Vec<_>>()
+        {
+            self.search_for_name(module_id, search, state);
         }
     }
 
     fn search_for_name(
-        &self,
+        &mut self,
         module: ModuleID,
         search: &FindReferencesSearch,
         state: &mut FindReferencesState,
@@ -326,7 +334,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_references_in_source_file(
-        &self,
+        &mut self,
         module: ModuleID,
         root: &'cx ast::Program<'cx>,
         search: &FindReferencesSearch,
@@ -365,7 +373,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_references_in_container(
-        &self,
+        &mut self,
         module: ModuleID,
         root: &'cx ast::Program<'cx>,
         container: ast::NodeID,
@@ -385,7 +393,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     fn get_references_at_position(
-        &self,
+        &mut self,
         module: ModuleID,
         root: &'cx ast::Program<'cx>,
         position: usize,

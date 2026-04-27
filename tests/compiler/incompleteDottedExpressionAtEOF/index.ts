@@ -1,4 +1,6 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts`, Apache-2.0 License
 
-var p2 = window.
+//@compiler-options: target=es2015
+
+var p2 = window. 
 //~ ERROR: Identifier expected.

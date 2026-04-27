@@ -30,6 +30,28 @@ pub trait ASTFactory<'cx> {
     fn alloc<T>(&self, val: T) -> &'cx T;
     fn node_context_flags(&self) -> ast::NodeFlags;
     fn set_external_module_indicator(&mut self, node_id: NodeID);
+    fn set_external_module_indicator_if_has_export_modifier(
+        &mut self,
+        node: NodeID,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) {
+        if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT)) {
+            self.set_external_module_indicator(node);
+        }
+    }
+
+    #[inline(always)]
+    fn create_void_expr(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::VoidExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::VoidExpr { id, span, expr });
+        self.insert_node(id, ast::Node::VoidExpr(node));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        node
+    }
 
     #[inline(always)]
     fn create_numeric_literal(&mut self, val: f64, span: Span) -> &'cx ast::NumLit {
@@ -396,7 +418,11 @@ pub trait ASTFactory<'cx> {
             excl: excl.map(|e| e.span),
         });
         self.insert_node(id, ast::Node::ClassPropElem(prop));
-        self.insert_node_flags(id, ast::NodeFlags::empty());
+        let mut node_flags = self.node_context_flags();
+        if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT)) {
+            node_flags |= ast::NodeFlags::AMBIENT;
+        }
+        self.insert_node_flags(id, node_flags);
         prop
     }
 
@@ -409,7 +435,7 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ComputedPropName { id, span, expr });
         self.insert_node(id, ast::Node::ComputedPropName(node));
-        self.insert_node_flags(id, ast::NodeFlags::empty());
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -422,6 +448,7 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ClassStaticBlockDecl { id, span, body });
         self.insert_node(id, ast::Node::ClassStaticBlockDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -939,7 +966,6 @@ pub trait ASTFactory<'cx> {
     fn create_export_assign<const IS_EXPORT_EQUALS: bool>(
         &mut self,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
         expr: &'cx ast::Expr<'cx>,
     ) -> &'cx ast::ExportAssign<'cx> {
         let id = self.next_node_id();
@@ -947,7 +973,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             expr,
-            modifiers,
             is_export_equals: IS_EXPORT_EQUALS,
         });
         self.set_external_module_indicator(id);
@@ -1101,5 +1126,140 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::EnumMember(member));
         self.insert_node_flags(id, self.node_context_flags());
         member
+    }
+
+    fn create_conditional_expr(
+        &mut self,
+        span: Span,
+        cond: &'cx ast::Expr<'cx>,
+        when_true: &'cx ast::Expr<'cx>,
+        when_false: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::CondExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CondExpr {
+            id,
+            span,
+            cond,
+            when_true,
+            when_false,
+        });
+        self.insert_node(id, ast::Node::CondExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_reference_type(
+        &mut self,
+        span: Span,
+        name: &'cx ast::EntityName<'cx>,
+        type_arguments: Option<&'cx ast::Tys<'cx>>,
+    ) -> &'cx ast::ReferTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ReferTy {
+            id,
+            span,
+            name,
+            ty_args: type_arguments,
+        });
+        self.insert_node(id, ast::Node::ReferTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_setter_decl(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        params: ast::ParamsDecl<'cx>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::SetterDecl<'cx> {
+        debug_assert!(params.len() <= 2);
+        let id = self.next_node_id();
+        let node = self.alloc(ast::SetterDecl {
+            id,
+            modifiers,
+            span,
+            name,
+            params,
+            body,
+        });
+        self.insert_node(id, ast::Node::SetterDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_getter_decl(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        body: Option<&'cx ast::BlockStmt<'cx>>,
+    ) -> &'cx ast::GetterDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::GetterDecl {
+            id,
+            modifiers,
+            span,
+            name,
+            ty,
+            body,
+        });
+        self.insert_node(id, ast::Node::GetterDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_module_decl<const IS_GLOBAL_ARGUMENT: bool>(
+        &mut self,
+        span: bolt_ts_span::Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: ast::ModuleName<'cx>,
+        block: Option<&'cx ast::ModuleBlock<'cx>>,
+        has_export_decl: bool,
+    ) -> &'cx ast::ModuleDecl<'cx> {
+        let flags = self.node_context_flags();
+        // set_export_context_flags
+        let flags =
+            if flags.contains(ast::NodeFlags::AMBIENT) && block.is_some() && !has_export_decl {
+                flags | ast::NodeFlags::EXPORT_CONTEXT
+            } else {
+                flags & ast::NodeFlags::EXPORT_CONTEXT.complement()
+            };
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ModuleDecl {
+            id,
+            span,
+            modifiers,
+            name,
+            block,
+            is_global_argument: IS_GLOBAL_ARGUMENT,
+        });
+        self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
+        self.insert_node(id, ast::Node::ModuleDecl(node));
+        self.insert_node_flags(id, flags);
+        node
+    }
+
+    fn create_type_assertion_expression(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::TyAssertion<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::TyAssertion { id, span, expr, ty });
+        self.insert_node(id, ast::Node::TyAssertionExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_empty_stmt(&mut self, span: Span) -> &'cx ast::EmptyStmt {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::EmptyStmt { id, span });
+        self.insert_node(id, ast::Node::EmptyStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
     }
 }

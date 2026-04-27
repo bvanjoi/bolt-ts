@@ -38,14 +38,14 @@ impl<'cx> TyChecker<'cx> {
             && !self.is_type_related_to(target_ty, widened_ty, RelationKind::Comparable)
         {
             // TODO: report error in `check_type_comparable_to`
-            if !self.check_type_comparable_to(expr_ty, target_ty, Some(node_id)) {
+            self.check_type_comparable_to(expr_ty, target_ty, Some(node_id), Some(|this: &mut Self| {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
                     span: span,
-                    source_ty: widened_ty.to_string(self),
-                    target_ty: target_ty.to_string(self),
+                    source_ty: this.print_ty(widened_ty, None).to_string(),
+                    target_ty: this.print_ty(target_ty, None).to_string(),
                 };
-                self.push_error(Box::new(error));
-            }
+                this.push_error(Box::new(error));
+            }));
         }
     }
 
@@ -67,6 +67,15 @@ impl<'cx> TyChecker<'cx> {
             }
             AsExpr(n) => {
                 self.check_assertion_deferred(n.id, n.span, n.ty);
+            }
+            CallExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
+            NewExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
+            VoidExpr(n) => {
+                self.check_expr(n.expr);
             }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }

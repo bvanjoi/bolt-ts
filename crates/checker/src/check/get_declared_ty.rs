@@ -16,7 +16,6 @@ use super::errors;
 use super::eval::EvalResult;
 use super::links::TyLinks;
 use super::node_check_flags::NodeCheckFlags;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
@@ -39,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         id: SymbolID,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let flags = self.binder.symbol(id).flags;
+        let flags = self.symbol(id).flags;
         if flags.intersects(SymbolFlags::CLASS_OR_INTERFACE) {
             let ty = self.get_declared_ty_of_class_or_interface(id);
             Some(ty)
@@ -77,12 +76,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_declared_ty() {
             return ty;
         }
-        let ty_param_id = self.binder.symbol(symbol).opt_decl().unwrap();
-        let container = self.p.node(self.parent(ty_param_id).unwrap());
-        let ty_params = container.ty_params();
-        let offset =
-            ty_params.and_then(|ty_params| ty_params.iter().position(|p| p.id == ty_param_id));
-        let ty = self.create_param_ty(symbol, offset, false);
+        debug_assert!(
+            self.binder
+                .symbol(symbol)
+                .opt_decl()
+                .is_some_and(|decl| self.p.node(decl).is_ty_param())
+        );
+        let ty = self.create_param_ty(Some(symbol), false);
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -246,7 +246,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let error = errors::TypeXIsNotAConstructorFunctionType {
                 span: extends.expr_with_ty_args.expr.span(),
-                ty: base_ctor_ty.to_string(self),
+                ty: self.print_ty(base_ctor_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
             let e = self.error_ty;
@@ -313,9 +313,9 @@ impl<'cx> TyChecker<'cx> {
             } {
             let ty_params = self.concatenate(outer_ty_params, local_ty_params);
             assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
-            let this_ty = self.create_param_ty(symbol, None, true);
+            let this_ty = self.create_param_ty(Some(symbol), true);
             let target = self.create_interface_ty(
-                symbol,
+                Some(symbol),
                 Some(ty_params),
                 outer_ty_params,
                 local_ty_params,
@@ -341,7 +341,7 @@ impl<'cx> TyChecker<'cx> {
             self.instantiation_ty_map.insert(id, ty);
             ty
         } else {
-            self.create_interface_ty(symbol, None, None, None, None, ObjectFlags::INTERFACE)
+            self.create_interface_ty(Some(symbol), None, None, None, None, ObjectFlags::INTERFACE)
         };
 
         self.get_mut_symbol_links(symbol).override_declared_ty(ty);
@@ -590,19 +590,20 @@ impl<'cx> TyChecker<'cx> {
         let mut member_ty_list = Vec::with_capacity(decls.len());
         for decl in decls {
             for member in decl.members.iter() {
-                // TODO: has_bindable_name
-                let member_symbol = self.get_symbol_of_decl(member.id);
-                let _ = self.get_symbol_links(member_symbol);
-                let value = self.get_enum_member_value(member);
-                let member_ty = match value {
-                    EnumMemberValue::Str(_) | EnumMemberValue::Number(_) => {
-                        self.get_enum_literal_ty(value, symbol, member_symbol)
-                    }
-                    EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
+                if self.has_bindable_name(member.id) {
+                    let member_symbol = self.get_symbol_of_decl(member.id);
+                    let _ = self.get_symbol_links(member_symbol);
+                    let value = self.get_enum_member_value(member);
+                    let member_ty = match value {
+                        EnumMemberValue::Str(_) | EnumMemberValue::Number(_) => {
+                            self.get_enum_literal_ty(value, symbol, member_symbol)
+                        }
+                        EnumMemberValue::Err => self.create_computed_enum_ty(member_symbol),
+                    };
+                    self.get_mut_symbol_links(member_symbol)
+                        .set_declared_ty(member_ty);
+                    member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty))
                 };
-                self.get_mut_symbol_links(member_symbol)
-                    .set_declared_ty(member_ty);
-                member_ty_list.push(self.get_regular_ty_of_literal_ty(member_ty));
             }
         }
 

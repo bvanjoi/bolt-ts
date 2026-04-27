@@ -1,6 +1,6 @@
 class Based {}
 class Derived extends Based {
-  x
+  x;
   constructor() {(() => {
       this;
     });
@@ -9,8 +9,8 @@ class Derived extends Based {
     };
     (() => {
       this;
-    })();super();
+    })();
     super();
-    this.x = 10;
+    super();this.x = 10;
     var that = this;}
 }

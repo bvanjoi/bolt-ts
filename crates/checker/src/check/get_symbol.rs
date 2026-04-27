@@ -14,7 +14,7 @@ impl TyChecker<'_> {
     }
 
     #[inline]
-    pub(crate) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
+    pub(crate) fn get_symbol_of_decl(&mut self, id: ast::NodeID) -> SymbolID {
         debug_assert!(
             self.p.node(id).is_decl(),
             "expected a decl node, but got {:#?}",
@@ -22,7 +22,7 @@ impl TyChecker<'_> {
         );
         let id = self.final_res(id);
         debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
-        // TODO: get_late_bound_symbol
+        let id = self.get_late_bound_symbol(id);
         self.get_merged_symbol(id)
     }
 
@@ -36,7 +36,7 @@ impl TyChecker<'_> {
         } else if let Some(p) = node.as_prop_access_expr() {
             let lhs_ty = self.get_ty_of_expr(p.expr);
             // TODO: is_private
-            self.get_prop_of_ty(lhs_ty, SymbolName::Atom(p.name.name))
+            self.get_prop_of_ty::<false>(lhs_ty, SymbolName::Atom(p.name.name))
         } else {
             None
         }
@@ -52,7 +52,7 @@ impl TyChecker<'_> {
         }
     }
 
-    pub fn get_symbol_at_location(&self, id: ast::NodeID) -> Option<SymbolID> {
+    pub fn get_symbol_at_location(&mut self, id: ast::NodeID) -> Option<SymbolID> {
         use bolt_ts_ast::Node::*;
         let nq = self.node_query(id.module());
         if nq.is_decl_name_or_import_prop_name(id) {

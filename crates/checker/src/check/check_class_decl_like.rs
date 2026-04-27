@@ -1,9 +1,10 @@
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::ty;
 use super::ty::TypeFlags;
 use super::{TyChecker, errors};
 
-use bolt_ts_ast::r#trait::{ClassLike, MembersOfDecl};
-use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident};
+use bolt_ts_ast::r#trait::ClassLike;
+use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
@@ -133,7 +134,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         class: &impl ClassLike<'cx>,
         ty_with_this: &'cx ty::Ty<'cx>,
-        base_with_this: &'cx ty::Ty<'cx>,
+        base_ty_with_this: &'cx ty::Ty<'cx>,
         push_error: impl FnOnce(&mut Self),
     ) {
         let mut issued_member_error = false;
@@ -144,42 +145,57 @@ impl<'cx> TyChecker<'cx> {
             use bolt_ts_ast::ClassElemKind::*;
             let member_name = match member.kind {
                 Ctor(_) => None,
-                Prop(n) => Some(n.name.id()),
-                Method(n) => Some(n.name.id()),
+                Prop(n) => Some(n.name),
+                Method(n) => Some(n.name),
                 IndexSig(_) => None,
-                Getter(n) => Some(n.name.id()),
-                Setter(n) => Some(n.name.id()),
+                Getter(n) => Some(n.name),
+                Setter(n) => Some(n.name),
                 StaticBlockDecl(_) => None,
                 Semi(_) => None,
             };
 
             let declared_prop = member_name
-                .and_then(|name| self.get_symbol_at_location(name))
-                .or_else(|| self.get_symbol_at_location(member.kind.id()));
+                .and_then(|name| self.get_symbol_at_location(name.id()))
+                .or_else(|| self.get_symbol_at_location(member.id()));
 
             if let Some(declared_prop) = declared_prop
                 && let name = self.binder.symbol(declared_prop).name
-                && let Some(prop) = self.get_prop_of_ty(ty_with_this, name)
-                && let Some(base_prop) = self.get_prop_of_ty(base_with_this, name)
+                && let Some(prop) = self.get_prop_of_ty::<false>(ty_with_this, name)
+                && let Some(base_prop) = self.get_prop_of_ty::<false>(base_ty_with_this, name)
                 && let prop_ty = self.get_type_of_symbol(prop)
                 && let base_prop_ty = self.get_type_of_symbol(base_prop)
-                && !self.check_type_assignable_to(prop_ty, base_prop_ty, member_name)
+                && !self.check_type_assignable_to(
+                    prop_ty,
+                    base_prop_ty,
+                    member_name.map(|name| name.id()),
+                    Some(|this: &mut Self| {
+                        let name = member_name.unwrap();
+                        let span = name.kind.span();
+                        let prop = print_prop_name(&name.kind, &this.atoms);
+                        let error =
+                            errors::PropertyAInTypeXIsNotAssignableToTheSamePropertyInBaseTypeY {
+                                span,
+                                prop,
+                                ty1: this.print_ty(ty_with_this, None).to_string(),
+                                ty2: this.print_ty(base_ty_with_this, None).to_string(),
+                            };
+                        this.push_error(Box::new(error));
+                    }),
+                )
             {
-                let span = self.p.node(member_name.unwrap()).span();
-                let error = errors::TypeIsNotAssignableToType {
-                    span,
-                    ty1: self.print_ty(prop_ty).to_string(),
-                    ty2: self.print_ty(base_prop_ty).to_string(),
-                };
-                self.push_error(Box::new(error));
                 issued_member_error = true;
             }
         }
 
-        if !issued_member_error
-            && !self.check_type_assignable_to(ty_with_this, base_with_this, Some(class.id()))
-        {
-            push_error(self);
+        if !issued_member_error {
+            self.check_type_assignable_to(
+                ty_with_this,
+                base_ty_with_this,
+                Some(class.id()),
+                Some(|this: &mut Self| {
+                    push_error(this);
+                }),
+            );
         }
     }
 
@@ -310,19 +326,29 @@ impl<'cx> TyChecker<'cx> {
                     .this_ty;
 
                 let base_with_this = self.get_ty_with_this_arg(base_ty, this_arg, false);
-                if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
+                if !self.check_type_assignable_to(
+                    ty_with_this,
+                    base_with_this,
+                    None,
+                    NOOP_HEADING_ERROR,
+                ) {
                     self.issue_member_spec_error(class, ty_with_this, base_with_this, |_| {});
                 } else {
                     let target = self.get_ty_without_sig(static_base_ty);
-                    if !self.check_type_assignable_to(static_ty, target, None) {
-                        let error =
-                            errors::ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
-                                span: class.name().map_or(class.span(), |name| name.span),
-                                class: static_ty.to_string(self),
-                                base: target.to_string(self),
-                            };
-                        self.push_error(Box::new(error));
-                    }
+                    self.check_type_assignable_to(
+                        static_ty,
+                        target,
+                        None,
+                        Some(|this: &mut Self| {
+                            let error =
+                                errors::ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
+                                    span: class.name().map_or(class.span(), |name| name.span),
+                                    class: this.print_ty(static_ty, None).to_string(),
+                                    base: this.print_ty(target, None).to_string(),
+                                };
+                            this.push_error(Box::new(error));
+                        }),
+                    );
                 };
 
                 // ====== check_kinds_of_property_member_overrides ======
@@ -336,7 +362,8 @@ impl<'cx> TyChecker<'cx> {
                 'base_prop_check: for base_prop in base_properties {
                     let base = self.get_target_symbol(*base_prop);
                     let base_s = self.symbol(base);
-                    if base_s.flags.contains(SymbolFlags::PROTOTYPE) {
+                    let base_flags = base_s.flags;
+                    if base_flags.contains(SymbolFlags::PROTOTYPE) {
                         continue;
                     }
                     let base_s_name = base_s.name;
@@ -380,6 +407,39 @@ impl<'cx> TyChecker<'cx> {
                         }
                     } else {
                         // TODO:
+                        let derived_declaration_flags =
+                            self.get_declaration_modifier_flags_from_symbol(derived, None);
+                        if base_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
+                            || derived_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
+                        {
+                            continue;
+                        }
+                        let base_property_flags =
+                            base_flags.intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        let derived_symbol = self.symbol(derived);
+                        let derived_property_flags = derived_symbol
+                            .flags
+                            .intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        if base_property_flags && derived_property_flags {
+                            // TODO:
+                        } else if self.is_prototype_prop(base) {
+                            // TODO:
+                        } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
+                            // TODO:
+                        } else {
+                            let span = if let Some(decl) = derived_symbol.value_decl {
+                                self.p.node(decl).name().unwrap().span()
+                            } else {
+                                unreachable!()
+                            };
+                            let error = errors::ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction {
+                                span: span,
+                                class_name: self.print_ty(base_ty, None).to_string(),
+                                property_name: base_s_name.to_string(&self.atoms),
+                                extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
                     }
                 }
 
@@ -391,7 +451,7 @@ impl<'cx> TyChecker<'cx> {
                                 let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
                                     span: class.span(),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
-                                    class: base_ty.to_string(self),
+                                    class: self.print_ty(base_ty, None).to_string(),
                                 };
                                 self.push_error(Box::new(error));
                             } else {
@@ -399,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
                                     span: class.span(),
                                     non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
-                                    abstract_class: base_ty.to_string(self),
+                                    abstract_class: self.print_ty(base_ty, None).to_string(),
                                 };
                                 self.push_error(Box::new(error));
                             }
@@ -422,7 +482,7 @@ impl<'cx> TyChecker<'cx> {
                 } else if t.flags.intersects(TypeFlags::PRIMITIVE) {
                     let error = errors::AClassCannotImplementAPrimTy {
                         span: ty_ref_node.span,
-                        ty: self.print_ty(t).to_string(),
+                        ty: self.print_ty(t, None).to_string(),
                     };
                     self.push_error(Box::new(error));
                 } else if self.is_valid_base_ty(t) {
@@ -434,7 +494,12 @@ impl<'cx> TyChecker<'cx> {
                         .expect_object_interface()
                         .this_ty;
                     let base_with_this = self.get_ty_with_this_arg(t, this_arg, false);
-                    if !self.check_type_assignable_to(ty_with_this, base_with_this, None) {
+                    if !self.check_type_assignable_to(
+                        ty_with_this,
+                        base_with_this,
+                        None,
+                        NOOP_HEADING_ERROR,
+                    ) {
                         self.issue_member_spec_error(class, ty_with_this, base_with_this, |this| {
                             let error = errors::ClassXIncorrectlyImplementsInterfaceY {
                                 span: ty_ref_node.span,
