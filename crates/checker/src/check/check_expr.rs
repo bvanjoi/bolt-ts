@@ -465,8 +465,8 @@ impl<'cx> TyChecker<'cx> {
                 self.typeof_ty()
             }
             Void(n) => {
-                self.check_expr(n.expr);
-                self.undefined_ty
+                self.check_node_deferred(n.id);
+                self.undefined_widening_ty
             }
             This(n) => self.check_this_expr(n),
             Super(n) => self.check_super_expr(n),

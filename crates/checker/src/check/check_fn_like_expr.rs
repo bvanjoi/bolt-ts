@@ -223,8 +223,19 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.assign_non_contextual_param_tys(sig);
                     }
+                } else if let Some(contextual_sig) = contextual_sig
+                    && let n = self.p.node(id)
+                    && n.ty_params().is_none()
+                    && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
+                {
+                    if let Some(check_mode) = self.check_mode
+                        && check_mode.contains(CheckMode::INFERENTIAL)
+                    {
+                        let inference_context = self.get_inference_context(id);
+                        let inference = inference_context.unwrap().inference.unwrap();
+                        self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
+                    }
                 }
-
                 if contextual_sig.is_some()
                     && self.get_ret_ty_from_anno(id).is_none()
                     && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()

@@ -74,6 +74,9 @@ impl<'cx> TyChecker<'cx> {
             NewExpr(n) => {
                 self.resolve_untyped_call(n);
             }
+            VoidExpr(n) => {
+                self.check_expr(n.expr);
+            }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

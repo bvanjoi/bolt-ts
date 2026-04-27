@@ -88,8 +88,6 @@ use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashs
 
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::check::fn_mapper::{ReportUnmeasurableMapper, ReportUnreliableMapper};
-
 use self::check_expr::IterationUse;
 use self::check_type_related_to::NOOP_HEADING_ERROR;
 use self::check_type_related_to::RecursionFlags;
@@ -98,6 +96,7 @@ use self::cycle_check::ResolutionKey;
 use self::flow::FlowCacheKey;
 use self::flow::FlowTy;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
+use self::fn_mapper::{ReportUnmeasurableMapper, ReportUnreliableMapper};
 use self::get_context::{InferenceContextual, TyContextual};
 use self::get_contextual::ContextFlags;
 use self::get_contextual::DiscriminateContextualTyByObjectLiteral;
