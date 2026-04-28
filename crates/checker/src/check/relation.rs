@@ -308,8 +308,8 @@ impl<'cx> TyChecker<'cx> {
                 || (s.contains(TypeFlags::NUMBER)
                     && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))))
-                || (s.intersection(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
-                    == TypeFlags::NUMBER_LITERAL
+                || (s.contains(TypeFlags::NUMBER_LITERAL)
+                    && !s.contains(TypeFlags::ENUM_LITERAL)
                     && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                             && source.kind.as_number_lit().is_some_and(|s| {

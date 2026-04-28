@@ -535,7 +535,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
-        let elems = self.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_ele);
+        let elems = self.do_outside_of_parse_context(
+            ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
+            |this| this.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_ele),
+        );
         let end = self.token.end();
         self.expect(TokenKind::RBrace);
         let span = Span::new(start, end, self.module_id);

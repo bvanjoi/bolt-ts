@@ -52,7 +52,8 @@ impl<'cx> ParserState<'cx, '_> {
         let ret = self.do_outside_of_parse_context(
             ParseContext::ALLOW_BREAK
                 .union(ParseContext::ALLOW_CONTINUE)
-                .union(ParseContext::MODULE_BLOCK),
+                .union(ParseContext::MODULE_BLOCK)
+                .union(ParseContext::TOP_LEVEL),
             |this| {
                 let context = if flags.contains(SignatureFlags::ASYNC) {
                     ParseContext::FN_BLOCK.union(ParseContext::ASYNC)
@@ -104,8 +105,10 @@ impl<'cx> ParserState<'cx, '_> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
-        let stmts = self.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
-            this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+        let stmts = self.do_outside_of_parse_context(ParseContext::TOP_LEVEL, |this| {
+            this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
+                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+            })
         });
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);

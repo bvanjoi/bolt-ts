@@ -410,7 +410,7 @@ impl<'cx> TyChecker<'cx> {
         for decl in decls {
             let n = self.p.node(*decl);
             if (n.is_class_decl() || n.as_fn_decl().is_some_and(|f| f.body.is_some()))
-                && !self.p.node_flags(*decl).intersects(NodeFlags::AMBIENT)
+                && !self.p.node_flags(*decl).contains(NodeFlags::AMBIENT)
             {
                 return Some(*decl);
             }

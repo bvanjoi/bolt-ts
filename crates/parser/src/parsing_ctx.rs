@@ -6,33 +6,33 @@ use bolt_ts_ast::TokenKind;
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub(super) struct ParsingContext: u32 {
-        const SOURCE_ELEMENTS = 1 << 0;
-        const BLOCK_STATEMENTS = 1 << 1;
-        const SWITCH_CLAUSES = 1 << 2;
-        const SWITCH_CLAUSE_STATEMENTS = 1 << 3;
-        const TYPE_MEMBERS = 1 << 4;
-        const CLASS_MEMBERS = 1 << 5;
-        const ENUM_MEMBERS = 1 << 6;
-        const HERITAGE_CLAUSE_ELEMENT = 1 << 7;
-        const VARIABLE_DECLARATIONS = 1 << 8;
-        const OBJECT_BINDING_ELEMENTS = 1 << 9;
-        const ARRAY_BINDING_ELEMENTS = 1 << 10;
-        const ARGUMENT_EXPRESSIONS = 1 << 11;
-        const OBJECT_LITERAL_MEMBERS = 1 << 12;
-        const JSX_ATTRIBUTES = 1 << 13;
-        const JSX_CHILDREN = 1 << 14;
-        const ARRAY_LITERAL_MEMBERS = 1 << 15;
-        const PARAMETERS = 1 << 16;
-        const JSDOC_PARAMETERS = 1 << 17;
-        const REST_PROPERTIES = 1 << 18;
-        const TYPE_PARAMETERS = 1 << 19;
-        const TYPE_ARGUMENTS = 1 << 20;
-        const TUPLE_ELEMENT_TYPES = 1 << 21;
-        const HERITAGE_CLAUSES = 1 << 22;
-        const IMPORT_OR_EXPORT_SPECIFIERS = 1 << 23;
-        const IMPORT_ATTRIBUTES = 1 << 24;
-        const JSDOC_COMMENT = 1 << 25;
-        const COUNT = 1 << 26;
+        const SOURCE_ELEMENTS                       = 1 << 0;
+        const BLOCK_STATEMENTS                      = 1 << 1;
+        const SWITCH_CLAUSES                        = 1 << 2;
+        const SWITCH_CLAUSE_STATEMENTS              = 1 << 3;
+        const TYPE_MEMBERS                          = 1 << 4;
+        const CLASS_MEMBERS                         = 1 << 5;
+        const ENUM_MEMBERS                          = 1 << 6;
+        const HERITAGE_CLAUSE_ELEMENT               = 1 << 7;
+        const VARIABLE_DECLARATIONS                 = 1 << 8;
+        const OBJECT_BINDING_ELEMENTS               = 1 << 9;
+        const ARRAY_BINDING_ELEMENTS                = 1 << 10;
+        const ARGUMENT_EXPRESSIONS                  = 1 << 11;
+        const OBJECT_LITERAL_MEMBERS                = 1 << 12;
+        const JSX_ATTRIBUTES                        = 1 << 13;
+        const JSX_CHILDREN                          = 1 << 14;
+        const ARRAY_LITERAL_MEMBERS                 = 1 << 15;
+        const PARAMETERS                            = 1 << 16;
+        const JSDOC_PARAMETERS                      = 1 << 17;
+        const REST_PROPERTIES                       = 1 << 18;
+        const TYPE_PARAMETERS                       = 1 << 19;
+        const TYPE_ARGUMENTS                        = 1 << 20;
+        const TUPLE_ELEMENT_TYPES                   = 1 << 21;
+        const HERITAGE_CLAUSES                      = 1 << 22;
+        const IMPORT_OR_EXPORT_SPECIFIERS           = 1 << 23;
+        const IMPORT_ATTRIBUTES                     = 1 << 24;
+        const JSDOC_COMMENT                         = 1 << 25;
+        const COUNT                                 = 1 << 26;
     }
 
     #[derive(Clone, Copy, Debug)]
@@ -52,6 +52,7 @@ bitflags::bitflags! {
         const BLOCK                               = 1 << 13;
         const INTERFACE_MEMBERS                   = 1 << 14;
         const TYPE_LITERAL_MEMBERS                = 1 << 15;
+        const TOP_LEVEL                           = 1 << 16;
 
         const ALLOW_RETURN                              = Self::CLASS_STATIC_BLOCK.bits()
                                                             | Self::FN_BLOCK.bits();

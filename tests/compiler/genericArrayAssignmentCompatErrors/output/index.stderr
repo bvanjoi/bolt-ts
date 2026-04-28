@@ -1,0 +1,11 @@
+  × This expression is not constructable.
+   ╭─[../../tests/compiler/genericArrayAssignmentCompatErrors/index.ts:6:19]
+ 6 │ []
+   · ──
+   ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/genericArrayAssignmentCompatErrors/index.ts:8:22]
+ 8 │ Array
+   · ─────
+   ╰────

@@ -210,13 +210,10 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn check_export_default_error(&mut self, span: bolt_ts_span::Span) {
-        if self.parse_context.is_empty() {
-            return;
-        }
         if self.parse_context.contains(ParseContext::MODULE_BLOCK) {
             let error = errors::ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule { span };
             self.push_error(Box::new(error));
-        } else {
+        } else if !self.parse_context.contains(ParseContext::TOP_LEVEL) {
             let error =
                 errors::ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration { span };
             self.push_error(Box::new(error));

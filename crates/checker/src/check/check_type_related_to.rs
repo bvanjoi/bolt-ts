@@ -657,7 +657,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         self.c.atoms.get(name1).to_string(),
                     ];
                     let len = unmatched.len() - 2;
-                    let span = self.c.p.node(self.error_node.unwrap()).span();
+                    let error_node = self.error_node.unwrap();
+                    let error_node = self.c.p.node(error_node);
+                    let span = error_node.name().map_or(error_node.span(), |n| n.span());
                     let error =
                         errors::TypeIsMissingTheFollowingPropertiesFromType1Colon2And3More {
                             span,

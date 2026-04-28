@@ -450,10 +450,14 @@ impl<'cx> ParserState<'cx, '_> {
                         kind: ast::ExprKind::Await(expr),
                     });
                     if !self.parse_context.contains(ParseContext::ASYNC) {
-                        let error = errors::AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
-                            span: bolt_ts_span::Span::new(start, start + "await".len() as u32, self.module_id)
-                        };
-                        self.push_error(Box::new(error));
+                        if self.parse_context.contains(ParseContext::TOP_LEVEL) {
+                            todo!()
+                        } else {
+                            let hi = start + "await".len() as u32;
+                            let span = bolt_ts_span::Span::new(start, hi, self.module_id);
+                            let error = errors::AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules { span };
+                            self.push_error(Box::new(error));
+                        }
                     }
                     Ok(expr)
                 } else {

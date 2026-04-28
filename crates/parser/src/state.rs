@@ -110,7 +110,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             has_no_default_lib: false,
             variant,
             parsing_context: ParsingContext::default(),
-            parse_context: ParseContext::empty(),
+            parse_context: ParseContext::TOP_LEVEL,
             in_strict_mode: always_strict,
             labels: Default::default(),
         }
