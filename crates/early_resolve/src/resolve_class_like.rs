@@ -16,9 +16,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
 
     fn resolve_class_method_ele(&mut self, ele: &'cx ast::ClassMethodElem<'cx>) {
         self.resolve_prop_name(ele.name);
-        if let Some(ty_params) = ele.ty_params {
-            self.resolve_ty_params(ty_params);
-        }
+        self.resolve_ty_params(ele.ty_params);
         self.resolve_params(ele.params);
         if let Some(ty) = ele.ty {
             self.resolve_ty(ty);
@@ -29,10 +27,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     pub(super) fn resolve_class_like(&mut self, class: &'cx impl r#trait::ClassLike<'cx>) {
-        if let Some(ty_params) = class.ty_params() {
-            self.resolve_ty_params(ty_params);
-        }
-
+        self.resolve_ty_params(class.ty_params());
         if let Some(extends) = class.extends() {
             self.resolve_expr(extends.expr_with_ty_args.expr);
             if let Some(ty_args) = extends.expr_with_ty_args.ty_args {

@@ -659,3 +659,10 @@ pub(super) struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("The left-hand side of an assignment expression must be a variable or a property access.")]
+pub(super) struct TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+}

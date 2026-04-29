@@ -499,8 +499,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            // TODO: resolve untyped call
-            return self.any_sig();
+            return self.resolve_untyped_call(expr);
         }
 
         let call_chain_flags;

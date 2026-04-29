@@ -290,25 +290,27 @@ impl<'cx> ParserState<'cx, '_> {
         {
             self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
-            if self.in_strict_mode
-                && let ast::ExprKind::Ident(n) = expr.kind
-            {
-                self.check_strict_mode_eval_or_arguments(n);
+            match expr.kind {
+                ast::ExprKind::Ident(n) => {
+                    if self.in_strict_mode {
+                        self.check_strict_mode_eval_or_arguments(n);
+                    }
+                }
+                ast::ExprKind::PropAccess(_)
+                | ast::ExprKind::EleAccess(_)
+                | ast::ExprKind::ArrayLit(_)
+                | ast::ExprKind::ObjectLit(_) => {}
+                _ => {
+                    let error = errors::TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
+                        span: expr.span()
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
-            // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
-            self.parse_token_node();
+            self.next_token();
             let right = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
-            let id = self.next_node_id();
-
-            let expr = self.alloc(ast::AssignExpr {
-                id,
-                left: expr,
-                op,
-                right,
-                span: self.new_span(start),
-            });
-            self.nodes.insert(id, ast::Node::AssignExpr(expr));
+            let expr = self.create_assignment_expression(self.new_span(start), expr, op, right);
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Assign(expr),
             });

@@ -1,0 +1,6 @@
+  × Type '(x: T, y: S) => void' is not assignable to type '(x: T, y: S) =>
+  │ void'.
+    ╭─[../../tests/compiler/assignmentStricterConstraints/index.ts:11:1]
+ 11 │ g
+    · ─
+    ╰────

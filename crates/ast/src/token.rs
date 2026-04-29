@@ -299,6 +299,7 @@ pub enum TokenKind {
     Unique,
     Asserts,
     Type,
+    Accessor,
     // =====
     EOF,
     Unknown,
@@ -513,6 +514,7 @@ impl TryFrom<TokenKind> for super::ModifierKind {
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
         use super::ModifierKind::*;
         match value {
+            TokenKind::Accessor => Ok(Accessor),
             TokenKind::Public => Ok(Public),
             TokenKind::Private => Ok(Private),
             TokenKind::Protected => Ok(Protected),
@@ -614,7 +616,7 @@ impl TokenKind {
         matches!(
             self,
             Abstract |
-            // Accessor |
+            Accessor |
             As |
             Asserts |
             // Assert |

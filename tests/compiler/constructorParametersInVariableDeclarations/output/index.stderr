@@ -5,8 +5,8 @@
    ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'a' declared in the constructor.
+  ☞ Initializer of instance member variable 'a' cannot reference identifier
+  │ 'x' declared in the constructor.
    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:4:17]
  4 │ x
    · ─
@@ -19,8 +19,8 @@ Advice:
    ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'b' declared in the constructor.
+  ☞ Initializer of instance member variable 'b' cannot reference identifier
+  │ 'x' declared in the constructor.
    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:6:22]
  6 │ x
    · ─
@@ -33,8 +33,8 @@ Advice:
    ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'c' declared in the constructor.
+  ☞ Initializer of instance member variable 'c' cannot reference identifier
+  │ 'x' declared in the constructor.
    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:8:23]
  8 │ x
    · ─
@@ -47,8 +47,8 @@ Advice:
     ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'a' declared in the constructor.
+  ☞ Initializer of instance member variable 'a' cannot reference identifier
+  │ 'x' declared in the constructor.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:15:17]
  15 │ x
     · ─
@@ -61,8 +61,8 @@ Advice:
     ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'b' declared in the constructor.
+  ☞ Initializer of instance member variable 'b' cannot reference identifier
+  │ 'x' declared in the constructor.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:17:22]
  17 │ x
     · ─
@@ -75,8 +75,8 @@ Advice:
     ╰────
 
 Advice: 
-  ☞ Initializer of instance member variable 'x' cannot reference identifier
-  │ 'c' declared in the constructor.
+  ☞ Initializer of instance member variable 'c' cannot reference identifier
+  │ 'x' declared in the constructor.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:19:23]
  19 │ x
     · ─

@@ -1262,4 +1262,24 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    fn create_assignment_expression(
+        &mut self,
+        span: Span,
+        left: &'cx ast::Expr<'cx>,
+        op: ast::AssignOp,
+        right: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::AssignExpr<'cx> {
+        let id = self.next_node_id();
+        let expr = self.alloc(ast::AssignExpr {
+            id,
+            left,
+            op,
+            right,
+            span,
+        });
+        self.insert_node(id, ast::Node::AssignExpr(expr));
+        self.insert_node_flags(id, self.node_context_flags());
+        expr
+    }
 }

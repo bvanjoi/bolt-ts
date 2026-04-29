@@ -87,9 +87,15 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             let s = self.c.binder.symbol(alias_symbol);
             return s.name.to_string(&self.c.atoms);
         } else if ty.kind.is_array(self.c) {
-            let ele = self.c.get_ty_arguments(ty)[0];
-            let ele = self.c.print_ty(ele, self.enclosing_declaration);
-            return format!("{ele}[]");
+            let tys = self.c.get_ty_arguments(ty);
+            let ele = tys[0];
+            if ele.kind.is_union_or_intersection() {
+                let ele = self.c.print_ty(ele, self.enclosing_declaration);
+                return format!("({ele})[]");
+            } else {
+                let ele = self.c.print_ty(ele, self.enclosing_declaration);
+                return format!("{ele}[]");
+            }
         } else if ty == self.c.boolean_ty() {
             return "boolean".to_string();
         }

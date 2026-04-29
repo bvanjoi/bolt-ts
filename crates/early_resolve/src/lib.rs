@@ -4,7 +4,6 @@ mod on_success_resolve;
 mod resolve_call_like;
 mod resolve_class_like;
 
-use bolt_ts_config::Target;
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -14,6 +13,7 @@ use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, NodeFlags};
 use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID};
 use bolt_ts_binder::{SymbolName, SymbolTable, Symbols};
+use bolt_ts_config::Target;
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::Module;
 use bolt_ts_utils::fx_hashmap_with_capacity;
@@ -323,13 +323,17 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_type_alias_decl(&mut self, ty: &'cx ast::TypeAliasDecl<'cx>) {
-        if let Some(ty_params) = ty.ty_params {
-            self.resolve_ty_params(ty_params);
-        }
+        self.resolve_ty_params(ty.ty_params);
         self.resolve_ty(ty.ty);
     }
 
-    fn resolve_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
+    fn resolve_ty_params(&mut self, ty_params: Option<ast::TyParams<'cx>>) {
+        if let Some(ty_params) = ty_params {
+            self.resolve_ty_params_worker(ty_params);
+        }
+    }
+
+    fn resolve_ty_params_worker(&mut self, ty_params: ast::TyParams<'cx>) {
         for ty_param in ty_params {
             self.resolve_ty_param(ty_param);
         }
@@ -466,16 +470,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_ty(indexed.index_ty);
             }
             Fn(f) => {
-                if let Some(ty_params) = f.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(f.ty_params);
                 self.resolve_params(f.params);
                 self.resolve_ty(f.ty);
             }
             Ctor(node) => {
-                if let Some(ty_params) = node.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(node.ty_params);
                 self.resolve_params(node.params);
                 self.resolve_ty(node.ty);
             }
@@ -576,9 +576,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Method(m) => {
-                if let Some(ty_params) = m.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(m.ty_params);
                 self.resolve_prop_name(m.name);
                 self.resolve_params(m.params);
                 if let Some(ty) = m.ty {
@@ -586,9 +584,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             CallSig(call) => {
-                if let Some(ty_params) = call.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(call.ty_params);
                 self.resolve_params(call.params);
                 if let Some(ty) = call.ty {
                     self.resolve_ty(ty);
@@ -596,9 +592,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             IndexSig(index) => self.resolve_index_sig(index),
             CtorSig(decl) => {
-                if let Some(ty_params) = decl.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(decl.ty_params);
                 self.resolve_params(decl.params);
                 if let Some(ty) = decl.ty {
                     self.resolve_ty(ty);
@@ -638,9 +632,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         use bolt_ts_ast::ExprKind::*;
         match expr.kind {
             ArrowFn(f) => {
-                if let Some(ty_params) = f.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(f.ty_params);
                 self.resolve_params(f.params);
                 if let Some(ty) = f.ty {
                     self.resolve_ty(ty);
@@ -681,6 +673,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             }
             Paren(paren) => self.resolve_expr(paren.expr),
             Fn(f) => {
+                self.resolve_ty_params(f.ty_params);
                 self.resolve_params(f.params);
                 if let Some(ty) = f.ty {
                     self.resolve_ty(ty);
@@ -888,9 +881,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.init);
             }
             Method(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.resolve_ty_params(ty_params);
-                }
+                self.resolve_ty_params(n.ty_params);
                 self.resolve_params(n.params);
                 if let Some(ty) = n.ty {
                     self.resolve_ty(ty);
@@ -920,9 +911,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_fn_decl(&mut self, f: &'cx ast::FnDecl<'cx>) {
-        if let Some(ty_params) = f.ty_params {
-            self.resolve_ty_params(ty_params);
-        }
+        self.resolve_ty_params(f.ty_params);
         self.resolve_params(f.params);
         if let Some(body) = f.body {
             self.resolve_block_stmt(body);
@@ -956,16 +945,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
         self.resolve_class_like(class);
     }
 
-    fn resolve_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
-        if let Some(ty_params) = interface.ty_params {
-            self.resolve_ty_params(ty_params);
-        }
-        if let Some(extends) = interface.extends {
+    fn resolve_interface_decl(&mut self, n: &'cx ast::InterfaceDecl<'cx>) {
+        self.resolve_ty_params(n.ty_params);
+        if let Some(extends) = n.extends {
             for ty in extends.list {
                 self.resolve_refer_ty(ty);
             }
         }
-        for member in interface.members {
+        for member in n.members {
             self.resolve_object_ty_member(member);
         }
     }
@@ -988,16 +975,22 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 errors: vec![],
             };
             if let Some(property_with_invalid_initializer) = res.property_with_invalid_initializer {
-                error = self.on_property_with_invalid_initializer(
-                    ident,
-                    property_with_invalid_initializer,
-                    error,
-                );
+                if let Some(sub_error) = self
+                    .on_property_with_invalid_initializer(ident, property_with_invalid_initializer)
+                {
+                    error.errors.push(errors::CannotFindNameHelperKind::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(sub_error));
+                }
             } else {
                 error = self.on_failed_to_resolve_value_symbol(ident, error);
             }
             self.push_error(Box::new(error));
         } else {
+            if let Some(property_with_invalid_initializer) = res.property_with_invalid_initializer
+                && let Some(error) = self
+                    .on_property_with_invalid_initializer(ident, property_with_invalid_initializer)
+            {
+                self.push_error(Box::new(error));
+            }
             self.on_success_resolved_value_symbol(
                 ident,
                 res.symbol,

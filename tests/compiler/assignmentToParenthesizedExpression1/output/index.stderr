@@ -1,0 +1,6 @@
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+   ╭─[../../tests/compiler/assignmentToParenthesizedExpression1/index.ts:6:1]
+ 6 │ (1, x)
+   · ──────
+   ╰────

@@ -1069,44 +1069,44 @@ impl<'cx> TyChecker<'cx> {
                     },
                 );
             }
-        }
 
-        if self.every_type(object_ty, |_, t| t.is_tuple())
-            && let Some(SymbolName::EleNum(num)) = prop_name
-        {
-            let index = num.val();
-            if let Some(access_node) = access_node
-                && self.every_type(object_ty, |_, t| {
-                    let tuple = t.as_tuple().unwrap();
-                    !tuple.combined_flags.intersects(ElementFlags::VARIABLE)
-                        && !access_flags.contains(AccessFlags::ALLOWING_MISSING)
-                })
+            if self.every_type(object_ty, |_, t| t.is_tuple())
+                && let SymbolName::EleNum(num) = prop_name
             {
-                let index_node = self.get_index_node_for_access_expr(access_node);
-                if object_ty.is_tuple() {
-                    if index < 0. {
-                        todo!()
+                let index = num.val();
+                if let Some(access_node) = access_node
+                    && self.every_type(object_ty, |_, t| {
+                        let tuple = t.as_tuple().unwrap();
+                        !tuple.combined_flags.intersects(ElementFlags::VARIABLE)
+                            && !access_flags.contains(AccessFlags::ALLOWING_MISSING)
+                    })
+                {
+                    let index_node = self.get_index_node_for_access_expr(access_node);
+                    if object_ty.is_tuple() {
+                        if index < 0. {
+                            todo!()
+                        }
+                        let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
+                            span: self.p.node(index_node).span(),
+                            x: self.print_ty(object_ty, None).to_string(),
+                            y: TyChecker::get_ty_reference_arity(object_ty),
+                            z: index as usize,
+                        };
+                        self.push_error(Box::new(error));
                     }
-                    let error = errors::TupleTypeXOfLengthYHasNoElementAtIndexZ {
-                        span: self.p.node(index_node).span(),
-                        x: self.print_ty(object_ty, None).to_string(),
-                        y: TyChecker::get_ty_reference_arity(object_ty),
-                        z: index as usize,
-                    };
-                    self.push_error(Box::new(error));
                 }
-            }
-            // TODO: num is not integer
-            if index > 0. {
-                return Some(
-                    self.get_tuple_elem_ty_out_of_start_count(
-                        object_ty,
-                        index as usize,
-                        access_flags
-                            .intersects(AccessFlags::INCLUDE_UNDEFINED)
-                            .then_some(self.missing_ty),
-                    ),
-                );
+                // TODO: num is not integer
+                if index > 0. {
+                    return Some(
+                        self.get_tuple_elem_ty_out_of_start_count(
+                            object_ty,
+                            index as usize,
+                            access_flags
+                                .intersects(AccessFlags::INCLUDE_UNDEFINED)
+                                .then_some(self.missing_ty),
+                        ),
+                    );
+                }
             }
         }
 

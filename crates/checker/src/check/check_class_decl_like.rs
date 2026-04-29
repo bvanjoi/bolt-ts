@@ -71,6 +71,10 @@ impl<'cx> TyChecker<'cx> {
     fn check_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
         self.check_fn_like_decl(ctor);
 
+        if ctor.body.is_none() {
+            return;
+        }
+
         let containing_class_decl = self.parent(ctor.id).unwrap();
         let extends = match self.p.node(containing_class_decl) {
             ast::Node::ClassExpr(c) => c.extends,

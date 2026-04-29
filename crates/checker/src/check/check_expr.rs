@@ -749,6 +749,14 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
 
+        if self.class_decl_extends_null(class_like_decl) {
+            return if is_call_expr {
+                self.error_ty
+            } else {
+                self.null_widening_ty
+            };
+        }
+
         let symbol = self.get_symbol_of_decl(class_like_decl);
         let class_ty = self.get_declared_ty_of_symbol(symbol);
         let Some(base_class_ty) = self.get_base_tys(class_ty).first() else {

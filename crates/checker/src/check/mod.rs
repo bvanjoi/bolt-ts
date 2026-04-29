@@ -1052,6 +1052,20 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         self.is_type_assignable_to(source, target)
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
+            || (target == self.number_ty
+                && (
+                    // TODO: numericStringType
+                    source.flags.contains(TypeFlags::STRING_LITERAL)
+                        && match source.kind {
+                            ty::TyKind::StringLit(t) => self.is_numerical_literal_name(t.val),
+                            _ => unreachable!(),
+                        }
+                ))
+    }
+
+    fn is_numerical_literal_name(&self, name: bolt_ts_atom::Atom) -> bool {
+        let s = self.atoms.get(name);
+        is_numerical_literal_string(s)
     }
 
     fn get_base_constraint_or_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2954,6 +2968,7 @@ impl<'cx> TyChecker<'cx> {
 
         let name = match n {
             ast::Node::Ident(ident) => self.atoms.get(ident.name).to_string(),
+            ast::Node::SuperExpr(_) => "super".to_string(),
             ast::Node::ThisExpr(_) => "this".to_string(),
             ast::Node::PropAccessExpr(n) => pprint_prop_access_expr(n, &self.atoms),
             ast::Node::EleAccessExpr(n) => pprint_elem_access_expr(n, &self.atoms),
@@ -6931,4 +6946,21 @@ fn resolve_external_module_name(
         ModuleRes::Err => None,
         ModuleRes::Res(module_id) => Some(bolt_ts_binder::SymbolID::container(module_id)),
     }
+}
+
+fn is_numerical_literal_string(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let mut number = 0.;
+    for byte in bytes {
+        if !byte.is_ascii_digit() {
+            return false;
+        }
+        number = number * 10. + f64::from(*byte - b'0');
+        const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0; // 2^53 - 1
+        const MIN_SAFE_INTEGER: f64 = -9_007_199_254_740_991.0; // -(2^53 - 1)
+        if number >= MAX_SAFE_INTEGER || number <= MIN_SAFE_INTEGER {
+            return false;
+        }
+    }
+    true
 }

@@ -1,0 +1,38 @@
+  × Cannot find name 'M'.
+   ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:9:18]
+ 9 │ M
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:5:11]
+ 5 │ M
+   · ─
+   ╰────
+
+  × Cannot find name 'M'.
+    ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:11:21]
+ 11 │ M
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:5:11]
+ 5 │ M
+   · ─
+   ╰────
+
+  × Cannot find name 'Mod'.
+    ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:20:17]
+ 20 │ Mod
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+    ╭─[../../tests/compiler/classExtendsInterfaceInModule/index.ts:14:11]
+ 14 │ Mod
+    · ───
+    ╰────

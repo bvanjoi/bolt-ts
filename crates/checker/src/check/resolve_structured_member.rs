@@ -260,7 +260,11 @@ impl<'cx> TyChecker<'cx> {
         check(self, ty, ty, check_base)
     }
 
-    fn resolve_base_tys_of_interface(&mut self, ty: &'cx ty::Ty<'cx>, cycle_reported: &mut bool) {
+    fn resolve_base_tys_of_interface(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        cycle_reported: &mut bool,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
         if self.get_ty_links(ty.id).get_resolved_base_tys().is_none() {
             let tys = self.empty_array();
             self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
@@ -268,10 +272,10 @@ impl<'cx> TyChecker<'cx> {
         let symbol = ty.symbol().unwrap();
         let s = self.binder.symbol(symbol);
         let Some(decls) = s.decls.as_ref() else {
-            return;
+            return vec![];
         };
 
-        let mut tys = Vec::with_capacity(decls.len() * 4);
+        let mut tys = Vec::with_capacity(decls.len());
         for decl in decls.clone() {
             if self.p.node(decl).is_interface_decl() {
                 let Some(ty_nodes) = self.get_interface_base_ty_nodes(decl) else {
@@ -299,11 +303,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let now = self.get_ty_links(ty.id).expect_resolved_base_tys();
-        assert!(std::ptr::addr_eq(now, self.empty_array::<ty::Tys<'cx>>()));
-        let resolved_tys = self.alloc(tys);
-        self.get_mut_ty_links(ty.id)
-            .override_resolved_base_tys(resolved_tys);
+        tys
     }
 
     pub(super) fn get_base_type_node_of_class(
@@ -332,7 +332,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
+    fn resolve_base_tys_of_class(&mut self, ty: &'cx ty::Ty<'cx>) -> Vec<&'cx ty::Ty<'cx>> {
+        if self.get_ty_links(ty.id).get_resolved_base_tys().is_none() {
+            let tys = self.empty_array();
+            self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
+        }
+
         let base_ctor_ty = self.get_base_constructor_type_of_class(ty);
         let base_ctor_ty = self.get_apparent_ty(base_ctor_ty);
         if !base_ctor_ty.flags.intersects(
@@ -340,7 +345,7 @@ impl<'cx> TyChecker<'cx> {
                 .union(TypeFlags::INTERSECTION)
                 .union(TypeFlags::ANY),
         ) {
-            return &[];
+            return vec![];
         }
         let base_ty_node = self.get_base_type_node_of_class(ty);
         let base_ctor_ty_symbol = base_ctor_ty.symbol();
@@ -374,15 +379,15 @@ impl<'cx> TyChecker<'cx> {
             );
             if ctors.is_empty() {
                 // TODO: error
-                return self.empty_array();
+                return vec![];
             }
             base_ty = self.get_ret_ty_of_sig(ctors[0]);
         }
         if base_ty == self.error_ty {
-            return &[];
+            return vec![];
         }
 
-        self.alloc([base_ty])
+        vec![base_ty]
     }
 
     fn get_tuple_base_ty(&mut self, ty: &'cx ty::TupleTy<'cx>) -> &'cx ty::Ty<'cx> {
@@ -403,10 +408,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_base_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if !ty
-            .get_object_flags()
-            .intersects(ObjectFlags::CLASS_OR_INTERFACE.union(ObjectFlags::REFERENCE))
-        {
+        const FLAGS: ObjectFlags = ObjectFlags::CLASS_OR_INTERFACE.union(ObjectFlags::REFERENCE);
+        if !ty.get_object_flags().intersects(FLAGS) {
             return self.empty_array();
         }
         if let Some(tys) = self.get_ty_links(ty.id).get_resolved_base_tys() {
@@ -421,13 +424,27 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let id = ty.symbol().unwrap();
                 let symbol = self.binder.symbol(id);
-                if symbol.flags.contains(SymbolFlags::CLASS) {
-                    let tys = self.resolve_base_tys_of_class(ty);
-                    self.get_mut_ty_links(ty.id).set_resolved_base_tys(tys);
-                } else if symbol.flags.contains(SymbolFlags::INTERFACE) {
-                    self.resolve_base_tys_of_interface(ty, &mut cycle_reported);
-                } else {
-                    unreachable!()
+                let flags = symbol.flags;
+                debug_assert!(flags.intersects(SymbolFlags::CLASS.union(SymbolFlags::INTERFACE)));
+                let mut base_tys = vec![];
+                if flags.contains(SymbolFlags::CLASS) {
+                    let iter = self.resolve_base_tys_of_class(ty).into_iter();
+                    base_tys.extend(iter);
+                }
+                if flags.contains(SymbolFlags::INTERFACE) {
+                    let iter = self
+                        .resolve_base_tys_of_interface(ty, &mut cycle_reported)
+                        .into_iter();
+                    base_tys.extend(iter);
+                }
+                debug_assert!({
+                    let actual = self.get_ty_links(ty.id).expect_resolved_base_tys();
+                    let expected = self.empty_array::<ty::Tys<'cx>>();
+                    std::ptr::addr_eq(actual, expected)
+                });
+                if !base_tys.is_empty() {
+                    let tys = self.alloc(base_tys);
+                    self.get_mut_ty_links(ty.id).override_resolved_base_tys(tys);
                 };
             }
 
@@ -1038,72 +1055,78 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_ty_links(ty.id)
             .set_structured_members(placeholder);
 
-        let call_sigs: ty::Sigs<'cx>;
-        let mut ctor_sigs: ty::Sigs<'cx>;
+        let mut call_sigs: ty::Sigs<'cx> = self.empty_array();
+        let mut ctor_sigs: ty::Sigs<'cx> = self.empty_array();
+        let mut base_ctor_index_info = None;
 
         let symbol_flags = self.symbol(symbol_id).flags;
+        if symbol_flags.contains(SymbolFlags::CLASS) {
+            let class_ty = self.get_declared_ty_of_class_or_interface(symbol_id);
+            let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
+            const FLAGS: TypeFlags = TypeFlags::OBJECT
+                .union(TypeFlags::INTERSECTION)
+                .union(TypeFlags::TYPE_VARIABLE);
+            if base_ctor_ty.flags.intersects(FLAGS) {
+                let props = self.get_props_of_ty(base_ctor_ty);
+                self.add_inherited_members(&mut members, props);
+            } else if base_ctor_ty == self.any_ty {
+                base_ctor_index_info = Some(self.any_base_type_index_info());
+            }
+        }
+
+        if let Some(index_symbol) = members.get(&SymbolName::Index) {
+            index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
+        } else {
+            let mut fallback_index_infos = vec![];
+            if let Some(base_ctor_index_info) = base_ctor_index_info {
+                fallback_index_infos.push(base_ctor_index_info);
+            }
+            if symbol_flags.intersects(SymbolFlags::ENUM)
+                && (self
+                    .get_declared_ty_of_symbol(symbol_id)
+                    .flags
+                    .contains(TypeFlags::ENUM)
+                    || members.values().any(|prop| {
+                        self.get_type_of_symbol(*prop)
+                            .flags
+                            .intersects(TypeFlags::NUMBER_LIKE)
+                    }))
+            {
+                fallback_index_infos.push(self.enum_number_index_info());
+            }
+            if fallback_index_infos.is_empty() {
+                index_infos = self.empty_array();
+            } else {
+                index_infos = self.alloc(fallback_index_infos);
+            }
+        }
 
         if symbol_flags.intersects(SymbolFlags::FUNCTION.union(SymbolFlags::METHOD)) {
             call_sigs = self.get_sigs_of_symbol(symbol_id);
-            ctor_sigs = self.empty_array();
-            index_infos = self.empty_array();
-        } else if symbol_flags.contains(SymbolFlags::CLASS) {
-            let mut base_ctor_index_info = None;
-            call_sigs = self.empty_array();
+        }
+        if symbol_flags.contains(SymbolFlags::CLASS) {
+            let class_ty = self.get_declared_ty_of_class_or_interface(symbol_id);
+            let mut ctor_sigs_of_class = vec![];
             if let Some(symbol) = self
                 .symbol(symbol_id)
                 .members()
                 .and_then(|m| m.0.get(&SymbolName::Constructor))
             {
-                ctor_sigs = self.get_sigs_of_symbol(*symbol)
-            } else {
-                ctor_sigs = self.empty_array();
-            }
-            // let mut base_ctor_index_info = None;
-            let class_ty = self.get_declared_ty_of_symbol(symbol_id);
-            let base_ctor_ty = self.get_base_constructor_type_of_class(class_ty);
-            if base_ctor_ty.flags.intersects(
-                TypeFlags::OBJECT
-                    .union(TypeFlags::INTERSECTION)
-                    .union(TypeFlags::TYPE_VARIABLE),
-            ) {
-                let props = self.get_props_of_ty(base_ctor_ty);
-                self.add_inherited_members(&mut members, props);
-            } else if base_ctor_ty == self.any_ty {
-                debug_assert!(base_ctor_index_info.is_none());
-                base_ctor_index_info = Some(self.any_base_type_index_info());
+                ctor_sigs_of_class.extend(self.get_sigs_of_symbol(*symbol).into_iter())
             }
 
-            if let Some(index_symbol) = members.get(&SymbolName::Index) {
-                index_infos = self.get_index_infos_of_index_symbol(*index_symbol);
-            } else if let Some(base_ctor_index_info) = base_ctor_index_info {
-                index_infos = self.alloc([base_ctor_index_info]);
-            } else {
-                index_infos = self.empty_array();
+            if symbol_flags.contains(SymbolFlags::FUNCTION) {
+                // let call_sigs = call_sigs.iter().map(|sig| {
+                //     // TODO:  is_js_ctor
+                // });
             }
 
-            if ctor_sigs.is_empty() {
+            if ctor_sigs_of_class.is_empty() {
                 ctor_sigs = self.get_default_construct_sigs(class_ty);
-            };
-        } else if symbol_flags.intersects(SymbolFlags::ENUM)
-            && (self
-                .get_declared_ty_of_symbol(symbol_id)
-                .flags
-                .contains(TypeFlags::ENUM)
-                || members.values().any(|prop| {
-                    self.get_type_of_symbol(*prop)
-                        .flags
-                        .intersects(TypeFlags::NUMBER_LIKE)
-                }))
-        {
-            call_sigs = self.empty_array();
-            ctor_sigs = self.empty_array();
-            index_infos = self.alloc([self.enum_number_index_info()]);
-        } else {
-            call_sigs = self.empty_array();
-            ctor_sigs = self.empty_array();
-            index_infos = self.empty_array()
-        };
+            } else {
+                ctor_sigs = self.alloc(ctor_sigs_of_class);
+            }
+        }
 
         let props = self.get_props_from_members(&members);
         let m = self.alloc(ty::StructuredMembers {
