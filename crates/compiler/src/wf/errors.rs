@@ -3,9 +3,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind} name cannot be '{name}'.")]

@@ -2,7 +2,7 @@ var ElChildren = {};
 (function (ElChildren) {
 
 })(ElChildren);
-class Elem {
+export class Elem {
   constructor(children_) {}
 }
 new Elem(undefined);

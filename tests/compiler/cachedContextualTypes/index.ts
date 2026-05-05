@@ -2,7 +2,6 @@
 
 //@compiler-options: strict
 //@compiler-options: target=es2015
-//@run-fail
 
 // Repro from #52198
 
@@ -22,6 +21,10 @@ class MenuWorkbenchToolBar {
 
 createInstance(MenuWorkbenchToolBar, {
     toolbarOptions: {
-        foo(bar) { return bar; }
+        foo(bar) { 
+            let a: boolean = bar;
+            //~^ ERROR: Type 'string' is not assignable to type 'boolean'.
+            return bar; 
+        }
     }
 });

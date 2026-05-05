@@ -252,6 +252,7 @@ pub fn visit_ty<'cx>(v: &mut impl Visitor<'cx>, ty: &'cx ast::Ty<'cx>) {
         Nullable(n) => v.visit_nullable_ty(n),
         TemplateLit(n) => v.visit_template_lit_ty(n),
         This(n) => v.visit_this_ty(n),
+        Import(_) => {}
     }
 }
 pub fn visit_this_ty<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::ThisTy) {}
@@ -813,6 +814,8 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         YieldExpr(_n) => todo!(),
         ImportEqualsDecl(_n) => todo!(),
         ExternalModuleReference(_n) => todo!(),
-        ClassSemiElem(_n) => {}
+        ClassSemiElem(_n) => todo!(),
+        ImportExpression(_) => todo!(),
+        ImportType(_) => todo!(),
     }
 }

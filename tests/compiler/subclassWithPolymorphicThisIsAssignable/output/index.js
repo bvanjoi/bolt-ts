@@ -1,4 +1,4 @@
-class Example {
+export class Example {
   constructor() {this.test();}
   test() {}
 }

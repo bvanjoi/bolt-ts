@@ -56,6 +56,7 @@ impl<'cx> Expr<'cx> {
             JsxFrag(n) => n.span,
             Delete(n) => n.span,
             Yield(n) => n.span,
+            Import(n) => n.span,
         }
     }
 
@@ -104,6 +105,7 @@ impl<'cx> Expr<'cx> {
             Delete(n) => n.id,
             Await(n) => n.id,
             Yield(n) => n.id,
+            Import(n) => n.id,
         }
     }
 
@@ -322,6 +324,7 @@ pub enum ExprKind<'cx> {
     NullLit(&'cx NullLit),
     RegExpLit(&'cx RegExpLit),
     ArrayLit(&'cx ArrayLit<'cx>),
+    Import(&'cx ImportExpression),
     Ident(&'cx Ident),
     Omit(&'cx OmitExpr),
     Paren(&'cx ParenExpr<'cx>),
@@ -729,6 +732,29 @@ pub enum AssignOp {
     NullishEq,
 }
 
+impl Into<TokenKind> for AssignOp {
+    fn into(self) -> TokenKind {
+        use AssignOp::*;
+        match self {
+            Eq => TokenKind::Eq,
+            AddEq => TokenKind::PlusEq,
+            SubEq => TokenKind::MinusEq,
+            MulEq => TokenKind::AsteriskEq,
+            DivEq => TokenKind::SlashEq,
+            ModEq => TokenKind::PercentEq,
+            ShlEq => TokenKind::LessLessEq,
+            ShrEq => TokenKind::GreatGreatEq,
+            UShrEq => TokenKind::GreatGreatGreatEq,
+            BitAndEq => TokenKind::AmpEq,
+            BitXorEq => TokenKind::CaretEq,
+            BitOrEq => TokenKind::PipeEq,
+            LogicalAndEq => todo!(),
+            LogicalOrEq => todo!(),
+            NullishEq => TokenKind::QuestionQuestionEq,
+        }
+    }
+}
+
 impl AssignOp {
     pub fn as_str(self) -> &'static str {
         use AssignOp::*;
@@ -831,6 +857,12 @@ pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: Exprs<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportExpression {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -946,6 +978,40 @@ impl BinOpKind {
 impl std::fmt::Display for BinOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Into<TokenKind> for BinOpKind {
+    fn into(self) -> TokenKind {
+        match self {
+            BinOpKind::Add => TokenKind::Plus,
+            BinOpKind::Sub => TokenKind::Minus,
+            BinOpKind::Mul => TokenKind::Asterisk,
+            BinOpKind::Div => TokenKind::Slash,
+            BinOpKind::Mod => TokenKind::Percent,
+            BinOpKind::Less => TokenKind::Less,
+            BinOpKind::LessEq => TokenKind::LessEq,
+            BinOpKind::Shl => TokenKind::LessLess,
+            BinOpKind::Great => TokenKind::Great,
+            BinOpKind::GreatEq => TokenKind::GreatEq,
+            BinOpKind::Sar => TokenKind::GreatGreat,
+            BinOpKind::Shr => TokenKind::GreatGreatGreat,
+            BinOpKind::BitOr => TokenKind::Pipe,
+            BinOpKind::BitAnd => TokenKind::Amp,
+            BinOpKind::BitXor => TokenKind::Caret,
+            BinOpKind::LogicalOr => TokenKind::PipePipe,
+            BinOpKind::LogicalAnd => TokenKind::AmpAmp,
+            BinOpKind::EqEq => TokenKind::EqEq,
+            BinOpKind::EqEqEq => TokenKind::EqEqEq,
+            BinOpKind::NEq => TokenKind::BangEq,
+            BinOpKind::NEqEq => TokenKind::BangEqEq,
+            BinOpKind::Instanceof => TokenKind::Instanceof,
+            BinOpKind::In => TokenKind::In,
+            BinOpKind::Satisfies => TokenKind::Satisfies,
+            BinOpKind::Exp => TokenKind::AsteriskAsterisk,
+            BinOpKind::Nullish => TokenKind::QuestionQuestion,
+            BinOpKind::Comma => TokenKind::Comma,
+        }
     }
 }
 
@@ -1068,10 +1134,20 @@ pub struct DeleteExpr<'cx> {
     pub expr: &'cx Expr<'cx>,
 }
 
+/// ```txt
+/// export import a = require('xxx');
+///   |           |   ~~~~~~~~~~~~~~ `module_reference`
+///   |           ~ `name`
+/// ~~~~~~ `export_modifier`
+///
+/// export import b = d.c;
+///                   ~~~ `entity_name`
+/// ```
 #[derive(Debug, Clone)]
 pub struct ImportEqualsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub export_modifier: Option<&'cx super::Modifier>,
     pub name: &'cx Ident,
     pub is_type_only: bool,
     pub module_reference: ModuleReferenceKind<'cx>,

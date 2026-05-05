@@ -1070,7 +1070,7 @@ impl ParserState<'_, '_> {
     }
 
     fn scan_escape_sequence(&mut self, flags: EscapeSequenceScanningFlags) -> Vec<u8> {
-        assert_eq!(self.ch_unchecked(), b'\\');
+        debug_assert_eq!(self.ch_unchecked(), b'\\');
         let start = self.pos;
         self.pos += 1;
         let end = self.end();
@@ -1091,16 +1091,53 @@ impl ParserState<'_, '_> {
             if self.pos < end && is_octal_digit(self.ch_unchecked()) {
                 self.pos += 1;
             }
-            self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+            self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
             if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
-                todo!()
+                let sub = &self.input[start + 1..self.pos];
+                let s = unsafe { str::from_utf8_unchecked(sub) };
+                let code = u8::from_str_radix(s, 8).unwrap();
+                let code = format!("{:x}", code);
+                let code = format!("{:0>2}", code);
+                let code = format!("\\x{}", code);
+                if flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                    && !flags.contains(EscapeSequenceScanningFlags::ATOM_ESCAPE)
+                    && ch != b'0'
+                {
+                    let error = errors::OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClassIfThisWasIntendedAsAnEscapeSequenceUseTheSyntaxXInstead {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        code,
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let error = errors::OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        code,
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
             return self.input[start..self.pos].to_vec();
         }
         if matches!(ch, b'8' | b'9') {
             self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
             if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
-                todo!()
+                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                if flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                    && !flags.contains(EscapeSequenceScanningFlags::ATOM_ESCAPE)
+                {
+                    let error = errors::DecimalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClass {
+                        span
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let code = &self.input[start..self.pos];
+                    let code = unsafe { str::from_utf8_unchecked(code) };
+                    let error = errors::EscapeSequenceXIsNotAllowed {
+                        span,
+                        code: code.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
             return self.input[start..self.pos].to_vec();
         }
@@ -1171,14 +1208,20 @@ impl ParserState<'_, '_> {
             Ok(escape_value) => {
                 if escape_value > 0x10ffff {
                     if should_emit_invalid_escape_error {
-                        todo!()
+                        let error = errors::AnExtendedUnicodeEscapeValueMustBeBetween0x0And0x10FFFFInclusive {
+                            span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        };
+                        self.push_error(Box::new(error));
                     }
                     is_invalid_extended_escape = true;
                 }
             }
             Err(_) => {
                 if should_emit_invalid_escape_error {
-                    todo!()
+                    let error = errors::HexadecimalDigitExpected {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                    };
+                    self.push_error(Box::new(error));
                 }
                 is_invalid_extended_escape = true
             }

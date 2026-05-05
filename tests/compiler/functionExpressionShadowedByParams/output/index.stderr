@@ -1,0 +1,11 @@
+  × This expression is not callable.
+   ╭─[../../tests/compiler/functionExpressionShadowedByParams/index.ts:6:4]
+ 6 │ b1
+   · ──
+   ╰────
+
+  × Property 'apply' does not exist on type 'number'.
+    ╭─[../../tests/compiler/functionExpressionShadowedByParams/index.ts:14:9]
+ 14 │ apply
+    · ─────
+    ╰────

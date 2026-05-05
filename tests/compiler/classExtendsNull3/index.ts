@@ -7,13 +7,13 @@
 class C1 extends null {
   static method() {
     super.oops;
-    //~^ ERROR: 'super' is possibly null.
+    //~^ ERROR: 'super' is possibly 'null'.
   }
 }
 
 class C2 extends null {
   method() {
     super.oops;
-    //~^ ERROR: 'super' is possibly null.
+    //~^ ERROR: 'super' is possibly 'null'.
   }
 }

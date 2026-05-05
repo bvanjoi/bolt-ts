@@ -1,2 +1,2 @@
-export declare function f(): void;
+export function f(): void;
 export default f;

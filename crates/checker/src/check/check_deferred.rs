@@ -78,7 +78,10 @@ impl<'cx> TyChecker<'cx> {
                 self.resolve_untyped_call(n);
             }
             VoidExpr(n) => {
-                self.check_expr(n.expr);
+                self.check_expression(n.expr, None);
+            }
+            TaggedTemplateExpr(n) => {
+                self.resolve_untyped_call(n);
             }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }

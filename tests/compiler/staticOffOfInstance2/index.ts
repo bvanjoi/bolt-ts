@@ -3,7 +3,7 @@
 class List<T> {
   public Blah() {
       this.Foo(); // no error
-      //~^ ERROR: Property 'Foo' does not exist on type 'List'.
+      //~^ ERROR: Property 'Foo' does not exist on type 'List<T, List>'.
       List.Foo();
   }
   public static Foo() { }

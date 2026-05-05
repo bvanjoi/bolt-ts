@@ -130,6 +130,7 @@ pub enum Node<'cx> {
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
     TaggedTemplateExpr(&'cx super::TaggedTemplateExpr<'cx>),
     DeleteExpr(&'cx super::DeleteExpr<'cx>),
+    ImportExpression(&'cx super::ImportExpression),
     NumLit(&'cx super::NumLit),
     BigIntLit(&'cx super::BigIntLit),
     BoolLit(&'cx super::BoolLit),
@@ -148,6 +149,7 @@ pub enum Node<'cx> {
     LitTy(&'cx super::LitTy),
     ReferTy(&'cx super::ReferTy<'cx>),
     ArrayTy(&'cx super::ArrayTy<'cx>),
+    ImportType(&'cx super::ImportType<'cx>),
     IndexedAccessTy(&'cx super::IndexedAccessTy<'cx>),
     FnTy(&'cx super::FnTy<'cx>),
     CtorTy(&'cx super::CtorTy<'cx>),
@@ -323,6 +325,7 @@ impl<'cx> Node<'cx> {
             ImportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
+            ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -476,7 +479,7 @@ impl<'cx> Node<'cx> {
         )
     }
 
-    pub fn is_decl(&self) -> bool {
+    pub fn is_declaration(&self) -> bool {
         use super::BindingKind;
         use super::Node::*;
         use super::ObjectBindingName;
@@ -636,8 +639,8 @@ impl<'cx> Node<'cx> {
     }
 
     #[inline]
-    pub fn is_fn_expr_or_arrow_fnc_expr(&self) -> bool {
-        self.is_fn_expr() || self.is_arrow_fn_expr()
+    pub fn is_fn_expr_or_arrow_fn_expr(&self) -> bool {
+        matches!(self, Node::FnExpr(_) | Node::ArrowFnExpr(_))
     }
 
     pub fn is_class_ele(&self) -> bool {
@@ -666,8 +669,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
-        self.modifiers()
-            .is_some_and(|ms| ms.flags.intersects(flags))
+        self.modifier_flags().map_or(false, |n| n.intersects(flags))
     }
 
     pub fn has_abstract_modifier(&self) -> bool {
@@ -706,8 +708,34 @@ impl<'cx> Node<'cx> {
         }
     }
 
-    pub fn can_have_modifiers(&self) -> bool {
-        self.modifiers().is_some()
+    pub fn modifier_flags(&self) -> Option<super::ModifierFlags> {
+        let ms = match self {
+            Node::ClassCtor(n) => n.modifiers,
+            Node::CtorTy(n) => n.modifiers,
+            Node::ClassMethodElem(n) => n.modifiers,
+            Node::ClassPropElem(n) => n.modifiers,
+            Node::GetterDecl(n) => n.modifiers,
+            Node::SetterDecl(n) => n.modifiers,
+            Node::PropSignature(n) => n.modifiers,
+            Node::FnDecl(n) => n.modifiers,
+            Node::VarStmt(n) => n.modifiers,
+            Node::ClassDecl(n) => n.modifiers,
+            Node::ModuleDecl(n) => n.modifiers,
+            Node::TypeAliasDecl(n) => n.modifiers,
+            Node::InterfaceDecl(n) => n.modifiers,
+            Node::ParamDecl(n) => n.modifiers,
+            Node::IndexSigDecl(n) => n.modifiers,
+            Node::EnumDecl(n) => n.modifiers,
+            Node::ImportEqualsDecl(n) => {
+                return if n.export_modifier.is_some() {
+                    Some(super::ModifierFlags::EXPORT)
+                } else {
+                    None
+                };
+            }
+            _ => return None,
+        };
+        ms.map(|ms| ms.flags)
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
@@ -1261,7 +1289,9 @@ as_node!(
     (FnExpr, super::FnExpr<'cx>, fn_expr),
     (NewExpr, super::NewExpr<'cx>, new_expr),
     (AssignExpr, super::AssignExpr<'cx>, assign_expr),
+    (ImportExpression, super::ImportExpression, import_expression),
     (ArrayTy, super::ArrayTy<'cx>, array_ty),
+    (ImportType, super::ImportType<'cx>, import_type),
     (FnTy, super::FnTy<'cx>, fn_ty),
     (CtorTy, super::CtorTy<'cx>, ctor_ty),
     (LitTy, super::LitTy, lit_ty),

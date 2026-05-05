@@ -641,6 +641,17 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_class_decl(&mut self, class: ir::ClassDeclID) {
         let class = self.nodes.get_class_decl(&class);
+        let ms = class.modifiers();
+        if let Some(ms) = ms {
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::EXPORT) {
+                self.emitter.print().p("export");
+                self.emitter.print().p_whitespace();
+            }
+            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::DEFAULT) {
+                self.emitter.print().p("default");
+                self.emitter.print().p_whitespace();
+            }
+        }
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
         if let Some(ident) = class.name() {
@@ -871,6 +882,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
                             };
                             (ms, ident)
                         })
+                    }
+                    ir::Stmt::Enum(n) => {
+                        let n = this.nodes.get_enum_decl(n);
+                        n.modifiers().map(|ms| (ms, n.name()))
                     }
                     _ => None,
                 };

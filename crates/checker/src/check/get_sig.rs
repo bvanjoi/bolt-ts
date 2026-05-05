@@ -3,6 +3,7 @@ use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
+use super::CheckMode;
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
@@ -33,7 +34,6 @@ impl<'cx> TyChecker<'cx> {
             id: SigID::dummy(),
             flags: sig.flags | call_chain_flags,
             params: sig.params,
-            this_param: sig.this_param,
             min_args_count: sig.min_args_count,
             ret: sig.ret,
             node_id: sig.node_id,
@@ -43,13 +43,17 @@ impl<'cx> TyChecker<'cx> {
             composite_sigs: sig.composite_sigs,
             composite_kind: sig.composite_kind,
         };
+        let mut links = SigLinks::default();
         if let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() {
-            let links = SigLinks::default().with_ty_params(ty_params);
-            let prev = self.sig_links.insert(new.id, links);
-            debug_assert!(prev.is_none());
+            links.set_ty_params(ty_params);
         }
-
-        self.new_sig(new)
+        if let Some(this_param) = self.get_sig_links(sig.id).get_this_param() {
+            links.set_this_param(this_param);
+        }
+        let new = self.new_sig(new);
+        let prev = self.sig_links.insert(new.id, links);
+        debug_assert!(prev.is_none());
+        new
     }
 
     pub(super) fn get_optional_call_sig(
@@ -102,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         let host_decl = decl; // TODO: sig in js doc
         let class_ty = if host_decl.is_class_ctor() {
             let class_decl = self.parent(id).unwrap();
-            let class_symbol = self.get_symbol_of_decl(class_decl);
+            let class_symbol = self.get_symbol_of_declaration(class_decl);
             Some(self.get_declared_ty_of_symbol(class_symbol))
         } else {
             None
@@ -114,13 +118,17 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_ty_params_from_decl(id)
         };
-        let sig = get_sig_from_decl(self, decl);
+        let (sig, this_param) = get_sig_from_decl(self, decl);
         let sig = self.new_sig(sig);
+        let mut links = super::links::SigLinks::default();
         if let Some(ty_params) = ty_params {
-            let links = super::links::SigLinks::default().with_ty_params(ty_params);
-            let prev = self.sig_links.insert(sig.id, links);
-            debug_assert!(prev.is_none());
+            links.set_ty_params(ty_params);
         }
+        if let Some(this_param) = this_param {
+            links.set_this_param(this_param);
+        }
+        let prev = self.sig_links.insert(sig.id, links);
+        debug_assert!(prev.is_none());
         self.get_mut_node_links(id).set_resolved_sig(sig);
         sig
     }
@@ -173,7 +181,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_sig_of_ty_tag(&mut self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
+    pub(super) fn get_sig_of_ty_tag(&self, id: ast::NodeID) -> Option<&'cx Sig<'cx>> {
         let n = self.p.node(id);
         // TODO: js
         if n.is_fn_decl_like() {
@@ -248,7 +256,7 @@ impl<'cx> TyChecker<'cx> {
             }
             base_constraints = self.instantiate_tys(base_constraints, ty_eraser);
             let mapper = self.create_ty_mapper(ty_params, base_constraints);
-            self.instantiate_sig(sig, mapper, true)
+            self.instantiate_sig::<true>(sig, mapper)
         } else {
             sig
         }
@@ -256,7 +264,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn create_erased_sig(&mut self, sig: &'cx Sig<'cx>, ty_params: ty::Tys<'cx>) -> &'cx Sig<'cx> {
         let mapper = self.create_ty_eraser(ty_params);
-        self.instantiate_sig(sig, mapper, true)
+        self.instantiate_sig::<true>(sig, mapper)
     }
 
     pub(super) fn get_erased_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {
@@ -268,7 +276,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_resolved_sig(&mut self, node: ast::NodeID) -> &'cx ty::Sig<'cx> {
+    pub(super) fn get_resolved_sig(
+        &mut self,
+        node: ast::NodeID,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
         if let Some(cached) = self.get_node_links(node).get_resolved_sig()
             && cached != resolving_sig
@@ -279,9 +291,11 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_node_links(node)
             .set_resolved_sig(resolving_sig);
 
+        let check_mode = check_mode.unwrap_or(CheckMode::empty());
         let sig = match self.p.node(node) {
-            ast::Node::CallExpr(call) => call.resolve_sig(self),
-            ast::Node::TaggedTemplateExpr(expr) => expr.resolve_sig(self),
+            ast::Node::CallExpr(call) => call.resolve_sig(self, check_mode),
+            ast::Node::NewExpr(new) => new.resolve_sig(self, check_mode),
+            ast::Node::TaggedTemplateExpr(expr) => expr.resolve_sig(self, check_mode),
             _ => unreachable!(),
         };
 
@@ -386,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
                 _ => unreachable!(),
             };
             if let Some(bin) = n.as_bin_expr() {
-                let right_ty = self.check_expr(bin.right);
+                let right_ty = self.check_non_null_expr(bin.right);
                 // func_ty = Some()
                 todo!()
             } else if let parent = self.parent(node).unwrap()
@@ -414,7 +428,7 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_sig()
                 }
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                let sig = self.get_resolved_sig(node);
+                let sig = self.get_resolved_sig(node, None);
                 if self.has_ty_pred_or_never_ret_ty(sig) {
                     sig
                 } else {
@@ -524,7 +538,10 @@ impl<'cx> TyChecker<'cx> {
     }
 }
 
-fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig<'cx> {
+fn get_sig_from_decl<'cx>(
+    checker: &TyChecker<'cx>,
+    node: ast::Node<'cx>,
+) -> (Sig<'cx>, Option<SymbolID>) {
     debug_assert!(
         node.is_fn_decl()
             || node.is_fn_expr()
@@ -618,18 +635,20 @@ fn get_sig_from_decl<'cx>(checker: &TyChecker<'cx>, node: ast::Node<'cx>) -> Sig
         ast::Node::SetterDecl(_) => None,
         _ => unreachable!(),
     };
-    ty::Sig {
-        flags,
+    (
+        ty::Sig {
+            flags,
+            params,
+            min_args_count: min_args_count as u32,
+            ret,
+            node_id: Some(node.id()),
+            target: None,
+            mapper: None,
+            id: SigID::dummy(),
+            class_decl: None,
+            composite_sigs: None,
+            composite_kind: None,
+        },
         this_param,
-        params,
-        min_args_count: min_args_count as u32,
-        ret,
-        node_id: Some(node.id()),
-        target: None,
-        mapper: None,
-        id: SigID::dummy(),
-        class_decl: None,
-        composite_sigs: None,
-        composite_kind: None,
-    }
+    )
 }

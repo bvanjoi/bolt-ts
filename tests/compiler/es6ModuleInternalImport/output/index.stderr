@@ -1,0 +1,11 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/es6ModuleInternalImport/index.ts:11:7]
+ 11 │ n2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/es6ModuleInternalImport/index.ts:13:7]
+ 13 │ n3
+    · ──
+    ╰────

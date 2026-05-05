@@ -22,37 +22,37 @@
     · ───
     ╰────
 
-  × Property 'foo' does not exist on type 'A'.
+  × Property 'foo' does not exist on type 'A<A>'.
    ╭─[../../tests/compiler/autoLift2/index.ts:9:14]
  9 │ foo
    · ───
    ╰────
 
-  × Property 'bar' does not exist on type 'A'.
+  × Property 'bar' does not exist on type 'A<A>'.
     ╭─[../../tests/compiler/autoLift2/index.ts:13:14]
  13 │ bar
     · ───
     ╰────
 
-  × Property 'foo' does not exist on type 'A'.
+  × Property 'foo' does not exist on type 'A<A>'.
     ╭─[../../tests/compiler/autoLift2/index.ts:22:11]
  22 │ foo
     · ───
     ╰────
 
-  × Property 'bar' does not exist on type 'A'.
+  × Property 'bar' does not exist on type 'A<A>'.
     ╭─[../../tests/compiler/autoLift2/index.ts:25:11]
  25 │ bar
     · ───
     ╰────
 
-  × Property 'foo' does not exist on type 'A'.
+  × Property 'foo' does not exist on type 'A<A>'.
     ╭─[../../tests/compiler/autoLift2/index.ts:28:33]
  28 │ foo
     · ───
     ╰────
 
-  × Property 'bar' does not exist on type 'A'.
+  × Property 'bar' does not exist on type 'A<A>'.
     ╭─[../../tests/compiler/autoLift2/index.ts:31:33]
  31 │ bar
     · ───

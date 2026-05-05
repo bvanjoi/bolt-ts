@@ -117,6 +117,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.node_query(decl.module())
                         .find_ancestor(p, |n| {
+                            let n = self.p.node(n);
                             if n.is_program() {
                                 Some(true)
                             } else if n.is_module_decl() {
@@ -412,6 +413,7 @@ impl<'cx> TyChecker<'cx> {
             target.node,
             alias_symbol,
             alias_ty_arguments,
+            None,
         )
     }
 
@@ -1114,7 +1116,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Sig<'cx> {
         let ty_params = self.get_ty_params_for_mapper(sig);
         let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
-        self.instantiate_sig(sig, mapper, true)
+        self.instantiate_sig::<true>(sig, mapper)
     }
 
     fn get_sig_instantiation_without_filling_ty_args(

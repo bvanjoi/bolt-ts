@@ -2,32 +2,30 @@ use super::TyChecker;
 use super::ty::{Ty, TypeFlags};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn all_types_assignable_to_kind(
+    pub(super) fn all_types_assignable_to_kind<const STRICT: bool>(
         &mut self,
         source: &'cx Ty<'cx>,
         kind: TypeFlags,
-        strict: bool,
     ) -> bool {
         if let Some(s) = source.kind.as_union() {
             return s
                 .tys
                 .iter()
-                .all(|sub_ty| self.all_types_assignable_to_kind(sub_ty, kind, strict));
+                .all(|sub_ty| self.all_types_assignable_to_kind::<STRICT>(sub_ty, kind));
         } else {
-            self.is_type_assignable_to_kind(source, kind, strict)
+            self.is_type_assignable_to_kind::<STRICT>(source, kind)
         }
     }
 
-    pub(super) fn is_type_assignable_to_kind(
+    pub(super) fn is_type_assignable_to_kind<const STRICT: bool>(
         &mut self,
         source: &'cx Ty<'cx>,
         flags: TypeFlags,
-        strict: bool,
     ) -> bool {
         if source.flags.intersects(flags) {
             return true;
         }
-        if strict
+        if STRICT
             && source.flags.intersects(
                 TypeFlags::ANY_OR_UNKNOWN
                     .union(TypeFlags::VOID)

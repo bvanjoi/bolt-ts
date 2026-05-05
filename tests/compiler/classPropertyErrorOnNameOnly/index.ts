@@ -9,7 +9,7 @@ type FuncType = (arg: Values) => string
 // turn on strictNullChecks
 class Example {
   insideClass: FuncType = function(val) { // error span goes from here
-//~^ ERROR: Type '(val: any) => undefined | "1" | "2" | "3" | "4" | "5"' is not assignable to type 'FuncType'.
+//~^ ERROR: Type '(val: Values) => undefined | "1" | "2" | "3" | "4" | "5"' is not assignable to type 'FuncType'.
     switch (val) {
       case 1:
         return "1";

@@ -556,7 +556,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
         node: ast::NodeID,
         _symbol: SymbolID,
     ) -> Option<SymbolID> {
-        if let Some(p) = self.checker.binder.parent(node)
+        if let Some(_) = self.checker.binder.parent(node)
         // && let _p_node = self.checker.p.node(p)
         {
             // TODO: is_namespace_export_declaration

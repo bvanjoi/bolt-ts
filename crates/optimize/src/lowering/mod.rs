@@ -932,6 +932,9 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
                 let expr = n.expr.map(|expr| self.lower_expr(expr));
                 ir::Expr::Yield(self.nodes.alloc_yield_expr(n.span, n.asterisk, expr))
             }
+            ExprKind::Import(_) => {
+                todo!()
+            }
         }
     }
 

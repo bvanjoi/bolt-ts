@@ -378,7 +378,7 @@ impl<'cx> TestState<'cx> {
                     .compiler_result()
                     .module_arena()
                     .get_content(span.module());
-                
+
                 content[span.lo() as usize..span.hi() as usize].to_string()
             })
             .collect()

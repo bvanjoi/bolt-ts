@@ -28,24 +28,26 @@ bitflags::bitflags! {
         const NO_DTS_RESOLUTION                         = 1 << 5;
         const NO_UNUSED_LOCALS                          = 1 << 6;
         const NO_UNUSED_PARAMETERS                      = 1 << 7;
+        const NO_STRICT_GENERIC_CHECKS                  = 1 << 8;
+        const NO_FALLTHROUGH_CASES_IN_SWITCH            = 1 << 9;
 
-        const STRICT                                    = 1 << 8;
-        const STRICT_NULL_CHECKS                        = 1 << 9;
-        const STRICT_PROPERTY_INITIALIZATION            = 1 << 10;
-        const STRICT_FUNCTION_TYPES                     = 1 << 11;
-        const STRICT_BIND_CALL_APPLY                    = 1 << 12;
-        const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 13;
+        const STRICT                                    = 1 << 10;
+        const STRICT_NULL_CHECKS                        = 1 << 11;
+        const STRICT_PROPERTY_INITIALIZATION            = 1 << 12;
+        const STRICT_FUNCTION_TYPES                     = 1 << 13;
+        const STRICT_BIND_CALL_APPLY                    = 1 << 14;
+        const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 15;
 
-        const RESOLVE_JSON_MODULE                       = 1 << 14;
-        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 15;
-        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 16;
+        const RESOLVE_JSON_MODULE                       = 1 << 16;
+        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 17;
+        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 18;
 
-        const DECLARATION                               = 1 << 17;
-        const ALWAYS_STRICT                             = 1 << 18;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 19;
-        const PRESERVE_SYMLINKS                         = 1 << 20;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 21;
-        const ES_MODULE_INTEROP                         = 1 << 22;
+        const DECLARATION                               = 1 << 19;
+        const ALWAYS_STRICT                             = 1 << 20;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 21;
+        const PRESERVE_SYMLINKS                         = 1 << 22;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 23;
+        const ES_MODULE_INTEROP                         = 1 << 24;
     }
 }
 
@@ -200,6 +202,12 @@ impl NormalizedCompilerOptions {
             && *module_resolution <= NormalizedModuleResolution::NodeNext)
             || self.resolve_package_json_exports()
             || self.resolve_package_json_imports()
+    }
+
+    #[inline(always)]
+    pub const fn no_fallthrough_cases_in_switch(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::NO_FALLTHROUGH_CASES_IN_SWITCH)
     }
 }
 

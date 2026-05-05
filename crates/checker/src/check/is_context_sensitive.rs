@@ -49,7 +49,7 @@ impl TyChecker<'_> {
         }
     }
 
-    fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {
+    pub(super) fn is_context_sensitive_fn_like(&self, id: ast::NodeID) -> bool {
         // TODO: has_context_sensitive_yield_expression
         self.has_context_sensitive_params(id) || self.has_context_sensitive_return_expr(id)
     }
@@ -74,6 +74,10 @@ impl TyChecker<'_> {
             }
             ObjectPropAssignment(n) => self.is_context_sensitive(n.init.id()),
             ParenExpr(n) => self.is_context_sensitive(n.expr.id()),
+            // TODO: jsx
+            YieldExpr(n) => n
+                .expr
+                .is_some_and(|expr| self.is_context_sensitive(expr.id())),
             _ => false,
         }
     }

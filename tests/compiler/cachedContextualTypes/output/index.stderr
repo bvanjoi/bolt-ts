@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/cachedContextualTypes/index.ts:25:17]
+ 25 │ a
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Cannot find name 'number'.
+    ╭─[../../tests/compiler/duplicateLabel3/index.ts:15:9]
+ 15 │ number
+    · ──────
+    ╰────

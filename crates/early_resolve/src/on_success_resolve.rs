@@ -46,12 +46,13 @@ impl<'cx> Resolver<'cx, '_, '_> {
         if p_node.is_class_like() {
             if self
                 .node_query()
-                .find_ancestor(
-                    ident.id,
-                    |node| {
-                        if node.is_static() { Some(true) } else { None }
-                    },
-                )
+                .find_ancestor(ident.id, |node| {
+                    if self.p.node(node).is_static() {
+                        Some(true)
+                    } else {
+                        None
+                    }
+                })
                 .is_some()
             {
                 // ```txt

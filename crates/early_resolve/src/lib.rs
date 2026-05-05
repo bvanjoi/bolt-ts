@@ -204,7 +204,18 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_symbol_by_ident(ident, MEANING_FOR_VALUE);
                 }
             }
-            Try(_) => {}
+            Try(n) => {
+                self.resolve_block_stmt(n.try_block);
+                if let Some(n) = n.catch_clause {
+                    if let Some(n) = n.var {
+                        self.resolve_var_decl(n);
+                    }
+                    self.resolve_block_stmt(n.block);
+                }
+                if let Some(n) = n.finally_block {
+                    self.resolve_block_stmt(n);
+                }
+            }
             While(n) => {
                 self.resolve_expr(n.expr);
                 self.resolve_stmt(n.stmt);
@@ -278,26 +289,44 @@ impl<'cx> Resolver<'cx, '_, '_> {
     }
 
     fn resolve_export(&mut self, export: &'cx ast::ExportDecl<'cx>) {
+        let is_type = export.clause.is_type_only;
+        const TYPE_MEANING: SymbolFlags = SymbolFlags::TYPE
+            .union(SymbolFlags::NAMESPACE)
+            .union(SymbolFlags::EXPORT_VALUE);
+        const DEFAULT_MEANING: SymbolFlags = MEANING_FOR_VALUE
+            .union(SymbolFlags::TYPE)
+            .union(SymbolFlags::NAMESPACE);
+        let meaning = if is_type {
+            TYPE_MEANING
+        } else {
+            DEFAULT_MEANING
+        };
         match export.clause.kind {
             ast::ExportClauseKind::Glob(_) => {}
             ast::ExportClauseKind::Ns(_) => {}
             ast::ExportClauseKind::Specs(specs) => {
+                if specs.module.is_some() {
+                    return;
+                }
                 for spec in specs.list {
                     use ast::ExportSpecKind::*;
                     match spec.kind {
                         Shorthand(n) => {
-                            const MEANING: SymbolFlags = MEANING_FOR_VALUE
-                                .union(SymbolFlags::TYPE)
-                                .union(SymbolFlags::NAMESPACE);
-                            self.resolve_symbol_by_ident(n.name, MEANING);
+                            let symbol = self.resolve_symbol_by_ident(n.name, meaning);
+                            if symbol.symbol == Symbol::ERR {
+                                let name = self.atoms.get(n.name.name).to_string();
+                                let error = errors::CannotFindName {
+                                    span: n.name.span,
+                                    name,
+                                    errors: vec![],
+                                };
+                                self.push_error(Box::new(error));
+                            }
                         }
                         Named(n) => {
-                            const MEANING: SymbolFlags = MEANING_FOR_VALUE
-                                .union(SymbolFlags::TYPE)
-                                .union(SymbolFlags::NAMESPACE);
                             match n.prop_name.kind {
                                 ast::ModuleExportNameKind::Ident(ident) => {
-                                    self.resolve_symbol_by_ident(ident, MEANING)
+                                    self.resolve_symbol_by_ident(ident, meaning)
                                 }
                                 ast::ModuleExportNameKind::StringLit(_) => {
                                     todo!()
@@ -542,7 +571,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Nullable(n) => {
                 self.resolve_ty(n.ty);
             }
-            Intrinsic(_) | This(_) => {}
             NamedTuple(n) => {
                 self.resolve_ty(n.ty);
             }
@@ -551,6 +579,8 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_ty(item.ty);
                 }
             }
+            Intrinsic(_) | This(_) => {}
+            Import(_) => {}
         }
     }
 
@@ -599,9 +629,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Setter(n) => {
+                self.resolve_prop_name(n.name);
                 self.resolve_params(n.params);
             }
             Getter(n) => {
+                self.resolve_prop_name(n.name);
                 if let Some(ty) = n.ty {
                     self.resolve_ty(ty);
                 }
@@ -760,6 +792,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     self.resolve_expr(expr);
                 }
             }
+            Import(_) => {}
         }
     }
 
@@ -1251,7 +1284,9 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         } && res.value_decl.is_some_and(|n| {
                             resolver
                                 .node_query()
-                                .find_ancestor(n, |current| current.is_param_decl().then_some(true))
+                                .find_ancestor(n, |current| {
+                                    resolver.p.node(current).is_param_decl().then_some(true)
+                                })
                                 .is_some()
                         }))
                 };
@@ -1279,6 +1314,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                     &resolver.states[id.module().as_usize()].symbols,
                 );
                 let module_exports = &resolver.symbol(symbol_id).exports();
+                let mut stop = false;
                 if n.is_program()
                     || (n
                         .as_module_decl()
@@ -1309,23 +1345,35 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                         }
                     }
                     // TODO: default
-                    if let Some(module_export) =
-                        module_exports.and_then(|table| table.0.get(&key).copied())
-                        && resolver
-                            .symbol(module_export)
-                            .flags
-                            .intersects(SymbolFlags::ALIAS)
+                    if let Some(module_exports) = module_exports
+                        && let Some(module_export) = module_exports.0.get(&key).copied()
+                        && let s = resolver.symbol(module_export)
+                        && s.flags == SymbolFlags::ALIAS
+                        && s.get_declaration_of_kind(|n| {
+                            matches!(
+                                resolver.p.node(n),
+                                ast::Node::ExportNamedSpec(_)
+                                    | ast::Node::ExportShorthandSpec(_)
+                                    | ast::Node::NsExport(_)
+                            )
+                        })
+                        .is_some()
                     {
-                        // TODO:
+                        stop = true;
                     }
                 }
 
-                if let Some(module_export) = module_exports.and_then(|e| e.0.get(&key).copied())
-                    && resolver
-                        .symbol(module_export)
-                        .flags
-                        .intersects(meaning & SymbolFlags::MODULE_MEMBER)
+                if !stop
+                    && ident.name != keyword::KW_DEFAULT
+                    && let Some(symbols) = module_exports
+                    && let Some(module_export) = get_symbol(
+                        resolver,
+                        symbols,
+                        key,
+                        meaning.intersection(SymbolFlags::MODULE_MEMBER),
+                    )
                 {
+                    // TODO: is_source_file
                     return ResolvedResult {
                         symbol: module_export,
                         associated_declaration_for_containing_initializer_or_binding_name,

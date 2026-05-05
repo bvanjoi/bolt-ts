@@ -185,3 +185,11 @@ let obj = {
 }
 
 assignPartial(obj, { foo(...args) {} });  // args has type [string]
+
+assignPartial(obj, { foo(...args) {
+  const b0: number = args[0];
+  //~^ ERROR: Type 'string' is not assignable to type 'number'.
+  const b1: number = args[1];
+  //~^ ERROR: Tuple type '[string]' of length '1' has no element at index '1'.
+  //~| ERROR: Type 'undefined' is not assignable to type 'number'.
+} });  // args has type [string]

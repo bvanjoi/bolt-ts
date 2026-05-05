@@ -2,9 +2,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot find name '{name}'.")]
@@ -43,7 +44,7 @@ pub(super) enum CannotFindNameHelperKind {
         BaseClassExpressionsCannotReferenceClassTypeParameters,
     ),
     #[error(transparent)]
-    #[diagnostic(transparent)]
+    #[diagnostic(severity(Advice))]
     InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(
         InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor,
     ),
@@ -166,7 +167,6 @@ pub(super) struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
 #[error(
     "Initializer of instance member variable '{x}' cannot reference identifier '{y}' declared in the constructor."
 )]
-#[diagnostic(severity(Advice))]
 pub(super) struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor
 {
     #[label(primary)]

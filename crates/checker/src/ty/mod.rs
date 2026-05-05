@@ -9,9 +9,12 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolID, SymbolName};
 
+use super::check::TyChecker;
+
 pub use bolt_ts_ty::CheckFlags;
 pub use bolt_ts_ty::IndexFlags;
 pub use bolt_ts_ty::ObjectFlags;
+pub use bolt_ts_ty::Pattern;
 pub use bolt_ts_ty::TypeFacts;
 pub use bolt_ts_ty::TypeFlags;
 
@@ -23,6 +26,7 @@ pub use self::links::InterfaceTyLinksArena;
 pub use self::links::PromiseOrAwaitableTyLinks;
 pub use self::links::{CommonTyLinks, CommonTyLinksArena, CommonTyLinksID};
 pub use self::links::{FreshTyLinksArena, FreshTyLinksID};
+pub use self::links::{IntersectionTyLinks, IntersectionTyLinksArena, IntersectionTyLinksID};
 pub use self::links::{ObjectMappedTyLinks, ObjectMappedTyLinksArena};
 pub use self::links::{PromiseOrAwaitableTyLinksArena, PromiseOrAwaitableTyLinksID};
 pub use self::links::{UnionTyLinks, UnionTyLinksArena, UnionTyLinksID};
@@ -35,8 +39,8 @@ pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind, ReverseMappedT
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
 pub use self::object_ty::{MappedTy, MappedTyNameTyKind};
+pub use self::sig::ExtraSig;
 pub use self::sig::{Sig, SigFlags, SigID, SigKind, Sigs};
-use super::check::TyChecker;
 
 bolt_ts_utils::index!(TyID);
 
@@ -138,7 +142,7 @@ impl<'cx> Ty<'cx> {
     pub fn is_no_infer_ty(&self) -> bool {
         self.kind
             .as_substitution_ty()
-            .map(|sub| sub.constraint.flags.intersects(TypeFlags::UNKNOWN))
+            .map(|sub| sub.constraint.flags.contains(TypeFlags::UNKNOWN))
             .unwrap_or_default()
     }
 
@@ -189,6 +193,18 @@ impl<'cx> Ty<'cx> {
             ObjectTyKind::Reference(n) => n.node.is_none(),
             ObjectTyKind::Tuple(_) => true,
             _ => unreachable!(),
+        }
+    }
+
+    pub fn pattern(&self) -> Option<Pattern<'cx>> {
+        let object_ty = self.kind.as_object()?;
+        match object_ty.kind {
+            ObjectTyKind::Reference(t) => {
+                debug_assert!(t.pattern.is_none() || t.target.kind.as_object_tuple().is_some());
+                t.pattern
+            }
+            ObjectTyKind::Anonymous(t) => t.pattern,
+            _ => None,
         }
     }
 }
@@ -275,7 +291,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Union(_) => None,
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => None,
-            TyKind::TemplateLit(_) => todo!(),
+            TyKind::TemplateLit(_) => None,
             _ => None,
         }
     }
@@ -568,6 +584,7 @@ pub struct IntersectionTy<'cx> {
     pub object_flags: ObjectFlags,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
+    pub links: IntersectionTyLinksID<'cx>,
 }
 
 #[derive(Debug)]

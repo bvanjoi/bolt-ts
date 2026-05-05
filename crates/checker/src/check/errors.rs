@@ -2,9 +2,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The value '{value}' cannot be used here.")]
@@ -338,7 +339,7 @@ pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type '{ty}' cannot be used to index type '{index_ty}'.")]
-pub(super) struct TypeCannotBeUsedToIndexType {
+pub(super) struct TypeXCannotBeUsedToIndexTypeY {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
@@ -598,9 +599,9 @@ pub(super) enum UndefinedOrNull {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("'{name}' is possibly {}.", {
     match kind {
-        UndefinedOrNull::Both => "undefined or null",
-        UndefinedOrNull::Undefined => "undefined",
-        UndefinedOrNull::Null => "null",
+        UndefinedOrNull::Both => "'undefined' or 'null'",
+        UndefinedOrNull::Undefined => "'undefined'",
+        UndefinedOrNull::Null => "'null'",
     }
 })]
 pub(super) struct XIsPossiblyNullOrUndefined {
@@ -865,6 +866,13 @@ pub(super) struct NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromC
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("An arithmetic operand must be of type 'any', 'number', 'bigint' or an enum type.")]
 pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A computed property name must be of type 'string', 'number', 'symbol' or 'any'.")]
+pub(super) struct AComputedPropertyNameMustBeOfTypeStringNumberSymbolOrAny {
     #[label(primary)]
     pub span: Span,
 }
@@ -1189,6 +1197,15 @@ pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
     pub span: Span,
     pub x: String,
     pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter '{parameter}' implicitly has an '{ty}' type.")]
+pub(super) struct ParameterImplicitlyHasAn1Type {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
@@ -1532,4 +1549,84 @@ pub(super) struct IndexSignatureInTypeXOnlyPermitsReading {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Merged declaration '{decl}' cannot include a default export declaration. Consider adding a separate 'export default {decl}' declaration instead."
+)]
+pub(super) struct MergedDeclarationCannotIncludeADefaultExportDeclarationConsiderAddingASeparateExportDefaultDeclarationInstead
+{
+    #[label(primary)]
+    pub span: Span,
+    pub decl: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Individual declarations in merged declaration '{decl}' must be all exported or all local."
+)]
+pub(super) struct IndividualDeclarationsInMergedDeclarationMustBeAllExportedOrAllLocal {
+    #[label(primary)]
+    pub span: Span,
+    pub decl: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "The intersection '{ty}' was reduced to 'never' because property '{prop}' has conflicting types in some constituents."
+)]
+pub(super) struct TheIntersectionTyWasReducedToNeverBecausePropertyHasConflictingTypesInSomeConstituents
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub prop: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is generic and can only be indexed for reading.")]
+pub(super) struct TypeIsGenericAndCanOnlyBeIndexedForReading {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Constructor of class '{class}' is {visible} and only accessible within the class declaration."
+)]
+pub(super) struct ConstructorOfClassXIsPrivateOrProtectedAndOnlyAccessibleWithinTheClassDeclaration
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub visible: &'static str,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
+pub(super) struct TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'new' expression, whose target lacks a construct signature, implicitly has an 'any' type."
+)]
+pub(super) struct NewExpressionWhoseTargetLacksAConstructSignatureImplicitlyHasAnAnyType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A 'super' call must be the first statement in the constructor to refer to 'super' or 'this' when a derived class contains initialized properties, parameter properties, or private identifiers."
+)]
+pub(super) struct ASuperCallMustBeTheFirstStatementInTheConstructorToReferToSuperOrThisWhenADerivedClassContainsInitializedPropertiesParameterPropertiesOrPrivateIdentifiers
+{
+    #[label(primary)]
+    pub span: Span,
 }

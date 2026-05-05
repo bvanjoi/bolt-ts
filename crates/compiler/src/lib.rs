@@ -392,6 +392,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
                 final_res: state.final_res,
                 diags: state.diags,
                 locals: state.locals,
+                local_symbols: state.local_symbols,
                 parent_map: state.parent_map,
             }
         })
@@ -425,6 +426,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         binder,
         merged_symbols,
         global_symbols,
+        emit_standard_class_fields,
     );
     for item in &entries {
         let is_default_lib = checker.module_arena.get_module(*item).is_default_lib();

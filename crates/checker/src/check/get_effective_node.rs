@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use super::get_simplified_ty::SimplifiedKind;
 use super::ty::{self, TypeFlags};
 use super::{TyChecker, create_ty::IntersectionFlags};
 
@@ -86,7 +85,7 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                return Some(self.get_normalized_ty(i, SimplifiedKind::Reading));
+                return Some(self.get_normalized_ty::<false>(i));
             }
         }
 
@@ -122,7 +121,7 @@ impl<'cx> TyChecker<'cx> {
         self.fill_missing_ty_args(ty_args, Some(ty_params), min_ty_argument_count)
     }
 
-    pub(super) fn get_effective_call_args(
+    pub(super) fn get_effective_call_arguments(
         &mut self,
         expr: &impl r#trait::CallLike<'cx>,
     ) -> Cow<'cx, [&'cx ast::Expr<'cx>]> {
@@ -145,7 +144,7 @@ impl<'cx> TyChecker<'cx> {
                         let arg = args[i];
                         if let ast::ExprKind::SpreadElement(spread) = &arg.kind {
                             // TODO: flow_loop_count
-                            let spared_ty = self.check_expr(spread.expr);
+                            let spared_ty = self.check_expression(spread.expr, None);
                             if let Some(t) = spared_ty.as_tuple() {
                                 let tys = self.get_element_tys(spared_ty);
                                 for (j, ty) in tys.iter().enumerate() {
@@ -172,9 +171,7 @@ impl<'cx> TyChecker<'cx> {
         n: ast::NodeID,
         flags_to_check: ast::ModifierFlags,
     ) -> ast::ModifierFlags {
-        let Some(mut modifier_flags) = self.p.node(n).modifiers().map(|ms| ms.flags) else {
-            return Default::default();
-        };
+        let mut modifier_flags = self.node_query(n.module()).get_combined_modifier_flags(n);
         let Some(p) = self.parent(n) else {
             return Default::default();
         };

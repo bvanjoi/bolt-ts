@@ -38,6 +38,7 @@ indexmap = { workspace = true }
 pretty-duration = "0.1.1"
 tracing = { workspace = true }
 glob = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 expect-test = { workspace = true }

@@ -1,0 +1,5 @@
+  × Cannot find name 'Unknown'.
+   ╭─[../../tests/compiler/declarationEmitTypeAliasTypeParameterExtendingUnknownSymbol/index.ts:7:18]
+ 7 │ Unknown
+   · ───────
+   ╰────

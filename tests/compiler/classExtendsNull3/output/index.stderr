@@ -1,10 +1,10 @@
-  × 'super' is possibly null.
+  × 'super' is possibly 'null'.
    ╭─[../../tests/compiler/classExtendsNull3/index.ts:9:5]
  9 │ super
    · ─────
    ╰────
 
-  × 'super' is possibly null.
+  × 'super' is possibly 'null'.
     ╭─[../../tests/compiler/classExtendsNull3/index.ts:16:5]
  16 │ super
     · ─────

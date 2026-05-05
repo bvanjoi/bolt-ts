@@ -1324,6 +1324,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.module_spec().id);
             }
             ClassSemiElem(_n) => {}
+            ImportExpression(_) => {}
+            ImportType(_) => {}
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
@@ -1485,8 +1487,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_non_null_expr_flow(&mut self, n: &ast::NonNullExpr<'cx>) {
-        // TODO: is_optional_chain
-        self.bind(n.expr.id());
+        if self.node_query().is_optional_chain(n.id) {
+            self.bind_optional_chain_flow(n.id);
+        } else {
+            self.bind(n.expr.id());
+        }
     }
 
     fn bind_call_expr_flow(&mut self, n: &'cx ast::CallExpr<'cx>) {

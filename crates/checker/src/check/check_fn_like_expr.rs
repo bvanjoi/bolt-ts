@@ -173,7 +173,11 @@ pub enum LanguageFeatures {
 // });
 
 impl<'cx> TyChecker<'cx> {
-    fn contextually_check_fn_expr_or_object_method_member(&mut self, id: ast::NodeID) {
+    fn contextually_check_fn_expr_or_object_literal_method(
+        &mut self,
+        id: ast::NodeID,
+        check_mode: Option<CheckMode>,
+    ) {
         let flags = |this: &mut Self| this.get_node_links(id).flags();
 
         if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
@@ -182,7 +186,7 @@ impl<'cx> TyChecker<'cx> {
             if !flags(self).contains(NodeCheckFlags::CONTEXT_CHECKED) {
                 self.get_mut_node_links(id)
                     .config_flags(|flags| flags | NodeCheckFlags::CONTEXT_CHECKED);
-                let symbol = self.get_symbol_of_decl(id);
+                let symbol = self.get_symbol_of_declaration(id);
                 let ty = self.get_type_of_symbol(symbol);
                 let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
                 let Some(sig) = sigs.first() else { return };
@@ -190,8 +194,8 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(contextual_sig) = contextual_sig {
                         let inference = self.get_inference_context(id);
                         let mut instantiated_contextual_sig = None;
-                        if let Some(check_mode) = self.check_mode
-                            && check_mode.intersects(CheckMode::INFERENTIAL)
+                        if let Some(check_mode) = check_mode
+                            && check_mode.contains(CheckMode::INFERENTIAL)
                         {
                             let inference = inference.unwrap().inference.unwrap();
                             self.infer_from_annotated_params_and_return(
@@ -205,7 +209,7 @@ impl<'cx> TyChecker<'cx> {
                             {
                                 let mapper = self.inference(inference).non_fixing_mapper;
                                 instantiated_contextual_sig =
-                                    Some(self.instantiate_sig(contextual_sig, mapper, false));
+                                    Some(self.instantiate_sig::<false>(contextual_sig, mapper));
                             }
                         }
                         let instantiated_contextual_sig =
@@ -215,7 +219,7 @@ impl<'cx> TyChecker<'cx> {
                                 && let Some(i) = inference.inference
                             {
                                 let mapper = self.inference(i).mapper;
-                                self.instantiate_sig(contextual_sig, mapper, false)
+                                self.instantiate_sig::<false>(contextual_sig, mapper)
                             } else {
                                 contextual_sig
                             };
@@ -228,7 +232,7 @@ impl<'cx> TyChecker<'cx> {
                     && n.ty_params().is_none()
                     && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
                 {
-                    if let Some(check_mode) = self.check_mode
+                    if let Some(check_mode) = check_mode
                         && check_mode.contains(CheckMode::INFERENTIAL)
                     {
                         let inference_context = self.get_inference_context(id);
@@ -240,7 +244,7 @@ impl<'cx> TyChecker<'cx> {
                     && self.get_ret_ty_from_anno(id).is_none()
                     && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
                 {
-                    let ret_ty = self.get_ret_ty_from_body(id);
+                    let ret_ty = self.get_return_type_from_body(id, check_mode);
                     self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
                 }
 
@@ -331,32 +335,32 @@ impl<'cx> TyChecker<'cx> {
         awaited_ty.unwrap_or(self.error_ty)
     }
 
-    pub(super) fn check_fn_like_expr_or_object_method_member(
+    pub(super) fn check_fn_like_expr_or_object_literal_method(
         &mut self,
         node: ast::NodeID,
+        check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         self.check_node_deferred(node);
 
-        if let Some(mode) = self.check_mode
+        if let Some(mode) = check_mode
             && mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
             && self.is_context_sensitive(node)
         {
             return if self.get_effective_ret_type_node(node).is_none()
                 && !self.has_context_sensitive_params(node)
                 && let Some(contextual_sig) = self.get_contextual_sig(node)
-                && let ret_ty_of_sig = self.get_ret_ty_of_sig(contextual_sig)
+                && let ret_ty_of_sig = self.get_return_type_of_signature(contextual_sig)
                 && self.could_contain_ty_var(ret_ty_of_sig)
             {
                 if let Some(context_free_ty) = self.get_node_links(node).get_context_free_ty() {
                     return context_free_ty;
                 };
-                let ret_ty = self.get_ret_ty_from_body(node);
+                let ret_ty = self.get_return_type_from_body(node, check_mode);
                 let ret_only_sig = self.new_sig(ty::Sig {
                     id: ty::SigID::dummy(),
                     params: self.empty_array(),
                     ret: None,
                     flags: ty::SigFlags::IS_NON_INFERRABLE,
-                    this_param: None,
                     target: None,
                     mapper: None,
                     class_decl: None,
@@ -370,7 +374,7 @@ impl<'cx> TyChecker<'cx> {
                     super::SigLinks::default().with_resolved_ret_ty(ret_ty),
                 );
                 debug_assert!(prev.is_none());
-                let symbol = self.get_symbol_of_decl(node);
+                let symbol = self.get_symbol_of_declaration(node);
                 let call_sigs = self.alloc([ret_only_sig]);
                 let ret_only_ty = self.create_anonymous_ty_with_resolved(
                     Some(symbol),
@@ -379,6 +383,7 @@ impl<'cx> TyChecker<'cx> {
                     call_sigs,
                     self.empty_array(),
                     self.empty_array(),
+                    None,
                     None,
                 );
                 self.get_mut_node_links(node)
@@ -389,17 +394,18 @@ impl<'cx> TyChecker<'cx> {
             };
         }
 
-        self.contextually_check_fn_expr_or_object_method_member(node);
+        self.contextually_check_fn_expr_or_object_literal_method(node, check_mode);
 
-        let symbol = self.get_symbol_of_decl(node);
+        let symbol = self.get_symbol_of_declaration(node);
         self.get_type_of_symbol(symbol)
     }
 
     pub(super) fn check_fn_like_expr(
         &mut self,
         expr: &impl r#trait::FnExprLike<'cx>,
+        check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        self.check_fn_like_expr_or_object_method_member(expr.id())
+        self.check_fn_like_expr_or_object_literal_method(expr.id(), check_mode)
     }
 
     pub(super) fn check_fn_like_expr_deferred(&mut self, expr: &impl r#trait::FnExprLike<'cx>) {
@@ -421,12 +427,12 @@ impl<'cx> TyChecker<'cx> {
         match body {
             Block(block) => self.check_block(block),
             Expr(expr) => {
-                let expr_ty = self.check_expr(expr);
+                let expr_ty = self.check_expression(expr, None);
                 if let Some(return_or_promised_ty) = ret_ty.and_then(|t| {
                     let fn_flags = self.p.node(func.id()).fn_flags();
                     self.unwrap_ret_ty(t, fn_flags)
                 }) {
-                    self.check_ret_expr::<false>(
+                    self.check_return_expression::<false>(
                         func.id(),
                         return_or_promised_ty,
                         Some(expr),

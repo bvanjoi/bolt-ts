@@ -3,7 +3,6 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 
-
 var aaa = 1;
 class CCC {
     y: number = aaa;

@@ -40,6 +40,6 @@ class C5 {
     constructor() {
         this.asdf = asdf;
 //~^ ERROR: Cannot find name 'asdf'.
-//~| ERROR: Property 'asdf' does not exist on type 'C5'.
+//~| ERROR: Property 'asdf' does not exist on type 'C5<C5>'.
     }
 }

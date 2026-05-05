@@ -137,7 +137,7 @@ impl<'cx> TyChecker<'cx> {
                                 .is_assignment_target(parent_parent)
                             && {
                                 let ty = self.get_ty_of_expr(parent_node.arg);
-                                self.is_type_assignable_to_kind(ty, TypeFlags::NUMBER_LIKE, false)
+                                self.is_type_assignable_to_kind::<false>(ty, TypeFlags::NUMBER_LIKE)
                             }
                     })
             }
@@ -681,7 +681,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::VarDecl(n) => self.get_init_ty_of_var_decl(n),
             _ => self.get_assigned_ty(n.node),
         };
-        self.get_narrow_ty_for_reference(ty, refer, None)
+        self.get_narrowable_ty_for_reference(ty, refer, None)
     }
 
     fn get_assigned_ty(&mut self, n: ast::NodeID) -> &'cx ty::Ty<'cx> {
@@ -868,7 +868,11 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
-        if self.get_ret_ty_of_sig(sig).flags.contains(TypeFlags::NEVER) {
+        if self
+            .get_return_type_of_signature(sig)
+            .flags
+            .contains(TypeFlags::NEVER)
+        {
             Some(FlowTy::Ty(self.unreachable_never_ty))
         } else {
             None
@@ -1363,7 +1367,7 @@ impl<'cx> TyChecker<'cx> {
         prop_name: SymbolName,
         assume_true: bool,
     ) -> bool {
-        if let Some(prop) = self.get_prop_of_ty::<false>(ty, prop_name) {
+        if let Some(prop) = self.get_prop_of_ty::<false, false>(ty, prop_name) {
             assume_true
                 || self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL)
                 || self.get_check_flags(prop).contains(CheckFlags::PARTIAL)
@@ -1696,7 +1700,7 @@ impl<'cx> TyChecker<'cx> {
                             .iter()
                             .map(|sig| {
                                 let s = this.get_erased_sig(sig);
-                                this.get_ret_ty_of_sig(s)
+                                this.get_return_type_of_signature(s)
                             })
                             .collect::<Vec<_>>();
                         let tys = this.alloc(tys);
@@ -2032,7 +2036,7 @@ impl<'cx> TyChecker<'cx> {
         contextual_ty.is_some_and(|contextual_ty| !self.is_generic_ty(contextual_ty))
     }
 
-    fn get_narrow_ty_for_reference(
+    pub(super) fn get_narrowable_ty_for_reference(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
@@ -2043,13 +2047,10 @@ impl<'cx> TyChecker<'cx> {
             ty = sub.base_ty;
         }
 
-        if !check_mode
-            .is_some_and(|check_mode| check_mode.intersects(super::CheckMode::INFERENTIAL))
+        if !check_mode.is_some_and(|check_mode| check_mode.contains(super::CheckMode::INFERENTIAL))
             && self.some_type(ty, |this, t| this.is_generic_ty_with_union_constraint(t))
-            && {
-                self.is_constraint_position(ty, refer)
-                    || self.has_contextual_ty_with_no_generic_tys(refer, check_mode)
-            }
+            && (self.is_constraint_position(ty, refer)
+                || self.has_contextual_ty_with_no_generic_tys(refer, check_mode))
         {
             self.map_ty(ty, |this, t| Some(this.get_base_constraint_or_ty(t)), false)
                 .unwrap()
@@ -2111,7 +2112,11 @@ impl<'cx> TyChecker<'cx> {
                         {
                             return false;
                         }
-                        if self.get_ret_ty_of_sig(sig).flags.contains(TypeFlags::NEVER) {
+                        if self
+                            .get_return_type_of_signature(sig)
+                            .flags
+                            .contains(TypeFlags::NEVER)
+                        {
                             return false;
                         }
                     }
@@ -2217,7 +2222,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_flow_type_of_prop_access_expr(
+    pub(super) fn get_flow_type_of_property_access_expression(
         &mut self,
         n: ast::NodeID,
         prop: Option<SymbolID>,
@@ -2260,7 +2265,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: self.get_flow_ty_of_property
             return prop_ty;
         }
-        let prop_ty = self.get_narrow_ty_for_reference(prop_ty, id, check_mode);
+        let prop_ty = self.get_narrowable_ty_for_reference(prop_ty, id, check_mode);
         let mut assume_uninitialized = false;
         let c = self.config.compiler_options();
         let strict_null_checks = c.strict_null_checks();

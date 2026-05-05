@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'Q'.
+    ╭─[../../tests/compiler/substitutionTypesCompareCorrectlyInRestrictiveInstances/index.ts:15:7]
+ 15 │ q
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'Q'.
+    ╭─[../../tests/compiler/substitutionTypesCompareCorrectlyInRestrictiveInstances/index.ts:20:7]
+ 20 │ r
+    · ─
+    ╰────

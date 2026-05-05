@@ -10,7 +10,6 @@ use rustc_hash::FxHashSet;
 use super::RelationComparisonResult;
 use super::create_ty::IntersectionFlags;
 use super::errors;
-use super::get_simplified_ty::SimplifiedKind;
 use super::get_variances::VarianceFlags;
 use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
@@ -148,12 +147,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         }
 
-        let source = self
-            .c
-            .get_normalized_ty(original_source, SimplifiedKind::Reading);
-        let target = self
-            .c
-            .get_normalized_ty(original_target, SimplifiedKind::Writing);
+        let source = self.c.get_normalized_ty::<false>(original_source);
+        let mut target = self.c.get_normalized_ty::<true>(original_target);
 
         if source == target {
             return Ternary::TRUE;
@@ -192,15 +187,17 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 3 if u.tys[0].flags.intersects(TypeFlags::NULLABLE)
                     && u.tys[1].flags.intersects(TypeFlags::NULLABLE) =>
                 {
-                    Some(u.tys[1])
+                    Some(u.tys[2])
                 }
                 _ => None,
             };
             if let Some(candidate) = candidate
                 && !candidate.flags.intersects(TypeFlags::NULLABLE)
-                && candidate == source
             {
-                return Ternary::TRUE;
+                target = self.c.get_normalized_ty::<true>(candidate);
+                if source == target {
+                    return Ternary::TRUE;
+                }
             }
         }
 
@@ -278,7 +275,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let calls = self.c.get_signatures_of_type(source, SigKind::Call);
                     let ctors = self.c.get_signatures_of_type(source, SigKind::Constructor);
                     if let Some(sig) = calls.first()
-                        && let ret_ty = self.c.get_ret_ty_of_sig(sig)
+                        && let ret_ty = self.c.get_return_type_of_signature(sig)
                         && self.is_related_to(
                             ret_ty,
                             target,
@@ -295,7 +292,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             };
                         self.c.push_error(Box::new(error));
                     } else if let Some(sig) = ctors.first()
-                        && let ret_ty = self.c.get_ret_ty_of_sig(sig)
+                        && let ret_ty = self.c.get_return_type_of_signature(sig)
                         && self.is_related_to(
                             ret_ty,
                             target,
@@ -492,7 +489,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         true
     }
 
-    fn props_related_to(
+    fn properties_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -688,7 +685,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     || name.is_numeric()
                     || name.expect_atom() == IDENT_LENGTH)
                 && (!optionals_only || target_s.flags.contains(SymbolFlags::OPTIONAL))
-                && let Some(source_prop) = self.c.get_prop_of_ty::<false>(source, name)
+                && let Some(source_prop) = self.c.get_prop_of_ty::<false, false>(source, name)
                 && !source_prop.eq(target_prop)
             {
                 let related = self.prop_related_to(
@@ -1108,10 +1105,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             self.structured_ty_related_to_worker(source, target, report_error, intersection_state);
         if self.relation != RelationKind::Identity {
             if result == Ternary::FALSE
-                && (source
-                    .flags
-                    .intersects(TypeFlags::INTERSECTION.union(TypeFlags::TYPE_PARAMETER))
-                    && target.flags.contains(TypeFlags::UNION))
+                && (source.flags.contains(TypeFlags::INTERSECTION)
+                    || source.flags.contains(TypeFlags::TYPE_PARAMETER)
+                        && target.flags.contains(TypeFlags::UNION))
             {
                 let tys = if let Some(i) = source.kind.as_intersection() {
                     i.tys
@@ -1141,7 +1137,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         .flags
                         .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
                 {
-                    result &= self.props_related_to(
+                    result &= self.properties_related_to(
                         source,
                         target,
                         report_error,
@@ -1177,7 +1173,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                                 .contains(ObjectFlags::NON_INFERRABLE_TYPE)
                     })
                 {
-                    result &= self.props_related_to(
+                    result &= self.properties_related_to(
                         source,
                         target,
                         report_error,
@@ -1621,7 +1617,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         } else {
                             AccessFlags::empty()
                         };
-                    let constraint = self.c.get_indexed_access_ty_or_undefined(
+                    let constraint = self.c.get_indexed_access_type_or_undefined(
                         base_object_ty,
                         base_index_ty,
                         Some(access_flags),
@@ -2061,7 +2057,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if source.kind.is_object_or_intersection() {
                 if target.kind.is_object() {
                     let report_error = report_error && !source_is_primitive;
-                    let mut res = self.props_related_to(
+                    let mut res = self.properties_related_to(
                         source,
                         target,
                         report_error,
@@ -2172,7 +2168,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             'outer: for ty in target_union.tys {
                 for (i, &source_prop) in source_props_filtered.iter().enumerate() {
                     let name = self.c.symbol(source_prop).name;
-                    let Some(target_prop) = self.c.get_prop_of_ty::<false>(ty, name) else {
+                    let Some(target_prop) = self.c.get_prop_of_ty::<false, false>(ty, name) else {
                         continue 'outer;
                     };
                     if source_prop == target_prop {
@@ -2204,7 +2200,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         let mut res = Ternary::TRUE;
         for ty in matching_tys {
-            res = self.props_related_to(
+            res = self.properties_related_to(
                 source,
                 ty,
                 false,
@@ -2634,7 +2630,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     return Ternary::FALSE;
                 }
             }
-            source = self.c.instantiate_sig(source, mapper, true);
+            source = self.c.instantiate_sig::<true>(source, mapper);
         }
 
         let mut result = Ternary::TRUE;
@@ -2660,8 +2656,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 // TODO:
                 Ternary::TRUE
             } else {
-                let source_ret_ty = self.c.get_ret_ty_of_sig(source);
-                let target_ret_ty = self.c.get_ret_ty_of_sig(target);
+                let source_ret_ty = self.c.get_return_type_of_signature(source);
+                let target_ret_ty = self.c.get_return_type_of_signature(target);
                 compare_tys(self, source_ret_ty, target_ret_ty)
             }
         }
@@ -2871,10 +2867,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             return Ternary::TRUE;
         }
         let is_top_sig = |this: &mut Self, sig: &'cx Sig<'cx>| {
-            if this.c.get_sig_links(sig.id).get_ty_params().is_none()
+            let sig_links = this.c.get_sig_links(sig.id);
+            if sig_links.get_ty_params().is_none()
                 && sig.params.len() == 1
                 && sig.has_rest_param()
-                && (sig.this_param.is_none_or(|this_param| {
+                && (sig_links.get_this_param().is_none_or(|this_param| {
                     let t = this.c.get_type_of_param(this_param);
                     this.c.is_type_any(t)
                 }))
@@ -2890,7 +2887,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     .intersects(TypeFlags::ANY.union(TypeFlags::NEVER))
                     && this
                         .c
-                        .get_ret_ty_of_sig(sig)
+                        .get_return_type_of_signature(sig)
                         .flags
                         .intersects(TypeFlags::ANY_OR_UNKNOWN);
             }
@@ -2936,6 +2933,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
+        if self.c.enable_out_of_band_variance_marker_handler
+            && let Some(ty) = source_rest_ty.or(target_rest_ty)
+        {
+            let mapper = self.c.report_unreliable_mapper;
+            self.c.instantiate_ty_worker(ty, mapper);
+        }
 
         use ast::Node::*;
         let strict_variance = !check_mode.intersects(SigCheckMode::CALLBACK)
@@ -3076,7 +3079,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         if !check_mode.contains(SigCheckMode::IGNORE_RETURN_TYPES) {
             let ret_ty = |this: &mut Self, sig: &'cx ty::Sig<'cx>| {
                 // TODO: cycle
-                this.c.get_ret_ty_of_sig(sig)
+                this.c.get_return_type_of_signature(sig)
             };
             let target_ret_ty = ret_ty(self, target);
             if target_ret_ty == self.c.any_ty || target_ret_ty == self.c.void_ty {

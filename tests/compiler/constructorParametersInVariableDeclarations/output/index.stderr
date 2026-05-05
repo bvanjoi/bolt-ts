@@ -7,10 +7,6 @@
 Advice: 
   ☞ Initializer of instance member variable 'a' cannot reference identifier
   │ 'x' declared in the constructor.
-   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:4:17]
- 4 │ x
-   · ─
-   ╰────
 
   × Cannot find name 'x'.
    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:6:22]
@@ -21,10 +17,6 @@ Advice:
 Advice: 
   ☞ Initializer of instance member variable 'b' cannot reference identifier
   │ 'x' declared in the constructor.
-   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:6:22]
- 6 │ x
-   · ─
-   ╰────
 
   × Cannot find name 'x'.
    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:8:23]
@@ -35,10 +27,6 @@ Advice:
 Advice: 
   ☞ Initializer of instance member variable 'c' cannot reference identifier
   │ 'x' declared in the constructor.
-   ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:8:23]
- 8 │ x
-   · ─
-   ╰────
 
   × Cannot find name 'x'.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:15:17]
@@ -49,10 +37,6 @@ Advice:
 Advice: 
   ☞ Initializer of instance member variable 'a' cannot reference identifier
   │ 'x' declared in the constructor.
-    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:15:17]
- 15 │ x
-    · ─
-    ╰────
 
   × Cannot find name 'x'.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:17:22]
@@ -63,10 +47,6 @@ Advice:
 Advice: 
   ☞ Initializer of instance member variable 'b' cannot reference identifier
   │ 'x' declared in the constructor.
-    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:17:22]
- 17 │ x
-    · ─
-    ╰────
 
   × Cannot find name 'x'.
     ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:19:23]
@@ -77,7 +57,3 @@ Advice:
 Advice: 
   ☞ Initializer of instance member variable 'c' cannot reference identifier
   │ 'x' declared in the constructor.
-    ╭─[../../tests/compiler/constructorParametersInVariableDeclarations/index.ts:19:23]
- 19 │ x
-    · ─
-    ╰────

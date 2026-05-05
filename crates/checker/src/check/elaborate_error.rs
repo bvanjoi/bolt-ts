@@ -1,3 +1,4 @@
+use super::CheckMode;
 use super::Ternary;
 use super::TyChecker;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
@@ -61,10 +62,10 @@ impl<'cx> TyChecker<'cx> {
         if target_sigs.is_empty() {
             return false;
         }
-        let source_return = self.get_ret_ty_of_sig(source_sig);
+        let source_return = self.get_return_type_of_signature(source_sig);
         let tys = target_sigs
             .iter()
-            .map(|sig| self.get_ret_ty_of_sig(*sig))
+            .map(|sig| self.get_return_type_of_signature(*sig))
             .collect::<Vec<_>>();
         let target_return =
             self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
@@ -127,7 +128,7 @@ impl<'cx> TyChecker<'cx> {
                 if matches!(member.kind, ast::ObjectMemberKind::SpreadAssignment(_)) {
                     return None;
                 }
-                let s = self.get_symbol_of_decl(member.id());
+                let s = self.get_symbol_of_declaration(member.id());
                 let ty = self.get_literal_ty_from_prop(
                     s,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
@@ -170,7 +171,10 @@ impl<'cx> TyChecker<'cx> {
             .flat_map(|(i, ele)| {
                 if self.is_tuple_like(target)
                     && self
-                        .get_prop_of_ty::<false>(target, SymbolName::EleNum((i as f64).into()))
+                        .get_prop_of_ty::<false, false>(
+                            target,
+                            SymbolName::EleNum((i as f64).into()),
+                        )
                         .is_none()
                 {
                     None
@@ -204,8 +208,8 @@ impl<'cx> TyChecker<'cx> {
             let nodes = self.generate_limited_tuple_elements(node, target);
             return self.elaborate_element_wise(&nodes, source, target, relation);
         }
-        self.push_type_context(node.id, Some(target), false);
-        let tupleized_ty = self.check_array_lit(node, true);
+        self.push_type_context::<false>(node.id, Some(target));
+        let tupleized_ty = self.check_array_literal::<true>(node, Some(CheckMode::CONTEXTUAL));
         self.pop_type_context();
         if self.is_tuple_like(tupleized_ty) {
             let nodes = self.generate_limited_tuple_elements(node, target);
@@ -222,7 +226,7 @@ impl<'cx> TyChecker<'cx> {
         name_ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(idx) =
-            self.get_indexed_access_ty_or_undefined(target, name_ty, None, None, None, None)
+            self.get_indexed_access_type_or_undefined(target, name_ty, None, None, None, None)
         {
             return Some(idx);
         }
@@ -236,7 +240,8 @@ impl<'cx> TyChecker<'cx> {
                 }
             })
         {
-            return self.get_indexed_access_ty_or_undefined(best, name_ty, None, None, None, None);
+            return self
+                .get_indexed_access_type_or_undefined(best, name_ty, None, None, None, None);
         }
 
         None
@@ -355,8 +360,8 @@ impl<'cx> TyChecker<'cx> {
             if target_prop_ty.flags.contains(TypeFlags::INDEXED_ACCESS) {
                 continue;
             }
-            let Some(source_prop_ty) =
-                self.get_indexed_access_ty_or_undefined(source, e.name_ty, None, None, None, None)
+            let Some(source_prop_ty) = self
+                .get_indexed_access_type_or_undefined(source, e.name_ty, None, None, None, None)
             else {
                 continue;
             };

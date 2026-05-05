@@ -4,8 +4,14 @@
     · ──────────
     ╰────
 
-  × Type 'A' is not assignable to type 'S'.
-    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:81]
- 24 │ new A
-    · ─────
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:76]
+ 24 │ b => new A
+    · ──────────
+    ╰────
+
+  × Property 'z' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:76]
+ 24 │ b => new A
+    · ──────────
     ╰────

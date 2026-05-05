@@ -22,11 +22,11 @@ impl<'cx> TyChecker<'cx> {
                 .union(ast::ModifierFlags::ABSTRACT)
                 .union(ast::ModifierFlags::READONLY)
                 .union(ast::ModifierFlags::STATIC);
-            match (l.modifiers(), r.modifiers()) {
+            match (l.modifier_flags(), r.modifier_flags()) {
                 (None, None) => true,
-                (None, Some(r)) => !r.flags.intersects(FLAGS),
-                (Some(l), None) => !l.flags.intersects(FLAGS),
-                (Some(l), Some(r)) => l.flags.intersects(FLAGS) == r.flags.intersects(FLAGS),
+                (None, Some(r)) => !r.intersects(FLAGS),
+                (Some(l), None) => !l.intersects(FLAGS),
+                (Some(l), Some(r)) => l.intersects(FLAGS) == r.intersects(FLAGS),
             }
         }
     }
@@ -43,12 +43,12 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty(ty);
         }
 
-        let symbol = self.get_symbol_of_decl(decl_id);
+        let symbol = self.get_symbol_of_declaration(decl_id);
         let ty = self.get_type_of_symbol(symbol);
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
-                let init_ty = self.check_expr_cached(init);
+                let init_ty = self.check_expression_cached(init, None);
                 debug_assert!(
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let is_assignment = s.flags.contains(SymbolFlags::ASSIGNMENT);
-            let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
+            let decl_ty = self.get_widened_ty_for_var_like_decl::<false>(decl);
             if !self.is_error(ty)
                 && !self.is_error(decl_ty)
                 && !self.is_type_identical_to(ty, decl_ty)
@@ -94,6 +94,13 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
         }
+
+        if !matches!(
+            self.p.node(decl_id),
+            ast::Node::ClassPropElem(_) | ast::Node::PropSignature(_)
+        ) {
+            self.check_exports_on_merged_decls(decl_id);
+        }
     }
 
     pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl crate::r#trait::VarLike<'cx>) {
@@ -102,7 +109,7 @@ impl<'cx> TyChecker<'cx> {
         let name = decl.name();
         match name {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, id, decl),
-            PrivateIdent(name) => {
+            PrivateIdent(_) => {
                 // TODO:
             }
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
@@ -125,7 +132,7 @@ impl<'cx> TyChecker<'cx> {
                             if let ast::ObjectBindingName::Prop { prop_name, .. } = elem.name
                                 && let ast::PropNameKind::Computed(computed) = prop_name.kind
                             {
-                                self.check_computed_prop_name(computed);
+                                self.check_computed_property_name(computed);
                             }
                             self.check_var_like_decl(*elem);
                         }
@@ -149,9 +156,10 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 };
                 if need_check_initializer || need_check_widened_ty {
-                    let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
+                    let widened_ty = self.get_widened_ty_for_var_like_decl::<false>(decl);
                     if need_check_initializer {
-                        let initializer_ty = self.check_expr_cached(decl.init().unwrap());
+                        let initializer_ty =
+                            self.check_expression_cached(decl.init().unwrap(), None);
                         if self.config.compiler_options().strict_null_checks()
                             && need_check_widened_ty
                         {

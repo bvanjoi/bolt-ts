@@ -12,7 +12,7 @@ class Foo {
 
       var f = () => this.x; // 'this' should be type 'Foo' as well
       var p = this.y;
-      //~^ ERROR: Property 'y' does not exist on type 'Foo'.
+      //~^ ERROR: Property 'y' does not exist on type 'Foo<Foo>'.
       return this;
   }
 

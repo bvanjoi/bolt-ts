@@ -28,6 +28,7 @@ var enums = {};
     A[A['a76'] = 0] = 'a76'
     A[A['a77'] = 0] = 'a77'
   })(A);
+  enums.A = A;
   
   var B = {};
   (function (B) {
@@ -37,6 +38,7 @@ var enums = {};
     B[B['b86'] = 0] = 'b86'
     B[B['b87'] = 0] = 'b87'
   })(B);
+  enums.B = B;
   
   var C = {};
   (function (C) {
@@ -46,6 +48,7 @@ var enums = {};
     C[C['c210'] = 0] = 'c210'
     C[C['c211'] = 0] = 'c211'
   })(C);
+  enums.C = C;
   
 })(enums);
 function foo(so) {

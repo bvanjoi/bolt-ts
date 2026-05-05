@@ -1,5 +1,5 @@
 declare namespace Foo {
-  class B<T> {}
-  class A {}
+  export class B<T> {}
+  export class A {}
 }
 declare var a: Foo.B<Foo.A>

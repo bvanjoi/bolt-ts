@@ -93,8 +93,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-
-
     fn parse_prepart(&mut self) -> Result<PreReleasePart, ParseError> {
         self.consume_whitespace();
 

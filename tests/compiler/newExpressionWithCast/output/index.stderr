@@ -1,0 +1,24 @@
+  × Expression expected.
+    ╭─[../../tests/compiler/newExpressionWithCast/index.ts:13:17]
+ 13 │ <
+    · ─
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/newExpressionWithCast/index.ts:13:18]
+ 13 │ any
+    · ───
+    ╰────
+
+  × 'new' expression, whose target lacks a construct signature, implicitly has
+  │ an 'any' type.
+   ╭─[../../tests/compiler/newExpressionWithCast/index.ts:8:12]
+ 8 │ new Test()
+   · ──────────
+   ╰────
+
+  × Operator '>' cannot be applied to types 'boolean' and 'void'.
+    ╭─[../../tests/compiler/newExpressionWithCast/index.ts:13:21]
+ 13 │ >
+    · ─
+    ╰────

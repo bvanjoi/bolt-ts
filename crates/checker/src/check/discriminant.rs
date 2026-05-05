@@ -17,7 +17,7 @@ impl<'cx> TyChecker<'cx> {
         let n = self.p.node(refer);
         if n.is_array_pat()
             || n.is_object_pat()
-            || n.is_fn_expr_or_arrow_fnc_expr()
+            || n.is_fn_expr_or_arrow_fn_expr()
             || n.is_object_method_member()
         {
             if let ast::Node::Ident(n) = expr {

@@ -712,8 +712,8 @@ impl<'cx> super::TyChecker<'cx> {
             let flags = binder_symbol(self, symbol).flags;
             if flags.intersects(meaning) {
                 return Some(symbol);
-            } else if flags.intersects(SymbolFlags::ALIAS) {
-                let target_flags = self.get_symbol_flags(symbol, false);
+            } else if flags.contains(SymbolFlags::ALIAS) {
+                let target_flags = self.get_symbol_flags::<false>(symbol);
                 if target_flags.intersects(meaning) {
                     return Some(symbol);
                 }
@@ -722,10 +722,9 @@ impl<'cx> super::TyChecker<'cx> {
         None
     }
 
-    pub(super) fn get_symbol_flags(
+    pub(super) fn get_symbol_flags<const EXCLUDE_TYPE_ONLY_MEANING: bool>(
         &mut self,
         mut symbol: SymbolID,
-        exclude_ty_only_meaning: bool,
     ) -> SymbolFlags {
         let mut seen_symbols = fx_hashset_with_capacity(32);
         let mut symbol_flags = self.symbol(symbol).flags;
@@ -795,7 +794,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn is_late_bindable_name(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
             let ty = if let ast::DeclarationName::Computed(n) = name {
-                self.check_computed_prop_name(n)
+                self.check_computed_property_name(n)
             } else {
                 todo!("element access")
             };
@@ -813,7 +812,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn is_late_bindable_index_signature(&mut self, name: &ast::DeclarationName<'cx>) -> bool {
         name.is_late_bindable_ast() && {
             let ty = if let ast::DeclarationName::Computed(n) = name {
-                self.check_computed_prop_name(n)
+                self.check_computed_property_name(n)
             } else {
                 todo!("element access")
             };
@@ -831,7 +830,7 @@ impl<'cx> super::TyChecker<'cx> {
         decl: ast::NodeID,
         symbol_flags: SymbolFlags,
     ) {
-        debug_assert!(self.p.node(decl).is_decl());
+        debug_assert!(self.p.node(decl).is_declaration());
         debug_assert!(self.get_check_flags(symbol).intersects(CheckFlags::LATE));
         debug_assert_eq!(symbol.module(), bolt_ts_span::ModuleID::TRANSIENT);
         let decl_s = self.final_res(decl);
@@ -866,7 +865,7 @@ impl<'cx> super::TyChecker<'cx> {
         late_symbols: &mut SymbolTable,
         decl: ast::NodeID,
     ) -> SymbolID {
-        debug_assert!(self.p.node(decl).is_decl());
+        debug_assert!(self.p.node(decl).is_declaration());
         if let Some(s) = self.get_node_links(decl).get_resolved_symbol() {
             return s;
         }
@@ -875,7 +874,7 @@ impl<'cx> super::TyChecker<'cx> {
         // TODO: binary expression
         let decl_name = self.p.node(decl).name().unwrap();
         let ty = match decl_name {
-            ast::DeclarationName::Computed(n) => self.check_computed_prop_name(n),
+            ast::DeclarationName::Computed(n) => self.check_computed_property_name(n),
             // TODO: element access
             _ => unreachable!("decl_name: {:#?}", decl_name),
         };

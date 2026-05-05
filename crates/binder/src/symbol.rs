@@ -269,7 +269,7 @@ impl Symbol {
 
     pub fn can_have_symbol(node: bolt_ts_ast::Node<'_>) -> bool {
         use bolt_ts_ast::Node::*;
-        node.is_decl() || matches!(node, FnTy(_) | ObjectLitTy(_) | CtorTy(_))
+        node.is_declaration() || matches!(node, FnTy(_) | ObjectLitTy(_) | CtorTy(_))
     }
 
     pub fn get_decl_of_alias_symbol(&self, p: &ParsedMap) -> Option<NodeID> {

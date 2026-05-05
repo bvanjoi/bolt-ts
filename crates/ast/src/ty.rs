@@ -40,6 +40,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NamedTuple(n) => n.span,
             TyKind::TemplateLit(n) => n.span,
             TyKind::This(n) => n.span,
+            TyKind::Import(n) => n.span,
         }
     }
 
@@ -68,6 +69,7 @@ impl<'cx> Ty<'cx> {
             TyKind::TemplateLit(n) => n.id,
             TyKind::Intrinsic(n) => n.id,
             TyKind::This(n) => n.id,
+            TyKind::Import(n) => n.id,
         }
     }
 
@@ -155,6 +157,7 @@ pub enum TyKind<'cx> {
     Nullable(&'cx NullableTy<'cx>),
     TemplateLit(&'cx TemplateLitTy<'cx>),
     This(&'cx ThisTy),
+    Import(&'cx ImportType<'cx>),
 }
 
 impl TyKind<'_> {
@@ -693,4 +696,15 @@ pub struct QualifiedName<'cx> {
     pub span: Span,
     pub left: &'cx EntityName<'cx>,
     pub right: &'cx Ident,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportType<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    /// `typeof import('xxx')`
+    pub is_typeof: bool,
+    pub argument: &'cx ty::Ty<'cx>,
+    pub qualifier: Option<&'cx EntityName<'cx>>,
+    pub type_arguments: Option<&'cx Tys<'cx>>,
 }

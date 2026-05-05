@@ -44,6 +44,7 @@ pub struct ResolveResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
     // TODO: use `NodeId::index` is enough
     pub locals: FxHashMap<ast::NodeID, SymbolTable>,
+    pub local_symbols: FxHashMap<u32, SymbolID>,
     pub parent_map: ParentMap,
 }
 

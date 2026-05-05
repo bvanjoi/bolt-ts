@@ -47,6 +47,7 @@ impl<'cx> TyChecker<'cx> {
             Nullable(n) => (),
             TemplateLit(n) => (),
             This(n) => (),
+            Import(_) => (),
         };
         self.current_node = saved_current_node;
     }
@@ -145,7 +146,7 @@ impl<'cx> TyChecker<'cx> {
                 CallSig(_) => (),
                 CtorSig(_) => (),
                 Setter(_) => (),
-                Getter(_) => (),
+                Getter(n) => self.check_getter_decl(n),
             }
         }
 

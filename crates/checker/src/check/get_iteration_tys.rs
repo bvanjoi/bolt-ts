@@ -8,6 +8,7 @@ use super::TyChecker;
 use super::check_expr::IterationUse;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
+use super::errors;
 use super::ty;
 
 pub(super) enum IterationTypeKind {
@@ -356,7 +357,7 @@ impl<'cx> TyChecker<'cx> {
         error_output_container: Option<ast::NodeID>,
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
-        let method = self.get_prop_of_ty::<false>(ty, name);
+        let method = self.get_prop_of_ty::<false, false>(ty, name);
         let method_name_is_not_next = method_name != keyword::IDENT_NEXT;
         if method.is_none() && method_name_is_not_next {
             return None;
@@ -446,7 +447,7 @@ impl<'cx> TyChecker<'cx> {
                     None => method_param_tys = Some(vec![ty]),
                 }
             }
-            let ty = self.get_ret_ty_of_sig(sig);
+            let ty = self.get_return_type_of_signature(sig);
             match &mut method_return_tys {
                 Some(method_return_tys) => {
                     method_return_tys.push(ty);
@@ -639,7 +640,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::IterationTys<'cx> {
         let name = bolt_ts_binder::SymbolName::Atom(resolver.iterator_symbol_name());
         let name = self.get_prop_name_for_known_symbol_name(name);
-        let method = self.get_prop_of_ty::<false>(ty, name);
+        let method = self.get_prop_of_ty::<false, false>(ty, name);
         let method_ty = if let Some(method) = method
             && !self.symbol(method).flags.contains(SymbolFlags::OPTIONAL)
         {
@@ -679,7 +680,7 @@ impl<'cx> TyChecker<'cx> {
         let iterator_ty = {
             let tys = valid_sigs
                 .iter()
-                .map(|sig| self.get_ret_ty_of_sig(sig))
+                .map(|sig| self.get_return_type_of_signature(sig))
                 .collect::<Vec<_>>();
             self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
         };
@@ -1054,6 +1055,24 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn report_type_not_iterable_error(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        error_node: ast::NodeID,
+        allow_async_iterable: bool,
+    ) {
+        let ty = self.print_ty(ty, None).to_string();
+        if allow_async_iterable {
+            todo!()
+        } else {
+            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+                span: self.p.node(error_node).span(),
+                ty,
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
     pub(super) fn get_iteration_tys_of_iterable(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
@@ -1075,7 +1094,11 @@ impl<'cx> TyChecker<'cx> {
             );
             if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
                 if let Some(error_node) = error_node {
-                    todo!()
+                    self.report_type_not_iterable_error(
+                        ty,
+                        error_node,
+                        mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
+                    );
                 }
 
                 return None;

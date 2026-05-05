@@ -1,0 +1,13 @@
+  × Type '{ key: "foo"; value: number; }' is not assignable to type '{ key:
+  │ "foo"; value: string; } | { key: "bar"; value: number; }'.
+    ╭─[../../tests/compiler/mappedTypeIndexedAccess/index.ts:21:5]
+ 21 │ pair1
+    · ─────
+    ╰────
+
+  × Type '{ key: "foo"; value: number; }' is not assignable to type '{ key:
+  │ "foo"; value: string; } | { key: "bar"; value: number; }'.
+    ╭─[../../tests/compiler/mappedTypeIndexedAccess/index.ts:28:5]
+ 28 │ pair2
+    · ─────
+    ╰────

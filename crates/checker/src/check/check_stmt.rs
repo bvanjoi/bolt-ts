@@ -19,12 +19,12 @@ impl<'cx> TyChecker<'cx> {
         match stmt.kind {
             Var(node) => self.check_var_stmt(node),
             Expr(node) => {
-                self.check_expr(node.expr);
+                self.check_expression(node.expr, None);
             }
             Fn(node) => self.check_fn_decl(node),
             If(node) => self.check_if_stmt(node),
             Block(node) => self.check_block(node),
-            Ret(node) => self.check_ret_stmt(node),
+            Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
             Interface(node) => self.check_interface_decl(node),
             Module(node) => self.check_module_decl(node),
@@ -53,20 +53,20 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
-        self.check_truthiness_expr(node.expr);
+        self.check_truthiness_expr(node.expr, None);
         self.check_stmt(node.stmt);
     }
 
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
-        let expr_ty = self.check_expr(node.expr);
+        let expr_ty = self.check_expression(node.expr, None);
         let mut first_default_clause = None;
         let mut has_duplicate_default_clause = false;
 
         for clause in node.case_block.clauses {
             match clause {
                 Case(n) => {
-                    let case_ty = self.check_expr(n.expr);
+                    let case_ty = self.check_expression(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
                         self.check_type_comparable_to(
                             case_ty,
@@ -110,7 +110,7 @@ impl<'cx> TyChecker<'cx> {
 
         self.compute_enum_member_values(node);
 
-        let enum_symbol = self.get_symbol_of_decl(node.id);
+        let enum_symbol = self.get_symbol_of_declaration(node.id);
         let s = self.binder.symbol(enum_symbol);
         let Some(first_decl) = s.get_declaration_of_kind(|n| self.p.node(n).is_enum_decl()) else {
             unreachable!()
@@ -152,7 +152,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {
         if let Some(init) = member.init {
-            self.check_expr(init);
+            self.check_expression(init, None);
         }
     }
 
@@ -207,6 +207,10 @@ impl<'cx> TyChecker<'cx> {
                 },
             };
             let symbol = self.final_res(name.id);
+            if symbol == Symbol::ERR {
+                // TODO: delay_span_bug
+                return;
+            }
 
             if symbol == Symbol::UNDEFINED
                 || symbol == Symbol::GLOBAL_THIS
@@ -271,7 +275,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_extract_string_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_extract_string_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         let extract_ty_alias = self.get_global_extract_symbol();
         if let Some(extract_ty_alias) = extract_ty_alias {
             let ty_args = self.alloc([ty, self.string_ty]);
@@ -303,15 +307,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
-            let ty = self.check_expr(node.expr);
+            let ty = self.check_expression(node.expr, None);
             self.get_non_nullable_ty(ty)
         };
         match node.init {
-            ast::ForInitKind::Var(_) => {
+            ast::ForInitKind::Var(declarations) => {
                 // TODO:
+                self.check_var_decl_list(declarations);
             }
             ast::ForInitKind::Expr(init) => {
-                let left_ty = self.check_expr(init);
+                let left_ty = self.check_expression(init, None);
                 let valid_ty = self.get_index_ty_or_string(right_ty);
 
                 if !self.is_type_assignable_to(valid_ty, left_ty) {
@@ -325,10 +330,9 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if right_ty == self.never_ty
-            || !self.is_type_assignable_to_kind(
+            || !self.is_type_assignable_to_kind::<false>(
                 right_ty,
-                TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE,
-                false,
+                TypeFlags::NON_PRIMITIVE.union(TypeFlags::INSTANTIABLE),
             )
         {
             let error = errors::TheRightHandSideOfAForInStatementMustBeOfTypeAnyAnObjectTypeOrATypeParameterButHereHasType {
@@ -344,16 +348,16 @@ impl<'cx> TyChecker<'cx> {
             match init {
                 ast::ForInitKind::Var(list) => self.check_var_decl_list(list),
                 ast::ForInitKind::Expr(expr) => {
-                    self.check_expr(expr);
+                    self.check_expression(expr, None);
                 }
             }
         }
         if let Some(cond) = node.cond {
-            self.check_truthiness_expr(cond);
+            self.check_truthiness_expr(cond, None);
         }
 
         if let Some(incr) = node.incr {
-            self.check_expr(incr);
+            self.check_expression(incr, None);
         }
 
         self.check_stmt(node.body);
@@ -378,7 +382,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_if_stmt(&mut self, i: &'cx ast::IfStmt) {
-        let ty = self.check_truthiness_expr(i.expr);
+        let ty = self.check_truthiness_expr(i.expr, None);
         self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
             i.expr,
             ty,
@@ -451,7 +455,9 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let symbol = self.get_symbol_of_decl(ns.id);
+        self.check_exports_on_merged_decls(ns.id);
+
+        let symbol = self.get_symbol_of_declaration(ns.id);
         let s = self.symbol(symbol);
         if s.flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
@@ -486,10 +492,9 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_thenable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         let base_constraint = self.get_base_constraint_or_ty(ty);
-        if self.all_types_assignable_to_kind(
+        if self.all_types_assignable_to_kind::<false>(
             base_constraint,
             TypeFlags::PRIMITIVE.union(TypeFlags::NEVER),
-            false,
         ) {
             return false;
         };
@@ -660,10 +665,9 @@ impl<'cx> TyChecker<'cx> {
             return Some(promised_ty_of_promise);
         }
         let base_ctor_or_ty = self.get_base_constraint_or_ty(ty);
-        if self.all_types_assignable_to_kind(
+        if self.all_types_assignable_to_kind::<false>(
             base_ctor_or_ty,
             TypeFlags::PRIMITIVE.union(TypeFlags::NEVER),
-            false,
         ) {
             return None;
         }
@@ -762,13 +766,13 @@ impl<'cx> TyChecker<'cx> {
                 .intersects(TypeFlags::ANY.union(TypeFlags::UNDEFINED))
     }
 
-    fn check_ret_stmt(&mut self, node: &ast::RetStmt<'cx>) {
+    fn check_return_statement(&mut self, node: &ast::RetStmt<'cx>) {
         let Some(container) = self.get_containing_fn_or_class_static_block(node.id) else {
             // delay bug
             return;
         };
         let sig = self.get_sig_from_decl(container);
-        let ret_ty = self.get_ret_ty_of_sig(sig);
+        let ret_ty = self.get_return_type_of_signature(sig);
 
         if self.config.compiler_options().strict_null_checks()
             || node.expr.is_some()
@@ -776,7 +780,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let expr_ty = node
                 .expr
-                .map(|expr| self.check_expr_cached(expr))
+                .map(|expr| self.check_expression_cached(expr, None))
                 .unwrap_or(self.undefined_ty);
             let c = self.p.node(container);
             if c.is_setter_decl() {
@@ -796,7 +800,12 @@ impl<'cx> TyChecker<'cx> {
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 let fn_flags = self.p.node(container).fn_flags();
                 let unwrapped_ret_ty = self.unwrap_ret_ty(ret_ty, fn_flags).unwrap_or(ret_ty);
-                self.check_ret_expr::<false>(container, unwrapped_ret_ty, node.expr, expr_ty);
+                self.check_return_expression::<false>(
+                    container,
+                    unwrapped_ret_ty,
+                    node.expr,
+                    expr_ty,
+                );
             }
         } else if self.config.compiler_options().no_implicit_returns()
             && !self.p.node(container).is_class_ctor()
@@ -807,7 +816,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn check_ret_expr<const IS_CONDITIONAL_EXPRESSION: bool>(
+    pub(super) fn check_return_expression<const IS_CONDITIONAL_EXPRESSION: bool>(
         &mut self,
         container: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
@@ -817,10 +826,15 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ret_expr) = ret_expr {
             let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
             if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
-                let expr_ty = self.check_expr(n.when_true);
-                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_true), expr_ty);
-                let expr_ty = self.check_expr(n.when_false);
-                self.check_ret_expr::<true>(container, ret_ty, Some(n.when_false), expr_ty);
+                let expr_ty = self.check_expression(n.when_true, None);
+                self.check_return_expression::<true>(container, ret_ty, Some(n.when_true), expr_ty);
+                let expr_ty = self.check_expression(n.when_false, None);
+                self.check_return_expression::<true>(
+                    container,
+                    ret_ty,
+                    Some(n.when_false),
+                    expr_ty,
+                );
                 return;
             }
         }
@@ -847,6 +861,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) {
+        if let ast::PropNameKind::Computed(name) = n.name.kind {
+            self.check_computed_property_name(name);
+        }
         let flags = self.node_query(n.id.module()).node_flags(n.id);
         if !flags.intersects(NodeFlags::AMBIENT)
             && n.body.is_some()
@@ -870,7 +887,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_sig_decl(id);
 
         if self.has_bindable_name(id) {
-            let symbol = self.get_symbol_of_decl(id);
+            let symbol = self.get_symbol_of_declaration(id);
             let s = self.binder.symbol(symbol);
             if let Some(getter) = s.get_declaration_of_kind(|n| self.p.node(n).is_getter_decl())
                 && let Some(setter) = s.get_declaration_of_kind(|n| self.p.node(n).is_setter_decl())

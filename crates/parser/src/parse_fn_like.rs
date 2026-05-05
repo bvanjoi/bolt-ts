@@ -134,6 +134,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 this.next_token(); // consume `function`
                 let asterisk_token = this.parse_optional(TokenKind::Asterisk).map(|t| t.span);
                 let name = mode.parse_name(this, modifier_flags)?;
+                if let Some(name) = name {
+                    this.check_contextual_ident(name);
+                }
                 let ty_params = this.parse_ty_params();
                 let params = this.parse_params();
                 this.check_params::<false>(params);

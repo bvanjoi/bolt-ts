@@ -1,0 +1,11 @@
+  × Property 'x' does not exist on type 'typeof foo'.
+    ╭─[../../tests/compiler/mergedDeclarations3/index.ts:40:7]
+ 40 │ x
+    · ─
+    ╰────
+
+  × Property 'z' does not exist on type 'typeof foo'.
+    ╭─[../../tests/compiler/mergedDeclarations3/index.ts:43:7]
+ 43 │ z
+    · ─
+    ╰────

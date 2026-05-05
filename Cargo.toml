@@ -27,9 +27,11 @@ members = [
 
   "helper/arena",
   "helper/atom",
-  "helper/diag-derive",
+  "helper/diag_derive",
   "helper/errors",
   "helper/fs",
+  "helper/query_system",
+  "helper/query_system_macros",
   "helper/span",
   "helper/utils",
 
@@ -54,3 +56,4 @@ rayon = "1.11.0"
 expect-test = "1.5.1"
 project-root = "0.2.2"
 glob = "0.3.3"
+thiserror = "2.0.18"

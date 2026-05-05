@@ -14,3 +14,7 @@ declare namespace M {
         //~^ ERROR: An implementation cannot be declared in ambient contexts.
     }
 }
+
+abstract class A {
+    b() {}
+}

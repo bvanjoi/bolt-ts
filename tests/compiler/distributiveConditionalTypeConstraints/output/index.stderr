@@ -1,10 +1,10 @@
-  × Type 'IsArray' is not assignable to type 'true'.
+  × Type 'boolean' is not assignable to type 'true'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:10:9]
  10 │ t
     · ─
     ╰────
 
-  × Type 'IsArray' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:12:9]
  12 │ f
     · ─
@@ -28,7 +28,7 @@
     · ─
     ╰────
 
-  × Type 'Foo' is not assignable to type 'false'.
+  × Type 'boolean' is not assignable to type 'false'.
     ╭─[../../tests/compiler/distributiveConditionalTypeConstraints/index.ts:49:9]
  49 │ t
     · ─

@@ -1,0 +1,20 @@
+  × Argument of type 'string' is not assignable to parameter of type
+  │ '`${Path}/${Path}`'.
+    ╭─[../../tests/compiler/templateLiteralIntersection2/index.ts:13:12]
+ 13 │ "foo/bar"
+    · ─────────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type
+  │ '`a${string}` & `${string}a`'.
+    ╭─[../../tests/compiler/templateLiteralIntersection2/index.ts:27:10]
+ 27 │ ""
+    · ──
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type
+  │ '`a${string}` & `${string}a`'.
+    ╭─[../../tests/compiler/templateLiteralIntersection2/index.ts:30:10]
+ 30 │ "ab"
+    · ────
+    ╰────

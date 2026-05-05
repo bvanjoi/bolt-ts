@@ -1,10 +1,9 @@
-use bolt_ts_ast::{self as ast, pprint_binding};
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_ast::{self as ast};
+use bolt_ts_binder::{SymbolID, SymbolName};
 use bolt_ts_ty::ObjectFlags;
 use bolt_ts_utils::FxIndexMap;
 
 use super::PromiseOrAwaitableTyLinksID;
-use super::TyChecker;
 use super::links::{InterfaceTyLinksID, ObjectMappedTyLinksID};
 use super::{Ty, TyMap};
 
@@ -188,6 +187,7 @@ pub struct ReferenceTy<'cx> {
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
     pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
+    pub pattern: Option<bolt_ts_ty::Pattern<'cx>>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
@@ -262,6 +262,7 @@ pub struct AnonymousTy<'cx> {
     pub node: Option<ast::NodeID>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
+    pub pattern: Option<bolt_ts_ty::Pattern<'cx>>,
 }
 
 #[derive(Debug)]

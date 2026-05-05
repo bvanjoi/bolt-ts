@@ -24,7 +24,7 @@ bitflags::bitflags! {
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn class_decl_extends_null(&mut self, class: ast::NodeID) -> bool {
-        let class_symbol = self.get_symbol_of_decl(class);
+        let class_symbol = self.get_symbol_of_declaration(class);
         let class_instance_ty = self.get_declared_ty_of_symbol(class_symbol);
         let base_ctor_ty = self.get_base_constructor_type_of_class(class_instance_ty);
         base_ctor_ty == self.null_widening_ty
@@ -91,6 +91,24 @@ impl<'cx> TyChecker<'cx> {
                         };
                     self.push_error(Box::new(error));
                 }
+
+                let super_call_should_be_root_level = !self.emit_standard_class_fields && {
+                    let class = self.parent(ctor.id).unwrap();
+                    let elements = match self.p.node(class) {
+                        ast::Node::ClassExpr(n) => n.elems,
+                        ast::Node::ClassDecl(n) => n.elems,
+                        _ => unreachable!(),
+                    };
+                    // TODO: is_instance_property_with_initializer_or_private_identifier_property
+                    false
+                } || ctor.params.iter().any(|p| {
+                    p.modifiers.is_some_and(|ms| {
+                        ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                    })
+                });
+                if super_call_should_be_root_level {
+                    // TODO:
+                }
             } else if !extends_null {
                 let error = errors::ConstructorsForDerivedClassesMustContainASuperCall {
                     span: ctor.name_span,
@@ -100,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_class_method_elem(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
+    fn check_class_method_element(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
         self.check_fn_like_decl(method);
     }
 
@@ -164,8 +182,9 @@ impl<'cx> TyChecker<'cx> {
 
             if let Some(declared_prop) = declared_prop
                 && let name = self.binder.symbol(declared_prop).name
-                && let Some(prop) = self.get_prop_of_ty::<false>(ty_with_this, name)
-                && let Some(base_prop) = self.get_prop_of_ty::<false>(base_ty_with_this, name)
+                && let Some(prop) = self.get_prop_of_ty::<false, false>(ty_with_this, name)
+                && let Some(base_prop) =
+                    self.get_prop_of_ty::<false, false>(base_ty_with_this, name)
                 && let prop_ty = self.get_type_of_symbol(prop)
                 && let base_prop_ty = self.get_type_of_symbol(base_prop)
                 && !self.check_type_assignable_to(
@@ -277,14 +296,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_class_like_decl(&mut self, class: &impl ClassLike<'cx>) {
         let class_id = class.id();
-        let symbol = self.get_symbol_of_decl(class_id);
+        let symbol = self.get_symbol_of_declaration(class_id);
 
         if let Some(ty_params) = class.ty_params() {
             self.check_ty_params(ty_params);
         }
 
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
+        let ty_with_this = self.get_ty_with_this_argument::<false>(ty, None);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_class_for_duplicate_decls(class);
         self.check_index_constraints(ty, false);
@@ -329,7 +348,7 @@ impl<'cx> TyChecker<'cx> {
                     .expect_object_interface()
                     .this_ty;
 
-                let base_with_this = self.get_ty_with_this_arg(base_ty, this_arg, false);
+                let base_with_this = self.get_ty_with_this_argument::<false>(base_ty, this_arg);
                 if !self.check_type_assignable_to(
                     ty_with_this,
                     base_with_this,
@@ -497,7 +516,7 @@ impl<'cx> TyChecker<'cx> {
                         .kind
                         .expect_object_interface()
                         .this_ty;
-                    let base_with_this = self.get_ty_with_this_arg(t, this_arg, false);
+                    let base_with_this = self.get_ty_with_this_argument::<false>(t, this_arg);
                     if !self.check_type_assignable_to(
                         ty_with_this,
                         base_with_this,
@@ -555,7 +574,7 @@ impl<'cx> TyChecker<'cx> {
                             | ast::PropNameKind::PrivateIdent(_)
                             | ast::PropNameKind::Computed(_)
                     ) {
-                        let symbol = self.get_symbol_of_decl(prop.id);
+                        let symbol = self.get_symbol_of_declaration(prop.id);
                         let prop_ty = self.get_type_of_symbol(symbol);
                         if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
                             || prop_ty.contains_undefined_ty())
@@ -579,7 +598,7 @@ impl<'cx> TyChecker<'cx> {
             use bolt_ts_ast::ClassElemKind::*;
             match ele.kind {
                 Prop(n) => self.check_class_prop_ele(n),
-                Method(n) => self.check_class_method_elem(n),
+                Method(n) => self.check_class_method_element(n),
                 Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_getter_decl(n),

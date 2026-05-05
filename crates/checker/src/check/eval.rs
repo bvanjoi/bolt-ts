@@ -1,7 +1,7 @@
 use super::TyChecker;
 use super::get_declared_ty::EnumMemberValue;
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
@@ -18,7 +18,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::TemplateExpr<'cx>,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
-        debug_assert!(location.is_none_or(|location| self.p.node(location).is_decl()));
+        debug_assert!(location.is_none_or(|location| self.p.node(location).is_declaration()));
         self.eval_template_expr_worker(expr, location)
     }
 
@@ -50,7 +50,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &'cx ast::Expr<'cx>,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
-        debug_assert!(location.is_none_or(|location| self.p.node(location).is_decl()));
+        debug_assert!(location.is_none_or(|location| self.p.node(location).is_declaration()));
         match expr.kind {
             ast::ExprKind::Ident(n) => self.eval_ident(n, SymbolFlags::VALUE, true, location),
             ast::ExprKind::NumLit(n) => EvalResult::Number(n.val),
@@ -128,6 +128,9 @@ impl<'cx> TyChecker<'cx> {
         ignore_errors: bool,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
+        if ident.name == keyword::KW_UNDEFINED {
+            return EvalResult::Err;
+        }
         let symbol = self.resolve_symbol_by_ident(ident);
         if symbol == Symbol::ERR {
             return EvalResult::Err;

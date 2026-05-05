@@ -98,7 +98,7 @@ impl<'cx> TyChecker<'cx> {
         if target.kind.is_object_tuple() {
             self.create_normalized_tuple_ty(target, resolved_ty_args)
         } else {
-            self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty())
+            self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty(), None)
         }
     }
 
@@ -134,6 +134,7 @@ impl<'cx> TyChecker<'cx> {
             alias_symbol,
             alias_ty_arguments,
             promise_or_awaitable_links,
+            pattern: None,
         };
 
         self.create_object_ty(
@@ -149,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let target = ty.kind.expect_object_tuple();
         if !target.combined_flags.intersects(ElementFlags::NON_REQUIRED) {
-            return self.create_type_reference(ty, Some(element_types), ObjectFlags::empty());
+            return self.create_type_reference(ty, Some(element_types), ObjectFlags::empty(), None);
         } else if target.combined_flags.intersects(ElementFlags::VARIABLE)
             && element_types.iter().enumerate().any(|(i, t)| {
                 target.element_flags[i].contains(ElementFlags::VARIADIC)
@@ -245,6 +246,7 @@ impl<'cx> TyChecker<'cx> {
                 tuple_target,
                 Some(self.alloc(expanded_tys)),
                 ObjectFlags::empty(),
+                None,
             )
         }
     }
@@ -254,6 +256,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
+        pattern: Option<ty::Pattern<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let id = InstantiationTyMap::create_id(target.id, resolved_ty_args.unwrap_or_default());
         if let Some(res) = self.instantiation_ty_map.get(id) {
@@ -269,6 +272,7 @@ impl<'cx> TyChecker<'cx> {
                 alias_symbol: None,
                 alias_ty_arguments: None,
                 promise_or_awaitable_links,
+                pattern,
             };
             let object_flags = flags
                 | ObjectFlags::REFERENCE
@@ -314,6 +318,7 @@ impl<'cx> TyChecker<'cx> {
         node: Option<ast::NodeID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
+        pattern: Option<ty::Pattern<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let links = self.fresh_ty_links_arena.alloc(Default::default());
         debug_assert!(
@@ -327,6 +332,7 @@ impl<'cx> TyChecker<'cx> {
             node,
             alias_symbol,
             alias_ty_arguments,
+            pattern,
         });
 
         self.create_object_ty(
@@ -344,8 +350,9 @@ impl<'cx> TyChecker<'cx> {
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
         node: Option<ast::NodeID>,
+        pattern: Option<ty::Pattern<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.create_anonymous_ty(symbol, object_flags, node, None, None);
+        let ty = self.create_anonymous_ty(symbol, object_flags, node, None, None, pattern);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
             ty.id,
@@ -370,6 +377,7 @@ impl<'cx> TyChecker<'cx> {
         node: Option<ast::NodeID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
+        pattern: Option<ty::Pattern<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(target.kind.is_object_anonymous());
         debug_assert!(
@@ -384,6 +392,7 @@ impl<'cx> TyChecker<'cx> {
             node,
             alias_symbol,
             alias_ty_arguments,
+            pattern,
         });
 
         self.create_object_ty(
@@ -408,15 +417,14 @@ impl<'cx> TyChecker<'cx> {
         self.new_ty(ty::TyKind::Param(param_ty), old.flags)
     }
 
-    pub(super) fn create_param_ty(
+    pub(super) fn create_param_ty<const IS_THIS_TY: bool>(
         &mut self,
         symbol: Option<SymbolID>,
-        is_this_ty: bool,
     ) -> &'cx ty::Ty<'cx> {
         let ty = ty::ParamTy {
             symbol,
             target: None,
-            is_this_ty,
+            is_this_ty: IS_THIS_TY,
         };
         let parm_ty = self.alloc(ty);
         self.new_ty(ty::TyKind::Param(parm_ty), TypeFlags::TYPE_PARAMETER)
@@ -515,7 +523,7 @@ impl<'cx> TyChecker<'cx> {
             self.global_array_ty()
         };
         let resolved_ty_args = self.alloc([element_ty]);
-        self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty())
+        self.create_type_reference(target, Some(resolved_ty_args), ObjectFlags::empty(), None)
     }
 
     fn remove_redundant_lit_tys(
@@ -830,7 +838,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut _ty_params = Vec::with_capacity(arity);
                 debug_assert_eq!(arity, element_flags.len());
                 for (i, flag) in element_flags.iter().enumerate() {
-                    let ty_param = this.create_param_ty(None, false);
+                    let ty_param = this.create_param_ty::<false>(None);
                     _ty_params.push(ty_param);
                     combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
@@ -880,7 +888,7 @@ impl<'cx> TyChecker<'cx> {
             props.push(length_symbol);
 
             const OBJECT_FLAGS: ObjectFlags = ObjectFlags::TUPLE.union(ObjectFlags::REFERENCE);
-            let this_ty = this.create_param_ty(None, true);
+            let this_ty = this.create_param_ty::<true>(None);
             let ty = this.create_interface_ty(
                 None,
                 ty_params,
@@ -985,11 +993,13 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let object_flags =
             flags | ty::Ty::get_propagating_flags_of_tys(set, Some(TypeFlags::NULLABLE));
+        let links = self.intersection_ty_links_arena.alloc(Default::default());
         let ty = self.alloc(ty::IntersectionTy {
             tys: set,
             object_flags,
             alias_symbol,
             alias_ty_arguments,
+            links,
         });
         self.new_ty(ty::TyKind::Intersection(ty), TypeFlags::INTERSECTION)
     }
@@ -1123,7 +1133,11 @@ impl<'cx> TyChecker<'cx> {
             .collect::<Vec<_>>();
 
         if includes.contains(TypeFlags::NEVER) {
-            return self.never_ty;
+            return if ty_set.contains(&self.silent_never_ty) {
+                self.silent_never_ty
+            } else {
+                self.never_ty
+            };
         }
 
         let strict_null_checks = self.config.compiler_options().strict_null_checks();
@@ -1354,11 +1368,13 @@ impl<'cx> TyChecker<'cx> {
         tys: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if flags == TypeFlags::INTERSECTION {
+            let links = self.intersection_ty_links_arena.alloc(Default::default());
             let ty = self.alloc(ty::IntersectionTy {
                 tys,
                 object_flags: ObjectFlags::empty(),
                 alias_symbol: None,
                 alias_ty_arguments: None,
+                links,
             });
             self.new_ty(ty::TyKind::Intersection(ty), flags)
         } else {
@@ -1851,6 +1867,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array(),
             index_infos,
             None,
+            None,
         )
     }
 
@@ -2003,6 +2020,7 @@ impl<'cx> TyChecker<'cx> {
                     global_iterable_iterator_ty,
                     Some(ty_arguments),
                     ObjectFlags::empty(),
+                    None,
                 )
             } else {
                 // TODO: report error
@@ -2014,6 +2032,7 @@ impl<'cx> TyChecker<'cx> {
                 global_generator_ty,
                 Some(ty_arguments),
                 ObjectFlags::empty(),
+                None,
             )
         }
     }
@@ -2024,7 +2043,12 @@ impl<'cx> TyChecker<'cx> {
         ty_arguments: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if generic_global_ty != self.empty_object_ty() {
-            self.create_type_reference(generic_global_ty, Some(ty_arguments), ObjectFlags::empty())
+            self.create_type_reference(
+                generic_global_ty,
+                Some(ty_arguments),
+                ObjectFlags::empty(),
+                None,
+            )
         } else {
             self.empty_object_ty()
         }
@@ -2060,6 +2084,7 @@ impl<'cx> TyChecker<'cx> {
                 global_promise_like_ty,
                 Some(resolved_ty_args),
                 ObjectFlags::empty(),
+                None,
             )
         } else {
             self.unknown_ty
@@ -2076,6 +2101,7 @@ impl<'cx> TyChecker<'cx> {
                 global_promise_ty,
                 Some(resolved_ty_args),
                 ObjectFlags::empty(),
+                None,
             )
         } else {
             self.unknown_ty

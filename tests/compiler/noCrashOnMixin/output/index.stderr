@@ -1,0 +1,6 @@
+  × Constructor of class 'Abstract' is protected and only accessible within
+  │ the class declaration.
+    ╭─[../../tests/compiler/noCrashOnMixin/index.ts:24:13]
+ 24 │ Concrete
+    · ────────
+    ╰────

@@ -87,10 +87,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
             debug_assert!(ty_param.default.is_none());
             let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
-                let n_id = n.id();
-                let p = self.parent_map.parent(n_id)?;
+                let p = self.parent_map.parent(n)?;
                 if let Some(cond) = self.p.node(p).as_cond_ty()
-                    && cond.extends_ty.id() == n_id
+                    && cond.extends_ty.id() == n
                 {
                     Some(true)
                 } else {
@@ -906,8 +905,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Ident(_) | This(_) | Super(_) => true,
             PropAccess(n) => self.is_narrowable_reference(n.expr),
             Paren(n) => self.is_narrowable_reference(n.expr),
-            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
             NonNull(n) => self.is_narrowable_reference(n.expr),
+            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
             Bin(_) => {
                 // TODO: n.op.kind == Comma
                 false
@@ -933,14 +932,19 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     pub(super) fn is_narrowable_expression(&self, expr: &'cx ast::Expr<'cx>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {
-            Ident(_) | This(_) | Super(_) => true,
+            Ident(_) | This(_) => true,
             PropAccess(_) | EleAccess(_) => self.contains_narrowable_reference(expr),
+            Call(n) => self.has_narrowable_argument(n),
             Paren(n) => {
                 // TODO: return false if expr is js
                 self.is_narrowable_expression(n.expr)
             }
-            Call(n) => self.has_narrowable_argument(n),
-            // TODO: other case
+            NonNull(n) => self.is_narrowable_expression(n.expr),
+            Bin(n) => self.is_narrowable_expression(n.right),
+            PrefixUnary(n) if n.op == ast::PrefixUnaryOp::Excl => {
+                self.is_narrowable_expression(n.expr)
+            }
+            Typeof(n) => self.is_narrowable_expression(n.expr),
             _ => false,
         }
     }

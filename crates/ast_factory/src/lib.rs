@@ -1028,6 +1028,7 @@ pub trait ASTFactory<'cx> {
     fn create_import_equals_declaration(
         &mut self,
         span: Span,
+        export_modifier: Option<&'cx ast::Modifier>,
         name: &'cx ast::Ident,
         is_type_only: bool,
         module_reference: ast::ModuleReferenceKind<'cx>,
@@ -1036,6 +1037,7 @@ pub trait ASTFactory<'cx> {
         let node = self.alloc(ast::ImportEqualsDecl {
             id,
             span,
+            export_modifier,
             is_type_only,
             name,
             module_reference,
@@ -1281,5 +1283,84 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::AssignExpr(expr));
         self.insert_node_flags(id, self.node_context_flags());
         expr
+    }
+
+    #[inline]
+    fn create_expression_statement(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ExprStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExprStmt { id, span, expr });
+        self.insert_node(id, ast::Node::ExprStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_postfix_unary_expression(
+        &mut self,
+        span: Span,
+        op: ast::PostfixUnaryOp,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::PostfixUnaryExpr<'cx> {
+        let id = self.next_node_id();
+        let expr = self.alloc(ast::PostfixUnaryExpr { id, span, op, expr });
+        self.insert_node(id, ast::Node::PostfixUnaryExpr(expr));
+        self.insert_node_flags(id, self.node_context_flags());
+        expr
+    }
+
+    #[inline]
+    fn create_import_expression(&mut self, span: Span) -> &'cx ast::ImportExpression {
+        let id = self.next_node_id();
+        let expr = self.alloc(ast::ImportExpression { id, span });
+        self.insert_node(id, ast::Node::ImportExpression(expr));
+        self.insert_node_flags(id, self.node_context_flags());
+        expr
+    }
+
+    #[inline]
+    fn create_import_type<const IS_TYPEOF: bool>(
+        &mut self,
+        span: Span,
+        argument: &'cx ast::Ty<'cx>,
+        qualifier: Option<&'cx ast::EntityName<'cx>>,
+        type_arguments: Option<&'cx ast::Tys<'cx>>,
+    ) -> &'cx ast::ImportType<'cx> {
+        let id = self.next_node_id();
+        let ty = self.alloc(ast::ImportType {
+            id,
+            span,
+            is_typeof: IS_TYPEOF,
+            argument,
+            qualifier,
+            type_arguments,
+        });
+        self.insert_node(id, ast::Node::ImportType(ty));
+        self.insert_node_flags(id, self.node_context_flags());
+        ty
+    }
+
+    #[inline]
+    fn create_new_expression(
+        &mut self,
+        span: Span,
+        expression: &'cx ast::Expr<'cx>,
+        type_arguments: Option<&'cx ast::Tys<'cx>>,
+        arguments: Option<ast::Exprs<'cx>>,
+    ) -> &'cx ast::NewExpr<'cx> {
+        let id = self.next_node_id();
+        let ty = self.alloc(ast::NewExpr {
+            id,
+            span,
+            expr: expression,
+            ty_args: type_arguments,
+            args: arguments,
+        });
+        self.insert_node(id, ast::Node::NewExpr(ty));
+        self.insert_node_flags(id, self.node_context_flags());
+        ty
     }
 }

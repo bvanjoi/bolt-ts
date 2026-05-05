@@ -8,9 +8,9 @@ type IsArray<T> = T extends unknown[] ? true : false;
 
 function f1<T extends object>(x: IsArray<T>) {
     let t: true = x;   // Error
-    //~^ ERROR: Type 'IsArray' is not assignable to type 'true'.
+    //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
     let f: false = x;  // Error
-    //~^ ERROR: Type 'IsArray' is not assignable to type 'false'.
+    //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 }
 
 function f2<T extends unknown[]>(x: IsArray<T>) {
@@ -47,7 +47,7 @@ type Foo<T> = T extends "abc" | 42 ? true : false;
 
 function f20<T extends string>(x: Foo<T>) {
     let t: false = x;  // Error
-    //~^ ERROR: Type 'Foo' is not assignable to type 'false'.
+    //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 }
 
 // Modified repro from #30152

@@ -70,7 +70,7 @@
     · ────
     ╰────
 
-  × Property 'asdf' does not exist on type 'C5'.
+  × Property 'asdf' does not exist on type 'C5<C5>'.
     ╭─[../../tests/compiler/unknownSymbols1/index.ts:41:14]
  41 │ asdf
     · ────

@@ -8,7 +8,7 @@ let obj: { a: { x: string } } & { c: number } = { a: { x: 'hello', y: 2 }, c: 5 
 
 declare let wrong: { a: { y: string } };
 let weak: { a?: { x?: number } } & { c?: string } = wrong;  // Nested weak object type
-//~^ ERROR: Type '{ a: { y: string; }; }' is not assignable to type '{ a: undefined | { x: undefined | number; }; } & { c: undefined | string; }'.
+//~^ ERROR: Type '{ y: string; }' has no properties in common with type '{ x: undefined | number; }'.
 
 function foo<T extends object>(x: { a?: string }, y: T & { a: boolean }) {
   x = y;  // Mismatched property in source intersection

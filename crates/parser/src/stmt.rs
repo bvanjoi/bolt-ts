@@ -628,7 +628,7 @@ impl<'cx> ParserState<'cx, '_> {
                     };
                     self.push_error(Box::new(error));
                 }
-                self.parse_import_decl()
+                self.parse_import_decl(mods)
             }
             Export => {
                 let start = self.token.start();
@@ -758,6 +758,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_import_equals_declaration(
         &mut self,
         start: u32,
+        export_modifier: Option<&'cx ast::Modifier>,
         name: &'cx ast::Ident,
         is_type_only: bool,
     ) -> &'cx ast::ImportEqualsDecl<'cx> {
@@ -781,10 +782,19 @@ impl<'cx> ParserState<'cx, '_> {
         };
         self.parse_semi();
         let span = self.new_span(start);
-        self.create_import_equals_declaration(span, name, is_type_only, module_reference)
+        self.create_import_equals_declaration(
+            span,
+            export_modifier,
+            name,
+            is_type_only,
+            module_reference,
+        )
     }
 
-    fn parse_import_decl(&mut self) -> ast::StmtKind<'cx> {
+    fn parse_import_decl(
+        &mut self,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
         let start = self.token.start();
         self.next_token(); // consume `import`
@@ -811,8 +821,15 @@ impl<'cx> ParserState<'cx, '_> {
         if let Some(name) = name
             && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From)
         {
+            let export_modifier = modifiers
+                .and_then(|m| {
+                    m.list
+                        .iter()
+                        .find(|m| m.kind() == ast::ModifierKind::Export)
+                })
+                .copied();
             // TODO: is_type_only
-            let decl = self.parse_import_equals_declaration(start, name, false);
+            let decl = self.parse_import_equals_declaration(start, export_modifier, name, false);
             return ast::StmtKind::ImportEquals(decl);
         }
 
@@ -933,7 +950,7 @@ impl<'cx> ParserState<'cx, '_> {
                     // parse expression with type arguments
                     let start = this.token.start();
                     let name = this.parse_entity_name_of_ty_reference();
-                    let type_arguments = this.parse_ty_args_of_ty_reference();
+                    let type_arguments = this.parse_type_arguments_of_type_reference();
                     let span = this.new_span(start);
                     Ok(this.create_reference_type(span, name, type_arguments))
                 },
@@ -997,7 +1014,7 @@ impl<'cx> ParserState<'cx, '_> {
                 |this| {
                     let start = this.token.start();
                     let name = this.parse_entity_name_of_ty_reference();
-                    let type_arguments = this.parse_ty_args_of_ty_reference();
+                    let type_arguments = this.parse_type_arguments_of_type_reference();
                     let span = this.new_span(start);
                     Ok(this.create_reference_type(span, name, type_arguments))
                 },
@@ -1258,6 +1275,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat()?;
+        self.check_contextual_binding(name);
         if self.in_strict_mode
             && let ast::BindingKind::Ident(name) = name.kind
         {
@@ -1365,24 +1383,21 @@ impl<'cx> ParserState<'cx, '_> {
             && self.parse_optional(TokenKind::Colon).is_some()
         {
             if !self.labels.insert(ident.name) {
-                todo!("error for duplicate label");
+                let error = errors::DuplicateLabel {
+                    span: expr.span(),
+                    label: self.atoms.lock().unwrap().get(ident.name).to_string(),
+                };
+                self.push_error(Box::new(error));
             }
             let stmt =
                 self.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)?;
             let span = self.new_span(start);
             let stmt = self.create_labeled_stmt(span, ident, stmt);
-            let prev = self.labels.pop();
-            debug_assert!(prev.is_some());
+            self.labels.pop();
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
             self.parse_semi();
-            let id = self.next_node_id();
-            let stmt = self.alloc(ast::ExprStmt {
-                id,
-                span: self.new_span(start),
-                expr,
-            });
-            self.nodes.insert(id, ast::Node::ExprStmt(stmt));
+            let stmt = self.create_expression_statement(self.new_span(start), expr);
             Ok(ast::StmtKind::Expr(stmt))
         }
     }

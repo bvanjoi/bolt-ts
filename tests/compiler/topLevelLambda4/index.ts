@@ -5,4 +5,4 @@
 //@compiler-options: module=esnext
 
 export var x = () => this.window;
-//~^ ERROR: 'this' is possibly undefined.
+//~^ ERROR: 'this' is possibly 'undefined'.

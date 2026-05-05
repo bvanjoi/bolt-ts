@@ -4,7 +4,6 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::fn_mapper;
-use super::get_simplified_ty::SimplifiedKind;
 use super::is_deeply_nested_type::RecursionId;
 use super::ty;
 use super::ty::IndexFlags;
@@ -76,7 +75,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(index_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
             && index_constraint != indexed_access_ty.index_ty
-            && let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+            && let Some(indexed_access) = self.get_indexed_access_type_or_undefined(
                 indexed_access_ty.object_ty,
                 index_constraint,
                 Some(indexed_access_ty.access_flags),
@@ -92,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
             && object_constraint != indexed_access_ty.object_ty
         {
-            return self.get_indexed_access_ty_or_undefined(
+            return self.get_indexed_access_type_or_undefined(
                 object_constraint,
                 indexed_access_ty.index_ty,
                 Some(indexed_access_ty.access_flags),
@@ -289,7 +288,7 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                let ty = checker.get_simplified_ty(ty, SimplifiedKind::Reading);
+                let ty = checker.get_simplified_ty::<false>(ty);
                 result = compute_base_constraint(checker, ty, stack);
                 stack.pop();
             };
@@ -412,7 +411,7 @@ impl<'cx> TyChecker<'cx> {
                 let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
                 if let Some(base_object_ty) = base_object_ty
                     && let Some(base_index_ty) = base_index_ty
-                    && let Some(base_indexed_access) = checker.get_indexed_access_ty_or_undefined(
+                    && let Some(base_indexed_access) = checker.get_indexed_access_type_or_undefined(
                         base_object_ty,
                         base_index_ty,
                         Some(i.access_flags),

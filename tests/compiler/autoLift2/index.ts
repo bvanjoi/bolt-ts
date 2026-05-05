@@ -9,27 +9,27 @@ class A
         this.foo: any;
         //~^ ERROR: Declaration or statement expected.
         //~| ERROR: Cannot find name 'any'.
-        //~| ERROR: Property 'foo' does not exist on type 'A'.
+        //~| ERROR: Property 'foo' does not exist on type 'A<A>'.
         this.bar: any;
         //~^ ERROR: Declaration or statement expected.
         //~| ERROR: Cannot find name 'any'.
-        //~| ERROR: Property 'bar' does not exist on type 'A'.
+        //~| ERROR: Property 'bar' does not exist on type 'A<A>'.
     }
 
 
   baz() {
 
      this.foo = "foo";
-    //~^ ERROR: Property 'foo' does not exist on type 'A'.
+    //~^ ERROR: Property 'foo' does not exist on type 'A<A>'.
 
      this.bar = "bar";
-    //~^ ERROR: Property 'bar' does not exist on type 'A'.
+    //~^ ERROR: Property 'bar' does not exist on type 'A<A>'.
 
      [1, 2].forEach((p) => this.foo);
-    //~^ ERROR: Property 'foo' does not exist on type 'A'.
+    //~^ ERROR: Property 'foo' does not exist on type 'A<A>'.
 
      [1, 2].forEach((p) => this.bar);
-    //~^ ERROR: Property 'bar' does not exist on type 'A'.
+    //~^ ERROR: Property 'bar' does not exist on type 'A<A>'.
   }
 
 }

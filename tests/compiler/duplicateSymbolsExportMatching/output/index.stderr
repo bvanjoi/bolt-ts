@@ -1,0 +1,125 @@
+  × Individual declarations in merged declaration 'I' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:29:15]
+ 29 │ I
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'I' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:31:22]
+ 31 │ I
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'E' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:33:22]
+ 33 │ E
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'E' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:35:15]
+ 35 │ E
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'inst' must be all exported
+  │ or all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:41:15]
+ 41 │ inst
+    · ────
+    ╰────
+
+  × Individual declarations in merged declaration 'inst' must be all exported
+  │ or all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:45:22]
+ 45 │ inst
+    · ────
+    ╰────
+
+  × Individual declarations in merged declaration 'v' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:53:9]
+ 53 │ v
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'v' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:55:16]
+ 55 │ v
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'w' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:57:9]
+ 57 │ w
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'w' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:59:16]
+ 59 │ w
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'F' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:64:15]
+ 64 │ F
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'F' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:69:21]
+ 69 │ F
+    · ─
+    ╰────
+
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:64:15]
+ 64 │ F
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'C' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:74:11]
+ 74 │ C
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'C' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:76:15]
+ 76 │ C
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'C' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:78:22]
+ 78 │ C
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'D' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:85:11]
+ 85 │ D
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'D' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/duplicateSymbolsExportMatching/index.ts:87:18]
+ 87 │ D
+    · ─
+    ╰────

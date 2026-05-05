@@ -1,0 +1,27 @@
+  × Syntax Error: Unexpected token ','
+    ╭─[../../tests/compiler/multipleInheritance/index.ts:14:19]
+ 14 │ , B2
+    · ▲─┬─
+    · │ ╰── Classes can only extend a single class.
+    ╰────
+
+  × Syntax Error: Unexpected token ','
+    ╭─[../../tests/compiler/multipleInheritance/index.ts:24:19]
+ 24 │ , D2
+    · ▲─┬─
+    · │ ╰── Classes can only extend a single class.
+    ╰────
+
+  × Property 'g' in type 'Baad<Baad>' is not assignable to the same property
+  │ in base type 'Good<Baad>'.
+    ╭─[../../tests/compiler/multipleInheritance/index.ts:44:12]
+ 44 │ g
+    · ─
+    ╰────
+
+  × Class 'Good' defines instance member property 'f', but extended class
+  │ 'Baad' defines it as instance member function.
+    ╭─[../../tests/compiler/multipleInheritance/index.ts:42:12]
+ 42 │ f
+    · ─
+    ╰────

@@ -37,7 +37,7 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         n: &'cx ast::VarDecl<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(matches!(n.name.kind, ast::BindingKind::Ident(_)));
-        let symbol = self.checker.get_symbol_of_decl(n.id);
+        let symbol = self.checker.get_symbol_of_declaration(n.id);
         let Some(links) = self.checker.symbol_links(symbol) else {
             unreachable!()
         };
@@ -49,7 +49,7 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         n: &'cx ast::FnDecl<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let sig = self.checker.get_sig_from_decl(n.id);
-        self.checker.get_ret_ty_of_sig(sig)
+        self.checker.get_return_type_of_signature(sig)
     }
 
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {

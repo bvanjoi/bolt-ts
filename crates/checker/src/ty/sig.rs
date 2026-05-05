@@ -47,7 +47,6 @@ pub struct Sig<'cx> {
     pub id: SigID,
     pub flags: SigFlags,
     pub params: &'cx [SymbolID],
-    pub this_param: Option<SymbolID>,
     pub min_args_count: u32,
     pub ret: Option<ast::NodeID>,
     pub node_id: Option<ast::NodeID>,
@@ -57,6 +56,16 @@ pub struct Sig<'cx> {
     pub class_decl: Option<ast::NodeID>,
     pub composite_sigs: Option<Sigs<'cx>>,
     pub composite_kind: Option<TypeFlags>,
+    // TODO: this_parameter
+    // TODO: type_parameters
+    // TODO: context_this_parameter
+    // TODO: context_type_parameters
+}
+
+pub struct ExtraSig<'cx> {
+    pub(crate) sig: Sig<'cx>,
+    pub(crate) ty_params: Option<super::Tys<'cx>>,
+    pub(crate) this_param: Option<SymbolID>,
 }
 
 impl<'cx> Sig<'cx> {

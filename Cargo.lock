@@ -181,6 +181,7 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "thin-vec",
+ "thiserror",
 ]
 
 [[package]]
@@ -209,6 +210,7 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "thin-vec",
+ "thiserror",
  "tracing",
 ]
 
@@ -253,6 +255,7 @@ dependencies = [
  "rustc-hash",
  "serde_json",
  "thin-vec",
+ "thiserror",
  "tracing",
 ]
 
@@ -290,6 +293,7 @@ dependencies = [
  "bolt_ts_utils",
  "rayon",
  "rustc-hash",
+ "thiserror",
 ]
 
 [[package]]
@@ -302,6 +306,7 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_errors",
  "bolt_ts_span",
+ "thiserror",
 ]
 
 [[package]]
@@ -313,7 +318,6 @@ dependencies = [
  "miette",
  "relative-path",
  "ropey",
- "thiserror",
 ]
 
 [[package]]
@@ -386,6 +390,7 @@ dependencies = [
  "indexmap",
  "rayon",
  "rustc-hash",
+ "thiserror",
 ]
 
 [[package]]
@@ -478,6 +483,7 @@ dependencies = [
  "serde_json",
  "stacker",
  "thin-vec",
+ "thiserror",
  "tracing",
  "unicode-id-start",
 ]
@@ -488,6 +494,14 @@ version = "0.1.0"
 dependencies = [
  "bolt_ts_utils",
 ]
+
+[[package]]
+name = "bolt_ts_query_system"
+version = "0.1.0"
+
+[[package]]
+name = "bolt_ts_query_system_macros"
+version = "0.1.0"
 
 [[package]]
 name = "bolt_ts_semver"
@@ -516,6 +530,7 @@ name = "bolt_ts_ty"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.9.4",
+ "bolt_ts_ast",
 ]
 
 [[package]]
@@ -2113,18 +2128,18 @@ checksum = "144f754d318415ac792f9d69fc87abbbfc043ce2ef041c60f16ad828f638717d"
 
 [[package]]
 name = "thiserror"
-version = "1.0.63"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0342370b38b6a11b6cc11d6a805569958d54cfa061a29969c3b5ce2ea405724"
+checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.63"
+version = "2.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4558b58466b9ad7ca0f102865eccc95938dca1a74a856f2b57b6629050da261"
+checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",

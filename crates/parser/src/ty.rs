@@ -444,7 +444,7 @@ impl<'cx> ParserState<'cx, '_> {
         entity
     }
 
-    pub(super) fn parse_ty_args_of_ty_reference(&mut self) -> Option<&'cx ast::Tys<'cx>> {
+    pub(super) fn parse_type_arguments_of_type_reference(&mut self) -> Option<&'cx ast::Tys<'cx>> {
         if !self.has_preceding_line_break() && self.re_scan_less() == TokenKind::Less {
             let start = self.token.start();
             let list = self.parse_bracketed_list::<false, _>(
@@ -472,7 +472,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ty_reference(&mut self) -> &'cx ast::Ty<'cx> {
         let start = self.token.start();
         let name = self.parse_entity_name_of_ty_reference();
-        let type_arguments = self.parse_ty_args_of_ty_reference();
+        let type_arguments = self.parse_type_arguments_of_type_reference();
         let span = self.new_span(start);
         let ty = self.create_reference_type(span, name, type_arguments);
         self.alloc(ast::Ty {
@@ -572,10 +572,12 @@ impl<'cx> ParserState<'cx, '_> {
                 });
                 Ok(ty)
             }
-            Number | String | BigInt | NoSubstitutionTemplate => Ok(self.parse_literal_ty(false)),
+            Number | String | BigInt | NoSubstitutionTemplate => {
+                Ok(self.parse_literal_ty::<false>())
+            }
             Typeof => {
                 if self.lookahead(Lookahead::is_start_of_ty_of_import_ty) {
-                    todo!()
+                    self.parse_import_type::<true>()
                 } else {
                     self.parse_ty_query()
                 }
@@ -594,7 +596,7 @@ impl<'cx> ParserState<'cx, '_> {
             LBracket => self.parse_tuple_ty(),
             Minus => {
                 if self.lookahead(Lookahead::next_token_is_numeric_or_big_int_literal) {
-                    Ok(self.parse_literal_ty(true))
+                    Ok(self.parse_literal_ty::<true>())
                 } else {
                     todo!()
                 }
@@ -612,11 +614,42 @@ impl<'cx> ParserState<'cx, '_> {
                     Ok(this_ty)
                 }
             }
+            Import => self.parse_import_type::<false>(),
             Asserts if self.lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line) => {
                 self.parse_asserts_ty_pred()
             }
             _ => Ok(self.parse_ty_reference()),
         }
+    }
+
+    fn parse_import_type<const IS_TYPE_OF: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        // TODO: sourceFlags |= NodeFlags.PossiblyContainsDynamicImport;
+        let start = self.token.start();
+        if IS_TYPE_OF {
+            debug_assert!(self.token.kind == TokenKind::Typeof);
+            self.next_token();
+        }
+        debug_assert!(self.token.kind == TokenKind::Import);
+        self.next_token(); // consume `import`
+        self.expect(TokenKind::LParen);
+        let argument = self.parse_ty()?;
+        // let attributes = None;
+        if self.parse_optional(TokenKind::Comma).is_some() {
+            // `import(xxx), `?
+            todo!()
+        }
+        self.expect(TokenKind::RParen);
+        let qualifier = if self.parse_optional(TokenKind::Dot).is_some() {
+            Some(self.parse_entity_name_of_ty_reference())
+        } else {
+            None
+        };
+        let type_arguments = self.parse_type_arguments_of_type_reference();
+        let span = self.new_span(start);
+        let ty = self.create_import_type::<IS_TYPE_OF>(span, argument, qualifier, type_arguments);
+        Ok(self.alloc(ast::Ty {
+            kind: ast::TyKind::Import(ty),
+        }))
     }
 
     fn parse_asserts_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -644,8 +677,8 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_literal_ty(&mut self, neg: bool) -> &'cx ast::Ty<'cx> {
-        if neg {
+    fn parse_literal_ty<const NEG: bool>(&mut self) -> &'cx ast::Ty<'cx> {
+        if NEG {
             self.expect(TokenKind::Minus);
         }
         use bolt_ts_ast::TokenKind::*;
@@ -657,7 +690,7 @@ impl<'cx> ParserState<'cx, '_> {
             match node.kind {
                 Number => {
                     let val = token_val.number();
-                    let val = if neg { -val } else { val };
+                    let val = if NEG { -val } else { val };
                     let kind = ast::LitTyKind::Num(val);
                     let lit = self.create_lit_ty(kind, self.token.span);
                     self.nodes.insert(lit.id, ast::Node::LitTy(lit));
@@ -667,7 +700,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
                 BigInt => {
                     let val = token_val.ident();
-                    let kind = ast::LitTyKind::BigInt { val, neg };
+                    let kind = ast::LitTyKind::BigInt { val, neg: NEG };
                     let lit = self.create_lit_ty(kind, self.token.span);
                     self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {

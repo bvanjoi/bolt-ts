@@ -1,12 +1,12 @@
-  ☞ Initializer of instance member variable 'y' cannot reference identifier
+  × Initializer of instance member variable 'y' cannot reference identifier
   │ 'aaa' declared in the constructor.
-   ╭─[../../tests/compiler/classMemberInitializerScoping/index.ts:9:17]
- 9 │ aaa
+   ╭─[../../tests/compiler/classMemberInitializerScoping/index.ts:8:17]
+ 8 │ aaa
    · ───
    ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/classMemberInitializerScoping/index.ts:13:9]
- 13 │ this.y
+    ╭─[../../tests/compiler/classMemberInitializerScoping/index.ts:12:9]
+ 12 │ this.y
     · ──────
     ╰────

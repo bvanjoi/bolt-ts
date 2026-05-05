@@ -5,8 +5,8 @@
    · ────
    ╰────
 
-  × Type '{ a: { y: string; }; }' is not assignable to type '{ a: undefined |
-  │ { x: undefined | number; }; } & { c: undefined | string; }'.
+  × Type '{ y: string; }' has no properties in common with type '{ x:
+  │ undefined | number; }'.
     ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:10:5]
  10 │ weak
     · ────

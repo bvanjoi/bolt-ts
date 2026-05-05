@@ -1,16 +1,16 @@
-  × 'a.other' is possibly undefined.
+  × 'a.other' is possibly 'undefined'.
     ╭─[../../tests/compiler/specialIntersectionsInMappedTypes/index.ts:21:1]
  21 │ a.other
     · ───────
     ╰────
 
-  × 'e[0]' is possibly undefined.
+  × 'e[0]' is possibly 'undefined'.
     ╭─[../../tests/compiler/specialIntersectionsInMappedTypes/index.ts:25:1]
  25 │ e[0]
     · ────
     ╰────
 
-  × 'e[0][0]' is possibly undefined.
+  × 'e[0][0]' is possibly 'undefined'.
     ╭─[../../tests/compiler/specialIntersectionsInMappedTypes/index.ts:25:1]
  25 │ e[0][0]
     · ───────

@@ -558,16 +558,10 @@ impl<'cx> ParserState<'cx, '_> {
             {
                 let op = self.token.kind.into();
                 self.next_token();
-                let id = self.next_node_id();
-                let unary = self.alloc(ast::PostfixUnaryExpr {
-                    id,
-                    span: self.new_span(start),
-                    op,
-                    expr,
-                });
-                self.nodes.insert(id, ast::Node::PostfixUnaryExpr(unary));
+                let span = self.new_span(start);
+                let expr = self.create_postfix_unary_expression(span, op, expr);
                 let expr = self.alloc(ast::Expr {
-                    kind: ast::ExprKind::PostfixUnary(unary),
+                    kind: ast::ExprKind::PostfixUnary(expr),
                 });
                 Ok(expr)
             } else {
@@ -576,10 +570,27 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         let expr = match self.token.kind {
-            TokenKind::Import => todo!(),
+            TokenKind::Import => {
+                if self.lookahead(|l| l.next_token_is_lparen_or_less()) {
+                    // TODO: source_flags
+                    self.next_token();
+                    let span = self.new_span(start);
+                    let expr = self.create_import_expression(span);
+                    self.alloc(ast::Expr {
+                        kind: ast::ExprKind::Import(expr),
+                    })
+                } else if self.lookahead(|l| {
+                    l.p().next_token();
+                    l.p().token.kind == TokenKind::Dot
+                }) {
+                    todo!("import.*")
+                } else {
+                    self.parse_member_expr_or_higher()?
+                }
+            }
             TokenKind::Super => self.parse_super_expr()?,
             _ => self.parse_member_expr_or_higher()?,
         };
@@ -1028,9 +1039,13 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
-            NoSubstitutionTemplate | String | BigInt | Number | True | False | Null | This => {
+            NoSubstitutionTemplate => {
+                if self.token_flags.intersects(TokenFlags::IS_INVALID) {
+                    self.re_scan_template_token::<false>();
+                }
                 Ok(self.parse_lit_expr())
             }
+            String | BigInt | Number | True | False | Null | This => Ok(self.parse_lit_expr()),
             LBracket => Ok(self.parse_array_lit()),
             LParen => self.parse_paren_expr(),
             LBrace => Ok(self.parse_object_lit()),
@@ -1084,7 +1099,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_template_head<const IS_TAGGED_TEMPLATE: bool>(
         &mut self,
     ) -> PResult<&'cx ast::TemplateHead> {
-        if !IS_TAGGED_TEMPLATE && self.token_flags.contains(TokenFlags::IS_INVALID) {
+        if !IS_TAGGED_TEMPLATE && self.token_flags.intersects(TokenFlags::IS_INVALID) {
             self.re_scan_template_token::<IS_TAGGED_TEMPLATE>();
         }
         let id = self.next_node_id();
@@ -1162,9 +1177,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_new_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use bolt_ts_ast::TokenKind::*;
+        debug_assert!(self.token.kind == TokenKind::New);
         let start = self.token.start();
-        self.expect(New);
+        self.next_token(); // consume `new`
         let expr = self.parse_primary_expr()?;
         let mut expr = self.parse_member_expr_rest(start as usize, expr, false)?;
         let mut ty_args = None;
@@ -1172,22 +1187,15 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
-        let args = if self.token.kind == LParen {
+        let args = if self.token.kind == TokenKind::LParen {
             Some(self.parse_args())
         } else {
             None
         };
-        let id = self.next_node_id();
-        let new = self.alloc(ast::NewExpr {
-            id,
-            span: self.new_span(start),
-            expr,
-            ty_args,
-            args,
-        });
-        self.nodes.insert(id, ast::Node::NewExpr(new));
+        let span = self.new_span(start);
+        let expr = self.create_new_expression(span, expr, ty_args, args);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::New(new),
+            kind: ast::ExprKind::New(expr),
         });
         Ok(expr)
     }

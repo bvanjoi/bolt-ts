@@ -1,1 +1,1 @@
-export declare function (): number;
+export default function (): number;

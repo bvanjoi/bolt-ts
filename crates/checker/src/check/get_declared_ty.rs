@@ -7,6 +7,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_utils::FxIndexMap;
 
+use super::CheckMode;
 use super::InstantiationTyMap;
 use super::TyCacheTrait;
 use super::TyChecker;
@@ -82,7 +83,7 @@ impl<'cx> TyChecker<'cx> {
                 .opt_decl()
                 .is_some_and(|decl| self.p.node(decl).is_ty_param())
         );
-        let ty = self.create_param_ty(Some(symbol), false);
+        let ty = self.create_param_ty::<false>(Some(symbol));
         self.get_mut_symbol_links(symbol).set_declared_ty(ty);
         ty
     }
@@ -123,9 +124,9 @@ impl<'cx> TyChecker<'cx> {
         ty_params: ast::TyParams<'cx>,
     ) {
         for ty_param in ty_params {
-            let symbol = self.get_symbol_of_decl(ty_param.id);
+            let symbol = self.get_symbol_of_declaration(ty_param.id);
             let value = self.get_declared_ty_of_ty_param(symbol);
-            assert!(value.kind.is_param(), "value: {value:#?}");
+            assert!(value.kind.is_param());
             append_if_unique(res, value);
         }
     }
@@ -133,15 +134,20 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_entity_name(
         &mut self,
         name: &'cx ast::EntityName<'cx>,
+        check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::EntityNameKind;
         match name.kind {
-            EntityNameKind::Ident(ident) => self.check_ident(ident),
-            EntityNameKind::Qualified(name) => self.check_qualified_name(name),
+            EntityNameKind::Ident(ident) => self.check_ident(ident, check_mode),
+            EntityNameKind::Qualified(name) => self.check_qualified_name(name, check_mode),
         }
     }
 
-    fn check_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> &'cx ty::Ty<'cx> {
+    fn check_qualified_name(
+        &mut self,
+        node: &'cx ast::QualifiedName<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
         let left_ty = if matches!(node.left.kind, ast::EntityNameKind::Ident(n) if n.name == keyword::KW_THIS)
             && self
                 .node_query(node.id.module())
@@ -149,12 +155,18 @@ impl<'cx> TyChecker<'cx> {
         {
             // TODO: non_null
             // TODO: check_this_expr
-            self.check_entity_name(node.left)
+            self.check_entity_name(node.left, None)
         } else {
             // TODO: non_null
-            self.check_entity_name(node.left)
+            self.check_entity_name(node.left, None)
         };
-        self.check_prop_access_expr_or_qualified_name(node.id, node.left.id(), left_ty, node.right)
+        self.check_property_access_expr_or_qualified_name(
+            node.id,
+            node.left.id(),
+            left_ty,
+            node.right,
+            check_mode,
+        )
     }
 
     pub(super) fn get_type_of_param(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -216,11 +228,9 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty;
         }
-        let base_ctor_ty = self.check_expr(extends.expr_with_ty_args.expr);
-        if base_ctor_ty
-            .flags
-            .intersects(TypeFlags::OBJECT.union(TypeFlags::INTERSECTION))
-        {
+        let base_ctor_ty = self.check_expression(extends.expr_with_ty_args.expr, None);
+        const FLAGS: TypeFlags = TypeFlags::OBJECT.union(TypeFlags::INTERSECTION);
+        if base_ctor_ty.flags.intersects(FLAGS) {
             self.resolve_structured_type_members(base_ctor_ty);
         }
         if let Cycle::Some(_) = self.pop_ty_resolution() {
@@ -276,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
         (name.as_atom().is_some()
             || name.is_numeric()
             || matches!(name, SymbolName::ESSymbol { .. }))
-            && self.symbol_is_value(member, false)
+            && self.symbol_is_value::<false>(member)
     }
 
     pub(super) fn get_declared_ty_of_class_or_interface(
@@ -313,7 +323,7 @@ impl<'cx> TyChecker<'cx> {
             } {
             let ty_params = self.concatenate(outer_ty_params, local_ty_params);
             assert!(kind == SymbolFlags::CLASS || !is_this_less_interface || !ty_params.is_empty());
-            let this_ty = self.create_param_ty(Some(symbol), true);
+            let this_ty = self.create_param_ty::<true>(Some(symbol));
             let target = self.create_interface_ty(
                 Some(symbol),
                 Some(ty_params),
@@ -332,6 +342,7 @@ impl<'cx> TyChecker<'cx> {
                 alias_symbol: None,
                 alias_ty_arguments: None,
                 promise_or_awaitable_links,
+                pattern: None,
             });
             let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
             assert!(!self.ty_links.contains_key(&ty.id));
@@ -395,7 +406,7 @@ impl<'cx> TyChecker<'cx> {
             match node {
                 MappedTy(n) => {
                     let outer_ty_params = self.get_outer_ty_params::<INCLUDE_THIS>(id);
-                    let symbol = self.get_symbol_of_decl(n.ty_param.id);
+                    let symbol = self.get_symbol_of_declaration(n.ty_param.id);
                     let ty = self.get_declared_ty_of_ty_param(symbol);
                     return if let Some(mut outer_ty_params) = outer_ty_params {
                         outer_ty_params.push(ty);
@@ -424,7 +435,7 @@ impl<'cx> TyChecker<'cx> {
                         || node.is_arrow_fn_expr()
                         || (self.p.is_object_lit_method(id)) && self.is_context_sensitive(id)
                     {
-                        let symbol = self.get_symbol_of_decl(id);
+                        let symbol = self.get_symbol_of_declaration(id);
                         let ty = self.get_type_of_symbol(symbol);
                         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Call);
                         if let Some(sig) = sigs.first()
@@ -451,7 +462,7 @@ impl<'cx> TyChecker<'cx> {
                             || node.is_class_expr()
                             || node.is_interface_decl())
                     {
-                        let symbol = self.get_symbol_of_decl(id);
+                        let symbol = self.get_symbol_of_declaration(id);
                         let declared_ty = self.get_declared_ty_of_symbol(symbol);
                         if let Some(this_ty) = Self::this_ty(declared_ty) {
                             outer_ty_params.push(this_ty);
@@ -591,7 +602,7 @@ impl<'cx> TyChecker<'cx> {
         for decl in decls {
             for member in decl.members.iter() {
                 if self.has_bindable_name(member.id) {
-                    let member_symbol = self.get_symbol_of_decl(member.id);
+                    let member_symbol = self.get_symbol_of_declaration(member.id);
                     let _ = self.get_symbol_links(member_symbol);
                     let value = self.get_enum_member_value(member);
                     let member_ty = match value {

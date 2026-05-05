@@ -5,7 +5,6 @@ pub use bolt_ts_diag_derive::DiagnosticExt;
 use bolt_ts_span::ModuleArena;
 use diag_ext::into_miette_diagnostic;
 pub use miette;
-pub use thiserror;
 
 #[derive(Debug)]
 pub struct Diag {

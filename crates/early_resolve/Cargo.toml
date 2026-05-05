@@ -15,3 +15,4 @@ bolt_ts_parser = { path = "../parser" }
 bolt_ts_utils = { path = "../../helper/utils" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
+thiserror = { workspace = true }

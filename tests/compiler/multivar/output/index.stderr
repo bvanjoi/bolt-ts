@@ -1,0 +1,13 @@
+  × Individual declarations in merged declaration 'b2' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/multivar/index.ts:10:19]
+ 10 │ b2
+    · ──
+    ╰────
+
+  × Individual declarations in merged declaration 'b2' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/multivar/index.ts:27:9]
+ 27 │ b2
+    · ──
+    ╰────

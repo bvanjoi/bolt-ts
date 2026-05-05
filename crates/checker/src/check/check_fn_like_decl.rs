@@ -12,7 +12,7 @@ impl<'cx> TyChecker<'cx> {
         if param.dotdotdot.is_some()
             && let ast::BindingKind::Ident(_) = param.name.kind
         {
-            let symbol = self.get_symbol_of_decl(param.id);
+            let symbol = self.get_symbol_of_declaration(param.id);
             let ty = self.get_type_of_symbol(symbol);
             let ty = self.get_reduced_ty(ty);
             if !self.is_type_assignable_to(ty, self.any_readonly_array_ty()) {
@@ -25,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {
         let id = decl.id();
         let fn_decl = self.p.node(id);
-        let symbol = self.get_symbol_of_decl(id);
+        let symbol = self.get_symbol_of_declaration(id);
         let first_fn_decl = self.symbol(symbol).decls.as_ref().and_then(|decls| {
             decls
                 .iter()
@@ -128,7 +128,7 @@ impl<'cx> TyChecker<'cx> {
                     return;
                 }
                 let sig = self.get_sig_from_decl(fn_id);
-                let inferred_return_ty = self.get_ret_ty_of_sig(sig);
+                let inferred_return_ty = self.get_return_type_of_signature(sig);
                 if self.is_unwrapped_ret_ty_undefined_void_or_any(fn_id, inferred_return_ty) {
                     return;
                 }

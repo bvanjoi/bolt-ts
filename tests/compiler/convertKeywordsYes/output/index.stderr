@@ -1,3 +1,57 @@
+  × Identifier expected. 'implements' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/convertKeywordsYes/index.ts:8:5]
+ 8 │ implements
+   · ──────────
+   ╰────
+
+  × Identifier expected. 'interface' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/convertKeywordsYes/index.ts:9:5]
+ 9 │ interface
+   · ─────────
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:10:5]
+ 10 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'package' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:13:5]
+ 13 │ package
+    · ───────
+    ╰────
+
+  × Identifier expected. 'private' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:14:5]
+ 14 │ private
+    · ───────
+    ╰────
+
+  × Identifier expected. 'protected' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:15:5]
+ 15 │ protected
+    · ─────────
+    ╰────
+
+  × Identifier expected. 'public' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:16:5]
+ 16 │ public
+    · ──────
+    ╰────
+
+  × Identifier expected. 'static' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:18:5]
+ 18 │ static
+    · ──────
+    ╰────
+
+  × Identifier expected. 'yield' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/convertKeywordsYes/index.ts:21:5]
+ 21 │ yield
+    · ─────
+    ╰────
+
   × Classes may not have a field named 'constructor'.
      ╭─[../../tests/compiler/convertKeywordsYes/index.ts:177:12]
  177 │ "constructor"

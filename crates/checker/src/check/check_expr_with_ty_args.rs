@@ -43,7 +43,7 @@ impl<'cx> ExprWithTyArgs<'cx> for ast::ExprWithTyArgs<'cx> {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn check_expr_with_ty_args(
+    pub(super) fn check_expression_with_ty_arguments(
         &mut self,
         node: &impl ExprWithTyArgs<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -59,10 +59,10 @@ impl<'cx> TyChecker<'cx> {
             {
                 // TODO: check this expr
             }
-            self.check_entity_name(expr_name)
+            self.check_entity_name(expr_name, None)
         } else {
             // exprWithTyArgs node
-            self.check_expr(node.expr().unwrap())
+            self.check_expression(node.expr().unwrap(), None)
         };
         self.get_instantiation_expr_ty(expr_ty, node)
     }
@@ -127,6 +127,7 @@ fn get_instantiated_ty_part<'cx>(
                 ctor_sigs,
                 resolved.index_infos,
                 Some(node_id),
+                None,
             );
         }
     } else if ty
@@ -189,7 +190,7 @@ fn get_instantiated_sigs<'cx>(
     });
     checker
         .same_map_sigs(Some(applicable_sigs), |this, sig, _| {
-            if let Some(ty_arg_tys) = this.check_ty_args(sig, ty_args, true) {
+            if let Some(ty_arg_tys) = this.check_type_arguments(sig, ty_args, true) {
                 let is_js = sig.node_id.is_some_and(|node_id| {
                     this.node_query(node_id.module()).is_in_js_file(node_id)
                 });

@@ -15,7 +15,8 @@ impl<'cx> TyChecker<'cx> {
         enclosing_declaration: Option<ast::NodeID>,
     ) -> &str {
         if self.type_name.contains_key(&ty.id) {
-            return &self.type_name[&ty.id];
+            let cached = &self.type_name[&ty.id];
+            return if cached == "..." { "any" } else { cached };
         }
         self.type_name
             .insert(ty.id, std::borrow::Cow::Borrowed("..."));
@@ -24,11 +25,12 @@ impl<'cx> TyChecker<'cx> {
             enclosing_declaration,
         };
         let type_name = ctx.print_ty(ty);
-        let prev = self
+        let prev = ctx
+            .c
             .type_name
             .insert(ty.id, std::borrow::Cow::Owned(type_name));
         debug_assert!(prev.is_some_and(|s| s == "..."));
-        &self.type_name[&ty.id]
+        &ctx.c.type_name[&ty.id]
     }
 
     fn symbol_value_declaration_is_context_sensitive(
@@ -190,7 +192,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 s.push('`');
                 s
             }
-            ty::TyKind::UniqueESSymbol(_) => "unique es symbol".to_string(),
+            ty::TyKind::UniqueESSymbol(_) => "unique symbol".to_string(),
             ty::TyKind::Enum(n) => self.print_enum_symbol(n.symbol),
         }
     }
@@ -352,7 +354,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            let ret = this.c.get_ret_ty_of_sig(sig);
+            let ret = this.c.get_return_type_of_signature(sig);
             let ret = this.c.print_ty(ret, this.enclosing_declaration);
             format!("({params}) => {ret}")
         };

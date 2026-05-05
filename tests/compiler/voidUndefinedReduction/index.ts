@@ -15,10 +15,10 @@ if (isDefined(foo)) {
 if (isDefined(foo)) {
 } else {
   foo.toUpperCase()
-  //~^ ERROR: 'foo' is possibly undefined.
+  //~^ ERROR: 'foo' is possibly 'undefined'.
 }
 
 if (!isDefined(foo)) {
   foo.toUpperCase()
-  //~^ ERROR: 'foo' is possibly undefined.
+  //~^ ERROR: 'foo' is possibly 'undefined'.
 }

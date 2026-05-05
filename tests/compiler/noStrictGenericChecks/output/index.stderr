@@ -1,0 +1,5 @@
+  × Type 'B' is not assignable to type 'A'.
+    ╭─[../../tests/compiler/noStrictGenericChecks/index.ts:10:5]
+ 10 │ a
+    · ─
+    ╰────

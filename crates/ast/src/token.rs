@@ -646,12 +646,11 @@ impl TokenKind {
                  Unique |
                  // Unknown |
                  // Using |
-                 From | 
+                 From |
                  // Global |
                       // BigInt |
                       // Override |
-                      Of
-                      // Defer
+                      Of // Defer
         )
     }
 

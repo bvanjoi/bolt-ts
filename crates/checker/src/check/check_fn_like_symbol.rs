@@ -243,8 +243,8 @@ impl<'cx> TyChecker<'cx> {
         let erased_source = self.get_erased_sig(implementation);
         let erased_target = self.get_erased_sig(overload);
 
-        let source_ret_ty = self.get_ret_ty_of_sig(erased_source);
-        let target_ret_ty = self.get_ret_ty_of_sig(erased_target);
+        let source_ret_ty = self.get_return_type_of_signature(erased_source);
+        let target_ret_ty = self.get_return_type_of_signature(erased_target);
         if target_ret_ty == self.void_ty
             || self.is_type_related_to(target_ret_ty, source_ret_ty, RelationKind::Assignable)
             || self.is_type_related_to(source_ret_ty, target_ret_ty, RelationKind::Assignable)

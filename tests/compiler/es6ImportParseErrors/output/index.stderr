@@ -1,0 +1,5 @@
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/es6ImportParseErrors/index.ts:5:1]
+ 5 │ import
+   · ──────
+   ╰────

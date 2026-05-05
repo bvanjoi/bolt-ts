@@ -1,11 +1,11 @@
-  × Property 'y' does not exist on type 'Foo'.
+  × Property 'y' does not exist on type 'Foo<Foo>'.
     ╭─[../../tests/compiler/thisInOuterClassBody/index.ts:14:20]
  14 │ y
     · ─
     ╰────
 
 Advice: 
-  ☞ Did you mean to access the static member 'Foo.y' instead?
+  ☞ Did you mean to access the static member 'Foo<Foo>.y' instead?
     ╭─[../../tests/compiler/thisInOuterClassBody/index.ts:14:20]
  14 │ y
     · ─

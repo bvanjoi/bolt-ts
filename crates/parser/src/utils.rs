@@ -382,7 +382,7 @@ impl<'cx> ParserState<'cx, '_> {
             _ => None,
         };
         if let Some(kind) = kind {
-            (self.alloc(ast::PropName { kind })) as _
+            self.alloc(ast::PropName { kind })
         } else if ALLOW_COMPUTED_PROP_NAMES && self.token.kind == TokenKind::LBracket {
             let start = self.token.start();
             self.expect(TokenKind::LBracket);
@@ -984,7 +984,7 @@ impl<'cx> ParserState<'cx, '_> {
         under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
-        let name = self.parse_prop_name::<false>();
+        let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
         if !self.parse_params().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
@@ -1006,7 +1006,7 @@ impl<'cx> ParserState<'cx, '_> {
         under_type_context: bool,
         flags: SignatureFlags,
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
-        let name = self.parse_prop_name::<false>();
+        let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_params();
         self.check_params::<false>(params);

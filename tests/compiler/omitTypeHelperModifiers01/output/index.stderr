@@ -1,0 +1,5 @@
+  × Cannot assign to 'c' because it is a read-only property.
+    ╭─[../../tests/compiler/omitTypeHelperModifiers01/index.ts:21:7]
+ 21 │ c
+    · ─
+    ╰────

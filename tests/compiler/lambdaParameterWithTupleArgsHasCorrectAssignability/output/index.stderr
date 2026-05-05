@@ -1,0 +1,17 @@
+  × Type 'G<[string, number]>' is not assignable to type 'G<[string]>'.
+    ╭─[../../tests/compiler/lambdaParameterWithTupleArgsHasCorrectAssignability/index.ts:41:5]
+ 41 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/lambdaParameterWithTupleArgsHasCorrectAssignability/index.ts:29:11]
+ 29 │ c0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/lambdaParameterWithTupleArgsHasCorrectAssignability/index.ts:31:11]
+ 31 │ c1
+    · ──
+    ╰────

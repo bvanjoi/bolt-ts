@@ -164,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
         let source_props = self.get_props_of_ty(source_enum_ty);
         for source_prop in source_props {
             let source_name = self.symbol(*source_prop).name;
-            let target_prop = self.get_prop_of_ty::<false>(target_enum_ty, source_name);
+            let target_prop = self.get_prop_of_ty::<false, false>(target_enum_ty, source_name);
             let Some(target_prop) = target_prop else {
                 // TODO: report error
                 self.enum_relation
@@ -631,7 +631,10 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn get_prop_of_ty<const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool>(
+    pub(super) fn get_prop_of_ty<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool,
+        const INCLUDE_TYPE_ONLY_MEMBERS: bool,
+    >(
         &mut self,
         ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -640,8 +643,20 @@ impl<'cx> TyChecker<'cx> {
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
             let s = self.expect_ty_links(ty.id).expect_structured_members();
-            if let Some(symbol) = self.get_prop_of_members(s.members, name) {
-                return Some(symbol);
+            let symbol = self.get_prop_of_members(s.members, name);
+            if let Some(symbol) = symbol {
+                // if !include_ty_only_members
+                //     && let Some(s) = ty.symbol()
+                //     && self.symbol(s).flags.contains(SymbolFlags::VALUE_MODULE)
+                //     && // TODO: type_only_export_star_map
+                // {}
+                if self.symbol_is_value::<INCLUDE_TYPE_ONLY_MEMBERS>(symbol) {
+                    return Some(symbol);
+                }
+            }
+
+            if SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT {
+                return None;
             }
 
             let fn_ty = if ty == self.any_fn_ty() {
@@ -781,7 +796,7 @@ impl<'cx> TyChecker<'cx> {
                 continue;
             }
             if let Some(prop) =
-                self.get_prop_of_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(ty, name)
+                self.get_prop_of_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT, false>(ty, name)
             {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop, None);
                 let symbol_flags = self.symbol(prop).flags;
@@ -1104,20 +1119,24 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_structured_type_members(ty);
         let s = self.expect_ty_links(ty.id).expect_structured_members();
         let symbol = self.get_prop_of_members(s.members, name)?;
-        self.symbol_is_value(symbol, false).then_some(symbol)
+        self.symbol_is_value::<false>(symbol).then_some(symbol)
     }
 
-    pub(super) fn symbol_is_value(
+    pub(super) fn symbol_is_value<const INCLUDE_TYPE_ONLY_MEMBERS: bool>(
         &mut self,
         symbol: SymbolID,
-        include_ty_only_members: bool,
     ) -> bool {
         let s = self.symbol(symbol).flags;
         s.intersects(SymbolFlags::VALUE)
-            || (s.intersects(SymbolFlags::ALIAS)
-                && self
-                    .get_symbol_flags(symbol, !include_ty_only_members)
-                    .intersects(SymbolFlags::VALUE))
+            || (s.contains(SymbolFlags::ALIAS) && {
+                if INCLUDE_TYPE_ONLY_MEMBERS {
+                    self.get_symbol_flags::<false>(symbol)
+                        .intersects(SymbolFlags::VALUE)
+                } else {
+                    self.get_symbol_flags::<true>(symbol)
+                        .intersects(SymbolFlags::VALUE)
+                }
+            })
     }
 
     pub fn get_unmatched_prop(
@@ -1154,7 +1173,8 @@ impl<'cx> TyChecker<'cx> {
                         .intersects(CheckFlags::PARTIAL))
             {
                 let target_prop_name = target_prop_symbol.name;
-                let Some(source_prop) = self.get_prop_of_ty::<false>(source, target_prop_name)
+                let Some(source_prop) =
+                    self.get_prop_of_ty::<false, false>(source, target_prop_name)
                 else {
                     unmatched.push(*target_prop);
                     continue;

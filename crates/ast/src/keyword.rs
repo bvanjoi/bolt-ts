@@ -194,16 +194,17 @@ prefilled_atom_map!(
             IDENT_DONE:                             ["done", 135],
             IDENT_VALUE:                            ["value", 136],
             IDENT_REQUIRE:                          ["require", 137],
-            IDENT_RECORD:                           ["Record", 138]
+            IDENT_RECORD:                           ["Record", 138],
+            IDENT_NAN:                              ["NaN", 139]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 139]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 140]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 140]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 141]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 141],
+            NUMBER_ZERO:                            ["0", 142],
         },
     }
 );

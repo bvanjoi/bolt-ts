@@ -10,7 +10,7 @@ pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> St
     match node {
         Ident(ident) => pprint_ident(ident, atoms),
         PrivateIdent(private_ident) => format!("#{}", atoms.get(private_ident.name).to_string()),
-        StringLit { raw, key } => atoms.get(raw.val).to_string(),
+        StringLit { raw, .. } => atoms.get(raw.val).to_string(),
         BigIntLit(lit) => atoms.get(lit.val.1).to_string(),
         NumLit(lit) => lit.val.to_string(),
         Computed(_) => todo!(),

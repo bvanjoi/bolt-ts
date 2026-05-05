@@ -5,20 +5,20 @@
 var constructor = 0;
 var any = 0;
 var boolean = 0;
-var implements = 0;
-var interface = 0;
-var let = 0;
+var implements = 0; //~ERROR: Identifier expected. 'implements' is a reserved word in strict mode.
+var interface = 0;  //~ERROR: Identifier expected. 'interface' is a reserved word in strict mode.
+var let = 0;        //~ERROR: Identifier expected. 'let' is a reserved word in strict mode.
 var module = 0;
 var number = 0;
-var package = 0;
-var private = 0;
-var protected = 0;
-var public = 0;
+var package = 0;    //~ERROR: Identifier expected. 'package' is a reserved word in strict mode.
+var private = 0;    //~ERROR: Identifier expected. 'private' is a reserved word in strict mode.
+var protected = 0;  //~ERROR: Identifier expected. 'protected' is a reserved word in strict mode.
+var public = 0;     //~ERROR: Identifier expected. 'public' is a reserved word in strict mode.
 var set = 0;
-var static = 0;
+var static = 0;     //~ERROR: Identifier expected. 'static' is a reserved word in strict mode.
 var string = 0;
 var get = 0;
-var yield = 0;
+var yield = 0;      //~ERROR: Identifier expected. 'yield' is a reserved word in strict mode.
 var declare = 0;
 
 function bigGeneric<

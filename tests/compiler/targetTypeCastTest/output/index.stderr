@@ -1,0 +1,9 @@
+  × Duplicate identifier 'Point'.
+   ╭─[../../tests/compiler/targetTypeCastTest/index.ts:8:10]
+ 6 │ Point: { new(x:number, y:number): {x: number; y: number; }; }
+   · ──┬──
+   ·   ╰── Previous definition here
+ 7 │ 
+ 8 │ function Point
+   ·          ─────
+   ╰────

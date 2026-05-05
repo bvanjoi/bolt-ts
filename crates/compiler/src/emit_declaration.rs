@@ -32,11 +32,15 @@ pub fn emit_declarations<'cx, 'a>(
 
 pub fn emit_declaration<'cx, 'a>(module_id: ModuleID, checker: &'a mut TyChecker<'cx>) -> String {
     let emitter = Emitter::new();
+    let mut flags = EmitDeclarationFlags::NEED_DECLARE;
+    if checker.p.get(module_id).is_external_or_commonjs_module() {
+        flags.remove(EmitDeclarationFlags::NEED_DECLARE);
+    }
     let resolver = EmitResolver::new(checker);
     let mut emitter = DeclarationEmitter {
         emitter,
         resolver,
-        flags: EmitDeclarationFlags::NEED_DECLARE,
+        flags,
     };
     let root = emitter.resolver.program(module_id);
     emitter.visit_program(root);
@@ -197,7 +201,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         IndexSig(n) => this.visit_index_sig_decl(n),
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
-                        CallSig(_n) => todo!(),
+                        CallSig(n) => this.visit_call_sig_decl(n),
                         CtorSig(_n) => todo!(),
                         Setter(_n) => todo!(),
                         Getter(_n) => todo!(),
@@ -213,9 +217,39 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_r_brace();
     }
 
+    fn visit_call_sig_decl(&mut self, node: &'cx bolt_ts_ast::CallSigDecl<'cx>) {
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.emit_ret_ty(node.ty);
+        self.emitter.print().p_semi();
+    }
+
     fn visit_call_expr(&mut self, _: &'cx bolt_ts_ast::CallExpr<'cx>) {}
 
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
+        if let Some(ms) = node.modifiers {
+            if ms.flags.contains(ast::ModifierFlags::EXPORT) {
+                self.emitter.print().p("export");
+                self.emitter.print().p_whitespace();
+            }
+            if ms.flags.contains(ast::ModifierFlags::DEFAULT) {
+                self.emitter.print().p("default");
+                self.emitter.print().p_whitespace();
+            }
+        }
         self.emit_declare_if_needed();
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
@@ -488,25 +522,29 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.emit_atom(self.resolver.atoms(), node.name);
     }
 
-    fn visit_fn_decl(&mut self, node: &'cx bolt_ts_ast::FnDecl<'cx>) {
-        if node
-            .modifiers
+    fn visit_fn_decl(&mut self, n: &'cx bolt_ts_ast::FnDecl<'cx>) {
+        if n.modifiers
             .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT))
         {
             self.emitter.print().p("export");
             self.emitter.print().p_whitespace();
         }
-        self.emitter.print().p("declare");
-        self.emitter.print().p_whitespace();
+        if n.modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::DEFAULT))
+        {
+            self.emitter.print().p("default");
+            self.emitter.print().p_whitespace();
+        }
+        self.emit_declare_if_needed();
         self.emitter.print().p("function");
         self.emitter.print().p_whitespace();
-        if let Some(name) = node.name.map(|name| name.name) {
+        if let Some(name) = n.name.map(|name| name.name) {
             self.emitter.emit_atom(self.resolver.atoms(), name);
         }
-        self.emit_type_parameters(node.ty_params);
+        self.emit_type_parameters(n.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
-            node.params,
+            n.params,
             |this, item| {
                 this.visit_param_decl(item);
             },
@@ -518,10 +556,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_r_paren();
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
-        if let Some(ty) = node.ty {
+        if let Some(ty) = n.ty {
             self.visit_ty(ty);
         } else {
-            let ty = self.resolver.ensure_type_for_function_declaration(node);
+            let ty = self.resolver.ensure_type_for_function_declaration(n);
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }

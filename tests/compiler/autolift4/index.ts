@@ -19,6 +19,6 @@ class Point3D extends Point {
     
     getDist() {
         return Math.sqrt(this.x*this.x + this.y*this.y + this.z*this.m);
-        //~^ ERROR: Property 'm' does not exist on type 'Point3D'.
+        //~^ ERROR: Property 'm' does not exist on type 'Point3D<Point3D>'.
     }        
 }

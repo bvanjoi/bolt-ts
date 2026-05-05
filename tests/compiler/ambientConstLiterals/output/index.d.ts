@@ -1,6 +1,6 @@
-declare function f<T>(x: T): T;
-declare function g<T>(x: T): T;
-declare enum E {
+function f<T>(x: T): T;
+function g<T>(x: T): T;
+enum E {
   A = 0,
   B = 1,
   C = 2,
