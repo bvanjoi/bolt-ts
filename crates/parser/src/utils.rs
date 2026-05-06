@@ -614,9 +614,9 @@ impl<'cx> ParserState<'cx, '_> {
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
             if allow_ambiguity {
-                Self::parse_param(this, allow_ambiguity)
+                Self::parse_parameter(this, allow_ambiguity)
             } else {
-                Self::parse_param(this, false)
+                Self::parse_parameter(this, false)
             }
         });
         let has_error = self.diags.len() > old_error;
@@ -649,7 +649,7 @@ impl<'cx> ParserState<'cx, '_> {
         params
     }
 
-    pub(super) fn parse_params(&mut self) -> ast::ParamsDecl<'cx> {
+    pub(super) fn parse_parameters(&mut self) -> ast::ParamsDecl<'cx> {
         use bolt_ts_ast::TokenKind::*;
         if !self.expect(LParen) {
             return &[];
@@ -671,7 +671,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_binding(ast::BindingKind::Ident(ident))
     }
 
-    pub(super) fn parse_param(
+    pub(super) fn parse_parameter(
         &mut self,
         allow_ambiguity_name: bool,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
@@ -725,27 +725,32 @@ impl<'cx> ParserState<'cx, '_> {
         }
         let name = self.parse_name_of_param()?;
         self.check_contextual_binding(name);
-        if dotdotdot.is_some()
-            && let Some(ms) = modifiers
-            && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
-        {
-            let kinds = ms
-                .list
-                .iter()
-                .filter_map(|m| {
-                    if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
-                        Some(m.kind())
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            let span = Span::new(ms.span.lo(), name.span.hi(), name.span.module());
-            let error =
-                errors::AParameterPropertyCannotBeDeclaredUsingARestParameter { span, kinds };
-            self.push_error(Box::new(error));
-        };
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
+        if dotdotdot.is_some() {
+            if let Some(ms) = modifiers
+                && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+            {
+                let kinds = ms
+                    .list
+                    .iter()
+                    .filter_map(|m| {
+                        if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
+                            Some(m.kind())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let span = Span::new(ms.span.lo(), name.span.hi(), name.span.module());
+                let error =
+                    errors::AParameterPropertyCannotBeDeclaredUsingARestParameter { span, kinds };
+                self.push_error(Box::new(error));
+            }
+            if let Some(question) = question {
+                let error = errors::ARestParameterCannotBeOptional { span: question };
+                self.push_error(Box::new(error));
+            }
+        };
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let id = self.next_node_id();
@@ -880,7 +885,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume '['
         let mut params = Vec::with_capacity(1);
         if self.is_list_element(ParsingContext::PARAMETERS, false) {
-            if let Ok(param) = self.parse_param(true) {
+            if let Ok(param) = self.parse_parameter(true) {
                 params.push(param);
             };
 
@@ -986,7 +991,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        if !self.parse_params().is_empty() {
+        if !self.parse_parameters().is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
                 span: name.span(),
             }));
@@ -1008,7 +1013,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        let params = self.parse_parameters();
         self.check_params::<false>(params);
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {

@@ -2972,7 +2972,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         let (param_count, rest_index) = if source_rest_ty.is_some() || target_rest_ty.is_some() {
             let param_count = usize::min(source_count, target_count);
-            (param_count, param_count - 1)
+            if param_count == 0 {
+                (0, usize::MAX)
+            } else {
+                (param_count, param_count - 1)
+            }
         } else {
             (usize::max(source_count, target_count), usize::MAX)
         };
@@ -2986,15 +2990,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 this.c.is_generic_ty(ty)
             };
         for i in 0..param_count {
-            let source_ty = if i == rest_index {
-                Some(self.c.get_rest_or_any_ty_at_pos(source, i))
+            let source_ty;
+            let target_ty;
+            if i == rest_index {
+                source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
+                target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
             } else {
-                self.c.try_get_ty_at_pos(source, i)
-            };
-            let target_ty = if i == rest_index {
-                Some(self.c.get_rest_or_any_ty_at_pos(target, i))
-            } else {
-                self.c.try_get_ty_at_pos(target, i)
+                source_ty = self.c.try_get_ty_at_pos(source, i);
+                target_ty = self.c.try_get_ty_at_pos(target, i);
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty

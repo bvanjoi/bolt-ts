@@ -6001,7 +6001,7 @@ impl<'cx> TyChecker<'cx> {
         self.is_const_ty_variable_worker(ty, 0)
     }
 
-    fn is_valid_const_assertion_argument(&self, node: ast::NodeID) -> bool {
+    pub(super) fn is_valid_const_assertion_argument(&self, node: ast::NodeID) -> bool {
         let n = self.p.node(node);
         use ast::Node::*;
         match n {
@@ -6032,7 +6032,7 @@ impl<'cx> TyChecker<'cx> {
                 else {
                     return false;
                 };
-                self.symbol(symbol).flags.contains(SymbolFlags::ENUM)
+                self.symbol(symbol).flags.intersects(SymbolFlags::ENUM)
             }
             _ => false,
         }

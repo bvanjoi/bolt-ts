@@ -1,1 +1,2 @@
-declare var lengths: number[]
+declare var lengths: number[];
+

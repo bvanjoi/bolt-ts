@@ -34,7 +34,7 @@ impl<'cx> TyChecker<'cx> {
             Pred(n) => self.check_pred_ty(n),
             Mapped(n) => self.check_mapped_ty(n),
             Array(n) => self.check_array_ty(n),
-            Ctor(n) => (),
+            Ctor(n) => self.check_sig_decl(n.id),
             Lit(n) => (),
             NamedTuple(n) => (),
             Rest(n) => (),

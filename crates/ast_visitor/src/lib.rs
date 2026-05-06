@@ -185,7 +185,7 @@ pub fn visit_import_decl<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::ImportDecl
 pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassElem<'cx>) {
     use ast::ClassElemKind::*;
     match elem.kind {
-        Ctor(_n) => {}
+        Ctor(n) => v.visit_class_ctor(n),
         Prop(n) => v.visit_class_prop_elem(n),
         Method(n) => v.visit_class_method_elem(n),
         IndexSig(n) => v.visit_index_sig_decl(n),
@@ -193,6 +193,19 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
         Setter(n) => v.visit_setter_decl(n),
         StaticBlockDecl(_n) => {}
         Semi(_) => {}
+    }
+}
+pub fn visit_class_ctor<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ClassCtor<'cx>) {
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for param in n.params {
+        v.visit_param_decl(param);
+    }
+    if let Some(body) = n.body {
+        v.visit_block_stmt(body);
     }
 }
 pub fn visit_index_sig_decl<'cx>(v: &mut impl Visitor<'cx>, node: &'cx ast::IndexSigDecl<'cx>) {
@@ -591,6 +604,7 @@ make_visitor!(
     (visit_stmt, ast::Stmt<'cx>),
     (visit_import_decl, ast::ImportDecl<'cx>),
     (visit_interface_decl, ast::InterfaceDecl<'cx>),
+    (visit_class_ctor, ast::ClassCtor<'cx>),
     (visit_class_decl, ast::ClassDecl<'cx>),
     (visit_class_elem, ast::ClassElem<'cx>),
     (visit_class_prop_elem, ast::ClassPropElem<'cx>),

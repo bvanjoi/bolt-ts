@@ -323,7 +323,28 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             EqEq | EqEqEq | NEq | NEqEq => {
+                let is_literal_expression_of_object = |expr: &'cx ast::Expr<'cx>| {
+                    matches!(
+                        expr.kind,
+                        ast::ExprKind::ObjectLit(_)
+                            | ast::ExprKind::ArrayLit(_)
+                            | ast::ExprKind::RegExpLit(_)
+                            | ast::ExprKind::Fn(_)
+                            | ast::ExprKind::Class(_)
+                    )
+                };
                 if !check_mode.is_some_and(|check_mode| check_mode.contains(CheckMode::TYPE_ONLY)) {
+                    if (is_literal_expression_of_object(left) || is_literal_expression_of_object(right)) &&
+                        // only report for === and !== in JS, not == or !=
+                        (!self.node_query(left.id().module()).is_in_js_file(left.id()) || (matches!(op.kind, EqEqEq | NEqEq )))
+                    {
+                        let eq_type = matches!(op.kind, EqEq | EqEqEq);
+                        let error = errors::ThisConditionWillAlwaysReturnXSinceJavaScriptComparesObjectsByReferenceNotValue {
+                            span: node.span,
+                            return_value: if eq_type { "false" } else { "true" }.to_string(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
                     // check_nan_equality
                     if self.is_global_nan(ast::Expr::skip_parens(left))
                         || self.is_global_nan(ast::Expr::skip_parens(right))
@@ -1062,6 +1083,12 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let expr_ty = self.check_expression(assert_expr, check_mode);
         if assert_ty.is_const_ty_refer() {
+            if !self.is_valid_const_assertion_argument(assert_expr.id()) {
+                let error = errors::AConstAssertionCanOnlyBeAppliedToReferencesToEnumMembersOrStringNumberBooleanArrayOrObjectLiterals {
+                    span: assert_expr.span()
+                };
+                self.push_error(Box::new(error));
+            }
             return self.get_regular_ty_of_literal_ty(expr_ty);
         }
         self.check_node_deferred(node_id);

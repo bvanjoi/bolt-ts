@@ -138,7 +138,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     this.check_contextual_ident(name);
                 }
                 let ty_params = this.parse_ty_params();
-                let params = this.parse_params();
+                let params = this.parse_parameters();
                 this.check_params::<false>(params);
                 let ret_ty = this.parse_fn_decl_ret_type()?;
                 let is_generator = asterisk_token.is_some();

@@ -189,17 +189,5 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-
-        if decl.init().is_some()
-            && decl.is_param()
-            && let Some(f) = self.node_query(id.module()).get_containing_fn(id)
-            && self.p.node(f).fn_body().is_none()
-        {
-            let error =
-                errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
-                    span: self.p.node(id).span(),
-                };
-            self.push_error(Box::new(error));
-        }
     }
 }

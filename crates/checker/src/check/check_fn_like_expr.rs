@@ -253,6 +253,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    // TODO: not use `id`
     pub(super) fn check_sig_decl(&mut self, id: ast::NodeID) {
         let n = self.p.node(id);
         let ty_params = self.get_effective_ty_param_decls(id);

@@ -1,0 +1,107 @@
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:11:3]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:13:3]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:15:3]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:17:3]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:19:3]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:21:3]
+ 21 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:23:3]
+ 23 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:25:3]
+ 25 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:27:3]
+ 27 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:29:3]
+ 29 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:31:3]
+ 31 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:33:3]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:36:3]
+ 36 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:38:3]
+ 38 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:40:5]
+ 40 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:42:5]
+ 42 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:45:7]
+ 45 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a read-only property.
+    ╭─[../../tests/compiler/constDeclarations-access4/index.ts:48:1]
+ 48 │ M["x"]
+    · ──────
+    ╰────

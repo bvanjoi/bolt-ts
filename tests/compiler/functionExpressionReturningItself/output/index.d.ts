@@ -1,1 +1,2 @@
-declare var x: () => any
+declare var x: () => any;
+

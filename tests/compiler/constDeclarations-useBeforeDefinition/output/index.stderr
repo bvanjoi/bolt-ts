@@ -1,0 +1,25 @@
+  × Block-scoped variable 'c1' used before its declaration.
+   ╭─[../../tests/compiler/constDeclarations-useBeforeDefinition/index.ts:7:5]
+ 7 │ c1
+   · ──
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'c1' is defined here
+   ╭─[../../tests/compiler/constDeclarations-useBeforeDefinition/index.ts:8:11]
+ 8 │ c1 = 0
+   · ──────
+   ╰────
+
+  × Block-scoped variable 'v1' used before its declaration.
+    ╭─[../../tests/compiler/constDeclarations-useBeforeDefinition/index.ts:13:5]
+ 13 │ v1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v1' is defined here
+    ╭─[../../tests/compiler/constDeclarations-useBeforeDefinition/index.ts:14:11]
+ 14 │ v1 = 0
+    · ──────
+    ╰────

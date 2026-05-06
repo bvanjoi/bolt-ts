@@ -977,13 +977,6 @@ pub(super) struct FunctionLacksEndingReturnStatementAndReturnTypeDoesNotIncludeU
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("A parameter initializer is only allowed in a function or constructor implementation.")]
-pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("The operand of a 'delete' operator must be a property reference.")]
 pub(super) struct TheOperandOfADeleteOperatorMustBeAPropertyReference {
     #[label(primary)]
@@ -1626,6 +1619,26 @@ pub(super) struct NewExpressionWhoseTargetLacksAConstructSignatureImplicitlyHasA
     "A 'super' call must be the first statement in the constructor to refer to 'super' or 'this' when a derived class contains initialized properties, parameter properties, or private identifiers."
 )]
 pub(super) struct ASuperCallMustBeTheFirstStatementInTheConstructorToReferToSuperOrThisWhenADerivedClassContainsInitializedPropertiesParameterPropertiesOrPrivateIdentifiers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "This condition will always return '{return_value}' since JavaScript compares objects by reference, not value."
+)]
+pub(super) struct ThisConditionWillAlwaysReturnXSinceJavaScriptComparesObjectsByReferenceNotValue {
+    #[label(primary)]
+    pub span: Span,
+    pub return_value: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals."
+)]
+pub(super) struct AConstAssertionCanOnlyBeAppliedToReferencesToEnumMembersOrStringNumberBooleanArrayOrObjectLiterals
 {
     #[label(primary)]
     pub span: Span,

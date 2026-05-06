@@ -1,0 +1,6 @@
+  × A 'const' assertion can only be applied to references to enum members, or
+  │ string, number, boolean, array, or object literals.
+    ╭─[../../tests/compiler/constantEnumAssert/index.ts:52:20]
+ 52 │ E5.a
+    · ────
+    ╰────

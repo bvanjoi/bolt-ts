@@ -170,24 +170,6 @@ impl<'cx> FnLike<'cx> for crate::CallSigDecl<'cx> {
     }
 }
 
-impl<'cx> FnLike<'cx> for crate::CtorTy<'cx> {
-    fn id(&self) -> crate::NodeID {
-        self.id
-    }
-    fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
-    }
-    fn params(&self) -> crate::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
-        None
-    }
-    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
-        Some(self.ty)
-    }
-}
-
 pub trait FnDeclLike<'cx>: FnLike<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>>;
 }
@@ -211,12 +193,6 @@ impl<'cx> FnDeclLike<'cx> for crate::ClassCtor<'cx> {
 }
 
 impl<'cx> FnDeclLike<'cx> for crate::CtorSigDecl<'cx> {
-    fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
-        None
-    }
-}
-
-impl<'cx> FnDeclLike<'cx> for crate::CtorTy<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
         None
     }

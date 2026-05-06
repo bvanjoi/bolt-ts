@@ -610,8 +610,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         let ast::BindingKind::Ident(name) = node.name.kind else {
             todo!()
         };
-        self.emitter.print().p("declare");
-        self.emitter.print().p_whitespace();
+        self.emit_declare_if_needed();
         let node_flags = self.resolver.node_flags(node.id);
         if node_flags.contains(ast::NodeFlags::CONST) {
             self.emitter.print().p("const");
@@ -631,6 +630,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }
+        self.emitter.print().p_semi();
+        self.emitter.print().p_newline();
     }
 
     fn visit_typeof_ty(&mut self, node: &'cx bolt_ts_ast::TypeofTy<'cx>) {

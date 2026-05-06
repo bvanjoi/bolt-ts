@@ -101,3 +101,10 @@ pub(super) struct InitializersAreNotAllowedInAmbientContexts {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A parameter initializer is only allowed in a function or constructor implementation.")]
+pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -223,7 +223,7 @@ impl<'cx> ParserState<'cx, '_> {
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        let params = self.parse_parameters();
         self.check_params::<false>(params);
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let ty = if is_ctor_ty {
@@ -945,7 +945,7 @@ impl<'cx> ParserState<'cx, '_> {
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
-            let params = self.parse_params();
+            let params = self.parse_parameters();
             self.check_params::<false>(params);
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
@@ -986,7 +986,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        let params = self.parse_parameters();
         self.check_params::<false>(params);
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();

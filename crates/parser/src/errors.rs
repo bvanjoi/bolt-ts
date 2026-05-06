@@ -723,3 +723,10 @@ pub(super) struct HexadecimalDigitExpected {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest parameter cannot be optional.")]
+pub(super) struct ARestParameterCannotBeOptional {
+    #[label(primary)]
+    pub span: Span,
+}
