@@ -709,6 +709,16 @@ pub struct ArrowFnExpr<'cx> {
     pub body: ArrowFnExprBody<'cx>,
 }
 
+impl ArrowFnExpr<'_> {
+    pub fn fn_flags(&self) -> crate::FnFlags {
+        let mut fn_flags = crate::FnFlags::empty();
+        if self.async_modifier.is_some() {
+            fn_flags.insert(crate::FnFlags::ASYNC);
+        }
+        fn_flags
+    }
+}
+
 pub fn has_rest_param(params: ParamsDecl) -> bool {
     params.last().is_some_and(|param| param.is_rest())
 }
@@ -834,6 +844,18 @@ pub struct FnExpr<'cx> {
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: &'cx BlockStmt<'cx>,
+}
+impl FnExpr<'_> {
+    pub fn fn_flags(&self) -> crate::FnFlags {
+        let mut fn_flags = crate::FnFlags::empty();
+        if self.asterisk.is_some() {
+            fn_flags.insert(crate::FnFlags::GENERATOR);
+        }
+        if self.async_modifier.is_some() {
+            fn_flags.insert(crate::FnFlags::ASYNC);
+        }
+        fn_flags
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -3019,16 +3019,20 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let target_ty = self.c.get_non_nullable_ty(target_ty);
                     self.c.get_single_call_sig(target_ty)
                 };
-                let callbacks = match (source_sig, target_sig) {
-                    (Some(_), Some(_)) => false,
-                    _ => false,
-                };
-                let mut related = if callbacks {
-                    let target_sig = target_sig.unwrap();
-                    let source_sig = source_sig.unwrap();
+                let mut related = if let Some(s) = source_sig
+                    && let Some(t) = target_sig
+                    && self.c.get_ty_predicate_of_sig(s).is_none()
+                    && self.c.get_ty_predicate_of_sig(t).is_none()
+                    && self
+                        .c
+                        .get_ty_facts(source_ty, TypeFacts::IS_UNDEFINED_OR_NULL)
+                        == self
+                            .c
+                            .get_ty_facts(target_ty, TypeFacts::IS_UNDEFINED_OR_NULL)
+                {
                     self.compare_sig_related(
-                        target_sig,
-                        source_sig,
+                        t,
+                        s,
                         (check_mode & SigCheckMode::STRICT_ARITY)
                             | if strict_variance {
                                 SigCheckMode::STRICT_CALLBACK
@@ -3148,8 +3152,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     return Ternary::FALSE;
                 }
             } else {
-                let related = if check_mode.intersects(SigCheckMode::BIVARIANT_CALLBACK) {
-                    compare(self, source_ret_ty, target_ret_ty, false)
+                let related = if check_mode.contains(SigCheckMode::BIVARIANT_CALLBACK) {
+                    compare(self, target_ret_ty, source_ret_ty, false)
                 } else {
                     compare(self, source_ret_ty, target_ret_ty, report_error)
                 };

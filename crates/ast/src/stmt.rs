@@ -437,6 +437,11 @@ pub struct IndexSigDecl<'cx> {
     pub key_ty: &'cx self::Ty<'cx>,
     pub ty: &'cx self::Ty<'cx>,
 }
+impl IndexSigDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ObjectTyMember<'cx> {
@@ -487,6 +492,12 @@ pub struct MethodSignature<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
+}
+
+impl MethodSignature<'_> {
+    pub fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -610,6 +621,16 @@ pub struct GetterDecl<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
+impl GetterDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        if self.body.is_none() {
+            FnFlags::INVALID
+        } else {
+            FnFlags::empty()
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SetterDecl<'cx> {
     pub id: NodeID,
@@ -638,6 +659,14 @@ impl<'cx> SetterDecl<'cx> {
             }
         })
     }
+
+    pub fn fn_flags(&self) -> FnFlags {
+        if self.body.is_none() {
+            FnFlags::INVALID
+        } else {
+            FnFlags::empty()
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -652,6 +681,16 @@ pub struct ClassCtor<'cx> {
     pub body: Option<&'cx BlockStmt<'cx>>,
 }
 
+impl ClassCtor<'_> {
+    pub fn fn_flags(&self) -> FnFlags {
+        if self.body.is_none() {
+            FnFlags::INVALID
+        } else {
+            FnFlags::empty()
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ClassMethodElem<'cx> {
     pub id: NodeID,
@@ -663,6 +702,25 @@ pub struct ClassMethodElem<'cx> {
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
+}
+
+impl ClassMethodElem<'_> {
+    pub fn fn_flags(&self) -> FnFlags {
+        let mut flags = FnFlags::INVALID;
+        if self.asterisk.is_some() {
+            flags |= FnFlags::GENERATOR;
+        }
+        if self
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierFlags::ASYNC))
+        {
+            flags |= FnFlags::ASYNC;
+        }
+        if self.body.is_none() {
+            flags |= FnFlags::INVALID;
+        }
+        flags
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -919,6 +977,25 @@ pub struct FnDecl<'cx> {
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx super::Ty<'cx>>,
     pub body: Option<&'cx BlockStmt<'cx>>,
+}
+
+impl<'cx> FnDecl<'cx> {
+    pub fn fn_flags(&self) -> FnFlags {
+        let mut flags = FnFlags::empty();
+        if self.asterisk.is_some() {
+            flags |= FnFlags::GENERATOR;
+        }
+        if self
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ModifierFlags::ASYNC))
+        {
+            flags |= FnFlags::ASYNC;
+        }
+        if self.body.is_none() {
+            flags |= FnFlags::INVALID;
+        }
+        flags
+    }
 }
 
 #[derive(Debug, Clone)]

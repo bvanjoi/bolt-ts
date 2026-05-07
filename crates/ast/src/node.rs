@@ -17,7 +17,6 @@ impl NodeID {
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, PartialEq, Eq)]
   pub struct FnFlags: u8 {
-        const NORMAL          = 0;
         const GENERATOR       = 1 << 0;
         const ASYNC           = 1 << 1;
         const INVALID         = 1 << 2;
@@ -584,46 +583,21 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn fn_flags(&self) -> FnFlags {
-        if !self.is_fn_like() {
-            return FnFlags::INVALID;
-        }
-        let mut flags = FnFlags::NORMAL;
         match self {
-            Node::FnDecl(super::FnDecl { asterisk, .. })
-            | Node::ClassMethodElem(super::ClassMethodElem { asterisk, .. })
-            | Node::ObjectMethodMember(super::ObjectMethodMember { asterisk, .. }) => {
-                if asterisk.is_some() {
-                    flags |= FnFlags::GENERATOR;
-                }
-                if self.has_syntactic_modifier(self::ModifierFlags::ASYNC) {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            Node::FnExpr(super::FnExpr {
-                asterisk,
-                async_modifier,
-                ..
-            }) => {
-                if asterisk.is_some() {
-                    flags |= FnFlags::GENERATOR;
-                }
-                if async_modifier.is_some() {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            Node::ArrowFnExpr(n) => {
-                if n.async_modifier.is_some() {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            _ => {}
+            Node::MethodSignature(n) => n.fn_flags(),
+            Node::CallSigDecl(n) => n.fn_flags(),
+            Node::CtorSigDecl(n) => n.fn_flags(),
+            Node::IndexSigDecl(n) => n.fn_flags(),
+            Node::FnDecl(n) => n.fn_flags(),
+            Node::ClassMethodElem(n) => n.fn_flags(),
+            Node::ObjectMethodMember(n) => n.fn_flags(),
+            Node::ClassCtor(n) => n.fn_flags(),
+            Node::GetterDecl(n) => n.fn_flags(),
+            Node::SetterDecl(n) => n.fn_flags(),
+            Node::FnExpr(n) => n.fn_flags(),
+            Node::ArrowFnExpr(n) => n.fn_flags(),
+            _ => FnFlags::INVALID,
         }
-
-        if self.fn_body().is_none() {
-            flags |= FnFlags::INVALID;
-        }
-
-        flags
     }
 
     pub fn module_name(&self) -> Option<&'cx super::StringLit> {

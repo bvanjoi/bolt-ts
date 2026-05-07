@@ -326,6 +326,12 @@ pub struct CtorSigDecl<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
+impl CtorSigDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CallSigDecl<'cx> {
     pub id: NodeID,
@@ -333,6 +339,12 @@ pub struct CallSigDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
+}
+
+impl CallSigDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -537,6 +549,16 @@ pub struct ObjectMethodMember<'cx> {
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx Ty<'cx>>,
     pub body: &'cx BlockStmt<'cx>,
+}
+
+impl<'cx> ObjectMethodMember<'cx> {
+    pub fn fn_flags(&self) -> FnFlags {
+        let mut flags = FnFlags::empty();
+        if self.asterisk.is_some() {
+            flags.insert(FnFlags::GENERATOR);
+        }
+        flags
+    }
 }
 
 #[derive(Debug, Clone)]

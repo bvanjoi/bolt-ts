@@ -196,7 +196,7 @@ impl<'cx> TyChecker<'cx> {
         kind: SigKind,
         allow_members: bool,
     ) -> Option<&'cx Sig<'cx>> {
-        if !ty.kind.is_object() {
+        if !ty.flags.contains(TypeFlags::OBJECT) {
             return None;
         }
         self.resolve_structured_type_members(ty);

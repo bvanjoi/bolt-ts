@@ -1,0 +1,5 @@
+  × Interface 'Deriver' incorrectly extends interface 'Base'.
+   ╭─[../../tests/compiler/overloadOnConstInheritance2/index.ts:9:11]
+ 9 │ Deriver
+   · ───────
+   ╰────

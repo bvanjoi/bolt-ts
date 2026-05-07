@@ -6233,8 +6233,21 @@ impl<'cx> TyChecker<'cx> {
                 None,
             )
             .unwrap()
+        } else if let Some(i) = ty.kind.as_intersection() {
+            // get_intersection_ty_facts
+            let ignore_objects = ty.maybe_type_of_kind(TypeFlags::PRIMITIVE);
+            let mut ored_facts = TypeFacts::empty();
+            let mut anded_facts = TypeFacts::all();
+            for t in i.tys {
+                if !(ignore_objects && t.flags.contains(TypeFlags::OBJECT)) {
+                    let f = self.get_type_facts_worker(t, caller_only_needs);
+                    ored_facts |= f;
+                    anded_facts &= f;
+                }
+            }
+            ored_facts.intersection(TypeFacts::OR_FACTS_MASK)
+                | anded_facts.intersection(TypeFacts::AND_FACTS_MASK)
         } else {
-            // TODO:  intersection
             TypeFacts::UNKNOWN_FACTS
         }
     }

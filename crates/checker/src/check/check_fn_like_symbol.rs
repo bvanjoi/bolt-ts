@@ -249,19 +249,18 @@ impl<'cx> TyChecker<'cx> {
             || self.is_type_related_to(target_ret_ty, source_ret_ty, RelationKind::Assignable)
             || self.is_type_related_to(source_ret_ty, target_ret_ty, RelationKind::Assignable)
         {
-            self.is_sig_assignable_to(erased_source, erased_target, true)
+            self.is_sig_assignable_to::<true>(erased_source, erased_target)
         } else {
             false
         }
     }
 
-    fn is_sig_assignable_to(
+    fn is_sig_assignable_to<const IGNORE_RETURN_TYPE: bool>(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,
-        ignore_ret_ty: bool,
     ) -> bool {
-        let check_mode = if ignore_ret_ty {
+        let check_mode = if IGNORE_RETURN_TYPE {
             SigCheckMode::IGNORE_RETURN_TYPES
         } else {
             SigCheckMode::empty()
