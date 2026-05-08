@@ -1,4 +1,5 @@
 use super::TyChecker;
+use super::errors;
 use super::get_declared_ty::EnumMemberValue;
 
 use bolt_ts_ast::{self as ast, keyword};
@@ -149,10 +150,31 @@ impl<'cx> TyChecker<'cx> {
     fn eval_enum_member(&mut self, symbol: SymbolID, location: ast::NodeID) -> EvalResult {
         let s = self.binder.symbol(symbol);
         let Some(decl) = s.value_decl else {
-            todo!("error handle");
+            let error = errors::PropertyXIsUsedBeforeBeingAssigned {
+                span: self.p.node(location).span(),
+                name: s.name.to_string(&self.atoms),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Err;
         };
         if decl == location {
-            todo!("error handle");
+            let error = errors::PropertyXIsUsedBeforeBeingAssigned {
+                span: self.p.node(location).span(),
+                name: s.name.to_string(&self.atoms),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Err;
+        }
+        if !self.is_block_scoped_name_declared_before_use(
+            decl,
+            location,
+            self.p.node(location).span(),
+        ) {
+            let error = errors::AMemberInitializerInAEnumDeclarationCannotReferenceMembersDeclaredAfterItIncludingMembersDefinedInOtherEnums {
+                span: self.p.node(location).span(),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Number(0.);
         }
         let value = self.get_enum_member_value(self.p.node(decl).expect_enum_member());
         if self.parent(decl) != self.parent(location) {

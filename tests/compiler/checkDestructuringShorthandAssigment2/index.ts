@@ -7,3 +7,4 @@
 
 let o: any, k: any;
 let { x } = { x: 1, ...o, [k]: 1 };
+//~^ ERROR: Object literal may only specify known properties, and '<computed>' does not exist in type '{ x: any; }'.

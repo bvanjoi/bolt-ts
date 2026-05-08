@@ -787,7 +787,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(member)
     }
 
-    fn parse_object_lit_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
+    fn parse_object_literal_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let start = self.token.start();
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let expr = self.parse_assign_expr_or_higher::<true>()?;
@@ -850,16 +850,20 @@ impl<'cx> ParserState<'cx, '_> {
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
         {
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ObjectShorthandMember {
-                id,
-                span: self.new_span(start),
+            let equal_token = self.parse_optional(TokenKind::Eq);
+            let object_assignment_initializer = if equal_token.is_some() {
+                Some(self.allow_in_and(|this| this.parse_assign_expr_or_higher::<true>())?)
+            } else {
+                None
+            };
+            let member = self.create_object_shorthand_property_assignment(
+                self.new_span(start),
                 name,
-            });
-            self.nodes
-                .insert(id, ast::Node::ObjectShorthandMember(kind));
+                equal_token.map(|t| t.span),
+                object_assignment_initializer,
+            );
             let member = self.alloc(ast::ObjectMember {
-                kind: ast::ObjectMemberKind::Shorthand(kind),
+                kind: ast::ObjectMemberKind::Shorthand(member),
             });
             return Ok(member);
         }
@@ -1220,7 +1224,7 @@ impl<'cx> ParserState<'cx, '_> {
         let open_brace_parsed = self.expect(LBrace);
         let props = self.parse_delimited_list::<true, _>(
             parsing_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
-            Self::parse_object_lit_member,
+            Self::parse_object_literal_member,
         );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize);

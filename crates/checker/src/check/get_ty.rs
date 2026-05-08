@@ -2396,7 +2396,11 @@ impl<'cx> TyChecker<'cx> {
                 if n.dotdotdot.is_some() {
                     if no_implicit_any {
                         let span = self.p.node(decl).span();
-                        todo!("span: {span}");
+                        let error = errors::RestParameterXImplicitlyHasAnAnyType {
+                            span,
+                            parameter: pprint_binding(n.name, &self.atoms),
+                        };
+                        self.push_error(Box::new(error));
                     }
                 } else if no_implicit_any {
                     let error = errors::ParameterImplicitlyHasAn1Type {

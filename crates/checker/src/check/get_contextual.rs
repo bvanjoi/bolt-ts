@@ -148,7 +148,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.resolving_sig()
         } else {
-            self.get_resolved_sig(call.id(), None)
+            self.get_resolved_signature(call.id(), None)
         };
 
         // TODO: jsx

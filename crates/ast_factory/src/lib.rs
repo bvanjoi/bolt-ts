@@ -1363,4 +1363,25 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         ty
     }
+
+    #[inline]
+    fn create_object_shorthand_property_assignment(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+        equal_token: Option<Span>,
+        object_assignment_initializer: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ast::ObjectShorthandMember<'cx> {
+        let id = self.next_node_id();
+        let prop = self.alloc(ast::ObjectShorthandMember {
+            id,
+            span,
+            name,
+            equal_token,
+            object_assignment_initializer,
+        });
+        self.insert_node(id, ast::Node::ObjectShorthandMember(prop));
+        self.insert_node_flags(id, self.node_context_flags());
+        prop
+    }
 }

@@ -276,20 +276,20 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_resolved_sig(
+    pub(super) fn get_resolved_signature(
         &mut self,
         node: ast::NodeID,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
-        if let Some(cached) = self.get_node_links(node).get_resolved_sig()
-            && cached != resolving_sig
-        {
-            return cached;
+        if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
+            if cached != resolving_sig {
+                return cached;
+            }
+        } else {
+            self.get_mut_node_links(node)
+                .set_resolved_sig(resolving_sig);
         }
-
-        self.get_mut_node_links(node)
-            .set_resolved_sig(resolving_sig);
 
         let check_mode = check_mode.unwrap_or(CheckMode::empty());
         let sig = match self.p.node(node) {
@@ -428,7 +428,7 @@ impl<'cx> TyChecker<'cx> {
                     self.unknown_sig()
                 }
             } else if sigs.iter().any(|sig| self.has_ty_pred_or_never_ret_ty(sig)) {
-                let sig = self.get_resolved_sig(node, None);
+                let sig = self.get_resolved_signature(node, None);
                 if self.has_ty_pred_or_never_ret_ty(sig) {
                     sig
                 } else {

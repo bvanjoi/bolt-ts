@@ -520,6 +520,10 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Setter(n) => n.id,
         }
     }
+
+    pub fn has_default_value(&self) -> bool {
+        matches!(self.kind, ObjectMemberKind::Shorthand(n) if n.object_assignment_initializer.is_some())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -566,6 +570,8 @@ pub struct ObjectShorthandMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub equal_token: Option<Span>,
+    pub object_assignment_initializer: Option<&'cx Expr<'cx>>,
 }
 
 /// ```txt

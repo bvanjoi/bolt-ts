@@ -113,7 +113,7 @@ impl<'cx> TyChecker<'cx> {
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         let expr_id = expr.id();
-        let sig = self.get_resolved_sig(expr_id, check_mode);
+        let sig = self.get_resolved_signature(expr_id, check_mode);
         if sig == self.resolving_sig() {
             return self.silent_never_ty;
         }

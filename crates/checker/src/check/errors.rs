@@ -121,12 +121,12 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
-    "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
+    "Object literal may only specify known properties, and '{prop}' does not exist in type '{ty}'."
 )]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     #[label(primary)]
     pub span: Span,
-    pub field: String,
+    pub prop: String,
     pub ty: String,
 }
 
@@ -1202,6 +1202,14 @@ pub(super) struct ParameterImplicitlyHasAn1Type {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Rest parameter '{parameter}' implicitly has an 'any[]' type.")]
+pub(super) struct RestParameterXImplicitlyHasAnAnyType {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error(
     "An interface can only extend an object type or intersection of object types with statically known members."
 )]
@@ -1265,6 +1273,14 @@ pub(super) struct AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Variable '{name}' is used before being assigned.")]
 pub(super) struct VariableXIsUsedBeforeBeingAssigned {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property '{name}' is used before being assigned.")]
+pub(super) struct PropertyXIsUsedBeforeBeingAssigned {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -1639,6 +1655,16 @@ pub(super) struct ThisConditionWillAlwaysReturnXSinceJavaScriptComparesObjectsBy
     "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals."
 )]
 pub(super) struct AConstAssertionCanOnlyBeAppliedToReferencesToEnumMembersOrStringNumberBooleanArrayOrObjectLiterals
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A member initializer in a enum declaration cannot reference members declared after it, including members defined in other enums."
+)]
+pub(super) struct AMemberInitializerInAEnumDeclarationCannotReferenceMembersDeclaredAfterItIncludingMembersDefinedInOtherEnums
 {
     #[label(primary)]
     pub span: Span,

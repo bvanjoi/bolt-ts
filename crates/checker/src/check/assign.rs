@@ -7,7 +7,6 @@ use bolt_ts_ast as ast;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
-use bolt_ts_binder::SymbolName;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 impl<'cx> TyChecker<'cx> {
@@ -42,14 +41,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     SymbolFlags::empty()
                 };
-            let name = match name {
-                ast::PropNameKind::Ident(n) => SymbolName::Atom(n.name),
-                ast::PropNameKind::PrivateIdent(n) => SymbolName::Atom(n.name),
-                ast::PropNameKind::StringLit { raw, .. } => SymbolName::Atom(raw.val),
-                ast::PropNameKind::NumLit(n) => SymbolName::EleNum(n.val.into()),
-                ast::PropNameKind::BigIntLit(n) => SymbolName::Atom(n.val.1),
-                ast::PropNameKind::Computed(_) => SymbolName::Computed,
-            };
+            let name = self.get_prop_name_from_ty(expr_ty);
             let ty = self.get_ty_from_object_binding::<INCLUDE_PATTERN_IN_TY>(elem);
             let links = SymbolLinks::default().with_ty(ty);
             let symbol = self.create_transient_symbol(

@@ -3273,11 +3273,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             TyChecker::is_excess_property_check_target(t)
                         });
                         let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
-                        let field = self.c.atoms.get(name).to_string();
+                        let prop = self.c.atoms.get(name).to_string();
                         let ty = self.c.print_ty(error_target, None).to_string();
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
                             span,
-                            field,
+                            prop,
                             ty,
                         };
                         self.c.push_error(Box::new(error));

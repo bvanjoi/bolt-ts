@@ -1,0 +1,5 @@
+  × Cannot find name 'b'.
+    ╭─[../../tests/compiler/importedModuleAddToGlobal/index.ts:19:23]
+ 19 │ b
+    · ─
+    ╰────

@@ -464,7 +464,8 @@ impl<'cx> TyChecker<'cx> {
             Paren(paren) => self.check_expression(paren.expr, check_mode),
             Cond(cond) => self.check_conditional_expression(cond, check_mode),
             ObjectLit(lit) => {
-                self.check_object_literal(lit, check_mode.unwrap_or(CheckMode::empty()))
+                let check_mode = check_mode.unwrap_or(CheckMode::empty());
+                self.check_object_literal(lit, check_mode)
             }
             Call(call) => self.check_call_like_expr::<true>(call, check_mode),
             New(call) => self.check_call_like_expr::<false>(call, check_mode),
@@ -816,7 +817,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         node: &'cx ast::TaggedTemplateExpr<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let sig = self.get_resolved_sig(node.id, None);
+        let sig = self.get_resolved_signature(node.id, None);
         self.get_return_type_of_signature(sig)
     }
 
@@ -1338,7 +1339,12 @@ impl<'cx> TyChecker<'cx> {
             let save_flow_loop_start = self.flow_loop_start;
             self.flow_loop_start = flow_loop_ctx_len(self);
             let ty = self.check_expression(expr, check_mode);
-            self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
+            if let Some(_) = self.get_node_links(expr.id()).get_resolved_ty() {
+                // TODO: remove
+                self.get_mut_node_links(expr.id()).override_resolved_ty(ty);
+            } else {
+                self.get_mut_node_links(expr.id()).set_resolved_ty(ty);
+            }
             self.flow_loop_start = save_flow_loop_start;
             ty
         }
@@ -1465,7 +1471,7 @@ impl<'cx> TyChecker<'cx> {
         node: &'cx ast::ObjectLit<'cx>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
-        let is_destructuring = self
+        let in_destructuring_pattern = self
             .node_query(node.id.module())
             .get_assignment_target(node.id)
             .is_some();
@@ -1478,9 +1484,23 @@ impl<'cx> TyChecker<'cx> {
         self.push_cached_contextual_type(node.id);
 
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(node.id, None);
+        let contextual_ty_has_pattern = if let Some(contextual_ty) = contextual_ty
+            && let Some(pattern) = contextual_ty.pattern()
+        {
+            // TODO: object_binding
+            matches!(pattern, ty::Pattern::ObjectPattern(_))
+        } else {
+            false
+        };
 
         // let mut properties_array = Vec::with_capacity(node.members.len());
         let is_const_context = self.is_const_context(node.id);
+        let check_flags = if is_const_context {
+            CheckFlags::READONLY
+        } else {
+            CheckFlags::empty()
+        };
+        let mut pattern_with_computed_properties = false;
         let mut has_computed_string_property = false;
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
@@ -1490,7 +1510,9 @@ impl<'cx> TyChecker<'cx> {
                                      has_computed_string_property: &mut bool,
                                      has_computed_number_property: &mut bool,
                                      has_computed_symbol_property: &mut bool,
+                                     pattern_with_computed_properties: &mut bool,
                                      properties_table: &mut FxIndexMap<SymbolName, SymbolID>,
+                                     in_destructuring_pattern: bool,
                                      name: SymbolName,
                                      member: SymbolID| {
             if let Some(computed_named_ty) = computed_named_ty
@@ -1506,7 +1528,9 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         *has_computed_string_property = true;
                     }
-                    // TODO: in_destructuring_pattern
+                    if in_destructuring_pattern {
+                        *pattern_with_computed_properties = true;
+                    }
                 }
             } else {
                 properties_table.insert(name, member);
@@ -1539,28 +1563,101 @@ impl<'cx> TyChecker<'cx> {
                     };
                     object_flags |= ty.get_object_flags() & ObjectFlags::PROPAGATING_FLAGS;
                     let member_s = self.symbol(member_symbol);
-                    let name = member_s.name;
-                    let prop = self.create_transient_symbol(
-                        name,
-                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT) | member_s.flags,
-                        SymbolLinks::default()
-                            .with_target(member_symbol)
-                            .with_ty(ty),
-                        member_s.decls.clone(),
-                        member_s.value_decl,
-                        member_s.parent,
-                    );
+                    let name_ty = if let Some(computed_named_ty) = computed_named_ty
+                        && computed_named_ty.usable_as_prop_name()
+                    {
+                        Some(computed_named_ty)
+                    } else {
+                        None
+                    };
+                    let mut symbol_flags =
+                        SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT) | member_s.flags;
+                    let mut name = member_s.name;
+                    let declarations = member_s.decls.clone();
+                    let value_declaration = member_s.value_decl;
+                    let parent = member_s.parent;
+                    if in_destructuring_pattern && member.has_default_value() {
+                        symbol_flags |= SymbolFlags::OPTIONAL;
+                    } else if contextual_ty_has_pattern
+                        && let contextual_ty = contextual_ty.unwrap()
+                        && !contextual_ty.get_object_flags().contains(
+                            ty::ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES,
+                        )
+                    {
+                        if let Some(implied_prop) =
+                            self.get_prop_of_ty::<false, false>(contextual_ty, member_s.name)
+                        {
+                            symbol_flags |= self.symbol(implied_prop).flags & SymbolFlags::OPTIONAL;
+                        } else if self
+                            .get_index_info_of_ty(contextual_ty, self.string_ty)
+                            .is_none()
+                        {
+                            let error =
+                                errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
+                                    span: member.span(),
+                                    prop: name.to_string(&self.atoms),
+                                    ty: self.print_ty(contextual_ty, None).to_string(),
+                                };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                    let symbol_links = SymbolLinks::default()
+                        .with_target(member_symbol)
+                        .with_ty(ty);
+
+                    let prop = if let Some(name_ty) = name_ty {
+                        name = self.get_prop_name_from_ty(name_ty);
+                        self.create_transient_symbol(
+                            name,
+                            symbol_flags,
+                            symbol_links
+                                .with_name_ty(name_ty)
+                                .with_check_flags(check_flags | CheckFlags::LATE),
+                            declarations,
+                            value_declaration,
+                            parent,
+                        )
+                    } else {
+                        self.create_transient_symbol(
+                            name,
+                            symbol_flags,
+                            symbol_links.with_check_flags(check_flags),
+                            declarations,
+                            value_declaration,
+                            parent,
+                        )
+                    };
                     push_properties_table(
                         self,
                         computed_named_ty,
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
+                        &mut pattern_with_computed_properties,
                         &mut properties_table,
+                        in_destructuring_pattern,
                         name,
                         prop,
                     );
                     properties_array.push(member_symbol);
+
+                    if let Some(contextual_ty) = contextual_ty
+                        && check_mode.contains(CheckMode::INFERENTIAL)
+                        && !check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
+                        && matches!(member.kind, PropAssignment(_) | Method(_))
+                        && self.is_const_context(member.id())
+                    {
+                        let Some(inference_context) = self.get_inference_context(member.id())
+                        else {
+                            unreachable!()
+                        };
+                        let inference_node = if let PropAssignment(n) = member.kind {
+                            n.init.id()
+                        } else {
+                            member.id()
+                        };
+                        // TODO: add_intra_expression_inference_site
+                    }
                 }
                 SpreadAssignment(s) => {
                     if !properties_array.is_empty() {
@@ -1573,6 +1670,8 @@ impl<'cx> TyChecker<'cx> {
                             has_computed_string_property,
                             has_computed_number_property,
                             has_computed_symbol_property,
+                            pattern_with_computed_properties,
+                            in_destructuring_pattern,
                             offset,
                             &properties_array,
                         );
@@ -1627,7 +1726,9 @@ impl<'cx> TyChecker<'cx> {
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
+                        &mut pattern_with_computed_properties,
                         &mut properties_table,
+                        in_destructuring_pattern,
                         name,
                         member_symbol,
                     );
@@ -1635,7 +1736,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
 
-            if !is_destructuring {
+            if !in_destructuring_pattern {
                 let prop_name = match member.kind {
                     PropAssignment(n) => Some(n.name.kind),
                     Method(n) => Some(n.name.kind),
@@ -1714,6 +1815,8 @@ impl<'cx> TyChecker<'cx> {
                     has_computed_string_property,
                     has_computed_number_property,
                     has_computed_symbol_property,
+                    pattern_with_computed_properties,
+                    in_destructuring_pattern,
                     offset,
                     &properties_array,
                 );
@@ -1737,6 +1840,8 @@ impl<'cx> TyChecker<'cx> {
                                 has_computed_string_property,
                                 has_computed_number_property,
                                 has_computed_symbol_property,
+                                pattern_with_computed_properties,
+                                in_destructuring_pattern,
                                 offset,
                                 &properties_array,
                             ))
@@ -1757,6 +1862,8 @@ impl<'cx> TyChecker<'cx> {
             has_computed_string_property: bool,
             has_computed_number_property: bool,
             has_computed_symbol_property: bool,
+            pattern_with_computed_properties: bool,
+            in_destructuring_pattern: bool,
             offset: usize,
             properties: &[SymbolID],
         ) -> &'cx ty::Ty<'cx> {
@@ -1782,12 +1889,20 @@ impl<'cx> TyChecker<'cx> {
                 );
                 index_infos.push(index_info);
             }
+            let object_flags = object_flags
+                | (ObjectFlags::OBJECT_LITERAL
+                    .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL))
+                | if in_destructuring_pattern {
+                    ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES
+                } else {
+                    ObjectFlags::empty()
+                };
+            // TODO: is_js_object_literal
+
             let res = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
-                object_flags
-                    | (ObjectFlags::OBJECT_LITERAL
-                        .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)),
-                None,
+                object_flags,
+                pattern_with_computed_properties.then_some(node.id),
                 None,
                 None,
                 None,
@@ -1820,6 +1935,8 @@ impl<'cx> TyChecker<'cx> {
             has_computed_string_property,
             has_computed_number_property,
             has_computed_symbol_property,
+            pattern_with_computed_properties,
+            in_destructuring_pattern,
             offset,
             &properties_array,
         )

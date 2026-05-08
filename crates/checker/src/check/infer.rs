@@ -1680,9 +1680,18 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
 
+        let reference_to_same = |s: &ty::ReferenceTy<'cx>, t: &ty::ReferenceTy<'cx>| {
+            let Some(s) = s.interface_target() else {
+                return false;
+            };
+            let Some(t) = t.interface_target() else {
+                return false;
+            };
+            s == t
+        };
         if let Some(source_refer) = source.kind.as_object_reference()
             && let Some(target_refer) = target.kind.as_object_reference()
-            && (source_refer.target == target_refer.target
+            && (reference_to_same(source_refer, target_refer)
                 || source.kind.is_array(self.c) && target.kind.is_array(self.c))
             && !(source_refer.node.is_some() && target_refer.node.is_some())
         {
