@@ -479,7 +479,7 @@ impl<'cx> TyChecker<'cx> {
                     return FlowTy::Ty(ty);
                 }
                 antecedent_tys.push(ty);
-                if !self.is_ty_subset_of(ty, init_ty) {
+                if !self.is_type_subset_of(ty, init_ty) {
                     subtype_reduction = true
                 }
                 if flow_ty.is_incomplete() {

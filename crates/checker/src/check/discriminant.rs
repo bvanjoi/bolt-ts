@@ -69,7 +69,7 @@ impl<'cx> TyChecker<'cx> {
         {
             if let Some(name) = self.get_accessed_prop_name(access) {
                 let ty = if declared_ty.flags.contains(ty::TypeFlags::UNION)
-                    && self.is_ty_subset_of(computed_ty, declared_ty)
+                    && self.is_type_subset_of(computed_ty, declared_ty)
                 {
                     declared_ty
                 } else {

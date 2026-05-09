@@ -5,20 +5,20 @@
     ╰────
 
   × Cannot find name 'x'.
-    ╭─[../../tests/compiler/baseCheck/index.ts:33:9]
- 33 │ x
+    ╭─[../../tests/compiler/baseCheck/index.ts:32:9]
+ 32 │ x
     · ─
     ╰────
 
   × Cannot find name 'x'.
-    ╭─[../../tests/compiler/baseCheck/index.ts:35:7]
- 35 │ x
+    ╭─[../../tests/compiler/baseCheck/index.ts:34:7]
+ 34 │ x
     · ─
     ╰────
 
   × Cannot find name 'x'.
-    ╭─[../../tests/compiler/baseCheck/index.ts:39:9]
- 39 │ x
+    ╭─[../../tests/compiler/baseCheck/index.ts:38:9]
+ 38 │ x
     · ─
     ╰────
 
@@ -39,13 +39,6 @@
     ╭─[../../tests/compiler/baseCheck/index.ts:27:59]
  27 │ "hello"
     · ───────
-    ╰────
-
-  × 'super' must be called before accessing 'this' in the constructor of a
-  │ derived class.
-    ╭─[../../tests/compiler/baseCheck/index.ts:27:68]
- 27 │ this
-    · ────
     ╰────
 
   × 'super' must be called before accessing 'this' in the constructor of a

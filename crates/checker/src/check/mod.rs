@@ -1115,7 +1115,7 @@ impl<'cx> TyChecker<'cx> {
         if object_flags.contains(ObjectFlags::MAPPED) {
             self.get_apparent_ty_of_mapped_ty(t)
         } else if object_flags.contains(ObjectFlags::REFERENCE) && t != ty {
-            self.get_ty_with_this_argument::<false>(t, Some(ty))
+            self.get_type_with_this_argument::<false>(t, Some(ty))
         } else if flags.contains(TypeFlags::INTERSECTION) {
             self.get_apparent_ty_of_intersection_ty(t, ty)
         } else if flags.intersects(TypeFlags::NUMBER_LIKE) {
@@ -1152,12 +1152,12 @@ impl<'cx> TyChecker<'cx> {
             if let Some(cache) = self.intersection_ty_links_arena[id].get_resolved_apparent_ty() {
                 return cache;
             }
-            let ret = self.get_ty_with_this_argument::<true>(ty, Some(this_arg));
+            let ret = self.get_type_with_this_argument::<true>(ty, Some(this_arg));
             self.intersection_ty_links_arena[id].set_resolved_apparent_ty(ret);
             ret
         } else {
             // TODO: cache
-            self.get_ty_with_this_argument::<true>(ty, Some(this_arg))
+            self.get_type_with_this_argument::<true>(ty, Some(this_arg))
         }
     }
 
@@ -2366,26 +2366,41 @@ impl<'cx> TyChecker<'cx> {
         self.push_cached_contextual_type(lit.id);
         let contextual_ty = self.get_apparent_ty_of_contextual_ty(lit.id, None);
         let is_const_context = self.is_const_context(lit.id);
-        let in_tuple_context = if let Some(contextual_ty) = contextual_ty {
-            self.some_type(contextual_ty, |this, ty| {
-                if this.is_tuple_like(ty) {
-                    true
-                } else if this.is_generic_mapped_ty(ty) {
-                    let m = ty.kind.expect_object_mapped();
-                    this.get_name_ty_from_mapped_ty(m).is_none()
-                        && this
-                            .get_homomorphic_ty_var(
-                                m.target
-                                    .map_or(m, |target| target.kind.expect_object_mapped()),
-                            )
-                            .is_some()
-                } else {
-                    false
-                }
-            })
-        } else {
-            false
+        let is_spread_into_call_or_new = {
+            let parent = self.parent(lit.id).unwrap();
+            let parent = self
+                .node_query(lit.id.module())
+                .walk_up_paren_expressions(parent);
+            if self.p.node(parent).is_spread_element()
+                && let Some(parent_parent) = self.parent(parent)
+            {
+                use ast::Node::*;
+                matches!(self.p.node(parent_parent), CallExpr(_) | NewExpr(_))
+            } else {
+                false
+            }
         };
+        let in_tuple_context = is_spread_into_call_or_new
+            || if let Some(contextual_ty) = contextual_ty {
+                self.some_type(contextual_ty, |this, ty| {
+                    if this.is_tuple_like(ty) {
+                        true
+                    } else if this.is_generic_mapped_ty(ty) {
+                        let m = ty.kind.expect_object_mapped();
+                        this.get_name_ty_from_mapped_ty(m).is_none()
+                            && this
+                                .get_homomorphic_ty_var(
+                                    m.target
+                                        .map_or(m, |target| target.kind.expect_object_mapped()),
+                                )
+                                .is_some()
+                    } else {
+                        false
+                    }
+                })
+            } else {
+                false
+            };
 
         let mut has_omitted_expr = false;
         for elem in lit.elems.iter() {
@@ -3724,12 +3739,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn is_empty_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if ty.flags.intersects(TypeFlags::OBJECT) {
+        if ty.flags.contains(TypeFlags::OBJECT) {
             !self.is_generic_mapped_ty(ty) && {
                 self.resolve_structured_type_members(ty);
                 self.is_empty_resolved_ty(ty)
             }
-        } else if ty.flags.intersects(TypeFlags::NON_PRIMITIVE) {
+        } else if ty.flags.contains(TypeFlags::NON_PRIMITIVE) {
             true
         } else if let Some(u) = ty.kind.as_union() {
             u.tys.iter().any(|t| self.is_empty_object_ty(t))
@@ -4383,9 +4398,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_ty_subset_of(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) -> bool {
+    fn is_type_subset_of(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) -> bool {
         source == target
-            || source.flags.intersects(TypeFlags::NEVER)
+            || source.flags.contains(TypeFlags::NEVER)
             || target
                 .kind
                 .as_union()
@@ -6802,7 +6817,7 @@ impl<'cx> TyChecker<'cx> {
 
         if type_arguments.len() > len.unwrap_or(0) {
             let last = type_arguments.last().copied();
-            instantiated_base = self.get_ty_with_this_argument::<false>(instantiated_base, last);
+            instantiated_base = self.get_type_with_this_argument::<false>(instantiated_base, last);
         }
 
         self.get_mut_ty_links(ty.id)

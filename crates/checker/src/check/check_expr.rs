@@ -809,7 +809,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_base_constructor_type_of_class(class_ty)
         } else {
             let this_ty = Self::this_ty(class_ty);
-            self.get_ty_with_this_argument::<false>(base_class_ty, this_ty)
+            self.get_type_with_this_argument::<false>(base_class_ty, this_ty)
         }
     }
 

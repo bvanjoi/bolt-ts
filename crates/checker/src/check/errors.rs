@@ -1669,3 +1669,22 @@ pub(super) struct AMemberInitializerInAEnumDeclarationCannotReferenceMembersDecl
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "No overload expects {argument_count} arguments, but overloads do exist that expect either {max_below} or {min_above} arguments."
+)]
+pub(super) struct NoOverloadExpectsXArgumentsButOverloadsDoExistThatExpectEitherAOrBArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub argument_count: usize,
+    pub max_below: usize,
+    pub min_above: usize,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A spread argument must either have a tuple type or be passed to a rest parameter.")]
+pub(super) struct ASpreadArgumentMustEitherHaveATupleTypeOrBePassedToARestParameter {
+    #[label(primary)]
+    pub span: Span,
+}

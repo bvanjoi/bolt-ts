@@ -545,7 +545,7 @@ impl<'cx> TyChecker<'cx> {
             for base_ty in base_tys {
                 let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
                     let ty = self.instantiate_ty(base_ty, mapper);
-                    self.get_ty_with_this_argument::<false>(ty, Some(this_arg))
+                    self.get_type_with_this_argument::<false>(ty, Some(this_arg))
                 } else {
                     base_ty
                 };

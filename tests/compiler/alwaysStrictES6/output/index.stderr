@@ -1,0 +1,5 @@
+  × Invalid use of 'arguments' in strict mode.
+   ╭─[../../tests/compiler/alwaysStrictES6/index.ts:7:9]
+ 7 │ arguments
+   · ─────────
+   ╰────

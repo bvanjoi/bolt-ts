@@ -2,6 +2,7 @@ use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
+use super::get_effective_node::{EffectiveCallArgument, EffectiveCallArguments};
 use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
@@ -408,7 +409,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_ty_with_this_argument<const NEED_APPARENT_TYPE: bool>(
+    pub(super) fn get_type_with_this_argument<const NEED_APPARENT_TYPE: bool>(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         this_argument: Option<&'cx ty::Ty<'cx>>,
@@ -453,7 +454,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(i) = ty.kind.as_intersection() {
             let tys = self
                 .same_map_tys(Some(i.tys), |this, ty, _| {
-                    this.get_ty_with_this_argument::<NEED_APPARENT_TYPE>(ty, this_argument)
+                    this.get_type_with_this_argument::<NEED_APPARENT_TYPE>(ty, this_argument)
                 })
                 .unwrap();
             if !std::ptr::eq(tys, i.tys) {
@@ -603,7 +604,7 @@ impl<'cx> TyChecker<'cx> {
             let instantiated_constraint = self.instantiate_ty_worker(constraint, mapper);
             if let Some(ty) = inferred_ty {
                 let constraint_with_this =
-                    self.get_ty_with_this_argument::<false>(instantiated_constraint, Some(ty));
+                    self.get_type_with_this_argument::<false>(instantiated_constraint, Some(ty));
                 // TODO: `ctx.compare_types`
                 if !self.is_type_related_to(
                     ty,
@@ -629,7 +630,7 @@ impl<'cx> TyChecker<'cx> {
                 inferred_ty = Some(
                     if let Some(fallback_ty) = fallback_ty
                     && let target =
-                        self.get_ty_with_this_argument::<false>(instantiated_constraint, Some(fallback_ty))
+                        self.get_type_with_this_argument::<false>(instantiated_constraint, Some(fallback_ty))
                         // TODO: `ctx.compare_types`
                     && self.is_type_related_to(
                         fallback_ty,
@@ -869,8 +870,8 @@ impl<'cx> TyChecker<'cx> {
         if let Some(rest_ty) = rest_ty
             && self.could_contain_ty_var(rest_ty)
         {
-            let spared_ty = self.get_spared_argument_ty(
-                args,
+            let spared_ty = self.get_spread_argument_ty(
+                &EffectiveCallArguments::Borrowed(args),
                 arg_count,
                 arg_len,
                 rest_ty,
@@ -920,9 +921,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_spared_argument_ty(
+    pub(super) fn get_spread_argument_ty(
         &mut self,
-        args: &[&'cx ast::Expr<'cx>],
+        args: &EffectiveCallArguments<'cx>,
         index: usize,
         arg_count: usize,
         rest_ty: &'cx ty::Ty<'cx>,
@@ -933,20 +934,27 @@ impl<'cx> TyChecker<'cx> {
         if arg_count > 0
             && index >= arg_count - 1
             && let Some(arg) = args.get(arg_count - 1)
-            && let ast::ExprKind::SpreadElement(spread) = arg.kind
+            && arg.is_spread_argument()
         {
-            // TODO: synthetic node
-            let spread_ty =
-                self.check_expr_with_contextual_ty(spread.expr, rest_ty, context, check_mode);
+            let spread_ty = match arg.as_ref() {
+                EffectiveCallArgument::Expression(n) => {
+                    self.check_expr_with_contextual_ty(n, rest_ty, context, check_mode)
+                }
+                EffectiveCallArgument::Synthetic(n) => n.ty(),
+            };
             return if self.is_array_like_ty(spread_ty) {
                 self.get_mutable_array_or_tuple_ty(spread_ty)
             } else {
-                self.check_iterated_ty_or_element_ty(
+                let ty = self.check_iterated_ty_or_element_ty(
                     IterationUse::SPREAD,
                     spread_ty,
                     self.undefined_ty,
-                    Some(spread.expr.id()),
-                )
+                    Some(match arg.as_ref() {
+                        EffectiveCallArgument::Expression(n) => n.id(),
+                        EffectiveCallArgument::Synthetic(n) => n.parent(),
+                    }),
+                );
+                self.create_array_ty(ty, is_const_context)
             };
         }
 
@@ -954,24 +962,41 @@ impl<'cx> TyChecker<'cx> {
         let mut flags = vec![];
         // let mut names = vec![];
         for i in index..arg_count {
-            let arg = args[i];
-            if let ast::ExprKind::SpreadElement(spread) = arg.kind {
-                // TODO: synthetic node
-                let spared_ty = self.check_expression(spread.expr, None);
-                if self.is_array_like_ty(spared_ty) {
-                    tys.push(spared_ty);
+            let arg = args.index(i);
+            if arg.is_spread_argument() {
+                let spread_ty = match arg.as_ref() {
+                    EffectiveCallArgument::Expression(n)
+                        if let ast::ExprKind::SpreadElement(n) = n.kind =>
+                    {
+                        self.check_expression(n.expr, None)
+                    }
+                    EffectiveCallArgument::Synthetic(n) => n.ty(),
+                    _ => unreachable!(),
+                };
+                if self.is_array_like_ty(spread_ty) {
+                    tys.push(spread_ty);
                     flags.push(ty::ElementFlags::VARIADIC);
                 } else {
                     let iterated_ty = self.check_iterated_ty_or_element_ty(
                         IterationUse::SPREAD,
-                        spared_ty,
+                        spread_ty,
                         self.undefined_ty,
-                        Some(spread.expr.id()),
+                        Some(match arg.as_ref() {
+                            EffectiveCallArgument::Expression(n) => n.id(),
+                            EffectiveCallArgument::Synthetic(n) => n.parent(),
+                        }),
                     );
                     tys.push(iterated_ty);
                     flags.push(ty::ElementFlags::REST);
                 }
             } else {
+                let arg = match arg.as_ref() {
+                    EffectiveCallArgument::Expression(n) => {
+                        debug_assert!(!matches!(n.kind, ast::ExprKind::SpreadElement(_)));
+                        n
+                    }
+                    EffectiveCallArgument::Synthetic(_) => unreachable!(),
+                };
                 let element_index = i - index;
                 let contextual_ty = if rest_ty.is_tuple() {
                     self.get_contextual_ty_for_element_expr(

@@ -57,6 +57,7 @@ impl<'cx> TyChecker<'cx> {
         if has_false
             && c.c.diags.len() == current_error_count
             && let Some(heading_error) = heading_error
+            && error_node.is_some()
         {
             heading_error(c.c);
         }
@@ -366,7 +367,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         )
     }
 
-    fn prop_related_to(
+    fn property_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
@@ -688,7 +689,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && let Some(source_prop) = self.c.get_prop_of_ty::<false, false>(source, name)
                 && !source_prop.eq(target_prop)
             {
-                let related = self.prop_related_to(
+                let related = self.property_related_to(
                     source,
                     target,
                     source_prop,
@@ -2174,7 +2175,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     if source_prop == target_prop {
                         continue;
                     }
-                    let related = self.prop_related_to(
+                    let related = self.property_related_to(
                         source,
                         target,
                         source_prop,
@@ -2375,7 +2376,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         intersection_state: IntersectionState,
     ) -> Ternary {
         let mut res = Ternary::TRUE;
-        let props = self.c.get_props_of_ty(source);
+        let props = if source.flags.contains(TypeFlags::INTERSECTION) {
+            self.c.get_props_of_union_or_intersection(source)
+        } else {
+            self.c.get_props_of_object_ty(source)
+        };
         for prop in props {
             // TODO: ignore jsx
             let lit_ty = self.c.get_literal_ty_from_prop(
@@ -3238,7 +3243,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             RelationKind::Assignable | RelationKind::Comparable
         ) && (self
             .c
-            .is_ty_sub_type_of(self.c.global_object_ty(), target_ty)
+            .is_type_subset_of(self.c.global_object_ty(), target_ty)
             || (!is_comparing_jsx_attributes && self.c.is_empty_object_ty(target_ty)))
         {
             return false;

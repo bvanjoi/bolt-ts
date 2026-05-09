@@ -25,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
         if first_interface_decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
-            let ty_with_this = self.get_ty_with_this_argument::<false>(ty, None);
+            let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
             if self.check_inherited_props_are_identical(ty, interface.name) {
                 for base_ty in self.get_base_tys(ty) {
                     let target = {
@@ -34,7 +34,7 @@ impl<'cx> TyChecker<'cx> {
                         } else {
                             ty.kind.expect_object_interface().this_ty
                         };
-                        self.get_ty_with_this_argument::<false>(base_ty, this_ty)
+                        self.get_type_with_this_argument::<false>(base_ty, this_ty)
                     };
                     self.check_type_assignable_to(
                         ty_with_this,
@@ -138,7 +138,7 @@ impl<'cx> TyChecker<'cx> {
         let mut ok = true;
         for base in base_tys {
             let props = {
-                let ty = self.get_ty_with_this_argument::<false>(base, i.this_ty);
+                let ty = self.get_type_with_this_argument::<false>(base, i.this_ty);
                 self.get_props_of_ty(ty)
             };
             for prop in props {

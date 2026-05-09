@@ -409,13 +409,13 @@ impl<'cx> TyChecker<'cx> {
                 let mut ty = self.try_get_ty_at_pos(context, i);
                 if let Some(t) = ty
                     && decl.init.is_some()
-                    && let init_ty =
+                    && let initializer_type =
                         self.check_declaration_initializer(decl, CheckMode::empty(), None)
-                    && !self.is_type_assignable_to(init_ty, t)
-                    && let target = self.widened_ty_from_init(decl, init_ty)
-                    && self.is_type_assignable_to(t, target)
+                    && !self.is_type_assignable_to(initializer_type, t)
+                    && let initializer_type = self.widened_ty_from_init(decl, initializer_type)
+                    && self.is_type_assignable_to(t, initializer_type)
                 {
-                    ty = Some(init_ty);
+                    ty = Some(initializer_type);
                 }
                 self.assign_param_ty(param, ty);
             }

@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::fn_mapper;
@@ -40,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
             && node.ty_args().is_some()
             && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node)
         {
-            self.check_ty_argument_constraints(node, ty_params);
+            self.check_type_argument_constraints(node, ty_params);
         }
     }
 
@@ -449,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 
-    fn check_ty_argument_constraints(
+    fn check_type_argument_constraints(
         &mut self,
         node: &impl TyReferTyOrImport<'cx>,
         ty_params: ty::Tys<'cx>,
@@ -462,24 +463,16 @@ impl<'cx> TyChecker<'cx> {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
                 && result
                 && let target = self.instantiate_ty_worker(constraint, mapper)
-                && !self.check_type_assignable_to(
-                    ty_arg,
-                    target,
-                    None,
-                    Some(|this: &mut Self| {
-                        if let Some(error_node) =
-                            node.ty_args().and_then(|ty_args| ty_args.list.get(idx))
-                        {
-                            let error = errors::TypeXDoesNotSatisfyTheConstraintY {
-                                span: error_node.span(),
-                                x: this.print_ty(ty_arg, None).to_string(),
-                                y: this.print_ty(target, None).to_string(),
-                            };
-                            this.push_error(Box::new(error));
-                        };
-                    }),
-                )
+                && !self.check_type_assignable_to(ty_arg, target, None, NOOP_HEADING_ERROR)
             {
+                if let Some(error_node) = node.ty_args().and_then(|ty_args| ty_args.list.get(idx)) {
+                    let error = errors::TypeXDoesNotSatisfyTheConstraintY {
+                        span: error_node.span(),
+                        x: self.print_ty(ty_arg, None).to_string(),
+                        y: self.print_ty(target, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                };
                 result = false;
             }
         }

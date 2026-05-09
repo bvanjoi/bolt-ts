@@ -13,6 +13,8 @@ use super::TyChecker;
 use super::ast;
 use super::check_expr::IterationUse;
 use super::create_ty::IntersectionFlags;
+use super::get_effective_node::EffectiveCallArgument;
+use super::get_effective_node::EffectiveCallArguments;
 use super::links;
 use super::ty;
 use super::ty::MappedTyNameTyKind;
@@ -133,7 +135,15 @@ impl<'cx> TyChecker<'cx> {
         argument: ast::NodeID,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let args = self.get_effective_call_arguments(call);
-        let argument_index = args.iter().position(|arg| arg.id() == argument)?;
+        let argument_index = match args {
+            EffectiveCallArguments::Borrowed(args) => {
+                args.iter().position(|arg| arg.id() == argument)?
+            }
+            EffectiveCallArguments::Owned(args) => args.iter().position(|arg| match arg {
+                EffectiveCallArgument::Expression(expr) => expr.id() == argument,
+                EffectiveCallArgument::Synthetic(_) => false,
+            })?,
+        };
         self.get_contextual_ty_for_argument_at_index(call, argument_index)
     }
 

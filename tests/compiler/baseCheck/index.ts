@@ -27,7 +27,6 @@ class E extends C { constructor(public z: number) { super(0, this.z) } }
 class F extends C { constructor(public z: number) { super("hello", this.z) } } // first param type
 //~^ ERROR: Argument of type 'string' is not assignable to parameter of type 'number'.
 //~| ERROR: 'super' must be called before accessing 'this' in the constructor of a derived class.
-//~| ERROR: 'super' must be called before accessing 'this' in the constructor of a derived class.
 
 function f() {
     if (x<10) {

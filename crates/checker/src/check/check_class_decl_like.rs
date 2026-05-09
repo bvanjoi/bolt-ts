@@ -303,7 +303,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_declared_ty_of_symbol(symbol);
-        let ty_with_this = self.get_ty_with_this_argument::<false>(ty, None);
+        let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_class_for_duplicate_decls(class);
         self.check_index_constraints(ty, false);
@@ -348,7 +348,7 @@ impl<'cx> TyChecker<'cx> {
                     .expect_object_interface()
                     .this_ty;
 
-                let base_with_this = self.get_ty_with_this_argument::<false>(base_ty, this_arg);
+                let base_with_this = self.get_type_with_this_argument::<false>(base_ty, this_arg);
                 if !self.check_type_assignable_to(
                     ty_with_this,
                     base_with_this,
@@ -361,7 +361,7 @@ impl<'cx> TyChecker<'cx> {
                     self.check_type_assignable_to(
                         static_ty,
                         target,
-                        None,
+                        Some(class.name().map_or(class.id(), |name| name.id)),
                         Some(|this: &mut Self| {
                             let error =
                                 errors::ClassStaticSideXIncorrectlyExtendsBaseClassStaticSideY {
@@ -516,7 +516,7 @@ impl<'cx> TyChecker<'cx> {
                         .kind
                         .expect_object_interface()
                         .this_ty;
-                    let base_with_this = self.get_ty_with_this_argument::<false>(t, this_arg);
+                    let base_with_this = self.get_type_with_this_argument::<false>(t, this_arg);
                     if !self.check_type_assignable_to(
                         ty_with_this,
                         base_with_this,
