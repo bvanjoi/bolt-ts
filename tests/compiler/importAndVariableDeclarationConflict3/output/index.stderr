@@ -1,0 +1,8 @@
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/importAndVariableDeclarationConflict3/index.ts:10:8]
+  9 │ x = m.m;
+    · ┬
+    · ╰── Previous definition here
+ 10 │ import x
+    ·        ─
+    ╰────

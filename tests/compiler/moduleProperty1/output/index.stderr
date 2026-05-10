@@ -1,0 +1,17 @@
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/moduleProperty1/index.ts:12:5]
+ 12 │ private
+    · ───────
+    ╰────
+
+  × Cannot find name 'y'.
+    ╭─[../../tests/compiler/moduleProperty1/index.ts:12:13]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Cannot find name 'y'.
+    ╭─[../../tests/compiler/moduleProperty1/index.ts:15:20]
+ 15 │ y
+    · ─
+    ╰────

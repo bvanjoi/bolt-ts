@@ -1,0 +1,23 @@
+  × Type 'number' is not assignable to type 'boolean'.
+   ╭─[../../tests/compiler/narrowingTypeofUndefined1/index.ts:9:9]
+ 9 │ s1
+   · ──
+   ╰────
+
+  × Type 'string' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/narrowingTypeofUndefined1/index.ts:13:9]
+ 13 │ s2
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/narrowingTypeofUndefined1/index.ts:18:9]
+ 18 │ s2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'boolean'.
+    ╭─[../../tests/compiler/narrowingTypeofUndefined1/index.ts:22:9]
+ 22 │ s1
+    · ──
+    ╰────

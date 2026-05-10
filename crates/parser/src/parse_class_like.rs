@@ -148,8 +148,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let start = self.token.start();
         self.next_token(); // consume `class`
         let name = self.parse_name_of_class_decl_or_expr();
+
         if let Some(name) = name {
             self.check_contextual_ident(name);
+        } else if let Some(modifiers) = modifiers
+            && !modifiers.flags.contains(ast::ModifierFlags::DEFAULT)
+        {
+            let error = errors::AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
         }
         let ty_params = self.parse_ty_params();
         let mut extends = self.parse_class_extends_clause()?;
@@ -197,7 +205,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
 
-        let elements = self.parse_class_members()?;
+        let elements = if let Some(ms) = modifiers
+            && ms.flags.contains(ast::ModifierFlags::AMBIENT)
+        {
+            self.do_inside_of_node_flags(ast::NodeFlags::AMBIENT, Self::parse_class_members)
+        } else {
+            self.parse_class_members()
+        };
         self.in_strict_mode = old_in_strict_mode;
         self.set_await_context(old_awaited_context);
         let span = self.new_span(start);
@@ -305,7 +319,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
             let ty_params = self.parse_ty_params();
-            let params = self.parse_params();
+            let params = self.parse_parameters();
             let ty = self.parse_return_ty::<true, false>()?;
             let flags = if asterisk.is_some() {
                 SignatureFlags::YIELD
@@ -342,13 +356,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
-                if let Some(init) = init
-                    && modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
-                {
-                    let error =
-                        errors::InitializersAreNotAllowedInAmbientContexts { span: init.span() };
-                    this.push_error(Box::new(error));
-                }
                 let span = this.new_span(start);
                 let prop = this.create_class_prop_elem(
                     span,
@@ -397,7 +404,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
-                let params = this.p().parse_params();
+                let params = this.p().parse_parameters();
                 this.p().check_params::<true>(params);
                 let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
@@ -420,7 +427,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn parse_class_ele(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
+    fn parse_class_element(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start();
 
         let token = self.token.kind;
@@ -445,7 +452,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         let modifiers = self.parse_modifiers::<false, true>(true);
-
+        let under_type_context = |this: &Self| {
+            this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                || modifiers.map_or(false, |ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+        };
         if let Some(ms) = modifiers {
             for m in ms.list {
                 let error = match m.kind() {
@@ -468,24 +478,20 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_getter_accessor_decl(
                 start,
                 modifiers,
-                ambient,
+                under_type_context(self),
                 SignatureFlags::empty(),
             )?;
             Ok(self.alloc(ast::ClassElem {
                 kind: ast::ClassElemKind::Getter(decl),
             }))
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            let ambient =
-                modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
             let decl = self.parse_setter_accessor_decl(
                 start,
                 modifiers,
-                ambient,
+                under_type_context(self),
                 SignatureFlags::empty(),
             )?;
             Ok(self.alloc(ast::ClassElem {
@@ -529,13 +535,16 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }))
     }
 
-    fn parse_class_members(&mut self) -> PResult<&'cx ast::ClassElems<'cx>> {
+    fn parse_class_members(&mut self) -> &'cx ast::ClassElems<'cx> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
-        let elems = self.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_ele);
+        let elems = self.do_outside_of_parse_context(
+            ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
+            |this| this.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_element),
+        );
         let end = self.token.end();
         self.expect(TokenKind::RBrace);
         let span = Span::new(start, end, self.module_id);
-        Ok(self.alloc(ast::ClassElems { span, list: elems }))
+        self.alloc(ast::ClassElems { span, list: elems })
     }
 }

@@ -145,7 +145,7 @@ impl CachedFileSystem for MemoryFS {
             })
     }
 
-    fn dir_exists(&mut self, p: &std::path::Path, atoms: &mut AtomIntern) -> bool {
+    fn dir_exists(&mut self, p: &std::path::Path, _: &mut AtomIntern) -> bool {
         let path_str = p.to_str().unwrap();
         self.fs
             .metadata(path_str)

@@ -6,5 +6,5 @@ class a {
   static set x(aValue) {}
 }
 class b extends a {
-  static x
+  static x;
 }

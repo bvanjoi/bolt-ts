@@ -33,18 +33,26 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
     }
 
     pub fn ensure_type_for_variable_declaration(
-        &self,
+        &mut self,
         n: &'cx ast::VarDecl<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(matches!(n.name.kind, ast::BindingKind::Ident(_)));
-        let symbol = self.checker.get_symbol_of_decl(n.id);
+        let symbol = self.checker.get_symbol_of_declaration(n.id);
         let Some(links) = self.checker.symbol_links(symbol) else {
             unreachable!()
         };
         links.expect_ty()
     }
 
+    pub fn ensure_type_for_function_declaration(
+        &mut self,
+        n: &'cx ast::FnDecl<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let sig = self.checker.get_sig_from_decl(n.id);
+        self.checker.get_return_type_of_signature(sig)
+    }
+
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
-        ty.to_string(self.checker)
+        self.checker.print_ty(ty, None).to_string()
     }
 }

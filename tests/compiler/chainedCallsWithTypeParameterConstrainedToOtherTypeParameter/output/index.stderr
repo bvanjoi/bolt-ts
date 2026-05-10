@@ -1,0 +1,17 @@
+  × Property 'z' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:59]
+ 24 │ c => new B
+    · ──────────
+    ╰────
+
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:76]
+ 24 │ b => new A
+    · ──────────
+    ╰────
+
+  × Property 'z' is missing.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter/index.ts:24:76]
+ 24 │ b => new A
+    · ──────────
+    ╰────

@@ -3,7 +3,6 @@ use super::check_expr::IterationUse;
 use super::errors;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -23,11 +22,11 @@ impl<'cx> TyChecker<'cx> {
                 .union(ast::ModifierFlags::ABSTRACT)
                 .union(ast::ModifierFlags::READONLY)
                 .union(ast::ModifierFlags::STATIC);
-            match (l.modifiers(), r.modifiers()) {
+            match (l.modifier_flags(), r.modifier_flags()) {
                 (None, None) => true,
-                (None, Some(r)) => !r.flags.intersects(FLAGS),
-                (Some(l), None) => !l.flags.intersects(FLAGS),
-                (Some(l), Some(r)) => l.flags.intersects(FLAGS) == r.flags.intersects(FLAGS),
+                (None, Some(r)) => !r.intersects(FLAGS),
+                (Some(l), None) => !l.intersects(FLAGS),
+                (Some(l), Some(r)) => l.intersects(FLAGS) == r.intersects(FLAGS),
             }
         }
     }
@@ -36,7 +35,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         name_id: ast::NodeID,
         decl_id: ast::NodeID,
-        decl: &'cx impl r#trait::VarLike<'cx>,
+        decl: &'cx impl crate::r#trait::VarLike<'cx>,
     ) {
         if !self.p.node(name_id).is_object_binding_elem()
             && let Some(ty) = decl.decl_ty()
@@ -44,12 +43,12 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty(ty);
         }
 
-        let symbol = self.get_symbol_of_decl(decl_id);
+        let symbol = self.get_symbol_of_declaration(decl_id);
         let ty = self.get_type_of_symbol(symbol);
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
-                let init_ty = self.check_expr_cached(init);
+                let init_ty = self.check_expression_cached(init, None);
                 debug_assert!(
                     decl.decl_ty()
                         .is_none_or(|_| self.node_links[&init.id()].get_resolved_ty().is_some())
@@ -79,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let is_assignment = s.flags.contains(SymbolFlags::ASSIGNMENT);
-            let decl_ty = self.get_widened_ty_for_var_like_decl(decl);
+            let decl_ty = self.get_widened_ty_for_var_like_decl::<false>(decl);
             if !self.is_error(ty)
                 && !self.is_error(decl_ty)
                 && !self.is_type_identical_to(ty, decl_ty)
@@ -89,21 +88,28 @@ impl<'cx> TyChecker<'cx> {
                 let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
                     span: self.p.node(name_id).span(),
                     var: self.atoms.get(name.name).to_string(),
-                    ty1: ty.to_string(self),
-                    ty2: decl_ty.to_string(self),
+                    ty1: self.print_ty(ty, None).to_string(),
+                    ty2: self.print_ty(decl_ty, None).to_string(),
                 };
                 self.push_error(Box::new(error));
             }
         }
+
+        if !matches!(
+            self.p.node(decl_id),
+            ast::Node::ClassPropElem(_) | ast::Node::PropSignature(_)
+        ) {
+            self.check_exports_on_merged_decls(decl_id);
+        }
     }
 
-    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl r#trait::VarLike<'cx>) {
+    pub(super) fn check_var_like_decl(&mut self, decl: &'cx impl crate::r#trait::VarLike<'cx>) {
         use bolt_ts_ast::r#trait::VarLikeName::*;
         let id = decl.id();
         let name = decl.name();
         match name {
             Ident(name) => self.check_non_pat_var_like_decl(name.id, id, decl),
-            PrivateIdent(name) => {
+            PrivateIdent(_) => {
                 // TODO:
             }
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
@@ -126,7 +132,7 @@ impl<'cx> TyChecker<'cx> {
                             if let ast::ObjectBindingName::Prop { prop_name, .. } = elem.name
                                 && let ast::PropNameKind::Computed(computed) = prop_name.kind
                             {
-                                self.check_computed_prop_name(computed);
+                                self.check_computed_property_name(computed);
                             }
                             self.check_var_like_decl(*elem);
                         }
@@ -150,9 +156,10 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 };
                 if need_check_initializer || need_check_widened_ty {
-                    let widened_ty = self.get_widened_ty_for_var_like_decl(decl);
+                    let widened_ty = self.get_widened_ty_for_var_like_decl::<false>(decl);
                     if need_check_initializer {
-                        let initializer_ty = self.check_expr_cached(decl.init().unwrap());
+                        let initializer_ty =
+                            self.check_expression_cached(decl.init().unwrap(), None);
                         if self.config.compiler_options().strict_null_checks()
                             && need_check_widened_ty
                         {
@@ -181,18 +188,6 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
             }
-        }
-
-        if decl.init().is_some()
-            && decl.is_param()
-            && let Some(f) = self.node_query(id.module()).get_containing_fn(id)
-            && self.p.node(f).fn_body().is_none()
-        {
-            let error =
-                errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
-                    span: self.p.node(id).span(),
-                };
-            self.push_error(Box::new(error));
         }
     }
 }

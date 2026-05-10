@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
-nohash-hasher = "0.2.0"
+nohash-hasher = { workspace = true }
 bitflags = { workspace = true }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
@@ -38,6 +38,7 @@ indexmap = { workspace = true }
 pretty-duration = "0.1.1"
 tracing = { workspace = true }
 glob = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 expect-test = { workspace = true }

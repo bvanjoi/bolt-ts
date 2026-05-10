@@ -1,0 +1,59 @@
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:6:15]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Duplicate identifier 'X'.
+   ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:7:16]
+ 7 │ X
+   · ─
+   ╰────
+
+  × Duplicate identifier 'X'.
+   ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:8:12]
+ 8 │ X
+   · ─
+   ╰────
+
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:9:17]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:10:18]
+ 10 │ X
+    · ─
+    ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:13:16]
+ 13 │ X
+    · ─
+    ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:14:10]
+ 14 │ X
+    · ─
+    ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:15:11]
+ 15 │ X
+    · ─
+    ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:19:22]
+ 19 │ X
+    · ─
+    ╰────
+
+  × Duplicate identifier 'X'.
+    ╭─[../../tests/compiler/genericsWithDuplicateTypeParameters1/index.ts:20:23]
+ 20 │ X
+    · ─
+    ╰────

@@ -1,0 +1,12 @@
+  × The intersection 'A & B' was reduced to 'never' because property 'x' has
+  │ conflicting types in some constituents.
+    ╭─[../../tests/compiler/intersectionWithConflictingPrivates/index.ts:11:4]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Type '{ }' is not assignable to type 'A & B'.
+    ╭─[../../tests/compiler/intersectionWithConflictingPrivates/index.ts:13:1]
+ 13 │ ab
+    · ──
+    ╰────

@@ -5,8 +5,7 @@ edition = "2024"
 
 [dependencies]
 miette = { workspace = true }
-thiserror = { version = "1.0.56" }
 bolt_ts_span = { path = "../span" }
 ropey = "1.5.0"
 relative-path = "2.0.1"
-bolt_ts_diag_derive = { path = "../diag-derive" }
+bolt_ts_diag_derive = { path = "../diag_derive" }

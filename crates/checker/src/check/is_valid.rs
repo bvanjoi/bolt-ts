@@ -15,19 +15,16 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_valid_base_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if let Some(param_ty) = ty.kind.as_param()
+        if ty.kind.is_param()
             && let Some(constraint) = self.get_base_constraint_of_ty(ty)
         {
             return self.is_valid_base_ty(constraint);
         }
 
-        if ty.kind.is_object()
-            || ty
-                .flags
-                .intersects(TypeFlags::NON_PRIMITIVE.union(TypeFlags::ANY))
-        {
-            true
-            // TODO: !is_generic_mapped_ty
+        const FLAGS: TypeFlags =
+            TypeFlags::OBJECT.union(TypeFlags::NON_PRIMITIVE.union(TypeFlags::ANY));
+        if ty.flags.intersects(FLAGS) {
+            !self.is_generic_mapped_ty(ty)
         } else {
             ty.kind.is_intersection()
         }

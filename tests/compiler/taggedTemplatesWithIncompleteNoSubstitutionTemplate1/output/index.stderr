@@ -1,0 +1,3 @@
+  × Unterminated template literal.
+   ╭─[../../tests/compiler/taggedTemplatesWithIncompleteNoSubstitutionTemplate1/index.ts:9:56]
+   ╰────

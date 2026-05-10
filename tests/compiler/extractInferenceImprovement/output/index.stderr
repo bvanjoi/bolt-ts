@@ -1,0 +1,25 @@
+  × Argument of type 'unique symbol' is not assignable to parameter of type
+  │ 'never'.
+    ╭─[../../tests/compiler/extractInferenceImprovement/index.ts:30:26]
+ 30 │ s
+    · ─
+    ╰────
+
+  × Argument of type 'unique symbol' is not assignable to parameter of type
+  │ '"first" | "second"'.
+    ╭─[../../tests/compiler/extractInferenceImprovement/index.ts:33:26]
+ 33 │ s
+    · ─
+    ╰────
+
+  × Type 'number | string' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/extractInferenceImprovement/index.ts:33:1]
+ 33 │ prop
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/extractInferenceImprovement/index.ts:37:7]
+ 37 │ d
+    · ─
+    ╰────

@@ -56,6 +56,7 @@ impl<'cx> Expr<'cx> {
             JsxFrag(n) => n.span,
             Delete(n) => n.span,
             Yield(n) => n.span,
+            Import(n) => n.span,
         }
     }
 
@@ -104,6 +105,7 @@ impl<'cx> Expr<'cx> {
             Delete(n) => n.id,
             Await(n) => n.id,
             Yield(n) => n.id,
+            Import(n) => n.id,
         }
     }
 
@@ -132,25 +134,59 @@ impl<'cx> Expr<'cx> {
         }
     }
 
-    fn is_outer_expr(&self) -> bool {
+    fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
         match self.kind {
-            ExprKind::Paren(_) => true,
-            // TODO: handle more case
+            ExprKind::Paren(_) => {
+                // TODO: js
+                (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
+            }
+            ExprKind::TyAssertion(_) | ExprKind::As(_) => {
+                (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
+            }
+            ExprKind::Satisfies(_) => {
+                (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
+            }
+            ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
+            // TODO: partially_emitted_expression
             _ => false,
         }
     }
 
-    pub fn skip_outer_expr(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
-        while expr.is_outer_expr() {
-            if let ExprKind::Paren(child) = expr.kind {
-                expr = child.expr;
+    pub fn skip_outer_expr<const FLAGS: u8>(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
+        loop {
+            match expr.kind {
+                ExprKind::Paren(n) if (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0 => {
+                    expr = n.expr;
+                }
+                ExprKind::TyAssertion(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0 =>
+                {
+                    expr = n.expr;
+                }
+                ExprKind::As(n) if (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0 => {
+                    expr = n.expr;
+                }
+                ExprKind::Satisfies(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS)
+                        != 0 =>
+                {
+                    expr = n.expr;
+                }
+                ExprKind::NonNull(n)
+                    if (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0 =>
+                {
+                    expr = n.expr
+                }
+                // TODO: partially_emitted_expression
+                _ => return expr,
             }
         }
-        expr
     }
 
     pub fn skip_parens(expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
-        Self::skip_outer_expr(expr)
+        // TODO: js doc
+        const FLAGS: u8 = SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+        Self::skip_outer_expr::<FLAGS>(expr)
     }
 
     pub fn as_super_call(&self) -> Option<&'cx CallExpr<'cx>> {
@@ -260,6 +296,21 @@ impl<'cx> Expr<'cx> {
     }
 }
 
+pub const SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS: u8 = 1 << 0;
+pub const SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS: u8 = 1 << 1;
+pub const SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS: u8 = 1 << 2;
+pub const SKIP_OUTER_EXPRESSION_PARTIALLY_EMITTED_EXPRESSIONS_FLAGS: u8 = 1 << 3;
+pub const SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS: u8 = 1 << 4;
+pub const SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS: u8 = 1 << 5;
+pub const SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS: u8 = SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS;
+pub const SKIP_OUTER_EXPRESSION_ALL_FLAGS: u8 = SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS
+    | SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_PARTIALLY_EMITTED_EXPRESSIONS_FLAGS
+    | SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS;
+pub const SKIP_OUTER_EXPRESSION_EXCLUDE_JSDOC_TYPE_ASSERTION_FLAGS: u8 = 1 << 6;
+
 #[derive(Debug, Clone, Copy)]
 pub enum ExprKind<'cx> {
     Assign(&'cx AssignExpr<'cx>),
@@ -273,6 +324,7 @@ pub enum ExprKind<'cx> {
     NullLit(&'cx NullLit),
     RegExpLit(&'cx RegExpLit),
     ArrayLit(&'cx ArrayLit<'cx>),
+    Import(&'cx ImportExpression),
     Ident(&'cx Ident),
     Omit(&'cx OmitExpr),
     Paren(&'cx ParenExpr<'cx>),
@@ -318,7 +370,7 @@ impl<'cx> ExprKind<'cx> {
         self.is_string_literal_like() || matches!(self, ExprKind::NumLit(_))
     }
 
-    fn skip_paren(&'cx self) -> &'cx ExprKind<'cx> {
+    fn skip_paren(&self) -> &ExprKind<'cx> {
         match self {
             ExprKind::Paren(p) => p.expr.kind.skip_paren(),
             _ => self,
@@ -337,7 +389,7 @@ impl<'cx> ExprKind<'cx> {
         }
     }
 
-    fn is_logical_or_coalescing_binary(&self) -> bool {
+    pub fn is_logical_or_coalescing_binary(&self) -> bool {
         match self {
             ExprKind::Bin(bin) => bin.op.kind.is_logical_or_coalescing_op(),
             _ => false,
@@ -415,6 +467,36 @@ impl<'cx> ExprKind<'cx> {
             ExprKind::ArrowFn(_) => Some(self),
             ExprKind::ObjectLit(n) if n.members.is_empty() || is_prototype_assignment => Some(self),
             _ => None,
+        }
+    }
+
+    pub fn is_false(&self) -> bool {
+        let n = self.skip_paren();
+        match n {
+            ExprKind::BoolLit(lit) => !lit.val,
+            ExprKind::Bin(bin) => match bin.op.kind {
+                BinOpKind::LogicalOr => bin.left.kind.is_false() && bin.right.kind.is_false(),
+                BinOpKind::LogicalAnd => bin.left.kind.is_false() || bin.right.kind.is_false(),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    pub fn is_possibly_discriminant_value(&self) -> bool {
+        match self {
+            ExprKind::Paren(n) => n.expr.kind.is_possibly_discriminant_value(),
+            ExprKind::PropAccess(n) => n.expr.kind.is_possibly_discriminant_value(),
+            ExprKind::StringLit(_)
+            | ExprKind::NumLit(_)
+            | ExprKind::BigIntLit(_)
+            | ExprKind::NoSubstitutionTemplateLit(_)
+            | ExprKind::Template(_)
+            | ExprKind::BoolLit(_)
+            | ExprKind::NullLit(_)
+            | ExprKind::Ident(_) => true,
+            // TODO: jsx
+            _ => false,
         }
     }
 }
@@ -627,6 +709,16 @@ pub struct ArrowFnExpr<'cx> {
     pub body: ArrowFnExprBody<'cx>,
 }
 
+impl ArrowFnExpr<'_> {
+    pub fn fn_flags(&self) -> crate::FnFlags {
+        let mut fn_flags = crate::FnFlags::empty();
+        if self.async_modifier.is_some() {
+            fn_flags.insert(crate::FnFlags::ASYNC);
+        }
+        fn_flags
+    }
+}
+
 pub fn has_rest_param(params: ParamsDecl) -> bool {
     params.last().is_some_and(|param| param.is_rest())
 }
@@ -648,6 +740,29 @@ pub enum AssignOp {
     LogicalAndEq,
     LogicalOrEq,
     NullishEq,
+}
+
+impl Into<TokenKind> for AssignOp {
+    fn into(self) -> TokenKind {
+        use AssignOp::*;
+        match self {
+            Eq => TokenKind::Eq,
+            AddEq => TokenKind::PlusEq,
+            SubEq => TokenKind::MinusEq,
+            MulEq => TokenKind::AsteriskEq,
+            DivEq => TokenKind::SlashEq,
+            ModEq => TokenKind::PercentEq,
+            ShlEq => TokenKind::LessLessEq,
+            ShrEq => TokenKind::GreatGreatEq,
+            UShrEq => TokenKind::GreatGreatGreatEq,
+            BitAndEq => TokenKind::AmpEq,
+            BitXorEq => TokenKind::CaretEq,
+            BitOrEq => TokenKind::PipeEq,
+            LogicalAndEq => todo!(),
+            LogicalOrEq => todo!(),
+            NullishEq => TokenKind::QuestionQuestionEq,
+        }
+    }
 }
 
 impl AssignOp {
@@ -730,6 +845,18 @@ pub struct FnExpr<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
     pub body: &'cx BlockStmt<'cx>,
 }
+impl FnExpr<'_> {
+    pub fn fn_flags(&self) -> crate::FnFlags {
+        let mut fn_flags = crate::FnFlags::empty();
+        if self.asterisk.is_some() {
+            fn_flags.insert(crate::FnFlags::GENERATOR);
+        }
+        if self.async_modifier.is_some() {
+            fn_flags.insert(crate::FnFlags::ASYNC);
+        }
+        fn_flags
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct CondExpr<'cx> {
@@ -752,6 +879,12 @@ pub struct ArrayLit<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub elems: Exprs<'cx>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportExpression {
+    pub id: NodeID,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -867,6 +1000,40 @@ impl BinOpKind {
 impl std::fmt::Display for BinOpKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Into<TokenKind> for BinOpKind {
+    fn into(self) -> TokenKind {
+        match self {
+            BinOpKind::Add => TokenKind::Plus,
+            BinOpKind::Sub => TokenKind::Minus,
+            BinOpKind::Mul => TokenKind::Asterisk,
+            BinOpKind::Div => TokenKind::Slash,
+            BinOpKind::Mod => TokenKind::Percent,
+            BinOpKind::Less => TokenKind::Less,
+            BinOpKind::LessEq => TokenKind::LessEq,
+            BinOpKind::Shl => TokenKind::LessLess,
+            BinOpKind::Great => TokenKind::Great,
+            BinOpKind::GreatEq => TokenKind::GreatEq,
+            BinOpKind::Sar => TokenKind::GreatGreat,
+            BinOpKind::Shr => TokenKind::GreatGreatGreat,
+            BinOpKind::BitOr => TokenKind::Pipe,
+            BinOpKind::BitAnd => TokenKind::Amp,
+            BinOpKind::BitXor => TokenKind::Caret,
+            BinOpKind::LogicalOr => TokenKind::PipePipe,
+            BinOpKind::LogicalAnd => TokenKind::AmpAmp,
+            BinOpKind::EqEq => TokenKind::EqEq,
+            BinOpKind::EqEqEq => TokenKind::EqEqEq,
+            BinOpKind::NEq => TokenKind::BangEq,
+            BinOpKind::NEqEq => TokenKind::BangEqEq,
+            BinOpKind::Instanceof => TokenKind::Instanceof,
+            BinOpKind::In => TokenKind::In,
+            BinOpKind::Satisfies => TokenKind::Satisfies,
+            BinOpKind::Exp => TokenKind::AsteriskAsterisk,
+            BinOpKind::Nullish => TokenKind::QuestionQuestion,
+            BinOpKind::Comma => TokenKind::Comma,
+        }
     }
 }
 
@@ -989,10 +1156,20 @@ pub struct DeleteExpr<'cx> {
     pub expr: &'cx Expr<'cx>,
 }
 
+/// ```txt
+/// export import a = require('xxx');
+///   |           |   ~~~~~~~~~~~~~~ `module_reference`
+///   |           ~ `name`
+/// ~~~~~~ `export_modifier`
+///
+/// export import b = d.c;
+///                   ~~~ `entity_name`
+/// ```
 #[derive(Debug, Clone)]
 pub struct ImportEqualsDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
+    pub export_modifier: Option<&'cx super::Modifier>,
     pub name: &'cx Ident,
     pub is_type_only: bool,
     pub module_reference: ModuleReferenceKind<'cx>,

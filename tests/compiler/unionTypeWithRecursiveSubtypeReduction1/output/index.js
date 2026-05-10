@@ -1,14 +1,14 @@
 class Module {
-  members
+  members;
 }
 class Namespace {
-  members
+  members;
 }
 class Class {
-  parent
+  parent;
 }
 class Property {
-  parent
+  parent;
 }
 var t;
 t.parent;

@@ -1,0 +1,35 @@
+  × Parameter 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:6:14]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:8:24]
+ 8 │  y
+   · ──
+   ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:10:16]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Parameter 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:10:18]
+ 10 │  b
+    · ──
+    ╰────
+
+  × Parameter 'c' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:10:21]
+ 10 │  c
+    · ──
+    ╰────
+
+  × Rest parameter 'args' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType/index.ts:14:16]
+ 14 │ ...args
+    · ───────
+    ╰────

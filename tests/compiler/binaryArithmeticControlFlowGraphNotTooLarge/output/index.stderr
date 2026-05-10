@@ -1,0 +1,23 @@
+  × This kind of expression is always falsy.
+      ╭─[../../tests/compiler/binaryArithmeticControlFlowGraphNotTooLarge/index.ts:1327:16]
+ 1327 │ ''
+      · ──
+      ╰────
+
+  × This kind of expression is always truthy.
+      ╭─[../../tests/compiler/binaryArithmeticControlFlowGraphNotTooLarge/index.ts:1328:16]
+ 1328 │ '42'
+      · ────
+      ╰────
+
+  × This kind of expression is always truthy.
+      ╭─[../../tests/compiler/binaryArithmeticControlFlowGraphNotTooLarge/index.ts:1331:16]
+ 1331 │ 123
+      · ───
+      ╰────
+
+  × This kind of expression is always falsy.
+      ╭─[../../tests/compiler/binaryArithmeticControlFlowGraphNotTooLarge/index.ts:1335:16]
+ 1335 │ null
+      · ────
+      ╰────

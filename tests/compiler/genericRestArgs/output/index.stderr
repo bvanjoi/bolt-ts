@@ -1,0 +1,23 @@
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+   ╭─[../../tests/compiler/genericRestArgs/index.ts:6:26]
+ 6 │ ""
+   · ──
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/genericRestArgs/index.ts:10:34]
+ 10 │ ""
+    · ──
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/genericRestArgs/index.ts:16:29]
+ 16 │ ""
+    · ──
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'any[]'.
+    ╭─[../../tests/compiler/genericRestArgs/index.ts:19:30]
+ 19 │ 1
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Overload signatures must all be ambient or non-ambient.
+    ╭─[../../tests/compiler/targetTypeTest1/index.ts:24:18]
+ 24 │ EF1
+    · ───
+    ╰────

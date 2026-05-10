@@ -1,0 +1,83 @@
+  × All declarations of 'I1' must have identical type parameters.
+   ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:5:11]
+ 5 │ I1
+   · ──
+   ╰────
+
+  × All declarations of 'I1' must have identical type parameters.
+   ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:8:11]
+ 8 │ I1
+   · ──
+   ╰────
+
+  × All declarations of 'I1' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:11:11]
+ 11 │ I1
+    · ──
+    ╰────
+
+  × All declarations of 'I1' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:14:11]
+ 14 │ I1
+    · ──
+    ╰────
+
+  × All declarations of 'I1' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:17:11]
+ 17 │ I1
+    · ──
+    ╰────
+
+  × All declarations of 'I1' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:20:11]
+ 20 │ I1
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:24:11]
+ 24 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:27:11]
+ 27 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:30:11]
+ 30 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:33:11]
+ 33 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:36:11]
+ 36 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I2' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:39:11]
+ 39 │ I2
+    · ──
+    ╰────
+
+  × All declarations of 'I3' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:43:11]
+ 43 │ I3
+    · ──
+    ╰────
+
+  × All declarations of 'I3' must have identical type parameters.
+    ╭─[../../tests/compiler/interfaceWithMultipleDeclarations/index.ts:46:11]
+ 46 │ I3
+    · ──
+    ╰────

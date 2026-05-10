@@ -12,6 +12,7 @@ bolt_ts_parser = { path = "../parser" }
 bolt_ts_middle = { path = "../middle" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_utils = { path = "../../helper/utils" }
+thiserror = { workspace = true }
 rustc-hash = { workspace = true }
 rayon = { workspace = true }
 bitflags = { workspace = true }

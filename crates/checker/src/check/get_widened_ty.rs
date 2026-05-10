@@ -2,14 +2,12 @@ use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
 use super::get_iteration_tys::IterationTypeKind;
-
 use super::ty;
 use super::ty::ObjectFlags;
 use super::ty::TypeFlags;
 use super::utils::contains_ty;
 
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
@@ -40,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             let ty_args =
                 self.same_map_tys(Some(ty_args), |this, ty_arg, _| this.get_widened_ty(ty_arg));
             assert!(ty_args.is_some());
-            self.create_reference_ty(refer.target, ty_args, ObjectFlags::empty())
+            self.create_type_reference(refer.target, ty_args, ObjectFlags::empty(), None)
         } else {
             ty
         }
@@ -99,18 +97,20 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array(),
             self.empty_array(),
             None,
+            None,
         )
     }
 
     pub(super) fn get_widened_lit_ty_for_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: as const
         let id = decl.id();
-        let flags = self.node_query(id.module()).get_combined_node_flags(id);
-        if flags.intersects(ast::NodeFlags::CONSTANT) {
+        let nq = self.node_query(id.module());
+        let flags = nq.get_combined_node_flags(id);
+        if flags.intersects(ast::NodeFlags::CONSTANT) || decl.is_declaration_readonly(&nq) {
             ty
         } else {
             self.get_widened_literal_ty(ty)
@@ -119,7 +119,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn widened_ty_from_init(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.get_widened_lit_ty_for_init(decl, ty)
@@ -224,11 +224,11 @@ impl<'cx> TyChecker<'cx> {
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if let Some(contextual_ty) = contextual_ty
-            && contextual_ty.flags.intersects(TypeFlags::INSTANTIABLE)
+            && contextual_ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
             && let Some(inference_context) = self.get_inference_context(node)
         {
             if context_flags
-                .is_some_and(|check_flags| check_flags.intersects(ContextFlags::SIGNATURE))
+                .is_some_and(|check_flags| check_flags.contains(ContextFlags::SIGNATURE))
                 && self
                     .inference_infos(inference_context.inference.unwrap())
                     .iter()
@@ -239,7 +239,7 @@ impl<'cx> TyChecker<'cx> {
                     .non_fixing_mapper;
                 let ty = self.instantiate_instantiable_tys(contextual_ty, mapper);
                 if !ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN) {
-                    return Some(contextual_ty);
+                    return Some(ty);
                 }
             }
             if let Some(inference) = inference_context.inference
@@ -265,14 +265,11 @@ impl<'cx> TyChecker<'cx> {
         contextual_ty
     }
 
-    pub(super) fn get_widened_ty_for_var_like_decl(
+    pub(super) fn get_widened_ty_for_var_like_decl<const REPORT_ERROR: bool>(
         &mut self,
-        decl: &impl r#trait::VarLike<'cx>,
+        decl: &impl crate::r#trait::VarLike<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let save_check_mode = self.check_mode;
-        self.check_mode = Some(CheckMode::empty());
-        let decl_ty = self.get_ty_for_var_like_decl::<true>(decl);
-        self.check_mode = save_check_mode;
-        self.widen_ty_for_var_like_decl(decl_ty, decl)
+        let decl_ty = self.get_ty_for_var_like_decl::<true>(decl, CheckMode::empty());
+        self.widen_ty_for_var_like_decl::<REPORT_ERROR>(decl_ty, decl)
     }
 }

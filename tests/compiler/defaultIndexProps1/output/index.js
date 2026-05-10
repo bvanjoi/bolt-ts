@@ -1,5 +1,5 @@
 class Foo {
-  v = 'Yo'
+  v = 'Yo';
 }
 var f = new Foo();
 var q = f['v'];

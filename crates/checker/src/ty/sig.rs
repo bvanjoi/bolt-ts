@@ -47,7 +47,6 @@ pub struct Sig<'cx> {
     pub id: SigID,
     pub flags: SigFlags,
     pub params: &'cx [SymbolID],
-    pub this_param: Option<SymbolID>,
     pub min_args_count: u32,
     pub ret: Option<ast::NodeID>,
     pub node_id: Option<ast::NodeID>,
@@ -57,6 +56,16 @@ pub struct Sig<'cx> {
     pub class_decl: Option<ast::NodeID>,
     pub composite_sigs: Option<Sigs<'cx>>,
     pub composite_kind: Option<TypeFlags>,
+    // TODO: this_parameter
+    // TODO: type_parameters
+    // TODO: context_this_parameter
+    // TODO: context_type_parameters
+}
+
+pub struct ExtraSig<'cx> {
+    pub(crate) sig: Sig<'cx>,
+    pub(crate) ty_params: Option<super::Tys<'cx>>,
+    pub(crate) this_param: Option<SymbolID>,
 }
 
 impl<'cx> Sig<'cx> {
@@ -74,16 +83,19 @@ impl<'cx> Sig<'cx> {
         self.flags.contains(SigFlags::HAS_LITERAL_TYPES)
     }
 
-    pub fn get_rest_ty(&self, checker: &mut TyChecker<'cx>) -> Option<&'cx super::Ty<'cx>> {
+    pub fn get_effective_rest_ty(
+        &self,
+        checker: &mut TyChecker<'cx>,
+    ) -> Option<&'cx super::Ty<'cx>> {
         if self.has_rest_param() {
             let symbol = *self.params.last().unwrap();
             let rest_ty = checker.get_type_of_symbol(symbol);
             if let Some(t) = rest_ty.as_tuple() {
                 if t.combined_flags.intersects(ElementFlags::VARIABLE) {
-                    // TODO: return slice_tuple_ty
+                    return Some(checker.slice_tuple_ty(rest_ty, t.fixed_length, 0));
                 }
             } else {
-                return if rest_ty.flags.intersects(TypeFlags::ANY) {
+                return if rest_ty.flags.contains(TypeFlags::ANY) {
                     Some(checker.any_array_ty())
                 } else {
                     Some(rest_ty)
@@ -97,8 +109,8 @@ impl<'cx> Sig<'cx> {
         &self,
         checker: &mut TyChecker<'cx>,
     ) -> Option<&'cx super::Ty<'cx>> {
-        self.get_rest_ty(checker).and_then(|ty| {
-            if !ty.kind.is_array(checker) && !ty.flags.intersects(TypeFlags::ANY) {
+        self.get_effective_rest_ty(checker).and_then(|ty| {
+            if !ty.kind.is_array(checker) && !ty.flags.contains(TypeFlags::ANY) {
                 Some(ty)
             } else {
                 None

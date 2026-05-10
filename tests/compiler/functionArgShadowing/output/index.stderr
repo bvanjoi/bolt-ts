@@ -1,0 +1,19 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'A', but here has type 'B'.
+   ╭─[../../tests/compiler/functionArgShadowing/index.ts:8:8]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Property 'bar' does not exist on type 'A'.
+    ╭─[../../tests/compiler/functionArgShadowing/index.ts:10:8]
+ 10 │ bar
+    · ───
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'p'
+  │ must be of type 'number', but here has type 'string'.
+    ╭─[../../tests/compiler/functionArgShadowing/index.ts:16:7]
+ 16 │ p
+    · ─
+    ╰────

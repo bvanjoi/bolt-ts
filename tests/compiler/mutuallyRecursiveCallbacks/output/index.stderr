@@ -1,0 +1,5 @@
+  × Type '(bar: Bar) => void' is not assignable to type 'Bar'.
+   ╭─[../../tests/compiler/mutuallyRecursiveCallbacks/index.ts:9:1]
+ 9 │ bar
+   · ───
+   ╰────

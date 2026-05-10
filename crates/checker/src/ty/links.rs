@@ -86,7 +86,16 @@ links!(
     (contains_error, bool)
 );
 
-links!(UnionTyLinks, (key_prop_name, SymbolName),);
+links!(
+    UnionTyLinks,
+    (key_prop_name, SymbolName),
+    (resolved_reduced_ty, &'cx super::Ty<'cx>),
+);
+
+links!(
+    IntersectionTyLinks,
+    (resolved_apparent_ty, &'cx super::Ty<'cx>),
+);
 
 links!(
     PromiseOrAwaitableTyLinks,

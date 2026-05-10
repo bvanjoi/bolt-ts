@@ -16,6 +16,7 @@ fn get_absolute_path(input_path: &str) -> PathBuf {
 }
 
 fn main() {
+    let start = std::time::Instant::now();
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -24,7 +25,6 @@ fn main() {
     }
 
     let input_path = &args[1];
-    let start = std::time::Instant::now();
     let p = get_absolute_path(input_path);
     let mut atoms = init_atom();
     let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
@@ -54,10 +54,10 @@ fn main() {
         fs,
         atoms,
     );
-    let duration = start.elapsed();
     let module_arena = compiler_result.steal_module_arena();
     let diags = compiler_result.steal_diags();
     diags.into_iter().for_each(|diag| diag.emit(&module_arena));
+    let duration = start.elapsed();
     println!("Files: {}", module_arena.modules().len());
     println!("Types: {}", compiler_result.type_count());
     println!(

@@ -1,5 +1,5 @@
 class C {
-  p1 = 0
+  p1 = 0;
   callback(cb) {
     cb();
   }

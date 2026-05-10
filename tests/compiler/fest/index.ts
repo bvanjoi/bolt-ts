@@ -1547,7 +1547,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T`
 	type Assignability1<T, _K extends keyof T> = unknown;
-	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+	type Test1<T> = Assignability1<T, KeysOfUnion<T>>; //~ ERROR: Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof T'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>`
 	type Assignability2<T, _K extends KeysOfUnion<T>> = unknown;
@@ -1559,7 +1559,7 @@ type KeysOfUnion<ObjectType> =
 	
 	// `PropertyKey` should NOT be assignable to `KeysOfUnion<T>`
 	type Assignability4<T, _K extends KeysOfUnion<T>> = unknown;
-	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' does not satisfy the constraint 'UnionToIntersection'.
+	type Test4<T> = Assignability4<T, PropertyKey>; //~ ERROR: Type 'symbol | number | string' does not satisfy the constraint 'keyof UnionToIntersection'.
 	
 	// `keyof T` should be assignable to `KeysOfUnion<T>` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability5<T extends Record<string, unknown>, _K extends KeysOfUnion<T>> = unknown;
@@ -1575,11 +1575,11 @@ type KeysOfUnion<ObjectType> =
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `Record<string, unknown>`
 	type Assignability8<T extends Record<string, unknown>, _K extends keyof T> = unknown;
-	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+	type Test8<T extends Record<string, unknown>> = Assignability8<T, KeysOfUnion<T>>; //~ ERROR: Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof T'.
 	
 	// `KeysOfUnion<T>` should NOT be assignable to `keyof T` even when `T` is constrained to `object`
 	type Assignability9<T extends object, _K extends keyof T> = unknown;
-	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'UnionToIntersection' does not satisfy the constraint 'T'.
+	type Test9<T extends object> = Assignability9<T, KeysOfUnion<T>>; //~ ERROR: Type 'keyof UnionToIntersection' does not satisfy the constraint 'keyof T'.
 }
 
 // ======= LastArrayElement =======
@@ -2123,7 +2123,7 @@ type SetFieldType<BaseType, Keys extends keyof BaseType, NewType, Options extend
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const variation2: SetFieldType<{a: number; b: boolean; c: Date}, 'a' | 'b', string> = {a: 42, b: true, c: new Date() };
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
-  //~| ERROR: Type 'boolean' is not assignable to type 'string'.
+  //~| ERROR: Type 'true' is not assignable to type 'string'.
   const variation3: SetFieldType<{a: string; b: boolean; c: Date}, 'b' | 'c', number> = {a: '42', b: 42, c: 42 };
   const variation4: SetFieldType<{a: string; b: string; c: string}, 'b', number> = {a: '42', b: 42, c: '42' };
 
@@ -2757,7 +2757,6 @@ type UnknownArray = readonly unknown[];
   //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
   //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
-  //~| ERROR: Type 'DateConstructor' is not assignable to type 'UnknownArray'.
 
   type IsArray<T> = T extends UnknownArray ? true : false;
 

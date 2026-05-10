@@ -1,3 +1,3 @@
 class Test1 {
-  'prop1' = 0
+  'prop1' = 0;
 }

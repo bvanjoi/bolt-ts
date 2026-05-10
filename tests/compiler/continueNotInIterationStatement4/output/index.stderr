@@ -1,0 +1,12 @@
+  × Jump target cannot cross function boundary.
+   ╭─[../../tests/compiler/continueNotInIterationStatement4/index.ts:9:14]
+ 9 │ TWO
+   · ───
+   ╰────
+
+  × A 'continue' statement can only be used within an enclosing iteration
+  │ statement.
+   ╭─[../../tests/compiler/continueNotInIterationStatement4/index.ts:9:5]
+ 9 │ continue TWO;
+   · ─────────────
+   ╰────

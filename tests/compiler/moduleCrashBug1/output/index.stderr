@@ -1,0 +1,5 @@
+  × Cannot find name '_modes'.
+    ╭─[../../tests/compiler/moduleCrashBug1/index.ts:22:9]
+ 22 │ _modes
+    · ──────
+    ╰────

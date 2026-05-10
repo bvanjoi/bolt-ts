@@ -12,7 +12,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|ty| self.get_base_ty_of_literal_ty(ty))
             .collect::<Vec<_>>();
-        self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None)
+        self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None, None)
     }
 
     pub(super) fn get_base_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

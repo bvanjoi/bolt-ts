@@ -1,6 +1,9 @@
 function f(x) {
   return x
 }
+function g(x) {
+  return x
+}
 var E = {};
 (function (E) {
 

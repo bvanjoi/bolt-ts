@@ -1,5 +1,5 @@
 class Test {
-  'prop1'
+  'prop1';
   foo() {
     var x = () => (this['prop1']);
     var y = x();

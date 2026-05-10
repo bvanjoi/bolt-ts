@@ -6,7 +6,7 @@ var m = {};
 (function (m) {
 
   class n {
-    n
+    n;
   }
   m.n = n;
   

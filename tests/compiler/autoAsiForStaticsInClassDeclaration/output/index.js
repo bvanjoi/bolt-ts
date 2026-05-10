@@ -1,4 +1,4 @@
 class C {
-  static x
-  static y
+  static x;
+  static y;
 }

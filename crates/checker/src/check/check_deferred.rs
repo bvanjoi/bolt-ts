@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_utils::fx_hashset_with_capacity;
 
 use super::NodeCheckFlags;
 use super::TyChecker;
@@ -9,16 +10,19 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_node_deferred(&mut self, node: ast::NodeID) {
         let root = node.into_root();
         let flags = self.get_node_links(root).flags();
-        if !flags.intersects(NodeCheckFlags::TYPE_CHECKED) {
+        if !flags.contains(NodeCheckFlags::TYPE_CHECKED) {
             self.deferred_nodes[node.module().as_usize()].insert(node);
         }
     }
 
     pub fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
-        let mut deferred_nodes = std::mem::take(&mut self.deferred_nodes[module_id.as_usize()]);
-        while let Some(node) = deferred_nodes.pop() {
-            self.check_deferred_node(node);
+        let mut checked = fx_hashset_with_capacity(self.deferred_nodes[module_id.as_usize()].len());
+        while let Some(node) = self.deferred_nodes[module_id.as_usize()].pop() {
+            if checked.insert(node.index_as_u32()) {
+                self.check_deferred_node(node);
+            }
         }
+        debug_assert!(self.deferred_nodes[module_id.as_usize()].is_empty());
     }
 
     fn check_assertion_deferred(
@@ -37,15 +41,14 @@ impl<'cx> TyChecker<'cx> {
             && let widened_ty = self.get_widened_ty(expr_ty)
             && !self.is_type_related_to(target_ty, widened_ty, RelationKind::Comparable)
         {
-            // TODO: report error in `check_type_comparable_to`
-            if !self.check_type_comparable_to(expr_ty, target_ty, Some(node_id)) {
+            self.check_type_comparable_to(expr_ty, target_ty, Some(node_id), Some(|this: &mut Self| {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
                     span: span,
-                    source_ty: widened_ty.to_string(self),
-                    target_ty: target_ty.to_string(self),
+                    source_ty: this.print_ty(widened_ty, None).to_string(),
+                    target_ty: this.print_ty(target_ty, None).to_string(),
                 };
-                self.push_error(Box::new(error));
-            }
+                this.push_error(Box::new(error));
+            }));
         }
     }
 
@@ -67,6 +70,18 @@ impl<'cx> TyChecker<'cx> {
             }
             AsExpr(n) => {
                 self.check_assertion_deferred(n.id, n.span, n.ty);
+            }
+            CallExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
+            NewExpr(n) => {
+                self.resolve_untyped_call(n);
+            }
+            VoidExpr(n) => {
+                self.check_expression(n.expr, None);
+            }
+            TaggedTemplateExpr(n) => {
+                self.resolve_untyped_call(n);
             }
             _ => unreachable!("{:#?}", self.p.node(node)),
         }

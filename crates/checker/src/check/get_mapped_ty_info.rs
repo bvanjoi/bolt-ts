@@ -12,7 +12,7 @@ impl<'cx> TyChecker<'cx> {
         let map = ty.kind.expect_object_mapped();
         let name_ty = self
             .get_name_ty_from_mapped_ty(map.target.map_or(map, |t| t.kind.expect_object_mapped()));
-        if name_ty.is_none() && !index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
+        if name_ty.is_none() && !index_flags.contains(IndexFlags::NO_INDEX_SIGNATURES) {
             return self.get_constraint_ty_from_mapped_ty(map);
         }
         let mut key_tys = vec![];
@@ -55,13 +55,20 @@ impl<'cx> TyChecker<'cx> {
             self.for_each_ty(t, add_member_for_key_ty);
         };
 
-        let result = if index_flags.intersects(IndexFlags::NO_INDEX_SIGNATURES) {
-            let t = self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None);
+        let result = if index_flags.contains(IndexFlags::NO_INDEX_SIGNATURES) {
+            let t = self.get_union_ty::<false>(
+                &key_tys,
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            );
             self.filter_type(t, |_, t| {
-                !t.flags.intersects(TypeFlags::ANY | TypeFlags::STRING)
+                !t.flags.intersects(TypeFlags::ANY.union(TypeFlags::STRING))
             })
         } else {
-            self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None, None)
         };
 
         if let Some(result) = result.kind.as_union()
@@ -87,7 +94,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(cached) = self.object_mapped_ty_links_arena[ty.links].get_ty_param() {
             return cached;
         }
-        let param_ty = self.get_symbol_of_decl(ty.decl.ty_param.id);
+        let param_ty = self.get_symbol_of_declaration(ty.decl.ty_param.id);
         let t = self.get_declared_ty_of_ty_param(param_ty);
         self.object_mapped_ty_links_arena[ty.links].set_ty_param(t);
         t

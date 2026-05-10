@@ -25,9 +25,11 @@
 		"test": "npm run build && node ./tests/binding.test.js"
 	},
 	"devDependencies": {
-		"@napi-rs/cli": "^3.5.1",
-		"@napi-rs/wasm-runtime": "^1.1.1",
-		"typescript": "^5.9.3"
+		"@napi-rs/cli": "^3.6.1",
+		"@napi-rs/wasm-runtime": "^1.1.3",
+		"typescript": "^6.0.2",
+		"@emnapi/core": "^1.9.2",
+		"@emnapi/runtime": "^1.9.2"
 	},
 	"napi": {
 		"binaryName": "bolt-ts-napi",

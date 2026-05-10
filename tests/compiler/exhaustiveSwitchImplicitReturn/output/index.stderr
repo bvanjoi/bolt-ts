@@ -1,0 +1,5 @@
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/exhaustiveSwitchImplicitReturn/index.ts:40:32]
+ 40 │ number
+    · ──────
+    ╰────

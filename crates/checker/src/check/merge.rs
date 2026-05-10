@@ -146,23 +146,27 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
         &mut self.global_symbols
     }
     fn get_locals(&self, container: bolt_ts_ast::NodeID) -> &SymbolTable {
-        self.binder.bind_results[container.module().as_usize()]
-            .locals
-            .get(&container)
-            .unwrap()
+        let module = container.module().as_usize();
+        debug_assert!(self.binder.bind_results.len() > module);
+        let locals = unsafe { &self.binder.bind_results.get_unchecked(module).locals };
+        locals.get(&container).unwrap()
     }
     fn get_mut_locals(&mut self, container: bolt_ts_ast::NodeID) -> &mut SymbolTable {
-        self.binder.bind_results[container.module().as_usize()]
-            .locals
-            .get_mut(&container)
-            .unwrap()
+        let module = container.module().as_usize();
+        debug_assert!(self.binder.bind_results.len() > module);
+        let locals = unsafe { &mut self.binder.bind_results.get_unchecked_mut(module).locals };
+        locals.get_mut(&container).unwrap()
     }
     fn set_value_declaration(&mut self, symbol: SymbolID, node: bolt_ts_ast::NodeID) {
         let symbols = &mut self.binder.bind_results[symbol.module().as_usize()].symbols;
         set_value_declaration(symbol, symbols, node, &self.p);
     }
     fn record_merged_symbol(&mut self, target: SymbolID, source: SymbolID) {
-        let symbols = &mut self.binder.bind_results[source.module().as_usize()].symbols;
+        let symbols = if source.module() == bolt_ts_span::ModuleID::TRANSIENT {
+            &mut self.binder.bind_results.last_mut().unwrap().symbols
+        } else {
+            &mut self.binder.bind_results[source.module().as_usize()].symbols
+        };
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
@@ -211,7 +215,7 @@ impl<'cx> super::TyChecker<'cx> {
     ) {
         assert!(!module_augmentation.is_global_argument);
         let ns_id = module_augmentation.id;
-        let ns_symbol = self.get_symbol_of_decl(ns_id);
+        let ns_symbol = self.get_symbol_of_declaration(ns_id);
         let ns_s = MergeSymbol::get_symbol(self, ns_symbol);
         let decls = ns_s.decls.as_ref().unwrap();
         if decls.first().is_none_or(|decl| !ns_id.eq(decl)) {

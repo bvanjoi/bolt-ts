@@ -1,5 +1,5 @@
 class Foo {
-  x = 'hello'
+  x = 'hello';
   bar() {
     function inner() {
       this.y = 'hi';

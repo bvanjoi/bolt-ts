@@ -1,0 +1,17 @@
+  × Type 'string' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/instantiateContextualTypes/index.ts:190:9]
+ 190 │ b0
+     · ──
+     ╰────
+
+  × Tuple type '[string]' of length '1' has no element at index '1'.
+     ╭─[../../tests/compiler/instantiateContextualTypes/index.ts:192:27]
+ 192 │ 1
+     · ─
+     ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/instantiateContextualTypes/index.ts:192:9]
+ 192 │ b1
+     · ──
+     ╰────

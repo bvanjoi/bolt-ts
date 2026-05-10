@@ -8,8 +8,8 @@ class C extends B {
     return 'foo'
   }
   set prop(v) {}
-  raw = 'edge'
-  ro = 'readonly please'
-  readonlyProp
+  raw = 'edge';
+  ro = 'readonly please';
+  readonlyProp;
   m() {}
 }

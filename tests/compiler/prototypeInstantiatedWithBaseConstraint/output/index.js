@@ -1,4 +1,4 @@
 class C {
-  x
+  x;
 }
 C.prototype.x.boo;

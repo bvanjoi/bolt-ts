@@ -17,11 +17,6 @@ impl DirNode {
     }
 
     #[inline]
-    pub fn children(&self) -> &[FSNodeId] {
-        &self.children
-    }
-
-    #[inline]
     pub fn path(&self) -> PathId {
         self.path
     }

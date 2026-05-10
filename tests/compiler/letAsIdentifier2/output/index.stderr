@@ -1,0 +1,5 @@
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letAsIdentifier2/index.ts:5:10]
+ 5 │ let
+   · ───
+   ╰────

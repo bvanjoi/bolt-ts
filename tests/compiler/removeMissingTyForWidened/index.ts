@@ -185,7 +185,7 @@ type A<Options extends Required<O>> = B<Options['b']>;
   const emptyObjectSymbol: unique symbol = Symbol();
   type EmptyObject = {[emptyObjectSymbol]?: never};
   const foo: EmptyObject = [];
-  //~^ ERROR: Type 'never[]' is not assignable to type 'EmptyObject'.
+  //~^ ERROR: Type 'never[]' has no properties in common with type 'EmptyObject'.
   type IsEmptyObject = {key: string} extends EmptyObject ? true : false;
   const a0: IsEmptyObject = false;
   const a1: ['a'] extends [EmptyObject] ? true : false = false;

@@ -1,0 +1,13 @@
+  × Property 'getOwnPropertyNamess' does not exist on type '{ a: string; b:
+  │ number; }'.
+   ╭─[../../tests/compiler/errorMessageOnObjectLiteralType/index.ts:9:3]
+ 9 │ getOwnPropertyNamess
+   · ────────────────────
+   ╰────
+
+  × Property 'getOwnPropertyNamess' does not exist on type
+  │ 'ObjectConstructor'.
+    ╭─[../../tests/compiler/errorMessageOnObjectLiteralType/index.ts:11:8]
+ 11 │ getOwnPropertyNamess
+    · ────────────────────
+    ╰────

@@ -1,4 +1,4 @@
 class A {
-  list
+  list;
 }
 var a = new A();

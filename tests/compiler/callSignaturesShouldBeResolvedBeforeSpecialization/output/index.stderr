@@ -1,0 +1,6 @@
+  × Argument of type 'boolean' is not assignable to parameter of type
+  │ 'string'.
+    ╭─[../../tests/compiler/callSignaturesShouldBeResolvedBeforeSpecialization/index.ts:12:10]
+ 12 │ true
+    · ────
+    ╰────

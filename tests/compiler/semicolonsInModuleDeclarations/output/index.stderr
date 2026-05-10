@@ -1,0 +1,5 @@
+  × Statements are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/semicolonsInModuleDeclarations/index.ts:8:27]
+ 8 │ ;
+   · ─
+   ╰────

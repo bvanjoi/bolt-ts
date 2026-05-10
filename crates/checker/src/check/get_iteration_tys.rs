@@ -6,7 +6,9 @@ use bolt_ts_ty::TypeFacts;
 
 use super::TyChecker;
 use super::check_expr::IterationUse;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
+use super::errors;
 use super::ty;
 
 pub(super) enum IterationTypeKind {
@@ -355,16 +357,17 @@ impl<'cx> TyChecker<'cx> {
         error_output_container: Option<ast::NodeID>,
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
-        let method = self.get_prop_of_ty(ty, name);
-        let method_name_is_next = method_name != keyword::IDENT_NEXT;
-        if method.is_none() && method_name_is_next {
+        let method = self.get_prop_of_ty::<false, false>(ty, name);
+        let method_name_is_not_next = method_name != keyword::IDENT_NEXT;
+        if method.is_none() && method_name_is_not_next {
             return None;
         };
         let method_ty = if let Some(method) = method
-            && !(method_name_is_next && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
+            && !(!method_name_is_not_next
+                && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
         {
             let mut ty = self.get_type_of_symbol(method);
-            if !method_name_is_next {
+            if method_name_is_not_next {
                 ty = self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
             }
             Some(ty)
@@ -383,7 +386,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(error_node) = error_node {
                 todo!()
             }
-            return if method_name_is_next {
+            return if !method_name_is_not_next {
                 Some(self.no_iteration_tys())
             } else {
                 None
@@ -421,7 +424,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty_arguments = self.get_ty_arguments(global_ty);
                 let yield_ty = self.get_mapped_ty(mapper, ty_arguments[0]);
                 let return_ty = self.get_mapped_ty(mapper, ty_arguments[1]);
-                let next_ty = if method_name_is_next {
+                let next_ty = if method_name_is_not_next {
                     self.get_mapped_ty(mapper, ty_arguments[2])
                 } else {
                     self.unknown_ty
@@ -444,7 +447,7 @@ impl<'cx> TyChecker<'cx> {
                     None => method_param_tys = Some(vec![ty]),
                 }
             }
-            let ty = self.get_ret_ty_of_sig(sig);
+            let ty = self.get_return_type_of_signature(sig);
             match &mut method_return_tys {
                 Some(method_return_tys) => {
                     method_return_tys.push(ty);
@@ -463,11 +466,12 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                     None,
+                    None,
                 )
             } else {
                 self.unknown_ty
             };
-            if method_name_is_next {
+            if method_name_is_not_next {
                 next_ty = Some(method_param_ty);
             } else if method_name == keyword::KW_RETURN {
                 let resolved_method_param_ty = resolver
@@ -523,6 +527,7 @@ impl<'cx> TyChecker<'cx> {
         let return_ty = self.get_union_ty::<false>(
             return_tys.as_ref().unwrap(),
             ty::UnionReduction::Lit,
+            None,
             None,
             None,
             None,
@@ -619,7 +624,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_ty_of_prop_of_ty(ty, name)
         });
         if let Some(unique_ty) = unique_ty
-            && unique_ty.useable_as_prop_name()
+            && unique_ty.usable_as_prop_name()
         {
             self.get_prop_name_from_ty(unique_ty)
         } else {
@@ -637,7 +642,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::IterationTys<'cx> {
         let name = bolt_ts_binder::SymbolName::Atom(resolver.iterator_symbol_name());
         let name = self.get_prop_name_for_known_symbol_name(name);
-        let method = self.get_prop_of_ty(ty, name);
+        let method = self.get_prop_of_ty::<false, false>(ty, name);
         let method_ty = if let Some(method) = method
             && !self.symbol(method).flags.contains(SymbolFlags::OPTIONAL)
         {
@@ -661,7 +666,7 @@ impl<'cx> TyChecker<'cx> {
                 && !all_sigs.is_empty()
             {
                 let target = resolver.get_global_iterable_ty::<true>(self);
-                self.check_type_assignable_to(ty, target, Some(error_node));
+                self.check_type_assignable_to(ty, target, Some(error_node), NOOP_HEADING_ERROR);
             }
             let tys = self.no_iteration_tys();
             return if no_cache {
@@ -677,7 +682,7 @@ impl<'cx> TyChecker<'cx> {
         let iterator_ty = {
             let tys = valid_sigs
                 .iter()
-                .map(|sig| self.get_ret_ty_of_sig(sig))
+                .map(|sig| self.get_return_type_of_signature(sig))
                 .collect::<Vec<_>>();
             self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
         };
@@ -1033,10 +1038,24 @@ impl<'cx> TyChecker<'cx> {
         }
         if yield_tys.is_some() || return_tys.is_some() || next_tys.is_some() {
             let yield_ty = yield_tys.map_or(self.never_ty, |yield_tys| {
-                self.get_union_ty::<false>(&yield_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &yield_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             });
             let return_ty = return_tys.map_or(self.never_ty, |return_tys| {
-                self.get_union_ty::<false>(&return_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &return_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             });
             let next_ty = next_tys.map_or(self.never_ty, |next_tys| {
                 self.get_intersection_ty(
@@ -1049,6 +1068,24 @@ impl<'cx> TyChecker<'cx> {
             self.create_iteration_tys(yield_ty, return_ty, next_ty)
         } else {
             self.no_iteration_tys()
+        }
+    }
+
+    fn report_type_not_iterable_error(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        error_node: ast::NodeID,
+        allow_async_iterable: bool,
+    ) {
+        let ty = self.print_ty(ty, None).to_string();
+        if allow_async_iterable {
+            todo!()
+        } else {
+            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+                span: self.p.node(error_node).span(),
+                ty,
+            };
+            self.push_error(Box::new(error));
         }
     }
 
@@ -1073,7 +1110,11 @@ impl<'cx> TyChecker<'cx> {
             );
             if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
                 if let Some(error_node) = error_node {
-                    todo!()
+                    self.report_type_not_iterable_error(
+                        ty,
+                        error_node,
+                        mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
+                    );
                 }
 
                 return None;

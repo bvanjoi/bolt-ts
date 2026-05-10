@@ -35,26 +35,19 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
         invalid_initializer: ast::NodeID,
-        mut error: errors::CannotFindName,
-    ) -> errors::CannotFindName {
+    ) -> Option<errors::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor>{
         if self.emit_standard_class_fields {
-            return error;
+            return None;
         }
         let invalid_initializer = self.p.node(invalid_initializer).expect_class_prop_elem();
         let invalid_initializer_name = self
             .atoms
             .get(invalid_initializer.name.kind.as_ident().unwrap().name);
-        let sub_error = errors::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor {
+        Some(errors::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor {
             span: ident.span,
-            x: self.atoms.get(ident.name).to_string(),
-            y: invalid_initializer_name.to_string(),
-        };
-        error.errors.push(
-            errors::CannotFindNameHelperKind::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(
-                sub_error,
-            ),
-        );
-        error
+            x: invalid_initializer_name.to_string(),
+            y: self.atoms.get(ident.name).to_string(),
+        })
     }
 
     fn check_missing_prefix(

@@ -39,7 +39,7 @@ impl TyChecker<'_> {
     }
 
     pub(super) fn check_alias_symbol(&mut self, node: ast::NodeID) {
-        let symbol = self.get_symbol_of_decl(node);
+        let symbol = self.get_symbol_of_declaration(node);
         let target = self.resolve_alias(symbol);
         if target == Symbol::ERR {
             return;

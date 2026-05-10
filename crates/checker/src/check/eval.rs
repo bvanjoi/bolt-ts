@@ -1,7 +1,8 @@
 use super::TyChecker;
+use super::errors;
 use super::get_declared_ty::EnumMemberValue;
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
@@ -13,12 +14,44 @@ pub(crate) enum EvalResult {
 }
 
 impl<'cx> TyChecker<'cx> {
+    pub(super) fn eval_template_expr(
+        &mut self,
+        expr: &'cx ast::TemplateExpr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        debug_assert!(location.is_none_or(|location| self.p.node(location).is_declaration()));
+        self.eval_template_expr_worker(expr, location)
+    }
+
+    fn eval_template_expr_worker(
+        &mut self,
+        expr: &'cx ast::TemplateExpr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        let mut result = self.atoms.get(expr.head.text).to_string();
+        // let mut resolved_other_files = false;
+        // let mut has_external_references = false;
+        for span in expr.spans {
+            let span_result = self.eval_expr(span.expr, location);
+            match span_result {
+                EvalResult::Number(n) => result += &n.to_string(),
+                EvalResult::Str(s) => {
+                    let s = self.atoms.get(s);
+                    result += s;
+                }
+                EvalResult::Err => return EvalResult::Err,
+            }
+            // resolved_other_files |= span_result == EvalResult::resolved_other_files;
+        }
+        EvalResult::Str(self.atoms.atom(&result))
+    }
+
     pub(super) fn eval_expr(
         &mut self,
         expr: &'cx ast::Expr<'cx>,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
-        debug_assert!(location.is_none_or(|location| self.p.node(location).is_decl()));
+        debug_assert!(location.is_none_or(|location| self.p.node(location).is_declaration()));
         match expr.kind {
             ast::ExprKind::Ident(n) => self.eval_ident(n, SymbolFlags::VALUE, true, location),
             ast::ExprKind::NumLit(n) => EvalResult::Number(n.val),
@@ -96,6 +129,9 @@ impl<'cx> TyChecker<'cx> {
         ignore_errors: bool,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
+        if ident.name == keyword::KW_UNDEFINED {
+            return EvalResult::Err;
+        }
         let symbol = self.resolve_symbol_by_ident(ident);
         if symbol == Symbol::ERR {
             return EvalResult::Err;
@@ -114,10 +150,31 @@ impl<'cx> TyChecker<'cx> {
     fn eval_enum_member(&mut self, symbol: SymbolID, location: ast::NodeID) -> EvalResult {
         let s = self.binder.symbol(symbol);
         let Some(decl) = s.value_decl else {
-            todo!("error handle");
+            let error = errors::PropertyXIsUsedBeforeBeingAssigned {
+                span: self.p.node(location).span(),
+                name: s.name.to_string(&self.atoms),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Err;
         };
         if decl == location {
-            todo!("error handle");
+            let error = errors::PropertyXIsUsedBeforeBeingAssigned {
+                span: self.p.node(location).span(),
+                name: s.name.to_string(&self.atoms),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Err;
+        }
+        if !self.is_block_scoped_name_declared_before_use(
+            decl,
+            location,
+            self.p.node(location).span(),
+        ) {
+            let error = errors::AMemberInitializerInAEnumDeclarationCannotReferenceMembersDeclaredAfterItIncludingMembersDefinedInOtherEnums {
+                span: self.p.node(location).span(),
+            };
+            self.push_error(Box::new(error));
+            return EvalResult::Number(0.);
         }
         let value = self.get_enum_member_value(self.p.node(decl).expect_enum_member());
         if self.parent(decl) != self.parent(location) {

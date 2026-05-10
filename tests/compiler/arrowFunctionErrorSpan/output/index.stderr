@@ -1,0 +1,77 @@
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+   ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:9:3]
+ 9 │ () => { }
+   · ─────────
+   ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:13:3]
+ 13 │ ╭─▶ () => {
+ 14 │ │   
+ 15 │ ╰─▶ }
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:19:3]
+ 19 │ ╭─▶ () => {
+ 20 │ │   
+ 21 │ ╰─▶ }
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:25:3]
+ 25 │ ╭─▶ ()
+ 26 │ ╰─▶     => { }
+    ╰────
+
+  × Argument of type '(a: any, b: any, c: any, d: any) => void' is not
+  │ assignable to parameter of type '() => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:30:3]
+ 30 │ ╭─▶ (a,
+ 31 │ │       b,
+ 32 │ │       c,
+ 33 │ ╰─▶     d) => { }
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:38:7]
+ 38 │ () => { }
+    · ─────────
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:42:7]
+ 42 │ () => { }
+    · ─────────
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:46:7]
+ 46 │ ╭─▶ () => { 
+ 47 │ │   
+ 48 │ ╰─▶     }
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:54:5]
+ 54 │ ╭─▶ () =>
+ 55 │ │       // comment 3
+ 56 │ │       {
+ 57 │ │           // comment 4
+ 58 │ ╰─▶     }
+    ╰────
+
+  × Argument of type '(_: any) => number' is not assignable to parameter of
+  │ type '() => number'.
+    ╭─[../../tests/compiler/arrowFunctionErrorSpan/index.ts:64:3]
+ 64 │ ╭─▶ _ => 1 +
+ 65 │ ╰─▶     2
+    ╰────

@@ -1,6 +1,4 @@
-use std::borrow::Cow;
-
-use super::get_simplified_ty::SimplifiedKind;
+use super::flow::flow_loop_ctx_len;
 use super::ty::{self, TypeFlags};
 use super::{TyChecker, create_ty::IntersectionFlags};
 
@@ -86,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                return Some(self.get_normalized_ty(i, SimplifiedKind::Reading));
+                return Some(self.get_normalized_ty::<false>(i));
             }
         }
 
@@ -122,10 +120,10 @@ impl<'cx> TyChecker<'cx> {
         self.fill_missing_ty_args(ty_args, Some(ty_params), min_ty_argument_count)
     }
 
-    pub(super) fn get_effective_call_args(
+    pub(super) fn get_effective_call_arguments(
         &mut self,
         expr: &impl r#trait::CallLike<'cx>,
-    ) -> Cow<'cx, [&'cx ast::Expr<'cx>]> {
+    ) -> EffectiveCallArguments<'cx> {
         let id = expr.id();
         let node = self.p.node(id);
         // if node.is_jsx_opening_fragment() {
@@ -135,33 +133,53 @@ impl<'cx> TyChecker<'cx> {
         match node {
             ast::Node::TaggedTemplateExpr(_) => {
                 // TODO:
-                Cow::Borrowed(expr.args())
+                EffectiveCallArguments::Borrowed(expr.args())
             }
             _ => {
                 let args = expr.args();
                 if let Some(spared_index) = self.get_spread_arg_index(args) {
-                    let mut effective_args = args[0..spared_index].to_vec();
+                    let mut effective_args = args[0..spared_index]
+                        .iter()
+                        .map(|arg| EffectiveCallArgument::Expression(arg))
+                        .collect::<Vec<_>>();
                     for i in spared_index..args.len() {
                         let arg = args[i];
-                        if let ast::ExprKind::SpreadElement(spread) = &arg.kind {
-                            // TODO: flow_loop_count
-                            let spared_ty = self.check_expr(spread.expr);
-                            if let Some(t) = spared_ty.as_tuple() {
-                                let tys = self.get_element_tys(spared_ty);
-                                for (j, ty) in tys.iter().enumerate() {
-                                    let flags = t.element_flags[j];
-                                    // TODO: synthetic expr
-                                    effective_args.push(arg);
-                                }
-                                continue;
+                        let spread_ty = if let ast::ExprKind::SpreadElement(n) = &arg.kind {
+                            Some(if flow_loop_ctx_len(self) != 0 {
+                                self.check_expression(n.expr, None)
+                            } else {
+                                self.check_expression_cached(n.expr, None)
+                            })
+                        } else {
+                            None
+                        };
+                        if let Some(spread_ty) = spread_ty
+                            && let Some(t) = spread_ty.as_tuple()
+                        {
+                            let tys = self.get_element_tys(spread_ty);
+                            for (j, ty) in tys.iter().enumerate() {
+                                let flags = t.element_flags[j];
+                                effective_args.push(EffectiveCallArgument::Synthetic(
+                                    SyntheticExpression {
+                                        span: arg.span(),
+                                        parent: arg.id(),
+                                        is_spread: flags.contains(ty::ElementFlags::VARIABLE),
+                                        ty: if flags.contains(ty::ElementFlags::REST) {
+                                            self.create_array_ty(ty, false)
+                                        } else {
+                                            ty
+                                        },
+                                        tuple_name_source: None, // TODO: t.labeled_element_declarations
+                                    },
+                                ));
                             }
+                        } else {
+                            effective_args.push(EffectiveCallArgument::Expression(arg));
                         }
-
-                        effective_args.push(arg);
                     }
-                    Cow::Owned(effective_args)
+                    EffectiveCallArguments::Owned(effective_args)
                 } else {
-                    Cow::Borrowed(args)
+                    EffectiveCallArguments::Borrowed(args)
                 }
             }
         }
@@ -172,9 +190,7 @@ impl<'cx> TyChecker<'cx> {
         n: ast::NodeID,
         flags_to_check: ast::ModifierFlags,
     ) -> ast::ModifierFlags {
-        let Some(mut modifier_flags) = self.p.node(n).modifiers().map(|ms| ms.flags) else {
-            return Default::default();
-        };
+        let mut modifier_flags = self.node_query(n.module()).get_combined_modifier_flags(n);
         let Some(p) = self.parent(n) else {
             return Default::default();
         };
@@ -217,6 +233,120 @@ impl<'cx> TyChecker<'cx> {
             self.try_get_name_from_ty(ty)
         } else {
             None
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SyntheticExpression<'cx> {
+    span: bolt_ts_span::Span,
+    parent: ast::NodeID,
+    is_spread: bool,
+    ty: &'cx ty::Ty<'cx>,
+    tuple_name_source: Option<ast::NodeID>,
+}
+
+impl<'cx> SyntheticExpression<'cx> {
+    pub fn span(&self) -> bolt_ts_span::Span {
+        self.span
+    }
+
+    pub fn ty(&self) -> &'cx ty::Ty<'cx> {
+        self.ty
+    }
+
+    pub fn parent(&self) -> ast::NodeID {
+        self.parent
+    }
+
+    pub fn is_spread(&self) -> bool {
+        self.is_spread
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EffectiveCallArgument<'cx> {
+    Expression(&'cx ast::Expr<'cx>),
+    Synthetic(SyntheticExpression<'cx>),
+}
+
+impl EffectiveCallArgument<'_> {
+    pub fn span(&self) -> bolt_ts_span::Span {
+        match self {
+            EffectiveCallArgument::Expression(n) => n.span(),
+            EffectiveCallArgument::Synthetic(n) => n.span,
+        }
+    }
+
+    pub fn is_spread_argument(&self) -> bool {
+        match self {
+            EffectiveCallArgument::Expression(n) => {
+                matches!(n.kind, ast::ExprKind::SpreadElement(_))
+            }
+            EffectiveCallArgument::Synthetic(n) => n.is_spread,
+        }
+    }
+}
+
+pub enum EffectiveCallArguments<'cx> {
+    Borrowed(ast::Exprs<'cx>),
+    Owned(Vec<EffectiveCallArgument<'cx>>),
+}
+
+impl<'cx> EffectiveCallArguments<'cx> {
+    pub fn len(&self) -> usize {
+        match self {
+            EffectiveCallArguments::Borrowed(args) => args.len(),
+            EffectiveCallArguments::Owned(args) => args.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_spared_argument_index(&self) -> Option<usize> {
+        match self {
+            EffectiveCallArguments::Borrowed(args) => args
+                .iter()
+                .position(|arg| matches!(arg.kind, ast::ExprKind::SpreadElement(_))),
+            EffectiveCallArguments::Owned(args) => args.iter().position(|arg| match arg {
+                EffectiveCallArgument::Expression(n) => {
+                    matches!(n.kind, ast::ExprKind::SpreadElement(_))
+                }
+                EffectiveCallArgument::Synthetic(n) => n.is_spread,
+            }),
+        }
+    }
+
+    pub fn get(&self, index: usize) -> Option<std::borrow::Cow<'_, EffectiveCallArgument<'cx>>> {
+        if index < self.len() {
+            Some(self.index(index))
+        } else {
+            None
+        }
+    }
+
+    pub fn index(&self, index: usize) -> std::borrow::Cow<'_, EffectiveCallArgument<'cx>> {
+        debug_assert!(index < self.len());
+        match self {
+            EffectiveCallArguments::Borrowed(args) => {
+                std::borrow::Cow::Owned(EffectiveCallArgument::Expression(args[index]))
+            }
+            EffectiveCallArguments::Owned(args) => std::borrow::Cow::Borrowed(&args[index]),
+        }
+    }
+
+    pub fn last(&self) -> std::borrow::Cow<'_, EffectiveCallArgument<'cx>> {
+        match self {
+            EffectiveCallArguments::Borrowed(args) => {
+                debug_assert!(!args.is_empty());
+                std::borrow::Cow::Owned(EffectiveCallArgument::Expression(args.last().unwrap()))
+            }
+            EffectiveCallArguments::Owned(args) => {
+                debug_assert!(!args.is_empty());
+                std::borrow::Cow::Borrowed(args.last().unwrap())
+            }
         }
     }
 }

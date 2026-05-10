@@ -8,9 +8,9 @@ use bolt_ts_utils::{fx_indexmap_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashMap;
 
 use super::check_type_related_to::IntersectionState;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::get_declared_ty::EnumMemberValue;
-
 use super::ty::{self, CheckFlags, ObjectFlags, TypeFlags};
 use super::ty::{Ty, TyKind};
 use super::{SymbolLinks, errors};
@@ -23,7 +23,6 @@ pub(super) enum RelationKind {
     Assignable,
     Comparable,
     Identity,
-    Enum,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -121,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_enum_ty_related_to(
+    fn is_enum_type_related_to(
         &mut self,
         source: SymbolID,
         target: SymbolID,
@@ -165,7 +164,7 @@ impl<'cx> TyChecker<'cx> {
         let source_props = self.get_props_of_ty(source_enum_ty);
         for source_prop in source_props {
             let source_name = self.symbol(*source_prop).name;
-            let target_prop = self.get_prop_of_ty(target_enum_ty, source_name);
+            let target_prop = self.get_prop_of_ty::<false, false>(target_enum_ty, source_name);
             let Some(target_prop) = target_prop else {
                 // TODO: report error
                 self.enum_relation
@@ -274,15 +273,45 @@ impl<'cx> TyChecker<'cx> {
         if let Some(source_e) = source.kind.as_enum()
             && let Some(target_e) = target.kind.as_enum()
             && self.symbol(source_e.symbol).name == self.symbol(target_e.symbol).name
-            && self.is_enum_ty_related_to(source_e.symbol, target_e.symbol, false)
+            && self.is_enum_type_related_to(source_e.symbol, target_e.symbol, false)
         // TODO: report_error
         {
             return true;
         }
 
         if s.contains(TypeFlags::ENUM_LITERAL) && t.contains(TypeFlags::ENUM_LITERAL) {
-            // TODO: union
-            // TODO: literal
+            debug_assert!(!s.intersects(TypeFlags::BIG_INT.union(TypeFlags::BOOLEAN)));
+            debug_assert!(!t.intersects(TypeFlags::BIG_INT.union(TypeFlags::BOOLEAN)));
+
+            if let Some(s_u) = source.kind.as_union()
+                && let Some(t_u) = target.kind.as_union()
+                && let s_symbol = s_u.enum_symbol.unwrap()
+                && let t_symbol = t_u.enum_symbol.unwrap()
+                && self.is_enum_type_related_to(s_symbol, t_symbol, false)
+            // TODO: report_error
+            {
+                return true;
+            }
+
+            if let Some(source_s) = source.kind.as_string_lit()
+                && let Some(target_s) = target.kind.as_string_lit()
+                && source_s.val == target_s.val
+                && let source_symbol = source.symbol().unwrap()
+                && let target_symbol = target.symbol().unwrap()
+                && self.is_enum_type_related_to(source_symbol, target_symbol, false)
+            {
+                // TODO: report_error
+                return true;
+            } else if let Some(source_n) = source.kind.as_number_lit()
+                && let Some(target_n) = target.kind.as_number_lit()
+                && source_n.val == target_n.val
+                && let source_symbol = source.symbol().unwrap()
+                && let target_symbol = target.symbol().unwrap()
+                && self.is_enum_type_related_to(source_symbol, target_symbol, false)
+            {
+                // TODO: report_error
+                return true;
+            }
         }
 
         if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
@@ -309,8 +338,8 @@ impl<'cx> TyChecker<'cx> {
                 || (s.contains(TypeFlags::NUMBER)
                     && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))))
-                || (s.intersection(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
-                    == TypeFlags::NUMBER_LITERAL
+                || (s.contains(TypeFlags::NUMBER_LITERAL)
+                    && !s.contains(TypeFlags::ENUM_LITERAL)
                     && (t.contains(TypeFlags::ENUM)
                         || t.contains(TypeFlags::NUMBER_LITERAL.union(TypeFlags::ENUM_LITERAL))
                             && source.kind.as_number_lit().is_some_and(|s| {
@@ -332,9 +361,9 @@ impl<'cx> TyChecker<'cx> {
         if source == target {
             return Ternary::TRUE;
         }
-        let source_prop_access = self.decl_modifier_flags_from_symbol(source)
+        let source_prop_access = self.get_declaration_modifier_flags_from_symbol(source, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
-        let target_prop_access = self.decl_modifier_flags_from_symbol(target)
+        let target_prop_access = self.get_declaration_modifier_flags_from_symbol(target, None)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
@@ -421,7 +450,7 @@ impl<'cx> TyChecker<'cx> {
         if source.kind.is_structured_or_instantiable()
             || target.kind.is_structured_or_instantiable()
         {
-            self.check_type_related_to(source, target, relation, None)
+            self.check_type_related_to(source, target, relation, None, NOOP_HEADING_ERROR)
         } else {
             false
         }
@@ -433,7 +462,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
-    ) -> Ternary {
+    ) -> bool {
         self.check_type_related_to_and_optionally_elaborate(
             source,
             target,
@@ -450,8 +479,8 @@ impl<'cx> TyChecker<'cx> {
                 };
                 Box::new(errors::TypeIsNotAssignableToType {
                     span,
-                    ty1: this.print_ty(source).to_string(),
-                    ty2: this.print_ty(target).to_string(),
+                    ty1: this.print_ty(source, None).to_string(),
+                    ty2: this.print_ty(target, None).to_string(),
                 })
             },
         )
@@ -465,26 +494,34 @@ impl<'cx> TyChecker<'cx> {
         error_node: Option<ast::NodeID>,
         expr: Option<ast::NodeID>,
         error: impl FnOnce(&mut Self, Span, &'cx Ty<'cx>, &'cx Ty<'cx>) -> bolt_ts_errors::BoxedDiag,
-    ) -> Ternary {
+    ) -> bool {
         if self.is_type_related_to(source, target, relation) {
-            return Ternary::TRUE;
+            return true;
         }
-        if error_node.is_none() || !self.elaborate_error(expr, source, target, relation, error_node)
-        {
-            if !self.check_type_related_to(source, target, relation, error_node) {
-                if error_node.is_none() {
-                    return Ternary::FALSE;
-                }
-                let span = self.p.node(error_node.unwrap()).span();
-                let error = error(self, span, source, target);
-                self.push_error(error);
-                return Ternary::FALSE;
-            } else {
-                return Ternary::TRUE;
-            }
+        let Some(error_node) = error_node else {
+            return self.check_type_related_to(
+                source,
+                target,
+                relation,
+                error_node,
+                NOOP_HEADING_ERROR,
+            );
+        };
+        if !self.elaborate_error(expr, source, target, relation, Some(error_node)) {
+            return self.check_type_related_to(
+                source,
+                target,
+                relation,
+                Some(error_node),
+                Some(|this: &mut Self| {
+                    let span = this.p.node(error_node).span();
+                    let error = error(this, span, source, target);
+                    this.push_error(error);
+                }),
+            );
         }
 
-        Ternary::FALSE
+        false
     }
 
     pub(super) fn check_type_assignable_to(
@@ -492,8 +529,15 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
+        heading_error: Option<impl FnOnce(&mut TyChecker<'cx>)>,
     ) -> bool {
-        self.check_type_related_to(source, target, RelationKind::Assignable, error_node)
+        self.check_type_related_to(
+            source,
+            target,
+            RelationKind::Assignable,
+            error_node,
+            heading_error,
+        )
     }
 
     pub(super) fn check_type_comparable_to(
@@ -501,8 +545,15 @@ impl<'cx> TyChecker<'cx> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         error_node: Option<ast::NodeID>,
+        heading_error: Option<impl FnOnce(&mut TyChecker<'cx>)>,
     ) -> bool {
-        self.check_type_related_to(source, target, RelationKind::Comparable, error_node)
+        self.check_type_related_to(
+            source,
+            target,
+            RelationKind::Comparable,
+            error_node,
+            heading_error,
+        )
     }
 
     pub(super) fn are_types_comparable(
@@ -542,14 +593,23 @@ impl<'cx> TyChecker<'cx> {
         let Some(tys) = ty.kind.tys_of_union_or_intersection() else {
             unreachable!()
         };
-        let mut members = fx_indexmap_with_capacity(16);
+        let mut members = fx_indexmap_with_capacity(0);
         for current in tys {
-            for prop in self.get_props_of_ty(current) {
+            let props = self.get_props_of_ty(current);
+            members.reserve_exact(props.len());
+            for prop in props {
                 let name = self.symbol(*prop).name;
-                if let indexmap::map::Entry::Vacant(vac) = members.entry(name)
-                    && let Some(combined_prop) = self.get_prop_of_union_or_intersection_ty(ty, name)
-                {
-                    vac.insert(combined_prop);
+                if let indexmap::map::Entry::Vacant(vac) = members.entry(name) {
+                    let skip_object_function_property_assignment =
+                        ty.flags.contains(TypeFlags::INTERSECTION);
+                    let combine_prop = if skip_object_function_property_assignment {
+                        self.get_prop_of_union_or_intersection_ty::<true>(ty, name)
+                    } else {
+                        self.get_prop_of_union_or_intersection_ty::<false>(ty, name)
+                    };
+                    if let Some(combined_prop) = combine_prop {
+                        vac.insert(combined_prop);
+                    }
                 }
             }
 
@@ -601,7 +661,10 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn get_prop_of_ty(
+    pub(super) fn get_prop_of_ty<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool,
+        const INCLUDE_TYPE_ONLY_MEMBERS: bool,
+    >(
         &mut self,
         ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -610,8 +673,20 @@ impl<'cx> TyChecker<'cx> {
         if let TyKind::Object(_) = ty.kind {
             self.resolve_structured_type_members(ty);
             let s = self.expect_ty_links(ty.id).expect_structured_members();
-            if let Some(symbol) = self.get_prop_of_members(s.members, name) {
-                return Some(symbol);
+            let symbol = self.get_prop_of_members(s.members, name);
+            if let Some(symbol) = symbol {
+                // if !include_ty_only_members
+                //     && let Some(s) = ty.symbol()
+                //     && self.symbol(s).flags.contains(SymbolFlags::VALUE_MODULE)
+                //     && // TODO: type_only_export_star_map
+                // {}
+                if self.symbol_is_value::<INCLUDE_TYPE_ONLY_MEMBERS>(symbol) {
+                    return Some(symbol);
+                }
+            }
+
+            if SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT {
+                return None;
             }
 
             let fn_ty = if ty == self.any_fn_ty() {
@@ -641,39 +716,88 @@ impl<'cx> TyChecker<'cx> {
             }
 
             self.get_prop_of_object_ty(self.global_object_ty(), name)
-        } else if ty.kind.is_intersection() || ty.kind.is_union() {
-            self.get_prop_of_union_or_intersection_ty(ty, name)
+        } else if ty.kind.is_intersection() {
+            if let Some(prop) = self.get_prop_of_union_or_intersection_ty::<true>(ty, name) {
+                Some(prop)
+            } else if !SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT {
+                self.get_prop_of_union_or_intersection_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(
+                    ty, name,
+                )
+            } else {
+                None
+            }
+        } else if ty.kind.is_union() {
+            self.get_prop_of_union_or_intersection_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT>(
+                ty, name,
+            )
         } else {
             None
         }
     }
 
-    fn get_prop_of_union_or_intersection_ty(
+    fn get_prop_of_union_or_intersection_ty<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT: bool,
+    >(
         &mut self,
         ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        let prop = self.get_union_or_intersection_prop(ty, name)?;
-        if !self
-            .get_check_flags(prop)
-            .contains(CheckFlags::READ_PARTIAL)
-        {
+        let prop = self
+            .get_union_or_intersection_prop::<SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT>(ty, name)?;
+        let check_flags = self.get_check_flags(prop);
+        if !check_flags.contains(CheckFlags::READ_PARTIAL) {
             Some(prop)
         } else {
             None
         }
     }
 
-    pub(super) fn get_union_or_intersection_prop(
+    pub(super) fn get_union_or_intersection_prop<
+        const SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT: bool,
+    >(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
     ) -> Option<SymbolID> {
-        // TODO: cache
-        self.create_union_or_intersection_prop(containing_ty, name)
+        let key = UnionOrIntersectionTyPropertyKey::new(containing_ty, name);
+        if let Some(cached) = if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
+            self.union_or_intersection_property_cache_without_object_function_property_augment
+                .get(&key)
+        } else {
+            self.union_or_intersection_property_cache.get(&key)
+        } {
+            return *cached;
+        }
+
+        let ret = self
+            .create_union_or_intersection_prop::<SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT>(
+                containing_ty,
+                name,
+            );
+        // TODO: should we only store the result when `ret.is_some()`?
+        if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
+            let prev = self
+                .union_or_intersection_property_cache_without_object_function_property_augment
+                .insert(key, ret);
+            // debug_assert!(prev.is_none())
+            if let Some(ret) = ret
+                && !self.get_check_flags(ret).contains(CheckFlags::PARTIAL)
+                && !self.union_or_intersection_property_cache.contains_key(&key)
+            {
+                let prev = self
+                    .union_or_intersection_property_cache
+                    .insert(key, Some(ret));
+                debug_assert!(prev.is_none())
+            }
+        } else {
+            let prev = self.union_or_intersection_property_cache.insert(key, ret);
+            debug_assert!(prev.is_none());
+        };
+
+        ret
     }
 
-    fn create_union_or_intersection_prop(
+    fn create_union_or_intersection_prop<const SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT: bool>(
         &mut self,
         containing_ty: &'cx Ty<'cx>,
         name: SymbolName,
@@ -694,13 +818,16 @@ impl<'cx> TyChecker<'cx> {
         } else {
             CheckFlags::READONLY
         };
+        let mut merged_instantiations = false;
 
         for current in tys {
             let ty = self.get_apparent_ty(current);
             if self.is_error(ty) || ty.flags.contains(TypeFlags::NEVER) {
                 continue;
             }
-            if let Some(prop) = self.get_prop_of_ty(ty, name) {
+            if let Some(prop) =
+                self.get_prop_of_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT, false>(ty, name)
+            {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop, None);
                 let symbol_flags = self.symbol(prop).flags;
                 if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
@@ -721,13 +848,39 @@ impl<'cx> TyChecker<'cx> {
                 }
                 if let Some(single_prop) = single_prop {
                     if single_prop != prop {
-                        if let Some(prop_set) = &mut prop_set {
-                            prop_set.insert(prop);
+                        let is_instantiation =
+                            self.get_target_symbol(prop) == self.get_target_symbol(single_prop);
+                        if is_instantiation
+                            && self.compare_props(single_prop, prop, |this, a, b, _| {
+                                if a == b {
+                                    Ternary::TRUE
+                                } else {
+                                    Ternary::FALSE
+                                }
+                            }) == Ternary::TRUE
+                        {
+                            merged_instantiations =
+                                self.symbol(single_prop).parent.is_some_and(|p| {
+                                    self.get_local_ty_params_of_class_or_interface_or_type_alias(p)
+                                        .map_or(false, |params| !params.is_empty())
+                                });
                         } else {
-                            let mut t = fx_indexset_with_capacity(tys.len());
-                            t.insert(single_prop);
-                            t.insert(prop);
-                            prop_set = Some(t);
+                            if let Some(prop_set) = &mut prop_set {
+                                prop_set.insert(prop);
+                            } else {
+                                let mut t = fx_indexset_with_capacity(tys.len());
+                                t.insert(single_prop);
+                                t.insert(prop);
+                                prop_set = Some(t);
+                            }
+                        }
+                        if prop_flags.intersects(SymbolFlags::ACCESSOR)
+                            && self.symbol(prop).flags.intersection(SymbolFlags::ACCESSOR)
+                                != prop_flags.intersection(SymbolFlags::ACCESSOR)
+                        {
+                            prop_flags = prop_flags
+                                .intersection(SymbolFlags::ACCESSOR.complement())
+                                .union(SymbolFlags::PROPERTY);
                         }
                     }
                 } else {
@@ -768,7 +921,9 @@ impl<'cx> TyChecker<'cx> {
                 if !name.is_late_bound()
                     && let Some(index_info) = self.get_applicable_index_info_for_name(ty, name)
                 {
-                    // TODO: prop_flags
+                    prop_flags = prop_flags
+                        .intersection(SymbolFlags::ACCESSOR.complement())
+                        .union(SymbolFlags::PROPERTY);
                     check_flags |= CheckFlags::WRITE_PARTIAL
                         | if index_info.is_readonly {
                             CheckFlags::READONLY
@@ -805,11 +960,84 @@ impl<'cx> TyChecker<'cx> {
         }
         let single_prop = single_prop?;
 
+        let get_common_declaration_of_symbols =
+            |this: &mut Self, symbols: &FxIndexSet<SymbolID>| {
+                let mut common_declarations: Option<FxIndexSet<ast::NodeID>> = None;
+                for &symbol in symbols {
+                    let s = this.symbol(symbol);
+                    let Some(decls) = s.decls.as_ref() else {
+                        return None;
+                    };
+                    if common_declarations.is_none() {
+                        common_declarations = Some(decls.iter().copied().collect());
+                    }
+                    let common_declarations = common_declarations.as_mut().unwrap();
+                    common_declarations.retain(|d| decls.contains(d));
+                    if common_declarations.is_empty() {
+                        return None;
+                    }
+                }
+                common_declarations
+            };
+
+        if is_union
+            && (!prop_flags.is_empty() || check_flags.contains(CheckFlags::PARTIAL))
+            && check_flags
+                .intersects(CheckFlags::CONTAINS_PRIVATE.union(CheckFlags::CONTAINS_PROTECTED))
+            && !prop_set
+                .as_ref()
+                .is_some_and(|prop_set| get_common_declaration_of_symbols(self, prop_set).is_some())
+        {
+            return None;
+        }
+
         if prop_set.is_none()
             && !check_flags.intersects(CheckFlags::READ_PARTIAL)
             && index_tys.is_none()
         {
-            return Some(single_prop);
+            return Some(if merged_instantiations {
+                let old = if single_prop.is_transient() {
+                    let links = self.get_transient_symbol_links(single_prop);
+                    Some((links.get_ty(), links.get_ty_mapper()))
+                } else {
+                    None
+                };
+                let write_ty = self.get_write_type_of_symbol(single_prop);
+                let links = SymbolLinks::default()
+                    .with_containing_ty(containing_ty)
+                    .with_write_ty(write_ty)
+                    .with_target(single_prop);
+                let links = if let Some((ty, mapper)) = old {
+                    match (ty, mapper) {
+                        (Some(ty), Some(mapper)) => links.with_ty(ty).with_ty_mapper(mapper),
+                        (Some(ty), None) => links.with_ty(ty),
+                        (None, Some(mapper)) => links.with_ty_mapper(mapper),
+                        (None, None) => links,
+                    }
+                } else {
+                    links
+                };
+                let links = if let Some(name_ty) = self.get_symbol_links(single_prop).get_name_ty()
+                {
+                    links.with_name_ty(name_ty)
+                } else {
+                    links
+                };
+                let check_flags =
+                    self.get_check_flags(single_prop) & crate::ty::CheckFlags::READONLY;
+                let links = links.with_check_flags(check_flags);
+                let s = self.symbol(single_prop);
+                self.create_transient_symbol(
+                    name,
+                    s.flags | SymbolFlags::TRANSIENT,
+                    links,
+                    s.decls.clone(),
+                    s.value_decl,
+                    s.parent,
+                )
+            } else {
+                single_prop
+            });
         }
 
         let props = prop_set
@@ -864,13 +1092,12 @@ impl<'cx> TyChecker<'cx> {
             if first_ty != Some(ty) {
                 check_flags |= CheckFlags::HAS_NON_UNIFORM_TYPE;
             }
-
             if ty.is_literal_ty() || ty.is_pattern_lit_ty() {
                 check_flags |= CheckFlags::HAS_LITERAL_TYPE;
             }
-
-            // TODO: if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {}
-
+            if ty.flags.contains(TypeFlags::NEVER) && ty != self.unique_literal_ty {
+                check_flags |= CheckFlags::HAS_NEVER_TYPE;
+            }
             prop_tys.push(ty);
         }
 
@@ -897,7 +1124,14 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let ty = if is_union {
-                self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &prop_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             } else {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };
@@ -922,20 +1156,24 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_structured_type_members(ty);
         let s = self.expect_ty_links(ty.id).expect_structured_members();
         let symbol = self.get_prop_of_members(s.members, name)?;
-        self.symbol_is_value(symbol, false).then_some(symbol)
+        self.symbol_is_value::<false>(symbol).then_some(symbol)
     }
 
-    pub(super) fn symbol_is_value(
+    pub(super) fn symbol_is_value<const INCLUDE_TYPE_ONLY_MEMBERS: bool>(
         &mut self,
         symbol: SymbolID,
-        include_ty_only_members: bool,
     ) -> bool {
         let s = self.symbol(symbol).flags;
         s.intersects(SymbolFlags::VALUE)
-            || (s.intersects(SymbolFlags::ALIAS)
-                && self
-                    .get_symbol_flags(symbol, !include_ty_only_members)
-                    .intersects(SymbolFlags::VALUE))
+            || (s.contains(SymbolFlags::ALIAS) && {
+                if INCLUDE_TYPE_ONLY_MEMBERS {
+                    self.get_symbol_flags::<false>(symbol)
+                        .intersects(SymbolFlags::VALUE)
+                } else {
+                    self.get_symbol_flags::<true>(symbol)
+                        .intersects(SymbolFlags::VALUE)
+                }
+            })
     }
 
     pub fn get_unmatched_prop(
@@ -972,7 +1210,9 @@ impl<'cx> TyChecker<'cx> {
                         .intersects(CheckFlags::PARTIAL))
             {
                 let target_prop_name = target_prop_symbol.name;
-                let Some(source_prop) = self.get_prop_of_ty(source, target_prop_name) else {
+                let Some(source_prop) =
+                    self.get_prop_of_ty::<false, false>(source, target_prop_name)
+                else {
                     unmatched.push(*target_prop);
                     continue;
                 };
@@ -1108,5 +1348,16 @@ impl<'cx> TyChecker<'cx> {
             relation,
             has_intersection_state,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct UnionOrIntersectionTyPropertyKey {
+    ty: ty::TyID,
+    name: SymbolName,
+}
+impl UnionOrIntersectionTyPropertyKey {
+    pub fn new(ty: &ty::Ty, name: SymbolName) -> Self {
+        Self { ty: ty.id, name }
     }
 }

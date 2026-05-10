@@ -1,4 +1,4 @@
 class Foo {
-  #a
-  #b = false
+  #a;
+  #b = false;
 }

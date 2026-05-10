@@ -10,5 +10,3 @@ var r3 = <<T>(x: T) => T>f; // ambiguous, appears to the parser as a << operatio
 //~| ERROR: Expected ','.
 //~| ERROR: Declaration or statement expected.
 //~| ERROR: Cannot find name 'x'.
-
-

@@ -18,19 +18,22 @@ pub(super) struct InferenceContextual {
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn push_type_context(
+    pub(super) fn push_type_context<const IS_CACHE: bool>(
         &mut self,
         node: ast::NodeID,
         ty: Option<&'cx ty::Ty<'cx>>,
-        is_cache: bool,
     ) {
-        let ctx = TyContextual { node, ty, is_cache };
+        let ctx = TyContextual {
+            node,
+            ty,
+            is_cache: IS_CACHE,
+        };
         self.type_contextual.push(ctx);
     }
 
     pub(super) fn push_cached_contextual_type(&mut self, node: ast::NodeID) {
         let ty = self.get_contextual_ty(node, None);
-        self.push_type_context(node, ty, true);
+        self.push_type_context::<true>(node, ty);
     }
 
     pub(super) fn pop_type_context(&mut self) {

@@ -1,0 +1,11 @@
+  × Type '{ type: string; }' is not assignable to type 'Yep | Yep'.
+    ╭─[../../tests/compiler/namespaceDisambiguationInUnion/index.ts:14:7]
+ 14 │ val1
+    · ────
+    ╰────
+
+  × Type '{ type: string; }[]' is not assignable to type '[Yep, Yep]'.
+    ╭─[../../tests/compiler/namespaceDisambiguationInUnion/index.ts:18:7]
+ 18 │ val2
+    · ────
+    ╰────

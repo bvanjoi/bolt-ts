@@ -8,7 +8,7 @@ use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
 
 use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
-use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, keyword};
+use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, TokenFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 
@@ -154,7 +154,7 @@ impl<'cx> ParserState<'cx, '_> {
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat);
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
-            self.parse_arrow_fn_expr_body(is_async)?
+            self.parse_arrow_fn_expr_body::<true>(is_async)?
         } else {
             ast::ArrowFnExprBody::Expr(self.parse_ident(None))
         };
@@ -166,7 +166,10 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(Some(expr))
     }
 
-    fn parse_arrow_fn_expr_body(&mut self, is_async: bool) -> PResult<ast::ArrowFnExprBody<'cx>> {
+    fn parse_arrow_fn_expr_body<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+        is_async: bool,
+    ) -> PResult<ast::ArrowFnExprBody<'cx>> {
         if self.token.kind == TokenKind::LBrace {
             let flags = if is_async {
                 SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
@@ -175,35 +178,47 @@ impl<'cx> ParserState<'cx, '_> {
             };
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
+        } else if !matches!(
+            self.token.kind,
+            TokenKind::Semi | TokenKind::Function | TokenKind::Class
+        ) && self.is_start_of_stmt()
+            && !self.is_start_of_expr_stmt()
+        {
+            todo!()
         } else {
-            self.parse_assign_expr_or_higher::<false>()
-                .map(ast::ArrowFnExprBody::Expr)
+            let saved_yield_context = self.in_yield_context();
+            // TODO: top_level
+            self.set_yield_context(true);
+
+            let n = if is_async {
+                self.do_in_await_context(|this| {
+                    this.parse_assign_expr_or_higher::<false>()
+                        .map(ast::ArrowFnExprBody::Expr)
+                })
+            } else {
+                self.do_outside_of_await_context(|this| {
+                    this.parse_assign_expr_or_higher::<false>()
+                        .map(ast::ArrowFnExprBody::Expr)
+                })
+            };
+            self.set_yield_context(saved_yield_context);
+            n
         }
     }
 
-    fn parse_simple_arrow_fn_expr(
+    fn parse_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
         param: &'cx ast::Ident,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::EqGreat);
         let name = self.parse_binding_with_ident(Some(param));
-        let param_id = self.next_node_id();
-        let param = self.alloc(ast::ParamDecl {
-            id: param_id,
-            span: param.span,
-            modifiers: None,
-            dotdotdot: None,
-            name,
-            question: None,
-            ty: None,
-            init: None,
-        });
-        self.nodes.insert(param_id, ast::Node::ParamDecl(param));
-        let params = self.alloc([param]);
+        let parameter =
+            self.create_parameter_declaration(param.span, None, None, name, None, None, None);
+        let parameters = self.alloc([parameter]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body(false)?;
+        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(false)?;
         let span = self.new_span(param.span.lo());
-        let expr = self.create_arrow_fn_expr(span, None, None, params, None, body);
+        let expr = self.create_arrow_fn_expr(span, None, None, parameters, None, body);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });
@@ -263,34 +278,35 @@ impl<'cx> ParserState<'cx, '_> {
         if let ast::ExprKind::Ident(ident) = expr.kind
             && self.token.kind == TokenKind::EqGreat
         {
-            return self.parse_simple_arrow_fn_expr(ident);
-        }
-        if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
-            if self.in_strict_mode
-                && let ast::ExprKind::Ident(n) = expr.kind
-            {
-                self.check_strict_mode_eval_or_arguments(n);
+            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident)
+        } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
+            match expr.kind {
+                ast::ExprKind::Ident(n) => {
+                    if self.in_strict_mode {
+                        self.check_strict_mode_eval_or_arguments(n);
+                    }
+                }
+                ast::ExprKind::PropAccess(_)
+                | ast::ExprKind::EleAccess(_)
+                | ast::ExprKind::ArrayLit(_)
+                | ast::ExprKind::ObjectLit(_) => {}
+                _ => {
+                    let error = errors::TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
+                        span: expr.span()
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
-            // self.parent_map.r#override(expr.id(), id);
             let op = self.token.kind.into();
-            self.parse_token_node();
+            self.next_token();
             let right = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
-            let id = self.next_node_id();
-
-            let expr = self.alloc(ast::AssignExpr {
-                id,
-                left: expr,
-                op,
-                right,
-                span: self.new_span(start),
-            });
-            self.nodes.insert(id, ast::Node::AssignExpr(expr));
+            let expr = self.create_assignment_expression(self.new_span(start), expr, op, right);
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Assign(expr),
             });
             Ok(expr)
         } else {
-            self.parse_cond_expr_rest(expr)
+            self.parse_cond_expr_rest::<ALLOW_RET_TY_IN_ARROW_FN>(expr)
         }
     }
 
@@ -426,10 +442,14 @@ impl<'cx> ParserState<'cx, '_> {
                         kind: ast::ExprKind::Await(expr),
                     });
                     if !self.parse_context.contains(ParseContext::ASYNC) {
-                        let error = errors::AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
-                            span: bolt_ts_span::Span::new(start, start + "await".len() as u32, self.module_id)
-                        };
-                        self.push_error(Box::new(error));
+                        if self.parse_context.contains(ParseContext::TOP_LEVEL) {
+                            todo!()
+                        } else {
+                            let hi = start + "await".len() as u32;
+                            let span = bolt_ts_span::Span::new(start, hi, self.module_id);
+                            let error = errors::AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules { span };
+                            self.push_error(Box::new(error));
+                        }
                     }
                     Ok(expr)
                 } else {
@@ -464,14 +484,8 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = self.parse_ty()?;
         self.expect(TokenKind::Great);
         let expr = self.parse_simple_unary_expr()?;
-        let id = self.next_node_id();
-        let expr = self.alloc(ast::TyAssertion {
-            id,
-            span: self.new_span(start),
-            ty,
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::TyAssertionExpr(expr));
+        let span = self.new_span(start);
+        let expr = self.create_type_assertion_expression(span, expr, ty);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TyAssertion(expr),
         });
@@ -481,14 +495,9 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_void_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::Void);
-        let expr = self.parse_expr()?;
-        let id = self.next_node_id();
-        let expr = self.alloc(ast::VoidExpr {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::VoidExpr(expr));
+        let expr = self.parse_simple_unary_expr()?;
+        let span = self.new_span(start);
+        let expr = self.create_void_expr(span, expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Void(expr),
         });
@@ -539,16 +548,10 @@ impl<'cx> ParserState<'cx, '_> {
             {
                 let op = self.token.kind.into();
                 self.next_token();
-                let id = self.next_node_id();
-                let unary = self.alloc(ast::PostfixUnaryExpr {
-                    id,
-                    span: self.new_span(start),
-                    op,
-                    expr,
-                });
-                self.nodes.insert(id, ast::Node::PostfixUnaryExpr(unary));
+                let span = self.new_span(start);
+                let expr = self.create_postfix_unary_expression(span, op, expr);
                 let expr = self.alloc(ast::Expr {
-                    kind: ast::ExprKind::PostfixUnary(unary),
+                    kind: ast::ExprKind::PostfixUnary(expr),
                 });
                 Ok(expr)
             } else {
@@ -557,10 +560,27 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    pub fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_left_hand_side_expr_or_higher(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         let expr = match self.token.kind {
-            TokenKind::Import => todo!(),
+            TokenKind::Import => {
+                if self.lookahead(|l| l.next_token_is_lparen_or_less()) {
+                    // TODO: source_flags
+                    self.next_token();
+                    let span = self.new_span(start);
+                    let expr = self.create_import_expression(span);
+                    self.alloc(ast::Expr {
+                        kind: ast::ExprKind::Import(expr),
+                    })
+                } else if self.lookahead(|l| {
+                    l.p().next_token();
+                    l.p().token.kind == TokenKind::Dot
+                }) {
+                    todo!("import.*")
+                } else {
+                    self.parse_member_expr_or_higher()?
+                }
+            }
             TokenKind::Super => self.parse_super_expr()?,
             _ => self.parse_member_expr_or_higher()?,
         };
@@ -737,10 +757,10 @@ impl<'cx> ParserState<'cx, '_> {
             SignatureFlags::empty()
         };
         let ty_params = self.parse_ty_params();
-        let params = self.parse_params();
+        let params = self.parse_parameters();
         self.check_params::<false>(params);
         let ty = self.parse_return_ty::<true, false>()?;
-        let body = self.parse_fn_block_or_semi(is_generator).unwrap();
+        let body = self.parse_fn_block(is_generator);
         let span = self.new_span(start);
         let node = self.create_object_method_member(
             span,
@@ -757,7 +777,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(member)
     }
 
-    fn parse_object_lit_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
+    fn parse_object_literal_member(&mut self) -> PResult<&'cx ast::ObjectMember<'cx>> {
         let start = self.token.start();
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let expr = self.parse_assign_expr_or_higher::<true>()?;
@@ -774,10 +794,10 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let mods = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false>(false);
 
-        let invalid_modifiers = |this: &mut Self| {
-            if let Some(ms) = &mods {
+        let check_invalid_modifiers = |this: &mut Self| {
+            if let Some(ms) = &modifiers {
                 for m in ms.list {
                     if m.kind() != ModifierKind::Async {
                         let error = errors::ModifierCannotBeUsedHere { span: m.span() };
@@ -788,16 +808,16 @@ impl<'cx> ParserState<'cx, '_> {
         };
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            invalid_modifiers(self);
+            check_invalid_modifiers(self);
             let decl =
-                self.parse_getter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
+                self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            invalid_modifiers(self);
+            check_invalid_modifiers(self);
             let decl =
-                self.parse_setter_accessor_decl(start, mods, false, SignatureFlags::empty())?;
+                self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Setter(decl),
             }));
@@ -815,21 +835,25 @@ impl<'cx> ParserState<'cx, '_> {
         if asterisk_token.is_some()
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
-            invalid_modifiers(self);
+            check_invalid_modifiers(self);
             return self.parse_object_method_decl(start, name, asterisk_token);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
         {
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ObjectShorthandMember {
-                id,
-                span: self.new_span(start),
+            let equal_token = self.parse_optional(TokenKind::Eq);
+            let object_assignment_initializer = if equal_token.is_some() {
+                Some(self.allow_in_and(|this| this.parse_assign_expr_or_higher::<true>())?)
+            } else {
+                None
+            };
+            let member = self.create_object_shorthand_property_assignment(
+                self.new_span(start),
                 name,
-            });
-            self.nodes
-                .insert(id, ast::Node::ObjectShorthandMember(kind));
+                equal_token.map(|t| t.span),
+                object_assignment_initializer,
+            );
             let member = self.alloc(ast::ObjectMember {
-                kind: ast::ObjectMemberKind::Shorthand(kind),
+                kind: ast::ObjectMemberKind::Shorthand(member),
             });
             return Ok(member);
         }
@@ -1009,9 +1033,13 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_primary_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
-            NoSubstitutionTemplate | String | BigInt | Number | True | False | Null | This => {
+            NoSubstitutionTemplate => {
+                if self.token_flags.intersects(TokenFlags::IS_INVALID) {
+                    self.re_scan_template_token::<false>();
+                }
                 Ok(self.parse_lit_expr())
             }
+            String | BigInt | Number | True | False | Null | This => Ok(self.parse_lit_expr()),
             LBracket => Ok(self.parse_array_lit()),
             LParen => self.parse_paren_expr(),
             LBrace => Ok(self.parse_object_lit()),
@@ -1019,7 +1047,7 @@ impl<'cx> ParserState<'cx, '_> {
             New => self.parse_new_expr(),
             Class => self.parse_class_expr(),
             Super => Ok(self.make_super_expr()),
-            TemplateHead => self.prase_template_expr(false),
+            TemplateHead => self.prase_template_expr::<false>(),
             Slash | SlashEq => {
                 self.re_scan_slash_token(false);
                 if self.token.kind == TokenKind::Regexp {
@@ -1039,11 +1067,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn prase_template_expr(&mut self, is_tagged_template: bool) -> PResult<&'cx ast::Expr<'cx>> {
+    fn prase_template_expr<const IS_TAGGED_TEMPLATE: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
-        let head = self.parse_template_head(is_tagged_template)?;
+        let head = self.parse_template_head::<IS_TAGGED_TEMPLATE>()?;
         let spans = self.parse_template_spans(|this| {
-            this.parse_template_span(is_tagged_template)
+            this.parse_template_span::<IS_TAGGED_TEMPLATE>()
                 .map(|n| (n, !n.is_tail))
         })?;
         let id = self.next_node_id();
@@ -1060,12 +1090,11 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(expr)
     }
 
-    pub(super) fn parse_template_head(
+    pub(super) fn parse_template_head<const IS_TAGGED_TEMPLATE: bool>(
         &mut self,
-        is_tagged_template: bool,
     ) -> PResult<&'cx ast::TemplateHead> {
-        if !is_tagged_template {
-            // self.re_scan_greater()
+        if !IS_TAGGED_TEMPLATE && self.token_flags.intersects(TokenFlags::IS_INVALID) {
+            self.re_scan_template_token::<IS_TAGGED_TEMPLATE>();
         }
         let id = self.next_node_id();
         let node = self.alloc(ast::TemplateHead {
@@ -1093,12 +1122,11 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(self.alloc(spans))
     }
 
-    pub(super) fn parse_template_span_text(
+    pub(super) fn parse_template_span_text<const IS_TAGGED_TEMPLATE: bool>(
         &mut self,
-        is_tagged_template: bool,
     ) -> (bolt_ts_atom::Atom, bool) {
         if self.token.kind == TokenKind::RBrace {
-            self.re_scan_template_token(is_tagged_template);
+            self.re_scan_template_token::<IS_TAGGED_TEMPLATE>();
             let atom = self.token_value.unwrap().ident();
             let is_tail = self.token.kind == TokenKind::TemplateTail;
             self.next_token();
@@ -1117,13 +1145,12 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_template_span(
+    fn parse_template_span<const IS_TAGGED_TEMPLATE: bool>(
         &mut self,
-        is_tagged_template: bool,
     ) -> PResult<&'cx ast::TemplateSpan<'cx>> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
-        let (text, is_tail) = self.parse_template_span_text(is_tagged_template);
+        let (text, is_tail) = self.parse_template_span_text::<IS_TAGGED_TEMPLATE>();
         let id = self.next_node_id();
         let node = self.alloc(ast::TemplateSpan {
             id,
@@ -1144,9 +1171,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_new_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
-        use bolt_ts_ast::TokenKind::*;
+        debug_assert!(self.token.kind == TokenKind::New);
         let start = self.token.start();
-        self.expect(New);
+        self.next_token(); // consume `new`
         let expr = self.parse_primary_expr()?;
         let mut expr = self.parse_member_expr_rest(start as usize, expr, false)?;
         let mut ty_args = None;
@@ -1154,22 +1181,15 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
-        let args = if self.token.kind == LParen {
+        let args = if self.token.kind == TokenKind::LParen {
             Some(self.parse_args())
         } else {
             None
         };
-        let id = self.next_node_id();
-        let new = self.alloc(ast::NewExpr {
-            id,
-            span: self.new_span(start),
-            expr,
-            ty_args,
-            args,
-        });
-        self.nodes.insert(id, ast::Node::NewExpr(new));
+        let span = self.new_span(start);
+        let expr = self.create_new_expression(span, expr, ty_args, args);
         let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::New(new),
+            kind: ast::ExprKind::New(expr),
         });
         Ok(expr)
     }
@@ -1194,7 +1214,7 @@ impl<'cx> ParserState<'cx, '_> {
         let open_brace_parsed = self.expect(LBrace);
         let props = self.parse_delimited_list::<true, _>(
             parsing_ctx::ParsingContext::OBJECT_LITERAL_MEMBERS,
-            Self::parse_object_lit_member,
+            Self::parse_object_literal_member,
         );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize);
@@ -1211,21 +1231,20 @@ impl<'cx> ParserState<'cx, '_> {
         })) as _
     }
 
-    fn parse_cond_expr_rest(&mut self, cond: &'cx ast::Expr<'cx>) -> PResult<&'cx ast::Expr<'cx>> {
+    fn parse_cond_expr_rest<const ALLOW_RET_TY_IN_ARROW_FN: bool>(
+        &mut self,
+        cond: &'cx ast::Expr<'cx>,
+    ) -> PResult<&'cx ast::Expr<'cx>> {
         if self.parse_optional(TokenKind::Question).is_some() {
             let start = cond.span().lo();
-            let when_true = self.parse_expr()?;
+            let when_true = self
+                .do_outside_of_parse_context(ParseContext::DISALLOW_IN_AND_DECORATOR, |this| {
+                    this.parse_assign_expr_or_higher::<false>()
+                })?;
             self.expect(TokenKind::Colon);
-            let when_false = self.parse_expr()?;
-            let id = self.next_node_id();
-            let expr = self.alloc(ast::CondExpr {
-                id,
-                span: self.new_span(start),
-                cond,
-                when_false,
-                when_true,
-            });
-            self.nodes.insert(id, ast::Node::CondExpr(expr));
+            let when_false = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
+            let span = self.new_span(start);
+            let expr = self.create_conditional_expr(span, cond, when_true, when_false);
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Cond(expr),
             });
@@ -1309,13 +1328,13 @@ impl<'cx> ParserState<'cx, '_> {
         ty_args: Option<&'cx ast::Tys<'cx>>,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         let tpl = if self.token.kind == TokenKind::NoSubstitutionTemplate {
-            self.re_scan_template_token(true);
+            self.re_scan_template_token::<true>();
             let lit = self.parse_no_substitution_template_lit();
             self.alloc(ast::Expr {
                 kind: ast::ExprKind::NoSubstitutionTemplateLit(lit),
             })
         } else {
-            self.prase_template_expr(true)?
+            self.prase_template_expr::<true>()?
         };
         if question_dot.is_some()
             || self

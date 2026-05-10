@@ -4,5 +4,5 @@ class SomeBase {
   }
 }
 class P extends SomeBase {
-  static SomeNumber = P.GetNumber()
+  static SomeNumber = P.GetNumber();
 }

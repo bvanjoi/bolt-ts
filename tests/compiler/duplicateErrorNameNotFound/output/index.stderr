@@ -1,0 +1,5 @@
+  × Cannot find name 'RoomInterface'.
+    ╭─[../../tests/compiler/duplicateErrorNameNotFound/index.ts:10:5]
+ 10 │ RoomInterface
+    · ─────────────
+    ╰────

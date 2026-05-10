@@ -32,7 +32,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
         }
         self.in_return_position = saved_in_return_position;
         if node.is_ret() {
-            self.has_explicit_ret = true;
+            self.has_explicit_return = true;
             if let Some(current_return_target) = self.current_return_target {
                 self.flow_nodes
                     .add_antecedent(current_return_target, self.current_flow.unwrap());

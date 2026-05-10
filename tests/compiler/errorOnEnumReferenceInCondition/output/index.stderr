@@ -1,0 +1,47 @@
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:11:11]
+ 11 │ Nums.Zero
+    · ─────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:12:11]
+ 12 │ Nums.One
+    · ────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:14:5]
+ 14 │ Nums.Zero
+    · ─────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:22:5]
+ 22 │ Nums.One
+    · ────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:35:11]
+ 35 │ Strs.Empty
+    · ──────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:36:11]
+ 36 │ Strs.A
+    · ──────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:38:5]
+ 38 │ Strs.Empty
+    · ──────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/errorOnEnumReferenceInCondition/index.ts:46:5]
+ 46 │ Strs.A
+    · ──────
+    ╰────

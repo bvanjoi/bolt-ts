@@ -6,5 +6,5 @@ class C1<T> {
 
 class C2<T> extends C1<T> {
     x: string
-    //~^ ERROR: Type 'string' is not assignable to type 'C2<T>'.
+    //~^ ERROR: Property 'x' in type 'C2<T, C2>' is not assignable to the same property in base type 'C1<T, C2>'
 }

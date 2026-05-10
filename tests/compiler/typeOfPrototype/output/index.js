@@ -1,5 +1,5 @@
 class Foo {
-  bar = 3
-  static bar = ''
+  bar = 3;
+  static bar = '';
 }
 Foo.prototype.bar = undefined;

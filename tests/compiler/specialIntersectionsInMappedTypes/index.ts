@@ -19,11 +19,11 @@ const a: Alignments = {
 a.other;
 a.left.length;
 a.other.length;  // Error expected here
-//~^ ERROR: 'a.other' is possibly undefined.
+//~^ ERROR: 'a.other' is possibly 'undefined'.
 
 const e: number[][][] = [];
 e[0][0][0];
-//~^ ERROR: 'e[0]' is possibly undefined.
-//~| ERROR: 'e[0][0]' is possibly undefined.
+//~^ ERROR: 'e[0]' is possibly 'undefined'.
+//~| ERROR: 'e[0][0]' is possibly 'undefined'.
 
 e?.[0]?.[0]?.[0];

@@ -1,12 +1,11 @@
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
 use super::fn_mapper;
-use super::get_simplified_ty::SimplifiedKind;
 use super::is_deeply_nested_type::RecursionId;
-
 use super::ty;
 use super::ty::IndexFlags;
 use super::ty::TypeFlags;
@@ -42,7 +41,7 @@ impl<'cx> TyChecker<'cx> {
             && node.ty_args().is_some()
             && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node)
         {
-            self.check_ty_arg_constraints(node, ty_params);
+            self.check_type_argument_constraints(node, ty_params);
         }
     }
 
@@ -77,7 +76,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(index_constraint) =
             self.get_simplified_ty_or_constraint(indexed_access_ty.index_ty)
             && index_constraint != indexed_access_ty.index_ty
-            && let Some(indexed_access) = self.get_indexed_access_ty_or_undefined(
+            && let Some(indexed_access) = self.get_indexed_access_type_or_undefined(
                 indexed_access_ty.object_ty,
                 index_constraint,
                 Some(indexed_access_ty.access_flags),
@@ -93,7 +92,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_simplified_ty_or_constraint(indexed_access_ty.object_ty)
             && object_constraint != indexed_access_ty.object_ty
         {
-            return self.get_indexed_access_ty_or_undefined(
+            return self.get_indexed_access_type_or_undefined(
                 object_constraint,
                 indexed_access_ty.index_ty,
                 Some(indexed_access_ty.access_flags),
@@ -110,6 +109,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(ty_param.kind.is_param());
         if self.has_non_circular_constraint(ty_param) {
             self.get_constraint_from_ty_param(ty_param)
         } else {
@@ -289,7 +289,7 @@ impl<'cx> TyChecker<'cx> {
             let mut result = None;
             if stack.len() < 10 || (stack.len() < 50 && !stack.contains(&id)) {
                 stack.push(id);
-                let ty = checker.get_simplified_ty(ty, SimplifiedKind::Reading);
+                let ty = checker.get_simplified_ty::<false>(ty);
                 result = compute_base_constraint(checker, ty, stack);
                 stack.pop();
             };
@@ -299,7 +299,7 @@ impl<'cx> TyChecker<'cx> {
                     && let Some(decl) = checker.get_constraint_decl(ty)
                 {
                     let error = errors::TypeParameterXHasACircularConstraint {
-                        ty: checker.print_ty(ty).to_string(),
+                        ty: checker.print_ty(ty, None).to_string(),
                         span: decl.span(),
                     };
                     checker.push_error(Box::new(error));
@@ -362,6 +362,7 @@ impl<'cx> TyChecker<'cx> {
                         None,
                         None,
                         None,
+                        None,
                     ))
                 } else if ty.kind.is_intersection() && !base_tys.is_empty() {
                     Some(checker.get_intersection_ty(
@@ -412,7 +413,7 @@ impl<'cx> TyChecker<'cx> {
                 let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
                 if let Some(base_object_ty) = base_object_ty
                     && let Some(base_index_ty) = base_index_ty
-                    && let Some(base_indexed_access) = checker.get_indexed_access_ty_or_undefined(
+                    && let Some(base_indexed_access) = checker.get_indexed_access_type_or_undefined(
                         base_object_ty,
                         base_index_ty,
                         Some(i.access_flags),
@@ -450,7 +451,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 
-    fn check_ty_arg_constraints(
+    fn check_type_argument_constraints(
         &mut self,
         node: &impl TyReferTyOrImport<'cx>,
         ty_params: ty::Tys<'cx>,
@@ -463,17 +464,16 @@ impl<'cx> TyChecker<'cx> {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
                 && result
                 && let target = self.instantiate_ty_worker(constraint, mapper)
-                && !self.check_type_assignable_to(ty_arg, target, None)
+                && !self.check_type_assignable_to(ty_arg, target, None, NOOP_HEADING_ERROR)
             {
                 if let Some(error_node) = node.ty_args().and_then(|ty_args| ty_args.list.get(idx)) {
                     let error = errors::TypeXDoesNotSatisfyTheConstraintY {
                         span: error_node.span(),
-                        x: self.print_ty(ty_arg).to_string(),
-                        y: self.print_ty(target).to_string(),
+                        x: self.print_ty(ty_arg, None).to_string(),
+                        y: self.print_ty(target, None).to_string(),
                     };
                     self.push_error(Box::new(error));
                 };
-
                 result = false;
             }
         }

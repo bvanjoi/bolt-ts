@@ -1,0 +1,6 @@
+  × Object literal may only specify known properties, and '<computed>' does
+  │ not exist in type '{ x: any; }'.
+   ╭─[../../tests/compiler/checkDestructuringShorthandAssigment2/index.ts:9:27]
+ 9 │ [k]: 1
+   · ──────
+   ╰────

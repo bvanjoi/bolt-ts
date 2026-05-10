@@ -1,0 +1,6 @@
+  × Argument of type 'number[]' is not assignable to parameter of type
+  │ 'string'.
+    ╭─[../../tests/compiler/overloadErrorMatchesImplementationElaboaration/index.ts:12:12]
+ 12 │ [1,2,3]
+    · ───────
+    ╰────

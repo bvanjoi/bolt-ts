@@ -2,9 +2,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The value '{value}' cannot be used here.")]
@@ -19,6 +20,18 @@ pub(super) struct TheValueCannotBeUsedHere {
 pub(super) struct TypeIsNotAssignableToType {
     #[label(primary)]
     pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{prop}' in type '{ty1}' is not assignable to the same property in base type '{ty2}'."
+)]
+pub(super) struct PropertyAInTypeXIsNotAssignableToTheSamePropertyInBaseTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub prop: String,
     pub ty1: String,
     pub ty2: String,
 }
@@ -108,12 +121,12 @@ pub(super) struct TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnE
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
-    "Object literal may only specify known properties, and '{field}' does not exist in type '{ty}'."
+    "Object literal may only specify known properties, and '{prop}' does not exist in type '{ty}'."
 )]
 pub(super) struct ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
     #[label(primary)]
     pub span: Span,
-    pub field: String,
+    pub prop: String,
     pub ty: String,
 }
 
@@ -326,7 +339,7 @@ pub(super) struct TypeXRecursivelyReferencesItselfAsABaseType {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type '{ty}' cannot be used to index type '{index_ty}'.")]
-pub(super) struct TypeCannotBeUsedToIndexType {
+pub(super) struct TypeXCannotBeUsedToIndexTypeY {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
@@ -566,6 +579,15 @@ pub(super) struct ModuleXHasNoExportedMemberY {
     pub member: String,
 }
 
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Namespace '{namespace}' has no exported member '{member}'.")]
+pub(super) struct NamespaceXHasNoExportedMemberY {
+    #[label(primary)]
+    pub span: Span,
+    pub namespace: String,
+    pub member: String,
+}
+
 #[derive(Debug, Default)]
 pub(super) enum UndefinedOrNull {
     Undefined,
@@ -577,9 +599,9 @@ pub(super) enum UndefinedOrNull {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("'{name}' is possibly {}.", {
     match kind {
-        UndefinedOrNull::Both => "undefined or null",
-        UndefinedOrNull::Undefined => "undefined",
-        UndefinedOrNull::Null => "null",
+        UndefinedOrNull::Both => "'undefined' or 'null'",
+        UndefinedOrNull::Undefined => "'undefined'",
+        UndefinedOrNull::Null => "'null'",
     }
 })]
 pub(super) struct XIsPossiblyNullOrUndefined {
@@ -849,6 +871,13 @@ pub(super) struct AnArithmeticOperandMustBeOfTypeAnyNumberBigintOrAnEnumType {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A computed property name must be of type 'string', 'number', 'symbol' or 'any'.")]
+pub(super) struct AComputedPropertyNameMustBeOfTypeStringNumberSymbolOrAny {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("The operand of a 'delete' operator cannot be a read-only property.")]
 pub(super) struct TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty {
     #[label(primary)]
@@ -941,8 +970,8 @@ pub(super) struct AFunctionWhoseDeclaredTypeIsNeitherUndefinedVoidNorAnyMustRetu
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("A parameter initializer is only allowed in a function or constructor implementation.")]
-pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+#[error("Function lacks ending return statement and return type does not include 'undefined'.")]
+pub(super) struct FunctionLacksEndingReturnStatementAndReturnTypeDoesNotIncludeUndefined {
     #[label(primary)]
     pub span: Span,
 }
@@ -1164,6 +1193,23 @@ pub(super) struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter '{parameter}' implicitly has an '{ty}' type.")]
+pub(super) struct ParameterImplicitlyHasAn1Type {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Rest parameter '{parameter}' implicitly has an 'any[]' type.")]
+pub(super) struct RestParameterXImplicitlyHasAnAnyType {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error(
     "An interface can only extend an object type or intersection of object types with statically known members."
 )]
@@ -1230,6 +1276,23 @@ pub(super) struct VariableXIsUsedBeforeBeingAssigned {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property '{name}' is used before being assigned.")]
+pub(super) struct PropertyXIsUsedBeforeBeingAssigned {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class '{x}' incorrectly extends base class '{y}'.")]
+pub(super) struct ClassXIncorrectlyExtendsBaseClassY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
@@ -1380,4 +1443,283 @@ pub(super) struct ExportDeclarationsAreNotPermittedInANamespace {
 pub(super) struct InAmbientEnumDeclarationsMemberInitializerMustBeConstantExpression {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("An export assignment cannot be used in a module with other exported elements.")]
+pub(super) struct AnExportAssignmentCannotBeUsedInAModuleWithOtherExportedElements {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Get and set accessors in a class must both be abstract or non-abstract.")]
+pub(super) struct AccessorsMustBothBeAbstractOrNonAbstract {
+    #[label(primary)]
+    pub getter_span: Span,
+    #[label = "Setter declaration is defined here."]
+    pub setter_span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Get accessor must be at least as accessible as the set accessor.")]
+pub(super) struct AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
+    #[label(primary)]
+    pub getter_span: Span,
+    #[label = "Setter declaration is defined here."]
+    pub setter_span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type arguments for '{name}' circularly reference themselves.")]
+pub(super) struct TypeArgumentsForXCircularlyReferenceThemselves {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Tuple type arguments circularly reference themselves.")]
+pub(super) struct TupleTypeArgumentsCircularlyReferenceThemselves {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Circular definition of import alias '{name}'.")]
+pub(super) struct CircularDefinitionOfImportAliasX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{name}' is referenced directly or indirectly in its own type annotation.")]
+pub(super) struct XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'{name}' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer."
+)]
+pub(super) struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferencedDirectlyOrIndirectlyInItsOwnInitializer
+{
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Class '{class_name}' defines instance member accessor '{property_name}', but extended class '{extended_class_name}' defines it as instance member function."
+)]
+pub(super) struct ClassDefinesInstanceMemberAccessorButExtendedClassDefinesItAsInstanceMemberFunction
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub property_name: String,
+    pub extended_class_name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Class '{class_name}' defines instance member property '{property_name}', but extended class '{extended_class_name}' defines it as instance member function."
+)]
+pub(super) struct ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub property_name: String,
+    pub extended_class_name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Value of type '{ty1}' has no properties in common with type '{ty2}'. Did you mean to call it?"
+)]
+pub(super) struct ValueOfTypeHasNoPropertiesInCommonWithTypeDidYouMeanToCallIt {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty1}' has no properties in common with type '{ty2}'.")]
+pub(super) struct TypeXHasNoPropertiesInCommonWithTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("This condition will always return '{result}'.")]
+pub(super) struct ThisConditionWillAlwaysReturnX {
+    #[label(primary)]
+    pub span: Span,
+    pub result: bool,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Cannot assign to '{name}' because it is a constant.")]
+pub(super) struct CannotAssignToXBecauseItIsAConstant {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Index signature in type '{ty}' only permits reading.")]
+pub(super) struct IndexSignatureInTypeXOnlyPermitsReading {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Merged declaration '{decl}' cannot include a default export declaration. Consider adding a separate 'export default {decl}' declaration instead."
+)]
+pub(super) struct MergedDeclarationCannotIncludeADefaultExportDeclarationConsiderAddingASeparateExportDefaultDeclarationInstead
+{
+    #[label(primary)]
+    pub span: Span,
+    pub decl: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Individual declarations in merged declaration '{decl}' must be all exported or all local."
+)]
+pub(super) struct IndividualDeclarationsInMergedDeclarationMustBeAllExportedOrAllLocal {
+    #[label(primary)]
+    pub span: Span,
+    pub decl: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "The intersection '{ty}' was reduced to 'never' because property '{prop}' has conflicting types in some constituents."
+)]
+pub(super) struct TheIntersectionTyWasReducedToNeverBecausePropertyHasConflictingTypesInSomeConstituents
+{
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+    pub prop: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' is generic and can only be indexed for reading.")]
+pub(super) struct TypeIsGenericAndCanOnlyBeIndexedForReading {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Constructor of class '{class}' is {visible} and only accessible within the class declaration."
+)]
+pub(super) struct ConstructorOfClassXIsPrivateOrProtectedAndOnlyAccessibleWithinTheClassDeclaration
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class: String,
+    pub visible: &'static str,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
+pub(super) struct TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'new' expression, whose target lacks a construct signature, implicitly has an 'any' type."
+)]
+pub(super) struct NewExpressionWhoseTargetLacksAConstructSignatureImplicitlyHasAnAnyType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A 'super' call must be the first statement in the constructor to refer to 'super' or 'this' when a derived class contains initialized properties, parameter properties, or private identifiers."
+)]
+pub(super) struct ASuperCallMustBeTheFirstStatementInTheConstructorToReferToSuperOrThisWhenADerivedClassContainsInitializedPropertiesParameterPropertiesOrPrivateIdentifiers
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "This condition will always return '{return_value}' since JavaScript compares objects by reference, not value."
+)]
+pub(super) struct ThisConditionWillAlwaysReturnXSinceJavaScriptComparesObjectsByReferenceNotValue {
+    #[label(primary)]
+    pub span: Span,
+    pub return_value: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals."
+)]
+pub(super) struct AConstAssertionCanOnlyBeAppliedToReferencesToEnumMembersOrStringNumberBooleanArrayOrObjectLiterals
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "A member initializer in a enum declaration cannot reference members declared after it, including members defined in other enums."
+)]
+pub(super) struct AMemberInitializerInAEnumDeclarationCannotReferenceMembersDeclaredAfterItIncludingMembersDefinedInOtherEnums
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "No overload expects {argument_count} arguments, but overloads do exist that expect either {max_below} or {min_above} arguments."
+)]
+pub(super) struct NoOverloadExpectsXArgumentsButOverloadsDoExistThatExpectEitherAOrBArguments {
+    #[label(primary)]
+    pub span: Span,
+    pub argument_count: usize,
+    pub max_below: usize,
+    pub min_above: usize,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A spread argument must either have a tuple type or be passed to a rest parameter.")]
+pub(super) struct ASpreadArgumentMustEitherHaveATupleTypeOrBePassedToARestParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "No overload expects {type_argument_count} type arguments, but overloads do exist that expect either {max_below} or {min_above} type arguments."
+)]
+pub(super) struct NoOverloadExpectsXTypeArgumentsButOverloadsDoExistThatExpectEitherAOrBTypeArguments
+{
+    #[label(primary)]
+    pub span: Span,
+    pub type_argument_count: usize,
+    pub max_below: usize,
+    pub min_above: usize,
 }

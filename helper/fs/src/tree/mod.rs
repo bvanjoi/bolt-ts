@@ -273,16 +273,4 @@ impl FSTree {
                 .is_some_and(|n| n.realpath() != n.path())
         })
     }
-
-    pub(super) fn read_symlink(
-        &self,
-        p: &std::path::Path,
-        atoms: &mut AtomIntern,
-    ) -> FsResult<PathId> {
-        let id = self.find_path(p, false, atoms)?;
-        let Some(file) = self.node(id).kind().as_file_node() else {
-            unreachable!("handled been handled by `find_path`");
-        };
-        Ok(file.realpath())
-    }
 }

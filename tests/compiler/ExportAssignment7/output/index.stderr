@@ -1,0 +1,12 @@
+  × Cannot find name 'B'.
+   ╭─[../../tests/compiler/ExportAssignment7/index.ts:9:10]
+ 9 │ B
+   · ─
+   ╰────
+
+  × An export assignment cannot be used in a module with other exported
+  │ elements.
+   ╭─[../../tests/compiler/ExportAssignment7/index.ts:9:1]
+ 9 │ export = B;
+   · ───────────
+   ╰────

@@ -1,0 +1,101 @@
+  × Cannot assign to 'x' because it is a constant.
+   ╭─[../../tests/compiler/constDeclarations-access2/index.ts:9:1]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:11:1]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:13:1]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:15:1]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:17:1]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:19:1]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:21:1]
+ 21 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:23:1]
+ 23 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:25:1]
+ 25 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:27:1]
+ 27 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:29:1]
+ 29 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:31:1]
+ 31 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:34:1]
+ 34 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:36:1]
+ 36 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:38:3]
+ 38 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:40:3]
+ 40 │ x
+    · ─
+    ╰────
+
+  × Cannot assign to 'x' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-access2/index.ts:43:5]
+ 43 │ x
+    · ─
+    ╰────

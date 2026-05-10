@@ -1,0 +1,12 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation/index.ts:6:10]
+ 6 │ x1
+   · ──
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation/index.ts:15:8]
+ 15 │ 1
+    · ─
+    ╰────

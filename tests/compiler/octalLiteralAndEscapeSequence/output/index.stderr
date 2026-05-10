@@ -1,0 +1,668 @@
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:6:1]
+ 6 │ 00
+   · ──
+   ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:7:1]
+ 7 │ 05
+   · ──
+   ╰────
+  help: Use the syntax '0o5'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:8:1]
+ 8 │ 000
+   · ───
+   ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+   ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:9:1]
+ 9 │ 005
+   · ───
+   ╰────
+  help: Use the syntax '0o05'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:10:1]
+ 10 │ 055
+    · ───
+    ╰────
+  help: Use the syntax '0o55'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:11:5]
+ 11 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:12:5]
+ 12 │ 05
+    · ──
+    ╰────
+  help: Use the syntax '0o5'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:13:5]
+ 13 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:14:5]
+ 14 │ 005
+    · ───
+    ╰────
+  help: Use the syntax '0o05'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:15:5]
+ 15 │ 055
+    · ───
+    ╰────
+  help: Use the syntax '0o55'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:16:4]
+ 16 │ 00
+    · ──
+    ╰────
+  help: Use the syntax '0o0'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:17:4]
+ 17 │ 05
+    · ──
+    ╰────
+  help: Use the syntax '0o5'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:18:4]
+ 18 │ 000
+    · ───
+    ╰────
+  help: Use the syntax '0o00'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:19:4]
+ 19 │ 005
+    · ───
+    ╰────
+  help: Use the syntax '0o05'.
+
+  × Octal literals are not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:20:4]
+ 20 │ 055
+    · ───
+    ╰────
+  help: Use the syntax '0o55'.
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:23:2]
+ 23 │ \5
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:24:2]
+ 24 │ \00
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:25:2]
+ 25 │ \05
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:26:2]
+ 26 │ \55
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:27:2]
+ 27 │ \000
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:28:2]
+ 28 │ \005
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:29:2]
+ 29 │ \055
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:31:2]
+ 31 │ \5
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:32:2]
+ 32 │ \00
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:33:2]
+ 33 │ \05
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:34:2]
+ 34 │ \55
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:35:2]
+ 35 │ \000
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:36:2]
+ 36 │ \005
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:37:2]
+ 37 │ \055
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:39:2]
+ 39 │ \1
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:40:2]
+ 40 │ \01
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:41:2]
+ 41 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x0f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:42:2]
+ 42 │ \17
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x0f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:43:2]
+ 43 │ \017
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:44:2]
+ 44 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x7f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:45:2]
+ 45 │ \177
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:46:2]
+ 46 │ \1
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:47:2]
+ 47 │ \01
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:48:2]
+ 48 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:49:2]
+ 49 │ \4
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:50:2]
+ 50 │ \47
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:51:2]
+ 51 │ \047
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:52:2]
+ 52 │ \004
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:53:2]
+ 53 │ \47
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:54:2]
+ 54 │ \4
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:55:2]
+ 55 │ \04
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:56:2]
+ 56 │ \004
+    · ────
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:57:2]
+ 57 │ \8
+    · ──
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:58:2]
+ 58 │ \8
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:59:2]
+ 59 │ \0
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:60:2]
+ 60 │ \00
+    · ───
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:61:2]
+ 61 │ \8
+    · ──
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:62:2]
+ 62 │ \8
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:63:2]
+ 63 │ \0
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:64:2]
+ 64 │ \00
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:65:2]
+ 65 │ \1
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:66:2]
+ 66 │ \01
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:67:2]
+ 67 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x0f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:68:2]
+ 68 │ \17
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x0f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:69:2]
+ 69 │ \017
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:70:2]
+ 70 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x7f'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:71:2]
+ 71 │ \177
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:72:2]
+ 72 │ \1
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:73:2]
+ 73 │ \01
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x01'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:74:2]
+ 74 │ \001
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:75:2]
+ 75 │ \4
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:76:2]
+ 76 │ \47
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:77:2]
+ 77 │ \047
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:78:2]
+ 78 │ \004
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x27'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:79:2]
+ 79 │ \47
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:80:2]
+ 80 │ \4
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:81:2]
+ 81 │ \04
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x04'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:82:2]
+ 82 │ \004
+    · ────
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:83:2]
+ 83 │ \8
+    · ──
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:84:2]
+ 84 │ \8
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:85:2]
+ 85 │ \0
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:86:2]
+ 86 │ \00
+    · ───
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:87:2]
+ 87 │ \8
+    · ──
+    ╰────
+
+  × Escape sequence '\8' is not allowed.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:88:2]
+ 88 │ \8
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:89:2]
+ 89 │ \0
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:90:2]
+ 90 │ \00
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:93:2]
+ 93 │ \5
+    · ──
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:94:2]
+ 94 │ \00
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:95:2]
+ 95 │ \05
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:96:2]
+ 96 │ \55
+    · ───
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:97:2]
+ 97 │ \000
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:98:2]
+ 98 │ \005
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+    ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:99:2]
+ 99 │ \055
+    · ────
+    ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:101:6]
+ 101 │ \5
+     · ──
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:102:6]
+ 102 │ \00
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:103:6]
+ 103 │ \05
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:104:6]
+ 104 │ \55
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:105:6]
+ 105 │ \000
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:106:6]
+ 106 │ \005
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:107:6]
+ 107 │ \055
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:109:2]
+ 109 │ \5
+     · ──
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:110:2]
+ 110 │ \00
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:111:2]
+ 111 │ \05
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:112:2]
+ 112 │ \55
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:113:2]
+ 113 │ \000
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:114:2]
+ 114 │ \005
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:115:2]
+ 115 │ \055
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:117:6]
+ 117 │ \5
+     · ──
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:118:6]
+ 118 │ \00
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:119:6]
+ 119 │ \05
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:120:6]
+ 120 │ \55
+     · ───
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x00'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:121:6]
+ 121 │ \000
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x05'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:122:6]
+ 122 │ \005
+     · ────
+     ╰────
+
+  × Octal escape sequences are not allowed. Use the syntax '\x2d'.
+     ╭─[../../tests/compiler/octalLiteralAndEscapeSequence/index.ts:123:6]
+ 123 │ \055
+     · ────
+     ╰────

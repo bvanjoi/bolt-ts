@@ -1,0 +1,101 @@
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:14:9]
+ 13 │ x;
+    · ┬
+    · ╰── Previous definition here
+ 14 │     get x
+    ·         ─
+    ╰────
+
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:19:9]
+ 13 │ x;
+    · ┬
+    · ╰── Previous definition here
+ 14 │     get x() {
+ 15 │       //~^ ERROR: Duplicate identifier 'x'.
+ 16 │       //~| ERROR: Duplicate identifier 'x'.
+ 17 │         return 10;
+ 18 │     }
+ 19 │     set x
+    ·         ─
+    ╰────
+
+  × Duplicate identifier 'z'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:32:9]
+ 30 │ z() {
+    · ┬
+    · ╰── Previous definition here
+ 31 │     }
+ 32 │     get z
+    ·         ─
+    ╰────
+
+  × Duplicate identifier 'z'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:35:9]
+ 30 │ z() {
+    · ┬
+    · ╰── Previous definition here
+ 31 │     }
+ 32 │     get z() { //~ERROR: Duplicate identifier 'z'.
+ 33 │         return "Hello";
+ 34 │     }
+ 35 │     set z
+    ·         ─
+    ╰────
+
+  × Duplicate identifier 'z2'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:52:12]
+ 47 │ z2() {
+    · ─┬
+    ·  ╰── Previous definition here
+ 48 │         return "Hello";
+ 49 │     }
+ 50 │     set z2(_y: string) {
+ 51 │     }
+ 52 │     public z2
+    ·            ──
+    ╰────
+
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/duplicateClassElements/index.ts:8:12]
+ 8 │ a
+   · ─
+   ╰────
+
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:14:9]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:19:9]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Duplicate identifier 'x2'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:43:12]
+ 43 │ x2
+    · ──
+    ╰────
+
+  × Duplicate function implementation.
+   ╭─[../../tests/compiler/duplicateClassElements/index.ts:9:12]
+ 9 │ b
+   · ─
+   ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:11:12]
+ 11 │ b
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x2'
+  │ must be of type 'number', but here has type 'any'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:43:12]
+ 43 │ x2
+    · ──
+    ╰────

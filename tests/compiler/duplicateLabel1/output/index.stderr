@@ -1,0 +1,5 @@
+  × Duplicate label 'target'.
+   ╭─[../../tests/compiler/duplicateLabel1/index.ts:7:1]
+ 7 │ target
+   · ──────
+   ╰────

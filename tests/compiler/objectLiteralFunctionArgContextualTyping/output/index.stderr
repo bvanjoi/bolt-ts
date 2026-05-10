@@ -1,0 +1,31 @@
+  × Object literal may only specify known properties, and 'hello' does not
+  │ exist in type 'I'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:12:6]
+ 12 │ hello: 1
+    · ────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'what' does not
+  │ exist in type 'I'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:15:17]
+ 15 │ what: 1
+    · ───────
+    ╰────
+
+  × Property 'value' is missing.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:17:4]
+ 17 │ { toString: (s) => s }
+    · ──────────────────────
+    ╰────
+
+  × Property 'value' is missing.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:19:4]
+ 19 │ { toString: (s: string) => s }
+    · ──────────────────────────────
+    ╰────
+
+  × Property 'uhhh' does not exist on type 'string'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:21:36]
+ 21 │ uhhh
+    · ────
+    ╰────

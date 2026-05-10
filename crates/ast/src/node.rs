@@ -1,7 +1,6 @@
 use bolt_ts_span::ModuleID;
 
-use crate::ModifierFlags;
-
+use super::ModifierFlags;
 use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
@@ -18,7 +17,6 @@ impl NodeID {
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, PartialEq, Eq)]
   pub struct FnFlags: u8 {
-        const NORMAL          = 0;
         const GENERATOR       = 1 << 0;
         const ASYNC           = 1 << 1;
         const INVALID         = 1 << 2;
@@ -131,6 +129,7 @@ pub enum Node<'cx> {
     TemplateExpr(&'cx super::TemplateExpr<'cx>),
     TaggedTemplateExpr(&'cx super::TaggedTemplateExpr<'cx>),
     DeleteExpr(&'cx super::DeleteExpr<'cx>),
+    ImportExpression(&'cx super::ImportExpression),
     NumLit(&'cx super::NumLit),
     BigIntLit(&'cx super::BigIntLit),
     BoolLit(&'cx super::BoolLit),
@@ -149,6 +148,7 @@ pub enum Node<'cx> {
     LitTy(&'cx super::LitTy),
     ReferTy(&'cx super::ReferTy<'cx>),
     ArrayTy(&'cx super::ArrayTy<'cx>),
+    ImportType(&'cx super::ImportType<'cx>),
     IndexedAccessTy(&'cx super::IndexedAccessTy<'cx>),
     FnTy(&'cx super::FnTy<'cx>),
     CtorTy(&'cx super::CtorTy<'cx>),
@@ -323,6 +323,8 @@ impl<'cx> Node<'cx> {
             }
             ImportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
+            ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
+            ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
             _ => None,
         }
     }
@@ -476,7 +478,7 @@ impl<'cx> Node<'cx> {
         )
     }
 
-    pub fn is_decl(&self) -> bool {
+    pub fn is_declaration(&self) -> bool {
         use super::BindingKind;
         use super::Node::*;
         use super::ObjectBindingName;
@@ -581,46 +583,21 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn fn_flags(&self) -> FnFlags {
-        if !self.is_fn_like() {
-            return FnFlags::INVALID;
-        }
-        let mut flags = FnFlags::NORMAL;
         match self {
-            Node::FnDecl(super::FnDecl { asterisk, .. })
-            | Node::ClassMethodElem(super::ClassMethodElem { asterisk, .. })
-            | Node::ObjectMethodMember(super::ObjectMethodMember { asterisk, .. }) => {
-                if asterisk.is_some() {
-                    flags |= FnFlags::GENERATOR;
-                }
-                if self.has_syntactic_modifier(self::ModifierFlags::ASYNC) {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            Node::FnExpr(super::FnExpr {
-                asterisk,
-                async_modifier,
-                ..
-            }) => {
-                if asterisk.is_some() {
-                    flags |= FnFlags::GENERATOR;
-                }
-                if async_modifier.is_some() {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            Node::ArrowFnExpr(n) => {
-                if n.async_modifier.is_some() {
-                    flags |= FnFlags::ASYNC;
-                }
-            }
-            _ => {}
+            Node::MethodSignature(n) => n.fn_flags(),
+            Node::CallSigDecl(n) => n.fn_flags(),
+            Node::CtorSigDecl(n) => n.fn_flags(),
+            Node::IndexSigDecl(n) => n.fn_flags(),
+            Node::FnDecl(n) => n.fn_flags(),
+            Node::ClassMethodElem(n) => n.fn_flags(),
+            Node::ObjectMethodMember(n) => n.fn_flags(),
+            Node::ClassCtor(n) => n.fn_flags(),
+            Node::GetterDecl(n) => n.fn_flags(),
+            Node::SetterDecl(n) => n.fn_flags(),
+            Node::FnExpr(n) => n.fn_flags(),
+            Node::ArrowFnExpr(n) => n.fn_flags(),
+            _ => FnFlags::INVALID,
         }
-
-        if self.fn_body().is_none() {
-            flags |= FnFlags::INVALID;
-        }
-
-        flags
     }
 
     pub fn module_name(&self) -> Option<&'cx super::StringLit> {
@@ -636,8 +613,8 @@ impl<'cx> Node<'cx> {
     }
 
     #[inline]
-    pub fn is_fn_expr_or_arrow_fnc_expr(&self) -> bool {
-        self.is_fn_expr() || self.is_arrow_fn_expr()
+    pub fn is_fn_expr_or_arrow_fn_expr(&self) -> bool {
+        matches!(self, Node::FnExpr(_) | Node::ArrowFnExpr(_))
     }
 
     pub fn is_class_ele(&self) -> bool {
@@ -666,8 +643,21 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
-        self.modifiers()
-            .is_some_and(|ms| ms.flags.intersects(flags))
+        self.modifier_flags().map_or(false, |n| n.intersects(flags))
+    }
+
+    pub fn has_abstract_modifier(&self) -> bool {
+        self.has_syntactic_modifier(ModifierFlags::ABSTRACT)
+    }
+
+    pub fn is_property_without_initializer(&self) -> bool {
+        if self.has_abstract_modifier() {
+            return false;
+        }
+        let Node::ClassPropElem(p) = self else {
+            return false;
+        };
+        p.init.is_none() && p.excl.is_none()
     }
 
     pub fn modifiers(&self) -> Option<&super::Modifiers<'cx>> {
@@ -687,14 +677,39 @@ impl<'cx> Node<'cx> {
             Node::InterfaceDecl(n) => n.modifiers,
             Node::ParamDecl(n) => n.modifiers,
             Node::IndexSigDecl(n) => n.modifiers,
-            Node::ExportAssign(n) => n.modifiers,
             Node::EnumDecl(n) => n.modifiers,
             _ => None,
         }
     }
 
-    pub fn can_have_modifiers(&self) -> bool {
-        self.modifiers().is_some()
+    pub fn modifier_flags(&self) -> Option<super::ModifierFlags> {
+        let ms = match self {
+            Node::ClassCtor(n) => n.modifiers,
+            Node::CtorTy(n) => n.modifiers,
+            Node::ClassMethodElem(n) => n.modifiers,
+            Node::ClassPropElem(n) => n.modifiers,
+            Node::GetterDecl(n) => n.modifiers,
+            Node::SetterDecl(n) => n.modifiers,
+            Node::PropSignature(n) => n.modifiers,
+            Node::FnDecl(n) => n.modifiers,
+            Node::VarStmt(n) => n.modifiers,
+            Node::ClassDecl(n) => n.modifiers,
+            Node::ModuleDecl(n) => n.modifiers,
+            Node::TypeAliasDecl(n) => n.modifiers,
+            Node::InterfaceDecl(n) => n.modifiers,
+            Node::ParamDecl(n) => n.modifiers,
+            Node::IndexSigDecl(n) => n.modifiers,
+            Node::EnumDecl(n) => n.modifiers,
+            Node::ImportEqualsDecl(n) => {
+                return if n.export_modifier.is_some() {
+                    Some(super::ModifierFlags::EXPORT)
+                } else {
+                    None
+                };
+            }
+            _ => return None,
+        };
+        ms.map(|ms| ms.flags)
     }
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
@@ -833,7 +848,10 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_access_expr(&self) -> bool {
-        self.is_prop_access_expr() || self.is_ele_access_expr()
+        match self {
+            Node::PropAccessExpr(_) | Node::EleAccessExpr(_) => true,
+            _ => false,
+        }
     }
 
     pub fn is_same_kind(&self, other: &Self) -> bool {
@@ -1058,6 +1076,70 @@ impl<'cx> Node<'cx> {
                 | Node::NumLit(_)
         )
     }
+
+    pub fn is_non_null_access(&self) -> bool {
+        let expr = match self {
+            Node::PropAccessExpr(n) => n.expr,
+            Node::EleAccessExpr(n) => n.expr,
+            _ => return false,
+        };
+        matches!(expr.kind, super::ExprKind::NonNull(_))
+    }
+
+    pub fn is_expression(&self) -> bool {
+        // TODO: skip_partially_emitted_expr
+        use Node::*;
+        match self {
+            CondExpr(_) | YieldExpr(_) | ArrowFnExpr(_) | BinExpr(_) | SpreadElement(_)
+            | AsExpr(_) | OmitExpr(_) | SatisfiesExpr(_) => true,
+            _ => self.is_unary_expr(),
+        }
+    }
+
+    pub fn is_unary_expr(&self) -> bool {
+        use Node::*;
+        match self {
+            PrefixUnaryExpr(_) | PostfixUnaryExpr(_) | DeleteExpr(_) | TypeofExpr(_)
+            | VoidExpr(_) | AwaitExpr(_) | TyAssertionExpr(_) => true,
+            _ => self.is_left_hand_side_expr_or_higher(),
+        }
+    }
+
+    pub fn is_left_hand_side_expr_or_higher(&self) -> bool {
+        use Node::*;
+        matches!(
+            self,
+            PropAccessExpr(_)
+                | EleAccessExpr(_)
+                | NewExpr(_)
+                | CallExpr(_)
+                | JsxElem(_)
+                | JsxSelfClosingElem(_)
+                | JsxFrag(_)
+                | TaggedTemplateExpr(_)
+                | ArrayLit(_)
+                | ParenExpr(_)
+                | ObjectLit(_)
+                | ClassExpr(_)
+                | FnExpr(_)
+                | Ident(_)
+                | PrivateIdent(_)
+                | RegExpLit(_)
+                | NumLit(_)
+                | BigIntLit(_)
+                | StringLit(_)
+                | NoSubstitutionTemplateLit(_)
+                | TemplateExpr(_)
+                | BoolLit(_)
+                | NullLit(_)
+                | ThisExpr(_)
+                | SuperExpr(_)
+                | NonNullExpr(_)
+                | ExprWithTyArgs(_)
+        )
+        // TODO: SyntaxKind.MetaProperty:
+        // TODO: SyntaxKind.ImportKeyword:
+    }
 }
 
 macro_rules! as_node {
@@ -1181,7 +1263,9 @@ as_node!(
     (FnExpr, super::FnExpr<'cx>, fn_expr),
     (NewExpr, super::NewExpr<'cx>, new_expr),
     (AssignExpr, super::AssignExpr<'cx>, assign_expr),
+    (ImportExpression, super::ImportExpression, import_expression),
     (ArrayTy, super::ArrayTy<'cx>, array_ty),
+    (ImportType, super::ImportType<'cx>, import_type),
     (FnTy, super::FnTy<'cx>, fn_ty),
     (CtorTy, super::CtorTy<'cx>, ctor_ty),
     (LitTy, super::LitTy, lit_ty),

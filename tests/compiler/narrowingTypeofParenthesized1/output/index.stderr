@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/narrowingTypeofParenthesized1/index.ts:9:7]
+ 9 │ a
+   · ─
+   ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/narrowingTypeofParenthesized1/index.ts:18:7]
+ 18 │ a
+    · ─
+    ╰────

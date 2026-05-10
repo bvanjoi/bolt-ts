@@ -13,11 +13,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        sig.this_param
+        self.get_sig_links(sig.id)
+            .get_this_param()
             .map(|this_param| self.get_type_of_symbol(this_param))
     }
 
-    pub(super) fn get_contextual_this_param_ty(
+    pub(super) fn get_contextual_this_parameter_type(
         &mut self,
         id: ast::NodeID,
     ) -> Option<&'cx ty::Ty<'cx>> {
@@ -27,8 +28,33 @@ impl<'cx> TyChecker<'cx> {
             return None;
         }
 
-        if self.is_context_sensitive_fn_or_object_literal_method(id) {
-            todo!()
+        if self.is_context_sensitive_fn_or_object_literal_method(id)
+            && let Some(contextual_sig) = self.get_contextual_sig(id)
+            && let Some(this_param) = self.get_sig_links(contextual_sig.id).get_this_param()
+        {
+            return Some(self.get_type_of_symbol(this_param));
+        }
+
+        if self.config.compiler_options().no_implicit_this() {
+            // TODO: containing_literal
+
+            let func_parent = self.parent(id).unwrap();
+
+            let parent = self
+                .node_query(func_parent.module())
+                .walk_up_paren_expressions(func_parent);
+            if let Some(e) = self.p.node(parent).as_assign_expr() {
+                let target = e.left;
+                match target.kind {
+                    ast::ExprKind::PropAccess(ast::PropAccessExpr { expr, .. })
+                    | ast::ExprKind::EleAccess(ast::EleAccessExpr { expr, .. }) => {
+                        // TODO: in_js
+                        let ty = self.check_expression_cached(expr, None);
+                        return Some(self.get_widened_ty(ty));
+                    }
+                    _ => {}
+                }
+            }
         }
 
         None
@@ -50,7 +76,7 @@ impl<'cx> TyChecker<'cx> {
                 None => false,
             })
         {
-            let s = self.get_symbol_of_decl(parent);
+            let s = self.get_symbol_of_declaration(parent);
             let ty = self.get_declared_ty_of_class_or_interface(s);
             return if let Some(i) = ty.kind.as_object_interface() {
                 i.this_ty.unwrap()

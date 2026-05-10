@@ -1,1 +1,1 @@
-interface A extends Array<string>{}
+interface A extends Array<string> {}

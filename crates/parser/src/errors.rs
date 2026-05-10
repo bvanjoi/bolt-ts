@@ -2,9 +2,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Syntax Error: Unexpected token ','")]
@@ -184,8 +185,8 @@ pub(super) struct ModifierCannotAppearOnAnIndexSignature {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("An implementation cannot be declared in ambient contexts.")]
-pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+#[error("An implementation cannot be declared in type contexts.")]
+pub(super) struct AnImplementationCannotBeDeclaredInTypeContexts {
     #[label(primary)]
     pub span: Span,
 }
@@ -257,6 +258,22 @@ pub(super) struct AnEnumMemberCannotHaveANumericName {
 pub(super) struct AccessibilityModifierAlreadySeen {
     #[label(primary)]
     pub(super) span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A '{modifier}' modifier cannot be used with an import declaration.")]
+pub(super) struct AModifierCannotBeUsedWithAnImportDeclaration {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("{modifier} modifier already seen.")]
+pub(super) struct ModifierAlreadySeen {
+    #[label(primary)]
+    pub(super) span: Span,
+    pub(super) modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -543,13 +560,6 @@ pub(super) struct UnterminatedRegularExpressionLiteral {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Initializers are not allowed in ambient contexts.")]
-pub(super) struct InitializersAreNotAllowedInAmbientContexts {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("'{modifier}' modifier cannot appear on class elements of this kind.")]
 pub(super) struct ModifierCannotAppearOnClassElementsOfThisKind {
     #[label(primary)]
@@ -633,6 +643,90 @@ pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected keyword or identifier.")]
 pub(super) struct UnexpectedKeywordOrIdentifier {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An export assignment cannot have modifiers.")]
+pub(super) struct AnExportAssignmentCannotHaveModifiers {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A class declaration without the 'default' modifier must have a name.")]
+pub(super) struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("The left-hand side of an assignment expression must be a variable or a property access.")]
+pub(super) struct TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Duplicate label '{label}'.")]
+pub(super) struct DuplicateLabel {
+    #[label(primary)]
+    pub span: Span,
+    pub label: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Octal escape sequences and backreferences are not allowed in a character class. If this was intended as an escape sequence, use the syntax {code} instead."
+)]
+pub(super) struct OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClassIfThisWasIntendedAsAnEscapeSequenceUseTheSyntaxXInstead
+{
+    #[label(primary)]
+    pub span: Span,
+    pub code: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Octal escape sequences are not allowed. Use the syntax '{code}'.")]
+pub(super) struct OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
+    #[label(primary)]
+    pub span: Span,
+    pub code: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Decimal escape sequences and backreferences are not allowed in a character class.")]
+pub(super) struct DecimalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Escape sequence '{code}' is not allowed.")]
+pub(super) struct EscapeSequenceXIsNotAllowed {
+    #[label(primary)]
+    pub span: Span,
+    pub code: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An extended Unicode escape value must be between 0x0 and 0x10FFFF inclusive.")]
+pub(super) struct AnExtendedUnicodeEscapeValueMustBeBetween0x0And0x10FFFFInclusive {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Hexadecimal digit expected.")]
+pub(super) struct HexadecimalDigitExpected {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest parameter cannot be optional.")]
+pub(super) struct ARestParameterCannotBeOptional {
     #[label(primary)]
     pub span: Span,
 }

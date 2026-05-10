@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/library_StringSlice/index.ts:9:7]
+ 9 │ a
+   · ─
+   ╰────

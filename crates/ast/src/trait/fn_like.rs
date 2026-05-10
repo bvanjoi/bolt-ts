@@ -62,24 +62,6 @@ impl<'cx> FnLike<'cx> for crate::ClassCtor<'cx> {
     }
 }
 
-impl<'cx> FnLike<'cx> for crate::CtorSigDecl<'cx> {
-    fn id(&self) -> crate::NodeID {
-        self.id
-    }
-    fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
-    }
-    fn params(&self) -> crate::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
-        None
-    }
-    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
-        None
-    }
-}
-
 impl<'cx> FnLike<'cx> for crate::FnExpr<'cx> {
     fn id(&self) -> crate::NodeID {
         self.id
@@ -152,42 +134,6 @@ impl<'cx> FnLike<'cx> for crate::ObjectMethodMember<'cx> {
     }
 }
 
-impl<'cx> FnLike<'cx> for crate::CallSigDecl<'cx> {
-    fn id(&self) -> crate::NodeID {
-        self.id
-    }
-    fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
-    }
-    fn params(&self) -> crate::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
-        None
-    }
-    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
-        self.ty
-    }
-}
-
-impl<'cx> FnLike<'cx> for crate::CtorTy<'cx> {
-    fn id(&self) -> crate::NodeID {
-        self.id
-    }
-    fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
-    }
-    fn params(&self) -> crate::ParamsDecl<'cx> {
-        self.params
-    }
-    fn body(&self) -> Option<crate::ArrowFnExprBody<'cx>> {
-        None
-    }
-    fn ty(&self) -> Option<&'cx crate::Ty<'cx>> {
-        Some(self.ty)
-    }
-}
-
 pub trait FnDeclLike<'cx>: FnLike<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>>;
 }
@@ -210,18 +156,6 @@ impl<'cx> FnDeclLike<'cx> for crate::ClassCtor<'cx> {
     }
 }
 
-impl<'cx> FnDeclLike<'cx> for crate::CtorSigDecl<'cx> {
-    fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
-        None
-    }
-}
-
-impl<'cx> FnDeclLike<'cx> for crate::CtorTy<'cx> {
-    fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
-        None
-    }
-}
-
 impl<'cx> FnDeclLike<'cx> for crate::MethodSignature<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
         None
@@ -231,12 +165,6 @@ impl<'cx> FnDeclLike<'cx> for crate::MethodSignature<'cx> {
 impl<'cx> FnDeclLike<'cx> for crate::ObjectMethodMember<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
         Some(self.body)
-    }
-}
-
-impl<'cx> FnDeclLike<'cx> for crate::CallSigDecl<'cx> {
-    fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>> {
-        None
     }
 }
 
@@ -260,3 +188,13 @@ impl<'cx> FnExprLike<'cx> for crate::ArrowFnExpr<'cx> {
         self.body
     }
 }
+
+pub trait FunctionLikeDeclaration<'cx>: super::SignatureDeclaration<'cx> {}
+
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::FnDecl<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::ClassMethodElem<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::GetterDecl<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::SetterDecl<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::ClassCtor<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::FnExpr<'cx> {}
+impl<'cx> FunctionLikeDeclaration<'cx> for crate::ArrowFnExpr<'cx> {}

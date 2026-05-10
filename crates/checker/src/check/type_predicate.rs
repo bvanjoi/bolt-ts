@@ -1,7 +1,6 @@
 use bolt_ts_ast as ast;
 use bolt_ts_atom::Atom;
 
-
 use super::ty;
 
 #[derive(Debug, Clone, Copy)]

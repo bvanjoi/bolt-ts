@@ -4,6 +4,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_span::Span;
 
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::check_type_related_to::TypeRelatedChecker;
 use super::relation::{RelationKind, SigCheckMode};
 use super::ty;
@@ -17,7 +18,7 @@ const FLAGS_TO_CHECK: ast::ModifierFlags = ast::ModifierFlags::EXPORT
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_fn_like_symbol(&mut self, symbol: SymbolID) {
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
         assert!(!decls.is_empty());
 
@@ -94,7 +95,8 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|&d| {
                     let decl = self.p.node(d);
-                    errors::DuplicateFunctionImplementation { span: decl.span() }
+                    let span = decl.name().map_or(decl.span(), |name| name.span());
+                    errors::DuplicateFunctionImplementation { span }
                 })
                 .collect::<Vec<_>>();
             for error in errors {
@@ -104,10 +106,13 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        let s = self.symbol(symbol);
         if has_non_ambient_class && !is_ctor && s.flags.contains(SymbolFlags::FUNCTION) {
-            for decl in decls {
-                debug_assert!(decls.len() >= 1);
-                let n = self.p.node(*decl);
+            let decls = s.decls.as_ref().unwrap();
+            assert!(!decls.is_empty());
+            debug_assert!(decls.len() >= 1);
+            for decl in decls.clone() {
+                let n = self.p.node(decl);
                 match n {
                     ast::Node::ClassDecl(n) => {
                         let name = n.name.unwrap();
@@ -137,8 +142,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(last_seen_non_ambient_decl) = last_seen_non_ambient_decl
             && let n = self.p.node(last_seen_non_ambient_decl)
             && n.fn_body().is_none()
-            && !n.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT)
+            && !n.has_abstract_modifier()
         {
+            let s = self.symbol(symbol);
+            let decls = s.decls.as_ref().unwrap();
             if s.flags.contains(SymbolFlags::CONSTRUCTOR) {
                 let node = self.p.node(decls[0]).expect_class_ctor();
                 let lo = node.span.lo();
@@ -236,25 +243,24 @@ impl<'cx> TyChecker<'cx> {
         let erased_source = self.get_erased_sig(implementation);
         let erased_target = self.get_erased_sig(overload);
 
-        let source_ret_ty = self.get_ret_ty_of_sig(erased_source);
-        let target_ret_ty = self.get_ret_ty_of_sig(erased_target);
+        let source_ret_ty = self.get_return_type_of_signature(erased_source);
+        let target_ret_ty = self.get_return_type_of_signature(erased_target);
         if target_ret_ty == self.void_ty
             || self.is_type_related_to(target_ret_ty, source_ret_ty, RelationKind::Assignable)
             || self.is_type_related_to(source_ret_ty, target_ret_ty, RelationKind::Assignable)
         {
-            self.is_sig_assignable_to(erased_source, erased_target, true)
+            self.is_sig_assignable_to::<true>(erased_source, erased_target)
         } else {
             false
         }
     }
 
-    fn is_sig_assignable_to(
+    fn is_sig_assignable_to<const IGNORE_RETURN_TYPE: bool>(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,
-        ignore_ret_ty: bool,
     ) -> bool {
-        let check_mode = if ignore_ret_ty {
+        let check_mode = if IGNORE_RETURN_TYPE {
             SigCheckMode::IGNORE_RETURN_TYPES
         } else {
             SigCheckMode::empty()
@@ -266,7 +272,10 @@ impl<'cx> TyChecker<'cx> {
             check_mode,
             false,
             |this, source, target, report_error| {
-                if this.c.check_type_assignable_to(source, target, None) {
+                if this
+                    .c
+                    .check_type_assignable_to(source, target, None, NOOP_HEADING_ERROR)
+                {
                     Ternary::TRUE
                 } else {
                     Ternary::FALSE

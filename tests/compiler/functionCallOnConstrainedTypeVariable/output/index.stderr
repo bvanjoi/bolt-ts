@@ -1,0 +1,23 @@
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/functionCallOnConstrainedTypeVariable/index.ts:14:7]
+ 14 │ "s"
+    · ───
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/functionCallOnConstrainedTypeVariable/index.ts:19:7]
+ 19 │ "s"
+    · ───
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/functionCallOnConstrainedTypeVariable/index.ts:23:5]
+ 23 │ ""
+    · ──
+    ╰────
+
+  × Expected 1 arguments, but got 4.
+    ╭─[../../tests/compiler/functionCallOnConstrainedTypeVariable/index.ts:25:17]
+ 25 │ ""
+    · ──
+    ╰────

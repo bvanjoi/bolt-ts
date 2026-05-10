@@ -1,0 +1,27 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'any', but here has type 'number'.
+   ╭─[../../tests/compiler/duplicateVariablesWithAny/index.ts:7:5]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type 'string', but here has type 'any'.
+    ╭─[../../tests/compiler/duplicateVariablesWithAny/index.ts:11:5]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'any', but here has type 'number'.
+    ╭─[../../tests/compiler/duplicateVariablesWithAny/index.ts:16:9]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type 'string', but here has type 'any'.
+    ╭─[../../tests/compiler/duplicateVariablesWithAny/index.ts:20:9]
+ 20 │ y
+    · ─
+    ╰────

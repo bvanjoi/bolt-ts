@@ -40,6 +40,7 @@ impl<'cx> Ty<'cx> {
             TyKind::NamedTuple(n) => n.span,
             TyKind::TemplateLit(n) => n.span,
             TyKind::This(n) => n.span,
+            TyKind::Import(n) => n.span,
         }
     }
 
@@ -68,6 +69,7 @@ impl<'cx> Ty<'cx> {
             TyKind::TemplateLit(n) => n.id,
             TyKind::Intrinsic(n) => n.id,
             TyKind::This(n) => n.id,
+            TyKind::Import(n) => n.id,
         }
     }
 
@@ -155,6 +157,7 @@ pub enum TyKind<'cx> {
     Nullable(&'cx NullableTy<'cx>),
     TemplateLit(&'cx TemplateLitTy<'cx>),
     This(&'cx ThisTy),
+    Import(&'cx ImportType<'cx>),
 }
 
 impl TyKind<'_> {
@@ -211,6 +214,11 @@ pub enum PredTyName<'cx> {
     Ident(&'cx Ident),
     This(&'cx ThisTy),
 }
+
+/// ```txt
+/// function isString(x: any): x is string {
+/// //                         ~~~~~~~~~~~
+/// }
 #[derive(Debug, Clone)]
 pub struct PredTy<'cx> {
     pub id: NodeID,
@@ -303,6 +311,12 @@ pub struct TupleTy<'cx> {
     pub tys: &'cx [&'cx Ty<'cx>],
 }
 
+/// ```txt
+/// type D = {
+///     new (): void
+///  // ~~~~~~~~~~~~
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct CtorSigDecl<'cx> {
     pub id: NodeID,
@@ -312,6 +326,12 @@ pub struct CtorSigDecl<'cx> {
     pub ty: Option<&'cx self::Ty<'cx>>,
 }
 
+impl CtorSigDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CallSigDecl<'cx> {
     pub id: NodeID,
@@ -319,6 +339,12 @@ pub struct CallSigDecl<'cx> {
     pub ty_params: Option<TyParams<'cx>>,
     pub params: ParamsDecl<'cx>,
     pub ty: Option<&'cx self::Ty<'cx>>,
+}
+
+impl CallSigDecl<'_> {
+    pub const fn fn_flags(&self) -> FnFlags {
+        FnFlags::INVALID
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -494,6 +520,10 @@ impl ObjectMember<'_> {
             ObjectMemberKind::Setter(n) => n.id,
         }
     }
+
+    pub fn has_default_value(&self) -> bool {
+        matches!(self.kind, ObjectMemberKind::Shorthand(n) if n.object_assignment_initializer.is_some())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -525,11 +555,23 @@ pub struct ObjectMethodMember<'cx> {
     pub body: &'cx BlockStmt<'cx>,
 }
 
+impl<'cx> ObjectMethodMember<'cx> {
+    pub fn fn_flags(&self) -> FnFlags {
+        let mut flags = FnFlags::empty();
+        if self.asterisk.is_some() {
+            flags.insert(FnFlags::GENERATOR);
+        }
+        flags
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ObjectShorthandMember<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub name: &'cx Ident,
+    pub equal_token: Option<Span>,
+    pub object_assignment_initializer: Option<&'cx Expr<'cx>>,
 }
 
 /// ```txt
@@ -682,4 +724,15 @@ pub struct QualifiedName<'cx> {
     pub span: Span,
     pub left: &'cx EntityName<'cx>,
     pub right: &'cx Ident,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportType<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    /// `typeof import('xxx')`
+    pub is_typeof: bool,
+    pub argument: &'cx ty::Ty<'cx>,
+    pub qualifier: Option<&'cx EntityName<'cx>>,
+    pub type_arguments: Option<&'cx Tys<'cx>>,
 }

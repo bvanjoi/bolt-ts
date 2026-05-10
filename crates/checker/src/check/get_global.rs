@@ -69,17 +69,6 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_global_omit_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_omit_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol::<2, true>(SymbolName::Atom(keyword::IDENT_OMIT));
-        let res = self.deferred_global_omit_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
     fn try_get_global_type<const ARITY: u8, const REPORT_ERROR: bool>(
         &mut self,
         name: SymbolName,
@@ -105,28 +94,6 @@ impl<'cx> TyChecker<'cx> {
             unreachable!("Global type '{}' not found", name.to_string(&self.atoms));
         };
         ret
-    }
-
-    pub(super) fn get_global_awaited_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_awaited_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol::<1, true>(SymbolName::Atom(keyword::IDENT_AWAITED));
-        let res = self.deferred_global_awaited_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
-    }
-
-    pub(super) fn get_global_extract_symbol(&mut self) -> Option<SymbolID> {
-        if let Some(symbol) = self.deferred_global_extract_symbol.get() {
-            return *symbol;
-        }
-        let symbol =
-            self.get_global_ty_alias_symbol::<2, true>(SymbolName::Atom(keyword::IDENT_EXTRACT));
-        let res = self.deferred_global_extract_symbol.set(symbol);
-        debug_assert!(res.is_ok());
-        symbol
     }
 
     fn get_global_builtin_tys<const ARITY: u8>(
@@ -262,6 +229,56 @@ macro_rules! deferred_global_constructor_symbol {
     };
 }
 
+macro_rules! deferred_global_type_alias_symbol {
+    (
+        $(
+            [$name: ident, $ident_name: ident, $arity: literal]
+        ),*
+        $(,)?) => {
+        impl<'cx> TyChecker<'cx> {
+            $(
+                paste::paste! {
+                    pub(super) fn [<get_global_ $name _symbol>](&mut self) -> Option<SymbolID> {
+                        if let Some(symbol) = self.[<deferred_global_ $name _symbol>].get() {
+                            return *symbol;
+                        }
+                        let name = SymbolName::Atom(keyword::[<IDENT_ $ident_name>]);
+                        let symbol = self.get_global_ty_alias_symbol::<$arity, true>(name);
+                        let res = self.[<deferred_global_ $name _symbol>].set(symbol);
+                        debug_assert!(res.is_ok());
+                        symbol
+                    }
+                }
+            )*
+        }
+    };
+}
+
+macro_rules! deferred_global_value_symbol {
+    (
+        $(
+            [$name: ident, $ident_name: ident]
+        ),*
+        $(,)?) => {
+        impl<'cx> TyChecker<'cx> {
+            $(
+                paste::paste! {
+                    pub(super) fn [<get_global_ $name _symbol>](&mut self) -> Option<SymbolID> {
+                        if let Some(symbol) = self.[<deferred_global_ $name _symbol>].get() {
+                            return *symbol;
+                        }
+                        let name = SymbolName::Atom(keyword::[<IDENT_ $ident_name>]);
+                        let symbol = self.get_global_value_symbol(name);
+                        let res = self.[<deferred_global_ $name _symbol>].set(symbol);
+                        debug_assert!(res.is_ok());
+                        symbol
+                    }
+                }
+            )*
+        }
+    };
+}
+
 deferred_global_ty0!(
     [promise, PROMISE, generic, 1],
     [promise_like, PROMISE_LIKE, generic, 1],
@@ -292,3 +309,12 @@ deferred_global_ty1!(
 );
 
 deferred_global_constructor_symbol!([es_symbol, SYMBOL_CLASS], [promise, PROMISE]);
+
+deferred_global_type_alias_symbol!(
+    [awaited, AWAITED, 1],
+    [extract, EXTRACT, 2],
+    [record, RECORD, 2],
+    [omit, OMIT, 2]
+);
+
+deferred_global_value_symbol!([nan, NAN]);

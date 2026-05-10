@@ -1,0 +1,11 @@
+  × Parameter '_' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualTypesNegatedTypeLikeConstraintInGenericMappedType2/index.ts:30:7]
+ 30 │ _
+    · ─
+    ╰────
+
+  × Type '(_: any) => string' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/contextualTypesNegatedTypeLikeConstraintInGenericMappedType2/index.ts:30:3]
+ 30 │ C
+    · ─
+    ╰────

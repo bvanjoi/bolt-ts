@@ -10,14 +10,8 @@
    · ─
    ╰────
 
-  × Argument of type 'string' is not assignable to parameter of type 'number'.
-   ╭─[../../tests/compiler/functionCall12/index.ts:6:8]
- 6 │ 'bar'
-   · ─────
-   ╰────
-
   × Argument of type 'number' is not assignable to parameter of type 'string'.
-    ╭─[../../tests/compiler/functionCall12/index.ts:10:15]
- 10 │ 3
-    · ─
-    ╰────
+   ╭─[../../tests/compiler/functionCall12/index.ts:9:15]
+ 9 │ 3
+   · ─
+   ╰────

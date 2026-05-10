@@ -1,0 +1,11 @@
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/objectCreationExpressionInFunctionParameter/index.ts:13:2]
+ 13 │ }
+    · ─
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/objectCreationExpressionInFunctionParameter/index.ts:11:24]
+ 11 │ 123
+    · ───
+    ╰────

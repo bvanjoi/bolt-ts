@@ -1,0 +1,23 @@
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letAsIdentifierInStrictMode/index.ts:6:5]
+ 6 │ let
+   · ───
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letAsIdentifierInStrictMode/index.ts:9:1]
+ 9 │ let
+   · ───
+   ╰────
+
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/letAsIdentifierInStrictMode/index.ts:12:1]
+  8 │ a = 10;
+    · ┬
+    · ╰── Previous definition here
+  9 │ let = 30;
+ 10 │ //~^ ERROR: Identifier expected. 'let' is a reserved word in strict mode.
+ 11 │ let
+ 12 │ a
+    · ─
+    ╰────

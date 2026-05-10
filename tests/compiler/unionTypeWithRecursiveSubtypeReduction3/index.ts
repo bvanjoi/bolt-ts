@@ -7,4 +7,4 @@ type T27 = typeof a27;
 
 declare var b: T27;
 var s: string = b;
-//~^ ERROR: Type '{ prop: number; } | { prop: ...; }' is not assignable to type 'string'.
+//~^ ERROR: Type '{ prop: number; } | { prop: any; }' is not assignable to type 'string'.

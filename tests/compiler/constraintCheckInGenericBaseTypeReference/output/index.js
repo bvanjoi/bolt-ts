@@ -2,7 +2,7 @@ class Constraint {
   method() {}
 }
 class GenericBase {
-  items
+  items;
 }
 class Derived extends GenericBase {}
 class TypeArg {
@@ -11,5 +11,5 @@ class TypeArg {
   }
 }
 class Container {
-  static People
+  static People;
 }

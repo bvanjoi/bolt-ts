@@ -1,0 +1,5 @@
+  × Cannot find name 'A'.
+   ╭─[../../tests/compiler/unknownSymbolInGenericReturnType/index.ts:5:61]
+ 5 │ A
+   · ─
+   ╰────

@@ -14,4 +14,4 @@ var ec:EM.EC = new EM.EC();
 x = ec.getPosition();
 
 var y: string = ec.getPosition();
-//~^ ERROR: Type 'Position' is not assignable to type 'string'.
+//~^ ERROR: Type 'EM.Position' is not assignable to type 'string'.

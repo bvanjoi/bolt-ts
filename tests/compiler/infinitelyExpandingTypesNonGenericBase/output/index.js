@@ -1,9 +1,9 @@
 class Functionality {
-  property
+  property;
 }
 class Base {}
 class A extends Base {
-  options
+  options;
 }
 function o(type) {}
 o(A);

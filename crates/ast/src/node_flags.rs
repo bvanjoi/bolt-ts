@@ -26,8 +26,7 @@ bitflags::bitflags! {
         const AMBIENT                                     = 1 << 25;
         const IN_WITH_STATEMENT                           = 1 << 26;
         const JSON_FILE                                   = 1 << 27;
-        const TYPE_CACHED                                 = 1 << 28;
-        const DEPRECATED                                  = 1 << 29;
+        const DEPRECATED                                  = 1 << 28;
 
         const AWAIT_USING                                 = Self::CONST.bits()
                                                             | Self::USING.bits();

@@ -111,8 +111,8 @@ impl ParserState<'_, '_> {
         Span::new(lo, self.full_start_pos as u32, self.module_id)
     }
 
-    fn scan_binary_or_octal_digits(&mut self, base: u8) -> Vec<u8> {
-        assert!(base == 2 || base == 8);
+    fn scan_binary_or_octal_digits<const BASE: u8>(&mut self) -> Vec<u8> {
+        debug_assert!(BASE == 2 || BASE == 8);
         let mut sep_allowed = false;
         let mut is_prev_token_sep = false;
         let mut v = Vec::with_capacity(16);
@@ -132,7 +132,7 @@ impl ParserState<'_, '_> {
                 continue;
             }
             sep_allowed = true;
-            if !ch.is_ascii_digit() || ch - b'0' >= base {
+            if !ch.is_ascii_digit() || ch - b'0' >= BASE {
                 break;
             }
             v.push(self.input[self.pos]);
@@ -853,7 +853,7 @@ impl ParserState<'_, '_> {
                         Span::new(start as u32, self.pos as u32, self.module_id),
                     )
                 }
-                b'`' => self.scan_template_and_set_token_value(false),
+                b'`' => self.scan_template_and_set_token_value::<false>(),
                 b'#' => {
                     let char_after_hash = self.next_ch();
                     if let Some(ch) = char_after_hash
@@ -898,7 +898,7 @@ impl ParserState<'_, '_> {
                     && self.next_ch().is_some_and(|c| matches!(c, b'B' | b'b')) =>
                 {
                     self.pos += 2;
-                    let v = self.scan_binary_or_octal_digits(8);
+                    let v = self.scan_binary_or_octal_digits::<2>();
                     if v.is_empty() {
                         todo!()
                     }
@@ -910,7 +910,7 @@ impl ParserState<'_, '_> {
                     && self.next_ch().is_some_and(|c| matches!(c, b'O' | b'o')) =>
                 {
                     self.pos += 2;
-                    let v = self.scan_binary_or_octal_digits(8);
+                    let v = self.scan_binary_or_octal_digits::<8>();
                     if v.is_empty() {
                         todo!()
                     }
@@ -999,13 +999,13 @@ impl ParserState<'_, '_> {
         }
     }
 
-    fn scan_template_and_set_token_value(
+    fn scan_template_and_set_token_value<const SHOULD_EMIT_INVALID_ESCAPE_ERROR: bool>(
         &mut self,
-        _should_emit_invalid_escape_error: bool,
     ) -> Token {
         let started_with_backtick = self.ch_unchecked() == b'`';
-        let start = self.pos;
+        let token_start = self.pos;
         self.pos += 1;
+        let mut start = self.pos;
         let mut contents = Vec::with_capacity(32);
         let kind = loop {
             if self.pos == self.end() {
@@ -1015,44 +1015,62 @@ impl ParserState<'_, '_> {
                 self.push_error(Box::new(error));
                 return Token::new(
                     TokenKind::EOF,
-                    Span::new(start as u32, start as u32, self.module_id),
+                    Span::new(token_start as u32, start as u32, self.module_id),
                 );
             }
             let ch = self.ch_unchecked();
-            if ch == b'`' {
-                self.pos += 1;
-                let s = unsafe { str::from_utf8_unchecked(&contents) };
-                let atom = self.atoms.lock().unwrap().atom(s);
-                self.token_value = Some(TokenValue::Ident { value: atom });
-                break if started_with_backtick {
-                    TokenKind::NoSubstitutionTemplate
-                } else {
-                    TokenKind::TemplateTail
-                };
-            } else if ch == b'$' && self.next_ch() == Some(b'{') {
-                // `${`
-                let s = unsafe { str::from_utf8_unchecked(&contents) };
-                let atom = self.atoms.lock().unwrap().atom(s);
-                self.token_value = Some(TokenValue::Ident { value: atom });
-                self.pos += 2;
-                break if started_with_backtick {
-                    TokenKind::TemplateHead
-                } else {
-                    TokenKind::TemplateMiddle
-                };
-            } else {
-                contents.push(ch);
-                self.pos += 1;
+            match ch {
+                b'`' => {
+                    self.pos += 1;
+                    let s = unsafe { str::from_utf8_unchecked(&contents) };
+                    let atom = self.atoms.lock().unwrap().atom(s);
+                    self.token_value = Some(TokenValue::Ident { value: atom });
+                    break if started_with_backtick {
+                        TokenKind::NoSubstitutionTemplate
+                    } else {
+                        TokenKind::TemplateTail
+                    };
+                }
+                b'$' if self.next_ch() == Some(b'{') => {
+                    let s = unsafe { str::from_utf8_unchecked(&contents) };
+                    let atom = self.atoms.lock().unwrap().atom(s);
+                    self.token_value = Some(TokenValue::Ident { value: atom });
+                    self.pos += 2;
+                    break if started_with_backtick {
+                        TokenKind::TemplateHead
+                    } else {
+                        TokenKind::TemplateMiddle
+                    };
+                }
+                b'\\' => {
+                    contents.extend(&self.input[start..self.pos]);
+                    let flags = EscapeSequenceScanningFlags::STRING.union(
+                        if SHOULD_EMIT_INVALID_ESCAPE_ERROR {
+                            EscapeSequenceScanningFlags::REPORT_ERRORS
+                        } else {
+                            EscapeSequenceScanningFlags::empty()
+                        },
+                    );
+                    contents.extend(self.scan_escape_sequence(flags));
+                    start = self.pos;
+                }
+                b'\r' => {
+                    todo!()
+                }
+                _ => {
+                    contents.push(ch);
+                    self.pos += 1;
+                }
             }
         };
         Token::new(
             kind,
-            Span::new(start as u32, self.pos as u32, self.module_id),
+            Span::new(token_start as u32, self.pos as u32, self.module_id),
         )
     }
 
     fn scan_escape_sequence(&mut self, flags: EscapeSequenceScanningFlags) -> Vec<u8> {
-        assert_eq!(self.ch_unchecked(), b'\\');
+        debug_assert_eq!(self.ch_unchecked(), b'\\');
         let start = self.pos;
         self.pos += 1;
         let end = self.end();
@@ -1073,16 +1091,53 @@ impl ParserState<'_, '_> {
             if self.pos < end && is_octal_digit(self.ch_unchecked()) {
                 self.pos += 1;
             }
-            self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+            self.token_flags |= TokenFlags::CONTAINS_INVALID_ESCAPE;
             if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
-                todo!()
+                let sub = &self.input[start + 1..self.pos];
+                let s = unsafe { str::from_utf8_unchecked(sub) };
+                let code = u8::from_str_radix(s, 8).unwrap();
+                let code = format!("{:x}", code);
+                let code = format!("{:0>2}", code);
+                let code = format!("\\x{}", code);
+                if flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                    && !flags.contains(EscapeSequenceScanningFlags::ATOM_ESCAPE)
+                    && ch != b'0'
+                {
+                    let error = errors::OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClassIfThisWasIntendedAsAnEscapeSequenceUseTheSyntaxXInstead {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        code,
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let error = errors::OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        code,
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
             return self.input[start..self.pos].to_vec();
         }
         if matches!(ch, b'8' | b'9') {
             self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
             if flags.intersects(EscapeSequenceScanningFlags::REPORT_INVALID_ESCAPE_ERRORS) {
-                todo!()
+                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                if flags.contains(EscapeSequenceScanningFlags::REGULAR_EXPRESSION)
+                    && !flags.contains(EscapeSequenceScanningFlags::ATOM_ESCAPE)
+                {
+                    let error = errors::DecimalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClass {
+                        span
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    let code = &self.input[start..self.pos];
+                    let code = unsafe { str::from_utf8_unchecked(code) };
+                    let error = errors::EscapeSequenceXIsNotAllowed {
+                        span,
+                        code: code.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
             return self.input[start..self.pos].to_vec();
         }
@@ -1153,14 +1208,20 @@ impl ParserState<'_, '_> {
             Ok(escape_value) => {
                 if escape_value > 0x10ffff {
                     if should_emit_invalid_escape_error {
-                        todo!()
+                        let error = errors::AnExtendedUnicodeEscapeValueMustBeBetween0x0And0x10FFFFInclusive {
+                            span: Span::new(start as u32, self.pos as u32, self.module_id),
+                        };
+                        self.push_error(Box::new(error));
                     }
                     is_invalid_extended_escape = true;
                 }
             }
             Err(_) => {
                 if should_emit_invalid_escape_error {
-                    todo!()
+                    let error = errors::HexadecimalDigitExpected {
+                        span: Span::new(start as u32, self.pos as u32, self.module_id),
+                    };
+                    self.push_error(Box::new(error));
                 }
                 is_invalid_extended_escape = true
             }
@@ -1359,9 +1420,13 @@ impl ParserState<'_, '_> {
         self.token.kind
     }
 
-    pub(super) fn re_scan_template_token(&mut self, is_tagged_template: bool) -> Token {
+    pub(super) fn re_scan_template_token<const IS_TAGGED_TEMPLATE: bool>(&mut self) -> Token {
         self.pos = self.token.start() as usize;
-        self.token = self.scan_template_and_set_token_value(!is_tagged_template);
+        self.token = if IS_TAGGED_TEMPLATE {
+            self.scan_template_and_set_token_value::<false>()
+        } else {
+            self.scan_template_and_set_token_value::<true>()
+        };
         self.token
     }
 

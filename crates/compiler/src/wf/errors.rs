@@ -3,9 +3,10 @@ use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::thiserror;
-use bolt_ts_errors::thiserror::Error;
 use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind} name cannot be '{name}'.")]
@@ -85,4 +86,32 @@ pub(super) struct EnumNameCannotBeX {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An implementation cannot be declared in ambient contexts.")]
+pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Initializer cannot be declared in ambient contexts.")]
+pub(super) struct InitializersAreNotAllowedInAmbientContexts {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("A parameter initializer is only allowed in a function or constructor implementation.")]
+pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter cannot have question mark and initializer.")]
+pub(super) struct ParameterCannotHaveQuestionMarkAndInitializer {
+    #[label(primary)]
+    pub span: Span,
 }

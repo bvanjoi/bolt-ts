@@ -4,7 +4,7 @@
    · ───
    ╰────
 
-  × Argument of type 'number' is not assignable to parameter of type 'c1'.
+  × Argument of type 'number' is not assignable to parameter of type 'm1.c1'.
    ╭─[../../tests/compiler/functionCall7/index.ts:9:5]
  9 │ 4
    · ─

@@ -1,5 +1,4 @@
 use super::TyChecker;
-use super::get_simplified_ty::SimplifiedKind;
 use super::ty;
 
 impl<'cx> TyChecker<'cx> {
@@ -43,7 +42,7 @@ impl<'cx> TyChecker<'cx> {
         if cond_ty.root.is_distributive
             && self.common_ty_links_arena[ty.links].get_restrictive_instantiation() != Some(ty)
         {
-            let simplified = self.get_simplified_ty(cond_ty.check_ty, SimplifiedKind::Reading);
+            let simplified = self.get_simplified_ty::<false>(cond_ty.check_ty);
             let constraint = if simplified == cond_ty.check_ty {
                 self.get_constraint_of_ty(simplified)
             } else {
@@ -82,6 +81,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty::<false>(
                 &[true_constraint, false_constraint],
                 ty::UnionReduction::Lit,
+                None,
                 None,
                 None,
                 None,

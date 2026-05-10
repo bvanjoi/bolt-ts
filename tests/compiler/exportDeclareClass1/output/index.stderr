@@ -1,0 +1,11 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/exportDeclareClass1/index.ts:8:16]
+ 8 │ tF
+   · ──
+   ╰────
+
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/exportDeclareClass1/index.ts:10:16]
+ 10 │ tsF
+    · ───
+    ╰────

@@ -110,7 +110,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             has_no_default_lib: false,
             variant,
             parsing_context: ParsingContext::default(),
-            parse_context: ParseContext::empty(),
+            parse_context: ParseContext::TOP_LEVEL,
             in_strict_mode: always_strict,
             labels: Default::default(),
         }
@@ -254,7 +254,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn ident_token(&self) -> Atom {
-        assert!(
+        debug_assert!(
             self.token.kind.is_ident_or_keyword()
                 || matches!(self.token.kind, TokenKind::BigInt | TokenKind::Regexp),
             "{:#?}",
@@ -472,6 +472,32 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         } else {
             f(self)
         }
+    }
+
+    pub(super) fn do_outside_of_node_flags<T>(
+        &mut self,
+        flags: NodeFlags,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let removed = self.node_context_flags.intersection(flags);
+        if !removed.is_empty() {
+            debug_assert!(self.node_context_flags.contains(removed));
+            self.node_context_flags.remove(removed);
+            let res = f(self);
+            debug_assert!(!self.node_context_flags.contains(removed));
+            self.node_context_flags.insert(removed);
+            res
+        } else {
+            f(self)
+        }
+    }
+
+    pub(super) fn do_in_await_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_inside_of_node_flags(NodeFlags::AWAIT_CONTEXT, f)
+    }
+
+    pub(super) fn do_outside_of_await_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.do_outside_of_node_flags(NodeFlags::AWAIT_CONTEXT, f)
     }
 
     pub(super) fn do_inside_of_parse_context<T>(

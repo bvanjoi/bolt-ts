@@ -1,0 +1,18 @@
+  × Cannot find name 'K'.
+   ╭─[../../tests/compiler/noMappedGetSet/index.ts:6:10]
+ 6 │ K
+   · ─
+   ╰────
+
+  × Cannot find name 'WAT'.
+   ╭─[../../tests/compiler/noMappedGetSet/index.ts:6:15]
+ 6 │ WAT
+   · ───
+   ╰────
+
+  × A computed property name must be of type 'string', 'number', 'symbol' or
+  │ 'any'.
+   ╭─[../../tests/compiler/noMappedGetSet/index.ts:6:10]
+ 6 │ K in WAT
+   · ────────
+   ╰────

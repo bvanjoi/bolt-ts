@@ -2,7 +2,6 @@ use bolt_ts_ast as ast;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
-
 use super::ty;
 use super::{TyChecker, errors};
 
@@ -12,7 +11,9 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty_params(ty_params);
         }
 
-        let symbol = self.get_symbol_of_decl(interface.id);
+        self.check_exports_on_merged_decls(interface.id);
+
+        let symbol = self.get_symbol_of_declaration(interface.id);
         self.check_ty_param_lists_identical(symbol);
 
         let first_interface_decl = self
@@ -24,7 +25,7 @@ impl<'cx> TyChecker<'cx> {
         if first_interface_decl == interface.id {
             let ty = self.get_declared_ty_of_symbol(symbol);
             self.resolve_structured_type_members(ty);
-            let ty_with_this = self.get_ty_with_this_arg(ty, None, false);
+            let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
             if self.check_inherited_props_are_identical(ty, interface.name) {
                 for base_ty in self.get_base_tys(ty) {
                     let target = {
@@ -33,21 +34,21 @@ impl<'cx> TyChecker<'cx> {
                         } else {
                             ty.kind.expect_object_interface().this_ty
                         };
-                        self.get_ty_with_this_arg(base_ty, this_ty, false)
+                        self.get_type_with_this_argument::<false>(base_ty, this_ty)
                     };
-                    let res = self.check_type_assignable_to(
+                    self.check_type_assignable_to(
                         ty_with_this,
                         target,
                         Some(first_interface_decl),
+                        Some(|this: &mut Self| {
+                            let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
+                                span: interface.name.span,
+                                base: this.print_ty(base_ty, None).to_string(),
+                                derived: this.print_ty(ty, None).to_string(),
+                            };
+                            this.push_error(Box::new(error));
+                        }),
                     );
-                    if !res {
-                        let error = errors::InterfaceDerivedIncorrectlyExtendsInterfaceBase {
-                            span: interface.name.span,
-                            base: base_ty.to_string(self),
-                            derived: ty.to_string(self),
-                        };
-                        self.push_error(Box::new(error));
-                    }
                 }
                 self.check_index_constraints(ty, false);
             }
@@ -71,6 +72,10 @@ impl<'cx> TyChecker<'cx> {
                     this.push_error(Box::new(error));
                 });
                 self.check_var_like_decl(n)
+            }
+            ast::ObjectTyMemberKind::Method(n) => {
+                // check_method_declaration
+                self.check_fn_like_decl(n);
             }
             _ => {
                 // TODO:
@@ -133,7 +138,7 @@ impl<'cx> TyChecker<'cx> {
         let mut ok = true;
         for base in base_tys {
             let props = {
-                let ty = self.get_ty_with_this_arg(base, i.this_ty, false);
+                let ty = self.get_type_with_this_argument::<false>(base, i.this_ty);
                 self.get_props_of_ty(ty)
             };
             for prop in props {
@@ -145,9 +150,9 @@ impl<'cx> TyChecker<'cx> {
                         ok = false;
                         let error = errors::InterfaceCannotSimultaneouslyExtendTypes1And2 {
                             span: ty_node.span,
-                            interface: ty.to_string(self),
-                            ty1: existing.1.to_string(self),
-                            ty2: base.to_string(self),
+                            interface: self.print_ty(ty, None).to_string(),
+                            ty1: self.print_ty(existing.1, None).to_string(),
+                            ty2: self.print_ty(base, None).to_string(),
                         };
                         self.push_error(Box::new(error));
                     }

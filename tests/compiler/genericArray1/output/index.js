@@ -1,0 +1,1 @@
+var lengths = ['a', 'b', 'c'].map((x) => (x.length));

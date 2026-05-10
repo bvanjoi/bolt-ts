@@ -1,0 +1,5 @@
+  × Type '"latest"' is not assignable to type '"1011831"'.
+    ╭─[../../tests/compiler/objectFreezeLiteralsDontWiden/index.ts:11:1]
+ 11 │ preferredRevision
+    · ─────────────────
+    ╰────

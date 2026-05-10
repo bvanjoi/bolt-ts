@@ -1,0 +1,6 @@
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+   ╭─[../../tests/compiler/defaultValueInFunctionOverload1/index.ts:6:14]
+ 6 │ x: string = ''
+   · ──────────────
+   ╰────

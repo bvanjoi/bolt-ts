@@ -52,6 +52,8 @@ with_option!(
     (no_implicit_this, bool),
     (no_implicit_returns, bool),
     (no_unchecked_indexed_access, bool),
+    (no_strict_generic_checks, bool),
+    (no_fallthrough_cases_in_switch, bool),
     (always_strict, bool),
     (exact_optional_property_types, bool),
     (allow_unused_labels, bool),
@@ -64,9 +66,11 @@ with_option!(
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
+    (es_module_interop, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
+    // (lib, RawLib),
     (custom_conditions, Vec<String>)
 );
 
@@ -108,6 +112,12 @@ impl RawCompilerOptions {
         }
         if self.exact_optional_property_types.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::EXACT_OPTIONAL_PROPERTY_TYPES);
+        }
+        if self.no_strict_generic_checks.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_STRICT_GENERIC_CHECKS);
+        }
+        if self.no_fallthrough_cases_in_switch.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_FALLTHROUGH_CASES_IN_SWITCH);
         }
         if self.strict_function_types.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
@@ -280,4 +290,41 @@ pub enum RawModule {
     NodeNext,
     #[serde(alias = "preserve")]
     Preserve,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum RawLib {
+    #[default]
+    #[serde(alias = "es5")]
+    ES5,
+    #[serde(alias = "es6")]
+    ES6,
+    #[serde(alias = "es7")]
+    ES7,
+    #[serde(alias = "es2015")]
+    ES2015,
+    #[serde(alias = "es2016")]
+    ES2016,
+    #[serde(alias = "es2017")]
+    ES2017,
+    #[serde(alias = "es2018")]
+    ES2018,
+    #[serde(alias = "es2019")]
+    ES2019,
+    #[serde(alias = "es2020")]
+    ES2020,
+    #[serde(alias = "es2021")]
+    ES2021,
+    #[serde(alias = "es2022")]
+    ES2022,
+    #[serde(alias = "es2023")]
+    ES2023,
+    #[serde(alias = "esnext")]
+    ESNext,
+    #[serde(alias = "dom")]
+    DOM,
+    #[serde(alias = "webworker")]
+    WebWorker,
+    #[serde(alias = "scripthost")]
+    ScriptHost,
 }

@@ -1,0 +1,11 @@
+  × A 'declare' modifier cannot be used with an import declaration.
+   ╭─[../../tests/compiler/declareModifierOnImport1/index.ts:4:1]
+ 4 │ declare
+   · ───────
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/declareModifierOnImport1/index.ts:4:20]
+ 4 │ b
+   · ─
+   ╰────

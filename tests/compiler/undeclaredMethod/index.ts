@@ -10,5 +10,5 @@ var c:M.C = new M.C();
 
 c.salt();	// cool
 c.saltbar();	// crash
-//~^ ERROR: Property 'saltbar' does not exist on type 'C'.
+//~^ ERROR: Property 'saltbar' does not exist on type 'M.C'.
 

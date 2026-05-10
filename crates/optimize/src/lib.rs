@@ -33,7 +33,8 @@ pub fn optimize_and_js_emit<'cx>(
             } else {
                 let mut ir = lowering(item, checker);
                 pipeline::reducer::ReduceGraph::new(&mut ir.nodes, &mut ir.graph_arena);
-                let files_output = emit::emit_js(&checker.atoms, &ir);
+                let origin = checker.module_arena.get_content(item);
+                let files_output = emit::emit_js(&checker.atoms, &ir, origin);
                 let ir_output = IrOutput { lowered: ir };
                 Some((item, (files_output, ir_output)))
             }

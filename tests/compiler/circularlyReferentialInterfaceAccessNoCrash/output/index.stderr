@@ -1,0 +1,17 @@
+  × Type arguments for 'Mx' circularly reference themselves.
+   ╭─[../../tests/compiler/circularlyReferentialInterfaceAccessNoCrash/index.ts:7:12]
+ 7 │ Mx<'list', Mxs['p1']>
+   · ─────────────────────
+   ╰────
+
+  × Tuple type arguments circularly reference themselves.
+    ╭─[../../tests/compiler/circularlyReferentialInterfaceAccessNoCrash/index.ts:15:16]
+ 15 │ ['list', ArrElem[number][0]]
+    · ────────────────────────────
+    ╰────
+
+  × Tuple type arguments circularly reference themselves.
+    ╭─[../../tests/compiler/circularlyReferentialInterfaceAccessNoCrash/index.ts:18:19]
+ 18 │ ['list', TupleElem[0][0]]
+    · ─────────────────────────
+    ╰────

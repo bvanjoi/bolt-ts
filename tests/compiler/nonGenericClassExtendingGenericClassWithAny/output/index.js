@@ -1,4 +1,4 @@
 class Foo {
-  t
+  t;
 }
 class Bar extends Foo {}

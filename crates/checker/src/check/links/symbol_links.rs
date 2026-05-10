@@ -38,4 +38,5 @@ links!(
     (members, &'cx SymbolTable),
     (resolved_exports, &'cx SymbolTable),
     (resolved_members, &'cx SymbolTable),
+    (is_exports_on_merged_declaration_checked, bool)
 );

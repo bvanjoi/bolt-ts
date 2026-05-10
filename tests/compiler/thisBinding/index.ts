@@ -9,7 +9,7 @@ z;
 public x=0;
 f(x:I) {
     x.e;  // e not found
-    //~^ ERROR: Property 'e' does not exist on type 'I'.
+    //~^ ERROR: Property 'e' does not exist on type 'M.I'.
     x.z;  // ok 
 }
   constructor() {

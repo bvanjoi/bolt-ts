@@ -1,0 +1,17 @@
+  × Property 'foo' does not exist on type 'string'.
+   ╭─[../../tests/compiler/contextualTypingWithFixedTypeParameters1/index.ts:8:22]
+ 8 │ foo
+   · ───
+   ╰────
+
+  × Property 'foo' does not exist on type '""'.
+    ╭─[../../tests/compiler/contextualTypingWithFixedTypeParameters1/index.ts:10:32]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type '""'.
+    ╭─[../../tests/compiler/contextualTypingWithFixedTypeParameters1/index.ts:10:38]
+ 10 │ 1
+    · ─
+    ╰────

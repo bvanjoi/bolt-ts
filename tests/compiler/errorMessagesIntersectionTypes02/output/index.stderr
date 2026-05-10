@@ -1,0 +1,6 @@
+  × Type '{ fooProp: "frizzlebizzle"; } & Bar' is not assignable to type
+  │ 'FooBar'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes02/index.ts:18:5]
+ 18 │ fooBar
+    · ──────
+    ╰────

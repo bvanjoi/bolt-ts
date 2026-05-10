@@ -1,0 +1,1 @@
+var leak = call(wrap((x) => (x)), 1);

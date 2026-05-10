@@ -1,0 +1,12 @@
+  × Class static side 'typeof C' incorrectly extends base class static side
+  │ 'null'.
+   ╭─[../../tests/compiler/classExtendsNull2/index.ts:9:7]
+ 9 │ C
+   · ─
+   ╰────
+
+  × A constructor cannot contain a 'super' call when its class extends 'null'.
+    ╭─[../../tests/compiler/classExtendsNull2/index.ts:12:5]
+ 12 │ super()
+    · ───────
+    ╰────

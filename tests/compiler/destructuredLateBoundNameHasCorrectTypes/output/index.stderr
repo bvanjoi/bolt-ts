@@ -1,0 +1,12 @@
+  × Object literal may only specify known properties, and 'prop' does not
+  │ exist in type '{ prop2: any; }'.
+    ╭─[../../tests/compiler/destructuredLateBoundNameHasCorrectTypes/index.ts:15:37]
+ 15 │ prop: "b"
+    · ─────────
+    ╰────
+
+  × Property '"prop2"' does not exist on type '{ prop: string; }'.
+    ╭─[../../tests/compiler/destructuredLateBoundNameHasCorrectTypes/index.ts:15:7]
+ 15 │ [notPresent]
+    · ────────────
+    ╰────

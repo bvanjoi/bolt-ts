@@ -1,0 +1,34 @@
+  × Property 'method1' in type 'B<B>' is not assignable to the same property
+  │ in base type 'A<B>'.
+    ╭─[../../tests/compiler/typePredicateInherit/index.ts:15:3]
+ 15 │ method1
+    · ───────
+    ╰────
+
+  × Property 'method2' in type 'B<B>' is not assignable to the same property
+  │ in base type 'A<B>'.
+    ╭─[../../tests/compiler/typePredicateInherit/index.ts:18:3]
+ 18 │ method2
+    · ───────
+    ╰────
+
+  × Property 'method3' in type 'B<B>' is not assignable to the same property
+  │ in base type 'A<B>'.
+    ╭─[../../tests/compiler/typePredicateInherit/index.ts:21:3]
+ 21 │ method3
+    · ───────
+    ╰────
+
+  × Property 'method1' in type 'D<D>' is not assignable to the same property
+  │ in base type 'C<D>'.
+    ╭─[../../tests/compiler/typePredicateInherit/index.ts:48:3]
+ 48 │ method1
+    · ───────
+    ╰────
+
+  × Property 'method3' in type 'D<D>' is not assignable to the same property
+  │ in base type 'C<D>'.
+    ╭─[../../tests/compiler/typePredicateInherit/index.ts:58:3]
+ 58 │ method3
+    · ───────
+    ╰────

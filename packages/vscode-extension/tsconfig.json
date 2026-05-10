@@ -5,6 +5,7 @@
 		"composite": true,
 		"strict": true,
 		"moduleResolution": "nodenext",
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"types": ["mocha"]
 	}
 }

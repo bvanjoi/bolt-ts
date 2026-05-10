@@ -1,0 +1,11 @@
+  × Type 'Foo' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/classFunctionMerging/index.ts:16:7]
+ 16 │ a0
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/classFunctionMerging/index.ts:18:7]
+ 18 │ b0
+    · ──
+    ╰────

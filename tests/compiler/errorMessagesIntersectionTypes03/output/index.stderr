@@ -1,0 +1,29 @@
+  × Type 'A & B' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes03/index.ts:22:5]
+ 22 │ t
+    · ─
+    ╰────
+
+  × Type 'A & B' is not assignable to type 'U'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes03/index.ts:23:5]
+ 23 │ u
+    · ─
+    ╰────
+
+  × Type 'A & B' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes03/index.ts:24:5]
+ 24 │ v
+    · ─
+    ╰────
+
+  × Type 'T & B' is not assignable to type 'U'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes03/index.ts:27:5]
+ 27 │ u
+    · ─
+    ╰────
+
+  × Type 'T & B' is not assignable to type 'V'.
+    ╭─[../../tests/compiler/errorMessagesIntersectionTypes03/index.ts:28:5]
+ 28 │ v
+    · ─
+    ╰────

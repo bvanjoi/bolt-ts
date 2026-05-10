@@ -1,0 +1,5 @@
+  × Declaration name conflicts with built-in global identifier 'globalThis'.
+   ╭─[../../tests/compiler/extendGlobalThis2/index.ts:6:11]
+ 6 │ globalThis
+   · ──────────
+   ╰────

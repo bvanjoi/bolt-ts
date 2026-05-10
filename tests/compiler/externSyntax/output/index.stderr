@@ -1,0 +1,5 @@
+  × An implementation cannot be declared in ambient contexts.
+    ╭─[../../tests/compiler/externSyntax/index.ts:13:16]
+ 13 │ g
+    · ─
+    ╰────

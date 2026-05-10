@@ -1,0 +1,5 @@
+  × Type 'MyObjA' has no properties in common with type 'ObjA'.
+    ╭─[../../tests/compiler/incorrectNumberOfTypeArgumentsDuringErrorReporting/index.ts:22:4]
+ 22 │ MyObjA
+    · ──────
+    ╰────

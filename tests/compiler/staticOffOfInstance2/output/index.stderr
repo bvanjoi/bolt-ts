@@ -1,11 +1,11 @@
-  × Property 'Foo' does not exist on type 'List'.
+  × Property 'Foo' does not exist on type 'List<T, List>'.
    ╭─[../../tests/compiler/staticOffOfInstance2/index.ts:5:12]
  5 │ Foo
    · ───
    ╰────
 
 Advice: 
-  ☞ Did you mean to access the static member 'List.Foo' instead?
+  ☞ Did you mean to access the static member 'List<T, List>.Foo' instead?
    ╭─[../../tests/compiler/staticOffOfInstance2/index.ts:5:12]
  5 │ Foo
    · ───

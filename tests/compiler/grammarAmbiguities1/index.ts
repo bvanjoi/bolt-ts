@@ -9,8 +9,12 @@ g<A, B>(7)
 f(g<A, B>(7));
 f(g < A, B > 7);
 //~^ ERROR: Expected 1 arguments, but got 2.
+//~| ERROR: Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+//~| ERROR: Operator '>' cannot be applied to types 'typeof B' and 'number'.
 f(g < A, B > +(7));
 //~^ ERROR: Expected 1 arguments, but got 2.
+//~| ERROR: Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+//~| ERROR: Operator '>' cannot be applied to types 'typeof B' and 'number'.
 
 
 g < A;

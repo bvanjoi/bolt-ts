@@ -1,0 +1,13 @@
+  × Property 'x' in type 'b<b>' is not assignable to the same property in base
+  │ type 'a<b>'.
+    ╭─[../../tests/compiler/inheritanceMemberFuncOverridingAccessor/index.ts:16:5]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Class 'a' defines instance member accessor 'x', but extended class 'b'
+  │ defines it as instance member function.
+    ╭─[../../tests/compiler/inheritanceMemberFuncOverridingAccessor/index.ts:16:5]
+ 16 │ x
+    · ─
+    ╰────

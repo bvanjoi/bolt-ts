@@ -13,16 +13,22 @@ impl TyChecker<'_> {
         }
     }
 
+    pub(crate) fn get_local_symbol_of_decl(&mut self, id: ast::NodeID) -> Option<SymbolID> {
+        debug_assert!(self.p.node(id).is_declaration());
+        let module = id.module();
+        debug_assert!(module != bolt_ts_span::ModuleID::TRANSIENT);
+        debug_assert!(module.as_usize() < self.binder.bind_results.len());
+        let result = unsafe { self.binder.bind_results.get_unchecked(module.as_usize()) };
+        result.local_symbols.get(&id.index_as_u32()).copied()
+    }
+
     #[inline]
-    pub(crate) fn get_symbol_of_decl(&self, id: ast::NodeID) -> SymbolID {
-        debug_assert!(
-            self.p.node(id).is_decl(),
-            "expected a decl node, but got {:#?}",
-            self.p.node(id)
-        );
+    pub(crate) fn get_symbol_of_declaration(&mut self, id: ast::NodeID) -> SymbolID {
+        debug_assert!(self.p.node(id).is_declaration());
+        debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
         let id = self.final_res(id);
         debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
-        // TODO: get_late_bound_symbol
+        let id = self.get_late_bound_symbol(id);
         self.get_merged_symbol(id)
     }
 
@@ -36,7 +42,7 @@ impl TyChecker<'_> {
         } else if let Some(p) = node.as_prop_access_expr() {
             let lhs_ty = self.get_ty_of_expr(p.expr);
             // TODO: is_private
-            self.get_prop_of_ty(lhs_ty, SymbolName::Atom(p.name.name))
+            self.get_prop_of_ty::<false, false>(lhs_ty, SymbolName::Atom(p.name.name))
         } else {
             None
         }
@@ -52,12 +58,12 @@ impl TyChecker<'_> {
         }
     }
 
-    pub fn get_symbol_at_location(&self, id: ast::NodeID) -> Option<SymbolID> {
+    pub fn get_symbol_at_location(&mut self, id: ast::NodeID) -> Option<SymbolID> {
         use bolt_ts_ast::Node::*;
         let nq = self.node_query(id.module());
         if nq.is_decl_name_or_import_prop_name(id) {
             let p = self.parent(id).unwrap();
-            let parent_symbol = self.get_symbol_of_decl(p);
+            let parent_symbol = self.get_symbol_of_declaration(p);
             return if self.p.is_import_or_export_spec(p) {
                 todo!()
             } else {

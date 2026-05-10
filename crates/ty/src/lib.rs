@@ -1,3 +1,5 @@
+use bolt_ts_ast as ast;
+
 mod check_flags;
 mod object_flags;
 mod type_facts;
@@ -15,4 +17,10 @@ bitflags::bitflags! {
         const NO_INDEX_SIGNATURES   = 1 << 1;
         const NO_REDUCIBLE_CHECK    = 1 << 2;
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Pattern<'cx> {
+    ObjectPattern(&'cx ast::ObjectPat<'cx>),
+    ArrayPattern(&'cx ast::ArrayPat<'cx>),
 }

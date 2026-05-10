@@ -1,4 +1,4 @@
-pub trait AccessorLike<'cx> {
+pub trait AccessorLike<'cx>: super::SignatureDeclaration<'cx> {
     fn body(&self) -> Option<&'cx crate::BlockStmt<'cx>>;
 }
 

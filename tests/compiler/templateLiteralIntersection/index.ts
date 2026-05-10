@@ -29,3 +29,12 @@ type MixE = E & {}
 type OriginE = `${MixE}`
 
 type OriginF = `${A}foo${A}`;
+
+function f() {
+    const b = {
+        c: 1
+    };
+    const d = a ? `\${${b.c++}}` : "";
+    let type = 2;
+    type = 1;
+}

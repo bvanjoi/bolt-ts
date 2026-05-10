@@ -1,0 +1,5 @@
+  × Expected 1 arguments, but got 0.
+   ╭─[../../tests/compiler/errorForwardReferenceForwadingConstructor/index.ts:6:18]
+ 6 │ derived
+   · ───────
+   ╰────

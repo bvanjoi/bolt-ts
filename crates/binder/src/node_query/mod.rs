@@ -10,14 +10,14 @@ pub struct NodeQuery<'cx, 'a> {
     parse_result: &'a bolt_ts_parser::ParseResultForGraph<'cx>,
 }
 
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum ModuleInstanceState {
     NonInstantiated = 0,
     Instantiated = 1,
     ConstEnumOnly = 2,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AssignmentKind {
     None,
     Definite,
@@ -133,6 +133,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn get_combined_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
+        // TODO: cache
         self.get_combined_flags(id, |p, id| p.get_effective_modifier_flags(id))
     }
 
@@ -244,9 +245,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             match n {
                 InterfaceDecl(_) | TypeAliasDecl(_) => ModuleInstanceState::NonInstantiated,
                 EnumDecl(e) if this.is_enum_const(e) => ModuleInstanceState::ConstEnumOnly,
-                ImportDecl(_) | ImportEqualsDecl(_)
-                    if !n.has_syntactic_modifier(ast::ModifierFlags::EXPORT) =>
-                {
+                ImportEqualsDecl(n) if n.export_modifier.is_none() => {
                     ModuleInstanceState::NonInstantiated
                 }
                 ExportDecl(n) => {
@@ -265,9 +264,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                                 return state;
                             }
                         }
-                        return state;
+                        state
+                    } else {
+                        ModuleInstanceState::Instantiated
                     }
-                    ModuleInstanceState::Instantiated
                 }
                 ModuleBlock(m) => {
                     let mut state = ModuleInstanceState::NonInstantiated;
@@ -339,7 +339,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
+    pub fn get_effective_modifier_flags(&self, id: ast::NodeID) -> ast::ModifierFlags {
         self.get_modifier_flags(id, true, false)
     }
 
@@ -355,8 +355,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_syntactic_modifier_flags_no_cache(&self, id: ast::NodeID) -> ast::ModifierFlags {
         let n = self.node(id);
-        let flags = n.modifiers().map_or(Default::default(), |m| m.flags);
+        let flags = n.modifier_flags().unwrap_or_default();
         let node_flags = self.node_flags(id);
+        // TODO: js
         if node_flags.contains(ast::NodeFlags::NESTED_NAMESPACE)
             || n.is_ident()
                 && node_flags.intersects(ast::NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
@@ -421,11 +422,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn find_ancestor(
         &self,
         mut id: ast::NodeID,
-        cb: impl Fn(ast::Node<'cx>) -> Option<bool>,
+        cb: impl Fn(ast::NodeID) -> Option<bool>,
     ) -> Option<ast::NodeID> {
         loop {
-            let node = self.node(id);
-            if let Some(res) = cb(node) {
+            if let Some(res) = cb(id) {
                 if res {
                     return Some(id);
                 } else {
@@ -442,7 +442,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_containing_class(&self, id: ast::NodeID) -> Option<ast::NodeID> {
         let p = self.parent(id)?;
-        self.find_ancestor(p, |n| n.is_class_like().then_some(true))
+        self.find_ancestor(p, |n| self.node(n).is_class_like().then_some(true))
     }
 
     pub fn is_part_of_ty_query(&self, mut n: ast::NodeID) -> bool {
@@ -550,7 +550,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             || self
                 .find_ancestor(id, |node| {
                     if matches!(
-                        node,
+                        self.node(node),
                         ast::Node::InterfaceDecl(_)
                             | ast::Node::TypeAliasDecl(_)
                             | ast::Node::ObjectLitTy(_)
@@ -564,7 +564,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_in_type_query(&self, id: ast::NodeID) -> bool {
-        self.find_ancestor(id, |node| match node {
+        self.find_ancestor(id, |node| match self.node(node) {
             ast::Node::TypeofTy(_) => Some(true),
             ast::Node::Ident(_) | ast::Node::QualifiedName(_) => None,
             _ => Some(false),
@@ -574,6 +574,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn is_assignment_target(&self, n: ast::NodeID) -> bool {
         self.get_assignment_target(n).is_some()
+    }
+
+    pub fn is_delete_target(&self, n: ast::NodeID) -> bool {
+        use ast::Node::*;
+        let node = self.node(n);
+        if !matches!(node, PropAccessExpr(_) | EleAccessExpr(_)) {
+            return false;
+        }
+        let n = self.walk_up_paren_expressions(n);
+        self.node(n).is_delete_expr()
     }
 
     pub fn get_assignment_target(&self, mut id: ast::NodeID) -> Option<ast::NodeID> {
@@ -598,7 +608,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     return Some(n.id);
                 }
                 // TODO: for_in and for_of
-                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = self.parent(p).unwrap(),
+                ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
                     id = self.parent(self.parent(p).unwrap()).unwrap();
                 }
@@ -614,9 +624,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return AssignmentKind::None;
         };
         match self.node(target) {
-            ast::Node::AssignExpr(_) => AssignmentKind::Definite,
-            ast::Node::BinExpr(_) => AssignmentKind::Definite,
-            _ => AssignmentKind::Definite,
+            ast::Node::PrefixUnaryExpr(_) | ast::Node::PostfixUnaryExpr(_) => {
+                AssignmentKind::Compound
+            }
+            ast::Node::AssignExpr(n) => {
+                if n.op == ast::AssignOp::Eq || n.op.is_logical_or_coalescing_assign_op() {
+                    AssignmentKind::Definite
+                } else {
+                    AssignmentKind::Compound
+                }
+            }
+            ast::Node::BinExpr(_) => AssignmentKind::Compound,
+            ast::Node::ForInStmt(_) | ast::Node::ForOfStmt(_) => AssignmentKind::Definite,
+            _ => unreachable!(),
         }
     }
 
@@ -747,7 +767,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
-    pub fn walk_up_paren_exprs(&self, mut n: ast::NodeID) -> ast::NodeID {
+    pub fn walk_up_paren_expressions(&self, mut n: ast::NodeID) -> ast::NodeID {
         loop {
             let node = self.node(n);
             if node.is_paren_expr()
@@ -780,7 +800,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_descendant_of(&self, node: ast::NodeID, ancestor: ast::NodeID) -> bool {
-        self.find_ancestor(node, |node| (node.id() == ancestor).then_some(true))
+        self.find_ancestor(node, |node| (node == ancestor).then_some(true))
             .is_some()
     }
 
@@ -803,26 +823,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         None
     }
 
-    pub fn is_resolved_by_ty_alias(&self, node: ast::NodeID) -> bool {
+    pub fn is_resolved_by_type_alias(&self, node: ast::NodeID) -> bool {
         let Some(p) = self.parent(node) else {
             return false;
         };
-        self.find_ancestor(p, |n| {
-            use bolt_ts_ast::Node::*;
-            match n {
-                TypeAliasDecl(_) => Some(true),
-                // TODO: ParenTy
-                ReferTy(_) | UnionTy(_) | IntersectionTy(_) | IndexedAccessTy(_) | CondTy(_)
-                | TyOp(_) | ArrayTy(_) | TupleTy(_) => None,
-                _ => Some(false),
+        use ast::Node::*;
+        match self.node(p) {
+            ParenTy(_) | NamedTupleTy(_) | ReferTy(_) | UnionTy(_) | IntersectionTy(_)
+            | IndexedAccessTy(_) | CondTy(_) | TyOp(_) | ArrayTy(_) | TupleTy(_) => {
+                self.is_resolved_by_type_alias(p)
             }
-        })
-        .is_some()
+            TypeAliasDecl(_) => true,
+            _ => false,
+        }
     }
 
     pub fn get_containing_fn(&self, id: ast::NodeID) -> Option<ast::NodeID> {
         let parent = self.parent(id)?;
-        self.find_ancestor(parent, |node| node.is_fn_decl_like().then_some(true))
+        self.find_ancestor(parent, |node| {
+            self.node(node).is_fn_decl_like().then_some(true)
+        })
     }
 
     pub fn get_declaration_container(&self, id: ast::NodeID) -> ast::NodeID {
@@ -830,7 +850,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let Some(n) = self.find_ancestor(root, |n| {
             // TODO: VariableDeclarationList | ImportSpecifier | NamedImports
             if matches!(
-                n,
+                self.node(n),
                 ast::Node::VarDecl(_) | ast::Node::ImportClause(_) | ast::Node::NsImport(_)
             ) {
                 None
@@ -848,7 +868,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             unreachable!()
         };
         self.find_ancestor(parent_id, |current| {
-            let flags = container_flags_for_node(self.parse_result, self.parent_map, current.id());
+            let flags = container_flags_for_node(self.parse_result, self.parent_map, current);
             flags.contains(ContainerFlags::IS_CONTAINER).then_some(true)
         })
     }
@@ -858,8 +878,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             unreachable!()
         };
         self.find_ancestor(parent_id, |current| {
-            let parent = self.parent(current.id()).map(|p| self.node(p));
-            if current.is_block_scope(parent.as_ref()) {
+            let parent = self.parent(current).map(|p| self.node(p));
+            if self.node(current).is_block_scope(parent.as_ref()) {
                 Some(true)
             } else {
                 None
@@ -905,14 +925,17 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         let Some(parent) = parent else {
             return false;
         };
-        self.find_ancestor(init, |n| {
-            let id = n.id();
+        self.find_ancestor(init, |id| {
             if id == parent {
-                Some(true)
-            } else if id == stop_at
-                || n.is_fn_like()
-                    && (self.get_immediately_invoked_fn_expr(id).is_none()
-                        || n.fn_flags().intersects(ast::FnFlags::ASYNC_GENERATOR))
+                return Some(true);
+            }
+            if id == stop_at {
+                return Some(false);
+            }
+            let node = self.node(id);
+            if node.is_fn_like()
+                && (self.get_immediately_invoked_fn_expr(id).is_none()
+                    || node.fn_flags().intersects(ast::FnFlags::ASYNC_GENERATOR))
             {
                 Some(false)
             } else {
@@ -925,6 +948,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_control_flow_container(&self, node: ast::NodeID) -> ast::NodeID {
         let parent = self.parent(node).unwrap();
         self.find_ancestor(parent, |n| {
+            let n = self.node(n);
             if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
                 || n.is_program()
                 || n.is_class_prop_elem()
@@ -1098,7 +1122,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         ignore_arrow_fn: bool,
     ) -> bool {
         use ast::Node::*;
-        self.find_ancestor(node, |n| match n {
+        self.find_ancestor(node, |n| match self.node(n) {
             ClassPropElem(_) | ClassStaticBlockDecl(_) => Some(true),
             TypeofExpr(_) | JsxClosingElem(_) => Some(false),
             ArrowFnExpr(_) => {
@@ -1302,9 +1326,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
         use ast::Node::*;
         match self.node(p) {
-            PropAccessExpr(n) => n.question_dot.is_some() || n.expr.id() == node,
-            EleAccessExpr(n) => n.question.is_some() || n.expr.id() == node,
-            CallExpr(n) => n.question.is_some() || n.expr.id() == node,
+            PropAccessExpr(p) => p.question_dot.is_some() || p.expr.id() != node,
+            EleAccessExpr(p) => p.question.is_some() || p.expr.id() != node,
+            CallExpr(p) => p.question.is_some() || p.expr.id() != node,
             NonNullExpr(_) => {
                 // TODO: question dot || n.expr.id() == node
                 false
@@ -1417,6 +1441,73 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         } else {
             false
+        }
+    }
+
+    pub fn is_top_level_in_external_module_augmentation(&self, node: ast::NodeID) -> bool {
+        let Some(p) = self.parent(node) else {
+            return false;
+        };
+        if !self.node(p).is_module_block() {
+            return false;
+        };
+        let Some(g) = self.parent(p) else {
+            return false;
+        };
+        self.is_external_module_augmentation(g)
+    }
+
+    pub fn is_same_scoped_binding_element(
+        &self,
+        node: &ast::Ident,
+        declaration: ast::NodeID,
+    ) -> bool {
+        debug_assert!(node.id.module() == declaration.module());
+        let d = self.node(declaration);
+        match d {
+            ast::Node::ArrayBinding(_) => (),
+            ast::Node::ObjectBindingElem(_) => (),
+            _ => return false,
+        };
+        let Some(binding_element) = self.find_ancestor(node.id, |id| match self.node(id) {
+            ast::Node::ArrayBinding(_) => Some(true),
+            ast::Node::ObjectBindingElem(_) => Some(true),
+            _ => None,
+        }) else {
+            return false;
+        };
+        self.get_root_decl(binding_element) == self.get_root_decl(declaration)
+    }
+
+    pub fn try_get_class_implementing_or_extending_expression_in_heritage(
+        &self,
+        node: ast::NodeID,
+    ) -> Option<ast::NodeID> {
+        let n = self.node(node);
+        match n {
+            ast::Node::ExprWithTyArgs(_) => {
+                let p = self.parent(node).unwrap();
+                if self.node(p).is_class_extends_clause() {
+                    let pp = self.parent(p).unwrap();
+                    debug_assert!(self.node(pp).is_class_like());
+                    Some(pp)
+                } else {
+                    None
+                }
+                // TODO: js
+            }
+            ast::Node::ReferTy(_) => {
+                let p = self.parent(node).unwrap();
+                if self.node(p).is_class_implements_clause() {
+                    let pp = self.parent(p).unwrap();
+                    debug_assert!(self.node(pp).is_class_like());
+                    Some(pp)
+                } else {
+                    None
+                }
+                // TODO: js
+            }
+            _ => None,
         }
     }
 }

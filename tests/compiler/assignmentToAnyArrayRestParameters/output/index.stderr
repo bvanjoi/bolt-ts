@@ -1,0 +1,11 @@
+  × Property '"0.0"' does not exist on type 'string[]'.
+    ╭─[../../tests/compiler/assignmentToAnyArrayRestParameters/index.ts:21:30]
+ 21 │ ]
+    · ─
+    ╰────
+
+  × Type '"0.0"' cannot be used to index type 'T'.
+    ╭─[../../tests/compiler/assignmentToAnyArrayRestParameters/index.ts:25:16]
+ 25 │ T["0.0"]
+    · ────────
+    ╰────

@@ -109,6 +109,7 @@ decl_nodes!(
     ident: Ident,
     private_ident: PrivateIdent,
     computed_prop_name: ComputedPropName,
+    qualified_name: QualifiedName,
 
     param_decl: ParamDecl,
     modifier: Modifier,
@@ -838,17 +839,11 @@ impl Nodes {
     }
 
     #[inline]
-    pub fn alloc_export_assign(
-        &mut self,
-        span: Span,
-        modifiers: Option<Modifiers>,
-        expr: Expr,
-    ) -> ExportAssignID {
+    pub fn alloc_export_assign(&mut self, span: Span, expr: Expr) -> ExportAssignID {
         let idx = ExportAssignID(usize_into_idx(self.export_assign_nodes.0.len()));
         let id = self.export_assign_nodes.0.alloc(ExportAssign {
             id: idx,
             span,
-            modifiers,
             expr,
         });
         debug_assert_eq!(id, idx.0);
@@ -969,13 +964,37 @@ impl Nodes {
         idx
     }
 
+    pub fn alloc_qualified_name(
+        &mut self,
+        span: Span,
+        left: EntityName,
+        right: IdentID,
+    ) -> QualifiedNameID {
+        let idx = QualifiedNameID(usize_into_idx(self.qualified_name_nodes.0.len()));
+        let id = self.qualified_name_nodes.0.alloc(QualifiedName {
+            id: idx,
+            span,
+            left,
+            right,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
     #[inline]
-    pub fn alloc_import_equals_decl(&mut self, span: Span) -> ImportEqualsDeclID {
+    pub fn alloc_import_equals_decl(
+        &mut self,
+        span: Span,
+        name: IdentID,
+        module_reference: ModuleReferenceKind,
+    ) -> ImportEqualsDeclID {
         let idx = ImportEqualsDeclID(usize_into_idx(self.import_equals_decl_nodes.0.len()));
-        let id = self
-            .import_equals_decl_nodes
-            .0
-            .alloc(ImportEqualsDecl { id: idx, span });
+        let id = self.import_equals_decl_nodes.0.alloc(ImportEqualsDecl {
+            id: idx,
+            span,
+            name,
+            module_reference,
+        });
         debug_assert_eq!(id, idx.0);
         idx
     }
@@ -3187,7 +3206,6 @@ pub enum ForInit {
 pub struct ExportAssign {
     id: ExportAssignID,
     span: Span,
-    modifiers: Option<Modifiers>,
     expr: Expr,
 }
 
@@ -3251,11 +3269,55 @@ impl ImportDecl {
 pub struct ImportEqualsDecl {
     id: ImportEqualsDeclID,
     span: Span,
+    name: IdentID,
+    module_reference: ModuleReferenceKind,
 }
 
 impl ImportEqualsDecl {
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
+    }
+
+    pub fn module_reference(&self) -> ModuleReferenceKind {
+        self.module_reference
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ModuleReferenceKind {
+    Require(StringLitID),
+    EntityName(EntityName),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EntityName {
+    Ident(IdentID),
+    QualifiedName(QualifiedNameID),
+}
+
+#[derive(Debug)]
+pub struct QualifiedName {
+    id: QualifiedNameID,
+    span: Span,
+    left: EntityName,
+    right: IdentID,
+}
+
+impl QualifiedName {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn left(&self) -> EntityName {
+        self.left
+    }
+
+    pub fn right(&self) -> IdentID {
+        self.right
     }
 }
 

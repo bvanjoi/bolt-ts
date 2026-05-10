@@ -1,11 +1,11 @@
 var x = true ? (a) => (a.toExponential()) : (b) => (b.toFixed());
 class A {
-  foo
+  foo;
 }
 class B extends A {
-  bar
+  bar;
 }
 class C extends A {
-  baz
+  baz;
 }
 var x2 = true ? (a) => (a.foo) : (b) => (b.foo);

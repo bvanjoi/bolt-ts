@@ -13,5 +13,7 @@ foo({
   d: `${"s"}`,
   cb: (x) => {
     x; // string
+    let a: number = x;
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
   },
 });

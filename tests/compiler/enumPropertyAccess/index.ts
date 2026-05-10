@@ -13,6 +13,6 @@ x.toFixed(); // ok
 // Now with generics
 function fill<B extends Colors>(f: B) {
     f.Green; // error
-    //~^ ERROR: Property 'Green' does not exist on type 'B'.
+    //~^ ERROR: Property 'Green' does not exist on type 'Colors.Red | Colors.Green'.
     f.toFixed(); // ok
 }

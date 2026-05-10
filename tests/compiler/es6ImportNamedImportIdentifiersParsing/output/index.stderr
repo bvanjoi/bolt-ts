@@ -1,0 +1,61 @@
+  × Cannot find module 'somemodule' or its corresponding type declarations.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:5:23]
+ 5 │ "somemodule"
+   · ────────────
+   ╰────
+
+  × Cannot find module 'somemodule' or its corresponding type declarations.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:7:25]
+ 7 │ "somemodule"
+   · ────────────
+   ╰────
+
+  × Cannot find module 'somemodule' or its corresponding type declarations.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:9:34]
+ 9 │ "somemodule"
+   · ────────────
+   ╰────
+
+  × Cannot find module 'somemodule' or its corresponding type declarations.
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:12:34]
+ 12 │ "somemodule"
+    · ────────────
+    ╰────
+
+  × Cannot find module 'somemodule' or its corresponding type declarations.
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:15:36]
+ 15 │ "somemodule"
+    · ────────────
+    ╰────
+
+  × Duplicate identifier 'default'.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:9:19]
+ 7 │ default } from "somemodule"; // Error - as this is keyword that is not allowed as identifier
+   · ───┬───
+   ·    ╰── Previous definition here
+ 8 │ //~^ ERROR: Cannot find module 'somemodule' or its corresponding type declarations.
+ 9 │ import { yield as default
+   ·                   ───────
+   ╰────
+
+  × Duplicate identifier 'yield'.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:5:10]
+ 5 │ yield
+   · ──┬──
+   ·   ╰── Previous definition here
+   ╰────
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:12:21]
+ 12 │ yield
+    · ─────
+    ╰────
+
+  × Duplicate identifier 'default'.
+   ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:7:10]
+ 7 │ default
+   · ───┬───
+   ·    ╰── Previous definition here
+   ╰────
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:15:21]
+ 15 │ default
+    · ───────
+    ╰────

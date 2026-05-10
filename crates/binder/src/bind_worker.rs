@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
@@ -84,12 +85,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let parent = self.parent_map.parent(ty_param.id).unwrap();
         // TODO: is_js_doc_template_tag
         let s = if let Some(infer_ty) = self.p.node(parent).as_infer_ty() {
-            assert!(ty_param.default.is_none());
+            debug_assert!(ty_param.default.is_none());
             let extends_ty = self.node_query().find_ancestor(infer_ty.id, |n| {
-                let n_id = n.id();
-                let p = self.parent_map.parent(n_id)?;
+                let p = self.parent_map.parent(n)?;
                 if let Some(cond) = self.p.node(p).as_cond_ty()
-                    && cond.extends_ty.id() == n_id
+                    && cond.extends_ty.id() == n
                 {
                     Some(true)
                 } else {
@@ -265,9 +265,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         match n.name.kind {
             Ident(ident) => {
                 let name = SymbolName::Atom(ident.name);
-                let symbol = self.declare_symbol_and_add_to_symbol_table(
+                let container = self.container.unwrap();
+                let symbol = self.declare_symbol_and_add_to_symbol_table_for_fn_like_container(
                     name,
                     n.id,
+                    container,
                     SymbolFlags::FUNCTION_SCOPED_VARIABLE,
                     SymbolFlags::PARAMETER_EXCLUDES,
                 );
@@ -407,6 +409,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.create_final_res(node, symbol);
             }
             ObjectPropAssignment(n) => {
+                debug_assert!(n.id == node);
                 let symbol = self.bind_prop_or_method_or_access::<false>(
                     node,
                     || prop_name(n.name),
@@ -880,11 +883,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_source_file_as_external_module(&mut self, node: &'cx ast::Program<'cx>) {
-        let s = self.bind_anonymous_decl(
-            node.id(),
-            SymbolFlags::VALUE_MODULE,
-            SymbolName::Atom(self.p.filepath),
-        );
+        let name = if cfg!(debug_assertions) {
+            SymbolName::Atom(keyword::IDENT_EMPTY)
+        } else {
+            SymbolName::Atom(self.p.filepath)
+        };
+        let s = self.bind_anonymous_decl(node.id(), SymbolFlags::VALUE_MODULE, name);
         assert_eq!(s, SymbolID::container(node.id().module()));
         self.create_final_res(node.id(), s);
     }
@@ -901,8 +905,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Ident(_) | This(_) | Super(_) => true,
             PropAccess(n) => self.is_narrowable_reference(n.expr),
             Paren(n) => self.is_narrowable_reference(n.expr),
-            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
             NonNull(n) => self.is_narrowable_reference(n.expr),
+            EleAccess(n) => self.ele_access_is_narrowable_reference(n),
             Bin(_) => {
                 // TODO: n.op.kind == Comma
                 false
@@ -912,17 +916,35 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    pub(super) fn is_narrowable_operand(&self, n: &'cx ast::Expr<'cx>) -> bool {
+        match n.kind {
+            ast::ExprKind::Paren(n) => self.is_narrowable_operand(n.expr),
+            ast::ExprKind::Assign(n) if n.op == ast::AssignOp::Eq => {
+                self.is_narrowable_operand(n.left)
+            }
+            ast::ExprKind::Bin(n) if n.op.kind == ast::BinOpKind::Comma => {
+                self.is_narrowable_operand(n.right)
+            }
+            _ => self.contains_narrowable_reference(n),
+        }
+    }
+
     pub(super) fn is_narrowable_expression(&self, expr: &'cx ast::Expr<'cx>) -> bool {
         use ast::ExprKind::*;
         match expr.kind {
-            Ident(_) | This(_) | Super(_) => true,
+            Ident(_) | This(_) => true,
             PropAccess(_) | EleAccess(_) => self.contains_narrowable_reference(expr),
+            Call(n) => self.has_narrowable_argument(n),
             Paren(n) => {
                 // TODO: return false if expr is js
                 self.is_narrowable_expression(n.expr)
             }
-            Call(n) => self.has_narrowable_argument(n),
-            // TODO: other case
+            NonNull(n) => self.is_narrowable_expression(n.expr),
+            Bin(n) => self.is_narrowable_expression(n.right),
+            PrefixUnary(n) if n.op == ast::PrefixUnaryOp::Excl => {
+                self.is_narrowable_expression(n.expr)
+            }
+            Typeof(n) => self.is_narrowable_expression(n.expr),
             _ => false,
         }
     }

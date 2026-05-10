@@ -1,0 +1,5 @@
+  × Type '0' is not assignable to type '1'.
+    ╭─[../../tests/compiler/conditionalAnyCheckTypePicksBothBranches/index.ts:13:1]
+ 13 │ y
+    · ─
+    ╰────

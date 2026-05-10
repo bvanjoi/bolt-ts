@@ -36,5 +36,6 @@ var d3 = ([...arguments]: any) => {}
 //~^ ERROR: Invalid use of 'arguments' in strict mode.
 var d4 = ([...{arguments}]) => {}
 //~^ ERROR: Invalid use of 'arguments' in strict mode.
+//~| ERROR: Property '"arguments"' does not exist on type 'any[]'.
 var d5 = ([arguments]) => {}
 //~^ ERROR: Invalid use of 'arguments' in strict mode.

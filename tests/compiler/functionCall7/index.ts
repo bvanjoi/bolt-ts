@@ -7,6 +7,6 @@ foo(myC);
 foo(myC, myC); 
 //~^ ERROR: Expected 1 arguments, but got 2.
 foo(4);
-//~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'c1'.
+//~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'm1.c1'.
 foo();
 //~^ ERROR: Expected 1 arguments, but got 0.

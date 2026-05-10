@@ -1,0 +1,35 @@
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:7:29]
+ 7 │ true
+   · ────
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+   ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:9:28]
+ 9 │ 0
+   · ─
+   ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:11:20]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:11:39]
+ 11 │ ""
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:11:53]
+ 11 │ 0
+    · ─
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/constDeclarations-ambient-errors/index.ts:18:24]
+ 18 │ 7
+    · ─
+    ╰────

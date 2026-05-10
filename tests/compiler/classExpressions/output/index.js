@@ -1,6 +1,6 @@
 var x = class B {
-  prop
+  prop;
   onStart() {}
-  func = () => {}
+  func = () => {};
 };
 (class {});

@@ -1,0 +1,11 @@
+  × Property 'c' does not exist on type 'Bar'.
+    ╭─[../../tests/compiler/omitTypeTestErrors01/index.ts:16:16]
+ 16 │ c
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'Baz'.
+    ╭─[../../tests/compiler/omitTypeTestErrors01/index.ts:20:16]
+ 20 │ b
+    · ─
+    ╰────

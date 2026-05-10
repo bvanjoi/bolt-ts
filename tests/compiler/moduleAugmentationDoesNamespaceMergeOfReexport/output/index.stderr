@@ -4,13 +4,13 @@
    · ──
    ╰────
 
-  × Property 'k' does not exist on type 'Foo'.
+  × Property 'k' does not exist on type 'Root.Foo'.
     ╭─[../../tests/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:29:8]
  29 │ k
     · ─
     ╰────
 
-  × Property 'k' does not exist on type 'Foo'.
+  × Property 'k' does not exist on type 'Root.Foo'.
     ╭─[../../tests/compiler/moduleAugmentationDoesNamespaceMergeOfReexport/index.ts:31:3]
  31 │ k
     · ─

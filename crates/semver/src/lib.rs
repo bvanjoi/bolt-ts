@@ -290,8 +290,6 @@ impl fmt::Display for Version {
     }
 }
 
-
-
 impl fmt::Display for Comparator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}{}", self.kind, self.version)

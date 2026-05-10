@@ -1,4 +1,5 @@
-  × Type 'string' is not assignable to type 'C2<T>'.
+  × Property 'x' in type 'C2<T, C2>' is not assignable to the same property in
+  │ base type 'C1<T, C2>'.
    ╭─[../../tests/compiler/instanceSubtypeCheck2/index.ts:8:5]
  8 │ x
    · ─

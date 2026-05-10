@@ -71,8 +71,8 @@
     ╰────
 
   × Invalid use of 'arguments' in strict mode.
-    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:39:12]
- 39 │ arguments
+    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:40:12]
+ 40 │ arguments
     · ─────────
     ╰────
 
@@ -89,3 +89,9 @@
  9 │ arguments
    · ─────────
    ╰────
+
+  × Property '"arguments"' does not exist on type 'any[]'.
+    ╭─[../../tests/compiler/collisionArgumentsArrowFunctions/index.ts:37:16]
+ 37 │ arguments
+    · ─────────
+    ╰────

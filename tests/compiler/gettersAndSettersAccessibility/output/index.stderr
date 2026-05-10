@@ -1,0 +1,8 @@
+  × Get accessor must be at least as accessible as the set accessor.
+   ╭─[../../tests/compiler/gettersAndSettersAccessibility/index.ts:6:14]
+ 6 │ Baz():number { return 0; } //~ERROR: Get accessor must be at least as accessible as the set accessor.
+   · ───
+ 7 │     public set Baz
+   ·                ─┬─
+   ·                 ╰── Setter declaration is defined here.
+   ╰────

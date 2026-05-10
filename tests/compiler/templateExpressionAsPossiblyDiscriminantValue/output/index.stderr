@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/templateExpressionAsPossiblyDiscriminantValue/index.ts:30:11]
+ 30 │ a
+    · ─
+    ╰────

@@ -1,0 +1,77 @@
+  × 'stringMap.foo' is possibly 'undefined'.
+   ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:7:1]
+ 7 │ stringMap.foo
+   · ─────────────
+   ╰────
+
+  × 'stringMap.foo' is possibly 'undefined'.
+   ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:9:3]
+ 9 │ stringMap.foo
+   · ─────────────
+   ╰────
+
+  × Operator '+=' cannot be applied to types 'undefined | number' and '1'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:11:1]
+ 11 │ stringMap.foo += 1
+    · ──────────────────
+    ╰────
+
+  × 'stringMap.foo' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:13:1]
+ 13 │ stringMap.foo
+    · ─────────────
+    ╰────
+
+  × 'stringMap[foo]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:15:3]
+ 15 │ stringMap['foo']
+    · ────────────────
+    ╰────
+
+  × 'stringMap[foo]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:17:1]
+ 17 │ stringMap['foo']
+    · ────────────────
+    ╰────
+
+  × 'stringMap[s]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:19:3]
+ 19 │ stringMap[s]
+    · ────────────
+    ╰────
+
+  × 'stringMap[s]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:21:1]
+ 21 │ stringMap[s]
+    · ────────────
+    ╰────
+
+  × 'numberMap[32]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:23:1]
+ 23 │ numberMap[32]
+    · ─────────────
+    ╰────
+
+  × Operator '+=' cannot be applied to types 'undefined | number' and '1'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:25:1]
+ 25 │ numberMap[32] += 1
+    · ──────────────────
+    ╰────
+
+  × 'numberMap[n]' is possibly 'undefined'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:27:1]
+ 27 │ numberMap[n]
+    · ────────────
+    ╰────
+
+  × Operator '+=' cannot be applied to types 'undefined | number' and '1'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:29:1]
+ 29 │ numberMap[n] += 1
+    · ─────────────────
+    ╰────
+
+  × Type 'undefined | number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/noUncheckedIndexedAccessCompoundAssignments/index.ts:37:7]
+ 37 │ a
+    · ─
+    ╰────

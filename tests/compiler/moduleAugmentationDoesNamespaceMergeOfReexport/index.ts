@@ -27,9 +27,9 @@ f.self.self.self;
 f.self.self.self;
 
 f.self.k;
-//~^ ERROR: Property 'k' does not exist on type 'Foo'.
+//~^ ERROR: Property 'k' does not exist on type 'Root.Foo'.
 f.k;
-//~^ ERROR: Property 'k' does not exist on type 'Foo'.
+//~^ ERROR: Property 'k' does not exist on type 'Root.Foo'.
 
 import * as file from './file';
 let a1: string = file.A;

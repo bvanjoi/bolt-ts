@@ -1,0 +1,6 @@
+  × Type '{ one: number; }' is not assignable to type '{ [index: string]:
+  │ Foo }'.
+   ╭─[../../tests/compiler/numericIndexerConstraint2/index.ts:8:1]
+ 8 │ x
+   · ─
+   ╰────

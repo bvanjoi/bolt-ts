@@ -1,0 +1,17 @@
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/duplicateErrorAssignability/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Type 'B' cannot be used as an index type.
+    ╭─[../../tests/compiler/duplicateErrorAssignability/index.ts:19:5]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/duplicateErrorAssignability/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Type 'Employee' is not assignable to type 'symbol | number | string'.
+    ╭─[../../tests/compiler/objectGroupBy/index.ts:13:49]
+ 13 │ x
+    · ─
+    ╰────

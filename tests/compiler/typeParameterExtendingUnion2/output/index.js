@@ -2,10 +2,10 @@ class Animal {
   run() {}
 }
 class Cat extends Animal {
-  meow
+  meow;
 }
 class Dog extends Animal {
-  woof
+  woof;
 }
 function run(a) {
   a.run();

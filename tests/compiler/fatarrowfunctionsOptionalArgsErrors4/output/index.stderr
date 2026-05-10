@@ -1,0 +1,47 @@
+  × Cannot find name 'foo'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:13:5]
+ 13 │ foo
+    · ───
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:6:14]
+ 6 │ arg
+   · ───
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:7:15]
+ 7 │ arg
+   · ───
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:8:21]
+ 8 │ arg
+   · ───
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:9:7]
+ 9 │ arg
+   · ───
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:9:39]
+ 9 │ arg
+   · ───
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:24:10]
+ 24 │ a
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors4/index.ts:27:13]
+ 27 │ b
+    · ─
+    ╰────

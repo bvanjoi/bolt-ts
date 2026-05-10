@@ -1,0 +1,5 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/intraBindingPatternReferences/index.ts:24:71]
+ 24 │ x
+    · ─
+    ╰────

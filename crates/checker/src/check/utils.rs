@@ -64,6 +64,7 @@ impl<'cx> TyChecker<'cx> {
                         .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
                 None,
                 None,
+                None,
                 new_origin,
             )
         } else if ty.flags.contains(ty::TypeFlags::NEVER) || f(self, ty) {
@@ -203,7 +204,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     ty::UnionReduction::Lit
                 };
-                Some(self.get_union_ty::<false>(&mapped_tys, reduction, None, None, None))
+                Some(self.get_union_ty::<false>(&mapped_tys, reduction, None, None, None, None))
             } else {
                 None
             }
@@ -257,6 +258,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.get_union_ty::<false>(
                 &tys,
                 ty::UnionReduction::Lit,
+                None,
                 alias_symbol,
                 alias_ty_arguments,
                 None,
@@ -281,8 +283,19 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn has_ty_param_default(&self, ty_param: &'cx ty::ParamTy<'cx>) -> bool {
-        self.ty_param_nodes(ty_param).iter().any(|decl| {
-            let ty_param_node = self.p.node(*decl).expect_ty_param();
+        let Some(decls) = self.ty_param_nodes(ty_param) else {
+            return false;
+        };
+        decls.iter().any(|decl| {
+            let Some(ty_param_node) = self.p.node(*decl).as_ty_param() else {
+                // The declaration maybe not only type parameter, it also could be a parameter, for example:
+                // ```
+                // function foo<A>(A: number) {}
+                //              |  ~ decl
+                //              ~ decl
+                // ```
+                return false;
+            };
             ty_param_node.default.is_some()
         })
     }

@@ -1,0 +1,6 @@
+  × An export assignment cannot be used in a module with other exported
+  │ elements.
+   ╭─[../../tests/compiler/exportAssignmentWithExports/index.ts:8:1]
+ 8 │ export = D;
+   · ───────────
+   ╰────

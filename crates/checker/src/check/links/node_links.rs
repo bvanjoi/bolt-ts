@@ -1,7 +1,7 @@
+use super::super::get_declared_ty::EnumMemberValue;
+use super::super::ty;
+use super::NodeCheckFlags;
 use super::links;
-use crate::check::NodeCheckFlags;
-use crate::check::get_declared_ty::EnumMemberValue;
-use crate::ty;
 
 links!(
     NodeLinks,
@@ -17,6 +17,7 @@ links!(
     (assertion_expression_ty, &'cx ty::Ty<'cx>),
     (context_free_ty, &'cx ty::Ty<'cx>),
     (is_exhaustive, bool),
+    (type_checked, bool),
     (switch_tys, ty::Tys<'cx>)
 );
 

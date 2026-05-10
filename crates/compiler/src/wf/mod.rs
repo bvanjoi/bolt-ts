@@ -27,7 +27,7 @@ pub fn well_formed_check_parallel(
                 compiler_options,
                 &resolve_results[m.id().as_usize()],
             );
-            assert!(!m.is_default_lib() || diags.is_empty());
+            debug_assert!(!m.is_default_lib() || diags.is_empty());
             diags
         })
         .collect::<Vec<_>>()
@@ -75,7 +75,7 @@ impl<'cx> CheckState<'cx> {
         self.diags.push(bolt_ts_errors::Diag { inner: error })
     }
 
-    fn check_collisions_for_decl_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
+    fn check_collisions_for_declaration_name(&mut self, node: ast::NodeID, name: &'cx ast::Ident) {
         let n = self.p.node(node);
         let kind = if n.is_class_like() {
             Some(DeclKind::Class)
@@ -96,9 +96,9 @@ impl<'cx> CheckState<'cx> {
         }
     }
 
-    fn check_class_like(&mut self, class: &impl bolt_ts_ast::r#trait::ClassLike<'cx>) {
+    fn check_class_like(&mut self, class: &impl ast::r#trait::ClassLike<'cx>) {
         if let Some(name) = class.name() {
-            self.check_collisions_for_decl_name(class.id(), name);
+            self.check_collisions_for_declaration_name(class.id(), name);
         };
     }
 
@@ -108,13 +108,11 @@ impl<'cx> CheckState<'cx> {
             return;
         };
         for modifier in modifiers.list {
-            use bolt_ts_ast::ModifierKind::*;
+            use ast::ModifierKind::*;
             if modifier.kind() == Abstract {
                 let parent = self.parent(node).unwrap();
                 let parent_node = self.p.node(parent);
-                if !(parent_node.is_class_decl()
-                    && parent_node.has_syntactic_modifier(ast::ModifierFlags::ABSTRACT))
-                {
+                if !(parent_node.is_class_decl() && parent_node.has_abstract_modifier()) {
                     let error = if n.is_class_prop_elem() {
                         todo!()
                     } else {
@@ -193,13 +191,13 @@ impl<'cx> CheckState<'cx> {
 
     fn check_stmt_in_ambient(&mut self, node: ast::NodeID) -> bool {
         let flags = self.p.node_flags(node);
-        if flags.intersects(ast::NodeFlags::AMBIENT) {
+        if flags.contains(ast::NodeFlags::AMBIENT) {
             let parent = self.parent(node).unwrap();
             let parent_node = self.p.node(parent);
-            if parent_node.is_block_stmt()
-                || parent_node.is_module_block()
-                || parent_node.is_program()
-            {
+            if matches!(
+                parent_node,
+                ast::Node::ModuleBlock(_) | ast::Node::Program(_) | ast::Node::BlockStmt(_)
+            ) {
                 let error = errors::XAreNotAllowedInAmbientContexts {
                     span: self.p.node(node).span(),
                     kind: errors::AmbientContextKind::Statements,
@@ -211,11 +209,33 @@ impl<'cx> CheckState<'cx> {
         false
     }
 
-    fn check_ambient_initializer(&mut self, node: &impl crate::r#trait::VarLike<'cx>) {
+    fn check_implement_in_ambient(&mut self, node: ast::NodeID) {
+        let body = match self.p.node(node) {
+            ast::Node::GetterDecl(n) => n.body,
+            ast::Node::SetterDecl(n) => n.body,
+            ast::Node::ClassMethodElem(n) => n.body,
+            _ => unreachable!(),
+        };
+        let node_flags = self.p.node_flags(node);
+        if node_flags.contains(ast::NodeFlags::AMBIENT) && body.is_some() {
+            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts {
+                span: self.p.node(node).name().unwrap().span(),
+            };
+            self.push_error(Box::new(error));
+        }
+    }
+
+    fn check_ambient_initializer(&mut self, node: &impl bolt_ts_checker::r#trait::VarLike<'cx>) {
         let Some(init) = node.init() else {
             return;
         };
-        if node.decl_ty().is_none() && node.is_var_const(&self.node_query()) {
+        let node_flags = self.p.node_flags(node.id());
+        if !node_flags.contains(ast::NodeFlags::AMBIENT) {
+            return;
+        }
+        if node.is_declaration_readonly(&self.node_query())
+            || node.decl_ty().is_none() && node.is_var_const(&self.node_query())
+        {
             let is_invalid_init = !(
                 init.is_string_or_number_lit_like()
             // TODO: simple literal enum reference
@@ -246,24 +266,26 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
     }
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
         self.check_grammar_modifiers(node.id);
+        self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_method_elem(self, node);
     }
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) {
-        self.check_collisions_for_decl_name(node.id, node.name);
+        self.check_collisions_for_declaration_name(node.id, node.name);
         bolt_ts_ast_visitor::visit_interface_decl(self, node);
     }
-    fn visit_object_lit(&mut self, node: &'cx bolt_ts_ast::ObjectLit<'cx>) {
+    fn visit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) {
         self.check_grammar_object_lit_expr(node);
         bolt_ts_ast_visitor::visit_object_lit(self, node);
     }
-    fn visit_try_stmt(&mut self, node: &'cx bolt_ts_ast::TryStmt<'cx>) {
+    fn visit_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
         self.check_grammar_try_stmt(node);
         bolt_ts_ast_visitor::visit_try_stmt(self, node);
     }
-    fn visit_arrow_fn_expr(&mut self, node: &'cx bolt_ts_ast::ArrowFnExpr<'cx>) {
+    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) {
         self.check_sig_decl(node);
+        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node);
     }
-    fn visit_type_alias_decl(&mut self, node: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {
+    fn visit_type_alias_decl(&mut self, node: &'cx ast::TypeAliasDecl<'cx>) {
         self.check_type_name_is_reserved(node.name, |this| {
             let error = errors::TypeAliasNameCannotBeX {
                 span: node.name.span,
@@ -273,16 +295,20 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         });
         bolt_ts_ast_visitor::visit_type_alias_decl(self, node);
     }
-    fn visit_while_stmt(&mut self, node: &'cx bolt_ts_ast::WhileStmt<'cx>) {
+    fn visit_empty_stmt(&mut self, node: &'cx ast::EmptyStmt) {
+        self.check_stmt_in_ambient(node.id);
+    }
+    fn visit_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
         self.check_stmt_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_while_stmt(self, node);
     }
-    fn visit_var_decl(&mut self, node: &'cx bolt_ts_ast::VarDecl<'cx>) {
-        let node_flags = self.p.node_flags(node.id);
-        if node_flags.intersects(ast::NodeFlags::AMBIENT) {
-            self.check_ambient_initializer(node);
-        }
+    fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) {
+        self.check_ambient_initializer(node);
         bolt_ts_ast_visitor::visit_var_decl(self, node);
+    }
+    fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) {
+        self.check_ambient_initializer(node);
+        bolt_ts_ast_visitor::visit_class_prop_elem(self, node);
     }
     fn visit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) {
         if let ast::StmtKind::Empty(s) = node.then.kind {
@@ -291,7 +317,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         }
         bolt_ts_ast_visitor::visit_if_stmt(self, node);
     }
-    fn visit_enum_decl(&mut self, node: &'cx bolt_ts_ast::EnumDecl<'cx>) {
+    fn visit_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) {
         self.check_type_name_is_reserved(node.name, |this| {
             let error = errors::EnumNameCannotBeX {
                 span: node.name.span,
@@ -300,5 +326,33 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
             this.push_error(Box::new(error));
         });
         bolt_ts_ast_visitor::visit_enum_decl(self, node);
+    }
+    fn visit_getter_decl(&mut self, node: &'cx ast::GetterDecl<'cx>) {
+        self.check_implement_in_ambient(node.id);
+        bolt_ts_ast_visitor::visit_getter_decl(self, node);
+    }
+    fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) {
+        self.check_implement_in_ambient(node.id);
+        bolt_ts_ast_visitor::visit_setter_decl(self, node);
+    }
+    fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {
+        if node.init.is_some() {
+            if node.question.is_some() {
+                let error = errors::ParameterCannotHaveQuestionMarkAndInitializer {
+                    span: node.name.span,
+                };
+                self.push_error(Box::new(error));
+            }
+
+            if let Some(f) = self.node_query().get_containing_fn(node.id)
+                && self.p.node(f).fn_body().is_none()
+            {
+                let error =
+                errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+                    span: node.span,
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 }

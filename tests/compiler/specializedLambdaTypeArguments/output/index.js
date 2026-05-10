@@ -1,4 +1,4 @@
 class X {
-  prop
+  prop;
 }
 var a;

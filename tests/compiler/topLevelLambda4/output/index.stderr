@@ -1,4 +1,4 @@
-  × 'this' is possibly undefined.
+  × 'this' is possibly 'undefined'.
    ╭─[../../tests/compiler/topLevelLambda4/index.ts:7:22]
  7 │ this
    · ────

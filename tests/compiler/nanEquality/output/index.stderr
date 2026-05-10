@@ -1,0 +1,101 @@
+  × This condition will always return 'false'.
+   ╭─[../../tests/compiler/nanEquality/index.ts:7:5]
+ 7 │ x === NaN
+   · ─────────
+   ╰────
+
+  × This condition will always return 'false'.
+   ╭─[../../tests/compiler/nanEquality/index.ts:9:5]
+ 9 │ NaN === x
+   · ─────────
+   ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:12:5]
+ 12 │ x == NaN
+    · ────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:14:5]
+ 14 │ NaN == x
+    · ────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:17:5]
+ 17 │ x !== NaN
+    · ─────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:19:5]
+ 19 │ NaN !== x
+    · ─────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:22:5]
+ 22 │ x != NaN
+    · ────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:24:5]
+ 24 │ NaN != x
+    · ────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:27:5]
+ 27 │ x === ((NaN))
+    · ─────────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:29:5]
+ 29 │ ((NaN)) === x
+    · ─────────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:32:5]
+ 32 │ x !== ((NaN))
+    · ─────────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:34:5]
+ 34 │ ((NaN)) !== x
+    · ─────────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:37:5]
+ 37 │ NaN === NaN
+    · ───────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:39:5]
+ 39 │ NaN !== NaN
+    · ───────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:42:5]
+ 42 │ NaN == NaN
+    · ──────────
+    ╰────
+
+  × This condition will always return 'true'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:44:5]
+ 44 │ NaN != NaN
+    · ──────────
+    ╰────
+
+  × This condition will always return 'false'.
+    ╭─[../../tests/compiler/nanEquality/index.ts:49:5]
+ 49 │ NaN === y[0][1]
+    · ───────────────
+    ╰────

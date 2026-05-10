@@ -62,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
                     .unwrap();
                 use bolt_ts_ast::DeclarationName;
                 let key_ty = match name {
-                    DeclarationName::Computed(n) => self.check_computed_prop_name(n),
+                    DeclarationName::Computed(n) => self.check_computed_property_name(n),
                     // TODO: element_ty
                     _ => unreachable!(),
                 };
@@ -89,7 +89,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         unreachable!()
                     }
-                    let decl_s = self.get_symbol_of_decl(decl);
+                    let decl_s = self.get_symbol_of_declaration(decl);
                     computed_property_symbols.push(decl_s);
                 }
             } else {
@@ -171,7 +171,14 @@ impl<'cx> TyChecker<'cx> {
         let union_ty = if prop_tys.is_empty() {
             self.undefined_ty
         } else {
-            self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Subtype, None, None, None)
+            self.get_union_ty::<false>(
+                &prop_tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            )
         };
         self.alloc(ty::IndexInfo {
             key_ty,
@@ -221,8 +228,8 @@ impl<'cx> TyChecker<'cx> {
         };
         self.p.node(first_decl).name().is_some_and(|name| {
             if let ast::DeclarationName::Computed(n) = name {
-                let ty = self.check_computed_prop_name(n);
-                if self.is_type_assignable_to_kind(ty, TypeFlags::ES_SYMBOL, false) {
+                let ty = self.check_computed_property_name(n);
+                if self.is_type_assignable_to_kind::<false>(ty, TypeFlags::ES_SYMBOL) {
                     return true;
                 }
             }

@@ -1,0 +1,5 @@
+  × Cannot find name 'Uhhhh'.
+    ╭─[../../tests/compiler/unknownTypeArgOnCall/index.ts:12:17]
+ 12 │ Uhhhh
+    · ─────
+    ╰────

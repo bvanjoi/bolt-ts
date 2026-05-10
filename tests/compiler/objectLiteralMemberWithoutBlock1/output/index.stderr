@@ -1,0 +1,16 @@
+  × Expected '{'.
+   ╭─[../../tests/compiler/objectLiteralMemberWithoutBlock1/index.ts:5:16]
+ 5 │ ;
+   · ─
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/objectLiteralMemberWithoutBlock1/index.ts:7:25]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/objectLiteralMemberWithoutBlock1/index.ts:5:9]
+ 5 │ {
+   · ─
+   ╰────

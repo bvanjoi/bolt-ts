@@ -1,0 +1,6 @@
+  × Type 'ObservableArray<T, ObservableArray>' is missing the following
+  │ properties from type 'T[]': length, pop, and 26 more.
+   ╭─[../../tests/compiler/genericArrayExtenstions/index.ts:5:22]
+ 5 │ ObservableArray
+   · ───────────────
+   ╰────

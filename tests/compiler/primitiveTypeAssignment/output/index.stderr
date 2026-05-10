@@ -1,0 +1,17 @@
+  × Cannot find name 'any'.
+   ╭─[../../tests/compiler/primitiveTypeAssignment/index.ts:5:9]
+ 5 │ any
+   · ───
+   ╰────
+
+  × Cannot find name 'number'.
+   ╭─[../../tests/compiler/primitiveTypeAssignment/index.ts:8:9]
+ 8 │ number
+   · ──────
+   ╰────
+
+  × Cannot find name 'boolean'.
+    ╭─[../../tests/compiler/primitiveTypeAssignment/index.ts:11:9]
+ 11 │ boolean
+    · ───────
+    ╰────

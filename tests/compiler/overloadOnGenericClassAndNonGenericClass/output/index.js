@@ -1,20 +1,20 @@
 class A {
-  a
+  a;
 }
 class B {
-  b
+  b;
 }
 class C {
-  c
+  c;
 }
 class X {
-  x
+  x;
 }
 class X1 {
-  x
+  x;
 }
 class X2 {
-  x
+  x;
 }
 function f(a) {}
 var xs;

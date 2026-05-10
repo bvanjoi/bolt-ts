@@ -5,7 +5,7 @@ var Foo = {};
   Foo.key = key
   
 })(Foo);
-class C {
-  [Foo.key]
+export class C {
+  [Foo.key];
   constructor() {this[Foo.key] = 'hello';}
 }
