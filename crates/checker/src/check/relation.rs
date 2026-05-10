@@ -120,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_enum_ty_related_to(
+    fn is_enum_type_related_to(
         &mut self,
         source: SymbolID,
         target: SymbolID,
@@ -273,15 +273,45 @@ impl<'cx> TyChecker<'cx> {
         if let Some(source_e) = source.kind.as_enum()
             && let Some(target_e) = target.kind.as_enum()
             && self.symbol(source_e.symbol).name == self.symbol(target_e.symbol).name
-            && self.is_enum_ty_related_to(source_e.symbol, target_e.symbol, false)
+            && self.is_enum_type_related_to(source_e.symbol, target_e.symbol, false)
         // TODO: report_error
         {
             return true;
         }
 
         if s.contains(TypeFlags::ENUM_LITERAL) && t.contains(TypeFlags::ENUM_LITERAL) {
-            // TODO: union
-            // TODO: literal
+            debug_assert!(!s.intersects(TypeFlags::BIG_INT.union(TypeFlags::BOOLEAN)));
+            debug_assert!(!t.intersects(TypeFlags::BIG_INT.union(TypeFlags::BOOLEAN)));
+
+            if let Some(s_u) = source.kind.as_union()
+                && let Some(t_u) = target.kind.as_union()
+                && let s_symbol = s_u.enum_symbol.unwrap()
+                && let t_symbol = t_u.enum_symbol.unwrap()
+                && self.is_enum_type_related_to(s_symbol, t_symbol, false)
+            // TODO: report_error
+            {
+                return true;
+            }
+
+            if let Some(source_s) = source.kind.as_string_lit()
+                && let Some(target_s) = target.kind.as_string_lit()
+                && source_s.val == target_s.val
+                && let source_symbol = source.symbol().unwrap()
+                && let target_symbol = target.symbol().unwrap()
+                && self.is_enum_type_related_to(source_symbol, target_symbol, false)
+            {
+                // TODO: report_error
+                return true;
+            } else if let Some(source_n) = source.kind.as_number_lit()
+                && let Some(target_n) = target.kind.as_number_lit()
+                && source_n.val == target_n.val
+                && let source_symbol = source.symbol().unwrap()
+                && let target_symbol = target.symbol().unwrap()
+                && self.is_enum_type_related_to(source_symbol, target_symbol, false)
+            {
+                // TODO: report_error
+                return true;
+            }
         }
 
         if (s.intersects(TypeFlags::NUMBER_LIKE) && t.contains(TypeFlags::NUMBER))
@@ -1094,7 +1124,14 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             let ty = if is_union {
-                self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &prop_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             } else {
                 self.get_intersection_ty(&prop_tys, IntersectionFlags::None, None, None)
             };

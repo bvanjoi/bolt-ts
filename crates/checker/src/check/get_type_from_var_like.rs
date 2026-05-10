@@ -41,6 +41,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
                 None,
+                None,
             )
         }
     }
@@ -221,8 +222,14 @@ impl<'cx> TyChecker<'cx> {
                 self.get_non_undefined_ty(element_ty),
                 self.check_declaration_initializer(binding, CheckMode::empty(), None),
             ];
-            let ty =
-                self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+            let ty = self.get_union_ty::<false>(
+                &tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            );
             self.widen_ty_inferred_from_initializer(binding, ty)
         }
     }
@@ -333,8 +340,14 @@ impl<'cx> TyChecker<'cx> {
                 self.get_non_undefined_ty(element_ty),
                 self.check_declaration_initializer(binding, CheckMode::empty(), None),
             ];
-            let ty =
-                self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+            let ty = self.get_union_ty::<false>(
+                &tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            );
             self.widen_ty_inferred_from_initializer(binding, ty)
         }
     }
@@ -382,7 +395,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|prop| self.get_literal_ty_from_prop_name(prop))
                 .collect::<Vec<_>>();
-            self.get_union_ty::<false>(&props, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(&props, ty::UnionReduction::Lit, None, None, None, None)
         };
 
         let mut spreadable_props = vec![];
@@ -417,8 +430,14 @@ impl<'cx> TyChecker<'cx> {
                 let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
                 tys.push(omit_key_ty);
                 tys.extend(unsparedable_to_rest_keys);
-                omit_key_ty =
-                    self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+                omit_key_ty = self.get_union_ty::<false>(
+                    &tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
             }
 
             if omit_key_ty.flags.contains(ty::TypeFlags::NEVER) {

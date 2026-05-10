@@ -319,6 +319,7 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                     None,
+                    None,
                 );
                 non_object_literals.push(lits);
                 non_object_literals.into()
@@ -379,6 +380,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty::<false>(
                 base_candidates,
                 ty::UnionReduction::Subtype,
+                None,
                 None,
                 None,
                 None,
@@ -1579,16 +1581,26 @@ impl<'cx> InferenceState<'cx, '_> {
             if targets.is_empty() {
                 return;
             }
-            target =
-                self.c
-                    .get_union_ty::<false>(targets, ty::UnionReduction::Lit, None, None, None);
+            target = self.c.get_union_ty::<false>(
+                targets,
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            );
             if sources.is_empty() {
                 self.infer_with_priority(source, target, InferencePriority::NAKED_TYPE_VARIABLE);
                 return;
             }
-            source =
-                self.c
-                    .get_union_ty::<false>(&sources, ty::UnionReduction::Lit, None, None, None);
+            source = self.c.get_union_ty::<false>(
+                &sources,
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            );
         } else if let Some(i) = target.kind.as_intersection()
             && !i.tys.iter().all(|t| self.c.is_non_generic_object_ty(t))
         {
@@ -1893,6 +1905,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     let source = self.c.get_union_ty::<false>(
                         &unmatched,
                         ty::UnionReduction::Lit,
+                        None,
                         None,
                         None,
                         None,
@@ -2237,7 +2250,7 @@ impl<'cx> InferenceState<'cx, '_> {
             let tys = prop_tys.into_iter().chain(index_tys).collect::<Vec<_>>();
             let source =
                 self.c
-                    .get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+                    .get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None);
             let target = self.c.get_template_ty_from_mapped_ty(target_mapped_ty);
             self.infer_from_tys(source, target);
             true
@@ -2523,6 +2536,7 @@ impl<'cx> InferenceState<'cx, '_> {
                     let u = self.c.get_union_ty::<false>(
                         &props_tys,
                         ty::UnionReduction::Lit,
+                        None,
                         None,
                         None,
                         None,

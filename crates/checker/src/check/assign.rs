@@ -154,11 +154,11 @@ impl<'cx> TyChecker<'cx> {
             None
         };
         if elements.is_empty() || (elements.len() == 1 && rest_elements.is_some()) {
-            if *self.config.compiler_options().target() >= bolt_ts_config::Target::ES2015 {
-                todo!()
+            return if *self.config.compiler_options().target() >= bolt_ts_config::Target::ES2015 {
+                self.create_iterable_ty(self.any_ty)
             } else {
-                return self.any_array_ty();
-            }
+                self.any_array_ty()
+            };
         }
 
         let element_types = elements

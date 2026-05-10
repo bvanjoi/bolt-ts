@@ -417,7 +417,7 @@ impl<'cx> TyChecker<'cx> {
             }
         });
         let ty = if let Some(element_tys) = element_tys {
-            self.get_union_ty::<false>(element_tys, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(element_tys, ty::UnionReduction::Lit, None, None, None, None)
         } else {
             self.never_ty
         };
@@ -1881,6 +1881,7 @@ impl<'cx> TyChecker<'cx> {
                         None,
                         None,
                         None,
+                        None,
                     )
                 } else {
                     self.get_intersection_ty(
@@ -2017,6 +2018,7 @@ impl<'cx> TyChecker<'cx> {
                                 None,
                                 None,
                                 None,
+                                None,
                             )
                         };
                         this.get_mut_symbol_links(*existing_prop)
@@ -2027,6 +2029,7 @@ impl<'cx> TyChecker<'cx> {
                             this.get_union_ty::<false>(
                                 &[old, key_ty],
                                 ty::UnionReduction::Lit,
+                                None,
                                 None,
                                 None,
                                 None,

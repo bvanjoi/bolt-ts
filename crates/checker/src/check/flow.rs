@@ -365,7 +365,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO:
         }
         let discriminant_ty =
-            self.get_union_ty::<false>(clause_tys, ty::UnionReduction::Lit, None, None, None);
+            self.get_union_ty::<false>(clause_tys, ty::UnionReduction::Lit, None, None, None, None);
         let case_ty = if discriminant_ty.flags.contains(TypeFlags::NEVER) {
             self.never_ty
         } else {
@@ -399,6 +399,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_union_ty::<false>(
                     &[case_ty, default_ty],
                     ty::UnionReduction::Lit,
+                    None,
                     None,
                     None,
                     None,
@@ -658,7 +659,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: let tys = self
             //     .same_map_tys(tys, |this, ty, _| this.finalize_evolving_array_ty(ty))
             //     .unwrap();
-            let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None);
+            let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None, None);
             self.recombine_unknown_ty(ty)
         };
         if result != declared_ty
@@ -1594,6 +1595,7 @@ impl<'cx> TyChecker<'cx> {
                             None,
                             None,
                             None,
+                            None,
                         )
                     }
                 }
@@ -1704,7 +1706,14 @@ impl<'cx> TyChecker<'cx> {
                             })
                             .collect::<Vec<_>>();
                         let tys = this.alloc(tys);
-                        this.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None)
+                        this.get_union_ty::<false>(
+                            tys,
+                            ty::UnionReduction::Lit,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
                     })
                 },
                 false,
@@ -1734,6 +1743,7 @@ impl<'cx> TyChecker<'cx> {
                     self.get_union_ty::<false>(
                         &[left_ty, right_ty],
                         ty::UnionReduction::Lit,
+                        None,
                         None,
                         None,
                         None,

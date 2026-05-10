@@ -1,0 +1,5 @@
+  × 'x' is possibly 'undefined' or 'null'.
+    ╭─[../../tests/compiler/forInStrictNullChecksNoError/index.ts:10:5]
+ 10 │ x
+    · ─
+    ╰────

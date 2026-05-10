@@ -68,7 +68,7 @@ impl<'cx> TyChecker<'cx> {
             .map(|sig| self.get_return_type_of_signature(*sig))
             .collect::<Vec<_>>();
         let target_return =
-            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None);
         if !self.check_type_related_to(
             source_return,
             target_return,

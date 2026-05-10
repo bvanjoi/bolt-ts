@@ -124,7 +124,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_discriminant_with_never_ty(&mut self, symbol: SymbolID) -> bool {
-        self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
+        !self.symbol(symbol).flags.contains(SymbolFlags::OPTIONAL)
             && self
                 .get_check_flags(symbol)
                 .intersection(CheckFlags::DISCRIMINANT.union(CheckFlags::HAS_NEVER_TYPE))

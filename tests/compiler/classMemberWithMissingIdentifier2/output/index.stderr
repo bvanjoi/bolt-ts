@@ -1,0 +1,47 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:12]
+ 7 │ {
+   · ─
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:12]
+ 7 │ {
+   · ─
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:12]
+ 7 │ {
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:18]
+ 7 │ :
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:26]
+ 7 │ :
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:15:1]
+ 15 │ }
+    · ─
+    ╰────
+
+  × Cannot find name 'string'.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:19]
+ 7 │ string
+   · ──────
+   ╰────
+
+  × Cannot find name 'VariableDeclaration'.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:27]
+ 7 │ VariableDeclaration
+   · ───────────────────
+   ╰────

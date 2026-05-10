@@ -226,6 +226,7 @@ impl<'cx> TyChecker<'cx> {
                         None,
                         None,
                         None,
+                        None,
                     ))
                 });
         }
@@ -940,7 +941,14 @@ impl<'cx> TyChecker<'cx> {
                 .filter(|(i, _)| include[*i] != Ternary::FALSE)
                 .map(|(_, t)| *t)
                 .collect();
-            self.get_union_ty::<false>(&filtered_tys, ty::UnionReduction::None, None, None, None)
+            self.get_union_ty::<false>(
+                &filtered_tys,
+                ty::UnionReduction::None,
+                None,
+                None,
+                None,
+                None,
+            )
         } else {
             target
         };
@@ -1143,6 +1151,7 @@ impl<'cx> TyChecker<'cx> {
                                 None,
                                 None,
                                 None,
+                                None,
                             );
                             let is_rest_params = either_has_effective_rest
                                 && !needs_extra_rest_element
@@ -1225,6 +1234,7 @@ impl<'cx> TyChecker<'cx> {
                                 let this_ty = self.get_union_ty::<false>(
                                     &[left_this_ty, right_this_ty],
                                     ty::UnionReduction::Lit,
+                                    None,
                                     None,
                                     None,
                                     None,

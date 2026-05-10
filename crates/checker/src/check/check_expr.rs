@@ -317,7 +317,14 @@ impl<'cx> TyChecker<'cx> {
                     let left_ty = self.remove_definitely_falsy_tys(left_ty);
                     let left_ty = self.get_non_nullable_ty(left_ty);
                     let tys = &[left_ty, right_ty];
-                    self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None)
+                    self.get_union_ty::<false>(
+                        tys,
+                        ty::UnionReduction::Subtype,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
                 } else {
                     left_ty
                 }
@@ -424,7 +431,14 @@ impl<'cx> TyChecker<'cx> {
                 if self.has_type_facts(left_ty, TypeFacts::EQ_UNDEFINED_OR_NULL) {
                     let a = self.get_non_nullable_ty(left_ty);
                     let tys = &[a, right_ty];
-                    self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None)
+                    self.get_union_ty::<false>(
+                        tys,
+                        ty::UnionReduction::Subtype,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
                 } else {
                     left_ty
                 }
@@ -1463,7 +1477,14 @@ impl<'cx> TyChecker<'cx> {
         );
         let ty1 = self.check_expression(cond.when_true, check_mode);
         let ty2 = self.check_expression(cond.when_false, check_mode);
-        self.get_union_ty::<false>(&[ty1, ty2], ty::UnionReduction::Subtype, None, None, None)
+        self.get_union_ty::<false>(
+            &[ty1, ty2],
+            ty::UnionReduction::Subtype,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     fn check_object_literal(

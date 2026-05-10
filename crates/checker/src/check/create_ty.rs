@@ -3,7 +3,7 @@ use std::ops::Not;
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
-use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
 use super::SymbolLinks;
@@ -565,6 +565,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         reduction: UnionReduction,
+        enum_symbol: Option<SymbolID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
         origin: Option<&'cx ty::Ty<'cx>>,
@@ -652,6 +653,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty_from_sorted_list::<IS_ENUM>(
             set,
             pre_computed_object_flags,
+            enum_symbol,
             alias_symbol,
             alias_ty_arguments,
             origin,
@@ -662,10 +664,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: &[&'cx ty::Ty<'cx>],
         reduction: UnionReduction,
+        enum_symbol: Option<SymbolID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
         origin: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(enum_symbol.is_none() || IS_ENUM);
         if tys.is_empty() {
             self.never_ty
         } else if tys.len() == 1 {
@@ -681,6 +685,7 @@ impl<'cx> TyChecker<'cx> {
             let ty = self.get_union_ty_worker::<IS_ENUM>(
                 tys,
                 reduction,
+                enum_symbol,
                 alias_symbol,
                 alias_ty_arguments,
                 origin,
@@ -692,6 +697,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty_worker::<IS_ENUM>(
                 tys,
                 reduction,
+                enum_symbol,
                 alias_symbol,
                 alias_ty_arguments,
                 origin,
@@ -703,6 +709,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         tys: Vec<&'cx ty::Ty<'cx>>,
         pre_computed_object_flags: ObjectFlags,
+        enum_symbol: Option<SymbolID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
         origin: Option<&'cx ty::Ty<'cx>>,
@@ -739,6 +746,7 @@ impl<'cx> TyChecker<'cx> {
             object_flags,
             fresh_ty_links,
             union_ty_links,
+            enum_symbol,
             alias_symbol,
             alias_ty_arguments,
             promise_or_awaitable_links,
@@ -873,7 +881,7 @@ impl<'cx> TyChecker<'cx> {
                 let tys = (min_length..=arity)
                     .map(|i| this.get_number_literal_type_from_number(i as f64))
                     .collect::<Vec<_>>();
-                this.get_union_ty::<false>(&tys, UnionReduction::Lit, None, None, None)
+                this.get_union_ty::<false>(&tys, UnionReduction::Lit, None, None, None, None)
             };
             let length_symbol = this.create_transient_symbol(
                 length_symbol_name,
@@ -1057,6 +1065,7 @@ impl<'cx> TyChecker<'cx> {
         tys[index] = self.get_union_ty_from_sorted_list::<false>(
             result,
             ObjectFlags::PRIMITIVE_UNION,
+            None,
             None,
             None,
             None,
@@ -1297,6 +1306,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_union_ty::<false>(
                     &[i, contained_undefined_ty],
                     UnionReduction::Lit,
+                    None,
                     alias_symbol,
                     alias_ty_arguments,
                     None,
@@ -1313,6 +1323,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_union_ty::<false>(
                     &tys,
                     UnionReduction::Lit,
+                    None,
                     alias_symbol,
                     alias_ty_arguments,
                     None,
@@ -1343,6 +1354,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_union_ty::<false>(
                     &constituents,
                     ty::UnionReduction::Lit,
+                    None,
                     alias_symbol,
                     alias_ty_arguments,
                     origin,
@@ -1392,6 +1404,7 @@ impl<'cx> TyChecker<'cx> {
                 fresh_ty_links,
                 union_ty_links,
                 promise_or_awaitable_links,
+                enum_symbol: None,
                 alias_symbol: None,
                 alias_ty_arguments: None,
             });
@@ -1823,6 +1836,7 @@ impl<'cx> TyChecker<'cx> {
                                     None,
                                     None,
                                     None,
+                                    None,
                                 )
                             }
                         };
@@ -2040,12 +2054,12 @@ impl<'cx> TyChecker<'cx> {
     fn create_ty_from_generic_global_ty(
         &mut self,
         generic_global_ty: &'cx ty::Ty<'cx>,
-        ty_arguments: ty::Tys<'cx>,
+        type_arguments: ty::Tys<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if generic_global_ty != self.empty_object_ty() {
             self.create_type_reference(
                 generic_global_ty,
-                Some(ty_arguments),
+                Some(type_arguments),
                 ObjectFlags::empty(),
                 None,
             )
@@ -2106,5 +2120,12 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.unknown_ty
         }
+    }
+
+    pub(super) fn create_iterable_ty(&mut self, iterated_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        let global_iterable_ty = self.get_global_iterable_ty::<true>();
+        let type_arguments: ty::Tys<'cx> =
+            self.alloc([iterated_ty, self.void_ty, self.undefined_ty]);
+        self.create_ty_from_generic_global_ty(global_iterable_ty, type_arguments)
     }
 }

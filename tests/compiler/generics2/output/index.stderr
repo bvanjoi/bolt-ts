@@ -1,0 +1,17 @@
+  × Type 'A' does not satisfy the constraint 'B'.
+    ╭─[../../tests/compiler/generics2/index.ts:21:14]
+ 21 │ A
+    · ─
+    ╰────
+
+  × Generic type 'G<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/generics2/index.ts:25:9]
+ 25 │ G<any>
+    · ──────
+    ╰────
+
+  × Generic type 'G<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/generics2/index.ts:27:9]
+ 27 │ G
+    · ─
+    ╰────

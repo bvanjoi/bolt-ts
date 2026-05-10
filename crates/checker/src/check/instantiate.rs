@@ -32,7 +32,7 @@ impl<'cx> TyChecker<'cx> {
                     .iter()
                     .map(|t| self.instantiate_instantiable_tys(t, mapper))
                     .collect::<Vec<_>>();
-                self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None)
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None, None)
             }
             ty::TyKind::Intersection(i) => {
                 let tys = i
@@ -389,6 +389,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_union_ty::<false>(
                 new_tys,
                 ty::UnionReduction::Lit,
+                None,
                 new_alias_symbol,
                 new_alias_ty_arguments,
                 None,

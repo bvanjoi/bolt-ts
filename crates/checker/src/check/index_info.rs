@@ -171,7 +171,14 @@ impl<'cx> TyChecker<'cx> {
         let union_ty = if prop_tys.is_empty() {
             self.undefined_ty
         } else {
-            self.get_union_ty::<false>(&prop_tys, ty::UnionReduction::Subtype, None, None, None)
+            self.get_union_ty::<false>(
+                &prop_tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            )
         };
         self.alloc(ty::IndexInfo {
             key_ty,

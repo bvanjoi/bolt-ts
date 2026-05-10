@@ -466,6 +466,7 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                     None,
+                    None,
                 )
             } else {
                 self.unknown_ty
@@ -526,6 +527,7 @@ impl<'cx> TyChecker<'cx> {
         let return_ty = self.get_union_ty::<false>(
             return_tys.as_ref().unwrap(),
             ty::UnionReduction::Lit,
+            None,
             None,
             None,
             None,
@@ -1036,10 +1038,24 @@ impl<'cx> TyChecker<'cx> {
         }
         if yield_tys.is_some() || return_tys.is_some() || next_tys.is_some() {
             let yield_ty = yield_tys.map_or(self.never_ty, |yield_tys| {
-                self.get_union_ty::<false>(&yield_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &yield_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             });
             let return_ty = return_tys.map_or(self.never_ty, |return_tys| {
-                self.get_union_ty::<false>(&return_tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(
+                    &return_tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             });
             let next_ty = next_tys.map_or(self.never_ty, |next_tys| {
                 self.get_intersection_ty(

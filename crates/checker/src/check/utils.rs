@@ -64,6 +64,7 @@ impl<'cx> TyChecker<'cx> {
                         .union(ty::ObjectFlags::CONTAINS_INTERSECTIONS)),
                 None,
                 None,
+                None,
                 new_origin,
             )
         } else if ty.flags.contains(ty::TypeFlags::NEVER) || f(self, ty) {
@@ -203,7 +204,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     ty::UnionReduction::Lit
                 };
-                Some(self.get_union_ty::<false>(&mapped_tys, reduction, None, None, None))
+                Some(self.get_union_ty::<false>(&mapped_tys, reduction, None, None, None, None))
             } else {
                 None
             }
@@ -257,6 +258,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.get_union_ty::<false>(
                 &tys,
                 ty::UnionReduction::Lit,
+                None,
                 alias_symbol,
                 alias_ty_arguments,
                 None,

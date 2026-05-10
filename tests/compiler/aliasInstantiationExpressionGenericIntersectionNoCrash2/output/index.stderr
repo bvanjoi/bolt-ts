@@ -1,0 +1,7 @@
+  × Conversion of type 'Wat' to type 'Wat' may be a mistake because neither
+  │ type sufficiently overlaps with the other. If this was intentional,
+  │ convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/aliasInstantiationExpressionGenericIntersectionNoCrash2/index.ts:20:1]
+ 20 │ wat as Wat<string>
+    · ──────────────────
+    ╰────

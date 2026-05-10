@@ -1,0 +1,5 @@
+  × Type 'A' does not satisfy the constraint 'B'.
+    ╭─[../../tests/compiler/generics5/index.ts:14:14]
+ 14 │ A
+    · ─
+    ╰────

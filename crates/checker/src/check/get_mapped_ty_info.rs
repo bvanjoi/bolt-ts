@@ -56,12 +56,19 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let result = if index_flags.contains(IndexFlags::NO_INDEX_SIGNATURES) {
-            let t = self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None);
+            let t = self.get_union_ty::<false>(
+                &key_tys,
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            );
             self.filter_type(t, |_, t| {
-                !t.flags.intersects(TypeFlags::ANY | TypeFlags::STRING)
+                !t.flags.intersects(TypeFlags::ANY.union(TypeFlags::STRING))
             })
         } else {
-            self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(&key_tys, ty::UnionReduction::Lit, None, None, None, None)
         };
 
         if let Some(result) = result.kind.as_union()

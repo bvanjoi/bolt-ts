@@ -701,18 +701,9 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == TokenKind::This {
             let name = self.parse_binding_with_ident(None);
             let ty = self.parse_ty_anno()?;
-            let id = self.next_node_id();
-            let decl = self.alloc(ast::ParamDecl {
-                id,
-                span: self.new_span(start),
-                modifiers,
-                dotdotdot: None,
-                name,
-                question: None,
-                ty,
-                init: None,
-            });
-            self.nodes.insert(id, ast::Node::ParamDecl(decl));
+            let span = self.new_span(start);
+            let decl =
+                self.create_parameter_declaration(span, modifiers, None, name, None, ty, None);
             return Ok(decl);
         }
 
@@ -753,18 +744,9 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::ParamDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            dotdotdot,
-            name,
-            question,
-            ty,
-            init,
-        });
-        self.nodes.insert(id, ast::Node::ParamDecl(decl));
+        let span = self.new_span(start);
+        let decl =
+            self.create_parameter_declaration(span, modifiers, dotdotdot, name, question, ty, init);
         Ok(decl)
     }
 

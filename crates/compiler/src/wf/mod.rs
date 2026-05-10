@@ -283,6 +283,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
     }
     fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) {
         self.check_sig_decl(node);
+        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node);
     }
     fn visit_type_alias_decl(&mut self, node: &'cx ast::TypeAliasDecl<'cx>) {
         self.check_type_name_is_reserved(node.name, |this| {
@@ -335,15 +336,23 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         bolt_ts_ast_visitor::visit_setter_decl(self, node);
     }
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {
-        if node.init.is_some()
-            && let Some(f) = self.node_query().get_containing_fn(node.id)
-            && self.p.node(f).fn_body().is_none()
-        {
-            let error =
+        if node.init.is_some() {
+            if node.question.is_some() {
+                let error = errors::ParameterCannotHaveQuestionMarkAndInitializer {
+                    span: node.name.span,
+                };
+                self.push_error(Box::new(error));
+            }
+
+            if let Some(f) = self.node_query().get_containing_fn(node.id)
+                && self.p.node(f).fn_body().is_none()
+            {
+                let error =
                 errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
                     span: node.span,
                 };
-            self.push_error(Box::new(error));
+                self.push_error(Box::new(error));
+            }
         }
     }
 }

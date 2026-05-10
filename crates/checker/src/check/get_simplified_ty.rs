@@ -87,8 +87,9 @@ impl<'cx> TyChecker<'cx> {
             None,
             None,
             None,
+            None,
         );
-        u.flags.intersects(TypeFlags::NEVER)
+        u.flags.contains(TypeFlags::NEVER)
     }
 
     pub(super) fn distribute_object_over_object_ty<const WRITING: bool>(
@@ -112,7 +113,14 @@ impl<'cx> TyChecker<'cx> {
             return if WRITING || object_ty.flags.intersects(TypeFlags::INTERSECTION) {
                 Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
             } else {
-                Some(self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None))
+                Some(self.get_union_ty::<false>(
+                    &tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                ))
             };
         }
         None
@@ -139,7 +147,14 @@ impl<'cx> TyChecker<'cx> {
                 if WRITING || object_ty.flags.contains(TypeFlags::INTERSECTION) {
                     self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
                 } else {
-                    self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
+                    self.get_union_ty::<false>(
+                        &tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
                 },
             )
         } else {
@@ -164,7 +179,7 @@ impl<'cx> TyChecker<'cx> {
             if WRITING {
                 self.get_intersection_ty(&tys, IntersectionFlags::None, None, None)
             } else {
-                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None)
             }
         })
     }

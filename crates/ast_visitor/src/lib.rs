@@ -486,8 +486,13 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Expr<'cx>) {
         Assign(n) => v.visit_assign_expr(n),
         Yield(n) => v.visit_yield_expr(n),
         Ident(n) => v.visit_ident(n),
+        Cond(n) => v.visit_cond_expr(n),
+        Paren(n) => v.visit_paren_expr(n),
         _ => {}
     }
+}
+pub fn visit_paren_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ParenExpr<'cx>) {
+    v.visit_expr(n.expr);
 }
 pub fn visit_call_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CallExpr<'cx>) {
     v.visit_expr(n.expr);
@@ -551,7 +556,25 @@ pub fn visit_block_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::BlockStmt<'
 pub fn visit_expr_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ExprStmt<'cx>) {
     v.visit_expr(n.expr);
 }
-pub fn visit_arrow_fn_expr<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::ArrowFnExpr<'cx>) {}
+
+pub fn visit_arrow_fn_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ArrowFnExpr<'cx>) {
+    if let Some(ty_params) = n.ty_params {
+        for ty_param in ty_params {
+            v.visit_ty_param(ty_param);
+        }
+    }
+    for parameter in n.params {
+        v.visit_param_decl(parameter);
+    }
+    if let Some(ty) = n.ty {
+        v.visit_ty(ty);
+    }
+    match n.body {
+        ast::ArrowFnExprBody::Expr(expr) => v.visit_expr(expr),
+        ast::ArrowFnExprBody::Block(block) => v.visit_block_stmt(block),
+    }
+}
+
 pub fn visit_bin_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::BinExpr<'cx>) {
     v.visit_expr(n.left);
     v.visit_expr(n.right);
@@ -585,6 +608,12 @@ pub fn visit_ret_stmt<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::RetStmt<'cx>)
 pub fn visit_assign_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::AssignExpr<'cx>) {
     v.visit_expr(n.left);
     v.visit_expr(n.right);
+}
+
+pub fn visit_cond_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CondExpr<'cx>) {
+    v.visit_expr(n.cond);
+    v.visit_expr(n.when_true);
+    v.visit_expr(n.when_false);
 }
 
 macro_rules! make_visitor {
@@ -671,7 +700,9 @@ make_visitor!(
     (visit_setter_decl, ast::SetterDecl<'cx>),
     (visit_getter_decl, ast::GetterDecl<'cx>),
     (visit_export_assign, ast::ExportAssign<'cx>),
-    (visit_empty_stmt, ast::EmptyStmt)
+    (visit_empty_stmt, ast::EmptyStmt),
+    (visit_cond_expr, ast::CondExpr<'cx>),
+    (visit_paren_expr, ast::ParenExpr<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

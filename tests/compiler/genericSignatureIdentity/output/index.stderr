@@ -1,0 +1,20 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type '(x: T) => T', but here has type '(x: T) => T'.
+   ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:9:5]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type '(x: T) => T', but here has type '(x: T) => T'.
+    ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:14:5]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type '(x: T) => T', but here has type '(x: any) => any'.
+    ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:19:5]
+ 19 │ x
+    · ─
+    ╰────

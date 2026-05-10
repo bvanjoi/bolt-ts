@@ -355,7 +355,19 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     NOOP_HEADING_ERROR,
                 ) {
-                    self.issue_member_spec_error(class, ty_with_this, base_with_this, |_| {});
+                    self.issue_member_spec_error(class, ty_with_this, base_with_this, |this| {
+                        let error = errors::ClassXIncorrectlyExtendsBaseClassY {
+                            span: class.name().map_or(class.span(), |name| name.span),
+                            x: class.name().map_or("class".to_string(), |ident| {
+                                pprint_ident(ident, &this.atoms)
+                            }),
+                            y: this
+                                .symbol(base_ty.symbol().unwrap())
+                                .name
+                                .to_string(&this.atoms),
+                        };
+                        this.push_error(Box::new(error));
+                    });
                 } else {
                     let target = self.get_ty_without_sig(static_base_ty);
                     self.check_type_assignable_to(
@@ -448,7 +460,18 @@ impl<'cx> TyChecker<'cx> {
                         } else if self.is_prototype_prop(base) {
                             // TODO:
                         } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
-                            // TODO:
+                            let span = if let Some(decl) = derived_symbol.value_decl {
+                                self.p.node(decl).name().unwrap().span()
+                            } else {
+                                unreachable!()
+                            };
+                            let error = errors::ClassDefinesInstanceMemberAccessorButExtendedClassDefinesItAsInstanceMemberFunction {
+                                span: span,
+                                class_name: self.print_ty(base_ty, None).to_string(),
+                                property_name: base_s_name.to_string(&self.atoms),
+                                extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
+                            };
+                            self.push_error(Box::new(error));
                         } else {
                             let span = if let Some(decl) = derived_symbol.value_decl {
                                 self.p.node(decl).name().unwrap().span()

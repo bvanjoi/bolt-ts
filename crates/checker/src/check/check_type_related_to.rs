@@ -1556,6 +1556,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         None,
                         None,
                         None,
+                        None,
                     )
                 } else {
                     let constraint_ty = self.c.get_constraint_ty_from_mapped_ty(m);

@@ -712,7 +712,8 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|sig| self.get_ty_of_first_param_of_sig(sig))
                 .collect::<Vec<_>>();
-            let ty = self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None);
+            let ty =
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None);
             self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
         };
         if self.is_type_any(onfulfilled_param_ty) {
@@ -728,7 +729,8 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .map(|sig| self.get_ty_of_first_param_of_sig(sig))
             .collect::<Vec<_>>();
-        let ty = self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+        let ty =
+            self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None, None);
         if let Some(id) = id {
             self.promise_or_awaitable_links_arena[id].set_promised_ty_of_promise(ty);
         }

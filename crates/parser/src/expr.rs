@@ -212,23 +212,13 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::EqGreat);
         let name = self.parse_binding_with_ident(Some(param));
-        let param_id = self.next_node_id();
-        let param = self.alloc(ast::ParamDecl {
-            id: param_id,
-            span: param.span,
-            modifiers: None,
-            dotdotdot: None,
-            name,
-            question: None,
-            ty: None,
-            init: None,
-        });
-        self.nodes.insert(param_id, ast::Node::ParamDecl(param));
-        let params = self.alloc([param]);
+        let parameter =
+            self.create_parameter_declaration(param.span, None, None, name, None, None, None);
+        let parameters = self.alloc([parameter]);
         self.expect(TokenKind::EqGreat);
         let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(false)?;
         let span = self.new_span(param.span.lo());
-        let expr = self.create_arrow_fn_expr(span, None, None, params, None, body);
+        let expr = self.create_arrow_fn_expr(span, None, None, parameters, None, body);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });

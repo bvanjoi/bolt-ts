@@ -625,6 +625,7 @@ impl<'cx> TyChecker<'cx> {
                 Some(symbol),
                 None,
                 None,
+                None,
             )
         } else {
             self.create_computed_enum_ty(symbol)

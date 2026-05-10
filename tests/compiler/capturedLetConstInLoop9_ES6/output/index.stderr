@@ -1,0 +1,5 @@
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/capturedLetConstInLoop9_ES6/index.ts:38:1]
+ 38 │ x
+    · ─
+    ╰────

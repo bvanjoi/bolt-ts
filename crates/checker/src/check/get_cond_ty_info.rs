@@ -84,6 +84,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
                 None,
+                None,
             )
         };
         self.conditional_links_arena[id].set_resolved_default_constraint(res);

@@ -1287,6 +1287,15 @@ pub(super) struct PropertyXIsUsedBeforeBeingAssigned {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Class '{x}' incorrectly extends base class '{y}'.")]
+pub(super) struct ClassXIncorrectlyExtendsBaseClassY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Type '{x}' does not satisfy the constraint '{y}'.")]
 pub(super) struct TypeXDoesNotSatisfyTheConstraintY {
     #[label(primary)]
@@ -1505,6 +1514,19 @@ pub(super) struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsR
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error(
+    "Class '{class_name}' defines instance member accessor '{property_name}', but extended class '{extended_class_name}' defines it as instance member function."
+)]
+pub(super) struct ClassDefinesInstanceMemberAccessorButExtendedClassDefinesItAsInstanceMemberFunction
+{
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub property_name: String,
+    pub extended_class_name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
     "Class '{class_name}' defines instance member property '{property_name}', but extended class '{extended_class_name}' defines it as instance member function."
 )]
 pub(super) struct ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction
@@ -1687,4 +1709,17 @@ pub(super) struct NoOverloadExpectsXArgumentsButOverloadsDoExistThatExpectEither
 pub(super) struct ASpreadArgumentMustEitherHaveATupleTypeOrBePassedToARestParameter {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "No overload expects {type_argument_count} type arguments, but overloads do exist that expect either {max_below} or {min_above} type arguments."
+)]
+pub(super) struct NoOverloadExpectsXTypeArgumentsButOverloadsDoExistThatExpectEitherAOrBTypeArguments
+{
+    #[label(primary)]
+    pub span: Span,
+    pub type_argument_count: usize,
+    pub max_below: usize,
+    pub min_above: usize,
 }

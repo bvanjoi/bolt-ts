@@ -292,6 +292,8 @@ impl<'cx> Ty<'cx> {
             TyKind::IndexedAccess(_) => todo!(),
             TyKind::Cond(_) => None,
             TyKind::TemplateLit(_) => None,
+            TyKind::NumberLit(n) => n.symbol,
+            TyKind::StringLit(n) => n.symbol,
             _ => None,
         }
     }
@@ -576,6 +578,7 @@ pub struct UnionTy<'cx> {
     pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<Tys<'cx>>,
+    pub enum_symbol: Option<SymbolID>,
 }
 
 #[derive(Debug)]

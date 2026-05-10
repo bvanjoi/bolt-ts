@@ -343,6 +343,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
                 None,
+                None,
             )
         } else {
             self.get_intersection_ty(deferral_constituents, IntersectionFlags::None, None, None)
@@ -449,7 +450,14 @@ impl<'cx> TyChecker<'cx> {
         if let Some(tys) = &inference.candidates {
             // TODO: remove clone
             let tys = tys.clone();
-            Some(self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None))
+            Some(self.get_union_ty::<false>(
+                &tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            ))
         } else if let Some(tys) = &inference.contra_candidates {
             // TODO: remove clone
             let tys = tys.clone();
@@ -847,6 +855,7 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.get_union_ty::<false>(
             &tys,
             ty::UnionReduction::Lit,
+            None,
             alias_symbol,
             alias_ty_arguments,
             None,
@@ -925,6 +934,7 @@ impl<'cx> TyChecker<'cx> {
                     return Some(this.get_union_ty::<false>(
                         &[rest_ty, undefined_or_missing_ty],
                         ty::UnionReduction::Lit,
+                        None,
                         None,
                         None,
                         None,
@@ -1165,6 +1175,7 @@ impl<'cx> TyChecker<'cx> {
                             None,
                             None,
                             None,
+                            None,
                         )
                     } else {
                         index_info.val_ty
@@ -1187,7 +1198,14 @@ impl<'cx> TyChecker<'cx> {
                         })
                     {
                         let tys = &[index_info.val_ty, self.missing_ty];
-                        self.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None)
+                        self.get_union_ty::<false>(
+                            tys,
+                            ty::UnionReduction::Lit,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
                     } else {
                         index_info.val_ty
                     },
@@ -1231,6 +1249,7 @@ impl<'cx> TyChecker<'cx> {
                         return Some(self.get_union_ty::<false>(
                             &tys,
                             ty::UnionReduction::Lit,
+                            None,
                             None,
                             None,
                             None,
@@ -1457,6 +1476,7 @@ impl<'cx> TyChecker<'cx> {
                 self.get_union_ty::<false>(
                     &prop_tys,
                     ty::UnionReduction::Lit,
+                    None,
                     alias_symbol,
                     alias_ty_arguments,
                     None,
@@ -1923,7 +1943,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if !extra_tys.is_empty() {
             extra_tys.push(result);
-            self.get_union_ty::<false>(&extra_tys, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(&extra_tys, ty::UnionReduction::Lit, None, None, None, None)
         } else {
             result
         }
@@ -2484,6 +2504,7 @@ impl<'cx> TyChecker<'cx> {
                                 None,
                                 None,
                                 None,
+                                None,
                             ));
                         }
                         None => {
@@ -2499,6 +2520,7 @@ impl<'cx> TyChecker<'cx> {
                         Some(self.get_union_ty::<false>(
                             &yield_tys,
                             ty::UnionReduction::Subtype,
+                            None,
                             None,
                             None,
                             None,
@@ -2541,6 +2563,7 @@ impl<'cx> TyChecker<'cx> {
                         ret_ty = Some(self.get_union_ty::<false>(
                             &tys,
                             ty::UnionReduction::Subtype,
+                            None,
                             None,
                             None,
                             None,
@@ -2691,7 +2714,7 @@ impl<'cx> TyChecker<'cx> {
         });
         property_tys.extend(index_key_tys);
         let tys = property_tys;
-        self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, origin)
+        self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, origin)
     }
 
     fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -2803,7 +2826,7 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .map(|t| self.get_index_ty(t, index_flags))
                 .collect::<Vec<_>>();
-            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None)
+            self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None)
         } else if ty.kind.is_object_mapped() {
             self.get_index_ty_for_mapped_ty(ty, index_flags)
         } else if ty == self.wildcard_ty {

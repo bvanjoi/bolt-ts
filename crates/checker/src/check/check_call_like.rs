@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
         union_reduction: ty::UnionReduction,
     ) -> &'cx ty::Ty<'cx> {
         if !is_intersection {
-            self.get_union_ty::<false>(tys, union_reduction, None, None, None)
+            self.get_union_ty::<false>(tys, union_reduction, None, None, None, None)
         } else {
             self.get_intersection_ty(tys, IntersectionFlags::None, None, None)
         }
@@ -1502,6 +1502,7 @@ impl<'cx> TyChecker<'cx> {
                     true,
                 );
             } else {
+                // TODO: !is_jsx
                 let sigs_with_correct_ty_arg_arity = candidates
                     .iter()
                     .filter(|sig| self.has_correct_ty_arg_arity(sig, n.ty_args()))
@@ -1528,9 +1529,15 @@ impl<'cx> TyChecker<'cx> {
         sigs: &[&'cx Sig<'cx>],
         ty_args: Option<&'cx ast::Tys<'cx>>,
     ) {
-        let ty_arg_count = ty_args
+        let type_argument_count = ty_args
             .map(|ty_args| ty_args.list.len())
             .unwrap_or_default();
+        let span = || {
+            ty_args.map(|ty_args| ty_args.span).unwrap_or_else(|| {
+                let hi = expr.callee().span().hi();
+                Span::new(hi, hi, expr.span().module())
+            })
+        };
         if sigs.len() == 1 {
             let sig = sigs[0];
             let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
@@ -1543,18 +1550,52 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 super::ExpectedArgsCount::Range { lo: min, hi: max }
             };
-            let span = ty_args.map(|ty_args| ty_args.span).unwrap_or_else(|| {
-                let hi = expr.callee().span().hi();
-                Span::new(hi, hi, expr.span().module())
-            });
             let error = errors::ExpectedXArgsButGotY {
-                span,
+                span: span(),
                 x,
-                y: ty_arg_count,
+                y: type_argument_count,
                 is_ty: true,
             };
             self.push_error(Box::new(error));
+            return;
         }
+        let mut below_argument_count = i32::MIN;
+        let mut above_argument_count = i32::MAX;
+        for sig in sigs {
+            let type_parameters = self.get_sig_links(sig.id).get_ty_params();
+            let min = self.get_min_ty_arg_count(type_parameters);
+            let max = type_parameters
+                .map(|ty_params| ty_params.len())
+                .unwrap_or_default();
+            if min > type_argument_count {
+                above_argument_count = i32::min(above_argument_count, min as i32);
+            } else if max < type_argument_count {
+                below_argument_count = i32::max(below_argument_count, max as i32);
+            }
+        }
+        if below_argument_count != i32::MIN && above_argument_count != i32::MAX {
+            let error = errors::NoOverloadExpectsXTypeArgumentsButOverloadsDoExistThatExpectEitherAOrBTypeArguments {
+                span: span(),
+                type_argument_count,
+                max_below: below_argument_count as usize,
+                min_above: above_argument_count as usize,
+            };
+            self.push_error(Box::new(error));
+            return;
+        }
+        let x = if below_argument_count == i32::MIN {
+            super::ExpectedArgsCount::Count(above_argument_count as usize)
+        } else {
+            debug_assert!(below_argument_count >= 0);
+            super::ExpectedArgsCount::Count(below_argument_count as usize)
+        };
+        let error = errors::ExpectedXArgsButGotY {
+            span: span(),
+            x,
+            y: type_argument_count,
+            is_ty: true,
+        };
+        self.push_error(Box::new(error));
     }
 
     fn get_argument_arity_error(
@@ -1693,7 +1734,8 @@ impl<'cx> TyChecker<'cx> {
         symbols: Vec<SymbolID>,
         tys: &[&'cx ty::Ty<'cx>],
     ) -> SymbolID {
-        let union = self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None);
+        let union =
+            self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None, None);
         self.create_combined_symbol_for_overload_failure(symbols, union)
     }
 
@@ -1772,8 +1814,14 @@ impl<'cx> TyChecker<'cx> {
                 .iter()
                 .flat_map(|c| self.try_get_rest_ty_of_sig(c))
                 .collect::<Vec<_>>();
-            let ty =
-                self.get_union_ty::<false>(&tys, ty::UnionReduction::Subtype, None, None, None);
+            let ty = self.get_union_ty::<false>(
+                &tys,
+                ty::UnionReduction::Subtype,
+                None,
+                None,
+                None,
+                None,
+            );
             let ty = self.create_array_ty(ty, false);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;

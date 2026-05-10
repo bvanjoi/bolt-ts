@@ -108,3 +108,10 @@ pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImpl
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter cannot have question mark and initializer.")]
+pub(super) struct ParameterCannotHaveQuestionMarkAndInitializer {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -1,0 +1,5 @@
+  × Generic type 'A<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericReturnTypeFromGetter1/index.ts:10:18]
+ 10 │ A
+    · ─
+    ╰────

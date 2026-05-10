@@ -362,6 +362,7 @@ impl<'cx> TyChecker<'cx> {
                         None,
                         None,
                         None,
+                        None,
                     ))
                 } else if ty.kind.is_intersection() && !base_tys.is_empty() {
                     Some(checker.get_intersection_ty(

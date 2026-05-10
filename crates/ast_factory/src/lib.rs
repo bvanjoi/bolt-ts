@@ -1384,4 +1384,31 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         prop
     }
+
+    #[inline]
+    fn create_parameter_declaration(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        dotdotdot: Option<Span>,
+        name: &'cx ast::Binding<'cx>,
+        question: Option<Span>,
+        ty: Option<&'cx ast::Ty<'cx>>,
+        init: Option<&'cx ast::Expr<'cx>>,
+    ) -> &'cx ast::ParamDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ParamDecl {
+            id,
+            span,
+            modifiers,
+            dotdotdot,
+            name,
+            question,
+            ty,
+            init,
+        });
+        self.insert_node(id, ast::Node::ParamDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }
