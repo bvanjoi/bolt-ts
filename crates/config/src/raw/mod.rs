@@ -119,7 +119,7 @@ impl RawCompilerOptions {
         if self.no_fallthrough_cases_in_switch.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_FALLTHROUGH_CASES_IN_SWITCH);
         }
-        if self.strict_function_types.unwrap_or_default() {
+        if get_strict_option_value(self.strict_function_types) {
             flags.insert(super::CompilerOptionFlags::STRICT_FUNCTION_TYPES);
         }
         if self.preserve_symlinks.unwrap_or_default() {

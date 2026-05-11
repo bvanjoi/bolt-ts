@@ -74,7 +74,11 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn skip_ty_parens(&'cx self) -> &'cx Ty<'cx> {
-        self
+        if let TyKind::Paren(paren) = self.kind {
+            paren.ty.skip_ty_parens()
+        } else {
+            self
+        }
     }
 
     pub fn is_simple_tuple_ty(&self) -> bool {

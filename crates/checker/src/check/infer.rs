@@ -2204,7 +2204,7 @@ impl<'cx> InferenceState<'cx, '_> {
             {
                 let priority = if source
                     .get_object_flags()
-                    .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+                    .contains(ObjectFlags::NON_INFERRABLE_TYPE)
                 {
                     InferencePriority::PARTIAL_HOMOMORPHIC_MAPPED_TYPE
                 } else {
