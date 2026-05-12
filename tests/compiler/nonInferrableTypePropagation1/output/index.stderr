@@ -1,5 +1,5 @@
   × Type 'Thing' is not assignable to type 'Thing'.
-    ╭─[../../tests/compiler/nonInferrableTypePropagation1/index.ts:34:7]
- 34 │ result3
+    ╭─[../../tests/compiler/nonInferrableTypePropagation1/index.ts:47:7]
+ 47 │ result3
     · ───────
     ╰────

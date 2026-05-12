@@ -1923,7 +1923,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_partially_inferable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         !ty.get_object_flags()
-            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+            .contains(ObjectFlags::NON_INFERRABLE_TYPE)
             || ty.is_object_literal()
                 && self.get_props_of_ty(ty).iter().any(|&prop| {
                     let t = self.get_type_of_symbol(prop);

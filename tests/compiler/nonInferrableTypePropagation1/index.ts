@@ -3,6 +3,19 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 
+type AAAAAAA<V> = { data: V };
+declare const bbbbbb: <CCC, DDD>(
+    opA: () => CCC, 
+    opB: (thing: CCC) => DDD, 
+) => DDD
+declare const eeee: () => { data: number };
+declare function ffff<gggg>(): (thing: gggg) => gggg;
+declare function hhhh<E>(factory: () => AAAAAAA<E>): void;
+hhhh(() => bbbbbb(
+    eeee,
+    ffff(),
+));
+
 type Op<I, O> = (thing: Thing<I>) => Thing<O>;
 type Thing<T> = {
     value: T;

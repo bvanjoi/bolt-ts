@@ -561,7 +561,7 @@ impl<'cx> TyChecker<'cx> {
             } else if self
                 .inference(inference)
                 .flags
-                .intersects(InferenceFlags::NO_DEFAULT)
+                .contains(InferenceFlags::NO_DEFAULT)
             {
                 inferred_ty = Some(self.silent_never_ty);
             } else {
@@ -1638,7 +1638,9 @@ impl<'cx> InferenceState<'cx, '_> {
         }
 
         if target.kind.is_type_variable() {
-            // TODO: is_from_inference_block_source
+            if self.c.is_from_inference_block_source(source) {
+                return;
+            }
 
             if let Some(idx) = self.get_inference_info_for_ty(target) {
                 if source
@@ -2597,7 +2599,7 @@ impl<'cx> InferenceState<'cx, '_> {
     }
 
     // TODO: remove duplicate
-    fn apply_to_param_tys(
+    fn apply_to_parameter_tys(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,
@@ -2665,7 +2667,8 @@ impl<'cx> InferenceState<'cx, '_> {
                 || n.is_method_signature()
                 || n.is_class_ctor();
 
-            self.apply_to_param_tys(source, target, |this, source, target| {
+            self.apply_to_parameter_tys(source, target, |this, source, target| {
+                // infer_from_contravariant_tys_if_strict_function_types
                 if this.c.config.compiler_options().strict_function_types()
                     || this.priority.contains(InferencePriority::ALWAYS_STRICT)
                 {

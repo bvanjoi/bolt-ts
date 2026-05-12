@@ -289,7 +289,7 @@ impl<'cx> Ty<'cx> {
             },
             TyKind::Param(ty) => ty.symbol,
             TyKind::Union(_) => None,
-            TyKind::IndexedAccess(_) => todo!(),
+            TyKind::IndexedAccess(_) => None,
             TyKind::Cond(_) => None,
             TyKind::TemplateLit(_) => None,
             TyKind::NumberLit(n) => n.symbol,

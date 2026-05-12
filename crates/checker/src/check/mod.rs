@@ -1653,7 +1653,7 @@ impl<'cx> TyChecker<'cx> {
             contextual_sig
         };
 
-        self.apply_to_param_tys(source_sig, sig, |this, source, target| {
+        self.apply_to_parameter_tys(source_sig, sig, |this, source, target| {
             let mut infer = this.infer_state::<false>(context, InferencePriority::empty(), target);
             infer.infer_from_tys(source, target)
         });
@@ -3704,8 +3704,12 @@ impl<'cx> TyChecker<'cx> {
                 && !self.ty_has_call_or_ctor_sigs(ty)
         } else {
             let object_flags = ty.get_object_flags();
-            // TODO: reversed type
-            object_flags.contains(ObjectFlags::OBJECT_REST_TYPE)
+            object_flags.contains(ObjectFlags::OBJECT_REST_TYPE) || {
+                object_flags.contains(ObjectFlags::REVERSE_MAPPED)
+                    && self.is_object_ty_with_inferable_index(
+                        ty.kind.expect_object_reverse_mapped().source,
+                    )
+            }
         }
     }
 
@@ -5907,7 +5911,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn apply_to_param_tys(
+    fn apply_to_parameter_tys(
         &mut self,
         source: &'cx ty::Sig<'cx>,
         target: &'cx ty::Sig<'cx>,

@@ -401,10 +401,23 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
-        object_flags: ObjectFlags,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_arguments: Option<ty::Tys<'cx>>,
+        mut object_flags: ObjectFlags,
+        mut alias_symbol: Option<SymbolID>,
+        mut alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        alias_symbol = alias_symbol.or_else(|| ty.alias_symbol());
+        alias_ty_arguments = if alias_symbol.is_some() {
+            alias_ty_arguments
+        } else if let Some(alias_type_arguments) = ty.alias_ty_arguments() {
+            Some(self.instantiate_tys(alias_type_arguments, mapper))
+        } else {
+            None
+        };
+        object_flags |= if let Some(alias_type_arguments) = &alias_ty_arguments {
+            ty::Ty::get_propagating_flags_of_tys(alias_type_arguments, None)
+        } else {
+            ObjectFlags::empty()
+        };
         let target = ty.kind.expect_object_anonymous();
         self.create_instantiating_anonymous_ty(
             target.symbol.unwrap(),

@@ -2850,8 +2850,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_arguments(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_ty_args() {
-            return ty;
+        if let Some(type_arguments) = self.get_ty_links(ty.id).get_resolved_ty_args() {
+            return type_arguments;
         };
 
         let Some(r) = ty.kind.as_object_reference() else {

@@ -721,17 +721,31 @@ impl<'cx> TyChecker<'cx> {
             return self.resolve_error_call(expr);
         }
 
-        if check_mode.contains(CheckMode::SKIP_GENERIC_FUNCTIONS) && expr.ty_args().is_none()
-        // && call_sigs.iter().any(|sig| {
-        //     // self.isgenericf
-        // })
+        if check_mode.contains(CheckMode::SKIP_GENERIC_FUNCTIONS)
+            && expr.ty_args().is_none()
+            && call_sigs.iter().any(|sig| {
+                // is_generic_function_returning_function
+                if self.get_sig_links(sig.id).get_ty_params().is_none() {
+                    return false;
+                };
+                let return_ty = self.get_return_type_of_signature(sig);
+                self.is_function_type(return_ty)
+            })
         {
-            // TODO:
+            self.skip_generic_fn(expr.id(), check_mode);
+            return self.resolving_sig();
         }
 
         // TODO: call_sigs
 
         self.resolve_call(expr, call_sigs, None, check_mode, call_chain_flags)
+    }
+
+    fn is_function_type(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        ty.flags.contains(TypeFlags::OBJECT)
+            && !self
+                .get_signatures_of_type(ty, ty::SigKind::Call)
+                .is_empty()
     }
 
     pub(super) fn get_min_arg_count(&mut self, sig: &'cx Sig<'cx>) -> usize {

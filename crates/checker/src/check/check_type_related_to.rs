@@ -2951,15 +2951,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && self.c.config.compiler_options().strict_function_types()
             && !matches!(
                 self.c.p.node(target.def_id()),
-                ClassCtor(_)
-                    | CtorTy(_)
-                    | MethodSignature(_)
-                    | ClassMethodElem(_)
-                    | ObjectMethodMember(_)
+                ClassCtor(_) | MethodSignature(_) | ClassMethodElem(_) | ObjectMethodMember(_)
             );
 
         if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source)
-            && source_this_ty != self.c.any_ty
+            && source_this_ty != self.c.void_ty
             && let Some(target_this_ty) = self.c.get_this_ty_of_sig(target)
         {
             let mut related = Ternary::FALSE;
