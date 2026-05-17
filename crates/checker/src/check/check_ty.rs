@@ -151,7 +151,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
-        self.check_index_constraints(ty, false);
+        self.check_index_constraints::<false>(ty, ty.symbol().unwrap());
         // TODO: duplicate index signatures check
     }
 

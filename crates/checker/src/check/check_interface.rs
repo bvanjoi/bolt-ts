@@ -50,7 +50,7 @@ impl<'cx> TyChecker<'cx> {
                         }),
                     );
                 }
-                self.check_index_constraints(ty, false);
+                self.check_index_constraints::<false>(ty, symbol);
             }
         }
 

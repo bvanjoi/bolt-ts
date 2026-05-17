@@ -212,6 +212,7 @@ pub struct IndexInfo<'cx> {
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
     pub is_readonly: bool,
+    pub declaration: Option<&'cx ast::IndexSigDecl<'cx>>,
 }
 
 impl PartialEq for &IndexInfo<'_> {

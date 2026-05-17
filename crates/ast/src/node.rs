@@ -325,6 +325,7 @@ impl<'cx> Node<'cx> {
             ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
             ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
+            IndexSigDecl(n) => DeclarationName::from_binding(n.key),
             _ => None,
         }
     }
@@ -496,7 +497,8 @@ impl<'cx> Node<'cx> {
         }));
         matches!(
             self,
-            VarDecl(_)
+            ArrowFnExpr(_)
+                | VarDecl(_)
                 | ObjectShorthandMember(_)
                 | ObjectPropAssignment(_)
                 | PropSignature(_)
@@ -509,7 +511,6 @@ impl<'cx> Node<'cx> {
                 | ClassMethodElem(_)
                 | EnumDecl(_)
                 | EnumMember(_)
-                | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)
                 | FnDecl(_)

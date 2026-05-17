@@ -1,0 +1,5 @@
+  × Type 'T1' is not assignable to type 'T2'.
+    ╭─[../../tests/compiler/inferFromNestedSameShapeTuple/index.ts:46:5]
+ 46 │ y
+    · ─
+    ╰────

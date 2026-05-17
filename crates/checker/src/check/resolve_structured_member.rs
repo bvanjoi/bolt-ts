@@ -934,6 +934,7 @@ impl<'cx> TyChecker<'cx> {
                     key_ty: self.string_ty,
                     val_ty,
                     is_readonly: readonly_mask && index_info.is_readonly,
+                    declaration: None,
                 });
                 self.alloc([index_info])
             } else {
@@ -1901,6 +1902,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty,
                     symbol: info.symbol,
                     is_readonly,
+                    declaration: None,
                 });
                 return;
             }
@@ -2138,6 +2140,7 @@ impl<'cx> TyChecker<'cx> {
                         val_ty,
                         is_readonly,
                         symbol: Symbol::ERR,
+                        declaration: None,
                     });
                     this.append_index_info(&mut index_infos, index_info, true);
                 }

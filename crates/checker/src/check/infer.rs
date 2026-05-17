@@ -306,6 +306,7 @@ impl<'cx> TyChecker<'cx> {
             .as_ref()
             .unwrap();
         let candidates = if candidates.len() > 1 {
+            // union_object_and_array_literal_candidates
             let (object_literals, mut non_object_literals): (ThinVec<_>, ThinVec<_>) = candidates
                 .into_iter()
                 .copied()

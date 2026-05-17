@@ -1,0 +1,6 @@
+  × Type '(delimiter: string) => ParserFunc' is not assignable to type
+  │ 'ParserFunc'.
+    ╭─[../../tests/compiler/functionSignatureAssignmentCompat1/index.ts:14:5]
+ 14 │ d
+    · ─
+    ╰────

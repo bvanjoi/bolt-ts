@@ -39,12 +39,11 @@ impl<'cx> TyChecker<'cx> {
         let mut computed_property_symbols = Vec::with_capacity(1);
         for decl in decls {
             let n = self.p.node(decl);
-            if n.is_index_sig_decl() {
-                let decl = n.expect_index_sig_decl();
-                let val_ty = self.get_ty_from_type_node(decl.ty);
+            if let Some(declaration) = n.as_index_sig_decl() {
+                let val_ty = self.get_ty_from_type_node(declaration.ty);
                 index_infos.push({
-                    let key_ty = self.get_ty_from_type_node(decl.key_ty);
-                    let is_readonly = decl
+                    let key_ty = self.get_ty_from_type_node(declaration.key_ty);
+                    let is_readonly = declaration
                         .modifiers
                         .is_some_and(|mods| mods.flags.contains(ast::ModifierFlags::READONLY));
                     self.alloc(ty::IndexInfo {
@@ -52,6 +51,7 @@ impl<'cx> TyChecker<'cx> {
                         val_ty,
                         symbol,
                         is_readonly,
+                        declaration: Some(declaration),
                     })
                 });
             } else if self.has_late_bindable_index_signature(decl) {
@@ -185,6 +185,7 @@ impl<'cx> TyChecker<'cx> {
             val_ty: union_ty,
             symbol: Symbol::ERR,
             is_readonly,
+            declaration: None,
         })
     }
 
@@ -212,10 +213,27 @@ impl<'cx> TyChecker<'cx> {
         let Some(first_decl) = s.decls.as_ref().and_then(|decls| decls.first()).copied() else {
             return false;
         };
-        self.p
-            .node(first_decl)
-            .name()
-            .is_some_and(|name| matches!(name, ast::DeclarationName::NumLit(_)))
+        let Some(name) = self.p.node(first_decl).name() else {
+            return false;
+        };
+        // is_numeric_name
+        match name {
+            ast::DeclarationName::NumLit(_) => true,
+            ast::DeclarationName::StringLit { key, .. } => {
+                let s = self.atoms.get(key);
+                s.parse::<f64>().is_ok()
+            }
+            ast::DeclarationName::Ident(n) => {
+                let s = self.atoms.get(n.name);
+                s.parse::<f64>().is_ok()
+            }
+            ast::DeclarationName::Computed(n) => {
+                // is_numeric_computed_name
+                let ty = self.check_computed_property_name(n);
+                self.is_type_assignable_to_kind::<false>(ty, TypeFlags::NUMBER_LIKE)
+            }
+            _ => false,
+        }
     }
 
     fn is_symbol_with_symbol_name(&mut self, symbol: SymbolID) -> bool {

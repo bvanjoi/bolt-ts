@@ -306,7 +306,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.declare_symbol(
                 Some(name),
                 loc,
-                None,
+                Some(self.final_res[&class_decl]),
                 n.id,
                 includes,
                 SymbolFlags::PROPERTY_EXCLUDES,

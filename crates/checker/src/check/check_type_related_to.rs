@@ -380,10 +380,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let source_prop_flags = self
             .c
-            .get_declaration_modifier_flags_from_symbol(source_prop, None);
+            .get_declaration_modifier_flags_from_symbol::<false>(source_prop);
         let target_prop_flags = self
             .c
-            .get_declaration_modifier_flags_from_symbol(target_prop, None);
+            .get_declaration_modifier_flags_from_symbol::<false>(target_prop);
         if source_prop_flags.contains(ast::ModifierFlags::PRIVATE)
             || target_prop_flags.contains(ast::ModifierFlags::PRIVATE)
         {
@@ -3181,11 +3181,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let source_prop_access = self
             .c
-            .get_declaration_modifier_flags_from_symbol(source, None)
+            .get_declaration_modifier_flags_from_symbol::<false>(source)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self
             .c
-            .get_declaration_modifier_flags_from_symbol(target, None)
+            .get_declaration_modifier_flags_from_symbol::<false>(target)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {

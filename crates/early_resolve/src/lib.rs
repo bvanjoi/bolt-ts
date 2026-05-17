@@ -1548,7 +1548,6 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     }
 
     if let Some(symbol) = get_symbol(resolver, resolver.globals, key, meaning) {
-        assert!(!resolver.symbol(symbol).flags.contains(SymbolFlags::ALIAS));
         return ResolvedResult {
             symbol,
             associated_declaration_for_containing_initializer_or_binding_name,

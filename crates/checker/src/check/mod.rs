@@ -938,8 +938,8 @@ impl<'cx> TyChecker<'cx> {
             (silent_never_sig,              this.new_sig(Sig { flags: SigFlags::empty(), params: cast_empty_array(empty_array), min_args_count: 0, ret: None, node_id: None, target: None, mapper: None, id: SigID::dummy(), class_decl: None, composite_sigs: None, composite_kind: None })),
             (array_variances,               this.alloc([VarianceFlags::COVARIANT])),
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
-            (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true })),
-            (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false })),
+            (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true, declaration: None })),
+            (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false, declaration: None })),
         });
 
         let silent_never_sig_links = SigLinks::default().with_resolved_ret_ty(silent_never_ty);
@@ -1246,7 +1246,7 @@ impl<'cx> TyChecker<'cx> {
             .collect()
     }
 
-    fn check_index_constraint_for_prop(
+    fn check_index_constraint_for_property(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         prop: SymbolID,
@@ -1329,12 +1329,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_declaration_modifier_flags_from_symbol(
+    pub(super) fn get_declaration_modifier_flags_from_symbol<const IS_WRITE: bool>(
         &self,
         symbol: SymbolID,
-        is_write: Option<bool>,
     ) -> ast::ModifierFlags {
-        let is_write = is_write.unwrap_or(false);
         let s = self.symbol(symbol);
         fn find_decls<'cx>(
             this: &TyChecker<'cx>,
@@ -1344,7 +1342,7 @@ impl<'cx> TyChecker<'cx> {
             decls.iter().find(|id| f(this.p.node(**id))).copied()
         }
         if let Some(value_declaration) = s.value_decl {
-            let decl = if is_write
+            let decl = if IS_WRITE
                 && let Some(decls) = s.decls.as_ref()
                 && let Some(decl) = find_decls(self, decls, |n| n.is_setter_decl())
             {
@@ -1366,7 +1364,7 @@ impl<'cx> TyChecker<'cx> {
             {
                 flags
             } else {
-                flags & !ast::ModifierFlags::ACCESSIBILITY
+                flags & ast::ModifierFlags::ACCESSIBILITY.complement()
             };
         }
         let check_flags = self.get_check_flags(symbol);
@@ -1400,7 +1398,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         if include_non_public
             || !self
-                .get_declaration_modifier_flags_from_symbol(prop, None)
+                .get_declaration_modifier_flags_from_symbol::<false>(prop)
                 .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
         {
             // TODO: late bound
@@ -1461,20 +1459,112 @@ impl<'cx> TyChecker<'cx> {
         self.never_ty
     }
 
-    fn check_index_constraints(&mut self, ty: &'cx ty::Ty<'cx>, is_static_index: bool) {
+    fn check_index_constraints<const IS_STATIC_INDEX: bool>(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        symbol: SymbolID,
+    ) {
         let index_infos = self.get_index_infos_of_ty(ty);
         if index_infos.is_empty() {
             return;
         }
         for prop in self.properties_of_object_type(ty) {
-            if !(is_static_index && self.symbol(*prop).flags.intersects(SymbolFlags::PROTOTYPE)) {
+            if !(IS_STATIC_INDEX && self.symbol(*prop).flags.intersects(SymbolFlags::PROTOTYPE)) {
                 let prop_name_ty = self.get_literal_ty_from_prop(
                     *prop,
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     true,
                 );
                 let prop_ty = self.get_non_missing_type_of_symbol(*prop);
-                self.check_index_constraint_for_prop(ty, *prop, prop_name_ty, prop_ty);
+                self.check_index_constraint_for_property(ty, *prop, prop_name_ty, prop_ty);
+            }
+        }
+        if let Some(type_declaration) = self.binder.symbol(symbol).value_decl
+            && let Some(members) = match self.p.node(type_declaration) {
+                ast::Node::ClassExpr(n) => Some(n.elems),
+                ast::Node::ClassDecl(n) => Some(n.elems),
+                _ => None,
+            }
+        {
+            for member in members.list {
+                if ((!IS_STATIC_INDEX && !member.kind.is_static())
+                    || (IS_STATIC_INDEX && member.kind.is_static()))
+                    && !self.has_bindable_name(member.id())
+                {
+                    let ast::PropNameKind::Computed(name) = (match member.kind {
+                        ast::ClassElemKind::Prop(n) => n.name.kind,
+                        ast::ClassElemKind::Method(n) => n.name.kind,
+                        ast::ClassElemKind::Getter(n) => n.name.kind,
+                        ast::ClassElemKind::Setter(n) => n.name.kind,
+                        _ => unreachable!(),
+                    }) else {
+                        unreachable!()
+                    };
+                    let symbol = self.get_symbol_of_declaration(member.id());
+                    let property_name_type = self.get_ty_of_expr(name.expr);
+                    let property_type = self.get_non_missing_type_of_symbol(symbol);
+                    self.check_index_constraint_for_property(
+                        ty,
+                        symbol,
+                        property_name_type,
+                        property_type,
+                    );
+                }
+            }
+        }
+        if index_infos.len() > 1 {
+            for check_info in index_infos {
+                // check_index_constraint_for_index_signature
+                let declaration = check_info.declaration;
+                let applicable_index_infos = self.get_applicable_index_infos(ty, check_info.key_ty);
+                let interface_declaration =
+                    if ty.get_object_flags().contains(ObjectFlags::INTERFACE) {
+                        let s = ty.symbol().unwrap();
+                        self.symbol(s)
+                            .get_declaration_of_kind(|n| self.p.node(n).is_interface_decl())
+                    } else {
+                        None
+                    };
+                let local_check_declaration = declaration.and_then(|d| {
+                    let s = self.final_res(d.id);
+                    let s = self.get_parent_of_symbol(s);
+                    if s == ty.symbol() { Some(d) } else { None }
+                });
+                for info in applicable_index_infos {
+                    if std::ptr::eq(check_info, &info) {
+                        continue;
+                    }
+                    let local_index_declaration = info.declaration.and_then(|d| {
+                        let s = self.final_res(d.id);
+                        let s = self.get_parent_of_symbol(s);
+                        if s == ty.symbol() { Some(d) } else { None }
+                    });
+                    let error_node = local_check_declaration
+                        .map(|d| d.id)
+                        .or(local_index_declaration.map(|d| d.id))
+                        .or(interface_declaration.and_then(|d| {
+                            if !self.get_base_tys(ty).iter().any(|base| {
+                                self.get_index_info_of_ty(base, check_info.key_ty).is_some()
+                                    && self.get_index_info_of_ty(base, info.key_ty).is_some()
+                            }) {
+                                Some(d)
+                            } else {
+                                None
+                            }
+                        }));
+                    if let Some(error_node) = error_node
+                        && !self.is_type_assignable_to(check_info.val_ty, info.val_ty)
+                    {
+                        let error = errors::AIndexTypeBIsNotAssignableToCIndexTypeD {
+                            span: self.p.node(error_node).span(),
+                            ty1: self.print_ty(check_info.key_ty, None).to_string(),
+                            ty2: self.print_ty(check_info.val_ty, None).to_string(),
+                            ty3: self.print_ty(info.key_ty, None).to_string(),
+                            ty4: self.print_ty(info.val_ty, None).to_string(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
             }
         }
     }
@@ -1921,10 +2011,9 @@ impl<'cx> TyChecker<'cx> {
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
-            self.check_prop_accessibility(
+            self.check_prop_accessibility::<false>(
                 node,
                 self.p.node(left).is_super_expr(),
-                false,
                 apparent_left_ty,
                 prop,
                 true,
@@ -2067,17 +2156,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_prop_accessibility(
+    fn check_prop_accessibility<const IS_WRITE: bool>(
         &mut self,
         node: ast::NodeID,
         is_super: bool,
-        writing: bool,
         ty: &'cx ty::Ty<'cx>,
         prop: SymbolID,
         report_error: bool,
     ) {
         let error_node = report_error.then_some(node);
-        self.check_prop_accessibility_at_loc(node, is_super, writing, ty, prop, error_node);
+        self.check_prop_accessibility_at_loc::<IS_WRITE>(node, is_super, ty, prop, error_node);
     }
 
     fn symbol_hash_non_method_decl(&mut self, symbol: SymbolID) -> bool {
@@ -2100,16 +2188,15 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_prop_accessibility_at_loc(
+    fn check_prop_accessibility_at_loc<const IS_WRITE: bool>(
         &mut self,
         loc: ast::NodeID,
         is_super: bool,
-        writing: bool,
         containing_ty: &'cx ty::Ty<'cx>,
         prop: SymbolID,
         error_node: Option<ast::NodeID>,
     ) -> bool {
-        let flags = self.get_declaration_modifier_flags_from_symbol(prop, Some(writing));
+        let flags = self.get_declaration_modifier_flags_from_symbol::<IS_WRITE>(prop);
         if is_super {
             if *self.config.compiler_options().target() < bolt_ts_config::Target::ES2015 {
                 if self.symbol_hash_non_method_decl(prop) {
@@ -5509,6 +5596,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty,
                     is_readonly,
                     symbol: Symbol::ERR,
+                    declaration: None,
                 });
                 result.push(index_info);
             }
@@ -6988,6 +7076,7 @@ impl<'cx> TyChecker<'cx> {
                 key_ty: self.string_ty,
                 val_ty: self.empty_object_ty(),
                 is_readonly: false,
+                declaration: None,
             })])
         } else {
             self.empty_array()

@@ -26,6 +26,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty: self.any_ty,
                     is_readonly: false,
                     symbol: Symbol::ERR,
+                    declaration: None,
                 }));
                 continue;
             }

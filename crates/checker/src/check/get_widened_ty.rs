@@ -1,6 +1,7 @@
 use super::CheckMode;
 use super::ContextFlags;
 use super::TyChecker;
+use super::create_ty::IntersectionFlags;
 use super::get_iteration_tys::IterationTypeKind;
 use super::ty;
 use super::ty::ObjectFlags;
@@ -10,14 +11,26 @@ use super::utils::contains_ty;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
+use bolt_ts_binder::SymbolName;
+
+#[derive(Debug, Clone)]
+struct WideningContext<'cx> {
+    parent: Option<Box<WideningContext<'cx>>>,
+    property_name: Option<SymbolName>,
+    siblings: Option<ty::Tys<'cx>>,
+    resolved_properties: Option<Vec<SymbolID>>,
+}
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_widened_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        self.get_widened_ty_with_context(ty)
+        self.get_widened_ty_with_context(ty, None)
     }
 
-    // TODO: WideningContext
-    fn get_widened_ty_with_context(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    fn get_widened_ty_with_context(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        context: Option<&WideningContext<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
         if !ty
             .get_object_flags()
             .intersects(ty::ObjectFlags::REQUIRES_WIDENING)
@@ -32,6 +45,36 @@ impl<'cx> TyChecker<'cx> {
             self.any_ty
         } else if ty.is_object_literal() {
             self.get_widened_type_of_object_lit(ty)
+        } else if let Some(u) = ty.kind.as_union() {
+            let union_context = match context {
+                Some(context) => std::borrow::Cow::Borrowed(context),
+                None => std::borrow::Cow::Owned(WideningContext {
+                    parent: None,
+                    property_name: None,
+                    siblings: Some(u.tys),
+                    resolved_properties: None,
+                }),
+            };
+            let widened_tys = self
+                .same_map_tys(Some(u.tys), |this, t, _| {
+                    if t.flags.intersects(TypeFlags::NULLABLE) {
+                        t
+                    } else {
+                        this.get_widened_ty_with_context(t, Some(&union_context))
+                    }
+                })
+                .unwrap();
+            let reduction = if widened_tys.iter().any(|t| self.is_empty_object_ty(t)) {
+                ty::UnionReduction::Subtype
+            } else {
+                ty::UnionReduction::Lit
+            };
+            self.get_union_ty::<false>(widened_tys, reduction, None, None, None, None)
+        } else if let Some(i) = ty.kind.as_intersection() {
+            let widened_tys = self
+                .same_map_tys(Some(i.tys), |this, t, _| this.get_widened_ty(t))
+                .unwrap();
+            self.get_intersection_ty(widened_tys, IntersectionFlags::None, None, None)
         } else if self.is_array_or_tuple(ty) {
             let refer = ty.kind.expect_object_reference();
             let ty_args = self.get_ty_arguments(ty);

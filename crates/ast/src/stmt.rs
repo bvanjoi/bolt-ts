@@ -548,13 +548,6 @@ pub enum ClassElemKind<'cx> {
     Semi(&'cx ClassSemiElem),
 }
 
-#[derive(Debug, Clone)]
-pub struct ClassStaticBlockDecl<'cx> {
-    pub id: NodeID,
-    pub span: Span,
-    pub body: &'cx BlockStmt<'cx>,
-}
-
 impl<'cx> ClassElemKind<'cx> {
     pub fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>> {
         use crate::ClassElemKind::*;
@@ -568,8 +561,17 @@ impl<'cx> ClassElemKind<'cx> {
         }
     }
     pub fn is_static(&self) -> bool {
-        let ms = self.modifiers();
-        ms.is_some_and(|ms| ms.flags.contains(ModifierFlags::STATIC))
+        let m = match self {
+            ClassElemKind::Ctor(n) => n.modifiers,
+            ClassElemKind::Prop(n) => n.modifiers,
+            ClassElemKind::Method(n) => n.modifiers,
+            ClassElemKind::IndexSig(n) => n.modifiers,
+            ClassElemKind::Getter(n) => n.modifiers,
+            ClassElemKind::Setter(n) => n.modifiers,
+            ClassElemKind::StaticBlockDecl(_) => return true,
+            ClassElemKind::Semi(_) => return false,
+        };
+        m.is_some_and(|ms| ms.flags.contains(ModifierFlags::STATIC))
     }
 
     pub fn id(&self) -> NodeID {
@@ -609,6 +611,13 @@ impl<'cx> ClassElemKind<'cx> {
                 .modifiers
                 .is_some_and(|ms| ms.flags.contains(ModifierFlags::ABSTRACT))
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassStaticBlockDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,0 +1,17 @@
+  × Type 'number' is not assignable to type 'E.A | E.B | E.C'.
+    ╭─[../../tests/compiler/enumAssignmentCompat5/index.ts:16:1]
+ 16 │ e
+    · ─
+    ╰────
+
+  × Type 'E.C' is not assignable to type 'E.A'.
+    ╭─[../../tests/compiler/enumAssignmentCompat5/index.ts:19:1]
+ 19 │ a
+    · ─
+    ╰────
+
+  × Type 'E.B' is not assignable to type 'Computed.A'.
+    ╭─[../../tests/compiler/enumAssignmentCompat5/index.ts:26:5]
+ 26 │ ca
+    · ──
+    ╰────

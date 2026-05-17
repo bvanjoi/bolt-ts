@@ -1,0 +1,19 @@
+  × Property 'method' in type 'Derived<Derived>' is not assignable to the same
+  │ property in base type 'Base<Derived>'.
+    ╭─[../../tests/compiler/enumAssignmentCompat7/index.ts:22:14]
+ 22 │ method
+    · ──────
+    ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/enumAssignmentCompat7/index.ts:27:10]
+ 27 │ overloadingFunction
+    · ───────────────────
+    ╰────
+
+  × Property 'B' does not exist on type '{ A: E.A; }'.
+    ╭─[../../tests/compiler/enumAssignmentCompat7/index.ts:30:21]
+ 30 │ B
+    · ─
+    ╰────

@@ -105,7 +105,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = s.flags;
         (flags.contains(SymbolFlags::PROPERTY)
             && self
-                .get_declaration_modifier_flags_from_symbol(symbol, None)
+                .get_declaration_modifier_flags_from_symbol::<false>(symbol)
                 .contains(ast::ModifierFlags::READONLY))
             || flags.contains(SymbolFlags::ENUM_MEMBER)
             || (flags.intersects(SymbolFlags::VARIABLE)

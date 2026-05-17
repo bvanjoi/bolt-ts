@@ -1723,3 +1723,14 @@ pub(super) struct NoOverloadExpectsXTypeArgumentsButOverloadsDoExistThatExpectEi
     pub max_below: usize,
     pub min_above: usize,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{ty1}' index type '{ty2}' is not assignable to '{ty3}' index type '{ty4}'.")]
+pub(super) struct AIndexTypeBIsNotAssignableToCIndexTypeD {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+    pub ty3: String,
+    pub ty4: String,
+}

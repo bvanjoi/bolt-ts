@@ -361,9 +361,9 @@ impl<'cx> TyChecker<'cx> {
         if source == target {
             return Ternary::TRUE;
         }
-        let source_prop_access = self.get_declaration_modifier_flags_from_symbol(source, None)
+        let source_prop_access = self.get_declaration_modifier_flags_from_symbol::<false>(source)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
-        let target_prop_access = self.get_declaration_modifier_flags_from_symbol(target, None)
+        let target_prop_access = self.get_declaration_modifier_flags_from_symbol::<false>(target)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
@@ -828,7 +828,7 @@ impl<'cx> TyChecker<'cx> {
             if let Some(prop) =
                 self.get_prop_of_ty::<SKIP_OBJECT_FUNCTION_PROPERTY_AUGMENT, false>(ty, name)
             {
-                let modifiers = self.get_declaration_modifier_flags_from_symbol(prop, None);
+                let modifiers = self.get_declaration_modifier_flags_from_symbol::<false>(prop);
                 let symbol_flags = self.symbol(prop).flags;
                 if symbol_flags.intersects(SymbolFlags::CLASS_MEMBER) {
                     if optional_flag.is_none() {

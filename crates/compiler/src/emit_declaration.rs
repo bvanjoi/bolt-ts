@@ -239,6 +239,56 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_call_expr(&mut self, _: &'cx bolt_ts_ast::CallExpr<'cx>) {}
 
+    fn visit_class_method_elem(&mut self, node: &'cx bolt_ts_ast::ClassMethodElem<'cx>) {
+        if let Some(ms) = node.modifiers {
+            if ms.flags.contains(ast::ModifierFlags::STATIC) {
+                self.emitter.print().p("static");
+                self.emitter.print().p_whitespace();
+            }
+        }
+        self.visit_prop_name(node.name);
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        if let Some(ty) = node.ty {
+            self.emitter.print().p_colon();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(ty);
+        }
+        self.emitter.print().p_semi();
+    }
+
+    fn visit_class_ctor(&mut self, node: &'cx bolt_ts_ast::ClassCtor<'cx>) {
+        self.emitter.print().p("constructor");
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        if let Some(ty) = node.ret {
+            self.emitter.print().p_colon();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(ty);
+        }
+        self.emitter.print().p_semi();
+    }
+
     fn visit_class_decl(&mut self, node: &'cx bolt_ts_ast::ClassDecl<'cx>) {
         if let Some(ms) = node.modifiers {
             if ms.flags.contains(ast::ModifierFlags::EXPORT) {
@@ -275,9 +325,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                 |this, elem| {
                     use ast::ClassElemKind::*;
                     match elem.kind {
-                        Ctor(_n) => todo!(),
+                        Ctor(n) => this.visit_class_ctor(n),
                         Prop(_n) => todo!(),
-                        Method(_n) => todo!(),
+                        Method(n) => this.visit_class_method_elem(n),
                         IndexSig(n) => this.visit_index_sig_decl(n),
                         Getter(_n) => todo!(),
                         Setter(n) => this.visit_setter_decl(n),

@@ -306,7 +306,7 @@ impl<'cx> TyChecker<'cx> {
         let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_class_for_duplicate_decls(class);
-        self.check_index_constraints(ty, false);
+        self.check_index_constraints::<false>(ty, symbol);
 
         if let Some(base_ty_node) = self.get_effective_base_type_node(class_id) {
             let base_tys = self.get_base_tys(ty);
@@ -407,7 +407,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let derived = self.get_target_symbol(base_s_in_type);
                     let base_declaration_flags =
-                        self.get_declaration_modifier_flags_from_symbol(base, None);
+                        self.get_declaration_modifier_flags_from_symbol::<false>(base);
                     if derived == base {
                         let derived_class_decl =
                             self.get_class_like_decl_of_symbol(ty.symbol().unwrap());
@@ -443,7 +443,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         // TODO:
                         let derived_declaration_flags =
-                            self.get_declaration_modifier_flags_from_symbol(derived, None);
+                            self.get_declaration_modifier_flags_from_symbol::<false>(derived);
                         if base_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
                             || derived_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
                         {

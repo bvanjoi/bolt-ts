@@ -956,6 +956,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         regular_arg_ty
                     };
+
                     if !self.check_type_related_to_and_optionally_elaborate(
                         check_arg_ty,
                         parameter_type,
