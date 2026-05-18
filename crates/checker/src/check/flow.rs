@@ -1248,7 +1248,7 @@ impl<'cx> TyChecker<'cx> {
                 let left = self.get_reference_candidate(binary_expr.left);
                 let right = self.get_reference_candidate(binary_expr.right);
                 if let ast::ExprKind::Typeof(n) = left.kind
-                    && right.is_string_lit_like()
+                    && let Some(lit) = right.as_string_literal_like()
                 {
                     return self.narrow_ty_by_typeof(
                         ty,
@@ -1256,11 +1256,11 @@ impl<'cx> TyChecker<'cx> {
                         refer,
                         n,
                         binary_expr.op.kind,
-                        right,
+                        lit,
                         assume_true,
                     );
                 } else if let ast::ExprKind::Typeof(n) = right.kind
-                    && left.is_string_lit_like()
+                    && let Some(lit) = left.as_string_literal_like()
                 {
                     return self.narrow_ty_by_typeof(
                         ty,
@@ -1268,7 +1268,7 @@ impl<'cx> TyChecker<'cx> {
                         refer,
                         n,
                         binary_expr.op.kind,
-                        left,
+                        lit,
                         assume_true,
                     );
                 } else if self.is_matching_reference(refer, left.id()) {
@@ -1307,12 +1307,12 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
 
-                if let Some(right_acess) =
+                if let Some(right_access) =
                     self.get_discriminant_prop_access(refer, right.id(), ty, declared_ty)
                 {
                     return self.narrow_ty_by_discriminant_prop(
                         ty,
-                        right_acess,
+                        right_access,
                         binary_expr.op.kind,
                         left,
                         assume_true,
@@ -1356,6 +1356,14 @@ impl<'cx> TyChecker<'cx> {
                         return self.narrow_ty_by_in_keyword(ty, left_ty, assume_true);
                     }
                 }
+                ty
+            }
+            LogicalAnd => {
+                // TODO:
+                ty
+            }
+            LogicalOr => {
+                // TODO:
                 ty
             }
             _ => ty,
@@ -1489,16 +1497,16 @@ impl<'cx> TyChecker<'cx> {
 
     fn narrow_ty_by_typeof(
         &mut self,
-        ty: &'cx ty::Ty<'cx>,
+        mut ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
         refer: ast::NodeID,
         typeof_expr: &'cx ast::TypeofExpr<'cx>,
         op: ast::BinOpKind,
-        lit: &'cx ast::Expr<'cx>,
+        string_literal: Atom,
         mut assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use ast::BinOpKind::*;
-        debug_assert!(lit.is_string_lit_like());
+        // debug_assert!(lit.is_string_lit_like());
         debug_assert!(matches!(op, EqEqEq | NEqEq | EqEq | NEq));
         if matches!(op, NEqEq | NEq) {
             assume_true = !assume_true;
@@ -1506,17 +1514,22 @@ impl<'cx> TyChecker<'cx> {
         let target = self.get_reference_candidate(typeof_expr.expr);
         let target_id = target.id();
         if !self.is_matching_reference(refer, target_id) {
-            // TODO: optional chain
+            if self.config.compiler_options().strict_null_checks()
+                && self.optional_chain_contains_reference(target_id, refer)
+                && (assume_true == (string_literal != keyword::KW_UNDEFINED))
+            {
+                ty = self.get_adjusted_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL);
+            }
             if let Some(prop_access) =
                 self.get_discriminant_prop_access(refer, target_id, ty, declared_ty)
             {
                 return self.narrow_ty_by_discriminant(prop_access, ty, |this, t| {
-                    this.narrow_ty_by_lit(t, lit, assume_true)
+                    this.narrow_ty_by_lit(t, string_literal, assume_true)
                 });
             }
             ty
         } else {
-            self.narrow_ty_by_lit(ty, lit, assume_true)
+            self.narrow_ty_by_lit(ty, string_literal, assume_true)
         }
     }
 
@@ -1557,87 +1570,75 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    fn narrow_ty_by_ty_name(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        lit: &'cx ast::Expr<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        match lit.kind {
-            ast::ExprKind::StringLit(s) => match s.val {
-                keyword::IDENT_STRING => {
-                    self.narrow_ty_by_ty_facts(ty, self.string_ty, TypeFacts::TYPEOF_EQ_STRING)
+    fn narrow_ty_by_ty_name(&mut self, ty: &'cx ty::Ty<'cx>, lit: Atom) -> &'cx ty::Ty<'cx> {
+        match lit {
+            keyword::IDENT_STRING => {
+                self.narrow_ty_by_ty_facts(ty, self.string_ty, TypeFacts::TYPEOF_EQ_STRING)
+            }
+            keyword::IDENT_NUMBER => {
+                self.narrow_ty_by_ty_facts(ty, self.number_ty, TypeFacts::TYPEOF_EQ_NUMBER)
+            }
+            keyword::IDENT_BIGINT => {
+                self.narrow_ty_by_ty_facts(ty, self.bigint_ty, TypeFacts::TYPEOF_EQ_BIGINT)
+            }
+            keyword::IDENT_BOOLEAN => {
+                self.narrow_ty_by_ty_facts(ty, self.boolean_ty(), TypeFacts::TYPEOF_EQ_BOOLEAN)
+            }
+            keyword::IDENT_SYMBOL => {
+                self.narrow_ty_by_ty_facts(ty, self.es_symbol_ty, TypeFacts::TYPEOF_EQ_SYMBOL)
+            }
+            keyword::IDENT_OBJECT => {
+                if ty.flags.contains(TypeFlags::ANY) {
+                    ty
+                } else {
+                    let a = self.narrow_ty_by_ty_facts(
+                        ty,
+                        self.non_primitive_ty,
+                        TypeFacts::TYPEOF_EQ_OBJECT,
+                    );
+                    let b = self.narrow_ty_by_ty_facts(ty, self.null_ty, TypeFacts::EQ_NULL);
+                    self.get_union_ty::<false>(
+                        &[a, b],
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
                 }
-                keyword::IDENT_NUMBER => {
-                    self.narrow_ty_by_ty_facts(ty, self.number_ty, TypeFacts::TYPEOF_EQ_NUMBER)
+            }
+            keyword::KW_FUNCTION => {
+                if ty.flags.contains(TypeFlags::ANY) {
+                    ty
+                } else {
+                    self.narrow_ty_by_ty_facts(
+                        ty,
+                        self.global_fn_ty(),
+                        TypeFacts::TYPEOF_EQ_FUNCTION,
+                    )
                 }
-                keyword::IDENT_BIGINT => {
-                    self.narrow_ty_by_ty_facts(ty, self.bigint_ty, TypeFacts::TYPEOF_EQ_BIGINT)
-                }
-                keyword::IDENT_BOOLEAN => {
-                    self.narrow_ty_by_ty_facts(ty, self.boolean_ty(), TypeFacts::TYPEOF_EQ_BOOLEAN)
-                }
-                keyword::IDENT_SYMBOL => {
-                    self.narrow_ty_by_ty_facts(ty, self.es_symbol_ty, TypeFacts::TYPEOF_EQ_SYMBOL)
-                }
-                keyword::IDENT_OBJECT => {
-                    if ty.flags.contains(TypeFlags::ANY) {
-                        ty
-                    } else {
-                        let a = self.narrow_ty_by_ty_facts(
-                            ty,
-                            self.non_primitive_ty,
-                            TypeFacts::TYPEOF_EQ_OBJECT,
-                        );
-                        let b = self.narrow_ty_by_ty_facts(ty, self.null_ty, TypeFacts::EQ_NULL);
-                        self.get_union_ty::<false>(
-                            &[a, b],
-                            ty::UnionReduction::Lit,
-                            None,
-                            None,
-                            None,
-                            None,
-                        )
-                    }
-                }
-                keyword::KW_FUNCTION => {
-                    if ty.flags.contains(TypeFlags::ANY) {
-                        ty
-                    } else {
-                        self.narrow_ty_by_ty_facts(
-                            ty,
-                            self.global_fn_ty(),
-                            TypeFacts::TYPEOF_EQ_FUNCTION,
-                        )
-                    }
-                }
-                keyword::KW_UNDEFINED => {
-                    self.narrow_ty_by_ty_facts(ty, self.undefined_ty, TypeFacts::EQ_UNDEFINED)
-                }
-                _ => self.narrow_ty_by_ty_facts(
-                    ty,
-                    self.non_primitive_ty,
-                    TypeFacts::TYPEOF_EQ_HOST_OBJECT,
-                ),
-            },
-            _ => unreachable!(),
+            }
+            keyword::KW_UNDEFINED => {
+                self.narrow_ty_by_ty_facts(ty, self.undefined_ty, TypeFacts::EQ_UNDEFINED)
+            }
+            _ => self.narrow_ty_by_ty_facts(
+                ty,
+                self.non_primitive_ty,
+                TypeFacts::TYPEOF_EQ_HOST_OBJECT,
+            ),
         }
     }
 
     fn narrow_ty_by_lit(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        lit: &'cx ast::Expr<'cx>,
+        lit: Atom,
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         if assume_true {
             self.narrow_ty_by_ty_name(ty, lit)
         } else {
-            let facts = match lit.kind {
-                ast::ExprKind::StringLit(s) => {
-                    typeof_ne_facts(s.val).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT)
-                }
-                _ => unreachable!(),
-            };
+            let facts = typeof_ne_facts(lit).unwrap_or(TypeFacts::TYPEOF_NE_HOST_OBJECT);
             self.get_adjusted_ty_with_facts(ty, facts)
         }
     }

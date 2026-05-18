@@ -113,6 +113,14 @@ impl<'cx> Expr<'cx> {
         self.kind.is_string_literal_like()
     }
 
+    pub fn as_string_literal_like(&self) -> Option<Atom> {
+        match self.kind {
+            ExprKind::StringLit(lit) => Some(lit.val),
+            ExprKind::NoSubstitutionTemplateLit(lit) => Some(lit.val),
+            _ => None,
+        }
+    }
+
     pub fn is_signed_numeric_lit(&self) -> bool {
         self.kind.is_signed_numeric_lit()
     }
