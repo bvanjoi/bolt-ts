@@ -216,7 +216,7 @@ impl<'cx> TyChecker<'cx> {
                     key,
                 );
             } else if flags.contains(FlowFlags::SWITCH_CLAUSE) {
-                ty = self.get_ty_at_flow_switch_clause(
+                ty = self.get_ty_at_switch_clause(
                     flow,
                     refer,
                     shared_flow_start,
@@ -284,7 +284,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_at_flow_switch_clause(
+    fn get_ty_at_switch_clause(
         &mut self,
         flow: FlowID,
         refer: ast::NodeID,
@@ -298,6 +298,9 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let expr = ast::Expr::skip_parens(n.node.expr);
+        let switch_stmt = n.node;
+        let clause_start = n.clause_start;
+        let clause_end = n.clause_end;
         let flow_ty = self.get_ty_at_flow_node(
             n.antecedent,
             refer,
@@ -309,18 +312,118 @@ impl<'cx> TyChecker<'cx> {
         );
         let mut ty = self.get_ty_from_flow_ty(flow_ty);
         if self.is_matching_reference(refer, expr.id()) {
-            // TODO:
+            ty = self.narrow_ty_by_switch_on_discriminant(ty, flow)
         } else if let ast::ExprKind::Typeof(expr) = expr.kind
             && self.is_matching_reference(refer, expr.expr.id())
         {
-            // TODO:
+            // narrow_type_by_switch_on_typeof
+            if let Some(witnesses) = self.get_switch_clause_ty_of_witnesses(switch_stmt) {
+                let default_index = switch_stmt
+                    .case_block
+                    .clauses
+                    .iter()
+                    .position(|clause| matches!(clause, ast::CaseOrDefaultClause::Default(_)));
+                let has_default_clause = clause_start == clause_end
+                    || default_index.is_some_and(|default_index| {
+                        default_index >= clause_start as usize
+                            && default_index < clause_end as usize
+                    });
+                if has_default_clause {
+                    let no_equal_facts = self.get_not_equal_facts_from_ty_of_switch(
+                        clause_start as usize,
+                        clause_end as usize,
+                        &witnesses,
+                    );
+                    ty = self.filter_type(ty, |this, t| {
+                        this.get_ty_facts(t, no_equal_facts) == no_equal_facts
+                    });
+                } else {
+                    let tys = witnesses[clause_start as usize..clause_end as usize]
+                        .iter()
+                        .map(|text| match *text {
+                            Some(text) => self.narrow_ty_by_ty_name(ty, text),
+                            None => self.never_ty,
+                        })
+                        .collect::<Vec<_>>();
+                    ty = self.get_union_ty::<false>(
+                        &tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                }
+            }
         } else if let ast::ExprKind::BoolLit(lit) = expr.kind
             && lit.val
         {
-            // TODO:
+            // narrow_type_by_switch_on_true
+            let default_index = switch_stmt
+                .case_block
+                .clauses
+                .iter()
+                .position(|clause| matches!(clause, ast::CaseOrDefaultClause::Default(_)));
+            let has_default_clause = clause_start == clause_end
+                || default_index.is_some_and(|default_index| {
+                    default_index >= clause_start as usize && default_index < clause_end as usize
+                });
+
+            for i in 0..clause_start {
+                if let ast::CaseOrDefaultClause::Case(clause) =
+                    &switch_stmt.case_block.clauses[i as usize]
+                {
+                    ty = self.narrow_ty(ty, declared_ty, refer, clause.expr.id(), false);
+                }
+            }
+
+            if has_default_clause {
+                for i in clause_end..switch_stmt.case_block.clauses.len() as u8 {
+                    if let ast::CaseOrDefaultClause::Case(clause) =
+                        &switch_stmt.case_block.clauses[i as usize]
+                    {
+                        ty = self.narrow_ty(ty, declared_ty, refer, clause.expr.id(), true);
+                    }
+                }
+            } else {
+                let tys = switch_stmt.case_block.clauses
+                    [clause_start as usize..clause_end as usize]
+                    .iter()
+                    .map(|clause| match clause {
+                        ast::CaseOrDefaultClause::Case(n) => {
+                            self.narrow_ty(ty, declared_ty, refer, n.expr.id(), true)
+                        }
+                        ast::CaseOrDefaultClause::Default(_) => self.never_ty,
+                    })
+                    .collect::<Vec<_>>();
+                ty = self.get_union_ty::<false>(
+                    &tys,
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
+            }
         } else {
             if self.config.compiler_options().strict_null_checks() {
-                // TODO:
+                if self.optional_chain_contains_reference(expr.id(), refer) {
+                    ty = self.narrow_type_by_switch_optional_chain_containment(ty, flow, |ty| {
+                        !ty.flags
+                            .intersects(TypeFlags::UNDEFINED.union(TypeFlags::NEVER))
+                    });
+                } else if let ast::ExprKind::Typeof(n) = expr.kind
+                    && self.optional_chain_contains_reference(n.expr.id(), refer)
+                {
+                    ty = self.narrow_type_by_switch_optional_chain_containment(ty, flow, |ty| {
+                        !(ty.flags.contains(TypeFlags::NEVER)
+                            || ty.flags.contains(TypeFlags::STRING_LITERAL)
+                                && match ty.kind {
+                                    ty::TyKind::StringLit(n) => n.val == keyword::KW_UNDEFINED,
+                                    _ => unreachable!(),
+                                })
+                    });
+                }
             }
             if let Some(access) =
                 self.get_discriminant_prop_access(refer, expr.id(), ty, declared_ty)
@@ -329,6 +432,29 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         self.create_flow_ty(ty, flow_ty.is_incomplete())
+    }
+
+    fn narrow_type_by_switch_optional_chain_containment(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        flow: FlowID,
+        clause_check: impl Fn(&'cx ty::Ty<'cx>) -> bool + Copy,
+    ) -> &'cx ty::Ty<'cx> {
+        let FlowNodeKind::Switch(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        let clause_start = n.clause_start;
+        let clause_end = n.clause_end;
+        let node = n.node;
+        if clause_start != clause_end
+            && self.get_switch_clause_tys(node)[clause_start as usize..clause_end as usize]
+                .iter()
+                .all(|ty| clause_check(ty))
+        {
+            self.get_ty_with_facts(ty, ty::TypeFacts::NE_UNDEFINED_OR_NULL)
+        } else {
+            ty
+        }
     }
 
     fn narrow_ty_by_switch_on_discriminant_prop(
@@ -379,16 +505,13 @@ impl<'cx> TyChecker<'cx> {
             let default_ty = self.filter_type(ty, |this, t| {
                 !(this.is_unit_like_ty(t)
                     && switch_tys.iter().any(|t1| {
-                        if !t1.is_unit() {
-                            return false;
-                        }
                         let t2 = if t1.flags.contains(TypeFlags::UNDEFINED) {
                             this.undefined_ty
                         } else {
                             let t = this.extract_unit_ty(t1);
                             this.get_regular_ty_of_literal_ty(t)
                         };
-                        this.are_types_comparable(t1, t2)
+                        t1.is_unit() && this.are_types_comparable(t1, t2)
                     }))
             });
             if case_ty.flags.contains(TypeFlags::NEVER) {
@@ -1031,7 +1154,7 @@ impl<'cx> TyChecker<'cx> {
                 if assume_true {
                     TypeFacts::TRUTHY
                 } else {
-                    TypeFacts::FALSE_FACTS
+                    TypeFacts::FALSY
                 },
             );
         }
@@ -1359,12 +1482,40 @@ impl<'cx> TyChecker<'cx> {
                 ty
             }
             LogicalAnd => {
-                // TODO:
-                ty
+                if assume_true {
+                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), true);
+                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true);
+                    ty
+                } else {
+                    let a = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
+                    let b = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false);
+                    self.get_union_ty::<false>(
+                        &[a, b],
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                }
             }
             LogicalOr => {
-                // TODO:
-                ty
+                if assume_true {
+                    let a = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), true);
+                    let b = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true);
+                    self.get_union_ty::<false>(
+                        &[a, b],
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                } else {
+                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
+                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false);
+                    ty
+                }
             }
             _ => ty,
         }

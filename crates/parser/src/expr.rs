@@ -61,6 +61,22 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn try_parse_async_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+    ) -> Option<&'cx ast::Expr<'cx>> {
+        if self.token.kind == TokenKind::Async
+            && self.lookahead(Lookahead::is_unparenthesized_async_arrow_fn_worker) == Tristate::True
+            && let async_modifier = self.parse_async_modifier()
+            && let Ok(expr) = self.parse_binary_expr(BinPrec::Lowest)
+            && let ast::ExprKind::Ident(ident) = expr.kind
+            && let Ok(expr) = self
+                .parse_simple_arrow_fn_expr::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(ident, async_modifier)
+        {
+            return Some(expr);
+        }
+        None
+    }
+
     fn parse_possible_paren_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
@@ -209,16 +225,19 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
         param: &'cx ast::Ident,
+        async_modifier: Option<&'cx ast::Modifier>,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::EqGreat);
+        debug_assert!(async_modifier.is_none_or(|m| m.kind() == ast::ModifierKind::Async));
         let name = self.parse_binding_with_ident(Some(param));
         let parameter =
             self.create_parameter_declaration(param.span, None, None, name, None, None, None);
         let parameters = self.alloc([parameter]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(false)?;
+        let is_async = async_modifier.is_some();
+        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(is_async)?;
         let span = self.new_span(param.span.lo());
-        let expr = self.create_arrow_fn_expr(span, None, None, parameters, None, body);
+        let expr = self.create_arrow_fn_expr(span, async_modifier, None, parameters, None, body);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });
@@ -272,13 +291,17 @@ impl<'cx> ParserState<'cx, '_> {
         if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>() {
             return Ok(expr);
         };
+        if let Some(expr) = self.try_parse_async_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>()
+        {
+            return Ok(expr);
+        }
 
         let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest)?;
         if let ast::ExprKind::Ident(ident) = expr.kind
             && self.token.kind == TokenKind::EqGreat
         {
-            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident)
+            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident, None)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
             match expr.kind {
                 ast::ExprKind::Ident(n) => {
@@ -310,7 +333,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         let left = self.parse_unary_expr()?;
         self.parse_binary_expr_rest(prec, left, start)

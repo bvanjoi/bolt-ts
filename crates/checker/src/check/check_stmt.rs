@@ -82,6 +82,9 @@ impl<'cx> TyChecker<'cx> {
                             }),
                         );
                     }
+                    for stmt in n.stmts {
+                        self.check_stmt(stmt);
+                    }
                 }
                 Default(n) => {
                     if !has_duplicate_default_clause {

@@ -1,0 +1,5 @@
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue9/index.ts:19:23]
+ 19 │ a1
+    · ──
+    ╰────

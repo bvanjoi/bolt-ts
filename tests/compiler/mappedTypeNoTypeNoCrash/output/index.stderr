@@ -1,0 +1,11 @@
+  × Cannot find name 'K'.
+   ╭─[../../tests/compiler/mappedTypeNoTypeNoCrash/index.ts:7:51]
+ 7 │ K
+   · ─
+   ╰────
+
+  × Cannot find name 'K'.
+   ╭─[../../tests/compiler/mappedTypeNoTypeNoCrash/index.ts:7:57]
+ 7 │ K
+   · ─
+   ╰────
