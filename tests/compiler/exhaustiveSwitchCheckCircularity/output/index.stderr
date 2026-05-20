@@ -1,0 +1,5 @@
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+    ╭─[../../tests/compiler/exhaustiveSwitchCheckCircularity/index.ts:18:26]
+ 18 │ foo
+    · ───
+    ╰────

@@ -730,3 +730,17 @@ pub(super) struct ARestParameterCannotBeOptional {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest parameter cannot have an initializer.")]
+pub(super) struct ARestParameterCannotHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A required parameter cannot follow an optional parameter.")]
+pub(super) struct ARequiredParameterCannotFollowAnOptionalParameter {
+    #[label(primary)]
+    pub span: Span,
+}

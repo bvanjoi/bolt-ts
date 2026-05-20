@@ -621,6 +621,23 @@ impl<'cx> ParserState<'cx, '_> {
         });
         let has_error = self.diags.len() > old_error;
         if !has_error {
+            // check parameters
+            let mut seen_optional = false;
+            for parameter in params {
+                if !seen_optional && parameter.question.is_some() {
+                    seen_optional = true;
+                } else if seen_optional
+                    && parameter.question.is_none()
+                    && parameter.dotdotdot.is_none()
+                    && parameter.init.is_none()
+                {
+                    self.push_error(Box::new(
+                        errors::ARequiredParameterCannotFollowAnOptionalParameter {
+                            span: parameter.name.span,
+                        },
+                    ));
+                }
+            }
             let last_is_rest = params
                 .last()
                 .map(|p| p.dotdotdot.is_some())
@@ -717,6 +734,8 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_name_of_param()?;
         self.check_contextual_binding(name);
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
+        let ty = self.parse_ty_anno()?;
+        let init = self.parse_init()?;
         if dotdotdot.is_some() {
             if let Some(ms) = modifiers
                 && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
@@ -741,9 +760,11 @@ impl<'cx> ParserState<'cx, '_> {
                 let error = errors::ARestParameterCannotBeOptional { span: question };
                 self.push_error(Box::new(error));
             }
+            if let Some(init) = init {
+                let error = errors::ARestParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
         };
-        let ty = self.parse_ty_anno()?;
-        let init = self.parse_init()?;
         let span = self.new_span(start);
         let decl =
             self.create_parameter_declaration(span, modifiers, dotdotdot, name, question, ty, init);

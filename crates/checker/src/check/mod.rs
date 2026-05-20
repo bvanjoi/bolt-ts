@@ -3084,7 +3084,6 @@ impl<'cx> TyChecker<'cx> {
         let assume_initialized = is_param
             || is_alias
             || (is_outer_variable && !is_never_initialized)
-            || self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT)
             || self
                 .node_query(ident.id.module())
                 .is_same_scoped_binding_element(ident, decl)
@@ -3106,7 +3105,13 @@ impl<'cx> TyChecker<'cx> {
                         .is_export_named_spec()))
             || self
                 .parent(ident.id)
-                .is_some_and(|p| self.p.node(p).is_non_null_expr());
+                .is_some_and(|p| self.p.node(p).is_non_null_expr())
+            || self
+                .p
+                .node(decl)
+                .as_var_decl()
+                .is_some_and(|n| n.excl.is_some())
+            || self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT);
         let init_ty = if is_automatic_ty_is_non_null {
             self.undefined_ty
         } else if assume_initialized {

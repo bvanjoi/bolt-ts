@@ -210,7 +210,9 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn check_export_default_error(&mut self, span: bolt_ts_span::Span) {
-        if self.parse_context.contains(ParseContext::MODULE_BLOCK) {
+        if self.parse_context.contains(ParseContext::MODULE_BLOCK)
+            && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+        {
             let error = errors::ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule { span };
             self.push_error(Box::new(error));
         } else if !self.parse_context.contains(ParseContext::TOP_LEVEL) {
@@ -470,6 +472,8 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
         mods: Option<&'cx ast::Modifiers<'cx>>,
     ) -> &'cx ast::ModuleDecl<'cx> {
+        let save_has_export_decl = self.has_export_decl;
+        self.has_export_decl = false;
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
@@ -491,13 +495,15 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_ident_name();
         let block = self.parse_module_block();
         let span = self.new_span(start);
-        self.create_module_decl::<false>(
+        let ret = self.create_module_decl::<false>(
             span,
             mods,
             ast::ModuleName::Ident(name),
             Some(block),
             self.has_export_decl,
-        )
+        );
+        self.has_export_decl = save_has_export_decl;
+        ret
     }
 
     fn parse_module_block(&mut self) -> &'cx ast::ModuleBlock<'cx> {
@@ -506,14 +512,11 @@ impl<'cx> ParserState<'cx, '_> {
             this.expect(TokenKind::LBrace);
 
             let save_external_module_indicator = this.external_module_indicator;
-            let save_has_export_decl = this.has_export_decl;
-            this.has_export_decl = false;
 
             let stmts = this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
                 this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
             });
 
-            this.has_export_decl = save_has_export_decl;
             this.external_module_indicator = save_external_module_indicator;
 
             this.expect(TokenKind::RBrace);

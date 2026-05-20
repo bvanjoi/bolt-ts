@@ -415,8 +415,7 @@ impl<'cx> TyChecker<'cx> {
                 let constraints = t
                     .tys
                     .iter()
-                    .map(|t| get_base_constraint(checker, t, stack))
-                    .map(|c| c.unwrap())
+                    .filter_map(|t| get_base_constraint(checker, t, stack))
                     .collect::<Vec<_>>();
                 if constraints.len() == t.tys.len() {
                     let tys = checker.alloc(constraints);

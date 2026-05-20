@@ -1734,3 +1734,12 @@ pub(super) struct AIndexTypeBIsNotAssignableToCIndexTypeD {
     pub ty3: String,
     pub ty4: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "The right-hand side of an 'instanceof' expression must not be an instantiation expression."
+)]
+pub(super) struct TheRightHandSideOfAnInstanceofExpressionMustNotBeAnInstantiationExpression {
+    #[label(primary)]
+    pub span: Span,
+}

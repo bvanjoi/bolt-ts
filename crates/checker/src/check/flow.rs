@@ -488,14 +488,47 @@ impl<'cx> TyChecker<'cx> {
         let clause_tys = &switch_tys[clause_start as usize..clause_end as usize];
         let has_default_clause = clause_start == clause_end || clause_tys.contains(&self.never_ty);
         if ty.flags.contains(TypeFlags::UNKNOWN) && !has_default_clause {
-            // TODO:
+            let mut ground_clause_tys: Option<Vec<&'cx ty::Ty<'cx>>> = None;
+            for i in 0..clause_tys.len() {
+                let t = clause_tys[i];
+                if t.flags
+                    .contains(TypeFlags::PRIMITIVE.union(TypeFlags::NON_PRIMITIVE))
+                {
+                    if let Some(ground_clause_tys) = &mut ground_clause_tys {
+                        ground_clause_tys.push(t);
+                    }
+                } else if t.flags.contains(TypeFlags::OBJECT) {
+                    match &mut ground_clause_tys {
+                        Some(ground_clause_tys) => {
+                            ground_clause_tys.push(self.non_primitive_ty);
+                        }
+                        None => {
+                            let mut v = clause_tys[0..i].to_vec();
+                            v.push(self.non_primitive_ty);
+                            ground_clause_tys = Some(v);
+                        }
+                    }
+                } else {
+                    return ty;
+                }
+            }
+            return self.get_union_ty::<false>(
+                match &ground_clause_tys {
+                    Some(tys) => tys,
+                    None => clause_tys,
+                },
+                ty::UnionReduction::Lit,
+                None,
+                None,
+                None,
+                None,
+            );
         }
         let discriminant_ty =
             self.get_union_ty::<false>(clause_tys, ty::UnionReduction::Lit, None, None, None, None);
         let case_ty = if discriminant_ty.flags.contains(TypeFlags::NEVER) {
             self.never_ty
         } else {
-            // TODO:
             let t = self.filter_type(ty, |this, t| this.are_types_comparable(discriminant_ty, t));
             self.replace_primitives_with_literals(t, discriminant_ty)
         };
@@ -503,16 +536,16 @@ impl<'cx> TyChecker<'cx> {
             case_ty
         } else {
             let default_ty = self.filter_type(ty, |this, t| {
-                !(this.is_unit_like_ty(t)
-                    && switch_tys.iter().any(|t1| {
-                        let t2 = if t1.flags.contains(TypeFlags::UNDEFINED) {
-                            this.undefined_ty
-                        } else {
-                            let t = this.extract_unit_ty(t1);
-                            this.get_regular_ty_of_literal_ty(t)
-                        };
-                        t1.is_unit() && this.are_types_comparable(t1, t2)
-                    }))
+                !(this.is_unit_like_ty(t) && {
+                    let t2 = if t.flags.contains(TypeFlags::UNDEFINED) {
+                        this.undefined_ty
+                    } else {
+                        this.get_regular_ty_of_literal_ty(this.extract_unit_ty(t))
+                    };
+                    switch_tys
+                        .iter()
+                        .any(|t1| t1.is_unit() && this.are_types_comparable(t1, t2))
+                })
             });
             if case_ty.flags.contains(TypeFlags::NEVER) {
                 default_ty

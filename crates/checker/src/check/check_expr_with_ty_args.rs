@@ -1,4 +1,5 @@
 use super::TyChecker;
+use super::errors;
 use super::ty;
 use super::{SymbolLinks, create_ty::IntersectionFlags};
 
@@ -52,6 +53,21 @@ impl<'cx> TyChecker<'cx> {
                 self.check_ty(ty_arg);
             }
         }
+        let parent = self.parent(node.id()).unwrap();
+        let parent = self
+            .node_query(parent.module())
+            .walk_up_paren_expressions(parent);
+        if let ast::Node::BinExpr(p) = self.p.node(parent)
+            && p.op.kind == ast::BinOpKind::Instanceof
+            && self
+                .node_query(node.id().module())
+                .is_descendant_of(node.id(), p.right.id())
+        {
+            self.push_error(Box::new(errors::TheRightHandSideOfAnInstanceofExpressionMustNotBeAnInstantiationExpression {
+                span: p.right.span()
+            }));
+        }
+
         let expr_ty = if let Some(expr_name) = node.expr_name() {
             // typeof node
             if let ast::EntityNameKind::Ident(ident) = expr_name.kind
