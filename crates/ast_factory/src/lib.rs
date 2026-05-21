@@ -982,6 +982,32 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline]
+    fn create_interface_declaration(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::Ident,
+        ty_params: Option<ast::TyParams<'cx>>,
+        extends: Option<&'cx ast::InterfaceExtendsClause<'cx>>,
+        members: ast::ObjectTyMembers<'cx>,
+    ) -> &'cx ast::InterfaceDecl<'cx> {
+        let id = self.next_node_id();
+        let decl = self.alloc(ast::InterfaceDecl {
+            id,
+            span,
+            modifiers,
+            name,
+            ty_params,
+            extends,
+            members,
+        });
+        self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
+        self.insert_node(id, ast::Node::InterfaceDecl(decl));
+        self.insert_node_flags(id, self.node_context_flags());
+        decl
+    }
+
+    #[inline]
     fn create_type_parameter(
         &mut self,
         span: Span,

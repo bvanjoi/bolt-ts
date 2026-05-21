@@ -844,9 +844,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 let t = match stmt {
                     ir::Stmt::Var(v) => {
                         let v = this.nodes.get_var_stmt(v);
-                        if v.modifiers()
-                            .map(|ms| ms.flags().contains(ast::ModifierFlags::EXPORT))
-                            .unwrap_or_default()
+                        if let Some(ms) = v.modifiers()
+                            && ms.flags().contains(ast::ModifierFlags::EXPORT)
+                            && !ms.flags().contains(ast::ModifierFlags::AMBIENT)
                         {
                             for item in v.decls() {
                                 this.emitter.content.p(&param_name);
@@ -892,7 +892,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 let Some((ms, name)) = t else {
                     continue;
                 };
-                if ms.flags().contains(ast::ModifierFlags::EXPORT) {
+                if ms.flags().contains(ast::ModifierFlags::EXPORT)
+                    && !ms.flags().contains(ast::ModifierFlags::AMBIENT)
+                {
                     this.emitter.content.p(&param_name);
                     this.emitter.content.p_dot();
                     this.emit_ident(name);

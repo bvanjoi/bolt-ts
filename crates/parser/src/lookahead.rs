@@ -138,7 +138,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         loop {
             match self.p.token.kind {
                 Var | Let | Const | Function | Class | Enum => return true,
-                Abstract | Async | Declare | Public | Private | Protected /* TODO: Accessor */=> {
+                Abstract | Async | Declare | Public | Private | Protected | Accessor => {
                     let prev = self.p.token.kind;
                     self.p.next_token();
                     if self.p.has_preceding_line_break() {

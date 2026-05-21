@@ -63,7 +63,7 @@ macro_rules! _links {
 use _links as links;
 use bolt_ts_ast::NodeID;
 
-pub use self::node_links::NodeLinks;
+pub use self::node_links::{ExhaustiveState, NodeLinks};
 pub use self::sig_links::SigLinks;
 pub use self::symbol_links::SymbolLinks;
 pub use self::ty_links::TyLinks;

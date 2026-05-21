@@ -111,6 +111,7 @@ use self::instantiation_ty_map::UnionMap;
 use self::instantiation_ty_map::UnionOfUnionTysKey;
 use self::instantiation_ty_map::{IndexedAccessTyMap, IntersectionMap, StringMappingTyMap};
 use self::instantiation_ty_map::{TyCacheTrait, TyKey};
+use self::links::ExhaustiveState;
 use self::links::NodeLinks;
 use self::links::SymbolLinks;
 use self::links::{SigLinks, TyLinks};
@@ -6684,13 +6685,26 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_exhaustive_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) -> bool {
-        if let Some(is_exhaustive) = self.get_node_links(n.id).get_non_existent_prop_checked() {
-            return is_exhaustive;
+        let id = n.id;
+        match self.get_node_links(id).get_is_exhaustive() {
+            Some(ExhaustiveState::True) => return true,
+            Some(ExhaustiveState::False) => return false,
+            Some(ExhaustiveState::Computing) => {
+                // Mimic TS: during recursion treat as non-exhaustive without overwriting state.
+                return false;
+            }
+            None => {}
         }
-        let is_exhaustive = self.compute_exhaustive_switch_stmt(n);
-        self.get_mut_node_links(n.id)
-            .set_non_existent_prop_checked(is_exhaustive);
-        is_exhaustive
+        self.get_mut_node_links(id)
+            .set_is_exhaustive(ExhaustiveState::Computing);
+        let exhaustive = self.compute_exhaustive_switch_stmt(n);
+        self.get_mut_node_links(id)
+            .override_is_exhaustive(if exhaustive {
+                ExhaustiveState::True
+            } else {
+                ExhaustiveState::False
+            });
+        exhaustive
     }
 
     fn get_switch_clause_ty_of_witnesses(

@@ -634,6 +634,7 @@ impl<'cx> ParserState<'cx, '_> {
                 self.parse_import_decl(mods)
             }
             Export => {
+                self.has_export_decl = true;
                 let start = self.token.start();
                 self.next_token(); // consume `export`
                 match self.token.kind {
@@ -670,7 +671,6 @@ impl<'cx> ParserState<'cx, '_> {
             let error = errors::AnExportAssignmentCannotHaveModifiers { span: ms.span };
             self.push_error(Box::new(error));
         }
-        self.has_export_decl = true;
         let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
         let span = self.new_span(start);
@@ -678,8 +678,6 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {
-        self.has_export_decl = true;
-
         let is_type_only = self.parse_optional(TokenKind::Type).is_some();
 
         let ns_export_start = self.token.start();
@@ -984,19 +982,8 @@ impl<'cx> ParserState<'cx, '_> {
             ParseContext::INTERFACE_MEMBERS,
             Self::parse_object_ty_members,
         );
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::InterfaceDecl {
-            id,
-            span: self.new_span(start),
-            modifiers,
-            name,
-            ty_params,
-            extends,
-            members,
-        });
-        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::InterfaceDecl(decl));
-        decl
+        let span = self.new_span(start);
+        self.create_interface_declaration(span, modifiers, name, ty_params, extends, members)
     }
 
     fn parse_class_decl(

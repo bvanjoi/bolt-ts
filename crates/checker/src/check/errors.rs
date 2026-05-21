@@ -1743,3 +1743,10 @@ pub(super) struct TheRightHandSideOfAnInstanceofExpressionMustNotBeAnInstantiati
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Function overload must be static.")]
+pub(super) struct FunctionOverloadMustBeStatic {
+    #[label(primary)]
+    pub span: Span,
+}

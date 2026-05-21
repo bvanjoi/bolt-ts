@@ -1,0 +1,13 @@
+  × Argument of type '(a: any, b: any) => boolean' is not assignable to
+  │ parameter of type 'IResultCallback'.
+    ╭─[../../tests/compiler/assignLambdaToNominalSubtypeOfFunction/index.ts:12:4]
+ 12 │ (a, b) => true
+    · ──────────────
+    ╰────
+
+  × Argument of type '(a: any, b: any) => boolean' is not assignable to
+  │ parameter of type 'IResultCallback'.
+    ╭─[../../tests/compiler/assignLambdaToNominalSubtypeOfFunction/index.ts:14:4]
+ 14 │ function (a, b) { return true; }
+    · ────────────────────────────────
+    ╰────
