@@ -324,7 +324,7 @@ impl<'cx> TyChecker<'cx> {
                         TypeFlags::ANY_OR_UNKNOWN
                             .union(TypeFlags::VOID)
                             .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
-                    ) || this.get_awaited_ty_of_promise(t, None).is_none()
+                    ) || this.get_awaited_ty_of_promise(t, None).is_some()
                 })
             } else {
                 ret_ty

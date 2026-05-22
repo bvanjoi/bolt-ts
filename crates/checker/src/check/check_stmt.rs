@@ -843,13 +843,22 @@ impl<'cx> TyChecker<'cx> {
                 return;
             }
         }
+        let fn_flags = self.p.node(container).fn_flags();
+        let unwrapped_expr_ty = if fn_flags.contains(ast::FnFlags::ASYNC) {
+            self.check_awaited_ty(expr_ty, false, container, |this| {})
+        } else {
+            expr_ty
+        };
 
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {
             let error_node = ret_expr.map(|expr| expr.id());
             self.check_type_assignable_to_and_optionally_elaborate(
-                expr_ty, ret_ty, error_node, error_node,
+                unwrapped_expr_ty,
+                ret_ty,
+                error_node,
+                error_node,
             );
         }
     }
