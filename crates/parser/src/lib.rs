@@ -1,4 +1,4 @@
-mod errors;
+use bolt_ts_parser_errors as errors;
 mod expr;
 mod jsx;
 mod lookahead;
@@ -62,9 +62,9 @@ pub struct CommentDirective {
 
 #[derive(Debug, Clone, Copy)]
 pub enum CommentDirectiveKind {
-    /// @ts-expect-error
+    /// `@ts-expect-error`
     ExpectError,
-    /// @ts-ignore
+    /// `@ts-ignore`
     Ignore,
 }
 

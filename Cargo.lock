@@ -171,6 +171,7 @@ dependencies = [
  "bitflags 2.9.4",
  "bolt_ts_ast",
  "bolt_ts_atom",
+ "bolt_ts_binder_errors",
  "bolt_ts_config",
  "bolt_ts_errors",
  "bolt_ts_middle",
@@ -181,6 +182,14 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "thin-vec",
+]
+
+[[package]]
+name = "bolt_ts_binder_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_errors",
+ "bolt_ts_span",
  "thiserror",
 ]
 
@@ -194,6 +203,7 @@ dependencies = [
  "bolt_ts_ast_visitor",
  "bolt_ts_atom",
  "bolt_ts_binder",
+ "bolt_ts_checker_errors",
  "bolt_ts_config",
  "bolt_ts_ecma_rules",
  "bolt_ts_errors",
@@ -210,8 +220,16 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "thin-vec",
- "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "bolt_ts_checker_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_errors",
+ "bolt_ts_span",
+ "thiserror",
 ]
 
 [[package]]
@@ -286,6 +304,7 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_binder",
  "bolt_ts_config",
+ "bolt_ts_early_resolve_errors",
  "bolt_ts_errors",
  "bolt_ts_middle",
  "bolt_ts_parser",
@@ -293,6 +312,14 @@ dependencies = [
  "bolt_ts_utils",
  "rayon",
  "rustc-hash",
+]
+
+[[package]]
+name = "bolt_ts_early_resolve_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_errors",
+ "bolt_ts_span",
  "thiserror",
 ]
 
@@ -469,6 +496,7 @@ dependencies = [
  "bolt_ts_fs",
  "bolt_ts_libs",
  "bolt_ts_module_resolve",
+ "bolt_ts_parser_errors",
  "bolt_ts_path",
  "bolt_ts_span",
  "bolt_ts_tracing",
@@ -483,9 +511,18 @@ dependencies = [
  "serde_json",
  "stacker",
  "thin-vec",
- "thiserror",
  "tracing",
  "unicode-id-start",
+]
+
+[[package]]
+name = "bolt_ts_parser_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_ast",
+ "bolt_ts_errors",
+ "bolt_ts_span",
+ "thiserror",
 ]
 
 [[package]]

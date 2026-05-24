@@ -9,7 +9,7 @@ use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Syntax Error: Unexpected token ','")]
-pub(super) struct ClassesCanOnlyExtendASingleClass {
+pub struct ClassesCanOnlyExtendASingleClass {
     #[label(primary)]
     pub span: Span,
     #[label("Classes can only extend a single class.")]
@@ -18,7 +18,7 @@ pub(super) struct ClassesCanOnlyExtendASingleClass {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type parameter list cannot be empty.")]
-pub(super) struct TypeParameterListCannotBeEmpty {
+pub struct TypeParameterListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
@@ -26,7 +26,7 @@ pub(super) struct TypeParameterListCannotBeEmpty {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Octal literals are not allowed.")]
 #[diagnostic(help = "Use the syntax '{help_lit}'.")]
-pub(super) struct OctalLiteralsAreNotAllowed {
+pub struct OctalLiteralsAreNotAllowed {
     #[label(primary)]
     pub span: Span,
     pub help_lit: String,
@@ -34,42 +34,42 @@ pub(super) struct OctalLiteralsAreNotAllowed {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Decimals with leading zeros are not allowed.")]
-pub(super) struct DecimalsWithLeadingZerosAreNotAllowed {
+pub struct DecimalsWithLeadingZerosAreNotAllowed {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Numeric separators are not allowed here.")]
-pub(super) struct NumericSeparatorsAreNotAllowedHere {
+pub struct NumericSeparatorsAreNotAllowedHere {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Variable declaration list cannot be empty.")]
-pub(super) struct VariableDeclarationListCannotBeEmpty {
+pub struct VariableDeclarationListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A parameter property is only allowed in a constructor implementation.")]
-pub(super) struct AParamPropIsOnlyAllowedInAConstructorImplementation {
+pub struct AParamPropIsOnlyAllowedInAConstructorImplementation {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind}")]
-pub(super) struct MissingIdent {
+pub struct MissingIdent {
     #[label(primary)]
     pub span: Span,
     pub kind: MissingIdentKind,
 }
 
 #[derive(Error, Diagnostic, Debug)]
-pub(super) enum MissingIdentKind {
+pub enum MissingIdentKind {
     #[error("Identifier expected.")]
     IdentifierExpected,
     #[error("Expression expected.")]
@@ -78,14 +78,14 @@ pub(super) enum MissingIdentKind {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type argument list cannot be empty.")]
-pub(super) struct TypeArgumentListCannotBeEmpty {
+pub struct TypeArgumentListCannotBeEmpty {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{} cannot be declared using a rest parameter.", {kinds.iter().map(|k| format!("'{k}'")).collect::<Vec<_>>().join(", ")})]
-pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
+pub struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
     #[label(primary)]
     pub span: Span,
     pub kinds: Vec<bolt_ts_ast::ModifierKind>,
@@ -93,14 +93,14 @@ pub(super) struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected '{x}'.")]
-pub(super) struct ExpectX {
+pub struct ExpectX {
     #[label(primary)]
     pub span: Span,
     pub x: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) enum ClauseKind {
+pub enum ClauseKind {
     Extends,
     Implements,
 }
@@ -117,7 +117,7 @@ impl std::fmt::Display for ClauseKind {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{kind}' clause already seen.")]
-pub(super) struct ClauseAlreadySeen {
+pub struct ClauseAlreadySeen {
     #[label(primary)]
     pub span: Span,
     pub kind: ClauseKind,
@@ -127,7 +127,7 @@ pub(super) struct ClauseAlreadySeen {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'extends' clause must precede 'implements' clause.")]
-pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
+pub struct ExtendsClauseMustPrecedeImplementsClause {
     #[label(primary)]
     pub extends_span: Span,
     #[label("'implements' clause defined here.")]
@@ -136,7 +136,7 @@ pub(super) struct ExtendsClauseMustPrecedeImplementsClause {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{expected}' expected.")]
-pub(super) struct KindExpected {
+pub struct KindExpected {
     #[label(primary)]
     pub span: Span,
     pub expected: String,
@@ -147,7 +147,7 @@ pub(super) struct KindExpected {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected to find a '{expected}' to match the '{found}' token here.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
+pub struct ExpectedToFindAToMatchTheBTokenHere {
     #[label(primary)]
     pub span: Span,
     pub expected: String,
@@ -156,21 +156,21 @@ pub(super) struct ExpectedToFindAToMatchTheBTokenHere {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Argument expression expected.")]
-pub(super) struct ArgumentExpressionExpected {
+pub struct ArgumentExpressionExpected {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature must have a type annotation.")]
-pub(super) struct AnIndexSignatureMustHaveATypeAnnotation {
+pub struct AnIndexSignatureMustHaveATypeAnnotation {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{kind}' modifier cannot appear on a parameter.")]
-pub(super) struct ModifierCannotAppearOnAParameter {
+pub struct ModifierCannotAppearOnAParameter {
     #[label(primary)]
     pub span: Span,
     pub kind: bolt_ts_ast::ModifierKind,
@@ -178,7 +178,7 @@ pub(super) struct ModifierCannotAppearOnAParameter {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{kind}' modifier cannot appear on an index signature.")]
-pub(super) struct ModifierCannotAppearOnAnIndexSignature {
+pub struct ModifierCannotAppearOnAnIndexSignature {
     #[label(primary)]
     pub span: Span,
     pub kind: bolt_ts_ast::ModifierKind,
@@ -186,30 +186,30 @@ pub(super) struct ModifierCannotAppearOnAnIndexSignature {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An implementation cannot be declared in type contexts.")]
-pub(super) struct AnImplementationCannotBeDeclaredInTypeContexts {
+pub struct AnImplementationCannotBeDeclaredInTypeContexts {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An element access expression should take an argument.")]
-pub(super) struct AnElementAccessExpressionShouldTakeAnArgument {
+pub struct AnElementAccessExpressionShouldTakeAnArgument {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Declaration or statement expected.")]
-pub(super) struct DeclarationOrStatementExpected {
+pub struct DeclarationOrStatementExpected {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An object member cannot be declared optional.")]
-pub(super) struct AnObjectMemberCannotBeDeclaredOptional {
+pub struct AnObjectMemberCannotBeDeclaredOptional {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -226,10 +226,10 @@ pub(super) struct AnObjectMemberCannotBeDeclaredOptional {
         " or switch"
     }
 })]
-pub(super) struct AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
+pub struct AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterationStatement {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) is_continue: bool,
+    pub span: Span,
+    pub is_continue: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -240,125 +240,125 @@ pub(super) struct AContinueOrBreakStatementCanOnlyBeUsedWithinAnEnclosingIterati
         "A type literal"
     }
 })]
-pub(super) struct AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
+pub struct AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) interface: bool,
+    pub span: Span,
+    pub interface: bool,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("An enum member cannot have a numeric name.")]
-pub(super) struct AnEnumMemberCannotHaveANumericName {
+pub struct AnEnumMemberCannotHaveANumericName {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Accessibility modifier already seen.")]
-pub(super) struct AccessibilityModifierAlreadySeen {
+pub struct AccessibilityModifierAlreadySeen {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A '{modifier}' modifier cannot be used with an import declaration.")]
-pub(super) struct AModifierCannotBeUsedWithAnImportDeclaration {
+pub struct AModifierCannotBeUsedWithAnImportDeclaration {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) modifier: bolt_ts_ast::ModifierKind,
+    pub span: Span,
+    pub modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("{modifier} modifier already seen.")]
-pub(super) struct ModifierAlreadySeen {
+pub struct ModifierAlreadySeen {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) modifier: bolt_ts_ast::ModifierKind,
+    pub span: Span,
+    pub modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected token. Did you mean `{{'}}'}}` or `&rbrace;`?")]
-pub(super) struct UnexpectedTokenDidYouMeanOrRBrace {
+pub struct UnexpectedTokenDidYouMeanOrRBrace {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected token. Did you mean `{{'>'}}` or `&gt;`?")]
-pub(super) struct UnexpectedTokenDidYouMeanOrGt {
+pub struct UnexpectedTokenDidYouMeanOrGt {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Tagged template expressions are not permitted in an optional chain.")]
-pub(super) struct TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
+pub struct TaggedTemplateExpressionsAreNotPermittedInAnOptionalChain {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Expected corresponding closing tag for JSX fragment.")]
-pub(super) struct ExpectedCorrespondingClosingTagForJsxFragment {
+pub struct ExpectedCorrespondingClosingTagForJsxFragment {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Unterminated string literal.")]
-pub(super) struct UnterminatedStringLiteral {
+pub struct UnterminatedStringLiteral {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Unterminated template literal.")]
-pub(super) struct UnterminatedTemplateLiteral {
+pub struct UnterminatedTemplateLiteral {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{{' or JSX element expected.")]
-pub(super) struct OrJsxElementExpected {
+pub struct OrJsxElementExpected {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Expected corresponding JSX closing tag for '{opening_tag_name}'.")]
-pub(super) struct ExpectedCorrespondingJsxClosingTagForOpeningTagName {
+pub struct ExpectedCorrespondingJsxClosingTagForOpeningTagName {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) opening_tag_name: String,
+    pub span: Span,
+    pub opening_tag_name: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Invalid character.")]
-pub(super) struct InvalidCharacter {
+pub struct InvalidCharacter {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Unicode escape sequence cannot appear here.")]
-pub(super) struct UnicodeEscapeSequenceCannotAppearHere {
+pub struct UnicodeEscapeSequenceCannotAppearHere {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Digit expected.")]
-pub(super) struct DigitExpected {
+pub struct DigitExpected {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Keywords cannot contain escape characters.")]
-pub(super) struct KeywordsCannotContainEscapeCharacters {
+pub struct KeywordsCannotContainEscapeCharacters {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -371,7 +371,7 @@ pub(super) struct KeywordsCannotContainEscapeCharacters {
         }
     }
 )]
-pub(super) struct ArgumentsCannotBeReferenced {
+pub struct ArgumentsCannotBeReferenced {
     #[label(primary)]
     span: Span,
     in_property_initializer: bool,
@@ -395,60 +395,60 @@ impl ArgumentsCannotBeReferenced {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Property or signature expected.")]
-pub(super) struct PropertyOrSignatureExpected {
+pub struct PropertyOrSignatureExpected {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A 'return' statement can only be used within a function body.")]
-pub(super) struct AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
+pub struct AReturnStatementCanOnlyBeUsedWithinAFunctionBody {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Modifier cannot be used here.")]
-pub(super) struct ModifierCannotBeUsedHere {
+pub struct ModifierCannotBeUsedHere {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A class member cannot have the '{modifier}' keyword.")]
-pub(super) struct AClassMemberCannotHaveTheModifierKeyword {
+pub struct AClassMemberCannotHaveTheModifierKeyword {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) modifier: bolt_ts_ast::ModifierKind,
+    pub span: Span,
+    pub modifier: bolt_ts_ast::ModifierKind,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Identifier expected. '{identifier}' is a reserved word in strict mode.")]
-pub(super) struct IdentifierExpectedXIsAReservedWordInStrictMode {
+pub struct IdentifierExpectedXIsAReservedWordInStrictMode {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) identifier: String,
+    pub span: Span,
+    pub identifier: String,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature cannot have a trailing comma.")]
-pub(super) struct AnIndexSignatureCannotHaveATrailingComma {
+pub struct AnIndexSignatureCannotHaveATrailingComma {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature must have exactly one parameter.")]
-pub(super) struct AnIndexSignatureMustHaveExactlyOneParameter {
+pub struct AnIndexSignatureMustHaveExactlyOneParameter {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Declarations must be initialized.")]
-pub(super) struct DeclarationsMustBeInitialized {
+pub struct DeclarationsMustBeInitialized {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -459,109 +459,109 @@ pub(super) struct DeclarationsMustBeInitialized {
         "of"
     }
 })]
-pub(super) struct TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
+pub struct TheLeftHandSideOfAForInOfStatementCannotUseATypeAnnotation {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) is_for_in: bool,
+    pub span: Span,
+    pub is_for_in: bool,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Line break not permitted here.")]
-pub(super) struct LineBreakNotPermittedHere {
+pub struct LineBreakNotPermittedHere {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature parameter cannot have an accessibility modifier.")]
-pub(super) struct AnIndexSignatureParameterCannotHaveAnAccessibilityModifier {
+pub struct AnIndexSignatureParameterCannotHaveAnAccessibilityModifier {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature parameter cannot have a question mark.")]
-pub(super) struct AnIndexSignatureParameterCannotHaveAQuestionMark {
+pub struct AnIndexSignatureParameterCannotHaveAQuestionMark {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An index signature parameter cannot have an initializer.")]
-pub(super) struct AnIndexSignatureParameterCannotHaveAnInitializer {
+pub struct AnIndexSignatureParameterCannotHaveAnInitializer {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Jump target cannot cross function boundary.")]
-pub(super) struct JumpTargetCannotCrossFunctionBoundary {
+pub struct JumpTargetCannotCrossFunctionBoundary {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A default export can only be used in an ECMAScript-style module.")]
-pub(super) struct ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule {
+pub struct ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A default export must be at the top level of a file or module declaration.")]
-pub(super) struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
+pub struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "'await' expressions are only allowed within async functions and at the top levels of modules."
 )]
-pub(super) struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+pub struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Interface declaration cannot have 'implements' clause.")]
-pub(super) struct InterfaceDeclarationCannotHaveImplementsClause {
+pub struct InterfaceDeclarationCannotHaveImplementsClause {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A rest element cannot have a property name.")]
-pub(super) struct ARestElementCannotHaveAPropertyName {
+pub struct ARestElementCannotHaveAPropertyName {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'delete' cannot be called on an identifier in strict mode.")]
-pub(super) struct DeleteCannotBeCalledOnAnIdentifierInStrictMode {
+pub struct DeleteCannotBeCalledOnAnIdentifierInStrictMode {
     #[label(primary)]
-    pub(super) span: Span,
+    pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Invalid use of '{name}' in strict mode.")]
-pub(super) struct InvalidUseOf0InStrictMode {
+pub struct InvalidUseOf0InStrictMode {
     #[label(primary)]
-    pub(super) span: Span,
-    pub(super) name: String,
+    pub span: Span,
+    pub name: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unterminated regular expression literal.")]
-pub(super) struct UnterminatedRegularExpressionLiteral {
+pub struct UnterminatedRegularExpressionLiteral {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("'{modifier}' modifier cannot appear on class elements of this kind.")]
-pub(super) struct ModifierCannotAppearOnClassElementsOfThisKind {
+pub struct ModifierCannotAppearOnClassElementsOfThisKind {
     #[label(primary)]
     pub span: Span,
     pub modifier: bolt_ts_ast::ModifierKind,
@@ -569,28 +569,28 @@ pub(super) struct ModifierCannotAppearOnClassElementsOfThisKind {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A 'get' accessor cannot have parameters.")]
-pub(super) struct AGetAccessorCannotHaveParameters {
+pub struct AGetAccessorCannotHaveParameters {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A 'set' accessor must have exactly one parameter.")]
-pub(super) struct ASetAccessorMustHaveExactlyOneParameter {
+pub struct ASetAccessorMustHaveExactlyOneParameter {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Classes may not have a field named 'constructor'.")]
-pub(super) struct ClassesMayNotHaveAFieldNamedConstructor {
+pub struct ClassesMayNotHaveAFieldNamedConstructor {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Only ambient modules can use quoted names.")]
-pub(super) struct OnlyAmbientModulesCanUseQuotedNames {
+pub struct OnlyAmbientModulesCanUseQuotedNames {
     #[label(primary)]
     pub span: Span,
 }
@@ -609,7 +609,7 @@ pub(super) struct OnlyAmbientModulesCanUseQuotedNames {
         "an intersection"
     }
 })]
-pub(super) struct FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType
+pub struct FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType
 {
     #[label(primary)]
     pub span: Span,
@@ -619,7 +619,7 @@ pub(super) struct FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUs
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("'{x}' modifier must precede '{y}' modifier.")]
-pub(super) struct XModifierMustPrecedeYModifier {
+pub struct XModifierMustPrecedeYModifier {
     #[label(primary)]
     pub span: Span,
     pub x: bolt_ts_ast::ModifierKind,
@@ -628,49 +628,49 @@ pub(super) struct XModifierMustPrecedeYModifier {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("An index signature cannot have a rest parameter.")]
-pub(super) struct AnIndexSignatureCannotHaveARestParameter {
+pub struct AnIndexSignatureCannotHaveARestParameter {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A 'yield' expression is only allowed in a generator body.")]
-pub(super) struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
+pub struct AYieldExpressionIsOnlyAllowedInAGeneratorBody {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Unexpected keyword or identifier.")]
-pub(super) struct UnexpectedKeywordOrIdentifier {
+pub struct UnexpectedKeywordOrIdentifier {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("An export assignment cannot have modifiers.")]
-pub(super) struct AnExportAssignmentCannotHaveModifiers {
+pub struct AnExportAssignmentCannotHaveModifiers {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A class declaration without the 'default' modifier must have a name.")]
-pub(super) struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
+pub struct AClassDeclarationWithoutTheDefaultModifierMustHaveAName {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("The left-hand side of an assignment expression must be a variable or a property access.")]
-pub(super) struct TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
+pub struct TheLeftHandSideOfAnAssignmentExpressionMustBeAVariableOrAPropertyAccess {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Duplicate label '{label}'.")]
-pub(super) struct DuplicateLabel {
+pub struct DuplicateLabel {
     #[label(primary)]
     pub span: Span,
     pub label: String,
@@ -680,7 +680,7 @@ pub(super) struct DuplicateLabel {
 #[error(
     "Octal escape sequences and backreferences are not allowed in a character class. If this was intended as an escape sequence, use the syntax {code} instead."
 )]
-pub(super) struct OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClassIfThisWasIntendedAsAnEscapeSequenceUseTheSyntaxXInstead
+pub struct OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClassIfThisWasIntendedAsAnEscapeSequenceUseTheSyntaxXInstead
 {
     #[label(primary)]
     pub span: Span,
@@ -689,7 +689,7 @@ pub(super) struct OctalEscapeSequencesAndBackreferencesAreNotAllowedInACharacter
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Octal escape sequences are not allowed. Use the syntax '{code}'.")]
-pub(super) struct OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
+pub struct OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
     #[label(primary)]
     pub span: Span,
     pub code: String,
@@ -697,14 +697,14 @@ pub(super) struct OctalEscapeSequencesAreNotAllowedUseTheSyntaxX {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Decimal escape sequences and backreferences are not allowed in a character class.")]
-pub(super) struct DecimalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClass {
+pub struct DecimalEscapeSequencesAndBackreferencesAreNotAllowedInACharacterClass {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Escape sequence '{code}' is not allowed.")]
-pub(super) struct EscapeSequenceXIsNotAllowed {
+pub struct EscapeSequenceXIsNotAllowed {
     #[label(primary)]
     pub span: Span,
     pub code: String,
@@ -712,35 +712,35 @@ pub(super) struct EscapeSequenceXIsNotAllowed {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("An extended Unicode escape value must be between 0x0 and 0x10FFFF inclusive.")]
-pub(super) struct AnExtendedUnicodeEscapeValueMustBeBetween0x0And0x10FFFFInclusive {
+pub struct AnExtendedUnicodeEscapeValueMustBeBetween0x0And0x10FFFFInclusive {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Hexadecimal digit expected.")]
-pub(super) struct HexadecimalDigitExpected {
+pub struct HexadecimalDigitExpected {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A rest parameter cannot be optional.")]
-pub(super) struct ARestParameterCannotBeOptional {
+pub struct ARestParameterCannotBeOptional {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A rest parameter cannot have an initializer.")]
-pub(super) struct ARestParameterCannotHaveAnInitializer {
+pub struct ARestParameterCannotHaveAnInitializer {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A required parameter cannot follow an optional parameter.")]
-pub(super) struct ARequiredParameterCannotFollowAnOptionalParameter {
+pub struct ARequiredParameterCannotFollowAnOptionalParameter {
     #[label(primary)]
     pub span: Span,
 }

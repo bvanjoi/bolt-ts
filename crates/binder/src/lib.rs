@@ -7,7 +7,7 @@ mod bind_ret_or_throw;
 mod bind_worker;
 mod container_flags;
 mod create;
-pub mod errors;
+pub use bolt_ts_binder_errors as errors;
 mod flow;
 mod flow_in_node;
 mod merge;

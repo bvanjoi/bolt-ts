@@ -1,4 +1,3 @@
-use super::ExpectedArgsCount;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
@@ -22,6 +21,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait::{self, CallLike};
 use bolt_ts_binder::SymbolID;
+use bolt_ts_checker_errors::ExpectedArgsCount;
 use bolt_ts_span::Span;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_indexmap_with_capacity;
@@ -1406,7 +1406,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let error = errors::ExpectedXArgsButGotY {
                 span,
-                x: super::ExpectedArgsCount::Count(x),
+                x: ExpectedArgsCount::Count(x),
                 y,
                 is_ty: false,
             };
@@ -1561,9 +1561,9 @@ impl<'cx> TyChecker<'cx> {
                 .map(|ty_params| ty_params.len())
                 .unwrap_or_default();
             let x = if min == max {
-                super::ExpectedArgsCount::Count(min)
+                ExpectedArgsCount::Count(min)
             } else {
-                super::ExpectedArgsCount::Range { lo: min, hi: max }
+                ExpectedArgsCount::Range { lo: min, hi: max }
             };
             let error = errors::ExpectedXArgsButGotY {
                 span: span(),
@@ -1599,10 +1599,10 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
         let x = if below_argument_count == i32::MIN {
-            super::ExpectedArgsCount::Count(above_argument_count as usize)
+            ExpectedArgsCount::Count(above_argument_count as usize)
         } else {
             debug_assert!(below_argument_count >= 0);
-            super::ExpectedArgsCount::Count(below_argument_count as usize)
+            ExpectedArgsCount::Count(below_argument_count as usize)
         };
         let error = errors::ExpectedXArgsButGotY {
             span: span(),
@@ -1669,7 +1669,7 @@ impl<'cx> TyChecker<'cx> {
             if min == max {
                 let error = errors::ExpectedXArgsButGotY {
                     span: expr.span(),
-                    x: super::ExpectedArgsCount::Count(min),
+                    x: ExpectedArgsCount::Count(min),
                     y: args.len(),
                     is_ty: false,
                 };
@@ -1693,7 +1693,7 @@ impl<'cx> TyChecker<'cx> {
 
             let error = errors::ExpectedXArgsButGotY {
                 span: Span::new(lo, hi, expr.span().module()),
-                x: super::ExpectedArgsCount::Range { lo: min, hi: max },
+                x: ExpectedArgsCount::Range { lo: min, hi: max },
                 y: args.len(),
                 is_ty: false,
             };

@@ -9,7 +9,7 @@ use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot find name '{name}'.")]
-pub(super) struct CannotFindName {
+pub struct CannotFindName {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -19,7 +19,7 @@ pub(super) struct CannotFindName {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 
-pub(super) enum CannotFindNameHelperKind {
+pub enum CannotFindNameHelperKind {
     #[error(transparent)]
     #[diagnostic(transparent)]
     DidYouMeanTheStaticMember(DidYouMeanTheStaticMember),
@@ -79,7 +79,7 @@ impl CannotFindNameHelperKind {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Base class expressions cannot reference class type parameters.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct BaseClassExpressionsCannotReferenceClassTypeParameters {
+pub struct BaseClassExpressionsCannotReferenceClassTypeParameters {
     #[label(primary)]
     pub span: Span,
 }
@@ -87,7 +87,7 @@ pub(super) struct BaseClassExpressionsCannotReferenceClassTypeParameters {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{name}' only refers to a type, but is being used as a value here.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct OnlyReferToATypeButIsBeingUsedAsValueHere {
+pub struct OnlyReferToATypeButIsBeingUsedAsValueHere {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -98,7 +98,7 @@ pub(super) struct OnlyReferToATypeButIsBeingUsedAsValueHere {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Did you mean the static member '{class_name}.{prop_name}'?")]
 #[diagnostic(severity(Advice))]
-pub(super) struct DidYouMeanTheStaticMember {
+pub struct DidYouMeanTheStaticMember {
     #[label(primary)]
     pub span: Span,
     pub class_name: String,
@@ -108,7 +108,7 @@ pub(super) struct DidYouMeanTheStaticMember {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An interface cannot extend a primitive type like '{ty}'.")]
 #[diagnostic(help = "It can only extend other named object types.")]
-pub(super) struct AnInterfaceCannotExtendAPrimTy {
+pub struct AnInterfaceCannotExtendAPrimTy {
     #[label(primary)]
     pub span: Span,
     pub ty: String,
@@ -117,7 +117,7 @@ pub(super) struct AnInterfaceCannotExtendAPrimTy {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot use type as a namespace.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct CannotUseTypeAsNamespace {
+pub struct CannotUseTypeAsNamespace {
     #[label(primary)]
     pub span: Span,
 }
@@ -125,7 +125,7 @@ pub(super) struct CannotUseTypeAsNamespace {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Cannot use namespace as a {}.", if *is_ty { "type" } else { "value" })]
 #[diagnostic(severity(Advice))]
-pub(super) struct CannotUseNamespaceAsTyOrValue {
+pub struct CannotUseNamespaceAsTyOrValue {
     #[label(primary)]
     pub span: Span,
     pub is_ty: bool,
@@ -133,7 +133,7 @@ pub(super) struct CannotUseNamespaceAsTyOrValue {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Parameter '{name}' cannot reference itself.")]
-pub(super) struct ParameterXCannotReferenceItself {
+pub struct ParameterXCannotReferenceItself {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -142,21 +142,21 @@ pub(super) struct ParameterXCannotReferenceItself {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Shorthand property need an initializer.")]
 #[diagnostic(severity(Advice))]
-pub(super) struct ShorthandPropertyNeedAnInitializer {
+pub struct ShorthandPropertyNeedAnInitializer {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Static members cannot reference class type parameters.")]
-pub(super) struct StaticMembersCannotReferenceClassTypeParameters {
+pub struct StaticMembersCannotReferenceClassTypeParameters {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Parameter '{parameter}' cannot reference identifier '{identifier}' declared after it.")]
-pub(super) struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
+pub struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
     #[label(primary)]
     pub span: Span,
     pub parameter: String,
@@ -167,8 +167,7 @@ pub(super) struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
 #[error(
     "Initializer of instance member variable '{x}' cannot reference identifier '{y}' declared in the constructor."
 )]
-pub(super) struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor
-{
+pub struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor {
     #[label(primary)]
     pub span: Span,
     pub x: String,

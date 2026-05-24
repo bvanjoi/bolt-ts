@@ -1,4 +1,4 @@
-mod errors;
+use bolt_ts_early_resolve_errors as errors;
 mod on_failed_value_resolve;
 mod on_success_resolve;
 mod resolve_call_like;
