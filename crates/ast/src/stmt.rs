@@ -183,6 +183,12 @@ impl<'cx> CaseOrDefaultClause<'cx> {
             CaseOrDefaultClause::Default(c) => c.stmts,
         }
     }
+    pub fn id(&self) -> NodeID {
+        match self {
+            CaseOrDefaultClause::Case(c) => c.id,
+            CaseOrDefaultClause::Default(c) => c.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,0 +1,23 @@
+  × Type 'number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowCommaOperatorNestedWithinLHS/index.ts:14:11]
+ 14 │ a1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowCommaOperatorNestedWithinLHS/index.ts:17:11]
+ 17 │ b1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowCommaOperatorNestedWithinLHS/index.ts:23:11]
+ 23 │ a1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowCommaOperatorNestedWithinLHS/index.ts:26:11]
+ 26 │ b1
+    · ──
+    ╰────

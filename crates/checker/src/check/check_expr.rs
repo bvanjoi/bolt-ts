@@ -250,13 +250,31 @@ impl<'cx> TyChecker<'cx> {
                 effective_right_ty = r;
             }
         }
-        let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-            span: error_span,
-            op: op.kind.to_string(),
-            ty1: self.print_ty(effective_left_ty, None).to_string(),
-            ty2: self.print_ty(effective_right_ty, None).to_string(),
-        };
-        self.push_error(Box::new(error));
+
+        // try_give_better_primary_error
+        if matches!(
+            op.kind,
+            ast::BinOpKind::EqEq
+                | ast::BinOpKind::EqEqEq
+                | ast::BinOpKind::NEq
+                | ast::BinOpKind::NEqEq
+        ) {
+            let error =
+                errors::ThisComparisonAppearsToBeUnintentionalBecauseTheTypesXAndYHaveNoOverlap {
+                    span: error_span,
+                    ty1: self.print_ty(effective_left_ty, None).to_string(),
+                    ty2: self.print_ty(effective_right_ty, None).to_string(),
+                };
+            self.push_error(Box::new(error));
+        } else {
+            let error = errors::OperatorCannotBeAppliedToTypesXAndY {
+                span: error_span,
+                op: op.kind.to_string(),
+                ty1: self.print_ty(effective_left_ty, None).to_string(),
+                ty2: self.print_ty(effective_right_ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
     }
 
     fn is_global_nan(&mut self, expression: &'cx ast::Expr<'cx>) -> bool {
@@ -2118,7 +2136,7 @@ impl<'cx> TyChecker<'cx> {
             ),
             LogicalAndEq => todo!(),
             LogicalOrEq => todo!(),
-            NullishEq => todo!(),
+            NullishEq => self.undefined_ty,
         }
     }
 
@@ -2425,7 +2443,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.error_ty);
 
         let prop_symbol = self.get_node_links(node.id).get_resolved_symbol();
-        let flow_ty = self.get_flow_type_of_property_access_expression(
+        let flow_ty = self.get_flow_type_of_access_expression(
             node.id,
             prop_symbol,
             indexed_access_ty,

@@ -25,6 +25,6 @@ x6 = x7;
 x6=C;
 //~^ ERROR: Property 'x' is missing.
 C==D;
-//~^ ERROR: Operator '==' cannot be applied to types 'typeof C' and 'typeof D'.
+//~^ ERROR: This comparison appears to be unintentional because the types 'typeof C' and 'typeof D' have no overlap.
 C==C;
 

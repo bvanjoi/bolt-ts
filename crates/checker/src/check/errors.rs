@@ -1750,3 +1750,14 @@ pub(super) struct FunctionOverloadMustBeStatic {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "This comparison appears to be unintentional because the types '{ty1}' and '{ty2}' have no overlap."
+)]
+pub(super) struct ThisComparisonAppearsToBeUnintentionalBecauseTheTypesXAndYHaveNoOverlap {
+    #[label(primary)]
+    pub span: Span,
+    pub ty1: String,
+    pub ty2: String,
+}

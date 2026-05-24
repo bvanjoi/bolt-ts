@@ -1,0 +1,6 @@
+  × The right-hand side of a 'for...in' statement must be of type 'any', an
+  │ object type or a type parameter, but here has type '1'.
+   ╭─[../../tests/compiler/forIn2/index.ts:6:15]
+ 6 │ 1
+   · ─
+   ╰────

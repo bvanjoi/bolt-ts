@@ -1,0 +1,5 @@
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/derivedTypeCallingBaseImplWithOptionalParams/index.ts:18:1]
+ 18 │ y.myMethod
+    · ──────────
+    ╰────

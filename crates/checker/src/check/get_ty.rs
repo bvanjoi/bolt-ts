@@ -1042,23 +1042,44 @@ impl<'cx> TyChecker<'cx> {
                 );
             }
             if let Some(prop) = self.get_prop_of_ty::<false, false>(object_ty, prop_name) {
-                if let Some(access_expr) = access_expr
-                    && let assignment_target_kind = self
+                if access_flags.contains(AccessFlags::REPORT_DEPRECATED)
+                    && let Some(access_node) = access_node
+                    && let Some(decls) = self.symbol(prop).decls.as_ref()
+                {
+                    // TODO: deprecated
+                }
+                if let Some(access_expr) = access_expr {
+                    if let assignment_target_kind = self
                         .node_query(access_expr.module())
                         .get_assignment_target_kind(access_expr)
-                    && self.is_assignment_to_readonly_entity(
-                        access_expr,
-                        prop,
-                        assignment_target_kind,
-                    )
-                {
-                    let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
-                        span: self.p.node(access_expr).span(),
-                        prop: self.symbol(prop).name.to_string(&self.atoms),
-                    };
-                    self.push_error(Box::new(error));
-                    return None;
+                        && self.is_assignment_to_readonly_entity(
+                            access_expr,
+                            prop,
+                            assignment_target_kind,
+                        )
+                    {
+                        let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
+                            span: self.p.node(access_expr).span(),
+                            prop: self.symbol(prop).name.to_string(&self.atoms),
+                        };
+                        self.push_error(Box::new(error));
+                        return None;
+                    }
+                    if access_flags.contains(AccessFlags::CACHE_SYMBOL) {
+                        let access_node = access_node.unwrap();
+                        match self.get_node_links(access_node).get_resolved_symbol() {
+                            Some(old) => {
+                                debug_assert!(old == prop);
+                            }
+                            None => {
+                                self.get_mut_node_links(access_node)
+                                    .set_resolved_symbol(prop);
+                            }
+                        }
+                    }
+                    // TODO: if isThisPropertyAccessInConstructor
                 }
+
                 let prop_ty = if access_flags.contains(AccessFlags::WRITING) {
                     self.get_write_type_of_symbol(prop)
                 } else {

@@ -81,7 +81,6 @@ use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
-use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
@@ -93,6 +92,7 @@ use self::create_ty::IntersectionFlags;
 use self::cycle_check::ResolutionKey;
 use self::flow::FlowCacheKey;
 use self::flow::FlowTy;
+use self::flow::PropertyInitializerInClassConstructorMap;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::fn_mapper::{ReportUnmeasurableMapper, ReportUnreliableMapper};
 use self::get_context::{InferenceContextual, TyContextual};
@@ -259,6 +259,7 @@ pub struct TyChecker<'cx> {
         FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
     union_or_intersection_property_cache_without_object_function_property_augment:
         FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
+    property_initializer_in_class_constructor_map: PropertyInitializerInClassConstructorMap,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -669,6 +670,8 @@ impl<'cx> TyChecker<'cx> {
             union_or_intersection_property_cache: fx_hashmap_with_capacity(64),
             union_or_intersection_property_cache_without_object_function_property_augment:
                 fx_hashmap_with_capacity(64),
+            property_initializer_in_class_constructor_map:
+                PropertyInitializerInClassConstructorMap::new(),
 
             shared_flow_info: Vec::with_capacity(1024),
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
@@ -1833,8 +1836,32 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn is_for_in_variable_for_numeric_prop_names(&self, expr: &'cx ast::Expr<'cx>) -> bool {
+    fn is_for_in_variable_for_numeric_prop_names(&mut self, expr: &'cx ast::Expr<'cx>) -> bool {
         let e = bolt_ts_ast::Expr::skip_parens(expr);
+
+        fn get_for_in_variable_symbol<'cx>(
+            this: &mut TyChecker<'cx>,
+            node: &'cx ast::ForInStmt<'cx>,
+        ) -> Option<SymbolID> {
+            match node.init {
+                ast::ForInitKind::Var(declarations) => {
+                    if let Some(variable) = declarations.first()
+                        && matches!(variable.name.kind, ast::BindingKind::Ident(_))
+                    {
+                        Some(this.get_symbol_of_declaration(variable.id))
+                    } else {
+                        None
+                    }
+                }
+                ast::ForInitKind::Expr(expr) => {
+                    if let ast::ExprKind::Ident(ident) = expr.kind {
+                        Some(this.resolve_symbol_by_ident(ident))
+                    } else {
+                        None
+                    }
+                }
+            }
+        }
         if let ast::ExprKind::Ident(ident) = e.kind {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self.symbol(symbol).flags.intersects(SymbolFlags::VARIABLE) {
@@ -1842,8 +1869,14 @@ impl<'cx> TyChecker<'cx> {
                 let mut node = self.parent(child);
                 while let Some(id) = node {
                     let n = self.p.node(id);
-                    if let Some(f) = n.as_for_in_stmt() {
-                        todo!()
+                    if let Some(for_in_stmt) = n.as_for_in_stmt()
+                        && child == for_in_stmt.body.id()
+                        && get_for_in_variable_symbol(self, for_in_stmt) == Some(symbol)
+                        && let ty = self.get_ty_of_expr(for_in_stmt.expr)
+                        && self.get_index_infos_of_ty(ty).len() == 1
+                        && self.get_index_info_of_ty(ty, self.number_ty).is_some()
+                    {
+                        return true;
                     }
                     child = id;
                     node = self.parent(child);
@@ -2075,13 +2108,7 @@ impl<'cx> TyChecker<'cx> {
                 index_info.val_ty
             }
         };
-        self.get_flow_type_of_property_access_expression(
-            node,
-            prop,
-            prop_ty,
-            Some(right.id),
-            check_mode,
-        )
+        self.get_flow_type_of_access_expression(node, prop, prop_ty, Some(right.id), check_mode)
     }
 
     fn check_prop_not_used_before_declaration(
@@ -4287,8 +4314,8 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ParenExpr(t) => return self.is_matching_reference(source, t.expr.id()),
             ast::Node::NonNullExpr(t) => return self.is_matching_reference(source, t.expr.id()),
             ast::Node::AssignExpr(t) => return self.is_matching_reference(source, t.left.id()),
-            ast::Node::BinExpr(_) => {
-                // TODO: comma
+            ast::Node::BinExpr(t) if t.op.kind == ast::BinOpKind::Comma => {
+                return self.is_matching_reference(source, t.right.id());
             }
             _ => (),
         };
@@ -4407,9 +4434,8 @@ impl<'cx> TyChecker<'cx> {
                 }
                 _ => false,
             },
-            ast::Node::BinExpr(n) => {
-                // TODO: comma
-                false
+            ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma => {
+                self.is_matching_reference(n.right.id(), target)
             }
             _ => false,
         }
@@ -6341,7 +6367,7 @@ impl<'cx> TyChecker<'cx> {
             TypeFacts::UNDEFINED_FACTS
         } else if flags.contains(TypeFlags::NULL) {
             TypeFacts::NULL_FACTS
-        } else if flags.contains(TypeFlags::ES_SYMBOL_LIKE) {
+        } else if flags.intersects(TypeFlags::ES_SYMBOL_LIKE) {
             if strict_null_checks {
                 TypeFacts::SYMBOL_STRICT_FACTS
             } else {
@@ -6710,26 +6736,31 @@ impl<'cx> TyChecker<'cx> {
     fn get_switch_clause_ty_of_witnesses(
         &mut self,
         n: &'cx ast::SwitchStmt<'cx>,
-    ) -> Option<FxIndexSet<Option<bolt_ts_atom::Atom>>> {
+    ) -> Option<Vec<Option<bolt_ts_atom::Atom>>> {
         if n.case_block.clauses.iter().any(|clause| match clause {
             ast::CaseOrDefaultClause::Case(n) => !n.expr.is_string_lit_like(),
             ast::CaseOrDefaultClause::Default(_) => false,
         }) {
             return None;
         }
-        let witnesses = n
-            .case_block
-            .clauses
-            .iter()
-            .map(|clause| match clause {
+        let mut witnesses = vec![];
+        for clause in n.case_block.clauses {
+            let text = match clause {
                 ast::CaseOrDefaultClause::Case(n) => match n.expr.kind {
                     ast::ExprKind::StringLit(n) => Some(n.val),
                     ast::ExprKind::NoSubstitutionTemplateLit(n) => Some(n.val),
-                    _ => unimplemented!(),
+                    _ => unreachable!(),
                 },
                 ast::CaseOrDefaultClause::Default(_) => None,
-            })
-            .collect();
+            };
+            if let Some(text) = text
+                && !witnesses.contains(&Some(text))
+            {
+                witnesses.push(Some(text));
+            } else {
+                witnesses.push(None);
+            }
+        }
         Some(witnesses)
     }
 
@@ -6809,7 +6840,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         start: usize,
         end: usize,
-        witnesses: &FxIndexSet<Option<bolt_ts_atom::Atom>>,
+        witnesses: &Vec<Option<bolt_ts_atom::Atom>>,
     ) -> TypeFacts {
         let mut facts = TypeFacts::empty();
         for i in 0..witnesses.len() {

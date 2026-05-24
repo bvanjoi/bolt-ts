@@ -1,0 +1,11 @@
+  × Property 'bProps' does not exist on type 'A | B'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue6/index.ts:76:15]
+ 76 │ bProps
+    · ──────
+    ╰────
+
+  × Property 'cProps' does not exist on type 'MyType'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue6/index.ts:80:15]
+ 80 │ cProps
+    · ──────
+    ╰────

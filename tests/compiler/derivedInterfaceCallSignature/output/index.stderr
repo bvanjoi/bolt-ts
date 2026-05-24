@@ -1,0 +1,5 @@
+  × Interface 'D3SvgArea' incorrectly extends interface 'D3SvgPath'.
+    ╭─[../../tests/compiler/derivedInterfaceCallSignature/index.ts:15:11]
+ 15 │ D3SvgArea
+    · ─────────
+    ╰────

@@ -1,0 +1,25 @@
+  × Element implicitly has an 'any' type because expression of type 'string'
+  │ can't be used to index type 'any[] | Record | Record[]'.
+     ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:122:17]
+ 122 │ obj[key]
+     · ────────
+     ╰────
+
+  × Element implicitly has an 'any' type because expression of type 'string'
+  │ can't be used to index type 'any[] | Record | Record[]'.
+     ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:124:29]
+ 124 │ obj[key]
+     · ────────
+     ╰────
+
+  × Type 'string' is not assignable to type '42'.
+     ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:153:11]
+ 153 │ b
+     · ─
+     ╰────
+
+  × Type 'string | string[]' is not assignable to type '42'.
+     ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:160:11]
+ 160 │ b
+     · ─
+     ╰────

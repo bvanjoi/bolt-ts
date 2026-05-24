@@ -96,6 +96,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     diags: Vec<bolt_ts_errors::Diag>,
     symbols: Symbols,
     local_symbols: FxHashMap<u32, SymbolID>,
+    compiler_options: &'atoms NormalizedTsConfig,
     // TODO: use `NodeId::index` is enough
     locals: FxHashMap<ast::NodeID, SymbolTable>,
 
@@ -168,7 +169,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         atoms: &'atoms AtomIntern,
         parser: &'parser mut ParseResultForGraph<'cx>,
         module_id: ModuleID,
-        options: &NormalizedTsConfig,
+        options: &'atoms NormalizedTsConfig,
     ) -> Self {
         let symbols = Symbols::new(module_id);
         let mut flow_nodes = FlowNodes::new(module_id);
@@ -218,6 +219,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             parent_map,
             pre_switch_case_flow: None,
             block_parent_stack: vec![],
+            compiler_options: options,
         }
     }
 
@@ -287,7 +289,7 @@ fn bind<'cx, 'atoms, 'parser>(
     parser: &'parser mut ParseResultForGraph<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
-    options: &NormalizedTsConfig,
+    options: &'atoms NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, module_id, options);
     state.bind(root.id());

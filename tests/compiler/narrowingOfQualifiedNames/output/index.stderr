@@ -1,0 +1,13 @@
+  × Property 'c' does not exist on type 'undefined | { c: undefined |
+  │ string; }'.
+    ╭─[../../tests/compiler/narrowingOfQualifiedNames/index.ts:36:33]
+ 36 │ c
+    · ─
+    ╰────
+
+  × Property 'c' does not exist on type 'undefined | { c: undefined |
+  │ string; }'.
+    ╭─[../../tests/compiler/narrowingOfQualifiedNames/index.ts:42:37]
+ 42 │ c
+    · ─
+    ╰────

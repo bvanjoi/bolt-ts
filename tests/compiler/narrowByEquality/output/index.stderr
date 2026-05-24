@@ -1,0 +1,18 @@
+  × This condition will always return 'false' since JavaScript compares
+  │ objects by reference, not value.
+    ╭─[../../tests/compiler/narrowByEquality/index.ts:46:5]
+ 46 │ xAndObj == {}
+    · ─────────────
+    ╰────
+
+  × Type 'number | string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/narrowByEquality/index.ts:60:15]
+ 60 │ q2
+    · ──
+    ╰────
+
+  × Type 'number | string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/narrowByEquality/index.ts:62:16]
+ 62 │ level
+    · ─────
+    ╰────

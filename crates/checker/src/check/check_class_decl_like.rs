@@ -566,6 +566,22 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        for ele in class.elems().list {
+            use bolt_ts_ast::ClassElemKind::*;
+            match ele.kind {
+                Prop(n) => self.check_class_prop_ele(n),
+                Method(n) => self.check_class_method_element(n),
+                Ctor(n) => self.check_class_ctor(n),
+                IndexSig(_) => {}
+                Getter(n) => self.check_getter_decl(n),
+                Setter(n) => self.check_accessor_decl(n),
+                StaticBlockDecl(n) => {
+                    self.check_block(n.body);
+                }
+                Semi(_) => {}
+            }
+        }
+
         // check_property_initialization
         if self.config.compiler_options().strict_null_checks()
             && self
@@ -603,7 +619,7 @@ impl<'cx> TyChecker<'cx> {
                             || prop_ty.contains_undefined_ty())
                         {
                             if ctor.is_none_or(|ctor| {
-                                !self.is_prop_initialized_in_ctor(prop_name, prop_ty, ctor)
+                                !self.is_property_initialized_in_constructor(prop.id, ctor)
                             }) {
                                 let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
                                     span: prop_name.span(),
@@ -616,31 +632,15 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-
-        for ele in class.elems().list {
-            use bolt_ts_ast::ClassElemKind::*;
-            match ele.kind {
-                Prop(n) => self.check_class_prop_ele(n),
-                Method(n) => self.check_class_method_element(n),
-                Ctor(n) => self.check_class_ctor(n),
-                IndexSig(_) => {}
-                Getter(n) => self.check_getter_decl(n),
-                Setter(n) => self.check_accessor_decl(n),
-                StaticBlockDecl(n) => {
-                    self.check_block(n.body);
-                }
-                Semi(_) => {}
-            }
-        }
     }
 
-    fn is_prop_initialized_in_ctor(
+    fn is_property_initialized_in_constructor(
         &self,
-        prop_name: &'cx ast::PropName<'cx>,
-        prop_ty: &'cx ty::Ty<'cx>,
+        property: ast::NodeID,
         ctor: &'cx ast::ClassCtor<'cx>,
     ) -> bool {
-        // TODO:
-        true
+        // ensure class constructor had been checked
+        self.property_initializer_in_class_constructor_map
+            .has(ctor, property)
     }
 }

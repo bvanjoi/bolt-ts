@@ -17,6 +17,8 @@ use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 use bolt_ts_ty::CheckFlags;
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
@@ -216,7 +218,7 @@ impl<'cx> TyChecker<'cx> {
                     key,
                 );
             } else if flags.contains(FlowFlags::SWITCH_CLAUSE) {
-                ty = self.get_ty_at_switch_clause(
+                ty = self.get_type_at_switch_clause(
                     flow,
                     refer,
                     shared_flow_start,
@@ -284,7 +286,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_at_switch_clause(
+    fn get_type_at_switch_clause(
         &mut self,
         flow: FlowID,
         refer: ast::NodeID,
@@ -382,7 +384,7 @@ impl<'cx> TyChecker<'cx> {
                     if let ast::CaseOrDefaultClause::Case(clause) =
                         &switch_stmt.case_block.clauses[i as usize]
                     {
-                        ty = self.narrow_ty(ty, declared_ty, refer, clause.expr.id(), true);
+                        ty = self.narrow_ty(ty, declared_ty, refer, clause.expr.id(), false);
                     }
                 }
             } else {
@@ -967,8 +969,27 @@ impl<'cx> TyChecker<'cx> {
             }
             return Some(FlowTy::Ty(declared_ty));
         }
-        // TODO: is_variable_declaration
-        None
+
+        if let ast::Node::VarDecl(n) = self.p.node(node)
+            && let ast::Node::ForInStmt(for_in_stmt) = self.p.node(self.parent(node).unwrap())
+            && (self.is_matching_reference(refer, for_in_stmt.expr.id())
+                || self.optional_chain_contains_reference(for_in_stmt.expr.id(), refer))
+        {
+            let flow_ty = self.get_ty_at_flow_node(
+                antecedent,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            );
+            let ty = self.get_ty_from_flow_ty(flow_ty);
+            let ty = self.finalize_evolving_array_ty(ty);
+            Some(FlowTy::Ty(self.get_non_nullable_ty_if_needed(ty)))
+        } else {
+            None
+        }
     }
 
     fn get_ty_at_flow_call(
@@ -1284,7 +1305,9 @@ impl<'cx> TyChecker<'cx> {
             PrefixUnaryExpr(node) if node.op == ast::PrefixUnaryOp::Excl => {
                 self.narrow_ty(ty, declared_ty, refer, node.expr.id(), !assume_true)
             }
-            BinExpr(node) => self.narrow_ty_by_bin_expr(ty, declared_ty, refer, node, assume_true),
+            BinExpr(node) => {
+                self.narrow_type_by_binary_expression(ty, declared_ty, refer, node, assume_true)
+            }
             _ => ty,
         }
     }
@@ -1304,7 +1327,7 @@ impl<'cx> TyChecker<'cx> {
             assume_true = !assume_true;
         }
         let value_ty = self.get_ty_of_expr(value);
-        let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEqEq);
+        let double_equals = matches!(op, ast::BinOpKind::EqEq | ast::BinOpKind::NEq);
         if value_ty.flags.intersects(TypeFlags::NULLABLE) {
             if !self.config.compiler_options().strict_null_checks() {
                 return ty;
@@ -1389,7 +1412,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn narrow_ty_by_bin_expr(
+    fn narrow_type_by_binary_expression(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
         declared_ty: &'cx ty::Ty<'cx>,
@@ -2417,31 +2440,17 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_flow_type_of_property_access_expression(
+    fn get_flow_type_of_access_expression_worker(
         &mut self,
         n: ast::NodeID,
         prop: Option<SymbolID>,
         prop_ty: &'cx ty::Ty<'cx>,
         error_node: Option<ast::NodeID>,
         check_mode: Option<super::CheckMode>,
+        assignment_kind: AssignmentKind,
+        object_expr_is_strict_and_under_strict: bool,
+        is_uninitialize_property_access_under_class_constructor: bool,
     ) -> &'cx ty::Ty<'cx> {
-        let node = self.p.node(n);
-        let (id, expr) = match node {
-            ast::Node::PropAccessExpr(n) => (n.id, n.expr),
-            ast::Node::EleAccessExpr(n) => (n.id, n.expr),
-            ast::Node::QualifiedName(_) => {
-                // TODO:
-                return prop_ty;
-            }
-            n => unreachable!("n: {n:#?}"),
-        };
-        let assignment_kind = self.node_query(id.module()).get_assignment_target_kind(id);
-        if assignment_kind == AssignmentKind::Definite {
-            let is_optional =
-                prop.is_some_and(|prop| self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL));
-            return self.remove_missing_ty(prop_ty, is_optional);
-        }
-
         if let Some(prop) = prop
             && let prop_symbol = self.symbol(prop)
             && !prop_symbol.flags.intersects(
@@ -2460,35 +2469,20 @@ impl<'cx> TyChecker<'cx> {
             // TODO: self.get_flow_ty_of_property
             return prop_ty;
         }
-        let prop_ty = self.get_narrowable_ty_for_reference(prop_ty, id, check_mode);
+        let prop_ty = self.get_narrowable_ty_for_reference(prop_ty, n, check_mode);
         let mut assume_uninitialized = false;
-        let c = self.config.compiler_options();
-        let strict_null_checks = c.strict_null_checks();
-        if strict_null_checks
-            && c.strict_property_initialization()
-            && let ast::ExprKind::This(_) = expr.kind
-        {
-            if let Some(decl) = prop.and_then(|prop| self.symbol(prop).value_decl)
-                && let d = self.p.node(decl)
-                && d.is_property_without_initializer()
-                && !d.is_static()
-                && let flow_container = self
-                    .node_query(decl.module())
-                    .get_control_flow_container(decl)
-                && self.p.node(flow_container).is_class_ctor()
-                && self.parent(decl) == self.parent(flow_container)
-                && !self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT)
-            {
+        if object_expr_is_strict_and_under_strict {
+            if is_uninitialize_property_access_under_class_constructor {
                 assume_uninitialized = true;
             }
-        } else if strict_null_checks
+        } else if self.config.compiler_options().strict_null_checks()
             && let Some(prop) = prop
             && let Some(decl) = self.symbol(prop).value_decl
             && let ast::Node::PropAccessExpr(_) = self.p.node(decl)
             && let nq = self.node_query(decl.module())
             && nq.get_assignment_target_kind(decl) != AssignmentKind::None
             && nq.get_control_flow_container(decl)
-                == self.node_query(id.module()).get_control_flow_container(id)
+                == self.node_query(n.module()).get_control_flow_container(n)
         {
             assume_uninitialized = true;
         }
@@ -2497,7 +2491,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             prop_ty
         };
-        let flow_ty = self.get_flow_ty_of_reference(id, prop_ty, Some(init_ty), None, None);
+        let flow_ty = self.get_flow_ty_of_reference(n, prop_ty, Some(init_ty), None, None);
         if assume_uninitialized
             && !prop_ty.contains_undefined_ty()
             && flow_ty.contains_undefined_ty()
@@ -2509,6 +2503,90 @@ impl<'cx> TyChecker<'cx> {
         } else {
             flow_ty
         }
+    }
+
+    pub(super) fn get_flow_type_of_access_expression(
+        &mut self,
+        n: ast::NodeID,
+        prop: Option<SymbolID>,
+        prop_ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+        check_mode: Option<super::CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        let node = self.p.node(n);
+        let expr = match node {
+            ast::Node::PropAccessExpr(n) => n.expr,
+            ast::Node::EleAccessExpr(n) => n.expr,
+            ast::Node::QualifiedName(_) => {
+                debug_assert!(
+                    self.node_query(n.module()).get_assignment_target_kind(n)
+                        == AssignmentKind::None
+                );
+                return self.get_flow_type_of_access_expression_worker(
+                    n,
+                    prop,
+                    prop_ty,
+                    error_node,
+                    check_mode,
+                    AssignmentKind::None,
+                    false,
+                    false,
+                );
+            }
+            _ => unreachable!("node: {node:#?}"),
+        };
+        let assignment_kind = self.node_query(n.module()).get_assignment_target_kind(n);
+        let c = self.config.compiler_options();
+        let strict_null_checks = c.strict_null_checks();
+        let object_expr_is_strict_and_under_strict = strict_null_checks
+            && c.strict_property_initialization()
+            && matches!(expr.kind, ast::ExprKind::This(_));
+        let flow_container = self.node_query(n.module()).get_control_flow_container(n);
+        let constructor_flow_container = self.p.node(flow_container).as_class_ctor();
+        let property_value_declaration = prop.and_then(|prop| self.symbol(prop).value_decl);
+        let is_uninitialize_property_access_under_class_constructor = if let Some(decl) =
+            property_value_declaration
+            && let d = self.p.node(decl)
+            && d.is_property_without_initializer()
+            && !d.is_static()
+            && constructor_flow_container.is_some()
+            && self.parent(decl) == self.parent(flow_container)
+            && !self.p.node_flags(decl).contains(ast::NodeFlags::AMBIENT)
+        {
+            true
+        } else {
+            false
+        };
+
+        if object_expr_is_strict_and_under_strict
+            && is_uninitialize_property_access_under_class_constructor
+            && let Some(constructor_flow_container) = constructor_flow_container
+            && assignment_kind == AssignmentKind::Definite
+            && let property_value_declaration = property_value_declaration.unwrap()
+            && !self
+                .property_initializer_in_class_constructor_map
+                .has(constructor_flow_container, property_value_declaration)
+        {
+            self.property_initializer_in_class_constructor_map
+                .add(constructor_flow_container, property_value_declaration);
+        }
+
+        if assignment_kind == AssignmentKind::Definite {
+            let is_optional =
+                prop.is_some_and(|prop| self.symbol(prop).flags.contains(SymbolFlags::OPTIONAL));
+            return self.remove_missing_ty(prop_ty, is_optional);
+        }
+
+        self.get_flow_type_of_access_expression_worker(
+            n,
+            prop,
+            prop_ty,
+            error_node,
+            check_mode,
+            assignment_kind,
+            object_expr_is_strict_and_under_strict,
+            is_uninitialize_property_access_under_class_constructor,
+        )
     }
 }
 
@@ -2578,4 +2656,34 @@ pub(super) struct ThisFlowCacheKey {
     flow_container: Option<ast::NodeID>,
     declared_ty: ty::TyID,
     init_ty: ty::TyID,
+}
+
+pub(super) struct PropertyInitializerInClassConstructorMap(
+    FxHashMap<ast::NodeID, FxHashSet<ast::NodeID>>,
+);
+
+impl PropertyInitializerInClassConstructorMap {
+    pub(super) fn new() -> Self {
+        Self(FxHashMap::default())
+    }
+
+    pub(super) fn add(&mut self, class_constructor: &ast::ClassCtor<'_>, property: ast::NodeID) {
+        match self.0.get_mut(&class_constructor.id) {
+            Some(properties) => {
+                let prev = properties.insert(property);
+                debug_assert!(prev);
+            }
+            None => {
+                let mut properties = FxHashSet::default();
+                properties.insert(property);
+                self.0.insert(class_constructor.id, properties);
+            }
+        }
+    }
+
+    pub(super) fn has(&self, constructor: &ast::ClassCtor<'_>, property: ast::NodeID) -> bool {
+        self.0
+            .get(&constructor.id)
+            .map_or(false, |properties| properties.contains(&property))
+    }
 }

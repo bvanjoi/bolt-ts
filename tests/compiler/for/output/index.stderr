@@ -1,0 +1,17 @@
+  × Expression expected.
+    ╭─[../../tests/compiler/for/index.ts:34:6]
+ 34 │ )
+    · ─
+    ╰────
+
+  × Expected ';'.
+    ╭─[../../tests/compiler/for/index.ts:34:6]
+ 34 │ )
+    · ─
+    ╰────
+
+  × Expected ';'.
+    ╭─[../../tests/compiler/for/index.ts:34:6]
+ 34 │ )
+    · ─
+    ╰────

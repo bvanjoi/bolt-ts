@@ -1398,11 +1398,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             || self.is_narrowable_expression(p.expr);
         let mut fallthrough_flow = self.unreachable_flow_node;
 
-        for i in 0..n.clauses.len() {
+        let mut i = 0;
+        while i < n.clauses.len() {
             let clause_start = i;
-            // while clause.stmts().is_empty() && i + 1 < n.clauses.len() {
-            // TODO:
-            // }
+            while n.clauses[i].stmts().is_empty() && i + 1 < n.clauses.len() {
+                if fallthrough_flow == self.unreachable_flow_node {
+                    debug_assert!(self.pre_switch_case_flow.is_some());
+                    self.current_flow = self.pre_switch_case_flow;
+                }
+                self.bind(n.clauses[i].id());
+                i += 1;
+            }
             let prev_case_label = self.flow_nodes.create_branch_label();
             let antecedent = if is_narrowing_switch {
                 self.create_flow_switch_clause(
@@ -1423,7 +1429,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 ast::CaseOrDefaultClause::Default(c) => self.bind(c.id),
             }
             fallthrough_flow = self.current_flow.unwrap();
-            // TODO: clause.fallthrough_flow = fallthrough_flow;
+            if !self
+                .flow_nodes
+                .get_flow_node(self.current_flow.unwrap())
+                .flags
+                .contains(FlowFlags::UNREACHABLE)
+                && i != n.clauses.len() - 1
+                && self
+                    .compiler_options
+                    .compiler_options()
+                    .no_fallthrough_cases_in_switch()
+            {
+                // TODO: fallthrough_flow_node
+            }
+            i += 1;
         }
     }
 
@@ -1803,8 +1822,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         self.current_flow = Some(pre_loop_label);
         if let Some(cond) = n.cond {
-            // TODO: bind_cond
-            self.bind(cond.id());
+            self.bind_cond(Some(cond), pre_body_label, post_loop_label);
         }
         self.current_flow = Some(self.finish_flow_label(pre_body_label));
 

@@ -551,6 +551,7 @@ impl From<TokenKind> for super::AssignOp {
             TokenKind::GreatGreatEq => ShrEq,
             TokenKind::GreatGreatGreatEq => UShrEq,
             TokenKind::CaretEq => BitXorEq,
+            TokenKind::QuestionQuestionEq => NullishEq,
             _ => unreachable!(),
         }
     }
@@ -688,6 +689,7 @@ impl TokenKind {
                 | LessLessEq
                 | GreatGreatEq
                 | GreatGreatGreatEq
+                | QuestionQuestionEq
         )
     }
 

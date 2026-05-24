@@ -344,6 +344,9 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(Box::new(error));
         }
+
+        self.check_stmt(node.body);
+        // TODO: node.locals
     }
 
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {

@@ -907,10 +907,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Paren(n) => self.is_narrowable_reference(n.expr),
             NonNull(n) => self.is_narrowable_reference(n.expr),
             EleAccess(n) => self.ele_access_is_narrowable_reference(n),
-            Bin(_) => {
-                // TODO: n.op.kind == Comma
-                false
-            }
+            Bin(n) if n.op.kind == ast::BinOpKind::Comma => self.is_narrowable_reference(n.right),
             Assign(n) => n.left.is_left_hand_side_expr_kind(),
             _ => false,
         }
