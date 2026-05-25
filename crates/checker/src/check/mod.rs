@@ -4436,6 +4436,40 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::BinExpr(n) if n.op.kind == ast::BinOpKind::Comma => {
                 self.is_matching_reference(n.right.id(), target)
             }
+            ast::Node::ObjectBindingElem(n) => {
+                if let Some(source_prop_name) = self.get_literal_prop_name(&n.name.name()) {
+                    let (target_access_expr, target_prop_name) = match t {
+                        ast::Node::PropAccessExpr(t_prop_access) => (
+                            Some(t_prop_access.expr.id()),
+                            Some(SymbolName::Atom(t_prop_access.name.name)),
+                        ),
+                        ast::Node::EleAccessExpr(t_element_access) => (
+                            Some(t_element_access.expr.id()),
+                            self.try_get_element_access_name(t_element_access),
+                        ),
+                        _ => (None, None),
+                    };
+                    if let Some(target_prop_name) = target_prop_name {
+                        return source_prop_name == target_prop_name && {
+                            let parent = self.parent(n.id).unwrap();
+                            debug_assert!(self.p.node(parent).is_object_pat());
+                            let parent_parent = self.parent(parent).unwrap();
+                            match self.p.node(parent_parent) {
+                                ast::Node::VarDecl(parent_parent_node)
+                                    if let Some(init) = parent_parent_node.init =>
+                                {
+                                    self.is_matching_reference(
+                                        init.id(),
+                                        target_access_expr.unwrap(),
+                                    )
+                                }
+                                _ => todo!(),
+                            }
+                        };
+                    }
+                }
+                false
+            }
             _ => false,
         }
     }

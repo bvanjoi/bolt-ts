@@ -314,8 +314,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
-            // TODO: getFlowTypeOfDestructuring
-            decl_ty
+            self.get_flow_type_of_object_destructuring(binding, decl_ty)
         };
         if binding.init().is_none() {
             return element_ty;
@@ -349,6 +348,45 @@ impl<'cx> TyChecker<'cx> {
                 None,
             );
             self.widen_ty_inferred_from_initializer(binding, ty)
+        }
+    }
+
+    fn get_flow_type_of_object_destructuring(
+        &mut self,
+        binding: &'cx ast::ObjectBindingElem<'cx>,
+        declared_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let parent = self.parent(binding.id).unwrap();
+        debug_assert!(self.p.node(parent).is_object_pat());
+        let parent_parent = self.parent(parent).unwrap();
+        match self.p.node(parent_parent) {
+            ast::Node::VarDecl(n)
+                if let Some(init) = n.init
+                    && let Some(flow) = self.get_flow_node_of_node(init.id()) =>
+            {
+                self.get_flow_ty_of_reference(binding.id, declared_ty, None, None, Some(flow))
+            }
+            ast::Node::BinExpr(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::PropAccessExpr(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ArrayLit(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ObjectBindingElem(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ArrayBinding(_) => {
+                // TODO:
+                declared_ty
+            }
+            _ => declared_ty,
         }
     }
 
