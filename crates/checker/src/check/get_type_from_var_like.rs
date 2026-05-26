@@ -294,7 +294,6 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             let symbol = self.get_symbol_of_declaration(binding.id);
-            // TODO: getFlowTypeOfDestructuring
             self.get_rest_ty(parent_parent_ty, &literal_members, Some(symbol))
         } else {
             let index_ty = match binding.name {
@@ -415,7 +414,7 @@ impl<'cx> TyChecker<'cx> {
         props: &[ast::PropNameKind<'cx>],
         symbol: Option<SymbolID>,
     ) -> &'cx Ty<'cx> {
-        let source = self.filter_type(source, |this, t| !t.flags.contains(ty::TypeFlags::NULLABLE));
+        let source = self.filter_type(source, |_, t| !t.flags.intersects(ty::TypeFlags::NULLABLE));
         if source.flags.contains(ty::TypeFlags::NEVER) {
             return self.empty_object_ty();
         } else if source.flags.contains(ty::TypeFlags::UNION) {

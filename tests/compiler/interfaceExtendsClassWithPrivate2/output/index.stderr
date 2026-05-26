@@ -1,0 +1,25 @@
+  × Class 'D' incorrectly extends base class 'C'.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate2/index.ts:14:7]
+ 14 │ D
+    · ─
+    ╰────
+
+  × Class 'D' incorrectly implements interface 'I'.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate2/index.ts:14:30]
+ 14 │ I
+    · ─
+    ╰────
+
+  × Property 'x' in type 'D2<D2>' is not assignable to the same property in
+  │ base type 'C<D2>'.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate2/index.ts:26:13]
+ 26 │ x
+    · ─
+    ╰────
+
+  × Property 'x' in type 'D2<D2>' is not assignable to the same property in
+  │ base type 'I<D2>'.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate2/index.ts:26:13]
+ 26 │ x
+    · ─
+    ╰────

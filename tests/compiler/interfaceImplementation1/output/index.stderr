@@ -1,0 +1,17 @@
+  × Class 'C1' incorrectly implements interface 'I1'.
+    ╭─[../../tests/compiler/interfaceImplementation1/index.ts:17:21]
+ 17 │ I1
+    · ──
+    ╰────
+
+  × Class 'C1' incorrectly implements interface 'I2'.
+    ╭─[../../tests/compiler/interfaceImplementation1/index.ts:17:24]
+ 17 │ I2
+    · ──
+    ╰────
+
+  × Type '() => C2' is not assignable to type 'I4'.
+    ╭─[../../tests/compiler/interfaceImplementation1/index.ts:41:5]
+ 41 │ a
+    · ─
+    ╰────

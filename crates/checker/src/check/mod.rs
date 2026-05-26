@@ -2101,7 +2101,6 @@ impl<'cx> TyChecker<'cx> {
                     != AssignmentKind::Definite
             {
                 let tys = &[index_info.val_ty, self.missing_ty];
-
                 self.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None, None)
             } else {
                 index_info.val_ty

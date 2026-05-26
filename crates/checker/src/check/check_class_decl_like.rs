@@ -7,6 +7,7 @@ use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
+use bolt_ts_ty::CheckFlags;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 
 bitflags::bitflags! {
@@ -441,7 +442,6 @@ impl<'cx> TyChecker<'cx> {
                             );
                         }
                     } else {
-                        // TODO:
                         let derived_declaration_flags =
                             self.get_declaration_modifier_flags_from_symbol::<false>(derived);
                         if base_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
@@ -449,14 +449,82 @@ impl<'cx> TyChecker<'cx> {
                         {
                             continue;
                         }
+                        let base_s = self.symbol(base);
                         let base_property_flags =
-                            base_flags.intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                            base_flags.intersection(SymbolFlags::PROPERTY_OR_ACCESSOR);
                         let derived_symbol = self.symbol(derived);
                         let derived_property_flags = derived_symbol
                             .flags
-                            .intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
-                        if base_property_flags && derived_property_flags {
-                            // TODO:
+                            .intersection(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        let is_property_abstract_or_interface = |this: &Self, declaration: ast::NodeID, base_declaration_flags: ast::ModifierFlags| {
+                            base_declaration_flags.contains(ast::ModifierFlags::ABSTRACT) && {
+                                let n = this.p.node(declaration);
+                                !n.is_class_prop_elem() || n.initializer().is_none()
+                            } || this.parent(declaration).is_some_and(|p| this.p.node(p).is_interface_decl())
+                        };
+                        if !base_property_flags.is_empty() && !derived_property_flags.is_empty() {
+                            let base_check_flags = self.get_check_flags(base);
+                            if (if base_check_flags.intersects(CheckFlags::SYNTHETIC) {
+                                base_s.decls.as_ref().is_some_and(|decls| {
+                                    decls.iter().any(|d| {
+                                        is_property_abstract_or_interface(
+                                            self,
+                                            *d,
+                                            base_declaration_flags,
+                                        )
+                                    })
+                                })
+                            } else {
+                                base_s.decls.as_ref().is_some_and(|decls| {
+                                    decls.iter().all(|d| {
+                                        is_property_abstract_or_interface(
+                                            self,
+                                            *d,
+                                            base_declaration_flags,
+                                        )
+                                    })
+                                })
+                            }) || base_check_flags.contains(CheckFlags::MAPPED)
+                                || derived_symbol.value_decl.is_some_and(|n| {
+                                    let n = self.p.node(n);
+                                    n.is_bin_expr() || n.is_assign_expr()
+                                })
+                            {
+                                continue;
+                            }
+
+                            let overridden_instance_property = base_property_flags
+                                != SymbolFlags::PROPERTY
+                                && derived_property_flags == SymbolFlags::PROPERTY;
+                            let overridden_instance_accessor = base_property_flags
+                                == SymbolFlags::PROPERTY
+                                && derived_property_flags != SymbolFlags::PROPERTY;
+                            if overridden_instance_property {
+                                let error = errors::XIsDefinedAsAnAccessorInClassYButIsOverriddenHereInZAsAnInstanceProperty {
+                                    span: derived_symbol.value_decl.and_then(|decl| self.p.node(decl).name().map(|n| n.span())).unwrap_or_else(|| {
+                                        self.p.node(derived_symbol.value_decl.unwrap()).span()
+                                    }),
+                                    x: base_s_name.to_string(&self.atoms),
+                                    class_y: self.print_ty(base_ty, None).to_string(),
+                                    class_z: self.print_ty(ty, None).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            } else if overridden_instance_accessor {
+                                let error = errors::XIsDefinedAsAPropertyInClassYButIsOverriddenHereInZAsAnAccessor {
+                                    span: derived_symbol.value_decl.and_then(|decl| self.p.node(decl).name().map(|n| n.span())).unwrap_or_else(|| {
+                                        self.p.node(derived_symbol.value_decl.unwrap()).span()
+                                    }),
+                                    x: base_s_name.to_string(&self.atoms),
+                                    class_y: self.print_ty(base_ty, None).to_string(),
+                                    class_z: self.print_ty(ty, None).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            } else if self.config.compiler_options().use_define_for_class_fields() {
+                                // TODO:
+                            }
+
+                            // correct case
+                            continue;
                         } else if self.is_prototype_prop(base) {
                             // TODO:
                         } else if base_flags.intersects(SymbolFlags::ACCESSOR) {

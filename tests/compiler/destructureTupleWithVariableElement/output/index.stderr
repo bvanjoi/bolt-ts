@@ -1,0 +1,17 @@
+  × 's1' is possibly 'undefined'.
+    ╭─[../../tests/compiler/destructureTupleWithVariableElement/index.ts:14:1]
+ 14 │ s1
+    · ──
+    ╰────
+
+  × 's2' is possibly 'undefined'.
+    ╭─[../../tests/compiler/destructureTupleWithVariableElement/index.ts:16:1]
+ 16 │ s2
+    · ──
+    ╰────
+
+  × 's5' is possibly 'undefined'.
+    ╭─[../../tests/compiler/destructureTupleWithVariableElement/index.ts:25:1]
+ 25 │ s5
+    · ──
+    ╰────

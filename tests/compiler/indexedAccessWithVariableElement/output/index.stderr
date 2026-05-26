@@ -1,0 +1,23 @@
+  × Type 'undefined | number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/indexedAccessWithVariableElement/index.ts:14:7]
+ 14 │ el2
+    · ───
+    ╰────
+
+  × Type 'undefined | number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/indexedAccessWithVariableElement/index.ts:21:7]
+ 21 │ el4
+    · ───
+    ╰────
+
+  × Type 'undefined | number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/indexedAccessWithVariableElement/index.ts:25:7]
+ 25 │ e0
+    · ──
+    ╰────
+
+  × Type '[]' is not assignable to type '[...number[], number]'.
+    ╭─[../../tests/compiler/indexedAccessWithVariableElement/index.ts:28:7]
+ 28 │ a2
+    · ──
+    ╰────

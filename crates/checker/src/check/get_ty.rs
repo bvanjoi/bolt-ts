@@ -901,11 +901,18 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_end_elem_count(&mut self, ty: &'cx Ty<'cx>, flags: ElementFlags) -> usize {
-        let tup = ty.as_tuple().unwrap();
-        tup.element_flags.len()
-            - if let Some(i) = tup.element_flags.iter().rposition(|f| !f.intersects(flags)) {
-                i - 1
+    fn get_end_element_count(
+        &mut self,
+        tuple: &'cx ty::TupleTy<'cx>,
+        flags: ElementFlags,
+    ) -> usize {
+        tuple.element_flags.len()
+            - if let Some(i) = tuple
+                .element_flags
+                .iter()
+                .rposition(|f| !f.intersects(flags))
+            {
+                i + 1
             } else {
                 0
             }
@@ -913,10 +920,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_total_fixed_elem_count(&mut self, ty: &'cx Ty<'cx>) -> usize {
         let tup = ty.as_tuple().unwrap();
-        tup.fixed_length + self.get_end_elem_count(ty, ElementFlags::FIXED)
+        tup.fixed_length + self.get_end_element_count(tup, ElementFlags::FIXED)
     }
 
-    fn get_tuple_elem_ty_out_of_start_count(
+    fn get_tuple_element_ty_out_of_start_count(
         &mut self,
         ty: &'cx Ty<'cx>,
         index: usize,
@@ -925,6 +932,7 @@ impl<'cx> TyChecker<'cx> {
         self.map_ty(
             ty,
             |this, t| {
+                debug_assert!(t.is_tuple());
                 let Some(rest_ty) = this.get_rest_ty_of_tuple_ty(t) else {
                     return Some(this.undefined_ty);
                 };
@@ -1125,9 +1133,10 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 // TODO: num is not integer
-                if index > 0. {
+                if index >= 0. {
+                    // TODO: error_if_writing_to_readonly
                     return Some(
-                        self.get_tuple_elem_ty_out_of_start_count(
+                        self.get_tuple_element_ty_out_of_start_count(
                             object_ty,
                             index as usize,
                             access_flags

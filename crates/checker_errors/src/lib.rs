@@ -1767,3 +1767,27 @@ pub struct ThisComparisonAppearsToBeUnintentionalBecauseTheTypesXAndYHaveNoOverl
     pub ty1: String,
     pub ty2: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'{x}' is defined as an accessor in class '{class_y}', but is overridden here in '{class_z}' as an instance property."
+)]
+pub struct XIsDefinedAsAnAccessorInClassYButIsOverriddenHereInZAsAnInstanceProperty {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub class_y: String,
+    pub class_z: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "'{x}' is defined as a property in class '{class_y}', but is overridden here in '{class_z}' as an accessor."
+)]
+pub struct XIsDefinedAsAPropertyInClassYButIsOverriddenHereInZAsAnAccessor {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub class_y: String,
+    pub class_z: String,
+}
