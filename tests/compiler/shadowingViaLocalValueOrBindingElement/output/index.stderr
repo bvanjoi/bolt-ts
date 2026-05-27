@@ -1,0 +1,41 @@
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+   ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:10:15]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:12:18]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:14:15]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:16:18]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowingViaLocalValueOrBindingElement/index.ts:18:14]
+ 18 │ x
+    · ─
+    ╰────

@@ -11,7 +11,8 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword::{is_prim_ty_name, is_prim_value_name};
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, NodeFlags};
-use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols, Symbol, SymbolFlags, SymbolID};
+use bolt_ts_binder::{BinderResult, GlobalSymbols, MergedSymbols};
+use bolt_ts_binder::{NodeQuery, ParentMap, Symbol, SymbolFlags, SymbolID};
 use bolt_ts_binder::{SymbolName, SymbolTable, Symbols};
 use bolt_ts_config::Target;
 use bolt_ts_parser::ParsedMap;
@@ -423,14 +424,15 @@ impl<'cx> Resolver<'cx, '_, '_> {
         }
     }
 
-    fn resolve_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
-        self.resolve_binding(decl.name);
-        if let Some(ty) = decl.ty {
+    fn resolve_var_decl(&mut self, n: &'cx ast::VarDecl<'cx>) {
+        self.resolve_binding(n.name);
+        if let Some(ty) = n.ty {
             self.resolve_ty(ty);
         }
-        if let Some(init) = decl.init {
+        if let Some(init) = n.init {
             self.resolve_expr(init);
         }
+        check_var_declared_named_not_shadowed_for_variable_declaration(self, n);
     }
 
     fn resolve_entity_name<const UNDER_TYPE_QUERY: bool>(
@@ -1572,4 +1574,148 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         base_class_expression_cannot_reference_class_type_parameters: false,
         property_with_invalid_initializer,
     }
+}
+
+fn check_var_declared_named_not_shadowed_for_variable_declaration<'a, 'cx>(
+    r: &mut Resolver<'cx, 'a, '_>,
+    n: &'cx ast::VarDecl<'cx>,
+) {
+    fn check_for_binding<'a, 'cx>(
+        r: &mut Resolver<'cx, 'a, '_>,
+        binding: &'cx ast::Binding<'cx>,
+        parent: ast::NodeID,
+    ) {
+        match binding.kind {
+            bolt_ts_ast::BindingKind::Ident(_) => {
+                if let Some(error) = check_var_declared_names_not_shadowed(r, parent) {
+                    r.push_error(Box::new(error));
+                }
+            }
+            bolt_ts_ast::BindingKind::ObjectPat(pat) => {
+                for element in pat.elems {
+                    match element.name {
+                        bolt_ts_ast::ObjectBindingName::Shorthand(_) => {
+                            if let Some(error) =
+                                check_var_declared_names_not_shadowed(r, element.id)
+                            {
+                                r.push_error(Box::new(error));
+                            }
+                        }
+                        bolt_ts_ast::ObjectBindingName::Prop { name, .. } => {
+                            check_for_binding(r, *name, element.id);
+                        }
+                    }
+                }
+            }
+            bolt_ts_ast::BindingKind::ArrayPat(pat) => {
+                for element in pat.elems {
+                    match element.kind {
+                        ast::ArrayBindingElemKind::Omit(_) => {}
+                        ast::ArrayBindingElemKind::Binding(n) => {
+                            check_for_binding(r, n.name, n.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    check_for_binding(r, n.name, n.id);
+}
+
+fn check_var_declared_names_not_shadowed<'a, 'cx>(
+    r: &'a Resolver<'cx, 'a, '_>,
+    node: ast::NodeID,
+) -> Option<errors::CannotInitializeOuterScopedVariableXInTheSameScopeAsBlockScopedDeclarationY> {
+    let nq = r.node_query();
+    if nq
+        .get_combined_node_flags(node)
+        .intersects(ast::NodeFlags::BLOCK_SCOPED)
+        || nq.is_part_of_param_decl(node)
+    {
+        return None;
+    }
+
+    let symbol = r.symbol_of_decl(node);
+    let s = r.symbol(symbol);
+    if !s.flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+        return None;
+    }
+    let name = match r.p.node(node) {
+        ast::Node::VarDecl(n) => match n.name.kind {
+            ast::BindingKind::Ident(ident) => ident,
+            _ => unreachable!(),
+        },
+        ast::Node::ArrayBinding(n) => match n.name.kind {
+            ast::BindingKind::Ident(ident) => ident,
+            _ => unreachable!(),
+        },
+        ast::Node::ObjectBindingElem(n) => match n.name {
+            ast::ObjectBindingName::Shorthand(ident) => ident,
+            ast::ObjectBindingName::Prop { name, .. } => match name.kind {
+                ast::BindingKind::Ident(ident) => ident,
+                _ => unreachable!(),
+            },
+        },
+        _ => unreachable!(),
+    };
+    let local_declaration_symbol_id =
+        resolve_symbol_by_ident(r, name, SymbolFlags::VARIABLE).symbol;
+
+    if local_declaration_symbol_id != Symbol::ERR
+        && local_declaration_symbol_id != symbol
+        && let local_declaration_symbol = r.symbol(local_declaration_symbol_id)
+        && local_declaration_symbol
+            .flags
+            .contains(SymbolFlags::BLOCK_SCOPED_VARIABLE)
+    {
+        debug_assert!(local_declaration_symbol_id.module() == r.module_id);
+        let value_declaration = local_declaration_symbol.value_decl?;
+        debug_assert!(value_declaration.module() == r.module_id);
+        let declaration_node_flags = r.node_query().get_combined_node_flags(value_declaration);
+        if declaration_node_flags.intersects(ast::NodeFlags::BLOCK_SCOPED) {
+            let container = if let Some(parent) = r.parent(node)
+                && r.p.node(parent).is_var_stmt()
+            {
+                r.parent(parent)
+            } else {
+                None
+            };
+            let name_share_scope = if let Some(container) = container {
+                match r.p.node(container) {
+                    ast::Node::BlockStmt(_) => r
+                        .parent(container)
+                        .is_some_and(|p| r.p.node(p).is_fn_like()),
+                    ast::Node::ModuleBlock(_)
+                    | ast::Node::ModuleDecl(_)
+                    | ast::Node::Program(_) => true,
+                    _ => false,
+                }
+            } else {
+                false
+            };
+            if !name_share_scope {
+                let span = name.span;
+                let name = local_declaration_symbol.name.to_string(r.atoms);
+                return Some(errors::CannotInitializeOuterScopedVariableXInTheSameScopeAsBlockScopedDeclarationY {
+                    span,
+                    x: name.clone(),
+                    y: name
+                });
+            }
+        }
+    }
+
+    None
+}
+
+pub fn get_declaration_node_flags_from_symbol<'cx>(
+    s: &Symbol,
+    parent_map: &ParentMap,
+    parse_result: &bolt_ts_parser::ParseResultForGraph<'cx>,
+) -> ast::NodeFlags {
+    let Some(decl) = s.value_decl else {
+        return ast::NodeFlags::empty();
+    };
+    let nq = NodeQuery::new(parent_map, parse_result);
+    nq.get_combined_node_flags(decl)
 }

@@ -173,3 +173,14 @@ pub struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1Declare
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Cannot initialize outer scoped variable '{x}' in the same scope as block scoped declaration '{y}'."
+)]
+pub struct CannotInitializeOuterScopedVariableXInTheSameScopeAsBlockScopedDeclarationY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
