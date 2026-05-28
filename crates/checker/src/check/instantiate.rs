@@ -1116,7 +1116,7 @@ impl<'cx> TyChecker<'cx> {
             sig_ty_params,
             self.get_min_ty_arg_count(sig_ty_params),
         );
-        let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
+        let sig = self.get_sig_instantiation_without_filling_type_arguments(sig, ty_args);
         if let Some(inferred_ty_params) = inferred_ty_params {
             todo!()
         }
@@ -1133,7 +1133,7 @@ impl<'cx> TyChecker<'cx> {
         self.instantiate_sig::<true>(sig, mapper)
     }
 
-    fn get_sig_instantiation_without_filling_ty_args(
+    pub(super) fn get_sig_instantiation_without_filling_type_arguments(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,

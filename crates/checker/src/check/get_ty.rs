@@ -2,10 +2,11 @@ use std::ops::Not;
 
 use super::create_ty::IntersectionFlags;
 use super::get_iteration_tys::IterationTypeKind;
+use super::infer::InferenceInfosArenaId;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper};
-use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
+use super::{CheckMode, F64Represent, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 
 use bolt_ts_ast::keyword::is_prim_ty_name;
@@ -441,12 +442,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn get_ty_from_inference(
+    pub(super) fn get_ty_from_inference(
         &mut self,
-        inference: InferenceContextId,
+        inferences: InferenceInfosArenaId<'cx>,
         idx: usize,
     ) -> Option<&'cx Ty<'cx>> {
-        let inference = &self.inferences[inference.as_usize()].inferences[idx];
+        let inferences = self.inference_infos_arena.get(inferences);
+        let inference = &inferences[idx];
         if let Some(tys) = &inference.candidates {
             // TODO: remove clone
             let tys = tys.clone();
@@ -1870,7 +1872,8 @@ impl<'cx> TyChecker<'cx> {
                 if !check_ty_deferred {
                     const PRIORITY: InferencePriority =
                         InferencePriority::NO_CONSTRAINTS.union(InferencePriority::ALWAYS_STRICT);
-                    self.infer_tys::<false>(context, check_ty, extends_ty, PRIORITY);
+                    let inferences = self.inference(context).inferences;
+                    self.infer_tys::<false>(inferences, check_ty, extends_ty, PRIORITY);
                 }
 
                 let m = self.inference(context).mapper;

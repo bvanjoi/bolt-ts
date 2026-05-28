@@ -1,0 +1,29 @@
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/genericCallWithObjectLiteralArguments1/index.ts:7:21]
+ 7 │ y
+   · ─
+   ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/genericCallWithObjectLiteralArguments1/index.ts:9:30]
+ 9 │ y
+   · ─
+   ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericCallWithObjectLiteralArguments1/index.ts:11:24]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericCallWithObjectLiteralArguments1/index.ts:13:24]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericCallWithObjectLiteralArguments1/index.ts:15:31]
+ 15 │ y
+    · ─
+    ╰────

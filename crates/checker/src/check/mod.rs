@@ -102,6 +102,8 @@ pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_variances::VarianceFlags;
 use self::infer::InferenceContext;
+use self::infer::InferenceInfo;
+use self::infer::InferenceInfosArena;
 use self::infer::{InferenceFlags, InferencePriority};
 use self::instantiation_ty_map::InstantiationTyMap;
 use self::instantiation_ty_map::SubstitutionKey;
@@ -218,6 +220,7 @@ pub struct TyChecker<'cx> {
 
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
+    inference_infos_arena: InferenceInfosArena<'cx>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
     instantiation_depth: u32,
     instantiation_count: u32,
@@ -866,6 +869,7 @@ impl<'cx> TyChecker<'cx> {
             global_symbols,
             inferences: Vec::with_capacity(cap),
             inference_contextual: Vec::with_capacity(256),
+            inference_infos_arena: InferenceInfosArena::default(),
             type_contextual: Vec::with_capacity(256),
             contextual_binding_patterns: Vec::with_capacity(32),
             deferred_nodes: vec![
@@ -1603,7 +1607,7 @@ impl<'cx> TyChecker<'cx> {
         else {
             return ty;
         };
-        let Some(ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
+        let Some(type_parameters_of_sig) = self.get_sig_links(sig.id).get_ty_params() else {
             return ty;
         };
         let Some(contextual_ty) =
@@ -1627,36 +1631,166 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let context = self.get_inference_context(id).unwrap();
-        let inference = context.inference.unwrap();
+        let context_inference = context.inference.unwrap();
         let ret_sig = self
-            .get_inference_sig(inference)
+            .get_inference_sig(context_inference)
             .map(|sig| self.get_return_type_of_signature(sig))
             .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
         if let Some(ret_sig) = ret_sig
             && self.get_sig_links(ret_sig.id).get_ty_params().is_none()
             && !self
-                .inference_infos(inference)
+                .inference_infos(context_inference)
                 .iter()
                 .all(|info| info.has_inference_candidates())
         {
-            todo!()
+            let unique_type_parameters =
+                self.get_unique_type_parameters(context, type_parameters_of_sig);
+            let unique_type_parameters = self.alloc(unique_type_parameters);
+            let instantiated_sig = self.get_sig_instantiation_without_filling_type_arguments(
+                sig,
+                Some(unique_type_parameters),
+            );
+            let inferences = self
+                .inference_infos(context_inference)
+                .iter()
+                .map(|info| InferenceInfo::create(info.type_parameter))
+                .collect::<_>();
+            let inferences = self.inference_infos_arena.alloc(inferences);
+            self.apply_to_parameter_tys(instantiated_sig, contextual_sig, |this, s, t| {
+                this.infer_tys::<true>(inferences, s, t, InferencePriority::empty());
+            });
+            if self
+                .inference_infos_arena
+                .get(inferences)
+                .iter()
+                .any(|info| info.has_inference_candidates())
+            {
+                self.apply_to_ret_ty(instantiated_sig, contextual_sig, |this, s, t| {
+                    this.infer_tys::<false>(inferences, s, t, InferencePriority::empty());
+                });
+                let has_overlapping_inferences = 'has_overlapping_inferences: {
+                    let context_inference_infos = self.inference_infos(context_inference);
+                    let inferences = self.inference_infos_arena.get(inferences);
+                    // has_overlapping_inferences
+                    for i in 0..context_inference_infos.len() {
+                        if context_inference_infos[i].has_inference_candidates()
+                            && inferences[i].has_inference_candidates()
+                        {
+                            break 'has_overlapping_inferences true;
+                        }
+                    }
+                    false
+                };
+
+                if !has_overlapping_inferences {
+                    // merge_inferences
+                    let mut merge_index = vec![];
+                    {
+                        let context_inference_infos = self.inference_infos(context_inference);
+                        let inferences = self.inference_infos_arena.get(inferences);
+                        for i in 0..context_inference_infos.len() {
+                            if !context_inference_infos[i].has_inference_candidates()
+                                && inferences[i].has_inference_candidates()
+                            {
+                                merge_index.push(i);
+                            }
+                        }
+                    }
+                    debug_assert!(merge_index.is_sorted());
+                    let context_inferences = self.inference(context_inference).inferences;
+                    while let Some(inference) = self.inference_infos_arena.get_mut(inferences).pop()
+                    {
+                        if self.inference_infos_arena.get(inferences).len()
+                            == *merge_index.last().unwrap()
+                        {
+                            let i = merge_index.pop().unwrap();
+                            let context_inferences =
+                                self.inference_infos_arena.get_mut(context_inferences);
+                            context_inferences[i] = inference;
+                        }
+                        if merge_index.is_empty() {
+                            break;
+                        }
+                    }
+
+                    self.append_inferred_type_parameters(context_inference, unique_type_parameters);
+                    return self.get_or_create_ty_from_sig(instantiated_sig);
+                }
+            }
         }
 
-        let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(inference));
-        let outer_ty_params = self
-            .inference_contextual
-            .iter()
-            .filter_map(|inference| {
-                inference.inference.map(|inference| {
-                    self.inference_infos(inference)
-                        .iter()
-                        .map(|info| info.type_parameter)
-                        .collect::<Vec<_>>()
-                })
-            })
-            .flatten()
-            .collect::<Vec<_>>();
+        let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(context_inference));
+        // let outer_ty_params = self
+        //     .inference_contextual
+        //     .iter()
+        //     .filter_map(|inference| {
+        //         inference.inference.map(|inference| {
+        //             self.inference_infos(inference)
+        //                 .iter()
+        //                 .map(|info| info.type_parameter)
+        //                 .collect::<Vec<_>>()
+        //         })
+        //     })
+        //     .flatten()
+        //     .collect::<Vec<_>>();
         self.get_or_create_ty_from_sig(sig)
+    }
+
+    fn get_unique_type_parameters(
+        &mut self,
+        context: InferenceContextual,
+        type_parameters: ty::Tys<'cx>,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
+        let mut result: Vec<&'cx ty::Ty<'cx>> = vec![];
+        let old_type_parameters: Option<Vec<&'cx ty::ParamTy<'cx>>> = None;
+        let new_type_parameters: Option<Vec<&'cx ty::ParamTy<'cx>>> = None;
+
+        let inference = context.inference.unwrap();
+
+        for ty in type_parameters {
+            let tp = ty.kind.expect_param();
+            let name = self.symbol(tp.symbol.unwrap()).name;
+
+            let context_inferred_type_parameters =
+                self.inference(inference).inferred_type_parameters.as_ref();
+            if context_inferred_type_parameters
+                .is_some_and(|tys| self.has_type_parameter_by_name(tys, name))
+                || self.has_type_parameter_by_name(&result, name)
+            {
+                todo!()
+                // const newName = getUniqueTypeParameterName(concatenate(context.inferredTypeParameters, result), name);
+                // const symbol = createSymbol(SymbolFlags.TypeParameter, newName);
+                // const newTypeParameter = createTypeParameter(symbol);
+                // newTypeParameter.target = tp;
+                // oldTypeParameters = append(oldTypeParameters, tp);
+                // newTypeParameters = append(newTypeParameters, newTypeParameter);
+                // result.push(newTypeParameter);
+            } else {
+                result.push(ty);
+            }
+        }
+        if let Some(new_type_parameters) = new_type_parameters {
+            todo!()
+            // const mapper = createTypeMapper(oldTypeParameters!, newTypeParameters);
+            // for (const tp of newTypeParameters) {
+            //     tp.mapper = mapper;
+            // }
+        }
+        result
+    }
+
+    fn has_type_parameter_by_name(
+        &self,
+        type_parameters: &[&'cx ty::Ty<'cx>],
+        name: SymbolName,
+    ) -> bool {
+        for ty in type_parameters {
+            let tp = ty.kind.expect_param();
+            if self.symbol(tp.symbol.unwrap()).name == name {
+                return true;
+            }
+        }
+        false
     }
 
     fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1747,12 +1881,15 @@ impl<'cx> TyChecker<'cx> {
         };
 
         self.apply_to_parameter_tys(source_sig, sig, |this, source, target| {
-            let mut infer = this.infer_state::<false>(context, InferencePriority::empty(), target);
+            let inferences = this.inference(context).inferences;
+            let mut infer =
+                this.infer_state::<false>(inferences, InferencePriority::empty(), target);
             infer.infer_from_tys(source, target)
         });
         if inference_context.is_none() {
             self.apply_to_ret_ty(contextual_sig, sig, |this, source, target| {
-                this.infer_tys::<false>(context, source, target, InferencePriority::RETURN_TYPE);
+                let inferences = this.inference(context).inferences;
+                this.infer_tys::<false>(inferences, source, target, InferencePriority::RETURN_TYPE);
             });
         }
 

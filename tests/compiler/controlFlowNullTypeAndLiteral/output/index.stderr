@@ -1,0 +1,17 @@
+  × Argument of type 'null' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/controlFlowNullTypeAndLiteral/index.ts:18:12]
+ 18 │ objWithValMaybeNull.val
+    · ───────────────────────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/controlFlowNullTypeAndLiteral/index.ts:21:12]
+ 21 │ objWithValMaybeNull.val
+    · ───────────────────────
+    ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/controlFlowNullTypeAndLiteral/index.ts:26:15]
+ 26 │ s
+    · ─
+    ╰────

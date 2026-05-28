@@ -95,7 +95,9 @@ impl<'cx> ty::TyMap<'cx> for FixingMapper<'cx> {
                 if !checker.inference_info(self.inference, idx).is_fixed {
                     // TODO: `inferFromIntraExpressionSites`
                     checker.clear_cached_inferences(self.inference);
-                    checker.inferences[self.inference.as_usize()].inferences[idx].is_fixed = true;
+                    let inferences = checker.inferences[self.inference.as_usize()].inferences;
+                    let inferences = checker.inference_infos_arena.get_mut(inferences);
+                    inferences[idx].is_fixed = true;
                 }
                 return checker.get_inferred_ty(self.inference, idx);
             }

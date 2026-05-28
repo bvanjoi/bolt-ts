@@ -3,12 +3,10 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_span::Span;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
-use crate::check::infer::InferencePriority;
-
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
-use super::infer::InferenceFlags;
+use super::infer::{InferenceInfo, InferencePriority};
 use super::links::SigLinks;
 use super::ty::ExtraSig;
 use super::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
@@ -862,15 +860,16 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
+            // infer_reverse_mapped_type_worker
             let template_ty = self.get_template_ty_from_mapped_ty(target_mapped_ty);
-            let inference =
-                self.create_inference_context(&[ty_param], None, InferenceFlags::empty());
-            self.infer_tys::<false>(inference, source, template_ty, InferencePriority::empty());
-            assert!(self.inference(inference).inferences.len() == 1);
-            Some(
-                self.get_ty_from_inference(inference, 0)
-                    .unwrap_or(self.unknown_ty),
-            )
+            let inference_info = InferenceInfo::create(ty_param);
+            let inferences = self.inference_infos_arena.alloc([inference_info].into());
+            self.infer_tys::<false>(inferences, source, template_ty, InferencePriority::empty());
+            assert!(self.inference_infos_arena.get(inferences).len() == 1);
+            let ty = self
+                .get_ty_from_inference(inferences, 0)
+                .unwrap_or(self.unknown_ty);
+            Some(self.get_widened_ty(ty))
         } else {
             None
         };

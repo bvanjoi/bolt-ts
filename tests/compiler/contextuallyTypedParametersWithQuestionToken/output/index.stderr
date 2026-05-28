@@ -1,0 +1,13 @@
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/contextuallyTypedParametersWithQuestionToken/index.ts:19:13]
+ 19 │ b
+    · ─
+    ╰────
+
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/contextuallyTypedParametersWithQuestionToken/index.ts:12:13]
+ 12 │ b
+    · ─
+    ╰────
