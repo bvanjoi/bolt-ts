@@ -935,6 +935,10 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ExprKind::Import(_) => {
                 todo!()
             }
+            ExprKind::NewMetaProperty(n) => {
+                let name = self.lower_ident(n.name);
+                ir::Expr::NewMetaProperty(self.nodes.alloc_new_meta_property(n.span, name))
+            }
         }
     }
 

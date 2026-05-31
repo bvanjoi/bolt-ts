@@ -1,7 +1,6 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{NodeFlags, VarDecls};
 use bolt_ts_ast_factory::ASTFactory;
-use bolt_ts_ast_factory::VarDeclarationContext;
 
 use super::ast;
 use super::errors;
@@ -228,7 +227,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `catch`
 
         let var = if self.parse_optional(TokenKind::LParen).is_some() {
-            let v = self.parse_var_decl::<false>(VarDeclarationContext::empty())?;
+            let v = self.parse_var_decl::<false>(ast::NodeFlags::empty())?;
             self.expect(TokenKind::RParen);
             Some(v)
         } else {
@@ -307,24 +306,16 @@ impl<'cx> ParserState<'cx, '_> {
         let await_token = self.parse_optional(Await);
         self.expect(LParen);
         let t = self.token.kind;
-        let mut flags = ast::NodeFlags::empty();
         let init = if t != Semi {
             if matches!(t, Var | Let | Const) {
-                let ctx = match t {
-                    Var => VarDeclarationContext::empty(),
-                    Let => {
-                        flags.insert(ast::NodeFlags::LET);
-                        VarDeclarationContext::LET
-                    }
-                    Const => {
-                        flags.insert(ast::NodeFlags::CONST);
-                        VarDeclarationContext::CONST
-                    }
-                    _ => unreachable!(),
-                }
-                .union(VarDeclarationContext::FOR);
+                let flags = match t {
+                    Let => ast::NodeFlags::LET,
+                    Const => ast::NodeFlags::CONST,
+                    _ => ast::NodeFlags::empty(),
+                };
                 // TODO: `using` and `await`
-                Some(ast::ForInitKind::Var(self.parse_var_decl_list::<true>(ctx)))
+                let list = self.parse_var_decl_list::<true>(flags);
+                Some(ast::ForInitKind::Var(list))
             } else {
                 Some(ast::ForInitKind::Expr(
                     self.disallow_in_and(Self::parse_expr)?,
@@ -348,7 +339,6 @@ impl<'cx> ParserState<'cx, '_> {
                 init,
                 expr,
                 body,
-                flags,
             );
             self.check_invalid_type_annotation_in_for_in_or_of_stmt::<false>(&init);
             Ok(ast::StmtKind::ForOf(node))
@@ -378,22 +368,20 @@ impl<'cx> ParserState<'cx, '_> {
                 None
             };
             self.expect(RParen);
-
             let body = self.do_inside_of_parse_context(
                 ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
-            let id = self.next_node_id();
-            let kind = self.alloc(ast::ForStmt {
-                id,
-                span: self.new_span(start),
-                init,
-                cond,
-                incr,
-                body,
-            });
-            self.nodes.insert(id, ast::Node::ForStmt(kind));
-            Ok(ast::StmtKind::For(kind))
+            if let Some(init) = &init
+                && let ast::ForInitKind::Var(variable_declaration) = init
+            {
+                for item in *variable_declaration {
+                    self.check_variable_declaration_should_initializer(item);
+                }
+            }
+            let span = self.new_span(start);
+            let node = self.create_for_stmt(span, init, cond, incr, body);
+            Ok(ast::StmtKind::For(node))
         }
     }
 
@@ -1033,37 +1021,24 @@ impl<'cx> ParserState<'cx, '_> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> &'cx ast::VarStmt<'cx> {
         let start = self.token.start();
-        let mut ctx = VarDeclarationContext::empty();
         let flags = match self.token.kind {
-            TokenKind::Const => {
-                ctx.insert(VarDeclarationContext::CONST);
-                ast::NodeFlags::CONST
-            }
+            TokenKind::Const => ast::NodeFlags::CONST,
             TokenKind::Let => ast::NodeFlags::LET,
             TokenKind::Var => ast::NodeFlags::empty(),
             _ => unreachable!(),
         };
-        if self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
-            ctx.insert(VarDeclarationContext::AMBIENT);
-        }
-        let list = self.parse_var_decl_list::<false>(ctx);
+        let list = self.parse_var_decl_list::<false>(flags);
         if list.is_empty() {
-            let span = self.new_span(start);
             self.push_error(Box::new(errors::VariableDeclarationListCannotBeEmpty {
-                span,
+                span: self.new_span(start),
             }));
+        } else {
+            for item in list {
+                self.check_variable_declaration_should_initializer(*item);
+            }
         }
         let span = self.new_span(start);
-        let id = self.next_node_id();
-        let node = self.alloc(ast::VarStmt {
-            id,
-            span,
-            modifiers,
-            list,
-        });
-        self.node_flags_map.insert(id, flags);
-        self.set_external_module_indicator_if_has_export_mod(modifiers, node.id);
-        self.nodes.insert(id, ast::Node::VarStmt(node));
+        let node = self.create_var_stmt(span, modifiers, list);
         self.parse_semi();
         node
     }
@@ -1259,9 +1234,20 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn check_variable_declaration_should_initializer(&mut self, n: &'cx ast::VarDecl<'cx>) {
+        let flags = self.node_flags_map.get(n.id);
+        if flags.contains(ast::NodeFlags::CONST)
+            && !flags.contains(ast::NodeFlags::AMBIENT)
+            && n.init.is_none()
+        {
+            let span = n.name.span;
+            self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
+        }
+    }
+
     fn parse_var_decl<const ALLOW_EXCLAMATION: bool>(
         &mut self,
-        ctx: VarDeclarationContext,
+        flags: ast::NodeFlags,
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat()?;
@@ -1285,26 +1271,22 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
-        if ctx.init_should_exit() && init.is_none() {
-            let span = name.span;
-            self.push_error(Box::new(errors::DeclarationsMustBeInitialized { span }));
-        }
         let span = self.new_span(start);
-        Ok(self.create_var_decl(span, name, excl, ty, init, ctx))
+        Ok(self.create_var_decl(span, name, excl, ty, init, flags))
     }
 
     fn parse_var_decl_list<const IN_FOR_STMT_INITIALIZER: bool>(
         &mut self,
-        ctx: VarDeclarationContext,
+        flags: ast::NodeFlags,
     ) -> VarDecls<'cx> {
         use ast::TokenKind::*;
         debug_assert!(matches!(self.token.kind, Let | Const | Var));
         self.next_token();
         self.parse_delimited_list::<false, _>(ParsingContext::VARIABLE_DECLARATIONS, |this| {
             if IN_FOR_STMT_INITIALIZER {
-                this.parse_var_decl::<false>(ctx)
+                this.parse_var_decl::<false>(flags)
             } else {
-                this.parse_var_decl::<true>(ctx)
+                this.parse_var_decl::<true>(flags)
             }
         })
     }

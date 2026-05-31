@@ -263,6 +263,12 @@ impl<'cx> TyChecker<'cx> {
             self.check_ty(return_ty);
         }
 
+        if let Some(params) = n.params() {
+            for param in params {
+                self.check_param_decl(param);
+            }
+        }
+
         // check signature declaration
         let ret_ty_node = self.get_effective_ret_type_node(id);
         let ret_ty_error_location = ret_ty_node;

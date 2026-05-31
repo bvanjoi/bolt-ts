@@ -1,0 +1,6 @@
+  × Class static side 'typeof Derived2' incorrectly extends base class static
+  │ side 'typeof Base2'.
+   ╭─[../../tests/compiler/overridingPrivateStaticMembers/index.ts:9:7]
+ 9 │ Derived2
+   · ────────
+   ╰────

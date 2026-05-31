@@ -101,6 +101,7 @@ use self::get_contextual::DiscriminateContextualTyByObjectLiteral;
 pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_variances::VarianceFlags;
+use self::get_widened_ty::WideningContextArena;
 use self::infer::InferenceContext;
 use self::infer::InferenceInfo;
 use self::infer::InferenceInfosArena;
@@ -262,6 +263,8 @@ pub struct TyChecker<'cx> {
     union_or_intersection_property_cache_without_object_function_property_augment:
         FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
     property_initializer_in_class_constructor_map: PropertyInitializerInClassConstructorMap,
+    widened_tys: FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>,
+    widened_context_arena: WideningContextArena<'cx>,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -357,6 +360,7 @@ pub struct TyChecker<'cx> {
     global_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_regexp_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    global_this_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -674,6 +678,8 @@ impl<'cx> TyChecker<'cx> {
                 fx_hashmap_with_capacity(64),
             property_initializer_in_class_constructor_map:
                 PropertyInitializerInClassConstructorMap::new(),
+            widened_context_arena: WideningContextArena::new(),
+            widened_tys: fx_hashmap_with_capacity(64),
 
             shared_flow_info: Vec::with_capacity(1024),
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
@@ -757,6 +763,7 @@ impl<'cx> TyChecker<'cx> {
             global_array_ty: Default::default(),
             global_readonly_array_ty: Default::default(),
             global_regexp_ty: Default::default(),
+            global_this_ty: Default::default(),
             any_readonly_array_ty: Default::default(),
             global_fn_ty: Default::default(),
             global_callable_fn_ty: Default::default(),
@@ -915,6 +922,7 @@ impl<'cx> TyChecker<'cx> {
             (global_array_ty,               this.get_global_type::<1, true>(SymbolName::Atom(keyword::IDENT_ARRAY_CLASS))),
             (global_regexp_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_REGEXP_CLASS))),
             (global_readonly_array_ty,      this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_READONLY_ARRAY_CLASS))),
+            (global_this_ty,                this.get_global_type::<1, true>(SymbolName::Atom(keyword::IDENT_THIS_TYPE_CLASS))),
             (global_object_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_OBJECT_CLASS))),
             (global_fn_ty,                  this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
             (global_callable_fn_ty,         if this.config.compiler_options().strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
@@ -1275,7 +1283,9 @@ impl<'cx> TyChecker<'cx> {
                 let prop_name = match prop_node {
                     ast::Node::ClassPropElem(prop) => prop.name,
                     ast::Node::PropSignature(prop) => prop.name,
-                    _ => unreachable!(),
+                    ast::Node::ClassMethodElem(prop) => prop.name,
+                    ast::Node::MethodSignature(prop) => prop.name,
+                    _ => unreachable!("{:#?}", prop_node),
                 };
                 let prop_name = match prop_name.kind {
                     ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
@@ -3175,8 +3185,14 @@ impl<'cx> TyChecker<'cx> {
 
         if s.flags.intersects(SymbolFlags::VARIABLE) {
             if assignment_kind == AssignmentKind::Definite {
-                // TODO: is_in_compound_like_assignment
-                return ty;
+                return if self
+                    .node_query(ident.id.module())
+                    .is_in_compound_like_assignment(ident.id)
+                {
+                    self.get_base_ty_of_literal_ty(ty)
+                } else {
+                    ty
+                };
             }
         } else if is_alias {
             decl = s.get_decl_of_alias_symbol(&self.p)
@@ -3506,15 +3522,21 @@ impl<'cx> TyChecker<'cx> {
         right: &'cx ast::Expr,
         right_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
+        if left_ty == self.silent_never_ty || right_ty == self.silent_never_ty {
+            return self.silent_never_ty;
+        }
         // TODO: private
+        let non_null_left_ty = self.check_non_null_type(left_ty, left.id());
         self.check_type_assignable_to(
-            left_ty,
+            non_null_left_ty,
             self.string_number_symbol_ty(),
             Some(left.id()),
             NOOP_HEADING_ERROR,
         );
+
+        let non_null_right_ty = self.check_non_null_type(right_ty, right.id());
         if !self.check_type_assignable_to(
-            right_ty,
+            non_null_right_ty,
             self.non_primitive_ty,
             Some(right.id()),
             NOOP_HEADING_ERROR,
@@ -3525,19 +3547,25 @@ impl<'cx> TyChecker<'cx> {
                 ty: self.print_ty(right_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
+        } else if self.has_empty_object_intersection(non_null_right_ty) {
+            let error = errors::TypeXMayRepresentAPrimitiveValueWhichIsNotPermittedAsTheRightOperandOfTheInOperator {
+                    span: right.span(),
+                    ty: self.print_ty(right_ty, None).to_string(),
+                };
+            self.push_error(Box::new(error));
         }
         self.boolean_ty()
     }
 
-    // fn has_empty_object_intersection(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-    //     self.some_type(ty, |this, t| {
-    //         t == this.unknown_empty_object_ty()
-    //             || (t.flags.contains(TypeFlags::INTERSECTION) && {
-    //                 let base = this.get_base_constraint_or_ty(t);
-    //                 this.is_empty_anonymous_object_ty(base)
-    //             })
-    //     })
-    // }
+    fn has_empty_object_intersection(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        self.some_type(ty, |this, t| {
+            t == this.unknown_empty_object_ty()
+                || (t.flags.contains(TypeFlags::INTERSECTION) && {
+                    let base = this.get_base_constraint_or_ty(t);
+                    this.is_empty_anonymous_object_ty(base)
+                })
+        })
+    }
 
     fn check_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         if let Some(constraint) = ty_param.constraint {
@@ -3823,6 +3851,36 @@ impl<'cx> TyChecker<'cx> {
                                 has_ret_of_ty_never,
                             );
                         }
+                    }
+                }
+                ast::Node::TryStmt(n) => {
+                    for_each_return_stmt(
+                        n.try_block.id,
+                        checker,
+                        f,
+                        v,
+                        has_ret_with_no_expr,
+                        has_ret_of_ty_never,
+                    );
+                    if let Some(catch) = n.catch_clause {
+                        for_each_return_stmt(
+                            catch.block.id,
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
+                    }
+                    if let Some(finally) = n.finally_block {
+                        for_each_return_stmt(
+                            finally.id,
+                            checker,
+                            f,
+                            v,
+                            has_ret_with_no_expr,
+                            has_ret_of_ty_never,
+                        );
                     }
                 }
                 _ => {}
@@ -5862,7 +5920,7 @@ impl<'cx> TyChecker<'cx> {
 
         let decl_id = decl.id();
         let decl_node = self.p.node(decl_id);
-        let decl_node = if decl_node.is_object_pat() || decl_node.is_array_pat() {
+        let parent = if decl_node.is_object_binding_elem() || decl_node.is_array_binding() {
             let id = self
                 .node_query(decl_id.module())
                 .walkup_binding_elements_and_patterns(decl_id);
@@ -5870,12 +5928,13 @@ impl<'cx> TyChecker<'cx> {
         } else {
             decl_node
         };
-        if let Some(p) = decl_node.as_param_decl() {
-            match p.name.kind {
-                ast::BindingKind::ObjectPat(pattern) if ty.is_object_literal() => {
+        if parent.is_param_decl() {
+            let name = decl.name();
+            match name {
+                ast::r#trait::VarLikeName::ObjectPat(pattern) if ty.is_object_literal() => {
                     return self.pad_object_literal_ty(ty, pattern);
                 }
-                ast::BindingKind::ArrayPat(pat) if ty.is_tuple() => {
+                ast::r#trait::VarLikeName::ArrayPat(pat) if ty.is_tuple() => {
                     // TODO:
                 }
                 _ => {}
@@ -7603,6 +7662,7 @@ global_ty!(
     global_boolean_ty,
     global_array_ty,
     global_readonly_array_ty,
+    global_this_ty,
     any_readonly_array_ty,
     global_fn_ty,
     global_callable_fn_ty,

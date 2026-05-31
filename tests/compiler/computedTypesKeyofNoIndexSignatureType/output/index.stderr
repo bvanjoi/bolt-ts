@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type '"foo" | "bar"'.
+    ╭─[../../tests/compiler/computedTypesKeyofNoIndexSignatureType/index.ts:29:7]
+ 29 │ a2
+    · ──
+    ╰────

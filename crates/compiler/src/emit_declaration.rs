@@ -247,6 +247,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             }
         }
         self.visit_prop_name(node.name);
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
             node.params,
@@ -306,15 +307,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         if let Some(name) = node.name.map(|name| name.name) {
             self.emitter.emit_atom(self.resolver.atoms(), name);
         }
-        if let Some(type_params) = node.ty_params {
-            if !type_params.is_empty() {
-                self.emitter.print().p_less();
-                for type_param in type_params {
-                    self.visit_ty_param(type_param);
-                }
-                self.emitter.print().p_great();
-            }
-        }
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
         if !node.elems.list.is_empty() {
@@ -700,5 +693,46 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.visit_expr(node.expr);
         self.emitter.print().p_semi();
+    }
+
+    fn visit_mapped_ty(&mut self, node: &'cx bolt_ts_ast::MappedTy<'cx>) {
+        self.emitter.print().p_l_brace();
+        self.emitter.print().p_newline();
+        self.emitter.print().p_l_bracket();
+        self.visit_ident(node.ty_param.name);
+        if let Some(constraint) = node.ty_param.constraint {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p("in");
+            self.emitter.print().p_whitespace();
+            self.visit_ty(constraint);
+        }
+        if let Some(name_ty) = node.name_ty {
+            self.visit_ty(name_ty);
+        }
+        self.emitter.print().p_r_bracket();
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        if let Some(ty) = node.ty {
+            self.visit_ty(ty);
+        }
+        self.emitter.print().p_newline();
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_indexed_access_ty(&mut self, node: &'cx bolt_ts_ast::IndexedAccessTy<'cx>) {
+        self.visit_ty(node.ty);
+        self.emitter.print().p_l_bracket();
+        self.visit_ty(node.index_ty);
+        self.emitter.print().p_r_bracket();
+    }
+
+    fn visit_ty_op_ty(&mut self, node: &'cx bolt_ts_ast::TypeOp<'cx>) {
+        match node.op {
+            bolt_ts_ast::TyOpKind::Keyof => self.emitter.print().p("keyof"),
+            bolt_ts_ast::TyOpKind::Readonly => self.emitter.print().p("readonly"),
+            bolt_ts_ast::TyOpKind::Unique => self.emitter.print().p("unique"),
+        }
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
     }
 }

@@ -1,0 +1,36 @@
+  × Interface 'i2' incorrectly extends interface 'i1'.
+   ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:6:11]
+ 6 │ i2
+   · ──
+   ╰────
+
+  × Property 'bar' of type '() => any' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:10:2]
+ 10 │ bar():any
+    · ─────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:15:2]
+ 15 │ [s:string]:number;
+    · ──────────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:17:2]
+ 17 │ [s:string]:number;
+    · ──────────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:23:2]
+ 23 │ [s:A]:number;
+    · ─────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:25:2]
+ 25 │ [s:A]:number;
+    · ─────────────
+    ╰────

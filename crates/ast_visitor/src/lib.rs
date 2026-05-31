@@ -415,9 +415,6 @@ pub fn visit_mapped_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::MappedTy<'cx
     if let Some(ty) = n.ty {
         v.visit_ty(ty);
     }
-    for member in n.members {
-        visit_object_ty_member(v, member);
-    }
 }
 pub fn visit_ty_op_ty<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::TypeOp<'cx>) {
     v.visit_ty(n.ty);
@@ -862,5 +859,6 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         ClassSemiElem(_n) => todo!(),
         ImportExpression(_) => todo!(),
         ImportType(_) => todo!(),
+        NewMetaProperty(_) => todo!(),
     }
 }

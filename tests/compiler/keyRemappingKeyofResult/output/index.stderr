@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'keyof Remapped'.
+    ╭─[../../tests/compiler/keyRemappingKeyofResult/index.ts:73:5]
+ 73 │ x
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Property 'b' is used before its initialization.
+    ╭─[../../tests/compiler/checkInheritedProperty/index.ts:13:14]
+ 13 │ b
+    · ─
+    ╰────

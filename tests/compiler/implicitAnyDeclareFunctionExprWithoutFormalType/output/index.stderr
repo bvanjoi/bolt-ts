@@ -1,0 +1,17 @@
+  × Parameter 'l1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyDeclareFunctionExprWithoutFormalType/index.ts:7:15]
+ 7 │ l1
+   · ──
+   ╰────
+
+  × Parameter 'll1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyDeclareFunctionExprWithoutFormalType/index.ts:9:15]
+ 9 │ ll1
+   · ───
+   ╰────
+
+  × Parameter 'myParam' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionExprWithoutFormalType/index.ts:11:33]
+ 11 │ myParam
+    · ───────
+    ╰────

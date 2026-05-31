@@ -104,7 +104,8 @@ impl<'cx> TyChecker<'cx> {
                     false
                 } || ctor.params.iter().any(|p| {
                     p.modifiers.is_some_and(|ms| {
-                        ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                        ms.flags
+                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
                     })
                 });
                 if super_call_should_be_root_level {

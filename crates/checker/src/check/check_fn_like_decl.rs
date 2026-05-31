@@ -7,7 +7,7 @@ use bolt_ts_ast::r#trait;
 use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
-    fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
+    pub(super) fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.check_var_like_decl(param);
         if param.dotdotdot.is_some()
             && let ast::BindingKind::Ident(_) = param.name.kind
@@ -36,10 +36,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         self.check_sig_decl(id);
-
-        for param in decl.params() {
-            self.check_param_decl(param)
-        }
 
         let body = r#trait::FnDeclLike::body(decl);
         if let Some(body) = body {
@@ -87,7 +83,12 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
 
-        if n.is_method_signature() || !self.fn_has_implicit_return(fn_id) {
+        if n.is_method_signature()
+            || n.fn_body().is_none()
+            || n.as_arrow_fn_expr()
+                .is_some_and(|n| matches!(n.body, ast::ArrowFnExprBody::Expr(_)))
+            || !self.fn_has_implicit_return(fn_id)
+        {
             return;
         }
 

@@ -33,12 +33,102 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_try_stmt(&mut self, stmt: &'cx ast::TryStmt<'cx>) {
-        self.bind(stmt.try_block.id);
-        if let Some(catch) = stmt.catch_clause {
-            self.bind(catch.id);
+        let save_return_target = self.current_return_target;
+        let save_exception_target = self.current_exception_target;
+        let normal_exit_label = self.flow_nodes.create_branch_label();
+        let return_label = self.flow_nodes.create_branch_label();
+        let mut exception_label = self.flow_nodes.create_branch_label();
+        if stmt.finally_block.is_some() {
+            self.current_return_target = Some(return_label);
         }
+        self.flow_nodes
+            .add_antecedent(exception_label, self.current_flow.unwrap());
+        self.current_exception_target = Some(exception_label);
+        self.bind(stmt.try_block.id);
+        self.flow_nodes
+            .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+        if let Some(catch) = stmt.catch_clause {
+            self.current_flow = Some(self.finish_flow_label(exception_label));
+            exception_label = self.flow_nodes.create_branch_label();
+            self.flow_nodes
+                .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+            self.current_exception_target = Some(exception_label);
+            self.bind(catch.id);
+            self.flow_nodes
+                .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+        }
+        self.current_return_target = save_return_target;
+        self.current_exception_target = save_exception_target;
         if let Some(finally) = stmt.finally_block {
+            let finally_label = self.flow_nodes.create_branch_label();
+            let mut antecedents = vec![];
+            if let Some(list) = self.flow_nodes.antecedent_of_label(normal_exit_label) {
+                antecedents.extend_from_slice(list);
+            }
+            if let Some(list) = self.flow_nodes.antecedent_of_label(exception_label) {
+                antecedents.extend_from_slice(list);
+            }
+            if let Some(list) = self.flow_nodes.antecedent_of_label(return_label) {
+                antecedents.extend_from_slice(list);
+            }
+            let FlowNodeKind::Label(f) = &mut self.flow_nodes.get_mut_flow_node(finally_label).kind
+            else {
+                unreachable!()
+            };
+            f.antecedent = Some(antecedents);
+            self.current_flow = Some(finally_label);
             self.bind(finally.id);
+            if self
+                .flow_nodes
+                .get_flow_node(self.current_flow.unwrap())
+                .flags
+                .contains(FlowFlags::UNREACHABLE)
+            {
+                self.current_flow = Some(self.unreachable_flow_node);
+            } else {
+                if let Some(current_return_target) = self.current_return_target
+                    && let Some(antecedents) = self.flow_nodes.antecedent_of_label(return_label)
+                {
+                    let antecedents = antecedents.to_vec();
+
+                    let reduced_label = self.flow_nodes.create_reduced_label(
+                        finally_label,
+                        antecedents,
+                        self.current_flow.unwrap(),
+                    );
+                    self.flow_nodes
+                        .add_antecedent(current_return_target, reduced_label);
+                }
+
+                if let Some(current_exception_target) = self.current_exception_target
+                    && let Some(antecedents) = self.flow_nodes.antecedent_of_label(exception_label)
+                {
+                    let antecedents = antecedents.to_vec();
+                    let reduced_label = self.flow_nodes.create_reduced_label(
+                        finally_label,
+                        antecedents,
+                        self.current_flow.unwrap(),
+                    );
+                    self.flow_nodes
+                        .add_antecedent(current_exception_target, reduced_label);
+                }
+                self.current_flow = Some(
+                    if let Some(antecedents) =
+                        self.flow_nodes.antecedent_of_label(normal_exit_label)
+                    {
+                        let antecedents = antecedents.to_vec();
+                        self.flow_nodes.create_reduced_label(
+                            finally_label,
+                            antecedents,
+                            self.current_flow.unwrap(),
+                        )
+                    } else {
+                        self.unreachable_flow_node
+                    },
+                );
+            }
+        } else {
+            self.current_flow = Some(self.finish_flow_label(normal_exit_label));
         }
     }
 
@@ -1146,9 +1236,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
                 }
-                for m in n.members {
-                    self.bind_object_ty_member(m);
-                }
             }
             TyOp(n) => {
                 self.bind(n.ty.id());
@@ -1326,6 +1413,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ClassSemiElem(_n) => {}
             ImportExpression(_) => {}
             ImportType(_) => {}
+            NewMetaProperty(n) => {
+                self.bind(n.name.id);
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

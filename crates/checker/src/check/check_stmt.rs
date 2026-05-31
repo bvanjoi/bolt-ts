@@ -26,7 +26,7 @@ impl<'cx> TyChecker<'cx> {
             Block(node) => self.check_block(node),
             Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
-            Interface(node) => self.check_interface_decl(node),
+            Interface(node) => self.check_interface_declaration(node),
             Module(node) => self.check_module_decl(node),
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),

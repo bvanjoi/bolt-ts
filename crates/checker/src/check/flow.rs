@@ -1302,11 +1302,11 @@ impl<'cx> TyChecker<'cx> {
             CallExpr(node) => {
                 self.narrow_ty_by_call_expr(ty, refer, expr, node, assume_true, declared_ty)
             }
-            PrefixUnaryExpr(node) if node.op == ast::PrefixUnaryOp::Excl => {
-                self.narrow_ty(ty, declared_ty, refer, node.expr.id(), !assume_true)
-            }
             BinExpr(node) => {
                 self.narrow_type_by_binary_expression(ty, declared_ty, refer, node, assume_true)
+            }
+            PrefixUnaryExpr(node) if node.op == ast::PrefixUnaryOp::Excl => {
+                self.narrow_ty(ty, declared_ty, refer, node.expr.id(), !assume_true)
             }
             _ => ty,
         }

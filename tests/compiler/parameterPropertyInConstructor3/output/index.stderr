@@ -1,0 +1,5 @@
+  × 'constructor' cannot be used as a parameter property name.
+   ╭─[../../tests/compiler/parameterPropertyInConstructor3/index.ts:6:15]
+ 6 │ public constructor: string
+   · ──────────────────────────
+   ╰────

@@ -1,0 +1,5 @@
+  × Namespace 'foo.bar.baz' has no exported member 'bar'.
+    ╭─[../../tests/compiler/aliasBug/index.ts:21:15]
+ 21 │ bar
+    · ───
+    ╰────

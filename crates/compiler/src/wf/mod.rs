@@ -214,13 +214,20 @@ impl<'cx> CheckState<'cx> {
             ast::Node::GetterDecl(n) => n.body,
             ast::Node::SetterDecl(n) => n.body,
             ast::Node::ClassMethodElem(n) => n.body,
+            ast::Node::ClassCtor(n) => n.body,
             _ => unreachable!(),
         };
         let node_flags = self.p.node_flags(node);
-        if node_flags.contains(ast::NodeFlags::AMBIENT) && body.is_some() {
-            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts {
-                span: self.p.node(node).name().unwrap().span(),
+        if node_flags.contains(ast::NodeFlags::AMBIENT)
+            && let Some(body) = body
+        {
+            let span = match self.p.node(node).name() {
+                Some(name) => name.span(),
+                None => {
+                    bolt_ts_span::Span::new(body.span.lo(), body.span.lo() + 1, body.span.module())
+                }
             };
+            let error = errors::AnImplementationCannotBeDeclaredInAmbientContexts { span };
             self.push_error(Box::new(error));
         }
     }
@@ -334,6 +341,10 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
     fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) {
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_setter_decl(self, node);
+    }
+    fn visit_class_ctor(&mut self, node: &'cx bolt_ts_ast::ClassCtor<'cx>) {
+        self.check_implement_in_ambient(node.id);
+        bolt_ts_ast_visitor::visit_class_ctor(self, node);
     }
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) {
         if node.init.is_some() {

@@ -903,7 +903,7 @@ bitflags::bitflags! {
             | ModifierFlags::DECORATOR.bits();
 
         const ACCESSIBILITY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits();
-        const PARAMETER_PROPERTY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits() | Self::READONLY.bits() | Self::OVERRIDE.bits();
+        const PARAMETER_PROPERTY_MODIFIER = Self::ACCESSIBILITY.bits() | Self::READONLY.bits() | Self::OVERRIDE.bits();
         const NON_PUBLIC_ACCESSIBILITY_MODIFIER = Self::PRIVATE.bits() | Self::PROTECTED.bits();
         const SYNTACTIC_MODIFIER = Self::SYNTACTIC_OR_JS_MODIFIERS.bits() | Self::SYNTACTIC_ONLY_MODIFIERS.bits();
     }

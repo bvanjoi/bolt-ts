@@ -1,3 +1,4 @@
+use super::CheckParameterFlags;
 use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -224,7 +225,7 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let ty = if is_ctor_ty {
             let id = self.next_node_id();
@@ -811,7 +812,6 @@ impl<'cx> ParserState<'cx, '_> {
             name_ty,
             question_token,
             ty,
-            members,
         });
         self.nodes.insert(id, ast::Node::MappedTy(kind));
         let ty = self.alloc(ast::Ty {
@@ -946,7 +946,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters();
-            self.check_params::<false>(params);
+            self.check_parameters(params, CheckParameterFlags::empty());
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
@@ -987,7 +987,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);

@@ -138,6 +138,7 @@ decl_nodes!(
     spread_element: SpreadElement,
     template_head: TemplateHead,
     template_span: TemplateSpan,
+    new_meta_property: NewMetaProperty,
 
     jsx_elem: JsxElem,
     jsx_opening_elem: JsxOpeningElem,
@@ -1831,6 +1832,17 @@ impl Nodes {
         debug_assert_eq!(id, idx.0);
         idx
     }
+
+    pub fn alloc_new_meta_property(&mut self, span: Span, name: IdentID) -> NewMetaPropertyID {
+        let idx = NewMetaPropertyID(usize_into_idx(self.new_meta_property_nodes.0.len()));
+        let id = self.new_meta_property_nodes.0.alloc(NewMetaProperty {
+            id: idx,
+            span,
+            name,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
 }
 
 #[derive(Debug)]
@@ -2366,6 +2378,23 @@ impl TemplateHead {
 
     pub fn text(&self) -> Atom {
         self.text
+    }
+}
+
+#[derive(Debug)]
+pub struct NewMetaProperty {
+    id: NewMetaPropertyID,
+    span: Span,
+    name: IdentID,
+}
+
+impl NewMetaProperty {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
     }
 }
 
@@ -4233,6 +4262,7 @@ pub enum Expr {
     Fn(FnExprID),
     Call(CallExprID),
     Cond(CondExprID),
+    NewMetaProperty(NewMetaPropertyID),
     JsxElem(JsxElemID),
     JsxSelfClosingElem(JsxSelfClosingElemID),
     JsxFrag(JsxFragID),

@@ -1,0 +1,64 @@
+  × Property 'CM3M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:52:1]
+ 52 │ arr_c3
+    · ──────
+    ╰────
+
+  × Property 'CM3M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:54:1]
+ 54 │ arr_c3
+    · ──────
+    ╰────
+
+  × Property 'CM3M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:56:1]
+ 56 │ arr_c3
+    · ──────
+    ╰────
+
+  × Type '() => C1' is not assignable to type 'any[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:59:1]
+ 59 │ arr_any
+    · ───────
+    ╰────
+
+  × Type '() => any' is not assignable to type 'any[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:61:1]
+ 61 │ arr_any
+    · ───────
+    ╰────
+
+  × Type '{ one: number; }' is missing the following properties from type
+  │ 'any[]': length, pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:63:1]
+ 63 │ arr_any
+    · ───────
+    ╰────
+
+  × Type 'C1' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:66:1]
+ 66 │ arr_any
+    · ───────
+    ╰────
+
+  × Type 'C2' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:68:1]
+ 68 │ arr_any
+    · ───────
+    ╰────
+
+  × Type 'C3' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:70:1]
+ 70 │ arr_any
+    · ───────
+    ╰────
+
+  × Type 'I1' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest2/index.ts:72:1]
+ 72 │ arr_any
+    · ───────
+    ╰────

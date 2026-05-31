@@ -40,6 +40,14 @@ pub enum FlowNodeKind<'cx> {
     Assign(FlowAssign),
     Call(FlowCall<'cx>),
     Switch(FlowSwitchClause<'cx>),
+    Reduced(FlowReduceLabel),
+}
+
+#[derive(Clone, Debug)]
+pub struct FlowReduceLabel {
+    pub target: FlowID,
+    pub antecedents: Vec<FlowID>,
+    pub antecedent: FlowID,
 }
 
 #[derive(Clone, Debug)]
@@ -146,6 +154,23 @@ impl<'cx> FlowNodes<'cx> {
         self.insert_flow_node(node)
     }
 
+    pub(super) fn create_reduced_label(
+        &mut self,
+        target: FlowID,
+        antecedents: Vec<FlowID>,
+        antecedent: FlowID,
+    ) -> FlowID {
+        let node = FlowNode {
+            flags: FlowFlags::REDUCE_LABEL,
+            kind: FlowNodeKind::Reduced(FlowReduceLabel {
+                target,
+                antecedents,
+                antecedent,
+            }),
+        };
+        self.insert_flow_node(node)
+    }
+
     pub(super) fn add_antecedent(&mut self, label: FlowID, antecedent: FlowID) {
         if self
             .get_flow_node(antecedent)
@@ -168,6 +193,13 @@ impl<'cx> FlowNodes<'cx> {
             .get_or_insert_with(std::vec::Vec::new)
             .push(antecedent);
         self.set_flow_node_referenced(antecedent);
+    }
+
+    pub(super) fn antecedent_of_label(&mut self, label: FlowID) -> Option<&[FlowID]> {
+        let FlowNodeKind::Label(f) = &self.get_flow_node(label).kind else {
+            unreachable!()
+        };
+        f.antecedent.as_deref()
     }
 
     pub fn set_flow_node_referenced(&mut self, id: FlowID) {

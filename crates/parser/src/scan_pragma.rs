@@ -52,6 +52,14 @@ impl super::ParserState<'_, '_> {
                     self.pos += 1;
                     return;
                 }
+            } else if self.next_content_is(b"path") {
+                if let Ok(v) = self.scan_reference_lib_pragma() {
+                    self.lib_reference_directives
+                        .push(FileReference { filename: v });
+                } else {
+                    self.pos += 1;
+                    return;
+                }
             } else if ch.is_ascii_whitespace() {
                 self.pos += 1;
             } else {
@@ -77,7 +85,7 @@ impl super::ParserState<'_, '_> {
                 }
                 State::ExpectString => {
                     if ch == b'"' || ch == b'\'' {
-                        let (value, _) = self.scan_string::<false>(ch);
+                        let (value, _) = self.scan_string::<false, true>(ch);
                         let s = unsafe { std::str::from_utf8_unchecked(&value) };
                         let atom = self.atoms.lock().unwrap().atom(s);
                         return Ok(atom);

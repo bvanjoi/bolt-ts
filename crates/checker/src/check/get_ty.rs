@@ -1047,7 +1047,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(prop_name) = prop_name {
             if access_flags.contains(AccessFlags::Contextual) {
                 return Some(
-                    self.get_ty_of_prop_of_contextual_ty(object_ty, prop_name, None)
+                    self.get_ty_of_property_of_contextual_ty(object_ty, prop_name, None)
                         .unwrap_or(self.any_ty),
                 );
             }

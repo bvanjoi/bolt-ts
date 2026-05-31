@@ -3,6 +3,7 @@ use bolt_ts_ast::{self as ast};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use super::CheckParameterFlags;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -405,7 +406,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
                 let params = this.p().parse_parameters();
-                this.p().check_params::<true>(params);
+
                 let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
@@ -413,6 +414,26 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     SignatureFlags::empty()
                 };
                 let body = this.p().parse_fn_block_or_semi(flags);
+                let flags = CheckParameterFlags::CONSTRUCTOR
+                    | if body.is_some() {
+                        CheckParameterFlags::MISSING_BODY
+                    } else {
+                        CheckParameterFlags::empty()
+                    };
+                this.p().check_parameters(params, flags);
+                for p in params {
+                    if let Some(ms) = p.modifiers
+                        && ms.flags.intersects(ast::ModifierFlags::ACCESSIBILITY)
+                        && let ast::BindingKind::Ident(name) = p.name.kind
+                        && name.name == keyword::KW_CONSTRUCTOR
+                    {
+                        let error = errors::ConstructorCannotBeUsedAsAParameterPropertyName {
+                            span: p.span,
+                        };
+                        this.p().push_error(Box::new(error));
+                    }
+                }
+
                 let span = this.p().new_span(start);
                 let ctor = this
                     .p()

@@ -248,7 +248,7 @@ impl<'cx> TyChecker<'cx> {
             let symbol = self.get_symbol_of_declaration(id);
             let name = self.symbol(symbol).name;
             let name_ty = self.get_symbol_links(symbol).get_name_ty();
-            return self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty);
+            return self.get_ty_of_property_of_contextual_ty(ty, name, name_ty);
         }
         let nq = self.node_query(id.module());
         if nq.has_dynamic_name(id)
@@ -257,7 +257,7 @@ impl<'cx> TyChecker<'cx> {
             && let expr_ty = self.check_expression(name.expr, None)
             && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
-            && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
+            && let Some(prop_ty) = self.get_ty_of_property_of_contextual_ty(ty, prop_name, None)
         {
             Some(prop_ty)
         } else if let Some(name) = element.name() {
@@ -415,7 +415,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let symbol = self.get_symbol_of_declaration(n.id);
                     let name = self.symbol(symbol).name;
-                    return self.get_ty_of_prop_of_contextual_ty(parent_ty, name, None);
+                    return self.get_ty_of_property_of_contextual_ty(parent_ty, name, None);
                 }
             }
         }
@@ -563,7 +563,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
-                    && let Some(t) = this.get_ty_of_prop_of_contextual_ty(
+                    && let Some(t) = this.get_ty_of_property_of_contextual_ty(
                         t,
                         SymbolName::EleNum(index.into()),
                         None,
@@ -584,7 +584,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn get_ty_of_prop_of_contextual_ty(
+    pub(super) fn get_ty_of_property_of_contextual_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
@@ -726,7 +726,7 @@ impl<'cx> TyChecker<'cx> {
                 let t = self.get_false_ty_from_cond_ty(c);
                 self.get_actual_ty_variable(t)
             };
-            true_ty.flags.intersects(TypeFlags::NEVER)
+            true_ty.flags.contains(TypeFlags::NEVER)
                 && false_ty == self.get_actual_ty_variable(c.check_ty)
                 && self.is_type_assignable_to(property_name_ty, c.extends_ty)
         } else if let Some(i) = constraint.kind.as_intersection() {
@@ -1245,11 +1245,15 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let min_args_count = left.min_args_count.max(right.min_args_count);
                     let composite_sigs = if left.composite_kind == Some(TypeFlags::INTERSECTION)
-                        && left.composite_sigs.is_some()
+                        && let Some(left_composite_sigs) = left.composite_sigs
                     {
-                        self.alloc(vec![left, right])
+                        // TODO: reduce alloc
+                        let mut composite_sigs = Vec::with_capacity(left_composite_sigs.len() + 1);
+                        composite_sigs.extend_from_slice(left_composite_sigs);
+                        composite_sigs.push(*right);
+                        self.alloc(composite_sigs)
                     } else {
-                        self.alloc(vec![*right])
+                        self.alloc(vec![left, *right])
                     };
                     let mapper = param_mapper.map(|mapper| {
                         if left.composite_kind == Some(TypeFlags::INTERSECTION)

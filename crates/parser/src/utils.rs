@@ -2,6 +2,7 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use super::CheckParameterFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -507,6 +508,11 @@ impl<'cx> ParserState<'cx, '_> {
                         push_already_seen_error(self, m);
                     }
                 }
+                ast::ModifierKind::Ambient => {
+                    if flags.contains(ast::ModifierFlags::AMBIENT) {
+                        push_already_seen_error(self, m);
+                    }
+                }
                 _ => {}
             }
 
@@ -596,10 +602,9 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params_worker(
+    pub(super) fn parse_params_worker<const ALLOW_AMBIGUITY: bool>(
         &mut self,
         flags: SignatureFlags,
-        allow_ambiguity: bool,
     ) -> ast::ParamsDecl<'cx> {
         let saved_yield_context = self
             .node_context_flags
@@ -613,11 +618,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
-            if allow_ambiguity {
-                Self::parse_parameter(this, allow_ambiguity)
-            } else {
-                Self::parse_parameter(this, false)
-            }
+            Self::parse_parameter::<ALLOW_AMBIGUITY>(this)
         });
         let has_error = self.diags.len() > old_error;
         if !has_error {
@@ -671,7 +672,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !self.expect(LParen) {
             return &[];
         }
-        let params = self.parse_params_worker(SignatureFlags::empty(), true);
+        let params = self.parse_params_worker::<true>(SignatureFlags::empty());
         self.expect(RParen);
         params
     }
@@ -688,14 +689,14 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_binding(ast::BindingKind::Ident(ident))
     }
 
-    pub(super) fn parse_parameter(
+    pub(super) fn parse_parameter<const ALLOW_AMBIGUITY_NAME: bool>(
         &mut self,
-        allow_ambiguity_name: bool,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.full_start_pos as u32;
         let modifiers = self.parse_modifiers::<false, false>(false);
-        const INVALID_MODIFIERS: ast::ModifierFlags =
-            ast::ModifierFlags::STATIC.union(ast::ModifierFlags::EXPORT);
+        const INVALID_MODIFIERS: ast::ModifierFlags = ast::ModifierFlags::STATIC
+            .union(ast::ModifierFlags::EXPORT)
+            .union(ast::ModifierFlags::AMBIENT);
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
             .unwrap_or_default()
@@ -725,7 +726,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        if !allow_ambiguity_name
+        if !ALLOW_AMBIGUITY_NAME
             && !(self.token.kind.is_binding_ident()
                 || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
         {
@@ -738,13 +739,17 @@ impl<'cx> ParserState<'cx, '_> {
         let init = self.parse_init()?;
         if dotdotdot.is_some() {
             if let Some(ms) = modifiers
-                && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                && ms
+                    .flags
+                    .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
             {
                 let kinds = ms
                     .list
                     .iter()
                     .filter_map(|m| {
-                        if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
+                        if ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER
+                            .contains(m.kind().into_flag())
+                        {
                             Some(m.kind())
                         } else {
                             None
@@ -888,7 +893,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume '['
         let mut params = Vec::with_capacity(1);
         if self.is_list_element(ParsingContext::PARAMETERS, false) {
-            if let Ok(param) = self.parse_parameter(true) {
+            if let Ok(param) = self.parse_parameter::<true>() {
                 params.push(param);
             };
 
@@ -1017,7 +1022,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),

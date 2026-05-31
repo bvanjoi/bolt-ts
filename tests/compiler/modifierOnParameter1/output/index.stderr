@@ -1,0 +1,5 @@
+  × 'declare' modifier cannot appear on a parameter.
+   ╭─[../../tests/compiler/modifierOnParameter1/index.ts:7:16]
+ 7 │ declare
+   · ───────
+   ╰────

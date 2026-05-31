@@ -5,24 +5,6 @@ use bolt_ts_ast::r#trait::ParenRuleTrait;
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug)]
-    pub struct VarDeclarationContext: u8 {
-        const FOR = 1 << 0;
-        const CONST = 1 << 1;
-        const AMBIENT = 1 << 2;
-        const LET = 1 << 3;
-    }
-}
-
-impl VarDeclarationContext {
-    pub const fn init_should_exit(&self) -> bool {
-        self.contains(VarDeclarationContext::CONST)
-            && !self.contains(VarDeclarationContext::AMBIENT)
-            && !self.contains(VarDeclarationContext::FOR)
-    }
-}
-
 pub trait ASTFactory<'cx> {
     fn next_node_id(&mut self) -> NodeID;
     fn insert_node(&mut self, node_id: NodeID, node: ast::Node<'cx>);
@@ -620,8 +602,11 @@ pub trait ASTFactory<'cx> {
         excl: Option<Span>,
         ty: Option<&'cx ast::Ty<'cx>>,
         init: Option<&'cx ast::Expr<'cx>>,
-        ctx: VarDeclarationContext,
+        flags: ast::NodeFlags,
     ) -> &'cx ast::VarDecl<'cx> {
+        debug_assert!(
+            flags == ast::NodeFlags::LET || flags == ast::NodeFlags::CONST || flags.is_empty()
+        );
         let id = self.next_node_id();
         let node = self.alloc(ast::VarDecl {
             id,
@@ -632,12 +617,27 @@ pub trait ASTFactory<'cx> {
             init,
         });
         self.insert_node(id, ast::Node::VarDecl(node));
-        let flags = match ctx {
-            c if c.contains(VarDeclarationContext::CONST) => ast::NodeFlags::CONST,
-            c if c.contains(VarDeclarationContext::LET) => ast::NodeFlags::LET,
-            _ => ast::NodeFlags::empty(),
-        } | self.node_context_flags();
-        self.insert_node_flags(id, flags);
+        self.insert_node_flags(id, flags | self.node_context_flags());
+        node
+    }
+
+    #[inline(always)]
+    fn create_var_stmt(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        declaration_list: &'cx [&'cx ast::VarDecl<'cx>],
+    ) -> &'cx ast::VarStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::VarStmt {
+            id,
+            span,
+            modifiers,
+            list: declaration_list,
+        });
+        self.insert_node(id, ast::Node::VarStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        self.set_external_module_indicator_if_has_export_modifier(node.id, modifiers);
         node
     }
 
@@ -649,7 +649,6 @@ pub trait ASTFactory<'cx> {
         init: ast::ForInitKind<'cx>,
         expr: &'cx ast::Expr<'cx>,
         body: &'cx ast::Stmt<'cx>,
-        flags: ast::NodeFlags,
     ) -> &'cx ast::ForOfStmt<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ForOfStmt {
@@ -661,7 +660,30 @@ pub trait ASTFactory<'cx> {
             body,
         });
         self.insert_node(id, ast::Node::ForOfStmt(node));
-        self.insert_node_flags(id, flags | self.node_context_flags());
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline(always)]
+    fn create_for_stmt(
+        &mut self,
+        span: Span,
+        init: Option<ast::ForInitKind<'cx>>,
+        cond: Option<&'cx ast::Expr<'cx>>,
+        incr: Option<&'cx ast::Expr<'cx>>,
+        body: &'cx ast::Stmt<'cx>,
+    ) -> &'cx ast::ForStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ForStmt {
+            id,
+            span,
+            init,
+            body,
+            cond,
+            incr,
+        });
+        self.insert_node(id, ast::Node::ForStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -1434,6 +1456,32 @@ pub trait ASTFactory<'cx> {
             init,
         });
         self.insert_node(id, ast::Node::ParamDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_non_null_expression(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::NonNullExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::NonNullExpr { id, span, expr });
+        self.insert_node(id, ast::Node::NonNullExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_new_meta_property(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::NewMetaProperty<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::NewMetaProperty { id, span, name });
+        self.insert_node(id, ast::Node::NewMetaProperty(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

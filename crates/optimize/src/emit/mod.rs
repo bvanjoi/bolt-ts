@@ -1670,6 +1670,12 @@ impl<'ir> JSEmitter<'_, 'ir> {
                     self.emit_expr(expr);
                 }
             }
+            ir::Expr::NewMetaProperty(id) => {
+                let n = self.nodes.get_new_meta_property(&id);
+                self.emitter.print().p("new");
+                self.emitter.print().p(".");
+                self.emit_ident(n.name());
+            }
         }
     }
 

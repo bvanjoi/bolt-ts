@@ -29,6 +29,7 @@ use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
+use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
@@ -88,6 +89,7 @@ pub struct ParseResult<'cx> {
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     lib_reference_directives: Vec<FileReference>,
+    pragmas: PragmaMap,
 }
 
 pub enum ImportKind {
@@ -307,6 +309,7 @@ pub fn parse<'cx, 'p>(
         module_augmentations: c.module_augmentations,
         ambient_modules: c.ambient_modules,
         lib_reference_directives: s.lib_reference_directives,
+        pragmas: s.pragmas,
     }
 }
 

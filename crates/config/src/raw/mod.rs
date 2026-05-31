@@ -70,7 +70,7 @@ with_option!(
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
-    // (lib, RawLib),
+    (lib, Vec<Lib>),
     (custom_conditions, Vec<String>)
 );
 
@@ -180,6 +180,7 @@ impl RawCompilerOptions {
             module,
             module_resolution,
             custom_conditions,
+            lib: self.lib,
         }
     }
 }
@@ -293,18 +294,18 @@ pub enum RawModule {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, serde::Deserialize, serde::Serialize)]
-pub enum RawLib {
+pub enum Lib {
     #[default]
     #[serde(alias = "es5")]
     ES5,
-    #[serde(alias = "es6")]
-    ES6,
-    #[serde(alias = "es7")]
-    ES7,
     #[serde(alias = "es2015")]
     ES2015,
+    #[serde(alias = "es6")]
+    ES6,
     #[serde(alias = "es2016")]
     ES2016,
+    #[serde(alias = "es7")]
+    ES7,
     #[serde(alias = "es2017")]
     ES2017,
     #[serde(alias = "es2018")]
@@ -327,4 +328,68 @@ pub enum RawLib {
     WebWorker,
     #[serde(alias = "scripthost")]
     ScriptHost,
+    #[serde(alias = "dom.iterable")]
+    DOMIterable,
+    #[serde(alias = "es2015.core")]
+    ES2015Core,
+    #[serde(alias = "es2015.collection")]
+    ES2015Collection,
+    #[serde(alias = "es2015.generator")]
+    ES2015Generator,
+    #[serde(alias = "es2015.iterable")]
+    ES2015Iterable,
+    #[serde(alias = "es2015.promise")]
+    ES2015Promise,
+    #[serde(alias = "es2015.proxy")]
+    ES2015Proxy,
+    #[serde(alias = "es2015.reflect")]
+    ES2015Reflect,
+    #[serde(alias = "es2015.symbol")]
+    ES2015Symbol,
+    #[serde(alias = "es2015.symbol.wellknown")]
+    ES2015SymbolWellKnown,
+    #[serde(alias = "es2016.array.include")]
+    ES2016ArrayInclude,
+    #[serde(alias = "es2017.object")]
+    ES2017Object,
+    #[serde(alias = "es2017.intl")]
+    ES2017Intl,
+    #[serde(alias = "es2017.sharedmemory")]
+    ES2017SharedMemory,
+    #[serde(alias = "es2017.string")]
+    ES2017String,
+    #[serde(alias = "es2017.typedarrays")]
+    ES2017TypedArrays,
+    #[serde(alias = "es2018.intl")]
+    ES2018Intl,
+    #[serde(alias = "es2018.promise")]
+    ES2018Promise,
+    #[serde(alias = "es2018.regexp")]
+    ES2018RegExp,
+    #[serde(alias = "es2019.array")]
+    ES2019Array,
+    #[serde(alias = "es2019.object")]
+    ES2019Object,
+    #[serde(alias = "es2019.string")]
+    ES2019String,
+    #[serde(alias = "es2019.symbol")]
+    ES2019Symbol,
+    #[serde(alias = "es2020.string")]
+    ES2020String,
+    #[serde(alias = "es2020.symbol.wellknown")]
+    ES2020SymbolWellKnown,
+    #[serde(alias = "es2020.intl")]
+    ES2021Promise,
+    #[serde(alias = "es2021.promise")]
+    ES2021String,
+    #[serde(alias = "es2021.weakref")]
+    ES2021WeakRef,
+    #[serde(alias = "esnext.asynciterable")]
+    ESNextAsyncIterable,
+    #[serde(alias = "esnext.array")]
+    ESNextArray,
+    #[serde(alias = "esnext.intl")]
+    ESNextIntl,
+    #[serde(alias = "esnext.symbol")]
+    ESNextSymbol,
 }

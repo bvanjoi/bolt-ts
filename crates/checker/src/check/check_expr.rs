@@ -542,9 +542,13 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 self.undefined_ty
             }
+            NewMetaProperty(_) => {
+                // TODO:
+                self.undefined_ty
+            }
+            Import(_) => self.undefined_ty,
             Await(n) => self.check_await_expr(n),
             Yield(n) => self.check_yield_expr(n),
-            Import(_) => self.undefined_ty,
         };
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty, check_mode);
         self.current_node = saved_current_node;
@@ -1360,7 +1364,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_expression_cached(
         &mut self,
-        expr: &'cx ast::Expr,
+        expr: &'cx ast::Expr<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         if check_mode.is_some_and(|check_mode| check_mode != CheckMode::empty()) {
@@ -1382,6 +1386,27 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn check_object_literal_cached(
+        &mut self,
+        n: &'cx ast::ObjectLit<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(check_mode) = check_mode
+            && check_mode != CheckMode::empty()
+        {
+            self.check_object_literal(n, check_mode)
+        } else if let Some(ty) = self.get_node_links(n.id).get_resolved_ty() {
+            ty
+        } else {
+            let save_flow_loop_start = self.flow_loop_start;
+            self.flow_loop_start = flow_loop_ctx_len(self);
+            let ty = self.check_object_literal(n, check_mode.unwrap_or(CheckMode::empty()));
+            self.get_mut_node_links(n.id).set_resolved_ty(ty);
+            self.flow_loop_start = save_flow_loop_start;
+            ty
+        }
+    }
+
     pub(super) fn check_expression_for_mutable_location(
         &mut self,
         expr: &'cx ast::Expr<'cx>,
@@ -1393,6 +1418,22 @@ impl<'cx> TyChecker<'cx> {
             self.get_regular_ty_of_literal_ty(ty)
         } else if expr.kind.is_type_assertion() {
             ty
+        } else {
+            let contextual_ty = self.get_contextual_ty(id, None);
+            let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
+            self.get_widened_lit_like_ty_for_contextual_ty(ty, contextual_ty)
+        }
+    }
+
+    pub(super) fn check_identifier_for_mutable_location(
+        &mut self,
+        ident: &'cx ast::Ident,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        let id = ident.id;
+        let ty = self.check_ident(ident, check_mode);
+        if self.is_const_context(id) {
+            self.get_regular_ty_of_literal_ty(ty)
         } else {
             let contextual_ty = self.get_contextual_ty(id, None);
             let contextual_ty = self.instantiate_contextual_ty(contextual_ty, id, None);
@@ -1593,8 +1634,7 @@ impl<'cx> TyChecker<'cx> {
                     let member_symbol = self.get_symbol_of_declaration(member.id());
                     let ty = match member.kind {
                         Shorthand(n) => {
-                            // TODO: check_expression_for_mutable_location
-                            self.check_ident(n.name, Some(check_mode))
+                            self.check_identifier_for_mutable_location(n.name, Some(check_mode))
                         }
                         PropAssignment(n) => self.check_object_prop_assignment(n, Some(check_mode)),
                         Method(n) => self.check_object_method_member(n, check_mode),

@@ -1791,3 +1791,21 @@ pub struct XIsDefinedAsAPropertyInClassYButIsOverriddenHereInZAsAnAccessor {
     pub class_y: String,
     pub class_z: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Duplicate index signature for type '{ty}'.")]
+pub struct DuplicateIndexSignatureForTypeX {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Type '{ty}' may represent a primitive value, which is not permitted as the right operand of the 'in' operator."
+)]
+pub struct TypeXMayRepresentAPrimitiveValueWhichIsNotPermittedAsTheRightOperandOfTheInOperator {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}

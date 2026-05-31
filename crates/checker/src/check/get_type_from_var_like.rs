@@ -710,7 +710,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn widen_ty_for_var_like_decl<const REPORT_ERROR: bool>(
+    pub(super) fn widen_ty_for_variable_like_declaration<const REPORT_ERROR: bool>(
         &mut self,
         ty: Option<&'cx Ty<'cx>>,
         decl: &impl r#trait::VarLike<'cx>,

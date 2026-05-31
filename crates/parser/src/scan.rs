@@ -830,7 +830,7 @@ impl ParserState<'_, '_> {
                     )
                 }
                 b'\'' | b'"' => {
-                    let (v, key_value) = self.scan_string::<false>(ch);
+                    let (v, key_value) = self.scan_string::<false, false>(ch);
                     let len = v.len();
                     let atom = self
                         .atoms
@@ -1299,7 +1299,10 @@ impl ParserState<'_, '_> {
         value_chars
     }
 
-    pub(super) fn scan_string<const IS_JSX_ATTRIBUTE_STRING: bool>(
+    pub(super) fn scan_string<
+        const IS_JSX_ATTRIBUTE_STRING: bool,
+        const IS_REFERENCE_LIB_PRAGMA: bool,
+    >(
         &mut self,
         quote: u8,
     ) -> (Vec<u8>, Vec<u8>) {
@@ -1329,6 +1332,12 @@ impl ParserState<'_, '_> {
                 v.extend(t.iter());
                 key.extend(t.iter());
                 continue;
+            } else if IS_REFERENCE_LIB_PRAGMA && ch.is_ascii_whitespace() {
+                let start = self.pos - v.len();
+                self.push_error(Box::new(errors::UnterminatedStringLiteral {
+                    span: Span::new(start as u32, self.pos as u32, self.module_id),
+                }));
+                break;
             }
 
             if !(ch == b'\n' && prev == b'\\') {
@@ -1774,7 +1783,7 @@ impl ParserState<'_, '_> {
         let ch = self.ch();
         match self.ch() {
             Some(b'\'') | Some(b'"') => {
-                let (value, _) = self.scan_string::<true>(unsafe { ch.unwrap_unchecked() });
+                let (value, _) = self.scan_string::<true, false>(unsafe { ch.unwrap_unchecked() });
                 self.token_value = Some(TokenValue::Ident {
                     value: self
                         .atoms

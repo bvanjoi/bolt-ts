@@ -61,8 +61,12 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
         let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
         let dir = test_ctx.test_file().parent().unwrap();
 
-        let compiler_options: RawCompilerOptions =
-            serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
+        let mut options = test_ctx.compiler_options().to_serde_json();
+        if options.len() > 1 {
+            todo!("multiple compiler options are not supported yet");
+        }
+        let option = std::mem::take(&mut options[0]);
+        let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
 
         assert!(file_name == "index.ts" || file_name == "index.tsx");
         assert!(

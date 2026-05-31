@@ -46,7 +46,7 @@ impl<'cx> Nodes<'cx> {
         // TODO: has_syntactic_modifier
         param.modifiers.is_some_and(|mods| {
             mods.flags
-                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
         }) && self.get(parent).is_class_ctor()
     }
 

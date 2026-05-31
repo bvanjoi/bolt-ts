@@ -1,0 +1,5 @@
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/constructorOverloads3/index.ts:16:5]
+ 16 │ constructor
+    · ───────────
+    ╰────

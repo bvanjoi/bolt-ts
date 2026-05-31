@@ -42,9 +42,5 @@ bitflags::bitflags! {
         const IDENTIFIER_HAS_EXTENDED_UNICODE_ESCAPE      = Self::CONTAINS_THIS.bits();
         const PERMANENTLY_SET_INCREMENTAL_FLAGS           = Self::POSSIBLY_CONTAINS_DYNAMIC_IMPORT.bits()
                                                             | Self::POSSIBLY_CONTAINS_IMPORT_META.bits();
-
     }
-
-
-
 }

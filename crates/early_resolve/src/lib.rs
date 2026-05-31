@@ -795,6 +795,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Import(_) => {}
+            NewMetaProperty(_) => {}
         }
     }
 

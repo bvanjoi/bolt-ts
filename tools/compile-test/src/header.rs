@@ -6,6 +6,7 @@ use std::iter::Peekable;
 use std::path::Path;
 use std::str::Chars;
 
+use super::common::CompilerOption;
 use super::common::TestConfig;
 use super::common::{FailMode, PassMode};
 
@@ -48,9 +49,8 @@ impl TestConfig {
 
     fn update_compiler_options(&mut self, ln: &str) {
         if let Some(opt) = self.parse_name_value_directive(ln, directives::COMPILER_OPTIONS) {
-            for (key, option) in parse_compiler_options(&opt) {
-                self.compiler_options.insert(key, option);
-            }
+            let options = parse_compiler_options(&opt);
+            self.compiler_options.extend(options);
         }
     }
 }
@@ -80,18 +80,48 @@ fn parse_compiler_key(input: &mut Peekable<Chars>) -> Option<String> {
     if key.is_empty() { None } else { Some(key) }
 }
 
-fn parse_compiler_option_list(input: &mut Peekable<Chars>) -> Option<serde_json::Value> {
+fn parse_string_compiler_option_array(input: &mut Peekable<Chars>) -> Vec<String> {
+    debug_assert!(input.peek().is_some_and(|ch| ch == &'['));
+    input.next();
+    let mut value = vec![];
+    let mut current = String::new();
+    while let Some(ch) = input.peek() {
+        if ch.eq(&']') {
+            input.next();
+            break;
+        } else if ch.is_whitespace() {
+            input.next();
+        } else if ch.eq(&',') {
+            if !current.is_empty() {
+                value.push(std::mem::take(&mut current));
+            }
+            input.next();
+            skip_whitespace(input);
+        } else if ch.is_ascii_alphanumeric() {
+            current.push(*ch);
+            input.next();
+        } else {
+            unreachable!("character `{ch}` is not expected in a compiler option array");
+        }
+    }
+    if !current.is_empty() {
+        value.push(current);
+    }
+    value
+}
+
+fn parse_compiler_option_list(input: &mut Peekable<Chars>) -> Option<CompilerOption> {
     let mut value = vec![];
     let mut current = String::new();
     let consume_current = |v: String| {
         if v.is_empty() {
             None
         } else if v == "true" {
-            Some(serde_json::Value::Bool(true))
+            Some(CompilerOption::Bool(true))
         } else if v == "false" {
-            Some(serde_json::Value::Bool(false))
+            Some(CompilerOption::Bool(false))
         } else {
-            Some(serde_json::Value::String(v))
+            Some(CompilerOption::String(v))
         }
     };
     while let Some(ch) = input.peek() {
@@ -100,6 +130,9 @@ fn parse_compiler_option_list(input: &mut Peekable<Chars>) -> Option<serde_json:
                 value.push(option);
             }
             break;
+        } else if ch.eq(&'[') {
+            let array = parse_string_compiler_option_array(input);
+            value.push(CompilerOption::StringArray(array));
         } else if ch.eq(&',') {
             if let Some(option) = consume_current(std::mem::take(&mut current)) {
                 value.push(option);
@@ -121,11 +154,11 @@ fn parse_compiler_option_list(input: &mut Peekable<Chars>) -> Option<serde_json:
     } else if value.len() == 1 {
         Some(std::mem::take(&mut value[0]))
     } else {
-        Some(serde_json::Value::Array(value))
+        Some(CompilerOption::Multiple(value))
     }
 }
 
-fn parse_compiler_options(input: &str) -> Vec<(String, serde_json::Value)> {
+fn parse_compiler_options(input: &str) -> Vec<(String, CompilerOption)> {
     let mut result = Vec::new();
     let mut input = input.chars().peekable();
     loop {
@@ -140,7 +173,7 @@ fn parse_compiler_options(input: &str) -> Vec<(String, serde_json::Value)> {
                 return result;
             }
             None => {
-                result.push((key, serde_json::Value::Bool(true)));
+                result.push((key, CompilerOption::Bool(true)));
                 return result;
             }
         };
@@ -363,32 +396,62 @@ fn test_config_update_compiler_options() {
 
     config.update_compiler_options("compiler-options: a1=b1");
     assert_eq!(config.compiler_options.len(), 1);
-    assert_eq!(config.compiler_options["a1"], "b1");
+    assert_eq!(
+        config.compiler_options["a1"],
+        CompilerOption::String("b1".to_string())
+    );
 
     config.update_compiler_options("compiler-options: a2=b2 a3=b3");
     assert_eq!(config.compiler_options.len(), 3);
-    assert_eq!(config.compiler_options["a1"], "b1");
-    assert_eq!(config.compiler_options["a2"], "b2");
-    assert_eq!(config.compiler_options["a3"], "b3");
+    assert_eq!(
+        config.compiler_options["a1"],
+        CompilerOption::String("b1".to_string())
+    );
+    assert_eq!(
+        config.compiler_options["a2"],
+        CompilerOption::String("b2".to_string())
+    );
+    assert_eq!(
+        config.compiler_options["a3"],
+        CompilerOption::String("b3".to_string())
+    );
 
     config.update_compiler_options("compiler-options: a4=true a5=false");
     assert_eq!(config.compiler_options.len(), 5);
-    assert_eq!(config.compiler_options["a4"], true);
-    assert_eq!(config.compiler_options["a5"], false);
+    assert_eq!(config.compiler_options["a4"], CompilerOption::Bool(true));
+    assert_eq!(config.compiler_options["a5"], CompilerOption::Bool(false));
 
     config.update_compiler_options("compiler-options: a6");
     assert_eq!(config.compiler_options.len(), 6);
-    assert_eq!(config.compiler_options["a6"], true);
+    assert_eq!(config.compiler_options["a6"], CompilerOption::Bool(true));
 
     config.update_compiler_options("compiler-options: a7.");
     assert_eq!(config.compiler_options.len(), 6);
 
     config.update_compiler_options("compiler-options: a8=foo,bar");
     assert_eq!(config.compiler_options.len(), 7);
-    let a8 = config.compiler_options["a8"].as_array().unwrap();
-    assert_eq!(*a8, vec!["foo", "bar"]);
+    let a8 = &config.compiler_options["a8"];
+    assert_eq!(
+        a8,
+        &CompilerOption::Multiple(vec![
+            CompilerOption::String("foo".to_string()),
+            CompilerOption::String("bar".to_string())
+        ])
+    );
     config.update_compiler_options("compiler-options: a9=foo, bar");
     assert_eq!(config.compiler_options.len(), 8);
-    let a9 = config.compiler_options["a9"].as_array().unwrap();
-    assert_eq!(*a9, vec!["foo", "bar"]);
+    let a9 = &config.compiler_options["a9"];
+    assert_eq!(
+        a9,
+        &CompilerOption::Multiple(vec![
+            CompilerOption::String("foo".to_string()),
+            CompilerOption::String("bar".to_string())
+        ])
+    );
+    config.update_compiler_options("compiler-options: a10=[foo,bar]");
+    let a10 = &config.compiler_options["a10"];
+    assert_eq!(
+        a10,
+        &CompilerOption::StringArray(vec!["foo".to_string(), "bar".to_string()])
+    );
 }

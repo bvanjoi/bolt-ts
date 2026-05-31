@@ -1,0 +1,6 @@
+  × Type '[number, string, boolean, ...boolean[]]' is not assignable to type
+  │ '[number, string, boolean, boolean, ...boolean[]]'.
+    ╭─[../../tests/compiler/spliceTuples/index.ts:27:1]
+ 27 │ k6
+    · ──
+    ╰────

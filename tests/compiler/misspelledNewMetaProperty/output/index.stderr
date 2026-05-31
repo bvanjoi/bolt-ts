@@ -1,0 +1,6 @@
+  × 'targ' is not a valid meta-property for keyword 'new'. Did you mean
+  │ 'target'?
+   ╭─[../../tests/compiler/misspelledNewMetaProperty/index.ts:5:20]
+ 5 │ targ
+   · ────
+   ╰────

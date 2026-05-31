@@ -57,6 +57,7 @@ impl<'cx> Expr<'cx> {
             Delete(n) => n.span,
             Yield(n) => n.span,
             Import(n) => n.span,
+            NewMetaProperty(n) => n.span,
         }
     }
 
@@ -106,6 +107,7 @@ impl<'cx> Expr<'cx> {
             Await(n) => n.id,
             Yield(n) => n.id,
             Import(n) => n.id,
+            NewMetaProperty(n) => n.id,
         }
     }
 
@@ -364,6 +366,7 @@ pub enum ExprKind<'cx> {
     JsxElem(&'cx JsxElem<'cx>),
     JsxSelfClosingElem(&'cx JsxSelfClosingElem<'cx>),
     JsxFrag(&'cx JsxFrag<'cx>),
+    NewMetaProperty(&'cx NewMetaProperty<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -522,6 +525,13 @@ pub struct ExprWithTyArgs<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NewMetaProperty<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
 }
 
 #[derive(Debug, Clone)]

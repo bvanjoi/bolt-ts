@@ -613,7 +613,6 @@ pub struct MappedTy<'cx> {
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Token>,
     pub ty: Option<&'cx Ty<'cx>>,
-    pub members: &'cx [&'cx ObjectTyMember<'cx>],
 }
 
 bitflags::bitflags! {

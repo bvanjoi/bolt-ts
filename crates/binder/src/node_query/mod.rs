@@ -86,10 +86,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         loop {
             let parent_id = self.parent(n).unwrap();
             let parent_node = self.node(parent_id);
-            if matches!(parent_node, ObjectBindingElem(_) | ArrayBinding(_)) {
-                n = parent_id;
-            } else {
-                break parent_id;
+            match parent_node {
+                ast::Node::ObjectBindingElem(_) => {
+                    let parent_parent_id = self.parent(parent_id).unwrap();
+                    debug_assert!(matches!(self.node(parent_parent_id), ObjectPat(_)));
+                    n = parent_parent_id;
+                }
+                ast::Node::ArrayBinding(_) => {
+                    let parent_parent_id = self.parent(parent_id).unwrap();
+                    debug_assert!(matches!(self.node(parent_parent_id), ArrayPat(_)));
+                    n = parent_parent_id;
+                }
+                _ => break parent_id,
             }
         }
     }
@@ -505,10 +513,21 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 }
             } else {
                 match node {
-                    FnDecl(_) | FnExpr(_) | ModuleDecl(_) | ClassPropElem(_)
-                    | ClassMethodElem(_) | MethodSignature(_) | ClassCtor(_) | CtorSigDecl(_)
-                    | GetterDecl(_) | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_)
-                    | Program(_) | PropSignature(_) => return id,
+                    FnDecl(_)
+                    | FnExpr(_)
+                    | ModuleDecl(_)
+                    | ClassPropElem(_)
+                    | ClassMethodElem(_)
+                    | MethodSignature(_)
+                    | ClassCtor(_)
+                    | CtorSigDecl(_)
+                    | GetterDecl(_)
+                    | SetterDecl(_)
+                    | IndexSigDecl(_)
+                    | EnumDecl(_)
+                    | Program(_)
+                    | PropSignature(_)
+                    | ObjectMethodMember(_) => return id,
                     _ => {}
                 }
             }
@@ -1350,7 +1369,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     ast::Node::CatchClause(_)
                     | ast::Node::ForInStmt(_)
-                    | ast::Node::ForOfStmt(_) => false,
+                    | ast::Node::ForOfStmt(_)
+                    | ast::Node::ForStmt(_) => false,
                     _ => unreachable!(),
                 }))
     }
@@ -1506,6 +1526,25 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     None
                 }
                 // TODO: js
+            }
+            _ => None,
+        }
+    }
+
+    pub fn get_containing_object_literal(
+        &self,
+        f: ast::NodeID,
+    ) -> Option<&'cx ast::ObjectLit<'cx>> {
+        use ast::Node::*;
+        match self.node(f) {
+            ObjectMethodMember(_)
+            | GetterDecl(_)
+            | SetterDecl(_)
+            | FnExpr(_)
+            | ObjectPropAssignment(_)
+                if let ObjectLit(n) = self.node(self.parent(f).unwrap()) =>
+            {
+                Some(n)
             }
             _ => None,
         }

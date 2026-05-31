@@ -700,9 +700,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(this_param) = links.get_this_param() {
             new_links.set_this_param(this_param)
         };
+        let next = self.new_sig(next);
         let prev = self.sig_links.insert(next.id, new_links);
-        debug_assert!(prev.is_none());
-        self.new_sig(next)
+        debug_assert!(prev.is_none(), "id: {:#?}", next.id);
+        next
     }
 
     fn get_default_construct_sigs(

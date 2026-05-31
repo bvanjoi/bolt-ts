@@ -1,0 +1,11 @@
+  × Type '{ prop: number; }' is not assignable to type 'Bar | Bar[]'.
+    ╭─[../../tests/compiler/objectLiteralsAgainstUnionsOfArrays01/index.ts:14:5]
+ 14 │ bar
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/objectLiteralsAgainstUnionsOfArrays01/index.ts:19:13]
+ 19 │ prop
+    · ────
+    ╰────

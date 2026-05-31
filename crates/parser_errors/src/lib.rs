@@ -54,13 +54,6 @@ pub struct VariableDeclarationListCannotBeEmpty {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("A parameter property is only allowed in a constructor implementation.")]
-pub struct AParamPropIsOnlyAllowedInAConstructorImplementation {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind}")]
 pub struct MissingIdent {
     #[label(primary)]
@@ -743,4 +736,28 @@ pub struct ARestParameterCannotHaveAnInitializer {
 pub struct ARequiredParameterCannotFollowAnOptionalParameter {
     #[label(primary)]
     pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A parameter property is only allowed in a constructor implementation.")]
+pub struct AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'constructor' cannot be used as a parameter property name.")]
+pub struct ConstructorCannotBeUsedAsAParameterPropertyName {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{x}' is not a valid meta-property for keyword '{y}'. Did you mean '{z}'?")]
+pub struct XIsNotAValidMetaPropertyForKeywordYDidYouMeanZ {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: &'static str,
+    pub z: &'static str,
 }
