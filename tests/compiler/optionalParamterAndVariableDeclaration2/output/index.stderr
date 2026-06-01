@@ -1,0 +1,7 @@
+  × Subsequent variable declarations must have the same type. Variable
+  │ 'options' must be of type 'undefined | number', but here has type
+  │ 'number'.
+   ╭─[../../tests/compiler/optionalParamterAndVariableDeclaration2/index.ts:8:13]
+ 8 │ options
+   · ───────
+   ╰────

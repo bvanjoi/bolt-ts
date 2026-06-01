@@ -50,7 +50,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let flags = self.symbol(id).flags;
-        debug_assert!(!flags.contains(SymbolFlags::OBJECT_LITERAL));
 
         if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
             self.get_ty_of_var_or_param_or_prop(id)

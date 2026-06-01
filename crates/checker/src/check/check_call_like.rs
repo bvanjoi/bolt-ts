@@ -271,9 +271,30 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if self.pop_ty_resolution().has_cycle() {
-            if let Some(node_id) = sig.node_id
-                && let Some(ret_ty) = self.get_effective_ret_type_node(node_id)
-            {}
+            if let Some(node_id) = sig.node_id {
+                if let Some(ret_ty) = self.get_effective_ret_type_node(node_id) {
+                    let error = errors::ReturnTypeAnnotationCircularlyReferencesItself {
+                        span: ret_ty.span(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if self.config.compiler_options().no_implicit_any() {
+                    match self.p.node(node_id).name() {
+                        Some(name) => {
+                            let error = errors::XImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
+                                span: name.span(),
+                                name: name.to_string(&self.atoms),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                        None => {
+                            let error = errors::FunctionImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
+                                span: self.p.node(node_id).span(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+            }
             ty = self.any_ty;
         }
         self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);

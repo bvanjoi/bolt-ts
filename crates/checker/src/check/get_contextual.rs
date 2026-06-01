@@ -287,8 +287,14 @@ impl<'cx> TyChecker<'cx> {
         self.get_contextual_type_for_object_literal_element(n, context_flags)
     }
 
-    fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
-        // TODO: signature.compositeSignatures
+    pub(super) fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
+        if let Some(composite_sigs) = sig.composite_sigs
+            && composite_sigs
+                .iter()
+                .any(|s| self.is_resolving_ret_ty_of_sig(s))
+        {
+            return true;
+        }
         self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
             && self
                 .find_resolution_cycle_start_index(super::ResolutionKey::ResolvedReturnType(sig.id))
@@ -1066,7 +1072,7 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn get_parameter_name_at_position(
+    pub(super) fn get_parameter_name_at_position(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         pos: usize,
@@ -1079,7 +1085,11 @@ impl<'cx> TyChecker<'cx> {
         let rest_param = sig.params.get(param_count).copied().unwrap_or(Symbol::ERR);
         let rest_ty = override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(rest_param));
         if let Some(tuple_ty) = rest_ty.as_tuple() {
+            let index = pos - param_count;
             todo!()
+            // const associatedName = tupleType.labeledElementDeclarations?.[index];
+            // const elementFlags = tupleType.elementFlags[index];
+            // return getTupleElementLabel(associatedName, index, elementFlags, restParameter);
         } else {
             self.symbol(rest_param).name
         }

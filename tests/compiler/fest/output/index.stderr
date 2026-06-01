@@ -73,8 +73,8 @@
   × Object literal may only specify known properties, and 'b' does not exist
   │ in type 'ConditionalPick'.
      ╭─[../../tests/compiler/fest/index.ts:332:70]
- 332 │ b: '42'
-     · ───────
+ 332 │ b
+     · ─
      ╰────
 
   × Type '(a: number) => number' is not assignable to type 'SomeFunction'.

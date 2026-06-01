@@ -1,0 +1,11 @@
+  × This expression is not callable.
+    ╭─[../../tests/compiler/callOnInstance/index.ts:11:18]
+ 11 │ (new D(1))
+    · ──────────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/callOnInstance/index.ts:15:1]
+ 15 │ (new C(1))
+    · ──────────
+    ╰────

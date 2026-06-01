@@ -1426,12 +1426,12 @@ impl<'cx> TyChecker<'cx> {
             let left_name = if i >= left_count {
                 None
             } else {
-                Some(self.get_param_name_at_pos(left, i))
+                Some(self.get_parameter_name_at_position(left, i, None))
             };
             let right_name = if i >= right_count {
                 None
             } else {
-                Some(self.get_param_name_at_pos(right, i))
+                Some(self.get_parameter_name_at_position(right, i, None))
             };
             let param_name = if left_name == right_name {
                 left_name
@@ -1500,16 +1500,6 @@ impl<'cx> TyChecker<'cx> {
         let this_ty =
             self.get_intersection_ty(&[left_ty, right_ty], IntersectionFlags::None, None, None);
         Some(self.create_transient_symbol_with_ty(left, this_ty))
-    }
-
-    fn get_param_name_at_pos(&mut self, sig: &'cx ty::Sig<'cx>, pos: usize) -> SymbolName {
-        let param_count = sig.params.len() - if sig.has_rest_param() { 1 } else { 0 };
-        if pos < param_count {
-            let symbol = sig.params[pos];
-            self.symbol(symbol).name
-        } else {
-            todo!()
-        }
     }
 
     fn combine_sigs_of_union_members(

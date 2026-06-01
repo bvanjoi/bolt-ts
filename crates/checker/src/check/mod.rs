@@ -4003,26 +4003,30 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_object_ty_with_inferable_index(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if let Some(i) = ty.kind.as_intersection() {
-            i.tys
+            return i
+                .tys
                 .iter()
-                .all(|t| self.is_object_ty_with_inferable_index(t))
-        } else if let Some(symbol) = ty.symbol() {
-            let flags = self.symbol(symbol).flags;
-            flags.intersects(
+                .all(|t| self.is_object_ty_with_inferable_index(t));
+        }
+        if let Some(symbol) = ty.symbol()
+            && let flags = self.symbol(symbol).flags
+            && flags.intersects(
                 SymbolFlags::OBJECT_LITERAL
                     .union(SymbolFlags::TYPE_LITERAL)
                     .union(SymbolFlags::ENUM)
                     .union(SymbolFlags::VALUE_MODULE),
-            ) && !flags.contains(SymbolFlags::CLASS)
-                && !self.ty_has_call_or_ctor_sigs(ty)
-        } else {
-            let object_flags = ty.get_object_flags();
-            object_flags.contains(ObjectFlags::OBJECT_REST_TYPE) || {
-                object_flags.contains(ObjectFlags::REVERSE_MAPPED)
-                    && self.is_object_ty_with_inferable_index(
-                        ty.kind.expect_object_reverse_mapped().source,
-                    )
-            }
+            )
+            && !flags.contains(SymbolFlags::CLASS)
+            && !self.ty_has_call_or_ctor_sigs(ty)
+        {
+            return true;
+        }
+        let object_flags = ty.get_object_flags();
+        object_flags.contains(ObjectFlags::OBJECT_REST_TYPE) || {
+            object_flags.contains(ObjectFlags::REVERSE_MAPPED)
+                && self.is_object_ty_with_inferable_index(
+                    ty.kind.expect_object_reverse_mapped().source,
+                )
         }
     }
 

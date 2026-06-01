@@ -1,0 +1,13 @@
+  × Type '(s: string, b: boolean) => void' is not assignable to type '(s:
+  │ string, n: number) => void'.
+   ╭─[../../tests/compiler/optionalParamTypeComparison/index.ts:8:1]
+ 8 │ f
+   · ─
+   ╰────
+
+  × Type '(s: string, n: number) => void' is not assignable to type '(s:
+  │ string, b: boolean) => void'.
+    ╭─[../../tests/compiler/optionalParamTypeComparison/index.ts:10:1]
+ 10 │ g
+    · ─
+    ╰────

@@ -7,9 +7,6 @@
   × Object literal may only specify known properties, and 'bar' does not exist
   │ in type 'mapped type & { *: undefined | (Action); }'.
     ╭─[../../tests/compiler/contextualTypeFunctionObjectPropertyIntersection/index.ts:88:5]
- 88 │ ╭─▶ bar: (ev) => {
- 89 │ │         //~^ ERROR: Object literal may only specify known properties, and 'bar' does not exist in type 'mapped type & { *: undefined | (Action); }'.
- 90 │ │         //~| ERROR: Parameter 'ev' implicitly has an 'any' type.
- 91 │ │         ev // any
- 92 │ ╰─▶     }
+ 88 │ bar
+    · ───
     ╰────

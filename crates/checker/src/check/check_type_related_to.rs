@@ -3087,8 +3087,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if !check_mode.contains(SigCheckMode::IGNORE_RETURN_TYPES) {
             let ret_ty = |this: &mut Self, sig: &'cx ty::Sig<'cx>| {
-                // TODO: cycle
-                this.c.get_return_type_of_signature(sig)
+                if this.c.is_resolving_ret_ty_of_sig(sig) {
+                    this.c.any_ty
+                } else {
+                    // TODO: js
+                    this.c.get_return_type_of_signature(sig)
+                }
             };
             let target_ret_ty = ret_ty(self, target);
             if target_ret_ty == self.c.any_ty || target_ret_ty == self.c.void_ty {
@@ -3274,7 +3278,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         let error_target = self.c.filter_type(reduced_target, |_, t| {
                             TyChecker::is_excess_property_check_target(t)
                         });
-                        let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
+                        let span = self
+                            .c
+                            .p
+                            .node(self.c.get_symbol_decl(*prop).unwrap())
+                            .name()
+                            .map(|n| n.span())
+                            .unwrap();
                         let prop = self.c.atoms.get(name).to_string();
                         let ty = self.c.print_ty(error_target, None).to_string();
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {

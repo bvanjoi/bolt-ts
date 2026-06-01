@@ -7,6 +7,6 @@
   × Object literal may only specify known properties, and 'c' does not exist
   │ in type '{ a: 0; } & { b: 0; }'.
     ╭─[../../tests/compiler/excessPropertyCheckIntersectionWithIndexSignature/index.ts:11:24]
- 11 │ c: 0
-    · ────
+ 11 │ c
+    · ─
     ╰────

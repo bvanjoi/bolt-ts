@@ -12,6 +12,8 @@ use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
+use rustc_hash::FxHashMap;
+
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
@@ -1546,6 +1548,71 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
+    fn check_duplicate_name_in_object_literal(
+        &mut self,
+        member: &'cx ast::ObjectMember<'cx>,
+        in_destructuring_pattern: bool,
+        seen: &mut FxHashMap<SymbolName, (&'cx ast::ObjectMember<'cx>, Span)>,
+    ) {
+        use ast::ObjectMemberKind::*;
+        if !in_destructuring_pattern {
+            let prop_name = match member.kind {
+                PropAssignment(n) => Some(n.name.kind),
+                Method(n) => Some(n.name.kind),
+                Getter(n) => Some(n.name.kind),
+                Setter(n) => Some(n.name.kind),
+                Shorthand(n) => Some(ast::PropNameKind::Ident(n.name)),
+                SpreadAssignment(_) => None,
+            };
+            if let Some(prop_name) = prop_name
+                && let Some(effective_name) =
+                    self.get_effective_prop_name_for_prop_name_node(&prop_name)
+            {
+                let report_duplicate =
+                    |this: &mut Self,
+                     exist: (&'cx ast::ObjectMember<'_>, Span),
+                     current: &'cx ast::ObjectMember<'_>| {
+                        use ast::ObjectMemberKind;
+                        if matches!(current.kind, ObjectMemberKind::Method(_))
+                            && matches!(exist.0.kind, ObjectMemberKind::Method(_))
+                        {
+                            // TODO: report duplicate identifier?
+                        } else if matches!(
+                            current.kind,
+                            ObjectMemberKind::PropAssignment(_) | ObjectMemberKind::Shorthand(_)
+                        ) && matches!(
+                            exist.0.kind,
+                            ObjectMemberKind::PropAssignment(_) | ObjectMemberKind::Shorthand(_)
+                        ) {
+                            let error =
+                            errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
+                                span: prop_name.span(),
+                                old: exist.1,
+                            };
+                            this.push_error(Box::new(error));
+                        }
+                        // TODO: other cases
+                    };
+
+                if let SymbolName::Atom(atom) = effective_name
+                    && let s = self.atoms.get(atom)
+                    && (s.starts_with("-")
+                        || s.as_bytes()
+                            .first()
+                            .is_some_and(|byte| matches!(byte, b'1'..=b'9')))
+                    && let Ok(num) = s.parse::<f64>()
+                    && let Some(exist) =
+                        seen.insert(SymbolName::EleNum(num.into()), (member, prop_name.span()))
+                {
+                    report_duplicate(self, exist, member);
+                } else if let Some(exist) = seen.insert(effective_name, (member, prop_name.span()))
+                {
+                    report_duplicate(self, exist, member);
+                }
+            }
+        }
+    }
+
     fn check_object_literal(
         &mut self,
         node: &'cx ast::ObjectLit<'cx>,
@@ -1620,6 +1687,11 @@ impl<'cx> TyChecker<'cx> {
         let mut offset = 0;
         for member in node.members {
             use bolt_ts_ast::ObjectMemberKind::*;
+            self.check_duplicate_name_in_object_literal(
+                member,
+                in_destructuring_pattern,
+                &mut seen,
+            );
             let computed_name = match member.kind {
                 PropAssignment(n) => n.name.kind.as_computed(),
                 Method(n) => n.name.kind.as_computed(),
@@ -1671,9 +1743,17 @@ impl<'cx> TyChecker<'cx> {
                             .get_index_info_of_ty(contextual_ty, self.string_ty)
                             .is_none()
                         {
+                            let span = match member.kind {
+                                Shorthand(n) => n.name.span,
+                                PropAssignment(n) => n.name.span(),
+                                Method(n) => n.name.span(),
+                                Getter(n) => n.name.span(),
+                                Setter(n) => n.name.span(),
+                                SpreadAssignment(_) => unreachable!(),
+                            };
                             let error =
                                 errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {
-                                    span: member.span(),
+                                    span,
                                     prop: name.to_string(&self.atoms),
                                     ty: self.print_ty(contextual_ty, None).to_string(),
                                 };
@@ -1812,67 +1892,6 @@ impl<'cx> TyChecker<'cx> {
                         member_symbol,
                     );
                     properties_array.push(member_symbol);
-                }
-            }
-
-            if !in_destructuring_pattern {
-                let prop_name = match member.kind {
-                    PropAssignment(n) => Some(n.name.kind),
-                    Method(n) => Some(n.name.kind),
-                    Getter(n) => Some(n.name.kind),
-                    Setter(n) => Some(n.name.kind),
-                    Shorthand(n) => Some(ast::PropNameKind::Ident(n.name)),
-                    SpreadAssignment(_) => None,
-                };
-                if let Some(prop_name) = prop_name
-                    && let Some(effective_name) =
-                        self.get_effective_prop_name_for_prop_name_node(&prop_name)
-                {
-                    let report_duplicate =
-                        |this: &mut Self,
-                         exist: (&'cx ast::ObjectMember<'_>, Span),
-                         current: &'cx ast::ObjectMember<'_>| {
-                            use ast::ObjectMemberKind;
-                            if matches!(current.kind, ObjectMemberKind::Method(_))
-                                && matches!(exist.0.kind, ObjectMemberKind::Method(_))
-                            {
-                                // TODO: report duplicate identifier?
-                            } else if matches!(
-                                current.kind,
-                                ObjectMemberKind::PropAssignment(_)
-                                    | ObjectMemberKind::Shorthand(_)
-                            ) && matches!(
-                                exist.0.kind,
-                                ObjectMemberKind::PropAssignment(_)
-                                    | ObjectMemberKind::Shorthand(_)
-                            ) {
-                                let error =
-                            errors::AnObjectLiteralCannotHaveMultiplePropertiesWithTheSameName {
-                                span: prop_name.span(),
-                                old: exist.1,
-                            };
-                                this.push_error(Box::new(error));
-                            }
-                            // TODO: other cases
-                        };
-
-                    if let SymbolName::Atom(atom) = effective_name
-                        && let s = self.atoms.get(atom)
-                        && (s.starts_with("-")
-                            || s.as_bytes()
-                                .first()
-                                .is_some_and(|byte| matches!(byte, b'1'..=b'9')))
-                        && let Ok(num) = s.parse::<f64>()
-                        && let Some(exist) =
-                            seen.insert(SymbolName::EleNum(num.into()), (*member, prop_name.span()))
-                    {
-                        report_duplicate(self, exist, member);
-                        continue;
-                    }
-
-                    if let Some(exist) = seen.insert(effective_name, (*member, prop_name.span())) {
-                        report_duplicate(self, exist, member);
-                    }
                 }
             }
         }

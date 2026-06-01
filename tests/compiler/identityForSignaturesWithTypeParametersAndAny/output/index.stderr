@@ -1,0 +1,39 @@
+  × Subsequent variable declarations must have the same type. Variable 'f'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: any, y: any)
+  │ => any'.
+   ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersAndAny/index.ts:6:5]
+ 6 │ f
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'g'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: any, y: any)
+  │ => any'.
+   ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersAndAny/index.ts:9:5]
+ 9 │ g
+   · ─
+   ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'h'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: any, y: any)
+  │ => any'.
+    ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersAndAny/index.ts:12:5]
+ 12 │ h
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'i'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: any, y:
+  │ string) => any'.
+    ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersAndAny/index.ts:15:5]
+ 15 │ i
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'j'
+  │ must be of type '(x: T, y: U) => T', but here has type '(x: any, y: any)
+  │ => string'.
+    ╭─[../../tests/compiler/identityForSignaturesWithTypeParametersAndAny/index.ts:18:5]
+ 18 │ j
+    · ─
+    ╰────

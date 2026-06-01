@@ -1,0 +1,6 @@
+  × Argument of type '(n: number, m: string) => void' is not assignable to
+  │ parameter of type '(n: number) => void'.
+   ╭─[../../tests/compiler/signatureLengthMismatchWithOptionalParameters/index.ts:9:8]
+ 9 │ callee
+   · ──────
+   ╰────

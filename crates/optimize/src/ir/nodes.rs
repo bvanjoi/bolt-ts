@@ -1625,6 +1625,7 @@ impl Nodes {
     pub fn alloc_object_binding_elem(
         &mut self,
         span: Span,
+        dotdotdot: Option<Span>,
         name: ObjectBindingName,
         init: Option<Expr>,
     ) -> ObjectBindingElemID {
@@ -1632,7 +1633,7 @@ impl Nodes {
         let id = self.object_binding_elem_nodes.0.alloc(ObjectBindingElem {
             id: idx,
             span,
-            dotdotdot: None, // This will be set later if needed
+            dotdotdot,
             name,
             init,
         });

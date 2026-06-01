@@ -1,0 +1,13 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/constructorsWithSpecializedSignatures/index.ts:23:5]
+ 23 │ constructor
+    · ───────────
+    ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/constructorsWithSpecializedSignatures/index.ts:32:5]
+ 32 │ constructor
+    · ───────────
+    ╰────

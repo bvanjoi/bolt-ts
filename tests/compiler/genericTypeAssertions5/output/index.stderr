@@ -1,0 +1,33 @@
+  × Type 'A' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/genericTypeAssertions5/index.ts:23:5]
+ 23 │ y
+    · ─
+    ╰────
+
+  × Type 'B' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/genericTypeAssertions5/index.ts:25:5]
+ 25 │ y
+    · ─
+    ╰────
+
+  × Type 'C' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/genericTypeAssertions5/index.ts:27:5]
+ 27 │ y
+    · ─
+    ╰────
+
+  × Conversion of type 'C' to type 'T' may be a mistake because neither type
+  │ sufficiently overlaps with the other. If this was intentional, convert the
+  │ expression to 'unknown' first.
+    ╭─[../../tests/compiler/genericTypeAssertions5/index.ts:32:9]
+ 32 │ <T>c
+    · ────
+    ╰────
+
+  × Conversion of type 'B' to type 'T' may be a mistake because neither type
+  │ sufficiently overlaps with the other. If this was intentional, convert the
+  │ expression to 'unknown' first.
+    ╭─[../../tests/compiler/genericTypeAssertions5/index.ts:30:9]
+ 30 │ <T>b
+    · ────
+    ╰────

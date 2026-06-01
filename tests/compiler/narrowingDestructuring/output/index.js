@@ -11,18 +11,18 @@ function func(value) {
 function func2(value) {
   if (value.kind === 'f') {
     var {f: f1} = value;
-    var {f: {a, spread}} = value;
+    var {f: {a, ...spread}} = value;
     value.f;
   } else {
-    var {g: {c, spread}} = value;
+    var {g: {c, ...spread}} = value;
     value.g;
   }
   
 }
 function func3(t) {
   if (t.kind === 'a') {
-    var {kind, r1} = t;
-    var r2 = (({kind, rest}) => (rest))(t);
+    var {kind, ...r1} = t;
+    var r2 = (({kind, ...rest}) => (rest))(t);
   }
   
 }

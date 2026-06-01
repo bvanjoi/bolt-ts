@@ -180,8 +180,14 @@ impl<'cx> TyChecker<'cx> {
                     .find(|&sig| !self.is_implementation_compatible_with_overload(body_sig, sig))
                 {
                     let error_node = first_error_sig.def_id();
+                    let error_node = self.p.node(error_node);
+                    let span = match error_node.ident_name() {
+                        Some(ident) => ident.span,
+                        None if let ast::Node::ClassCtor(n) = error_node => n.name_span,
+                        _ => unreachable!(),
+                    };
                     let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
-                            span: self.p.node(error_node).ident_name().unwrap().span,
+                            span,
                         };
                     self.push_error(Box::new(error));
                 }
@@ -210,7 +216,7 @@ impl<'cx> TyChecker<'cx> {
         some_overload_flags: ast::ModifierFlags,
         allow_overload_flags: ast::ModifierFlags,
     ) {
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
         assert!(!decls.is_empty());
         if !(some_overload_flags ^ allow_overload_flags).is_empty() {

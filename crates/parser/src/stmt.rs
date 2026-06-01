@@ -104,6 +104,7 @@ impl<'cx> ParserState<'cx, '_> {
         let case_block = {
             let start = self.token.start();
             self.expect(TokenKind::LBrace);
+            let mut seen_default_clause = false;
             let clauses = self.parse_list(ParsingContext::SWITCH_CLAUSES, |this| {
                 Ok(if this.token.kind == TokenKind::Case {
                     // parse case clause
@@ -119,7 +120,17 @@ impl<'cx> ParserState<'cx, '_> {
                 } else {
                     // parse default clause
                     let start = this.token.start();
-                    this.expect(TokenKind::Default);
+                    if this.expect(TokenKind::Default) {
+                        if seen_default_clause {
+                            let error =
+                                errors::ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
+                                    span: this.token.span,
+                                };
+                            this.push_error(Box::new(error));
+                        } else {
+                            seen_default_clause = true;
+                        }
+                    }
                     this.expect(TokenKind::Colon);
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
                         this.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)

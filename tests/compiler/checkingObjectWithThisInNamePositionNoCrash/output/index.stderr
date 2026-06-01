@@ -1,0 +1,13 @@
+  × Property 'a' does not exist on type '{ doit: () => error; }'.
+    ╭─[../../tests/compiler/checkingObjectWithThisInNamePositionNoCrash/index.ts:12:19]
+ 12 │ a
+    · ─
+    ╰────
+
+  × 'doit' implicitly has return type 'any' because it does not have a return
+  │ type annotation and is referenced directly or indirectly in one of its
+  │ return expressions.
+   ╭─[../../tests/compiler/checkingObjectWithThisInNamePositionNoCrash/index.ts:9:5]
+ 9 │ doit
+   · ────
+   ╰────

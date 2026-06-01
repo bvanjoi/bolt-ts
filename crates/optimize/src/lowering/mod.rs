@@ -650,7 +650,8 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
     ) -> ir::ObjectBindingElemID {
         let name = self.lower_object_binding_name(elem.name);
         let init = elem.init.map(|init| self.lower_expr(init));
-        self.nodes.alloc_object_binding_elem(elem.span, name, init)
+        self.nodes
+            .alloc_object_binding_elem(elem.span, elem.dotdotdot, name, init)
     }
 
     fn lower_object_binding_name(

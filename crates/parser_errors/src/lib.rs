@@ -761,3 +761,10 @@ pub struct XIsNotAValidMetaPropertyForKeywordYDidYouMeanZ {
     pub y: &'static str,
     pub z: &'static str,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'default' clause cannot appear more than once in a 'switch' statement.")]
+pub struct ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
+    #[label(primary)]
+    pub span: Span,
+}

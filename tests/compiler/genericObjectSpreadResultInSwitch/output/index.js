@@ -1,5 +1,5 @@
 var getType = (params) => {
-  var {foo, rest} = params;
+  var {foo, ...rest} = params;
   return rest
 };
 

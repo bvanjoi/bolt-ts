@@ -60,8 +60,6 @@ impl<'cx> TyChecker<'cx> {
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
         let expr_ty = self.check_expression(node.expr, None);
-        let mut first_default_clause = None;
-        let mut has_duplicate_default_clause = false;
 
         for clause in node.case_block.clauses {
             match clause {
@@ -87,17 +85,6 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 Default(n) => {
-                    if !has_duplicate_default_clause {
-                        match first_default_clause {
-                            Some(first_default_clause) => {
-                                has_duplicate_default_clause = true;
-                                todo!("error handler")
-                            }
-                            None => {
-                                first_default_clause = Some(n);
-                            }
-                        }
-                    }
                     for stmt in n.stmts {
                         self.check_stmt(stmt);
                     }

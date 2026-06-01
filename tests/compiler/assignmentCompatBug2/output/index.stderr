@@ -1,22 +1,22 @@
   × Object literal may only specify known properties, and 'a' does not exist
   │ in type '{ b: number; }'.
    ╭─[../../tests/compiler/assignmentCompatBug2/index.ts:5:27]
- 5 │ a: 0
-   · ────
+ 5 │ a
+   · ─
    ╰────
 
   × Object literal may only specify known properties, and 'a' does not exist
   │ in type '{ b: number; }'.
    ╭─[../../tests/compiler/assignmentCompatBug2/index.ts:7:8]
- 7 │ a: 0
-   · ────
+ 7 │ a
+   · ─
    ╰────
 
   × Object literal may only specify known properties, and 'a' does not exist
   │ in type '{ b: number; }'.
    ╭─[../../tests/compiler/assignmentCompatBug2/index.ts:9:13]
- 9 │ a: 0
-   · ────
+ 9 │ a
+   · ─
    ╰────
 
   × Property 'm' is missing.

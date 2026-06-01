@@ -1,15 +1,15 @@
   × Object literal may only specify known properties, and 'hello' does not
   │ exist in type 'I'.
     ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:12:6]
- 12 │ hello: 1
-    · ────────
+ 12 │ hello
+    · ─────
     ╰────
 
   × Object literal may only specify known properties, and 'what' does not
   │ exist in type 'I'.
     ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping/index.ts:15:17]
- 15 │ what: 1
-    · ───────
+ 15 │ what
+    · ────
     ╰────
 
   × Property 'value' is missing.
