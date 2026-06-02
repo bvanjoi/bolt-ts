@@ -1,0 +1,11 @@
+  × Property 'privat' is private and only accessible within class.
+    ╭─[../../tests/compiler/protectedAccessThroughContextualThis/index.ts:18:15]
+ 18 │ this.privat
+    · ───────────
+    ╰────
+
+  × Property 'privat' is private and only accessible within class.
+    ╭─[../../tests/compiler/protectedAccessThroughContextualThis/index.ts:26:15]
+ 26 │ this.privat
+    · ───────────
+    ╰────

@@ -1837,3 +1837,14 @@ pub struct FunctionImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnno
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Property '{property}' is protected and only accessible within class '{class}' and its subclasses."
+)]
+pub struct PropertyXIsProtectedAndOnlyAccessibleWithinClassYAndItsSubclasses {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub class: String,
+}

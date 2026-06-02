@@ -15,6 +15,7 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_utils::FxIndexMap;
 use bolt_ts_utils::fx_hashmap_with_capacity;
+use bolt_ts_utils::fx_indexmap_with_capacity;
 
 #[derive(Debug, Clone)]
 
@@ -174,7 +175,7 @@ impl<'cx> TyChecker<'cx> {
         {
             return resolved_properties;
         }
-        let mut names = fx_hashmap_with_capacity(0);
+        let mut names = fx_indexmap_with_capacity(0);
         let tys = self.get_siblings_of_context(context);
         for t in tys {
             if t.is_object_literal() && !t.get_object_flags().contains(ObjectFlags::CONTAINS_SPREAD)

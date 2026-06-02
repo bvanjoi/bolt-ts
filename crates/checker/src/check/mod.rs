@@ -2191,7 +2191,7 @@ impl<'cx> TyChecker<'cx> {
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
-            self.check_prop_accessibility::<false>(
+            self.check_property_accessibility::<false>(
                 node,
                 self.p.node(left).is_super_expr(),
                 apparent_left_ty,
@@ -2208,6 +2208,7 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
 
+            // TODO: is_this_property_access_in_constructor
             if self.node_query(node.module()).access_kind(node) == AccessKind::Write {
                 self.get_write_type_of_symbol(prop)
             } else {
@@ -2329,7 +2330,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_prop_accessibility<const IS_WRITE: bool>(
+    fn check_property_accessibility<const IS_WRITE: bool>(
         &mut self,
         node: ast::NodeID,
         is_super: bool,
@@ -2338,13 +2339,13 @@ impl<'cx> TyChecker<'cx> {
         report_error: bool,
     ) {
         let error_node = report_error.then_some(node);
-        self.check_prop_accessibility_at_loc::<IS_WRITE>(node, is_super, ty, prop, error_node);
+        self.check_property_accessibility_at_loc::<IS_WRITE>(node, is_super, ty, prop, error_node);
     }
 
     fn symbol_hash_non_method_decl(&mut self, symbol: SymbolID) -> bool {
         self.for_each_prop(symbol, |this, s| {
             let s = this.symbol(s);
-            !s.flags.contains(SymbolFlags::METHOD)
+            Some(!s.flags.contains(SymbolFlags::METHOD))
         })
         .unwrap()
     }
@@ -2352,16 +2353,16 @@ impl<'cx> TyChecker<'cx> {
     fn for_each_prop<T>(
         &mut self,
         prop: SymbolID,
-        f: impl FnOnce(&mut Self, SymbolID) -> T,
+        f: impl FnOnce(&mut Self, SymbolID) -> Option<T>,
     ) -> Option<T> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
             todo!()
         } else {
-            Some(f(self, prop))
+            f(self, prop)
         }
     }
 
-    fn check_prop_accessibility_at_loc<const IS_WRITE: bool>(
+    fn check_property_accessibility_at_loc<const IS_WRITE: bool>(
         &mut self,
         loc: ast::NodeID,
         is_super: bool,
@@ -2402,10 +2403,14 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        if !flags.intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
+            return true;
+        }
+
         if flags.contains(ast::ModifierFlags::PRIVATE) {
             // TODO: use parent symbol to find the class
             let p = self.parent(loc).unwrap();
-            if self
+            return if self
                 .node_query(p.module())
                 .find_ancestor(p, |n| self.p.node(n).is_class_like().then_some(true))
                 .is_none()
@@ -2418,9 +2423,118 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 }
+                false
+            } else {
+                true
+            };
+        }
+
+        let is_class_derived_from_declaring_classes = |this: &mut Self,
+                                                       check_class: &'cx ty::Ty<'cx>,
+                                                       prop: SymbolID|
+         -> Option<&'cx ty::Ty<'cx>> {
+            this.for_each_prop(prop, |this, p| {
+                let flags = this.get_declaration_modifier_flags_from_symbol::<IS_WRITE>(p);
+                if flags.contains(ast::ModifierFlags::PROTECTED) {
+                    if let Some(base_class) = this.get_declaring_class(p)
+                        && !this.has_base_ty(check_class, base_class)
+                    {
+                        None
+                    } else {
+                        Some(check_class)
+                    }
+                } else {
+                    None
+                }
+            })
+        };
+        let mut class_node = loc;
+        let mut enclosing_class = None;
+        while let Some(n) = self
+            .node_query(loc.module())
+            .get_containing_class(class_node)
+        {
+            debug_assert!(self.p.node(n).is_class_like());
+            let s = self.get_symbol_of_declaration(n);
+            let t = self.get_declared_ty_of_class_or_interface(s);
+            enclosing_class = is_class_derived_from_declaring_classes(self, t, prop);
+            if enclosing_class.is_some() {
+                break;
+            }
+            class_node = n;
+        }
+
+        if enclosing_class.is_none() {
+            // get_enclosing_class_from_this_parameter
+
+            // get_this_parameter_from_node_context
+            let this_container = self
+                .node_query(loc.module())
+                .get_this_container(loc, false, false);
+            let this_container_node = self.p.node(this_container);
+            let this_type = if this_container_node.is_fn_like()
+                && let Some(parameters) = this_container_node.params()
+                && let Some(p) = parameters.first()
+                && let ast::BindingKind::Ident(name) = p.name.kind
+                && name.name == keyword::KW_THIS
+            {
+                // TODO: is_not_js
+                p.ty
+            } else {
+                None
+            };
+
+            let mut this_type = this_type.map(|ty_node| self.get_ty_from_type_node(ty_node));
+            if let Some(t) = this_type {
+                if t.flags.contains(TypeFlags::TYPE_PARAMETER) {
+                    this_type = self.get_constraint_of_ty_param(t);
+                }
+            } else if this_container_node.is_fn_like() {
+                this_type = self.get_contextual_this_parameter_type(this_container);
+            }
+
+            if let Some(this_type) = this_type
+                && this_type
+                    .get_object_flags()
+                    .intersects(ObjectFlags::CLASS_OR_INTERFACE.union(ObjectFlags::REFERENCE))
+            {
+                enclosing_class = if this_type.kind.is_object_interface() {
+                    Some(this_type)
+                } else if let Some(_) = this_type.kind.as_object_reference() {
+                    Some(this_type)
+                } else {
+                    None
+                };
+            }
+
+            enclosing_class = enclosing_class
+                .and_then(|t| is_class_derived_from_declaring_classes(self, t, prop));
+            if enclosing_class.is_none() || flags.contains(ast::ModifierFlags::STATIC) {
+                if let Some(error_node) = error_node {
+                    let error =
+                        errors::PropertyXIsProtectedAndOnlyAccessibleWithinClassYAndItsSubclasses {
+                            span: self.p.node(error_node).span(),
+                            property: self.symbol(prop).name.to_string(&self.atoms),
+                            class: {
+                                let ty = self.get_declaring_class(prop).unwrap_or(containing_ty);
+                                self.print_ty(ty, None).to_string()
+                            },
+                        };
+                    self.push_error(Box::new(error));
+                }
                 return false;
             }
         }
+
+        if flags.contains(ast::ModifierFlags::STATIC) {
+            return true;
+        }
+
+        if containing_ty.flags.contains(TypeFlags::TYPE_PARAMETER) {
+            //TODO:
+        }
+
+        // TODO: !containing_ty || xxxxx
 
         true
     }
@@ -7627,6 +7741,19 @@ impl<'cx> TyChecker<'cx> {
             | Ident(_) => DeclarationSpaces::EXPORT_VALUE,
             MethodSignature(_) | PropSignature(_) => DeclarationSpaces::EXPORT_TYPE,
             _ => unreachable!(),
+        }
+    }
+
+    fn get_declaring_class(&mut self, prop: SymbolID) -> Option<&'cx ty::Ty<'cx>> {
+        let s = self.symbol(prop);
+        if let Some(parent) = s.parent
+            && let p = self.symbol(parent)
+            && p.flags.contains(SymbolFlags::CLASS)
+        {
+            let p = self.get_parent_of_symbol(prop).unwrap();
+            Some(self.get_declared_ty_of_symbol(p))
+        } else {
+            None
         }
     }
 }

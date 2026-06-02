@@ -394,7 +394,39 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::FALSE;
             }
         } else if target_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
-            // TODO:
+            let is_valid_override_of = {
+                !self
+                    .c
+                    .for_each_prop(target_prop, |this, tp| {
+                        if this
+                            .get_declaration_modifier_flags_from_symbol::<false>(tp)
+                            .contains(ast::ModifierFlags::PROTECTED)
+                        {
+                            let Some(base_class) = this.get_declaring_class(tp) else {
+                                return Some(true);
+                            };
+                            // is_property_in_class_derived_from
+                            this.for_each_prop(source_prop, |this, sp| {
+                                let source_class = this.get_declaring_class(sp);
+                                if let Some(source_class) = source_class {
+                                    Some(this.has_base_ty(source_class, base_class))
+                                } else {
+                                    Some(false)
+                                }
+                            })
+                            .map(|r| !r)
+                        } else {
+                            Some(false)
+                        }
+                    })
+                    .unwrap()
+            };
+            if !is_valid_override_of {
+                if report_error {
+                    // TODO:
+                }
+                return Ternary::FALSE;
+            }
         } else if source_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
             if report_error {
                 // TODO:
