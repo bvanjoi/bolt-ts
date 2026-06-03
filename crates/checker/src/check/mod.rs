@@ -439,7 +439,8 @@ pub struct TyChecker<'cx> {
     flow_loop_types_arena: FlowLoopTypesArena<'cx>,
     flow_loop_types: Vec<FlowLoopTypesArenaId<'cx>>,
     flow_loop_caches: FxHashMap<FlowID, FxHashMap<FlowCacheKey, &'cx ty::Ty<'cx>>>,
-    flow_ty_cache: Option<Vec<&'cx ty::Ty<'cx>>>,
+    flow_ty_cache: Option<FxHashMap<ast::NodeID, &'cx ty::Ty<'cx>>>,
+    flow_invocation_count: usize,
 
     // === resolver ===
     pub binder: bolt_ts_binder::Binder,
@@ -685,6 +686,7 @@ impl<'cx> TyChecker<'cx> {
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
             flow_nodes,
             flow_in_nodes,
+            flow_invocation_count: 0,
             last_flow_node: None,
             last_flow_reachable: false,
 

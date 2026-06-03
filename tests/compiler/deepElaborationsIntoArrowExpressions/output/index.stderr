@@ -1,0 +1,23 @@
+  × Type '"b"' is not assignable to type '"a"'.
+   ╭─[../../tests/compiler/deepElaborationsIntoArrowExpressions/index.ts:8:14]
+ 8 │ "b"
+   · ───
+   ╰────
+
+  × Type '{ a: string; }' is not assignable to type 'Foo'.
+    ╭─[../../tests/compiler/deepElaborationsIntoArrowExpressions/index.ts:17:18]
+ 17 │ ({a: ''})
+    · ─────────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/deepElaborationsIntoArrowExpressions/index.ts:22:14]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/deepElaborationsIntoArrowExpressions/index.ts:25:18]
+ 25 │ a
+    · ─
+    ╰────

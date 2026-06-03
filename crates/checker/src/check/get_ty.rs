@@ -15,6 +15,7 @@ use bolt_ts_ast::{pprint_binding, r#trait};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{AssignmentKind, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum WideningKind {
@@ -2696,9 +2697,31 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_of_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         // TODO: quick check
-        // TODO: type_cached
+        let id = expr.id();
+        let flags = self.get_node_links(id).flags();
+        if flags.contains(super::NodeCheckFlags::TYPE_CHECKED)
+            && let Some(flow_ty_cache) = &self.flow_ty_cache
+        {
+            if let Some(cache) = flow_ty_cache.get(&id) {
+                return cache;
+            }
+        }
+        let saved_flow_invocation_count = self.flow_invocation_count;
         let ty = self.check_expression(expr, Some(CheckMode::TYPE_ONLY));
-        // TODO: flow_invocation_count
+        if saved_flow_invocation_count != self.flow_invocation_count {
+            match &mut self.flow_ty_cache {
+                Some(n) => {
+                    n.insert(id, ty);
+                }
+                None => {
+                    let mut flow_ty_cache = fx_hashmap_with_capacity(4);
+                    flow_ty_cache.insert(id, ty);
+                    self.flow_ty_cache = Some(flow_ty_cache);
+                }
+            };
+            self.get_mut_node_links(id)
+                .config_flags(|flags| flags | super::NodeCheckFlags::TYPE_CHECKED);
+        }
         ty
     }
 

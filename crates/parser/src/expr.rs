@@ -797,7 +797,8 @@ impl<'cx> ParserState<'cx, '_> {
             SignatureFlags::empty()
         };
         let ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
+        // TODO: is_async
+        let params = self.parse_parameters(is_generator);
         self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
         let body = self.parse_fn_block(is_generator);

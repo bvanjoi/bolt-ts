@@ -139,9 +139,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     this.check_contextual_ident(name);
                 }
                 let ty_params = this.parse_ty_params();
-                let params = this.parse_parameters();
-                this.check_parameters(params, CheckParameterFlags::empty());
-                let ret_ty = this.parse_fn_decl_ret_type()?;
                 let is_generator = asterisk_token.is_some();
                 let is_async = modifier_flags.contains(ast::ModifierFlags::ASYNC);
                 let flags = match (is_async, is_generator) {
@@ -152,6 +149,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     (false, true) => SignatureFlags::YIELD,
                     (false, false) => SignatureFlags::empty(),
                 };
+                let params = this.parse_parameters(flags);
+                this.check_parameters(params, CheckParameterFlags::empty());
+                let ret_ty = this.parse_fn_decl_ret_type()?;
 
                 let body = this.parse_fn_block_or_semi(flags);
                 let span = this.new_span(start);

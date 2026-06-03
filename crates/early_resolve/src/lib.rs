@@ -392,15 +392,20 @@ impl<'cx> Resolver<'cx, '_, '_> {
                         ast::ObjectBindingName::Shorthand(_) => {
                             debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
                         }
-                        ast::ObjectBindingName::Prop { prop_name, .. } => match prop_name.kind {
-                            ast::PropNameKind::Ident(_) => {
-                                // TODO: debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
+                        ast::ObjectBindingName::Prop {
+                            prop_name, name, ..
+                        } => {
+                            match prop_name.kind {
+                                ast::PropNameKind::Ident(_) => {
+                                    // TODO: debug_assert!(self.symbol_of_decl(elem.id) != Symbol::ERR);
+                                }
+                                ast::PropNameKind::Computed(n) => {
+                                    self.resolve_expr(n.expr);
+                                }
+                                _ => {}
                             }
-                            ast::PropNameKind::Computed(n) => {
-                                self.resolve_expr(n.expr);
-                            }
-                            _ => {}
-                        },
+                            self.resolve_binding(*name);
+                        }
                     }
                     if let Some(init) = elem.init {
                         self.resolve_expr(init);

@@ -1,0 +1,17 @@
+  × Argument of type 'boolean' is not assignable to parameter of type '123'.
+    ╭─[../../tests/compiler/deepKeysIndexing/index.ts:57:22]
+ 57 │ true
+    · ────
+    ╰────
+
+  × Argument of type 'boolean' is not assignable to parameter of type '123'.
+    ╭─[../../tests/compiler/deepKeysIndexing/index.ts:59:23]
+ 59 │ true
+    · ────
+    ╰────
+
+  × Argument of type 'boolean' is not assignable to parameter of type '123'.
+    ╭─[../../tests/compiler/deepKeysIndexing/index.ts:61:26]
+ 61 │ true
+    · ────
+    ╰────

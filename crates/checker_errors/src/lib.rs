@@ -1848,3 +1848,10 @@ pub struct PropertyXIsProtectedAndOnlyAccessibleWithinClassYAndItsSubclasses {
     pub property: String,
     pub class: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Overload signatures must all be public, private or protected.")]
+pub struct OverloadSignaturesMustAllBePublicPrivateOrProtected {
+    #[label(primary)]
+    pub span: Span,
+}

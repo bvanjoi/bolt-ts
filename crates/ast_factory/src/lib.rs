@@ -1485,4 +1485,48 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    #[inline]
+    fn create_constructor_type(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::CtorTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CtorTy {
+            id,
+            span,
+            modifiers,
+            ty_params,
+            params,
+            ty,
+        });
+        self.insert_node(id, ast::Node::CtorTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_function_type(
+        &mut self,
+        span: Span,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::FnTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::FnTy {
+            id,
+            span,
+            ty_params,
+            params,
+            ty,
+        });
+        self.insert_node(id, ast::Node::FnTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

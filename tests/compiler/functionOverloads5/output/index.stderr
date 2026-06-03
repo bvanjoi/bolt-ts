@@ -1,0 +1,11 @@
+  × Overload signatures must all be public, private or protected.
+   ╭─[../../tests/compiler/functionOverloads5/index.ts:7:10]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Overload signatures must all be public, private or protected.
+    ╭─[../../tests/compiler/functionOverloads5/index.ts:14:10]
+ 14 │ foo
+    · ───
+    ╰────

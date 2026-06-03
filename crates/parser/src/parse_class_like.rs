@@ -319,9 +319,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let question_token = self.parse_optional(TokenKind::Question);
         let ele = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             // method
-            let ty_params = self.parse_ty_params();
-            let params = self.parse_parameters();
-            let ty = self.parse_return_ty::<true, false>()?;
             let flags = if asterisk.is_some() {
                 SignatureFlags::YIELD
             } else {
@@ -332,6 +329,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             } else {
                 flags
             };
+            let ty_params = self.parse_ty_params();
+            let params = self.parse_parameters(flags);
+            let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);
             let method = self.create_class_method_elem(
@@ -405,7 +405,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
                 let ty_params = this.p().parse_ty_params();
-                let params = this.p().parse_parameters();
+                let params = this.p().parse_parameters(SignatureFlags::empty());
 
                 let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {

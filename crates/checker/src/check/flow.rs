@@ -76,6 +76,7 @@ impl<'cx> TyChecker<'cx> {
 
         let init_ty = init_ty.unwrap_or(declared_ty);
 
+        self.flow_invocation_count += 1;
         let shared_flow_start = self.shared_flow_info.len();
 
         let evolved_ty = {

@@ -667,12 +667,12 @@ impl<'cx> ParserState<'cx, '_> {
         params
     }
 
-    pub(super) fn parse_parameters(&mut self) -> ast::ParamsDecl<'cx> {
+    pub(super) fn parse_parameters(&mut self, flags: SignatureFlags) -> ast::ParamsDecl<'cx> {
         use bolt_ts_ast::TokenKind::*;
         if !self.expect(LParen) {
             return &[];
         }
-        let params = self.parse_params_worker::<true>(SignatureFlags::empty());
+        let params = self.parse_params_worker::<true>(flags);
         self.expect(RParen);
         params
     }
@@ -793,8 +793,17 @@ impl<'cx> ParserState<'cx, '_> {
                 Ok(true)
             } else if matches!(this.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
                 let len = this.diags.len();
-                // todo: parse ident or pattern
-                this.parse_ident(None);
+                match this.token.kind {
+                    ast::TokenKind::LBracket => {
+                        this.parse_array_binding_pat();
+                    }
+                    ast::TokenKind::LBrace => {
+                        this.parse_object_binding_pat();
+                    }
+                    _ => {
+                        this.parse_binding_ident();
+                    }
+                }
                 this.diags.truncate(len);
                 Ok(true)
             } else {
@@ -806,6 +815,7 @@ impl<'cx> ParserState<'cx, '_> {
         (t == TokenKind::Less)
             || (t == TokenKind::LParen
                 && self.lookahead(|this| {
+                    // is_unambiguously_start_of_function_type
                     this.p().next_token();
                     let t = this.p().token.kind;
                     use bolt_ts_ast::TokenKind::*;
@@ -999,7 +1009,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        if !self.parse_parameters().is_empty() {
+        if !self.parse_parameters(SignatureFlags::empty()).is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
                 span: name.span(),
             }));
@@ -1021,7 +1031,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
+        let params = self.parse_parameters(SignatureFlags::empty());
         self.check_parameters(params, CheckParameterFlags::empty());
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {

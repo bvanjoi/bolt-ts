@@ -1072,7 +1072,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_name_of_param(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
-        let binding = self.parse_ident_or_pat()?;
+        let binding = self.parse_ident_or_pat();
         if self.in_strict_mode && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT) {
             self.check_strict_mode_eval_or_arguments_for_binding(binding);
         }
@@ -1090,15 +1090,14 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(binding)
     }
 
-    fn parse_ident_or_pat(&mut self) -> PResult<&'cx ast::Binding<'cx>> {
+    fn parse_ident_or_pat(&mut self) -> &'cx ast::Binding<'cx> {
         use bolt_ts_ast::TokenKind::*;
         let kind = match self.token.kind {
-            LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()?),
-            LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()?),
+            LBracket => ast::BindingKind::ArrayPat(self.parse_array_binding_pat()),
+            LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()),
             _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        let binding = self.create_binding(kind);
-        Ok(binding)
+        self.create_binding(kind)
     }
 
     fn parse_object_binding_elem(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
@@ -1113,7 +1112,7 @@ impl<'cx> ParserState<'cx, '_> {
                     kind: ast::PropNameKind::Ident(name),
                 });
                 self.expect(TokenKind::Colon);
-                let name = self.parse_ident_or_pat()?;
+                let name = self.parse_ident_or_pat();
                 if dotdotdot.is_some() {
                     let error = errors::ARestElementCannotHaveAPropertyName { span: name.span };
                     self.push_error(Box::new(error));
@@ -1123,7 +1122,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             let prop_name = self.parse_prop_name::<true>();
             self.expect(TokenKind::Colon);
-            let name = self.parse_ident_or_pat()?;
+            let name = self.parse_ident_or_pat();
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
         };
         let init = self.parse_init()?;
@@ -1139,7 +1138,7 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ele)
     }
 
-    fn parse_object_binding_pat(&mut self) -> PResult<&'cx ast::ObjectPat<'cx>> {
+    pub(super) fn parse_object_binding_pat(&mut self) -> &'cx ast::ObjectPat<'cx> {
         debug_assert!(self.token.kind == TokenKind::LBrace);
         let start = self.token.start();
         self.next_token(); // consume `{`
@@ -1157,10 +1156,10 @@ impl<'cx> ParserState<'cx, '_> {
             elems,
         });
         self.nodes.insert(id, ast::Node::ObjectPat(pat));
-        Ok(pat)
+        pat
     }
 
-    fn parse_array_binding_pat(&mut self) -> PResult<&'cx ast::ArrayPat<'cx>> {
+    pub(super) fn parse_array_binding_pat(&mut self) -> &'cx ast::ArrayPat<'cx> {
         debug_assert!(self.token.kind == TokenKind::LBracket);
         let start = self.token.start();
         self.next_token(); // consume `[`
@@ -1178,7 +1177,7 @@ impl<'cx> ParserState<'cx, '_> {
             elems,
         });
         self.nodes.insert(id, ast::Node::ArrayPat(pat));
-        Ok(pat)
+        pat
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {
@@ -1188,7 +1187,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             let start = self.token.start();
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-            let name = self.parse_ident_or_pat()?;
+            let name = self.parse_ident_or_pat();
             let init = self.parse_init()?;
             let id = self.next_node_id();
             let binding = self.alloc(ast::ArrayBinding {
@@ -1261,7 +1260,7 @@ impl<'cx> ParserState<'cx, '_> {
         flags: ast::NodeFlags,
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
-        let name = self.parse_ident_or_pat()?;
+        let name = self.parse_ident_or_pat();
         self.check_contextual_binding(name);
         if self.in_strict_mode
             && let ast::BindingKind::Ident(name) = name.kind

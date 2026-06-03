@@ -236,6 +236,19 @@ impl<'cx> TyChecker<'cx> {
                         .span();
                     let error = errors::OverloadSignaturesMustAllBeAmbientOrNonAmbient { span };
                     self.push_error(Box::new(error));
+                } else if deviation_in_file
+                    .intersects(ast::ModifierFlags::PRIVATE.union(ast::ModifierFlags::PROTECTED))
+                {
+                    let error = errors::OverloadSignaturesMustAllBePublicPrivateOrProtected {
+                        span: self
+                            .node_query(o.module())
+                            .get_name_of_decl(o)
+                            .unwrap()
+                            .span(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if deviation_in_file.contains(ast::ModifierFlags::ABSTRACT) {
+                    todo!()
                 }
             }
         }
