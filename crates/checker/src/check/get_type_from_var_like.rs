@@ -313,7 +313,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
-            self.get_flow_type_of_object_destructuring(binding, decl_ty)
+            self.get_flow_type_of_object_destructuring(binding.id, decl_ty)
         };
         if binding.init().is_none() {
             return element_ty;
@@ -350,24 +350,35 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_flow_type_of_object_destructuring(
+    pub(super) fn get_flow_type_of_object_destructuring(
         &mut self,
-        binding: &'cx ast::ObjectBindingElem<'cx>,
+        n: ast::NodeID,
         declared_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        let parent = self.parent(binding.id).unwrap();
-        debug_assert!(self.p.node(parent).is_object_pat());
-        let parent_parent = self.parent(parent).unwrap();
-        match self.p.node(parent_parent) {
-            ast::Node::VarDecl(n)
-                if let Some(init) = n.init
+        let parent = match self.p.node(n) {
+            ast::Node::ObjectBindingElem(_) => {
+                let parent = self.parent(n).unwrap();
+                debug_assert!(self.p.node(parent).is_object_pat());
+                self.parent(parent).unwrap()
+            }
+            ast::Node::ObjectPropAssignment(_) | ast::Node::ObjectShorthandMember(_) => {
+                let parent = self.parent(n).unwrap();
+                debug_assert!(self.p.node(parent).is_object_lit());
+                self.parent(parent).unwrap()
+            }
+            _ => unreachable!(),
+        };
+        match self.p.node(parent) {
+            ast::Node::VarDecl(parent)
+                if let Some(init) = parent.init
                     && let Some(flow) = self.get_flow_node_of_node(init.id()) =>
             {
-                self.get_flow_ty_of_reference(binding.id, declared_ty, None, None, Some(flow))
+                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
             }
-            ast::Node::BinExpr(_) => {
-                // TODO:
-                declared_ty
+            ast::Node::AssignExpr(parent)
+                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) =>
+            {
+                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
             }
             ast::Node::PropAccessExpr(_) => {
                 // TODO:

@@ -2086,6 +2086,30 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 } else {
                     Ternary::FALSE
                 };
+            } else if source.kind.is_generic_tuple_type()
+                && target.is_tuple()
+                && !target.kind.is_generic_tuple_type()
+            {
+                let constraint = self.c.get_base_constraint_or_ty(source);
+                if constraint != source {
+                    return self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        report_error,
+                        IntersectionState::empty(),
+                    );
+                }
+            } else if matches!(
+                self.relation,
+                RelationKind::Subtype | RelationKind::StrictSubtype
+            ) && self.c.is_empty_object_ty(target)
+                && target
+                    .get_object_flags()
+                    .contains(ObjectFlags::FRESH_LITERAL)
+                && !self.c.is_empty_object_ty(source)
+            {
+                return Ternary::FALSE;
             }
 
             if source.kind.is_object_or_intersection() {

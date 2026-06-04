@@ -14,6 +14,7 @@ use super::get_iteration_tys::SyncIterationTysResolver;
 use super::instantiation_ty_map::SubstitutionKey;
 use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
 use super::links::TyLinks;
+use super::relation;
 use super::relation::RelationKind;
 
 use super::ty;
@@ -619,7 +620,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             if reduction == UnionReduction::Subtype {
-                set = self.remove_subtypes(set);
+                set = self.remove_subtypes(set, includes.contains(TypeFlags::OBJECT));
             }
 
             if set.is_empty() {
@@ -757,22 +758,101 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn remove_subtypes(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> Vec<&'cx ty::Ty<'cx>> {
+    fn remove_subtypes(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        has_object_tys: bool,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
         let len = tys.len();
         if len < 2 {
             return tys;
         }
+        // TODO: subtype_reduction_cache
+        let has_empty_object = has_object_tys
+            && tys.iter().any(|t| {
+                t.flags.contains(TypeFlags::OBJECT) && !self.is_generic_mapped_ty(t) && {
+                    self.resolve_structured_type_members(t);
+                    self.is_empty_resolved_ty(t)
+                }
+            });
         let mut i = len;
         while i > 0 {
             i -= 1;
             let source = tys[i];
-            if source.kind.is_structured_or_instantiable() {
-                for target in tys.iter() {
-                    if !source.eq(target)
-                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                    {
+            if has_empty_object || source.kind.is_structured_or_instantiable() {
+                if source.flags.contains(TypeFlags::TYPE_PARAMETER)
+                    && self
+                        .get_base_constraint_or_ty(source)
+                        .flags
+                        .contains(TypeFlags::UNION)
+                {
+                    let target = tys
+                        .iter()
+                        .map(|t| if source.eq(t) { self.never_ty } else { t })
+                        .collect::<Vec<_>>();
+                    let target = self.get_union_ty::<false>(
+                        &target,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                    if self.is_type_related_to(
+                        source,
+                        target,
+                        relation::RelationKind::StrictSubtype,
+                    ) {
                         tys.remove(i);
-                        break;
+                    }
+                    continue;
+                }
+                const FLAGS: TypeFlags = TypeFlags::OBJECT
+                    .union(TypeFlags::INTERSECTION)
+                    .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE);
+                let key_property = if source.flags.intersects(FLAGS) {
+                    self.get_props_of_ty(source).iter().find_map(|p| {
+                        let ty = self.get_type_of_symbol(*p);
+                        if ty.is_unit() { Some(*p) } else { None }
+                    })
+                } else {
+                    None
+                };
+                let key_property_ty = key_property.map(|p| {
+                    let ty = self.get_type_of_symbol(p);
+                    self.get_regular_ty_of_literal_ty(ty)
+                });
+                for target in tys.iter() {
+                    if !source.eq(target) {
+                        if let Some(key_property) = key_property
+                            && target.flags.intersects(FLAGS)
+                        {
+                            let name = self.symbol(key_property).name;
+                            if let Some(t) = self.get_ty_of_prop_of_ty(target, name)
+                                && t.is_unit()
+                                && self.get_regular_ty_of_literal_ty(t) != key_property_ty.unwrap()
+                            {
+                                continue;
+                            }
+                        }
+                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) && {
+                            !(match source.kind.as_object_reference() {
+                                Some(r) => r.target,
+                                None => source,
+                            })
+                            .get_object_flags()
+                            .contains(ObjectFlags::CLASS)
+                                || !(match target.kind.as_object_reference() {
+                                    Some(r) => r.target,
+                                    None => target,
+                                })
+                                .get_object_flags()
+                                .contains(ObjectFlags::CLASS)
+                                || self.is_ty_derived_from(source, target)
+                        } {
+                            tys.remove(i);
+                            break;
+                        }
                     }
                 }
             }

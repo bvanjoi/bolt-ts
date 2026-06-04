@@ -878,14 +878,45 @@ impl<'cx> TyChecker<'cx> {
         target: ast::NodeID,
     ) -> bool {
         loop {
-            source = match self.p.node(source) {
-                ast::Node::PropAccessExpr(n) => n.expr.id(),
-                ast::Node::EleAccessExpr(n) => n.expr.id(),
+            match self.p.node(source) {
+                ast::Node::PropAccessExpr(n) => {
+                    let s = n.expr.id();
+                    if self.is_matching_reference(n.id, target) {
+                        return true;
+                    } else {
+                        source = s;
+                    }
+                }
+                ast::Node::EleAccessExpr(n) => {
+                    let s = n.expr.id();
+                    if self.is_matching_reference(n.id, target) {
+                        return true;
+                    } else {
+                        source = s;
+                    }
+                }
+                ast::Node::ObjectShorthandMember(n) => {
+                    // `({x = 1} = a)`
+                    //    ~
+                    let parent = self.parent(n.id).unwrap();
+                    debug_assert!(self.p.node(parent).is_object_lit());
+                    let parent_parent = self.parent(parent).unwrap();
+                    let parent_parent_node = self.p.node(parent_parent);
+                    match parent_parent_node {
+                        ast::Node::AssignExpr(n) => {
+                            debug_assert!(n.op == ast::AssignOp::Eq);
+                            let s = n.right.id();
+                            if self.is_matching_reference(s, target) {
+                                return true;
+                            } else {
+                                source = s;
+                            }
+                        }
+                        _ => todo!(),
+                    }
+                }
                 _ => break,
             };
-            if self.is_matching_reference(source, target) {
-                return true;
-            }
         }
         false
     }

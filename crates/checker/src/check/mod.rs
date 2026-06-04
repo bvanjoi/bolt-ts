@@ -2658,19 +2658,139 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_destructing_assignment<const RIGHT_IS_THIS: bool>(
         &mut self,
-        node: &'cx ast::AssignExpr<'cx>,
-        source_ty: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
+        mut source_ty: &'cx ty::Ty<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let target = node.left;
-        if let ast::ExprKind::ArrayLit(array) = target.kind {
-            return self.check_array_lit_assignment(array, source_ty);
+        let mut n = self.p.node(node);
+        if let ast::Node::ObjectShorthandMember(m) = n {
+            if let Some(init) = m.object_assignment_initializer {
+                if self.config.compiler_options().strict_null_checks()
+                    && let init_ty = self.check_expression(init, None)
+                    && !self.has_type_facts(init_ty, TypeFacts::IS_UNDEFINED)
+                {
+                    source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
+                }
+            }
+            // TODO: check_reference_assignment
+            return source_ty;
         }
-        let left_ty = self.check_expression(node.left, check_mode);
-        self.check_binary_like_expr(node, left_ty, source_ty)
+        match n {
+            ast::Node::AssignExpr(expr) if expr.op == ast::AssignOp::Eq => {
+                let left_ty = self.check_expression(expr.left, check_mode);
+                self.check_binary_like_expr(expr, left_ty, source_ty);
+                n = self.p.node(expr.left.id());
+                if self.config.compiler_options().strict_null_checks() {
+                    source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
+                }
+            }
+            _ => {}
+        };
+        match n {
+            ast::Node::ObjectLit(n) => {
+                self.check_object_literal_assignment::<RIGHT_IS_THIS>(n, source_ty)
+            }
+            ast::Node::ArrayLit(n) => self.check_array_literal_assignment(n, source_ty),
+            _ => {
+                // TODO: check_reference_assignment
+                source_ty
+            }
+        }
     }
 
-    fn check_array_lit_assignment(
+    fn check_object_literal_assignment<const RIGHT_IS_THIS: bool>(
+        &mut self,
+        n: &'cx ast::ObjectLit<'cx>,
+        source_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if self.config.compiler_options().strict_null_checks() && n.members.is_empty() {
+            return self.check_non_null_type(source_ty, n.id);
+        }
+        for i in 0..n.members.len() {
+            self.check_object_literal_destructuring_property_assignment::<true, RIGHT_IS_THIS>(
+                n, source_ty, i,
+            );
+        }
+        source_ty
+    }
+
+    fn check_object_literal_destructuring_property_assignment<
+        const CHECK_ALL_PROPERTY: bool,
+        const RIGHT_IS_THIS: bool,
+    >(
+        &mut self,
+        n: &'cx ast::ObjectLit<'cx>,
+        object_literal_ty: &'cx ty::Ty<'cx>,
+        i: usize,
+    ) {
+        let member = &n.members[i];
+        match member.kind {
+            ast::ObjectMemberKind::PropAssignment(n) => {
+                let expr_ty = self.get_literal_ty_from_prop_name(&n.name.kind);
+                if expr_ty.usable_as_prop_name() {
+                    let text = self.get_prop_name_from_ty(expr_ty);
+                    if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text)
+                    {
+                        // TODO: mark
+                        self.check_property_accessibility::<true>(
+                            n.id,
+                            false,
+                            object_literal_ty,
+                            prop,
+                            true,
+                        );
+                    }
+                }
+                let access_flags = AccessFlags::EXPRESSION_POSITION | AccessFlags::ALLOWING_MISSING;
+                let element_ty = self.get_indexed_access_ty(
+                    object_literal_ty,
+                    expr_ty,
+                    Some(access_flags),
+                    Some(n.name.id()),
+                    None,
+                    None,
+                );
+                let ty = self.get_flow_type_of_object_destructuring(n.id, element_ty);
+                self.check_destructing_assignment::<RIGHT_IS_THIS>(n.init.id(), ty, None);
+            }
+            ast::ObjectMemberKind::Shorthand(n) => {
+                let expr_ty = self.get_string_literal_type_from_string(n.name.name);
+                debug_assert!(expr_ty.usable_as_prop_name());
+                let text = self.get_prop_name_from_ty(expr_ty);
+                if let Some(prop) = self.get_prop_of_ty::<false, false>(object_literal_ty, text) {
+                    // TODO: mark
+                    self.check_property_accessibility::<true>(
+                        n.id,
+                        false,
+                        object_literal_ty,
+                        prop,
+                        true,
+                    );
+                }
+                let access_flags = AccessFlags::EXPRESSION_POSITION
+                    | if n.object_assignment_initializer.is_some() {
+                        AccessFlags::ALLOWING_MISSING
+                    } else {
+                        AccessFlags::empty()
+                    };
+                let element_ty = self.get_indexed_access_ty(
+                    object_literal_ty,
+                    expr_ty,
+                    Some(access_flags),
+                    Some(n.name.id),
+                    None,
+                    None,
+                );
+                let ty = self.get_flow_type_of_object_destructuring(n.id, element_ty);
+                self.check_destructing_assignment::<RIGHT_IS_THIS>(n.id, ty, None);
+            }
+            _ => {
+                // TODO:
+            }
+        }
+    }
+
+    fn check_array_literal_assignment(
         &mut self,
         array: &'cx ast::ArrayLit<'cx>,
         source_ty: &'cx ty::Ty<'cx>,
@@ -3376,9 +3496,20 @@ impl<'cx> TyChecker<'cx> {
         } else {
             false
         };
+        let is_spread_destructuring_assignment_target = |this: &Self| {
+            let Some(parent) = this.parent(ident.id) else {
+                return false;
+            };
+            if !this.p.node(parent).is_spread_assignment() {
+                return false;
+            }
+            this.node_query(ident.id.module())
+                .is_assignment_target(ident.id)
+        };
         let assume_initialized = is_param
             || is_alias
             || (is_outer_variable && !is_never_initialized)
+            || is_spread_destructuring_assignment_target(self)
             || self
                 .node_query(ident.id.module())
                 .is_same_scoped_binding_element(ident, decl)
@@ -4639,6 +4770,18 @@ impl<'cx> TyChecker<'cx> {
             s == this.get_symbol_of_declaration(target)
         };
 
+        let get_access_expression_and_property_name = |this: &mut Self, n: ast::Node<'cx>| match n {
+            ast::Node::PropAccessExpr(prop_access) => (
+                Some(prop_access.expr.id()),
+                Some(SymbolName::Atom(prop_access.name.name)),
+            ),
+            ast::Node::EleAccessExpr(element_access) => (
+                Some(element_access.expr.id()),
+                this.try_get_element_access_name(element_access),
+            ),
+            _ => (None, None),
+        };
+
         match self.p.node(source) {
             ast::Node::Ident(s_ident) => {
                 if self
@@ -4669,17 +4812,8 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::SuperExpr(_) => t.is_super_expr(),
             ast::Node::PropAccessExpr(s_prop_access) => {
                 let source_prop_name = SymbolName::Atom(s_prop_access.name.name);
-                let (target_access_expr, target_prop_name) = match t {
-                    ast::Node::PropAccessExpr(t_prop_access) => (
-                        Some(t_prop_access.expr.id()),
-                        Some(SymbolName::Atom(t_prop_access.name.name)),
-                    ),
-                    ast::Node::EleAccessExpr(t_element_access) => (
-                        Some(t_element_access.expr.id()),
-                        self.try_get_element_access_name(t_element_access),
-                    ),
-                    _ => (None, None),
-                };
+                let (target_access_expr, target_prop_name) =
+                    get_access_expression_and_property_name(self, t);
                 if let Some(target_prop_name) = target_prop_name {
                     return source_prop_name == target_prop_name
                         && self.is_matching_reference(
@@ -4691,17 +4825,8 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::Node::EleAccessExpr(s_element_access) => {
                 if let Some(source_prop_name) = self.try_get_element_access_name(s_element_access) {
-                    let (target_access_expr, target_prop_name) = match t {
-                        ast::Node::PropAccessExpr(t_prop_access) => (
-                            Some(t_prop_access.expr.id()),
-                            Some(SymbolName::Atom(t_prop_access.name.name)),
-                        ),
-                        ast::Node::EleAccessExpr(t_element_access) => (
-                            Some(t_element_access.expr.id()),
-                            self.try_get_element_access_name(t_element_access),
-                        ),
-                        _ => (None, None),
-                    };
+                    let (target_access_expr, target_prop_name) =
+                        get_access_expression_and_property_name(self, t);
                     if let Some(target_prop_name) = target_prop_name {
                         return source_prop_name == target_prop_name
                             && self.is_matching_reference(
@@ -4751,18 +4876,11 @@ impl<'cx> TyChecker<'cx> {
                 self.is_matching_reference(n.right.id(), target)
             }
             ast::Node::ObjectBindingElem(n) => {
+                // `const {x = 1} = a`
+                //         ~
                 if let Some(source_prop_name) = self.get_literal_prop_name(&n.name.name()) {
-                    let (target_access_expr, target_prop_name) = match t {
-                        ast::Node::PropAccessExpr(t_prop_access) => (
-                            Some(t_prop_access.expr.id()),
-                            Some(SymbolName::Atom(t_prop_access.name.name)),
-                        ),
-                        ast::Node::EleAccessExpr(t_element_access) => (
-                            Some(t_element_access.expr.id()),
-                            self.try_get_element_access_name(t_element_access),
-                        ),
-                        _ => (None, None),
-                    };
+                    let (target_access_expr, target_prop_name) =
+                        get_access_expression_and_property_name(self, t);
                     if let Some(target_prop_name) = target_prop_name {
                         return source_prop_name == target_prop_name && {
                             let parent = self.parent(n.id).unwrap();
@@ -4781,6 +4899,31 @@ impl<'cx> TyChecker<'cx> {
                             }
                         };
                     }
+                }
+                false
+            }
+            ast::Node::ObjectShorthandMember(n) => {
+                // `({x = 1} = a)`
+                //    ~
+                let (target_access_expr, target_prop_name) =
+                    get_access_expression_and_property_name(self, t);
+                if let Some(target_prop_name) = target_prop_name {
+                    let source_prop_name = SymbolName::Atom(n.name.name);
+                    return source_prop_name == target_prop_name && {
+                        let parent = self.parent(n.id).unwrap();
+                        debug_assert!(self.p.node(parent).is_object_lit());
+                        let parent_parent = self.parent(parent).unwrap();
+                        match self.p.node(parent_parent) {
+                            ast::Node::AssignExpr(parent_parent_node) => {
+                                debug_assert!(parent_parent_node.op == ast::AssignOp::Eq);
+                                self.is_matching_reference(
+                                    parent_parent_node.right.id(),
+                                    target_access_expr.unwrap(),
+                                )
+                            }
+                            _ => todo!(),
+                        }
+                    };
                 }
                 false
             }

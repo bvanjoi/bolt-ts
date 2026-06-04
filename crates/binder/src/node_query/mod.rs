@@ -629,7 +629,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: for_in and for_of
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
-                    id = self.parent(self.parent(p).unwrap()).unwrap();
+                    id = self.parent(p).unwrap();
                 }
                 _ => return None,
             }
@@ -1547,6 +1547,20 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 Some(n)
             }
             _ => None,
+        }
+    }
+
+    pub fn is_destructuring_assignment_target(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        match self.node(parent) {
+            ast::Node::BinExpr(p) => p.left.id() == node,
+            ast::Node::ForInStmt(p) => match p.init {
+                bolt_ts_ast::ForInitKind::Var(list) => list.iter().any(|decl| decl.id == node),
+                bolt_ts_ast::ForInitKind::Expr(expr) => expr.id() == node,
+            },
+            _ => false,
         }
     }
 }

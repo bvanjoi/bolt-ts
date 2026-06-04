@@ -1,0 +1,11 @@
+  × Expected 1 arguments, but got 2.
+   ╭─[../../tests/compiler/couldNotSelectGenericOverload/index.ts:7:24]
+ 7 │ ""
+   · ──
+   ╰────
+
+  × Expected 1 arguments, but got 2.
+    ╭─[../../tests/compiler/couldNotSelectGenericOverload/index.ts:12:25]
+ 12 │ ""
+    · ──
+    ╰────

@@ -624,9 +624,10 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             };
             match object_ty.kind {
-                ty::ObjectTyKind::Interface(_) => true,
+                ty::ObjectTyKind::Interface(_) => ty == target,
                 ty::ObjectTyKind::Reference(t) => t.target == target,
-                _ => unreachable!(),
+                ty::ObjectTyKind::Tuple(t) => t.ty == target,
+                _ => unreachable!("{object_ty:#?}"),
             }
         }
     }

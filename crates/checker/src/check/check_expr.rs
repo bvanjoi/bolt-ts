@@ -2147,9 +2147,14 @@ impl<'cx> TyChecker<'cx> {
         assign: &'cx ast::AssignExpr<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        if let Eq = assign.op {
+        if let Eq = assign.op
+            && matches!(
+                assign.left.kind,
+                ast::ExprKind::ObjectLit(_) | ast::ExprKind::ArrayLit(_)
+            )
+        {
             let right = self.check_expression(assign.right, check_mode);
-            return self.check_destructing_assignment::<false>(assign, right, check_mode);
+            return self.check_destructing_assignment::<false>(assign.left.id(), right, check_mode);
         };
         let l = self.check_expression(assign.left, check_mode);
         let r = self.check_expression(assign.right, check_mode);
@@ -2164,7 +2169,7 @@ impl<'cx> TyChecker<'cx> {
         // }
         use bolt_ts_ast::AssignOp::*;
         match assign.op {
-            Eq => unreachable!(),
+            Eq => self.check_binary_like_expr(assign, l, r),
             AddEq => self.check_binary_like_expr_for_add(
                 assign.left,
                 l,

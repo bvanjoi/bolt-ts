@@ -69,9 +69,6 @@ impl<'cx> TyChecker<'cx> {
             }
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
-            AssignExpr(parent) if id == parent.right.id() => {
-                self.get_contextual_ty_for_assign(parent, flags)
-            }
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
                 let element_idx = self.p.index_of_node(parent.elems, id);
@@ -106,6 +103,71 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     Some(self.get_ty_from_type_node(parent.ty))
                 }
+            }
+            AssignExpr(parent) => {
+                // get_contextual_type_for_binary_operand
+                if matches!(
+                    parent.op,
+                    ast::AssignOp::Eq
+                        | ast::AssignOp::LogicalOrEq
+                        | ast::AssignOp::LogicalAndEq
+                        | ast::AssignOp::NullishEq
+                ) && id == parent.right.id()
+                {
+                    self.get_contextual_ty_for_assign(parent, flags)
+                } else {
+                    None
+                }
+            }
+            BinExpr(parent) => {
+                // get_contextual_type_for_binary_operand
+                match parent.op.kind {
+                    ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish => {
+                        let ty = self.get_contextual_ty(parent.id, flags);
+                        if id == parent.right.id() {
+                            if let Some(ty) = ty {
+                                Some(if ty.pattern().is_some() {
+                                    self.get_ty_of_expr(parent.left)
+                                } else {
+                                    ty
+                                })
+                            } else {
+                                // TODO: if !isDefaultedExpandoInitializer(binaryExpression) { self.get_ty_of_expr(parent.left) }
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    ast::BinOpKind::LogicalAnd | ast::BinOpKind::Comma
+                        if id == parent.right.id() =>
+                    {
+                        self.get_contextual_ty(parent.id, flags)
+                    }
+                    _ => None,
+                }
+                // switch (operatorToken.kind) {
+                //     case SyntaxKind.EqualsToken:
+                //     case SyntaxKind.AmpersandAmpersandEqualsToken:
+                //     case SyntaxKind.BarBarEqualsToken:
+                //     case SyntaxKind.QuestionQuestionEqualsToken:
+                //         return node === right ? getContextualTypeForAssignmentDeclaration(binaryExpression) : undefined;
+                //     case SyntaxKind.BarBarToken:
+                //     case SyntaxKind.QuestionQuestionToken:
+                //         // When an || expression has a contextual type, the operands are contextually typed by that type, except
+                //         // when that type originates in a binding pattern, the right operand is contextually typed by the type of
+                //         // the left operand. When an || expression has no contextual type, the right operand is contextually typed
+                //         // by the type of the left operand, except for the special case of Javascript declarations of the form
+                //         // `namespace.prop = namespace.prop || {}`.
+                //         const type = getContextualType(binaryExpression, contextFlags);
+                //         return node === right && (type && type.pattern || !type && !isDefaultedExpandoInitializer(binaryExpression)) ?
+                //             getTypeOfExpression(left) : type;
+                //     case SyntaxKind.AmpersandAmpersandToken:
+                //     case SyntaxKind.CommaToken:
+                //         return node === right ? getContextualType(binaryExpression, contextFlags) : undefined;
+                //     default:
+                //         return undefined;
+                // }
             }
             SpreadAssignment(_) => {
                 let parent_parent = self.parent(parent_id).unwrap();
