@@ -1,0 +1,5 @@
+  × Type '{ }' has no matching index signature for type 'string'.
+   ╭─[../../tests/compiler/computedPropertiesInDestructuring2_ES6/index.ts:6:6]
+ 6 │ [foo2()]
+   · ────────
+   ╰────

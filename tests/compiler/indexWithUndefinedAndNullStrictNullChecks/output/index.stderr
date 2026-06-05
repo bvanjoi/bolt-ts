@@ -1,0 +1,71 @@
+  × Variable 'n' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:14:19]
+ 14 │ n
+    · ─
+    ╰────
+
+  × Type 'undefined' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:14:21]
+ 14 │ undefined
+    · ─────────
+    ╰────
+
+  × Variable 'n' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:17:7]
+ 17 │ n
+    · ─
+    ╰────
+
+  × Type 'null' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:17:9]
+ 17 │ null
+    · ────
+    ╰────
+
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:20:19]
+ 20 │ s
+    · ─
+    ╰────
+
+  × Type 'undefined' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:20:21]
+ 20 │ undefined
+    · ─────────
+    ╰────
+
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:23:7]
+ 23 │ s
+    · ─
+    ╰────
+
+  × Type 'null' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:23:9]
+ 23 │ null
+    · ────
+    ╰────
+
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:28:1]
+ 28 │ s
+    · ─
+    ╰────
+
+  × Type 'false' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:28:3]
+ 28 │ false
+    · ─────
+    ╰────
+
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:31:1]
+ 31 │ s
+    · ─
+    ╰────
+
+  × Type 'true' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNullStrictNullChecks/index.ts:31:3]
+ 31 │ true
+    · ────
+    ╰────

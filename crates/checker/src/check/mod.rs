@@ -18,6 +18,7 @@ mod create_ty;
 mod cycle_check;
 mod discriminant;
 mod elaborate_error;
+use bolt_ts_ast::keyword::is_prim_value_name;
 pub use bolt_ts_checker_errors as errors;
 mod eval;
 mod expect;
@@ -622,7 +623,8 @@ impl<'cx> TyChecker<'cx> {
             (arguments_symbol,          SymbolName::Atom(keyword::IDENT_ARGUMENTS),     SymbolFlags::PROPERTY,      Some(SymbolLinks::default()),                       ARGUMENTS         ),
             (resolving_symbol,          SymbolName::Resolving,                          SymbolFlags::empty(),       None,                                               RESOLVING         ),
             (empty_ty_literal_symbol,   SymbolName::Type,                               SymbolFlags::TYPE_LITERAL,  None,                                               EMPTY_TYPE_LITERAL),
-            (undefined_symbol,          SymbolName::Atom(keyword::KW_UNDEFINED),        SymbolFlags::PROPERTY,      None,                                               UNDEFINED),
+            (undefined_symbol,          SymbolName::Atom(keyword::KW_UNDEFINED),        SymbolFlags::PROPERTY,      Some(SymbolLinks::default()
+                                                                                                                            .with_ty(undefined_widening_ty)),           UNDEFINED),
         });
 
         global_symbols
@@ -2010,7 +2012,9 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        if let ast::ExprKind::Ident(ident) = e.kind {
+        if let ast::ExprKind::Ident(ident) = e.kind
+            && !is_prim_value_name(ident.name)
+        {
             let symbol = self.resolve_symbol_by_ident(ident);
             if self.symbol(symbol).flags.intersects(SymbolFlags::VARIABLE) {
                 let mut child = ident.id;

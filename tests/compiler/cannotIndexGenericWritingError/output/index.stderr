@@ -1,0 +1,17 @@
+  × Type 'T' is generic and can only be indexed for reading.
+   ╭─[../../tests/compiler/cannotIndexGenericWritingError/index.ts:8:5]
+ 8 │ target[p]
+   · ─────────
+   ╰────
+
+  × Type 'T' is generic and can only be indexed for reading.
+   ╭─[../../tests/compiler/cannotIndexGenericWritingError/index.ts:8:5]
+ 8 │ target[p]
+   · ─────────
+   ╰────
+
+  × Type 'T' is generic and can only be indexed for reading.
+    ╭─[../../tests/compiler/cannotIndexGenericWritingError/index.ts:14:5]
+ 14 │ target[p]
+    · ─────────
+    ╰────
