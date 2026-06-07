@@ -14,7 +14,6 @@ use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_utils::FxIndexMap;
-use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::fx_indexmap_with_capacity;
 
 #[derive(Debug, Clone)]

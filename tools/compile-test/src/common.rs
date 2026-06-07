@@ -71,7 +71,63 @@ impl CompilerOptions {
         self.0.extend(iter)
     }
 
-    pub fn to_serde_json(&self) -> Vec<serde_json::Map<String, serde_json::Value>> {
+    pub fn to_serde_json(
+        &self,
+    ) -> Vec<(serde_json::Map<String, serde_json::Value>, Option<String>)> {
+        fn dfs(
+            result: &mut Vec<(serde_json::Map<String, serde_json::Value>, Option<String>)>,
+            base: &serde_json::Map<String, serde_json::Value>,
+            candidate: &mut Vec<(String, Vec<CompilerOption>, usize)>,
+            i: usize,
+        ) {
+            debug_assert!(!candidate.is_empty());
+            for j in i..candidate.len() {
+                let mut hit = String::new();
+                for (field, options, index) in candidate.iter() {
+                    let option = &options[*index];
+                    let mut json = base.clone();
+                    let json_value = match option {
+                        CompilerOption::Null => {
+                            hit.push_str(&format!("({field}=null)"));
+                            serde_json::Value::Null
+                        }
+                        CompilerOption::Bool(b) => {
+                            hit.push_str(&format!("({field}={b})"));
+                            serde_json::Value::Bool(*b)
+                        }
+                        CompilerOption::String(s) => {
+                            hit.push_str(&format!("({field}={s})"));
+                            serde_json::Value::String(s.clone())
+                        }
+                        CompilerOption::StringArray(arr) => {
+                            hit.push_str(&format!("({field}={arr:?})"));
+                            serde_json::Value::Array(
+                                arr.iter()
+                                    .map(|s| serde_json::Value::String(s.clone()))
+                                    .collect(),
+                            )
+                        }
+                        CompilerOption::Multiple(_) => unreachable!(),
+                    };
+                    json.insert(field.clone(), json_value);
+                    result.push((json, Some(hit.clone())));
+                }
+                if i == j {
+                    let item = &candidate[i];
+                    let bound = item.1.len();
+                    if item.2 == bound - 1 {
+                        continue;
+                    } else {
+                        candidate[i].2 += 1;
+                    }
+                    dfs(result, base, candidate, i);
+                } else {
+                    dfs(result, base, candidate, j);
+                }
+            }
+        }
+
+        let mut cross_product_candidate = vec![];
         let mut map = serde_json::Map::new();
         for (key, value) in &self.0 {
             let json_value = match value {
@@ -83,11 +139,20 @@ impl CompilerOptions {
                         .map(|s| serde_json::Value::String(s.clone()))
                         .collect(),
                 ),
-                CompilerOption::Multiple(_) => todo!(),
+                CompilerOption::Multiple(n) => {
+                    cross_product_candidate.push((key.to_string(), n.clone(), 0));
+                    continue;
+                }
             };
             map.insert(key.clone(), json_value);
         }
-        vec![map]
+        if cross_product_candidate.is_empty() {
+            vec![(map, None)]
+        } else {
+            let mut result = Vec::new();
+            dfs(&mut result, &map, &mut cross_product_candidate, 0);
+            result
+        }
     }
 }
 
@@ -107,4 +172,35 @@ pub enum CompilerOption {
     String(String),
     StringArray(Vec<String>),
     Multiple(Vec<CompilerOption>),
+}
+
+#[test]
+fn test_to_serde_json0() {
+    let options = CompilerOptions(std::collections::HashMap::from_iter(
+        [
+            ("option1".to_string(), CompilerOption::Bool(true)),
+            (
+                "option2".to_string(),
+                CompilerOption::Multiple(vec![
+                    CompilerOption::String("value1".to_string()),
+                    CompilerOption::String("value2".to_string()),
+                ]),
+            ),
+        ]
+        .into_iter(),
+    ));
+    let json = options.to_serde_json();
+    assert!(json.len() == 2);
+    assert_eq!(json[0].1, Some("(option2=value1)".to_string()));
+    assert_eq!(json[0].0["option1"], serde_json::Value::Bool(true));
+    assert_eq!(
+        json[0].0["option2"],
+        serde_json::Value::String("value1".to_string())
+    );
+    assert_eq!(json[1].1, Some("(option2=value2)".to_string()));
+    assert_eq!(json[1].0["option1"], serde_json::Value::Bool(true));
+    assert_eq!(
+        json[1].0["option2"],
+        serde_json::Value::String("value2".to_string())
+    );
 }

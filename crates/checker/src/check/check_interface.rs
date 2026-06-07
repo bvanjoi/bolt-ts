@@ -1,5 +1,4 @@
 use bolt_ts_ast as ast;
-use bolt_ts_ast::r#trait::SignatureDeclaration;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
