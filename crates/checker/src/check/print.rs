@@ -87,7 +87,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
     fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         if let Some(alias_symbol) = ty.alias_symbol() {
             let s = self.c.binder.symbol(alias_symbol);
-            return s.name.to_string(&self.c.atoms);
+            let name = s.name.to_string(&self.c.atoms);
+            return name;
         } else if ty.kind.is_array(self.c) {
             let tys = self.c.get_ty_arguments(ty);
             let ele = tys[0];
@@ -269,6 +270,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 }
             }
             ty::ObjectTyKind::ReversedMapped(_) => todo!(),
+            ty::ObjectTyKind::EvolvingArray(_) => todo!(),
         }
     }
 

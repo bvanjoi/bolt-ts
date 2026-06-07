@@ -52,6 +52,7 @@ impl<'cx> TyChecker<'cx> {
         id: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: in_with_statement
         let includes_caches = flags.is_none_or(|flags| ContextFlags::empty() == flags);
         if let Some(ctx) = self.find_context_node(id, includes_caches) {
             return ctx.ty;
@@ -345,7 +346,13 @@ impl<'cx> TyChecker<'cx> {
         n: &'cx ast::ObjectMethodMember<'cx>,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO: NodeFlags.InWithStatement
+        if self
+            .p
+            .node_flags(n.id)
+            .contains(ast::NodeFlags::IN_WITH_STATEMENT)
+        {
+            return None;
+        }
         self.get_contextual_type_for_object_literal_element(n, context_flags)
     }
 
@@ -1259,7 +1266,7 @@ impl<'cx> TyChecker<'cx> {
                             let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
                             let links = links::SymbolLinks::default()
                                 .with_ty(if is_rest_params {
-                                    self.create_array_ty(union_param_type, false)
+                                    self.create_array_ty_worker::<false>(union_param_type)
                                 } else {
                                     union_param_type
                                 })

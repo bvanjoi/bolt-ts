@@ -22,6 +22,12 @@ pub enum ObjectTyKind<'cx> {
     Reference(&'cx ReferenceTy<'cx>),
     Mapped(&'cx MappedTy<'cx>),
     ReversedMapped(&'cx ReverseMappedTy<'cx>),
+    EvolvingArray(&'cx EvolvingArrayTy<'cx>),
+}
+
+#[derive(Debug, Clone)]
+pub struct EvolvingArrayTy<'cx> {
+    pub element_ty: &'cx Ty<'cx>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {
@@ -90,6 +96,7 @@ ty_kind_as_object_ty_kind!(&'cx InterfaceTy<'cx>, interface);
 ty_kind_as_object_ty_kind!(&'cx ReferenceTy<'cx>, reference);
 ty_kind_as_object_ty_kind!(&'cx MappedTy<'cx>, mapped);
 ty_kind_as_object_ty_kind!(&'cx ReverseMappedTy<'cx>, reverse_mapped);
+ty_kind_as_object_ty_kind!(&'cx EvolvingArrayTy<'cx>, evolving_array);
 
 macro_rules! as_object_ty_kind {
     ($kind: ident, $ty:ty, $name: ident) => {
@@ -117,6 +124,7 @@ as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, interface);
 as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
 as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
 as_object_ty_kind!(ReversedMapped, &'cx ReverseMappedTy<'cx>, reverse_mapped);
+as_object_ty_kind!(EvolvingArray, &'cx EvolvingArrayTy<'cx>, evolving_array);
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq)]

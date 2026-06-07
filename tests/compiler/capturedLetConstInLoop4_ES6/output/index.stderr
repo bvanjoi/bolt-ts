@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type '42'.
+   ╭─[../../tests/compiler/capturedLetConstInLoop4_ES6/index.ts:7:11]
+ 7 │ s
+   · ─
+   ╰────

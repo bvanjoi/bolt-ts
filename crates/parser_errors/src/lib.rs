@@ -77,6 +77,13 @@ pub struct TypeArgumentListCannotBeEmpty {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A parameter property may not be declared using a binding pattern.")]
+pub struct AParameterPropertyMayNotBeDeclaredUsingABindingPattern {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{} cannot be declared using a rest parameter.", {kinds.iter().map(|k| format!("'{k}'")).collect::<Vec<_>>().join(", ")})]
 pub struct AParameterPropertyCannotBeDeclaredUsingARestParameter {
     #[label(primary)]

@@ -2409,7 +2409,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         let rest_ty = self.c.get_ty_arguments(source)[start_len];
                         for i in start_len..target_arity - end_len {
                             let s = if element_flags[i].intersects(ty::ElementFlags::VARIADIC) {
-                                self.c.create_array_ty(rest_ty, false)
+                                self.c.create_array_ty_worker::<false>(rest_ty)
                             } else {
                                 rest_ty
                             };

@@ -1,0 +1,111 @@
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:77:21]
+ 77 │ y == 1
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:81:21]
+ 81 │ y == 1
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:85:21]
+ 85 │ y == 1
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:89:21]
+ 89 │ y == 1
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:94:21]
+ 94 │ x == 2
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+    ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:98:21]
+ 98 │ x == 2
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:102:21]
+ 102 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:106:21]
+ 106 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '3'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:110:21]
+ 110 │ x == 3
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:115:17]
+ 115 │ x == 1
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:119:17]
+ 119 │ x == 1
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:123:17]
+ 123 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:127:17]
+ 127 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:131:17]
+ 131 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:135:17]
+ 135 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '3'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop8_ES6/index.ts:139:17]
+ 139 │ x == 3
+     · ──────
+     ╰────

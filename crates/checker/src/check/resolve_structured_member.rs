@@ -1445,7 +1445,7 @@ impl<'cx> TyChecker<'cx> {
             let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
             let links = SymbolLinks::default()
                 .with_ty(if is_rest_param {
-                    self.create_array_ty(union_param_ty, false)
+                    self.create_array_ty_worker::<false>(union_param_ty)
                 } else {
                     union_param_ty
                 })

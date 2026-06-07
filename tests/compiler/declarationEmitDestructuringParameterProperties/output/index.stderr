@@ -1,0 +1,17 @@
+  × A parameter property may not be declared using a binding pattern.
+   ╭─[../../tests/compiler/declarationEmitDestructuringParameterProperties/index.ts:8:24]
+ 8 │ [x, y, z]
+   · ─────────
+   ╰────
+
+  × A parameter property may not be declared using a binding pattern.
+    ╭─[../../tests/compiler/declarationEmitDestructuringParameterProperties/index.ts:15:24]
+ 15 │ [x, y, z]
+    · ─────────
+    ╰────
+
+  × A parameter property may not be declared using a binding pattern.
+    ╭─[../../tests/compiler/declarationEmitDestructuringParameterProperties/index.ts:22:24]
+ 22 │ { x, y, z }
+    · ───────────
+    ╰────

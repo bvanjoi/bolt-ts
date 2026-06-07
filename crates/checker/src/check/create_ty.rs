@@ -518,7 +518,18 @@ impl<'cx> TyChecker<'cx> {
         element_ty: &'cx ty::Ty<'cx>,
         readonly: bool,
     ) -> &'cx ty::Ty<'cx> {
-        let target = if readonly {
+        if readonly {
+            self.create_array_ty_worker::<true>(element_ty)
+        } else {
+            self.create_array_ty_worker::<false>(element_ty)
+        }
+    }
+
+    pub(super) fn create_array_ty_worker<const READONLY: bool>(
+        &mut self,
+        element_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let target = if READONLY {
             self.global_readonly_array_ty()
         } else {
             self.global_array_ty()
@@ -2207,5 +2218,27 @@ impl<'cx> TyChecker<'cx> {
         let type_arguments: ty::Tys<'cx> =
             self.alloc([iterated_ty, self.void_ty, self.undefined_ty]);
         self.create_ty_from_generic_global_ty(global_iterable_ty, type_arguments)
+    }
+
+    fn create_evolving_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        debug_assert!(self.evolving_array_tys.get(&element_ty.id).is_none());
+        let ty = self.alloc(ty::EvolvingArrayTy { element_ty });
+        self.create_object_ty(
+            ty::ObjectTyKind::EvolvingArray(ty),
+            ObjectFlags::EVOLVING_ARRAY,
+        )
+    }
+
+    pub(super) fn get_evolving_array_ty(
+        &mut self,
+        element_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.evolving_array_tys.get(&element_ty.id) {
+            return ty;
+        }
+        let ty = self.create_evolving_array_ty(element_ty);
+        let prev = self.evolving_array_tys.insert(element_ty.id, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 }

@@ -84,6 +84,7 @@ use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
+use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use self::check_expr::IterationUse;
@@ -264,7 +265,9 @@ pub struct TyChecker<'cx> {
     union_or_intersection_property_cache_without_object_function_property_augment:
         FxHashMap<UnionOrIntersectionTyPropertyKey, Option<SymbolID>>,
     property_initializer_in_class_constructor_map: PropertyInitializerInClassConstructorMap,
-    widened_tys: FxHashMap<&'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>>,
+    widened_tys: IntMap<TyID, &'cx ty::Ty<'cx>>,
+    evolving_array_tys: IntMap<TyID, &'cx ty::Ty<'cx>>,
+    final_array_ty_of_evolving_array_cache: IntMap<TyID, &'cx ty::Ty<'cx>>,
     widened_context_arena: WideningContextArena<'cx>,
     // === ast ===
     pub p: ParsedMap<'cx>,
@@ -682,8 +685,9 @@ impl<'cx> TyChecker<'cx> {
             property_initializer_in_class_constructor_map:
                 PropertyInitializerInClassConstructorMap::new(),
             widened_context_arena: WideningContextArena::new(),
-            widened_tys: fx_hashmap_with_capacity(64),
-
+            widened_tys: IntMap::default(),
+            evolving_array_tys: IntMap::default(),
+            final_array_ty_of_evolving_array_cache: IntMap::default(),
             shared_flow_info: Vec::with_capacity(1024),
             flow_node_reachable: fx_hashmap_with_capacity(flow_nodes.len()),
             flow_nodes,
@@ -931,7 +935,7 @@ impl<'cx> TyChecker<'cx> {
             (global_fn_ty,                  this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_FUNCTION_CLASS))),
             (global_callable_fn_ty,         if this.config.compiler_options().strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
             (global_newable_fn_ty,          if this.config.compiler_options().strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
-            (any_array_ty,                  this.create_array_ty(this.any_ty, false)),
+            (any_array_ty,                  this.create_array_ty_worker::<false>(this.any_ty)),
             (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
@@ -991,7 +995,7 @@ impl<'cx> TyChecker<'cx> {
         this.get_mut_symbol_links(arguments_symbol)
             .set_ty(iarguments);
 
-        let mut auto_array_ty = this.create_array_ty(this.auto_ty, false);
+        let mut auto_array_ty = this.create_array_ty_worker::<false>(this.auto_ty);
         if auto_array_ty == empty_object_ty {
             auto_array_ty = this.create_anonymous_ty_with_resolved(
                 None,
@@ -2989,7 +2993,7 @@ impl<'cx> TyChecker<'cx> {
                     .unwrap();
                 self.get_union_ty::<false>(tys, ty::UnionReduction::Subtype, None, None, None, None)
             };
-            let array_ty = self.create_array_ty(ty, false);
+            let array_ty = self.create_array_ty_worker::<false>(ty);
             self.create_array_literal_ty(array_ty)
         }
     }
@@ -3566,7 +3570,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if (ty == self.auto_ty || ty == self.auto_array_ty())
-            && self.is_evolving_array_op_target(ident.id)
+            && !self.is_evolving_array_op_target(ident.id)
         {
             if flow_ty == self.auto_ty || flow_ty == self.auto_array_ty() {
                 if self.config.compiler_options().no_implicit_any() {
@@ -4982,10 +4986,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_fn_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if ty
-            .get_object_flags()
-            .intersects(ObjectFlags::EVOLVING_ARRAY)
-        {
+        if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
             return false;
         };
         self.resolve_structured_type_members(ty);

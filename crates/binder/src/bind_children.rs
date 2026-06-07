@@ -1,6 +1,7 @@
 use super::BinderState;
 use super::container_flags::container_flags_for_node;
 use super::create::DeclareSymbolProperty;
+use super::flow::FlowArrayMutationNode;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
@@ -11,6 +12,7 @@ use super::symbol::{SymbolID, SymbolName};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::BinOpKind;
 use bolt_ts_ast::NodeFlags;
+use bolt_ts_ast::keyword::is_push_or_unshift;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_if_stmt(&mut self, n: &'cx ast::IfStmt<'cx>) {
@@ -1048,6 +1050,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.right.id());
                 if !self.is_assignment_target(n.id) {
                     self.bind_assignment_target_flow(n.left);
+                    if n.op == ast::AssignOp::Eq
+                        && let ast::ExprKind::EleAccess(left) = n.left.kind
+                    {
+                        if self.is_narrowable_operand(left.expr) {
+                            let f = self.create_flow_array_mutation(
+                                self.current_flow.unwrap(),
+                                FlowArrayMutationNode::AssignmentExpression(n),
+                            );
+                            self.current_flow = Some(f);
+                        }
+                    }
                 }
             }
             ArrowFnExpr(n) => {
@@ -1635,10 +1648,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        if let ast::ExprKind::PropAccess(prop_access) = n.expr.kind {
-            // TODO: private
-            // && let n = prop_access.name
-            // && self.is_narrowable_operand(prop_access.expr)
+        if let ast::ExprKind::PropAccess(property_access) = n.expr.kind
+            && self.is_narrowable_operand(property_access.expr)
+            && is_push_or_unshift(property_access.name.name)
+        {
+            // TODO: only handler identifier
+            let f = self.create_flow_array_mutation(
+                self.current_flow.unwrap(),
+                FlowArrayMutationNode::CallExpression(n),
+            );
+            self.current_flow = Some(f);
         }
     }
 
@@ -1882,8 +1901,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.finish_flow_label(post_while_label));
     }
 
-    fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
-        // TODO:
+    fn bind_do_stmt(&mut self, n: &ast::DoWhileStmt<'cx>) {
+        let pre_do_label = self.flow_nodes.create_loop_label();
+        let pre_condition_label = {
+            let t = self.flow_nodes.create_loop_label();
+            self.set_continue_target(t)
+        };
+        let post_do_label = self.flow_nodes.create_branch_label();
+        self.flow_nodes
+            .add_antecedent(pre_do_label, self.current_flow.unwrap());
+        self.current_flow = Some(pre_do_label);
+        self.bind_iterative_stmt(n.stmt, pre_do_label, pre_condition_label);
+        self.flow_nodes
+            .add_antecedent(pre_condition_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(pre_condition_label));
+        self.bind_cond(Some(n.expr), pre_do_label, post_do_label);
+        self.current_flow = Some(self.finish_flow_label(post_do_label));
     }
 
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {

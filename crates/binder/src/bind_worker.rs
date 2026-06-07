@@ -299,9 +299,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let name = match n.name.kind {
                 bolt_ts_ast::BindingKind::Ident(ident) => SymbolName::Atom(ident.name),
                 bolt_ts_ast::BindingKind::ObjectPat(_) => {
-                    todo!()
+                    // TODO: delay_span_bug
+                    return;
                 }
-                bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                bolt_ts_ast::BindingKind::ArrayPat(_) => {
+                    // TODO: delay_span_bug
+                    return;
+                }
             };
             self.declare_symbol(
                 Some(name),

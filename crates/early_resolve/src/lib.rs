@@ -221,7 +221,10 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.expr);
                 self.resolve_stmt(n.stmt);
             }
-            Do(_) => {}
+            Do(n) => {
+                self.resolve_stmt(n.stmt);
+                self.resolve_expr(n.expr);
+            }
             Debugger(_) => {}
             ExportAssign(n) => match n.expr.kind {
                 bolt_ts_ast::ExprKind::Ident(ident) => {

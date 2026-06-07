@@ -339,7 +339,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 let ty =
                     self.get_indexed_access_ty(rest_ty, self.number_ty, None, None, None, None);
-                self.create_array_ty(ty, false)
+                self.create_array_ty_worker::<false>(ty)
             };
         }
         let mut tys = Vec::with_capacity(param_count);
@@ -1858,7 +1858,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
-            let ty = self.create_array_ty(ty, false);
+            let ty = self.create_array_ty_worker::<false>(ty);
             params.push(self.create_combined_symbol_for_overload_failure(rest_param_symbols, ty));
             flags |= SigFlags::HAS_REST_PARAMETER;
         }

@@ -1,0 +1,11 @@
+  × Cannot find name 'T'.
+   ╭─[../../tests/compiler/genericMergedDeclarationUsingTypeParameter2/index.ts:7:19]
+ 7 │ T
+   · ─
+   ╰────
+
+  × Cannot find name 'T'.
+   ╭─[../../tests/compiler/genericMergedDeclarationUsingTypeParameter2/index.ts:9:14]
+ 9 │ T
+   · ─
+   ╰────

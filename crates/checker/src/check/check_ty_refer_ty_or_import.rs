@@ -184,7 +184,7 @@ impl<'cx> TyChecker<'cx> {
                         .as_named_tuple_ty()
                         .is_some_and(|n| n.dotdotdot.is_some())
                 {
-                    inferences.push(self.create_array_ty(self.unknown_ty, false));
+                    inferences.push(self.create_array_ty_worker::<false>(self.unknown_ty));
                 } else if grand_parent_node.is_template_span_ty() {
                     inferences.push(self.string_ty);
                 } else if grand_parent_node.is_ty_param()

@@ -13,6 +13,7 @@ use bolt_ts_ast::keyword::is_push_or_unshift;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::AssignmentKind;
+use bolt_ts_binder::FlowArrayMutationNode;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
@@ -94,17 +95,19 @@ impl<'cx> TyChecker<'cx> {
 
         self.shared_flow_info.truncate(shared_flow_start);
 
-        let result_ty = if !evolved_ty
+        if evolved_ty
             .get_object_flags()
             .contains(ObjectFlags::EVOLVING_ARRAY)
         {
-            evolved_ty
+            debug_assert!(evolved_ty.kind.is_object_evolving_array());
+            if self.is_evolving_array_op_target(refer) {
+                self.auto_array_ty()
+            } else {
+                self.get_final_array_ty(evolved_ty)
+            }
         } else {
-            // TODO: if is_evolving_array_op_target
-            todo!()
-        };
-
-        evolved_ty
+            evolved_ty
+        }
     }
 
     pub fn is_evolving_array_op_target(&mut self, node: ast::NodeID) -> bool {
@@ -276,6 +279,24 @@ impl<'cx> TyChecker<'cx> {
                         key,
                     )
                 };
+            } else if flags.contains(FlowFlags::ARRAY_MUTATION) {
+                if let Some(t) = self.get_ty_at_flow_array_mutation(
+                    flow,
+                    refer,
+                    shared_flow_start,
+                    declared_ty,
+                    init_ty,
+                    flow_container,
+                    key,
+                ) {
+                    ty = t;
+                } else {
+                    flow = match &self.flow_node(flow).kind {
+                        FlowNodeKind::ArrayMutation(n) => n.antecedent,
+                        _ => unreachable!(),
+                    };
+                    continue;
+                };
             } else {
                 ty = FlowTy::Ty(self.convert_auto_to_any(declared_ty));
             }
@@ -285,6 +306,108 @@ impl<'cx> TyChecker<'cx> {
             }
             return ty;
         }
+    }
+
+    fn get_ty_at_flow_array_mutation(
+        &mut self,
+        flow: FlowID,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> Option<FlowTy<'cx>> {
+        let FlowNodeKind::ArrayMutation(n) = &self.flow_node(flow).kind else {
+            unreachable!()
+        };
+        if declared_ty != self.auto_ty && declared_ty != self.auto_array_ty() {
+            return None;
+        }
+        let flow_array_mutation_node = n.node;
+        let expr = match flow_array_mutation_node {
+            FlowArrayMutationNode::CallExpression(n) => {
+                let ast::ExprKind::PropAccess(expr) = n.expr.kind else {
+                    unreachable!()
+                };
+                expr.expr
+            }
+            FlowArrayMutationNode::AssignmentExpression(n) => {
+                let ast::ExprKind::EleAccess(expr) = n.left.kind else {
+                    unreachable!()
+                };
+                expr.expr
+            }
+        };
+        let antecedent = n.antecedent;
+        let reference_candidate = self.get_reference_candidate(expr);
+        if !self.is_matching_reference(refer, reference_candidate.id()) {
+            return None;
+        }
+        let flow_ty = self.get_ty_at_flow_node(
+            antecedent,
+            refer,
+            shared_flow_start,
+            declared_ty,
+            init_ty,
+            flow_container,
+            key,
+        );
+        let ty = self.get_ty_from_flow_ty(flow_ty);
+        let add_evolving_array_element_ty =
+            |this: &mut Self, evolving_array_ty: &'cx ty::Ty<'cx>, n: &'cx ast::Expr<'cx>| {
+                let Some(a) = evolving_array_ty.kind.as_object_evolving_array() else {
+                    unreachable!()
+                };
+                let ty = this.get_context_free_ty_of_expr(n);
+                let ty = this.get_base_ty_of_literal_ty(ty);
+                let ty = this.get_regular_ty_of_object_literal(ty);
+                if this.is_type_subset_of(ty, a.element_ty) {
+                    evolving_array_ty
+                } else {
+                    let tys = [a.element_ty, ty];
+                    let ty = this.get_union_ty::<false>(
+                        &tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                    this.get_evolving_array_ty(ty)
+                }
+            };
+        Some(
+            if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
+                debug_assert!(ty.kind.is_object_evolving_array());
+                let mut evolved_ty = ty;
+                match flow_array_mutation_node {
+                    FlowArrayMutationNode::CallExpression(n) => {
+                        for arg in n.args {
+                            evolved_ty = add_evolving_array_element_ty(self, evolved_ty, arg);
+                        }
+                    }
+                    FlowArrayMutationNode::AssignmentExpression(n) => {
+                        let ast::ExprKind::EleAccess(expr) = n.left.kind else {
+                            unreachable!()
+                        };
+                        let index_ty = self.get_context_free_ty_of_expr(expr.arg);
+                        if self
+                            .is_type_assignable_to_kind::<false>(index_ty, TypeFlags::NUMBER_LIKE)
+                        {
+                            evolved_ty = add_evolving_array_element_ty(self, evolved_ty, n.right);
+                        }
+                    }
+                }
+                if evolved_ty == ty {
+                    flow_ty
+                } else {
+                    self.create_flow_ty(evolved_ty, flow_ty.is_incomplete())
+                }
+            } else {
+                flow_ty
+            },
+        )
     }
 
     fn get_type_at_switch_clause(
@@ -811,14 +934,28 @@ impl<'cx> TyChecker<'cx> {
         declared_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if self.is_evolving_array_ty_list(tys) {
-            todo!()
+            let tys = tys
+                .iter()
+                .map(|ty| {
+                    // get_element_ty_of_evolving_array_ty
+                    if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
+                        ty.kind.expect_object_evolving_array().element_ty
+                    } else {
+                        ty
+                    }
+                })
+                .collect::<Vec<_>>();
+            let ty =
+                self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None);
+            return self.get_evolving_array_ty(ty);
         }
 
         let result = {
-            // TODO: let tys = self
-            //     .same_map_tys(tys, |this, ty, _| this.finalize_evolving_array_ty(ty))
-            //     .unwrap();
-            let ty = self.get_union_ty::<false>(tys, subtype_reduction, None, None, None, None);
+            let tys = tys
+                .iter()
+                .map(|ty| self.finalize_evolving_array_ty(ty))
+                .collect::<Vec<_>>();
+            let ty = self.get_union_ty::<false>(&tys, subtype_reduction, None, None, None, None);
             self.recombine_unknown_ty(ty)
         };
         if result != declared_ty
@@ -861,8 +998,9 @@ impl<'cx> TyChecker<'cx> {
         let parent = self.parent(n.id).unwrap();
         let parent_node = self.p.node(parent);
         let is_destructuring_default_assignment = match parent_node {
-            ast::Node::ArrayLit(_) => todo!(),
-            ast::Node::PropAccessExpr(_) => todo!(),
+            ast::Node::ArrayLit(_) | ast::Node::PropAccessExpr(_) => self
+                .node_query(parent.module())
+                .is_destructuring_assignment_target(parent),
             _ => false,
         };
         if is_destructuring_default_assignment {
@@ -957,7 +1095,34 @@ impl<'cx> TyChecker<'cx> {
                 return Some(self.create_flow_ty(ty, is_incomplete));
             }
             if declared_ty == self.auto_ty || declared_ty == self.auto_array_ty() {
-                // TODO: is_empty_array_assignment
+                let is_empty_array_assignment = match self.p.node(node) {
+                    ast::Node::VarDecl(n) if let Some(init) = n.init => match init.kind {
+                        ast::ExprKind::ArrayLit(n) => n.is_empty(),
+                        _ => false,
+                    },
+                    ast::Node::Ident(_)
+                        if let Some(n) =
+                            self.p.node(self.parent(node).unwrap()).as_assign_expr() =>
+                    {
+                        match n.right.kind {
+                            ast::ExprKind::ArrayLit(n) => n.is_empty(),
+                            _ => false,
+                        }
+                    }
+                    _ => false,
+                };
+                return Some(FlowTy::Ty(if is_empty_array_assignment {
+                    let ty = self.never_ty;
+                    self.get_evolving_array_ty(ty)
+                } else {
+                    let assigned_ty = self.get_init_or_assigned_ty(flow, refer);
+                    let assigned_ty = self.get_widened_literal_ty(assigned_ty);
+                    if self.is_type_assignable_to(assigned_ty, declared_ty) {
+                        assigned_ty
+                    } else {
+                        declared_ty
+                    }
+                }));
             }
             let nq = self.node_query(node.module());
             let t = if nq.is_in_compound_like_assignment(node) {
@@ -1139,7 +1304,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn finalize_evolving_array_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.get_object_flags().contains(ObjectFlags::EVOLVING_ARRAY) {
-            todo!()
+            self.get_final_array_ty(ty)
         } else {
             ty
         }
@@ -1306,13 +1471,16 @@ impl<'cx> TyChecker<'cx> {
         if self
             .node_query(expr.module())
             .is_expression_of_optional_chain_root(expr)
-            || self.parent(expr).is_some_and(|p| {
-                self.p.node(p).as_bin_expr().is_some_and(|e| {
+            || self.parent(expr).is_some_and(|p| match self.p.node(p) {
+                ast::Node::BinExpr(e) => {
                     matches!(e.op.kind, ast::BinOpKind::Nullish) && e.left.id() == expr
-                })
+                }
+                ast::Node::AssignExpr(e) => {
+                    matches!(e.op, ast::AssignOp::NullishEq) && e.left.id() == expr
+                }
+                _ => false,
             })
         {
-            // TODO: assignment nullish
             return self.narrow_ty_optionality(ty, declared_ty, refer, expr, assume_true);
         }
 
@@ -1882,7 +2050,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_reference_candidate(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
+    fn get_reference_candidate(&self, expr: &'cx ast::Expr<'cx>) -> &'cx ast::Expr<'cx> {
         let n = ast::Expr::skip_parens(expr);
         match n.kind {
             ast::ExprKind::Assign(node) => match node.op {

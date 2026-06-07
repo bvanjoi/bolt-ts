@@ -1,0 +1,5 @@
+  × Cannot find name 'SomeUndefinedFunction'.
+   ╭─[../../tests/compiler/declarationEmitExpressionInExtends7/index.ts:7:30]
+ 7 │ SomeUndefinedFunction
+   · ─────────────────────
+   ╰────

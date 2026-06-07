@@ -8,6 +8,7 @@ use super::ty::AccessFlags;
 use super::ty::Ty;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::SymbolFlags;
@@ -182,7 +183,7 @@ impl<'cx> TyChecker<'cx> {
                 )
                 .unwrap()
             } else {
-                self.create_array_ty(element_ty, false)
+                self.create_array_ty_worker::<false>(element_ty)
             }
         } else if self.is_array_like_ty(parent_parent_ty) {
             let index_ty = self.get_number_literal_type_from_number(index() as f64);
@@ -538,7 +539,7 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
-    fn get_ty_for_object_binding_elem(
+    fn get_ty_for_object_binding_element(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,
@@ -578,8 +579,9 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let parent_id = self.parent(id).unwrap();
         let parent = self.p.node(parent_id);
+        let is_variable_declaration = self.p.node(id).is_var_decl();
 
-        if self.p.node(id).is_var_decl() {
+        if is_variable_declaration {
             match parent {
                 ast::Node::ForInStmt(stmt) => {
                     let expr_ty = self.check_expression(stmt.expr, Some(check_mode));
@@ -606,7 +608,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::Node::ObjectPat(pat) => {
                 let n = self.p.node(id).expect_object_binding_elem();
-                return self.get_ty_for_object_binding_elem(n, pat);
+                return self.get_ty_for_object_binding_element(n, pat);
             }
             _ => {}
         }
@@ -628,6 +630,39 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.add_optionality::<false>(ty, is_optional)
             });
+        }
+
+        if (self.config.compiler_options().no_implicit_any()
+            || self.node_query(id.module()).is_in_js_file(id))
+            && is_variable_declaration
+            && let Some(declaration_name) = decl_node.name()
+            && matches!(declaration_name, ast::DeclarationName::Ident(_))
+            && let nq = self.node_query(id.module())
+            && !nq
+                .get_combined_modifier_flags(id)
+                .contains(ast::ModifierFlags::EXPORT)
+            && !self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+        {
+            if !nq
+                .get_combined_node_flags(id)
+                .intersects(ast::NodeFlags::CONSTANT)
+                && decl.init().is_none_or(|init| {
+                    // is_null_or_undefined
+                    let init = ast::Expr::skip_parens(init);
+                    match init.kind {
+                        ast::ExprKind::Ident(n) if matches!(n.name, keyword::KW_UNDEFINED) => true,
+                        ast::ExprKind::NullLit(_) => true,
+                        _ => false,
+                    }
+                })
+            {
+                return Some(self.auto_ty);
+            } else if decl
+                .init()
+                .is_some_and(|init| matches!(init.kind, ast::ExprKind::ArrayLit(n) if n.is_empty()))
+            {
+                return Some(self.auto_array_ty());
+            }
         }
 
         if let Some(param_decl) = decl.as_param() {

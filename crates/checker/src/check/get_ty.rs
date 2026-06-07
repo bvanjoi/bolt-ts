@@ -2984,4 +2984,35 @@ impl<'cx> TyChecker<'cx> {
             t.is_unit()
         }
     }
+
+    pub(super) fn get_final_array_ty(
+        &mut self,
+        evolving_array_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(evolving_array_ty.kind.is_object_evolving_array());
+        if let Some(cache) = self
+            .final_array_ty_of_evolving_array_cache
+            .get(&evolving_array_ty.id)
+        {
+            return cache;
+        };
+        let element_ty = evolving_array_ty
+            .kind
+            .expect_object_evolving_array()
+            .element_ty;
+        // create_final_array_ty
+        let element_ty = if element_ty.flags.contains(TypeFlags::NEVER) {
+            self.auto_array_ty()
+        } else if let Some(u) = element_ty.kind.as_union() {
+            self.get_union_ty::<false>(u.tys, ty::UnionReduction::Subtype, None, None, None, None)
+        } else {
+            element_ty
+        };
+        let ty = self.create_array_ty_worker::<false>(element_ty);
+        let prev = self
+            .final_array_ty_of_evolving_array_cache
+            .insert(evolving_array_ty.id, ty);
+        debug_assert!(prev.is_none());
+        ty
+    }
 }

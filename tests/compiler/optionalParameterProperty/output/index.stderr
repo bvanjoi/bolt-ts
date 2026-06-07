@@ -1,0 +1,5 @@
+  × Class 'D' incorrectly extends base class 'C'.
+    ╭─[../../tests/compiler/optionalParameterProperty/index.ts:10:7]
+ 10 │ D
+    · ─
+    ╰────

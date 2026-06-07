@@ -482,7 +482,7 @@ impl<'cx> TyChecker<'cx> {
                     let mapper = self.prepend_ty_mapping(ty_var, ty, Some(mapper));
                     self.instantiate_ty_worker(mapped_ty, mapper)
                 } else {
-                    let target = self.create_array_ty(ty, false);
+                    let target = self.create_array_ty_worker::<false>(ty);
                     let mapper = self.prepend_ty_mapping(ty_var, target, Some(mapper));
                     let t = self.instantiate_ty_worker(mapped_ty, mapper);
                     self.get_element_ty_of_array_ty(t)

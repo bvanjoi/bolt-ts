@@ -611,7 +611,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let target_check_ty = if source_flags.contains(ElementFlags::VARIADIC)
                         && target_flags.contains(ElementFlags::REST)
                     {
-                        self.c.create_array_ty(target_ty, false)
+                        self.c.create_array_ty_worker::<false>(target_ty)
                     } else {
                         self.c.remove_missing_ty(
                             target_ty,

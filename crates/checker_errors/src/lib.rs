@@ -1855,3 +1855,11 @@ pub struct OverloadSignaturesMustAllBePublicPrivateOrProtected {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot find name '{name}'.")]
+pub struct CannotFindName {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

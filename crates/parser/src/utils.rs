@@ -737,12 +737,23 @@ impl<'cx> ParserState<'cx, '_> {
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
+
+        let modifier_contain_parameter_property_modifier = modifiers.is_some_and(|ms| {
+            ms.flags
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        });
+
+        if modifier_contain_parameter_property_modifier
+            && !matches!(name.kind, ast::BindingKind::Ident(_))
+        {
+            let error =
+                errors::AParameterPropertyMayNotBeDeclaredUsingABindingPattern { span: name.span };
+            self.push_error(Box::new(error));
+        }
+
         if dotdotdot.is_some() {
-            if let Some(ms) = modifiers
-                && ms
-                    .flags
-                    .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-            {
+            if modifier_contain_parameter_property_modifier {
+                let ms = modifiers.unwrap();
                 let kinds = ms
                     .list
                     .iter()

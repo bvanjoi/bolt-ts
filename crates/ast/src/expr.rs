@@ -901,6 +901,12 @@ pub struct ArrayLit<'cx> {
     pub elems: Exprs<'cx>,
 }
 
+impl ArrayLit<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.elems.is_empty()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ImportExpression {
     pub id: NodeID,

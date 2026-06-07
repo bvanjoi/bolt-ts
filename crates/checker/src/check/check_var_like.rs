@@ -45,6 +45,7 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.get_symbol_of_declaration(decl_id);
         let ty = self.get_type_of_symbol(symbol);
+        let ty = self.convert_auto_to_any(ty);
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {

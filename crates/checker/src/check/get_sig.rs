@@ -1,4 +1,5 @@
 use bolt_ts_ast::keyword;
+use bolt_ts_ast::keyword::is_prim_value_name;
 use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
@@ -348,7 +349,7 @@ impl<'cx> TyChecker<'cx> {
                 && let Some(parent_parent) = self.parent(decl).and_then(|n| self.parent(decl))
                 && self.p.node(parent_parent).is_for_of_stmt()
             {
-                // TODO:
+                todo!()
             }
             None
         } else {
@@ -366,7 +367,7 @@ impl<'cx> TyChecker<'cx> {
         }
         use ast::ExprKind::*;
         match n.kind {
-            Ident(n) => {
+            Ident(n) if !is_prim_value_name(n.name) => {
                 let symbol = self.final_res(n.id);
                 let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
                 self.get_explicit_ty_of_symbol(symbol)
@@ -406,7 +407,7 @@ impl<'cx> TyChecker<'cx> {
             } else if let parent = self.parent(node).unwrap()
                 && let Some(stmt) = self.p.node(parent).as_expr_stmt()
             {
-                func_ty = self.get_ty_of_dotted_name(stmt.expr);
+                func_ty = self.get_ty_of_dotted_name(expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
                 if self.node_query(node.module()).is_optional_chain(node) {
                     todo!()

@@ -669,6 +669,18 @@ impl<'cx> super::TyChecker<'cx> {
         meaning: SymbolFlags,
     ) -> SymbolID {
         let id = self.resolve_symbol_by_ident(n);
+        if !DONT_RESOLVE_ALIAS
+            && id != Symbol::ERR
+            && self.symbol(id).flags.contains(SymbolFlags::ALIAS)
+            && !self.get_symbol_flags::<false>(id).intersects(meaning)
+        {
+            let error = errors::CannotFindName {
+                span: n.span,
+                name: self.atoms.get(n.name).to_string(),
+            };
+            self.push_error(Box::new(error));
+            return Symbol::ERR;
+        }
         let symbol = self.get_merged_symbol(id);
         if symbol == Symbol::ERR || DONT_RESOLVE_ALIAS {
             return symbol;
@@ -726,10 +738,14 @@ impl<'cx> super::TyChecker<'cx> {
         &mut self,
         mut symbol: SymbolID,
     ) -> SymbolFlags {
-        let mut seen_symbols = fx_hashset_with_capacity(32);
-        let mut symbol_flags = self.symbol(symbol).flags;
+        let symbol_flags = self.symbol(symbol).flags;
         let mut flags = symbol_flags;
-        while symbol_flags.intersects(SymbolFlags::ALIAS) {
+        let mut is_alias = symbol_flags.contains(SymbolFlags::ALIAS);
+        if !is_alias {
+            return flags;
+        }
+        let mut seen_symbols = fx_hashset_with_capacity(32);
+        while is_alias {
             let target = self.resolve_alias(symbol);
             let target = self.get_export_symbol_of_value_symbol_if_exported(target);
             if target == Symbol::ERR {
@@ -745,7 +761,7 @@ impl<'cx> super::TyChecker<'cx> {
 
             flags |= t_flags;
             symbol = target;
-            symbol_flags = t_flags;
+            is_alias = t_flags.contains(SymbolFlags::ALIAS);
         }
         flags
     }

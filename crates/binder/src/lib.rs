@@ -28,6 +28,8 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::create::set_value_declaration;
+pub use self::flow::FlowArrayMutation;
+pub use self::flow::FlowArrayMutationNode;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::flow_in_node::{FlowInNode, FlowInNodes};
 pub use self::merge::merge_global_symbol;

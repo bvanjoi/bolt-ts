@@ -68,7 +68,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         if context.is_none()
-            && let Some(widened) = self.widened_tys.get(ty)
+            && let Some(widened) = self.widened_tys.get(&ty.id)
         {
             return widened;
         }
@@ -120,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         if context.is_none() {
-            let prev = self.widened_tys.insert(ty, result);
+            let prev = self.widened_tys.insert(ty.id, result);
             debug_assert!(prev.is_none());
         }
         result

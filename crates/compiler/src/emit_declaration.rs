@@ -319,7 +319,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                     use ast::ClassElemKind::*;
                     match elem.kind {
                         Ctor(n) => this.visit_class_ctor(n),
-                        Prop(_n) => todo!(),
+                        Prop(n) => this.visit_class_prop_elem(n),
                         Method(n) => this.visit_class_method_elem(n),
                         IndexSig(n) => this.visit_index_sig_decl(n),
                         Getter(_n) => todo!(),
@@ -336,6 +336,25 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_class_prop_elem(&mut self, node: &'cx bolt_ts_ast::ClassPropElem<'cx>) {
+        if let Some(ms) = node.modifiers {
+            if ms.flags.contains(ast::ModifierFlags::STATIC) {
+                self.emitter.print().p("static");
+                self.emitter.print().p_whitespace();
+            }
+        }
+        self.visit_prop_name(node.name);
+        if node.question.is_some() {
+            self.emitter.print().p_question();
+        }
+        if let Some(ty) = node.ty {
+            self.emitter.print().p_colon();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(ty);
+        }
+        self.emitter.print().p_semi();
     }
 
     fn visit_setter_decl(&mut self, node: &'cx bolt_ts_ast::SetterDecl<'cx>) {

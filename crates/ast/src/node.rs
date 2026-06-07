@@ -402,6 +402,7 @@ impl<'cx> Node<'cx> {
             Node::CallSigDecl(n) => n.ty_params,
             Node::InterfaceDecl(n) => n.ty_params,
             Node::FnTy(n) => n.ty_params,
+            Node::ObjectMethodMember(n) => n.ty_params,
             _ => None,
         }
     }

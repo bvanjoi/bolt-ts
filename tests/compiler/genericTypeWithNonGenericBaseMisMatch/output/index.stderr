@@ -1,0 +1,12 @@
+  × Property 'f' in type 'X<T, X>' is not assignable to the same property in
+  │ base type 'I'.
+   ╭─[../../tests/compiler/genericTypeWithNonGenericBaseMisMatch/index.ts:9:2]
+ 9 │ f
+   · ─
+   ╰────
+
+  × Type 'X<{ a: string; }>' is not assignable to type 'I'.
+    ╭─[../../tests/compiler/genericTypeWithNonGenericBaseMisMatch/index.ts:13:5]
+ 13 │ i
+    · ─
+    ╰────

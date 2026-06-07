@@ -1,0 +1,5 @@
+  × Parameter 'match' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualOverloadListFromUnionWithPrimitiveNoImplicitAny/index.ts:18:20]
+ 18 │ match
+    · ─────
+    ╰────

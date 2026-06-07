@@ -1,0 +1,5 @@
+  × Type '{ a: number; }' does not satisfy the constraint '{ a: string; }'.
+   ╭─[../../tests/compiler/invalidConstraint1/index.ts:9:11]
+ 9 │ { a: number }
+   · ─────────────
+   ╰────

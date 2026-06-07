@@ -1,0 +1,27 @@
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop6/index.ts:152:9]
+ 152 │ x == 1
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop6/index.ts:156:9]
+ 156 │ x == 2
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '1'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop6/index.ts:201:9]
+ 201 │ x == 1
+     · ──────
+     ╰────
+
+  × This comparison appears to be unintentional because the types '0' and '2'
+  │ have no overlap.
+     ╭─[../../tests/compiler/capturedLetConstInLoop6/index.ts:205:9]
+ 205 │ x == 2
+     · ──────
+     ╰────
