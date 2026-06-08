@@ -14,7 +14,7 @@ declare let n: number;
 let e: E = n; // ok because it's too inconvenient otherwise
 e = 0; // ok, in range
 e = 4; // ok, out of range, but allowed computed enums don't have all members
-//~^ ERROR: Type 'number' is not assignable to type 'E.A | E.B | E.C'.
+//~^ ERROR: Type 'number' is not assignable to type 'E'.
 let a: E.A = 0; // ok, A === 0
 a = 2; // error, 2 !== 0
 //~^ ERROR: Type 'E.C' is not assignable to type 'E.A'.

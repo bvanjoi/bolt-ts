@@ -6,7 +6,7 @@ class Clod {
 }
 module Clod {
   var p = Clod.x;
-  //~^ ERROR: Property 'x' is private and only accessible within class.
+  //~^ ERROR: Property 'x' is private and only accessible within class 'Clod'.
   var q = x;
   //~^ ERROR: Cannot find name 'x'.
 

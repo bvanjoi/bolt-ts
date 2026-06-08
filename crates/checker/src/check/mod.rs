@@ -18,8 +18,7 @@ mod create_ty;
 mod cycle_check;
 mod discriminant;
 mod elaborate_error;
-use bolt_ts_ast::keyword::is_prim_value_name;
-pub use bolt_ts_checker_errors as errors;
+
 mod eval;
 mod expect;
 mod flow;
@@ -66,6 +65,7 @@ mod type_predicate;
 mod unwrap_ty;
 mod utils;
 
+use bolt_ts_ast::keyword::is_prim_value_name;
 use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr};
@@ -76,6 +76,7 @@ use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_binder::{param_index_in_parameter_list, symbol_name_from_enum_member_name};
+use bolt_ts_checker_errors as errors;
 use bolt_ts_config::NormalizedTsConfig;
 use bolt_ts_middle::F64Represent;
 use bolt_ts_module_graph::{ModuleGraph, ModuleRes};
@@ -2418,18 +2419,20 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if flags.contains(ast::ModifierFlags::PRIVATE) {
-            // TODO: use parent symbol to find the class
-            let p = self.parent(loc).unwrap();
-            return if self
-                .node_query(p.module())
-                .find_ancestor(p, |n| self.p.node(n).is_class_like().then_some(true))
-                .is_none()
+            let p = self.get_parent_of_symbol(prop).unwrap();
+            let declaring_class_declaration = self.get_class_like_decl_of_symbol(p).unwrap();
+            return if !self
+                .node_query(loc.module())
+                .is_node_within_class(loc, declaring_class_declaration)
             {
                 if let Some(error_node) = error_node {
+                    let class = self.get_declaring_class(prop).unwrap();
+                    let class = self.print_ty(class, None).to_string();
                     let prop = self.symbol(prop).name.to_string(&self.atoms);
                     let error = errors::PropertyIsPrivateAndOnlyAccessibleWithinClass {
                         span: self.p.node(error_node).span(),
                         prop,
+                        class,
                     };
                     self.push_error(Box::new(error));
                 }
@@ -3550,8 +3553,18 @@ impl<'cx> TyChecker<'cx> {
             self.undefined_ty
         } else if assume_initialized {
             if is_param {
-                // TODO: remove_optionality_from_decl_ty
-                ty
+                // remove_optionality_from_declared_type
+                if self.config.compiler_options().strict_null_checks()
+                    && let declaration_node = self.p.node(decl)
+                    && let ast::Node::ParamDecl(n) = declaration_node
+                    && n.init.is_some()
+                    && self.has_type_facts(ty, TypeFacts::IS_UNDEFINED)
+                    && !self.parameter_initializer_contains_undefined(n)
+                {
+                    self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED)
+                } else {
+                    ty
+                }
             } else {
                 ty
             }
@@ -3594,6 +3607,33 @@ impl<'cx> TyChecker<'cx> {
         } else {
             flow_ty
         }
+    }
+
+    fn parameter_initializer_contains_undefined(&mut self, decl: &'cx ast::ParamDecl<'cx>) -> bool {
+        if let Some(cache) = self
+            .get_node_links(decl.id)
+            .get_parameter_initializer_contains_undefined()
+        {
+            return cache;
+        }
+        if !self.push_ty_resolution(ResolutionKey::ParameterInitializerContainsUndefined(
+            decl.id,
+        )) {
+            todo!();
+            // return true;
+        }
+
+        let ty = self.check_declaration_initializer(decl, CheckMode::empty(), None);
+        let contains_undefined = self.has_type_facts(ty, TypeFacts::IS_UNDEFINED);
+
+        if self.pop_ty_resolution().has_cycle() {
+            todo!();
+            // return true;
+        }
+
+        self.get_mut_node_links(decl.id)
+            .set_parameter_initializer_contains_undefined(contains_undefined);
+        contains_undefined
     }
 
     fn check_non_null_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {

@@ -13,6 +13,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::BinOpKind;
 use bolt_ts_ast::NodeFlags;
 use bolt_ts_ast::keyword::is_push_or_unshift;
+use bolt_ts_ast::r#trait::VarLike;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_if_stmt(&mut self, n: &'cx ast::IfStmt<'cx>) {
@@ -1581,9 +1582,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
-        if let Some(init) = n.init {
-            self.bind(init.id());
+        self.bind_initializer(n.init);
+    }
+
+    fn bind_initializer(&mut self, init: Option<&'cx ast::Expr<'cx>>) {
+        let Some(init) = init else { return };
+        let entry_flow = self.current_flow;
+        self.bind(init.id());
+        if entry_flow == Some(self.unreachable_flow_node) || entry_flow == self.current_flow {
+            return;
         }
+        let exit_flow = self.flow_nodes.create_branch_label();
+        self.flow_nodes
+            .add_antecedent(exit_flow, entry_flow.unwrap());
+        self.flow_nodes
+            .add_antecedent(exit_flow, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(exit_flow));
     }
 
     fn bind_object_binding_elem_flow(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -1596,16 +1610,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_binding(name);
             }
         }
-        if let Some(init) = n.init {
-            self.bind(init.id());
-        }
+        self.bind_initializer(n.init());
     }
 
     fn bind_array_binding_flow(&mut self, n: &ast::ArrayBinding<'cx>) {
         self.bind_binding(n.name);
-        if let Some(init) = n.init {
-            self.bind(init.id());
-        }
+        self.bind_initializer(n.init);
     }
 
     fn bind_non_null_expr_flow(&mut self, n: &ast::NonNullExpr<'cx>) {

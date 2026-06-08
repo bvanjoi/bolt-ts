@@ -25,7 +25,8 @@ links!(
     (context_free_ty, &'cx ty::Ty<'cx>),
     (is_exhaustive, ExhaustiveState),
     (type_checked, bool),
-    (switch_tys, ty::Tys<'cx>)
+    (switch_tys, ty::Tys<'cx>),
+    (parameter_initializer_contains_undefined, bool)
 );
 
 impl NodeLinks<'_> {

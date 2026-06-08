@@ -1,4 +1,4 @@
-  × Type 'number' is not assignable to type 'E.A | E.B | E.C'.
+  × Type 'number' is not assignable to type 'E'.
     ╭─[../../tests/compiler/enumAssignmentCompat5/index.ts:16:1]
  16 │ e
     · ─

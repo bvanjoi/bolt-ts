@@ -690,11 +690,12 @@ pub struct AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModule
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
-#[error("Property '{prop}' is private and only accessible within class.")]
+#[error("Property '{prop}' is private and only accessible within class '{class}'.")]
 pub struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
     #[label(primary)]
     pub span: Span,
     pub prop: String,
+    pub class: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]

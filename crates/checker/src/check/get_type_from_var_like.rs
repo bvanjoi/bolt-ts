@@ -709,7 +709,7 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        let widened = self.get_widened_lit_ty_for_init(decl, ty);
+        let widened = self.get_widened_literal_ty_for_initializer(decl, ty);
         if self.node_query(decl.id().module()).is_in_js_file(decl.id()) {
             todo!()
         }

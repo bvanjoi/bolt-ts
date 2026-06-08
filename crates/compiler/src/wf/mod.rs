@@ -1,12 +1,11 @@
-mod errors;
-
 use bolt_ts_ast::keyword::is_reserved_type_name;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident};
 use bolt_ts_atom::AtomIntern;
-use bolt_ts_checker::check::errors::DeclKind;
+use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
+use bolt_ts_wf_errors as errors;
 
 pub fn well_formed_check_parallel(
     p: &ParsedMap,

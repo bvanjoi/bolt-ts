@@ -131,12 +131,19 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn get_widened_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        if ty.kind.is_number_lit() && self.is_fresh_literal_ty(ty) {
+        if ty.flags.intersects(TypeFlags::ENUM_LIKE) && self.is_fresh_literal_ty(ty) {
+            self.get_base_ty_of_enum_like_ty_worker(ty)
+        } else if ty.kind.is_number_lit() && self.is_fresh_literal_ty(ty) {
             self.number_ty
         } else if ty.kind.is_string_lit() && self.is_fresh_literal_ty(ty) {
             self.string_ty
+        } else if ty.flags.contains(TypeFlags::BIG_INT_LITERAL) && self.is_fresh_literal_ty(ty) {
+            self.bigint_ty
         } else if ty.flags.contains(TypeFlags::BOOLEAN_LITERAL) && self.is_fresh_literal_ty(ty) {
             self.boolean_ty()
+        } else if let Some(u) = ty.kind.as_union() {
+            self.map_union_ty(ty, u, |this, t| Some(this.get_widened_literal_ty(t)), false)
+                .unwrap()
         } else {
             ty
         }
@@ -276,12 +283,11 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn get_widened_lit_ty_for_init(
+    pub(super) fn get_widened_literal_ty_for_initializer(
         &mut self,
         decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: as const
         let id = decl.id();
         let nq = self.node_query(id.module());
         let flags = nq.get_combined_node_flags(id);
@@ -297,7 +303,7 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        self.get_widened_lit_ty_for_init(decl, ty)
+        self.get_widened_literal_ty_for_initializer(decl, ty)
     }
 
     pub(super) fn is_literal_of_contextual_ty(

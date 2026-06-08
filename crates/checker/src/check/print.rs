@@ -108,24 +108,31 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             ty::TyKind::Object(_) => self.print_object_ty(ty),
             ty::TyKind::NumberLit(_) => self.print_number_lit_ty(ty),
             ty::TyKind::BigIntLit(lit) => format!("{}n", self.c.atoms.get(lit.val)),
-            ty::TyKind::Union(union) => union.tys.iter().fold(String::new(), |mut s, ty| {
-                if !s.is_empty() {
-                    s.push_str(" | ");
-                }
-                if ty.kind.is_object_anonymous()
-                    && (!self.c.get_signatures_of_type(ty, SigKind::Call).is_empty()
-                        || !self
-                            .c
-                            .get_signatures_of_type(ty, SigKind::Constructor)
-                            .is_empty())
-                {
-                    let t = self.c.print_ty(ty, self.enclosing_declaration);
-                    s.push_str(&format!("({t})",))
+            ty::TyKind::Union(union) => {
+                if let Some(enum_symbol) = union.enum_symbol {
+                    let name = self.c.binder.symbol(enum_symbol).name;
+                    self.c.atoms.get(name.expect_atom()).to_string()
                 } else {
-                    s.push_str(self.c.print_ty(ty, self.enclosing_declaration))
+                    union.tys.iter().fold(String::new(), |mut s, ty| {
+                        if !s.is_empty() {
+                            s.push_str(" | ");
+                        }
+                        if ty.kind.is_object_anonymous()
+                            && (!self.c.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                                || !self
+                                    .c
+                                    .get_signatures_of_type(ty, SigKind::Constructor)
+                                    .is_empty())
+                        {
+                            let t = self.c.print_ty(ty, self.enclosing_declaration);
+                            s.push_str(&format!("({t})",))
+                        } else {
+                            s.push_str(self.c.print_ty(ty, self.enclosing_declaration))
+                        }
+                        s
+                    })
                 }
-                s
-            }),
+            }
             ty::TyKind::Intersection(i) => i.tys.iter().fold(String::new(), |mut s, ty| {
                 if !s.is_empty() {
                     s.push_str(" & ");

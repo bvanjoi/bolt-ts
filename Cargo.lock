@@ -243,6 +243,7 @@ dependencies = [
  "bolt_ts_atom",
  "bolt_ts_binder",
  "bolt_ts_checker",
+ "bolt_ts_checker_errors",
  "bolt_ts_config",
  "bolt_ts_early_resolve",
  "bolt_ts_ecma_rules",
@@ -258,6 +259,7 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
+ "bolt_ts_wf_errors",
  "codspeed-divan-compat",
  "compile-test",
  "dir-test",
@@ -599,6 +601,16 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "bolt_ts_wf_errors"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_checker_errors",
+ "bolt_ts_errors",
+ "bolt_ts_span",
+ "thiserror",
 ]
 
 [[package]]

@@ -714,6 +714,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_semi();
     }
 
+    fn visit_assign_expr(&mut self, _: &'cx bolt_ts_ast::AssignExpr<'cx>) {
+        // nothing
+    }
+
     fn visit_mapped_ty(&mut self, node: &'cx bolt_ts_ast::MappedTy<'cx>) {
         self.emitter.print().p_l_brace();
         self.emitter.print().p_newline();

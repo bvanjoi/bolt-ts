@@ -14,6 +14,7 @@ bolt_ts_ast = { path = "../ast" }
 bolt_ts_ast_visitor = { path = "../ast_visitor" }
 bolt_ts_binder = { path = "../binder" }
 bolt_ts_checker = { path = "../checker" }
+bolt_ts_checker_errors = { path = "../checker_errors" }
 bolt_ts_middle = { path = "../middle" }
 bolt_ts_early_resolve = { path = "../early_resolve" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
@@ -29,6 +30,7 @@ bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_module_resolve = { path = "../module_resolve" }
 bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
+bolt_ts_wf_errors = { path = "../wf_errors" }
 project-root = { workspace = true }
 thin-vec = { workspace = true }
 include_dir = "0.7.3"

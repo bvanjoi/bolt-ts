@@ -1,28 +1,28 @@
-  × Type 'Foo.A' is not assignable to type 'false | true | Foo.A | Foo.B'.
+  × Type 'Foo' is not assignable to type 'false | true | Foo.A | Foo.B'.
     ╭─[../../tests/compiler/enumLiteralAssignableToEnumInsideUnion/index.ts:28:7]
  28 │ e1
     · ──
     ╰────
 
-  × Type 'Foo.A' is not assignable to type 'false | true | Foo.A | Foo.B'.
+  × Type 'Foo' is not assignable to type 'false | true | Foo.A | Foo.B'.
     ╭─[../../tests/compiler/enumLiteralAssignableToEnumInsideUnion/index.ts:30:7]
  30 │ e2
     · ──
     ╰────
 
-  × Type 'Foo.A' is not assignable to type 'false | true | Foo.B'.
+  × Type 'Foo' is not assignable to type 'false | true | Foo.B'.
     ╭─[../../tests/compiler/enumLiteralAssignableToEnumInsideUnion/index.ts:32:7]
  32 │ e3
     · ──
     ╰────
 
-  × Type 'Foo.A' is not assignable to type 'false | true | Foo.A'.
+  × Type 'Foo' is not assignable to type 'false | true | Foo.A'.
     ╭─[../../tests/compiler/enumLiteralAssignableToEnumInsideUnion/index.ts:34:7]
  34 │ e4
     · ──
     ╰────
 
-  × Type 'Foo.A' is not assignable to type 'false | true | Foo.A | Foo.B'.
+  × Type 'Foo' is not assignable to type 'false | true | Foo.A | Foo.B'.
     ╭─[../../tests/compiler/enumLiteralAssignableToEnumInsideUnion/index.ts:36:7]
  36 │ e5
     · ──

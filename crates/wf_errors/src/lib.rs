@@ -1,8 +1,8 @@
-use bolt_ts_checker::check::errors::DeclKind;
-use bolt_ts_errors::DiagnosticExt;
+use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
+use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
 use thiserror;
@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind} name cannot be '{name}'.")]
 #[diagnostic(help("Reserved type names are not permitted."))]
-pub(super) struct DeclNameCannotBe {
+pub struct DeclNameCannotBe {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -20,14 +20,14 @@ pub(super) struct DeclNameCannotBe {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Abstract methods can only appear within an abstract class.")]
-pub(super) struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
+pub struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Catch clause variable cannot have an initializer.")]
-pub(super) struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
+pub struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
     #[label(primary)]
     pub span: Span,
 }
@@ -36,21 +36,21 @@ pub(super) struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified
 #[error(
     "Duplicate identifier 'arguments'. Compiler uses 'arguments' to initialize rest parameters."
 )]
-pub(super) struct DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
+pub struct DuplicateIdentifierArgumentsCompilerUsesArgumentsToInitializeRestParameters {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Type alias name cannot be '{name}'.")]
-pub(super) struct TypeAliasNameCannotBeX {
+pub struct TypeAliasNameCannotBeX {
     #[label(primary)]
     pub span: Span,
     pub name: String,
 }
 
 #[derive(Debug)]
-pub(super) enum AmbientContextKind {
+pub enum AmbientContextKind {
     Initializers,
     Statements,
 }
@@ -67,7 +67,7 @@ impl std::fmt::Display for AmbientContextKind {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("{kind} are not allowed in ambient contexts.")]
-pub(super) struct XAreNotAllowedInAmbientContexts {
+pub struct XAreNotAllowedInAmbientContexts {
     #[label(primary)]
     pub span: Span,
     pub kind: AmbientContextKind,
@@ -75,14 +75,14 @@ pub(super) struct XAreNotAllowedInAmbientContexts {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The body of an 'if' statement cannot be the empty statement.")]
-pub(super) struct TheBodyOfAnIfStatementCannotBeTheEmptyStatement {
+pub struct TheBodyOfAnIfStatementCannotBeTheEmptyStatement {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Enum name cannot be '{name}'.")]
-pub(super) struct EnumNameCannotBeX {
+pub struct EnumNameCannotBeX {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -90,28 +90,28 @@ pub(super) struct EnumNameCannotBeX {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("An implementation cannot be declared in ambient contexts.")]
-pub(super) struct AnImplementationCannotBeDeclaredInAmbientContexts {
+pub struct AnImplementationCannotBeDeclaredInAmbientContexts {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Initializer cannot be declared in ambient contexts.")]
-pub(super) struct InitializersAreNotAllowedInAmbientContexts {
+pub struct InitializersAreNotAllowedInAmbientContexts {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("A parameter initializer is only allowed in a function or constructor implementation.")]
-pub(super) struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+pub struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
     #[label(primary)]
     pub span: Span,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error("Parameter cannot have question mark and initializer.")]
-pub(super) struct ParameterCannotHaveQuestionMarkAndInitializer {
+pub struct ParameterCannotHaveQuestionMarkAndInitializer {
     #[label(primary)]
     pub span: Span,
 }

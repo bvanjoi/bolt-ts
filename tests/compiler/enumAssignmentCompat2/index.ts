@@ -29,18 +29,18 @@ var z: number = W; // error
 //~^ ERROR: Type 'typeof W' is not assignable to type 'number'.
 var a: number = W.a;
 var b: typeof W = W.a; // error
-//~^ ERROR: Type 'W.a' is not assignable to type 'typeof W'.
+//~^ ERROR: Type 'W' is not assignable to type 'typeof W'.
 var c: typeof W.a = W.a;
 var d: typeof W = 3; // error
 //~^ ERROR: Type 'number' is not assignable to type 'typeof W'.
 var e: typeof W.a = 4;
 //~^ ERROR: Type '4' is not assignable to type 'W.a'.
 var f: WStatic = W.a; // error
-//~^ ERROR: Type 'W.a' is not assignable to type 'WStatic'.
+//~^ ERROR: Type 'W' is not assignable to type 'WStatic'.
 var g: WStatic = 5; // error
 //~^ ERROR: Type 'number' is not assignable to type 'WStatic'.
 var h: W = 3;
-//~^ ERROR: Type 'number' is not assignable to type 'W.a | W.b | W.c'.
+//~^ ERROR: Type 'number' is not assignable to type 'W'.
 var i: W = W.a;
 i = W.a;
 W.D;

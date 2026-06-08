@@ -10,7 +10,7 @@
     · ─
     ╰────
 
-  × Property 'x' is private and only accessible within class.
+  × Property 'x' is private and only accessible within class 'Clod'.
    ╭─[../../tests/compiler/cloduleStaticMembers/index.ts:8:11]
  8 │ Clod.x
    · ──────

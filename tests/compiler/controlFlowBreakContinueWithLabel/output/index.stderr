@@ -1,4 +1,4 @@
-  × Type 'number' is not assignable to type 'User.A | User.B'.
+  × Type 'number' is not assignable to type 'User'.
     ╭─[../../tests/compiler/controlFlowBreakContinueWithLabel/index.ts:14:13]
  14 │ user
     · ────

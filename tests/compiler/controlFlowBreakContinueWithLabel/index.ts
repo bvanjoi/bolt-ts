@@ -12,7 +12,7 @@ label: while (true) {
         case User.A:
             user = User.B;
             user = 42;
-            //~^ ERROR: Type 'number' is not assignable to type 'User.A | User.B'.
+            //~^ ERROR: Type 'number' is not assignable to type 'User'.
             continue label;
         case User.B:
             break label;

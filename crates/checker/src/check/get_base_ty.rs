@@ -15,10 +15,27 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty::<false>(&tys, ty::UnionReduction::None, None, None, None, None)
     }
 
+    pub(super) fn get_base_ty_of_enum_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        if ty.flags.intersects(TypeFlags::ENUM_LIKE) {
+            self.get_base_ty_of_enum_like_ty_worker(ty)
+        } else {
+            ty
+        }
+    }
+
+    pub(super) fn get_base_ty_of_enum_like_ty_worker(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(ty.flags.intersects(TypeFlags::ENUM_LIKE));
+        let s = ty.symbol().unwrap();
+        let p = self.get_parent_of_symbol(s).unwrap();
+        self.get_declared_ty_of_symbol(p)
+    }
+
     pub(super) fn get_base_ty_of_literal_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if ty.flags.intersects(TypeFlags::ENUM_LIKE) {
-            // TODO: get_base_ty_of_enum_like_ty(ty)
-            ty
+            self.get_base_ty_of_enum_like_ty_worker(ty)
         } else if ty.flags.intersects(
             TypeFlags::STRING_LITERAL
                 .union(TypeFlags::TEMPLATE_LITERAL)

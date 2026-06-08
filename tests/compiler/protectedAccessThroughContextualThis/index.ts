@@ -16,7 +16,7 @@ class Foo {
 function bindCopy(this: Foo) {
   this.copy = this.protec; // Should OK
   console.log(this.privat); // Should error
-  //~^ ERROR: Property 'privat' is private and only accessible within class.
+  //~^ ERROR: Property 'privat' is private and only accessible within class 'Foo'.
 }
 
 type BindingFunction = (this: Foo) => void;
@@ -24,5 +24,5 @@ type BindingFunction = (this: Foo) => void;
 const bindCopy2: BindingFunction = function () {
   this.copy = this.protec; // Should OK
   console.log(this.privat); // Should error
-  //~^ ERROR: Property 'privat' is private and only accessible within class.
+  //~^ ERROR: Property 'privat' is private and only accessible within class 'Foo'.
 }
