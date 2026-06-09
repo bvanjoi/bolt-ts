@@ -496,6 +496,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
         let base_tys = self.get_base_tys(source);
+        let base_tys_is_empty = base_tys.is_empty();
 
         let mut members;
         let mut call_sigs;
@@ -503,14 +504,20 @@ impl<'cx> TyChecker<'cx> {
         let mut index_infos;
         if Self::range_eq(ty_params, ty_args, 0, ty_params.len()) {
             mapper = None;
-            members = ty
-                .symbol()
-                .map(|symbol| {
-                    // TODO: remove clone
-                    self.get_members_of_symbol(symbol).clone().0
-                })
-                .unwrap_or_default();
-            if base_tys.is_empty() {
+
+            members = if let Some(source_symbol) = ty.symbol()
+                && base_tys_is_empty
+            {
+                // TODO: remove clone
+                self.get_members_of_symbol(source_symbol).clone().0
+            } else {
+                declared
+                    .props
+                    .iter()
+                    .map(|&s| (self.symbol(s).name, s))
+                    .collect::<FxIndexMap<_, _>>()
+            };
+            if base_tys_is_empty {
                 let m = self.alloc(ty::StructuredMembers {
                     members: self.alloc(members),
                     call_sigs: declared.call_sigs,
@@ -537,9 +544,7 @@ impl<'cx> TyChecker<'cx> {
                 .to_vec();
         }
 
-        if !base_tys.is_empty() {
-            // TODO: if (source.symbol && members === getMembersOfSymbol(source.symbol)) {
-
+        if !base_tys_is_empty {
             for base_ty in base_tys {
                 let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
                     let ty = self.instantiate_ty(base_ty, mapper);

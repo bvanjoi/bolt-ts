@@ -9,3 +9,5 @@ function maker (value: string): typeof maker.Bar {
 namespace maker {
     export class Bar extends Foo {}
 }
+
+maker('42');

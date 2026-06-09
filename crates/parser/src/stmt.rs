@@ -1261,6 +1261,14 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::VarDecl<'cx>> {
         let start = self.token.start();
         let name = self.parse_ident_or_pat();
+        if let ast::BindingKind::Ident(n) = name.kind
+            && n.name == keyword::KW_LET
+            && flags.intersects(ast::NodeFlags::LET.union(ast::NodeFlags::CONST))
+        {
+            let error =
+                errors::LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations { span: n.span };
+            self.push_error(Box::new(error));
+        }
         self.check_contextual_binding(name);
         if self.in_strict_mode
             && let ast::BindingKind::Ident(name) = name.kind

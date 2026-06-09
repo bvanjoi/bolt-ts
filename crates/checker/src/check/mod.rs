@@ -1761,8 +1761,8 @@ impl<'cx> TyChecker<'cx> {
         type_parameters: ty::Tys<'cx>,
     ) -> Vec<&'cx ty::Ty<'cx>> {
         let mut result: Vec<&'cx ty::Ty<'cx>> = vec![];
-        let old_type_parameters: Option<Vec<&'cx ty::ParamTy<'cx>>> = None;
-        let new_type_parameters: Option<Vec<&'cx ty::ParamTy<'cx>>> = None;
+        let mut old_type_parameters: Option<Vec<&'cx ty::Ty<'cx>>> = None;
+        let mut new_type_parameters: Option<Vec<&'cx ty::Ty<'cx>>> = None;
 
         let inference = context.inference.unwrap();
 
@@ -1776,12 +1776,68 @@ impl<'cx> TyChecker<'cx> {
                 .is_some_and(|tys| self.has_type_parameter_by_name(tys, name))
                 || self.has_type_parameter_by_name(&result, name)
             {
-                todo!()
-                // const newName = getUniqueTypeParameterName(concatenate(context.inferredTypeParameters, result), name);
-                // const symbol = createSymbol(SymbolFlags.TypeParameter, newName);
-                // const newTypeParameter = createTypeParameter(symbol);
-                // newTypeParameter.target = tp;
-                // oldTypeParameters = append(oldTypeParameters, tp);
+                // get_unique_type_parameter_name
+                let new_name = {
+                    let mut index = 1;
+                    let name = name.expect_atom();
+                    let mut origin_augmented_name = self.atoms.get(name).to_string();
+                    loop {
+                        let index_str = index.to_string();
+                        origin_augmented_name.push_str(&index_str);
+                        let augmented_name = self.atoms.atom(&origin_augmented_name);
+                        let augmented_name = SymbolName::Atom(augmented_name);
+                        if let Some(inferred_type_parameters) =
+                            self.inference(inference).inferred_type_parameters.as_ref()
+                            && self.has_type_parameter_by_name(
+                                inferred_type_parameters,
+                                augmented_name,
+                            )
+                        {
+                            index += 1;
+                            origin_augmented_name
+                                .truncate(origin_augmented_name.len() - index_str.len());
+                            continue;
+                        } else if self.has_type_parameter_by_name(&result, augmented_name) {
+                            index += 1;
+                            origin_augmented_name
+                                .truncate(origin_augmented_name.len() - index_str.len());
+                            continue;
+                        }
+                        break augmented_name;
+                    }
+                };
+                let symbol = self.create_transient_symbol(
+                    new_name,
+                    SymbolFlags::TYPE_PARAMETER.union(SymbolFlags::TRANSIENT),
+                    SymbolLinks::default(),
+                    None,
+                    None,
+                    None,
+                );
+                let new_type_parameter = {
+                    let ty = ty::ParamTy {
+                        symbol: Some(symbol),
+                        target: Some(ty),
+                        is_this_ty: false,
+                    };
+                    let parm_ty = self.alloc(ty);
+                    self.new_ty(ty::TyKind::Param(parm_ty), TypeFlags::TYPE_PARAMETER)
+                };
+
+                match &mut old_type_parameters {
+                    Some(tys) => tys.push(ty),
+                    None => {
+                        old_type_parameters = Some(vec![ty]);
+                    }
+                }
+                match &mut new_type_parameters {
+                    Some(tys) => tys.push(new_type_parameter),
+                    None => {
+                        new_type_parameters = Some(vec![new_type_parameter]);
+                    }
+                }
+
+                result.push(new_type_parameter);
                 // newTypeParameters = append(newTypeParameters, newTypeParameter);
                 // result.push(newTypeParameter);
             } else {
@@ -1789,11 +1845,19 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         if let Some(new_type_parameters) = new_type_parameters {
-            todo!()
-            // const mapper = createTypeMapper(oldTypeParameters!, newTypeParameters);
-            // for (const tp of newTypeParameters) {
-            //     tp.mapper = mapper;
-            // }
+            let Some(old_type_parameters) = old_type_parameters else {
+                unreachable!()
+            };
+            let new_type_parameters = self.alloc(new_type_parameters);
+            let old_type_parameters = self.alloc(old_type_parameters);
+            let mapper = self.create_ty_mapper(new_type_parameters, old_type_parameters);
+            for tp in new_type_parameters {
+                debug_assert!(tp.kind.as_param().is_some_and(|p| p.target.is_some()));
+                let prev = self
+                    .ty_links
+                    .insert(tp.id, TyLinks::default().with_param_ty_mapper(mapper));
+                debug_assert!(prev.is_none());
+            }
         }
         result
     }

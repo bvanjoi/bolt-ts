@@ -1,0 +1,19 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/returnTypeParameterWithModules.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+
+namespace M1 {
+    export function reduce<A>(ar, f, e?): Array<A> {
+        return Array.prototype.reduce.apply(ar, e ? [f, e] : [f]);
+    };
+};
+namespace M2 {
+  import A = M1
+  export function compose() {
+        A.reduce(arguments, compose2);
+    };
+    export function compose2<B, C, D>(g: (x: B) => C, f: (x: D) => B): (x: D) => C {
+    return function (x) { return g(f(x)); }
+  };
+};

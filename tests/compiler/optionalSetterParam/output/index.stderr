@@ -1,0 +1,5 @@
+  × A 'set' accessor cannot have an optional parameter.
+   ╭─[../../tests/compiler/optionalSetterParam/index.ts:7:25]
+ 7 │ ?
+   · ─
+   ╰────

@@ -338,6 +338,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_fn_decl(&mut self, f: ir::FnDeclID) {
         let f = self.nodes.get_fn_decl(&f);
+        if let Some(name) = f.name() {
+            self.ns_names
+                .insert((self.scope, self.nodes.get_ident(&name).name()));
+        }
         if let Some(ms) = f.modifiers() {
             if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::EXPORT) {
                 self.emitter.print().p("export");

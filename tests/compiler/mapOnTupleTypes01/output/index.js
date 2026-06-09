@@ -1,0 +1,17 @@
+var mapOnLooseArrayLiteral = [1, 2, 3, 4].map((n) => (n * n));
+var numTuple = [1];
+var a = numTuple.map((x) => (x * x));
+var numNum = [100, 100];
+var strStr = ['hello', 'hello'];
+var numStr = [100, 'hello'];
+var b = numNum.map((n) => (n * n));
+var c = strStr.map((s) => (s.charCodeAt(0)));
+var d = numStr.map((x) => (x));
+var numNumNum = [1, 2, 3];
+var e = numNumNum.map((n) => (n * n));
+var numNumNumNum = [1, 2, 3, 4];
+var f = numNumNumNum.map((n) => (n * n));
+var numNumNumNumNum = [1, 2, 3, 4, 5];
+var g = numNumNumNumNum.map((n) => (n * n));
+var numNumNumNumNumNum = [1, 2, 3, 4, 5, 6];
+var h = numNumNumNumNum.map((n) => (n * n));

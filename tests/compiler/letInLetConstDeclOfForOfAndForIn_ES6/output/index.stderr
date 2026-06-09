@@ -1,0 +1,129 @@
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+   ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:5:10]
+ 5 │ let
+   · ───
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:5:10]
+ 5 │ let
+   · ───
+   ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+   ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:9:12]
+ 9 │ let
+   · ───
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:9:12]
+ 9 │ let
+   · ───
+   ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:13:10]
+ 13 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:13:10]
+ 13 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:17:12]
+ 17 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:17:12]
+ 17 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:22:11]
+ 22 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:22:11]
+ 22 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:26:13]
+ 26 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:26:13]
+ 26 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:30:11]
+ 30 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:30:11]
+ 30 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:34:13]
+ 34 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:34:13]
+ 34 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:40:7]
+ 40 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:40:7]
+ 40 │ let
+    · ───
+    ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:46:9]
+ 46 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetConstDeclOfForOfAndForIn_ES6/index.ts:46:9]
+ 46 │ let
+    · ───
+    ╰────

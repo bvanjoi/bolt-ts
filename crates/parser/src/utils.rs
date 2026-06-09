@@ -1057,6 +1057,21 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             params
         };
+        if let Some(value_parameter) = params.last() {
+            if let Some(span) = value_parameter.dotdotdot {
+                let error = errors::ASetAccessorCannotHaveRestParameter { span };
+                self.push_error(Box::new(error));
+            }
+            if let Some(span) = value_parameter.question {
+                let error = errors::ASetAccessorCannotHaveAnOptionalParameter { span };
+                self.push_error(Box::new(error));
+            }
+            if let Some(init) = value_parameter.init {
+                let error =
+                    errors::ASetAccessorParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
+        }
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);

@@ -1,0 +1,5 @@
+  × Property 'b' does not exist on type 'typeof c'.
+    ╭─[../../tests/compiler/internalAliasFunctionInsideLocalModuleWithoutExportAccessError/index.ts:17:11]
+ 17 │ b
+    · ─
+    ╰────

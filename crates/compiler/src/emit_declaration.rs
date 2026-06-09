@@ -308,6 +308,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.emit_atom(self.resolver.atoms(), name);
         }
         self.emit_type_parameters(node.ty_params);
+        if let Some(extends) = node.extends {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p("extends");
+            self.emitter.print().p_whitespace();
+            self.visit_expr(extends.expr_with_ty_args.expr);
+            self.emit_type_arguments(extends.expr_with_ty_args.ty_args);
+        }
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
         if !node.elems.list.is_empty() {

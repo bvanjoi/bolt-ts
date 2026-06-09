@@ -775,3 +775,31 @@ pub struct ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'let' is not allowed to be used as a name in 'let' or 'const' declarations.")]
+pub struct LetIsNotAllowedToBeUsedAsANameInLetOrConstDeclarations {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'set' accessor cannot have an optional parameter.")]
+pub struct ASetAccessorCannotHaveAnOptionalParameter {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'set' accessor parameter cannot have an initializer.")]
+pub struct ASetAccessorParameterCannotHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'set' accessor cannot have rest parameter.")]
+pub struct ASetAccessorCannotHaveRestParameter {
+    #[label(primary)]
+    pub span: Span,
+}

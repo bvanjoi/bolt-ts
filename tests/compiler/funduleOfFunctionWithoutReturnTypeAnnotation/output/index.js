@@ -1,7 +1,7 @@
 function fn() {
   return fn.n
 }
-var fn = {};
+
 (function (fn) {
 
   var n = 1;

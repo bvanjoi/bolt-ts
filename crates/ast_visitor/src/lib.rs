@@ -613,6 +613,15 @@ pub fn visit_cond_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::CondExpr<'cx
     v.visit_expr(n.when_false);
 }
 
+pub fn visit_expr_with_ty_args<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ExprWithTyArgs<'cx>) {
+    v.visit_expr(n.expr);
+    if let Some(ty_args) = n.ty_args {
+        for ty in ty_args.list {
+            v.visit_ty(ty);
+        }
+    }
+}
+
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
@@ -699,7 +708,8 @@ make_visitor!(
     (visit_export_assign, ast::ExportAssign<'cx>),
     (visit_empty_stmt, ast::EmptyStmt),
     (visit_cond_expr, ast::CondExpr<'cx>),
-    (visit_paren_expr, ast::ParenExpr<'cx>)
+    (visit_paren_expr, ast::ParenExpr<'cx>),
+    (visit_expr_with_ty_args, ast::ExprWithTyArgs<'cx>),
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
