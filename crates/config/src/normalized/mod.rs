@@ -47,8 +47,9 @@ bitflags::bitflags! {
         const ALWAYS_STRICT                             = 1 << 20;
         const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 21;
         const PRESERVE_SYMLINKS                         = 1 << 22;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 23;
-        const ES_MODULE_INTEROP                         = 1 << 24;
+        const ES_MODULE_INTEROP                         = 1 << 23;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 24;
+        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 25;
     }
 }
 
@@ -144,6 +145,12 @@ impl NormalizedCompilerOptions {
     pub const fn use_define_for_class_fields(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS)
+    }
+
+    #[inline(always)]
+    pub const fn use_unknown_in_catch_variables(&self) -> bool {
+        self.flags
+            .contains(CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES)
     }
 
     #[inline(always)]

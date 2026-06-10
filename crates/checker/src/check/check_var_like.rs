@@ -141,7 +141,10 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 }
 
-                // TODO: `is_in_ambient_context` then `return`
+                if self.node_query(id.module()).is_in_ambient_or_type_node(id) {
+                    return;
+                }
+
                 let need_check_initializer = self.p.node(id).has_only_expr_init()
                     && decl.init().is_some()
                     && self

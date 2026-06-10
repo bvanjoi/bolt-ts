@@ -1,0 +1,53 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:22:19]
+ 22 │ x
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type 'A'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:24:31]
+ 24 │ y
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:28:19]
+ 28 │ x
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type 'A'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:30:31]
+ 30 │ y
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'xyz' does not exist
+  │ in type '{ id: number; } & { url: string; }'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:41:5]
+ 41 │ xyz
+    · ───
+    ╰────
+
+  × Object literal may only specify known properties, and 'xyz' does not exist
+  │ in type '{ id: number; } & { url: string; }'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:51:9]
+ 51 │ xyz
+    · ───
+    ╰────
+
+  × Object literal may only specify known properties, and 'boo' does not exist
+  │ in type 'View'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:77:32]
+ 77 │ boo
+    · ───
+    ╰────
+
+  × Object literal may only specify known properties, and 'boo' does not exist
+  │ in type 'View'.
+    ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:80:50]
+ 80 │ boo
+    · ───
+    ╰────

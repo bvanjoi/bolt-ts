@@ -60,6 +60,7 @@ with_option!(
     (allow_unreachable_code, bool),
     (preserve_symlinks, bool),
     (use_define_for_class_fields, bool),
+    (use_unknown_in_catch_variables, bool),
     (strict_property_initialization, bool),
     (no_unused_locals, bool),
     (no_unused_parameters, bool),
@@ -133,6 +134,9 @@ impl RawCompilerOptions {
         }
         if self.no_unused_parameters.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNUSED_PARAMETERS);
+        }
+        if get_strict_option_value(self.use_unknown_in_catch_variables) {
+            flags.insert(super::CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES);
         }
         match self.use_define_for_class_fields {
             Some(true) => flags.insert(super::CompilerOptionFlags::USE_DEFINE_FOR_CLASS_FIELDS),

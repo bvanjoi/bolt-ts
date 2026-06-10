@@ -617,6 +617,28 @@ impl<'cx> TyChecker<'cx> {
 
         let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
 
+        if self
+            .node_query(id.module())
+            .is_catch_clause_var_decl_or_binding_ele(id)
+        {
+            return Some(if let Some(decl_ty) = decl.decl_ty() {
+                let decl_ty = self.get_ty_from_type_node(decl_ty);
+                if self.is_type_any(decl_ty) || decl_ty == self.unknown_ty {
+                    self.unknown_ty
+                } else {
+                    self.error_ty
+                }
+            } else if self
+                .config
+                .compiler_options()
+                .use_unknown_in_catch_variables()
+            {
+                self.unknown_ty
+            } else {
+                self.any_ty
+            });
+        }
+
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
             let is_property = match decl_node {

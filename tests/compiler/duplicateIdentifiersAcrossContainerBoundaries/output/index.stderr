@@ -1,0 +1,23 @@
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/duplicateIdentifiersAcrossContainerBoundaries/index.ts:48:16]
+ 44 │ x: number;
+    · ┬
+    · ╰── Previous definition here
+ 45 │ }
+ 46 │ 
+ 47 │ namespace Foo {
+ 48 │     export var x
+    ·                ─
+    ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/duplicateIdentifiersAcrossContainerBoundaries/index.ts:14:21]
+ 14 │ f
+    · ─
+    ╰────
+
+  × Class declaration cannot implement overload list for 'f'.
+    ╭─[../../tests/compiler/duplicateIdentifiersAcrossContainerBoundaries/index.ts:18:18]
+ 18 │ f
+    · ─
+    ╰────

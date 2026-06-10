@@ -1,0 +1,5 @@
+  × Type 'HomomorphicMappedType' is not assignable to type 'any[]'.
+    ╭─[../../tests/compiler/mappedTypeUnionConstrainTupleTreatedAsArrayLike/index.ts:15:9]
+ 15 │ arr
+    · ───
+    ╰────

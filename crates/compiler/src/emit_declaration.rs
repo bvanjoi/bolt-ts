@@ -538,11 +538,17 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             StringLit { raw, .. } => self.visit_string_lit(*raw),
             BigIntLit { .. } => todo!(),
             NumLit(_n) => todo!(),
-            Computed(_n) => {
-                todo!()
+            Computed(n) => {
+                self.visit_computed_prop_name(n);
             }
             PrivateIdent(_private_ident) => todo!(),
         }
+    }
+
+    fn visit_computed_prop_name(&mut self, node: &'cx bolt_ts_ast::ComputedPropName<'cx>) {
+        self.emitter.print().p_l_bracket();
+        self.visit_expr(node.expr);
+        self.emitter.print().p_r_bracket();
     }
 
     fn visit_string_lit(&mut self, node: &'cx bolt_ts_ast::StringLit) {

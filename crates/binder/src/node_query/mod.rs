@@ -568,16 +568,13 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node_flags(id).contains(ast::NodeFlags::AMBIENT)
             || self
                 .find_ancestor(id, |node| {
-                    if matches!(
+                    matches!(
                         self.node(node),
                         ast::Node::InterfaceDecl(_)
                             | ast::Node::TypeAliasDecl(_)
                             | ast::Node::ObjectLitTy(_)
-                    ) {
-                        Some(true)
-                    } else {
-                        None
-                    }
+                    )
+                    .then_some(true)
                 })
                 .is_some()
     }

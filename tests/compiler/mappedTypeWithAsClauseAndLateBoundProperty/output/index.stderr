@@ -1,0 +1,5 @@
+  × Property 'length' is missing.
+   ╭─[../../tests/compiler/mappedTypeWithAsClauseAndLateBoundProperty/index.ts:7:1]
+ 7 │ tgt2
+   · ────
+   ╰────
