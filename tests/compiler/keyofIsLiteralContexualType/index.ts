@@ -16,4 +16,4 @@ declare function pick<T, K extends keyof T>(obj: T, propNames: K[]): Pick<T, K>;
 
 let x = pick({ a: 10, b: 20, c: 30 }, ["a", "c"]);
 let b = x.b;  // Error
-//~^ ERROR: Property 'b' does not exist on type 'Pick'.
+//~^ ERROR: Property 'b' does not exist on type 'Pick<{ a: number; b: number; c: number; }, "a" | "c">'.

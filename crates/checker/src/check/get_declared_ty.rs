@@ -143,7 +143,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_qualified_name(
+    pub(super) fn check_qualified_name(
         &mut self,
         node: &'cx ast::QualifiedName<'cx>,
         check_mode: Option<CheckMode>,

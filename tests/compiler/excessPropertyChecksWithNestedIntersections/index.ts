@@ -75,7 +75,7 @@ interface TypeA {
 let test: View<TypeA>;
 
 test = { foo: true, bar: true, boo: true }
-//~^ ERROR: Object literal may only specify known properties, and 'boo' does not exist in type 'View'.
+//~^ ERROR: Object literal may only specify known properties, and 'boo' does not exist in type 'View<TypeA>'.
 
 test = { foo: true, bar: { foo: true, bar: true, boo: true } }
-//~^ ERROR: Object literal may only specify known properties, and 'boo' does not exist in type 'View'.
+//~^ ERROR: Object literal may only specify known properties, and 'boo' does not exist in type 'View<TypeB>'.

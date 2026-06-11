@@ -53,8 +53,8 @@ declare const z: Z<Foo>;
 declare let thingOfTypeAliases: X<Bar> | Y<Baz> | Z<Kwah>;
 
 thingOfTypeAliases = x;
-//~^ ERROR: Type 'X' is not assignable to type 'X | Y | Z'.
+//~^ ERROR: Type 'X<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.
 thingOfTypeAliases = y;
-//~^ ERROR: Type 'Y' is not assignable to type 'X | Y | Z'.
+//~^ ERROR: Type 'Y<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.
 thingOfTypeAliases = z;
-//~^ ERROR: Type 'Z' is not assignable to type 'X | Y | Z'.
+//~^ ERROR: Type 'Z<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.

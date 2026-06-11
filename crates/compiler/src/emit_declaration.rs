@@ -771,4 +771,24 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_whitespace();
         self.visit_ty(node.ty);
     }
+
+    fn visit_paren_ty(&mut self, node: &'cx bolt_ts_ast::ParenTy<'cx>) {
+        self.emitter.print().p_l_paren();
+        self.visit_ty(node.ty);
+        self.emitter.print().p_r_paren();
+    }
+
+    fn visit_intersection_ty(&mut self, node: &'cx bolt_ts_ast::IntersectionTy<'cx>) {
+        self.emit_list(
+            node.tys,
+            |this, item| {
+                this.visit_ty(item);
+            },
+            |this, _| {
+                this.emitter.print().p_whitespace();
+                this.emitter.print().p_ampersand();
+                this.emitter.print().p_whitespace();
+            },
+        );
+    }
 }

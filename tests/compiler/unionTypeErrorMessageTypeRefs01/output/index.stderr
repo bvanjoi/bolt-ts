@@ -16,19 +16,19 @@
     · ─────────────────
     ╰────
 
-  × Type 'X' is not assignable to type 'X | Y | Z'.
+  × Type 'X<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.
     ╭─[../../tests/compiler/unionTypeErrorMessageTypeRefs01/index.ts:55:1]
  55 │ thingOfTypeAliases
     · ──────────────────
     ╰────
 
-  × Type 'Y' is not assignable to type 'X | Y | Z'.
+  × Type 'Y<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.
     ╭─[../../tests/compiler/unionTypeErrorMessageTypeRefs01/index.ts:57:1]
  57 │ thingOfTypeAliases
     · ──────────────────
     ╰────
 
-  × Type 'Z' is not assignable to type 'X | Y | Z'.
+  × Type 'Z<Foo>' is not assignable to type 'X<Bar> | Y<Baz> | Z<Kwah>'.
     ╭─[../../tests/compiler/unionTypeErrorMessageTypeRefs01/index.ts:59:1]
  59 │ thingOfTypeAliases
     · ──────────────────

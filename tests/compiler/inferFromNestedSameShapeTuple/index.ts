@@ -44,5 +44,5 @@ type T2<T> = [42, T2<{ x: T }>];
 function qq<U>(x: T1<U>, y: T2<U>) {
     x = y;
     y = x;  // Error
-    //~^ ERROR: Type 'T1' is not assignable to type 'T2'.
+    //~^ ERROR: Type 'T1<U>' is not assignable to type 'T2<U>'.
 }

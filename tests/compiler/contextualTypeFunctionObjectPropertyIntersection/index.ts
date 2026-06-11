@@ -86,7 +86,7 @@ createMachine2({
   },
   on: {
     bar: (ev) => {
-      //~^ ERROR: Object literal may only specify known properties, and 'bar' does not exist in type 'mapped type & { *: undefined | (Action); }'.
+      //~^ ERROR: Object literal may only specify known properties, and 'bar' does not exist in type 'mapped type & { *: undefined | (Action<{ type: "FOO"; } | { type: "bar"; }>); }'.
       //~| ERROR: Parameter 'ev' implicitly has an 'any' type.
       ev // any
     },

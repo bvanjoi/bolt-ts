@@ -589,12 +589,17 @@ impl<'cx> super::TyChecker<'cx> {
     ) -> String {
         let s = self.symbol(symbol);
         match s.parent {
-            Some(p) => {
+            Some(p)
+                if self
+                    .symbol(p)
+                    .value_decl
+                    .is_some_and(|n| !self.p.node(n).is_program()) =>
+            {
                 let left = self.get_fully_qualified_name(p, containing_location);
                 let right = s.name.to_string(&self.atoms);
                 format!("{}.{}", left, right)
             }
-            None => s.name.to_string(&self.atoms),
+            _ => s.name.to_string(&self.atoms),
         }
     }
 

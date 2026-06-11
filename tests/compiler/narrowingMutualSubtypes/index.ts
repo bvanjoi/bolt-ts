@@ -120,9 +120,9 @@ function checksArrayOrObject1(obj: Record<string, any> | Record<string, any>[]) 
         // 'obj' should probably not include an array type here.
         for (let key in obj) {
             if (obj[key] !== undefined) {
-                //~^ ERROR: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'any[] | Record | Record[]'.
+                //~^ ERROR: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'any[] | Record<string, any> | Record<string, any>[]'.
                 console.log(obj[key])
-                //~^ ERROR: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'any[] | Record | Record[]'.
+                //~^ ERROR: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'any[] | Record<string, any> | Record<string, any>[]'.
             }
         }
     }

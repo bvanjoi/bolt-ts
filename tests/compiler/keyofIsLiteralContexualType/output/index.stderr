@@ -4,7 +4,8 @@
    · ───
    ╰────
 
-  × Property 'b' does not exist on type 'Pick'.
+  × Property 'b' does not exist on type 'Pick<{ a: number; b: number; c:
+  │ number; }, "a" | "c">'.
     ╭─[../../tests/compiler/keyofIsLiteralContexualType/index.ts:18:11]
  18 │ b
     · ─

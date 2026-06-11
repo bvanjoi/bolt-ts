@@ -45,4 +45,4 @@ const result2 = createAndUnbox(() => thing.pipe(
 ));
 
 const result3: Thing<string> = result1;
-//~^ ERROR: Type 'Thing' is not assignable to type 'Thing'.
+//~^ ERROR: Type 'Thing<number>' is not assignable to type 'Thing<string>'.

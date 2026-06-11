@@ -1207,6 +1207,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         match self.node(parent) {
             ast::Node::QualifiedName(n) => n.right.id == node,
             ast::Node::PropAccessExpr(n) => n.name.id == node,
+            ast::Node::NewMetaProperty(n) => n.name.id == node,
             // TODO: meta_property
             _ => false,
         }

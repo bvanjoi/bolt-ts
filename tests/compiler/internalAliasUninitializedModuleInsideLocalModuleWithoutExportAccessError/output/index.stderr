@@ -1,0 +1,5 @@
+  × Namespace 'c' has no exported member 'b'.
+    ╭─[../../tests/compiler/internalAliasUninitializedModuleInsideLocalModuleWithoutExportAccessError/index.ts:22:17]
+ 22 │ b
+    · ─
+    ╰────

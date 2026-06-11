@@ -71,7 +71,7 @@
      ╰────
 
   × Object literal may only specify known properties, and 'b' does not exist
-  │ in type 'ConditionalPick'.
+  │ in type 'ConditionalPick<Example, string>'.
      ╭─[../../tests/compiler/fest/index.ts:332:70]
  332 │ b
      · ─
@@ -95,7 +95,8 @@
      · ─
      ╰────
 
-  × Type '{ a: number; b: string; }' is not assignable to type 'Except'.
+  × Type '{ a: number; b: string; }' is not assignable to type 'Except<{ a:
+  │ number; b: string; }, "b", { requireExactProps: true; }>'.
      ╭─[../../tests/compiler/fest/index.ts:461:9]
  461 │ strictAssignment
      · ────────────────
@@ -421,7 +422,7 @@
       · ─
       ╰────
 
-  × Type 'SomeInterface' is not assignable to type 'Record'.
+  × Type 'SomeInterface' is not assignable to type 'Record<string, unknown>'.
       ╭─[../../tests/compiler/fest/index.ts:2203:9]
  2203 │ a6
       · ──

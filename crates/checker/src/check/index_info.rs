@@ -1,8 +1,10 @@
+use crate::check::links::SymbolLinks;
+
 use super::TyChecker;
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
@@ -352,5 +354,49 @@ impl<'cx> TyChecker<'cx> {
             unreachable!("name: {:?}", name.to_string(&self.atoms))
         };
         self.get_applicable_index_info(ty, key_ty)
+    }
+
+    pub(super) fn get_applicable_index_symbol(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<SymbolID> {
+        let infos = self.get_applicable_index_infos(ty, key_ty);
+        if !infos.is_empty() {
+            self.resolve_structured_type_members(ty);
+            let resolved = self.expect_ty_links(ty.id).expect_structured_members();
+            let symbol = resolved.members.get(&SymbolName::Index).copied();
+            if infos == self.get_index_infos_of_ty(ty) {
+                return symbol;
+            } else if let Some(symbol) = symbol {
+                // let symbol_links = self.get_symbol_links(symbol);
+                let declaration_list = infos
+                    .iter()
+                    .filter_map(|i| i.declaration)
+                    .collect::<Vec<_>>();
+                // TODO: filtered_index_symbol_cache
+
+                let parent = if let Some(alias_symbol) = ty.alias_symbol() {
+                    Some(alias_symbol)
+                } else if let Some(symbol) = ty.symbol() {
+                    Some(symbol)
+                } else {
+                    let id = self.parent(declaration_list[0].id).unwrap();
+                    self.get_symbol_at_location(id)
+                };
+                let copy = self.create_transient_symbol(
+                    SymbolName::Index,
+                    SymbolFlags::SIGNATURE.union(SymbolFlags::TRANSIENT),
+                    SymbolLinks::default(),
+                    Some(declaration_list.iter().map(|n| n.id).collect()),
+                    None,
+                    parent,
+                );
+                // symbolLinks.filteredIndexSymbolCache.set(nodeListId, copy);
+                return Some(copy);
+            }
+        }
+
+        None
     }
 }

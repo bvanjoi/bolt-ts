@@ -85,9 +85,7 @@ struct Ctx<'a, 'cx> {
 
 impl<'a, 'cx> Ctx<'a, 'cx> {
     fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
-        if let Some(alias_symbol) = ty.alias_symbol() {
-            let s = self.c.binder.symbol(alias_symbol);
-            let name = s.name.to_string(&self.c.atoms);
+        if let Some(name) = self.print_alias_symbol(ty) {
             return name;
         } else if ty.kind.is_array(self.c) {
             let tys = self.c.get_ty_arguments(ty);
@@ -202,6 +200,25 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             }
             ty::TyKind::UniqueESSymbol(_) => "unique symbol".to_string(),
             ty::TyKind::Enum(n) => self.print_enum_symbol(n.symbol),
+        }
+    }
+
+    fn print_alias_symbol(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<String> {
+        if let Some(alias_symbol) = ty.alias_symbol() {
+            let s = self.c.binder.symbol(alias_symbol);
+            let name = s.name.to_string(&self.c.atoms);
+            if let Some(alias_type_arguments) = ty.alias_ty_arguments() {
+                let args = alias_type_arguments
+                    .iter()
+                    .map(|ty| self.c.print_ty(ty, self.enclosing_declaration).to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Some(format!("{}<{}>", name, args));
+            } else {
+                return Some(name);
+            }
+        } else {
+            None
         }
     }
 

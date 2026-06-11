@@ -1864,3 +1864,13 @@ pub struct CannotFindName {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "This condition will always return true since this function is always defined. Did you mean to call it instead?"
+)]
+pub struct ThisConditionWillAlwaysReturnTrueSinceThisFunctionIsAlwaysDefinedDidYouMeanToCallItInstead
+{
+    #[label(primary)]
+    pub span: Span,
+}

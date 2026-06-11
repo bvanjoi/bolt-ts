@@ -1,0 +1,48 @@
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+   ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:7:9]
+ 7 │ required
+   · ────────
+   ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:24:9]
+ 24 │ test
+    · ────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:43:9]
+ 43 │ test
+    · ────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:58:9]
+ 58 │ x.foo.bar
+    · ─────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:75:13]
+ 75 │ this.isUser
+    · ───────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:86:9]
+ 86 │ stats.isDirectory
+    · ─────────────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion/index.ts:93:9]
+ 93 │ a.stats.isDirectory
+    · ───────────────────
+    ╰────

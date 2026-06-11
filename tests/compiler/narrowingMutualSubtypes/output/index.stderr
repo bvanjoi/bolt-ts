@@ -1,12 +1,14 @@
   × Element implicitly has an 'any' type because expression of type 'string'
-  │ can't be used to index type 'any[] | Record | Record[]'.
+  │ can't be used to index type 'any[] | Record<string, any> | Record<string,
+  │ any>[]'.
      ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:122:17]
  122 │ obj[key]
      · ────────
      ╰────
 
   × Element implicitly has an 'any' type because expression of type 'string'
-  │ can't be used to index type 'any[] | Record | Record[]'.
+  │ can't be used to index type 'any[] | Record<string, any> | Record<string,
+  │ any>[]'.
      ╭─[../../tests/compiler/narrowingMutualSubtypes/index.ts:124:29]
  124 │ obj[key]
      · ────────

@@ -485,6 +485,7 @@ pub fn visit_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Expr<'cx>) {
         Ident(n) => v.visit_ident(n),
         Cond(n) => v.visit_cond_expr(n),
         Paren(n) => v.visit_paren_expr(n),
+        PropAccess(n) => v.visit_prop_access_expr(n),
         _ => {}
     }
 }
@@ -622,6 +623,11 @@ pub fn visit_expr_with_ty_args<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::Expr
     }
 }
 
+pub fn visit_prop_access_expr<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::PropAccessExpr<'cx>) {
+    v.visit_expr(n.expr);
+    v.visit_ident(n.name);
+}
+
 macro_rules! make_visitor {
     ( $( ($visit_node: ident, $ty: ty) ),* $(,)? ) => {
       pub trait Visitor<'cx>: Sized {
@@ -710,6 +716,7 @@ make_visitor!(
     (visit_cond_expr, ast::CondExpr<'cx>),
     (visit_paren_expr, ast::ParenExpr<'cx>),
     (visit_expr_with_ty_args, ast::ExprWithTyArgs<'cx>),
+    (visit_prop_access_expr, ast::PropAccessExpr<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
@@ -761,7 +768,7 @@ pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {
         TypeAliasDecl(n) => v.visit_type_alias_decl(n),
         InterfaceExtendsClause(_n) => todo!(),
         ClassImplementsClause(_n) => todo!(),
-        BlockStmt(_n) => todo!(),
+        BlockStmt(n) => v.visit_block_stmt(n),
         ModuleBlock(_n) => todo!(),
         ThrowStmt(_n) => todo!(),
         EnumDecl(_n) => todo!(),

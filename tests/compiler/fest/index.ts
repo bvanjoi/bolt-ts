@@ -330,7 +330,7 @@ type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Conditi
   const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
   const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
   const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
-  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick'.
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick<Example, string>'.
 }
 
 // ========== ConditionalSimplify ==========
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except'.
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except<{ a: number; b: string; }, "b", { requireExactProps: true; }>'.
 
   // Generic properties
   type Example = {
@@ -2201,7 +2201,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const a4: Record<string, unknown> = valueAsLiteral;
   const a5: Record<string, unknown> = valueAsSimplifiedInterface;
   const a6: Record<string, unknown> = valueAsInterface; // Index signature is missing in interface
-  //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record'. 
+  //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record<string, unknown>'. 
 
   // The following tests should be fixed once we have determined the cause of the bug reported in https://github.com/sindresorhus/type-fest/issues/436
   

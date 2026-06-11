@@ -13,6 +13,6 @@ function test1<T extends [number] | [string]>(args: T) {
 
 function test2<T extends [number] | readonly [string]>(args: T) {
   const arr: any[] = [] as HomomorphicMappedType<T> // error
-  //~^ ERROR: Type 'HomomorphicMappedType' is not assignable to type 'any[]'.
+  //~^ ERROR: Type 'HomomorphicMappedType<T>' is not assignable to type 'any[]'.
   const arr2: readonly any[] = [] as HomomorphicMappedType<T>
 }

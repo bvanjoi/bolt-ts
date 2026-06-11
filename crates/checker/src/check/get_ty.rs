@@ -2581,7 +2581,9 @@ impl<'cx> TyChecker<'cx> {
                     };
                     if tys.is_empty() {
                         if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                            // TODO: unwrap_return_ty
+                            let contextual_ret_ty = self
+                                .unwrap_ret_ty(contextual_ret_ty, fn_flags)
+                                .unwrap_or(self.void_ty);
                             ret_ty = Some(
                                 if self.some_type(contextual_ret_ty, |_, t| {
                                     t.flags.contains(TypeFlags::UNDEFINED)

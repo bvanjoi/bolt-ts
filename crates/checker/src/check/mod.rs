@@ -1258,7 +1258,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         prop_name_ty: &'cx ty::Ty<'cx>,
     ) -> Vec<&'cx ty::IndexInfo<'cx>> {
-        self.index_infos_of_ty(ty)
+        self.get_index_infos_of_ty(ty)
             .iter()
             .filter_map(|info| {
                 if self.is_applicable_index_ty(prop_name_ty, info.key_ty) {

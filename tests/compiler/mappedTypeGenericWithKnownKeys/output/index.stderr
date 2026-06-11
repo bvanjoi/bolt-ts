@@ -1,10 +1,12 @@
-  × Property 'unknownLiteralKey' does not exist on type 'Record'.
+  × Property 'unknownLiteralKey' does not exist on type 'Record<keyof Shape |
+  │ "knownLiteralKey", number>'.
     ╭─[../../tests/compiler/mappedTypeGenericWithKnownKeys/index.ts:13:9]
  13 │ unknownLiteralKey
     · ─────────────────
     ╰────
 
-  × Type 'Record' is generic and can only be indexed for reading.
+  × Type 'Record<keyof Shape | "knownLiteralKey", number>' is generic and can
+  │ only be indexed for reading.
     ╭─[../../tests/compiler/mappedTypeGenericWithKnownKeys/index.ts:15:5]
  15 │ obj['' as string]
     · ─────────────────

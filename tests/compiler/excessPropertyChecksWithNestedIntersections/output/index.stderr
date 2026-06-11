@@ -39,14 +39,14 @@
     ╰────
 
   × Object literal may only specify known properties, and 'boo' does not exist
-  │ in type 'View'.
+  │ in type 'View<TypeA>'.
     ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:77:32]
  77 │ boo
     · ───
     ╰────
 
   × Object literal may only specify known properties, and 'boo' does not exist
-  │ in type 'View'.
+  │ in type 'View<TypeB>'.
     ╭─[../../tests/compiler/excessPropertyChecksWithNestedIntersections/index.ts:80:50]
  80 │ boo
     · ───

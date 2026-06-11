@@ -1449,9 +1449,9 @@ impl<'cx> TyChecker<'cx> {
         cond_ty: &'cx ty::Ty<'cx>,
         body: Option<ast::NodeID>,
     ) {
-        if !self.config.compiler_options().strict_null_checks() {
-            return;
-        }
+        // if !self.config.compiler_options().strict_null_checks() {
+        //     return;
+        // }
 
         fn both_helper<'cx>(
             this: &mut TyChecker<'cx>,
@@ -1520,6 +1520,179 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(Box::new(error));
                 return;
             }
+
+            let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
+            let is_promise = this.get_awaited_ty_of_promise(ty, None).is_some();
+            if call_signatures.is_empty() && !is_promise {
+                return;
+            }
+
+            let tested_node = if let ast::ExprKind::Ident(loc) = loc.kind {
+                Some(loc)
+            } else if let ast::ExprKind::PropAccess(access) = loc.kind {
+                Some(access.name)
+            } else {
+                None
+            };
+
+            let tested_symbol =
+                tested_node.and_then(|tested_node| this.get_symbol_at_location(tested_node.id));
+            if tested_symbol.is_none() && !is_promise {
+                return;
+            }
+
+            let is_used = tested_symbol.is_some_and(|tested_symbol| {
+                let mut parent = this.parent(cond_expr.id());
+                // is_symbol_used_in_binary_expression_chain
+                while let Some(p) = parent
+                    && let Some(b) = this.p.node(p).as_bin_expr()
+                    && matches!(b.op.kind, ast::BinOpKind::LogicalAnd)
+                {
+                    struct Visitor<'a, 'cx> {
+                        cx: &'a mut TyChecker<'cx>,
+                        tested_symbol: SymbolID,
+                        is_used: bool,
+                    }
+                    impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+                        fn visit_ident(&mut self, node: &'cx bolt_ts_ast::Ident) {
+                            if let Some(symbol) = self.cx.get_symbol_at_location(node.id)
+                                && symbol == self.tested_symbol
+                            {
+                                // TODO: return early rather than visit all
+                                self.is_used = true;
+                            }
+                        }
+                    }
+                    let mut v = Visitor {
+                        cx: this,
+                        tested_symbol,
+                        is_used: false,
+                    };
+                    bolt_ts_ast_visitor::visit_expr(&mut v, b.right);
+                    if v.is_used {
+                        return true;
+                    }
+                    parent = this.parent(p);
+                }
+
+                let Some(body) = body else {
+                    return false;
+                };
+                // is_symbol_used_in_condition_body
+                struct Visitor<'a, 'cx> {
+                    cx: &'a mut TyChecker<'cx>,
+                    cond_expr: &'cx ast::Expr<'cx>,
+                    tested_symbol: SymbolID,
+                    tested_node: &'cx ast::Ident,
+                    is_used: bool,
+                }
+                impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+                    fn visit_ident(&mut self, node: &'cx bolt_ts_ast::Ident) {
+                        let Some(child_symbol) = self.cx.get_symbol_at_location(node.id) else {
+                            return;
+                        };
+                        if child_symbol != self.tested_symbol {
+                            return;
+                        }
+                        if matches!(self.cond_expr.kind, ast::ExprKind::Ident(_)) {
+                            // TODO: return early rather than visit all
+                            self.is_used = true;
+                            return;
+                        }
+                        if let Some(p) = self.cx.parent(self.tested_node.id)
+                            && self.cx.p.node(p).is_bin_expr()
+                        {
+                            // TODO: return early rather than visit all
+                            self.is_used = true;
+                            return;
+                        }
+                        let mut tested_expression = self.cx.parent(self.tested_node.id);
+                        let mut child_expression = self.cx.parent(node.id);
+                        while let Some(t) = tested_expression
+                            && let Some(c) = child_expression
+                        {
+                            let t_node = self.cx.p.node(t);
+                            let c_node = self.cx.p.node(c);
+                            if let ast::Node::Ident(t) = t_node
+                                && let ast::Node::Ident(c) = c_node
+                            {
+                                if self.cx.get_symbol_at_location(t.id)
+                                    == self.cx.get_symbol_at_location(c.id)
+                                {
+                                    // TODO: return early rather than visit all
+                                    self.is_used = true;
+                                }
+                                return;
+                            }
+
+                            if let ast::Node::ThisExpr(t) = t_node
+                                && let ast::Node::ThisExpr(c) = c_node
+                            {
+                                if self.cx.get_symbol_at_location(t.id)
+                                    == self.cx.get_symbol_at_location(c.id)
+                                {
+                                    // TODO: return early rather than visit all
+                                    self.is_used = true;
+                                }
+                                return;
+                            }
+
+                            if let ast::Node::PropAccessExpr(t) = t_node
+                                && let ast::Node::PropAccessExpr(c) = c_node
+                            {
+                                if self.cx.get_symbol_at_location(t.id)
+                                    != self.cx.get_symbol_at_location(c.id)
+                                {
+                                    return;
+                                }
+                                child_expression = Some(c.expr.id());
+                                tested_expression = Some(t.expr.id());
+                            }
+
+                            if let ast::Node::CallExpr(t) = t_node
+                                && let ast::Node::CallExpr(c) = c_node
+                            {
+                                child_expression = Some(c.expr.id());
+                                tested_expression = Some(t.expr.id());
+                            }
+                        }
+                    }
+                }
+                let body = this.p.node(body);
+                let mut v = Visitor {
+                    cx: this,
+                    tested_symbol,
+                    tested_node: tested_node.unwrap(),
+                    cond_expr,
+                    is_used: false,
+                };
+                bolt_ts_ast_visitor::visit_node(&mut v, &body);
+                v.is_used
+            });
+
+            if !is_used {
+                if is_promise {
+                    todo!()
+                } else {
+                    let error = errors::ThisConditionWillAlwaysReturnTrueSinceThisFunctionIsAlwaysDefinedDidYouMeanToCallItInstead {
+                        span: loc.span(),
+                    };
+                    this.push_error(Box::new(error));
+                }
+            }
+            // if (!isUsed) {
+            //     if (isPromise) {
+            //         errorAndMaybeSuggestAwait(
+            //             location,
+            //             /*maybeMissingAwait*/ true,
+            //             Diagnostics.This_condition_will_always_return_true_since_this_0_is_always_defined,
+            //             getTypeNameForErrorDisplay(type),
+            //         );
+            //     }
+            //     else {
+            //         error(location, Diagnostics.This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead);
+            //     }
+            // }
         }
 
         both_helper(self, n, cond_ty, body)
