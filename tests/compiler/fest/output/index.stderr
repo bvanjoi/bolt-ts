@@ -83,13 +83,13 @@
      · ──
      ╰────
 
-  × Type 'mapped type' is not assignable to type 'MovableCollection'.
+  × Type '{ }' is not assignable to type 'MovableCollection'.
      ╭─[../../tests/compiler/fest/index.ts:400:9]
  400 │ a0
      · ──
      ╰────
 
-  × Property 'b' does not exist on type 'mapped type'.
+  × Property 'b' does not exist on type '{ }'.
      ╭─[../../tests/compiler/fest/index.ts:446:30]
  446 │ b
      · ─
@@ -428,7 +428,7 @@
       · ──
       ╰────
 
-  × Type 'mapped type' is not assignable to type 'SomeFunction'.
+  × Type '{ }' is not assignable to type 'SomeFunction'.
       ╭─[../../tests/compiler/fest/index.ts:2213:9]
  2213 │ b0
       · ──

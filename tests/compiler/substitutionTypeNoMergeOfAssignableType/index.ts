@@ -1,0 +1,28 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/substitutionTypeNoMergeOfAssignableType.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+interface Entry {
+    comment?: string;
+ }
+ 
+ interface Entity {
+     fields: {[key: string]: Entry};
+ }
+ 
+ type Fields<E extends Entity> = {
+     [P in keyof E["fields"]]: E["fields"][P]
+ };
+ 
+ type Nodes<T = any> = {
+     [P in keyof T]: T[P] extends Entity
+         ? Fields<T[P]>
+         : T[P]
+ };
+ 
+ function makeEntityStore<T extends Record<string, Entity>>(config: T): Nodes<T> {
+     return {} as Nodes<T>
+ }
+ 
+ const myTest = makeEntityStore({ test: { fields: { id: {} } } });
+ myTest.test

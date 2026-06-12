@@ -645,7 +645,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn get_conditional_flow_of_ty(
+    pub(super) fn get_conditional_flow_of_ty(
         &mut self,
         ty: &'cx Ty<'cx>,
         mut node: ast::NodeID,
@@ -670,12 +670,32 @@ impl<'cx> TyChecker<'cx> {
                     constraints.push(constraint);
                 }
             } else if ty.flags.contains(TypeFlags::TYPE_PARAMETER)
-                && parent_node.as_mapped_ty().is_some_and(|mapped_ty| {
-                    mapped_ty.name_ty.is_none() && mapped_ty.ty.is_some_and(|ty| ty.id() == node)
-                })
+                && let Some(mapped_ty) = parent_node.as_mapped_ty()
+                && mapped_ty.name_ty.is_none()
+                && mapped_ty.ty.is_some_and(|ty| ty.id() == node)
             {
-                // TODO:
-                // let mapped_ty = self.get_ty_from_type_node()
+                let mapped_ty = {
+                    // get_ty_from_type_node
+                    let ty = self.get_ty_from_mapped_ty_node(mapped_ty);
+                    self.get_conditional_flow_of_ty(ty, mapped_ty.id)
+                };
+                let mapped_ty = mapped_ty.kind.expect_object_mapped();
+                if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
+                    && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
+                    && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                {
+                    let tys = &[self.number_ty, self.numeric_string_ty()];
+                    let t = self.get_union_ty::<false>(
+                        tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                    constraints.push(t);
+                }
             }
             node = parent;
         }
@@ -895,7 +915,7 @@ impl<'cx> TyChecker<'cx> {
         name
     }
 
-    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
+    pub(super) fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
         if index_ty.usable_as_prop_name() {
             Some(self.get_prop_name_from_ty(index_ty))
         } else {
@@ -1544,8 +1564,9 @@ impl<'cx> TyChecker<'cx> {
             potential_alias,
             alias_ty_arguments,
         );
-        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+        if let Some(_) = self.get_node_links(node.id).get_resolved_ty() {
             // TODO: delay bug
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
             return ty;
         }
         self.get_mut_node_links(node.id).set_resolved_ty(ty);

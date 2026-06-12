@@ -1,6 +1,6 @@
 use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::{SymbolID, SymbolName};
-use bolt_ts_ty::ObjectFlags;
+use bolt_ts_ty::{ElementFlags, ObjectFlags};
 use bolt_ts_utils::FxIndexMap;
 
 use super::PromiseOrAwaitableTyLinksID;
@@ -125,25 +125,6 @@ as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
 as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
 as_object_ty_kind!(ReversedMapped, &'cx ReverseMappedTy<'cx>, reverse_mapped);
 as_object_ty_kind!(EvolvingArray, &'cx EvolvingArrayTy<'cx>, evolving_array);
-
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct ElementFlags: u8 {
-        /// `T`
-        const REQUIRED  = 1 << 0;
-        /// `T?`
-        const OPTIONAL  = 1 << 1;
-        /// `...T[]`
-        const REST      = 1 << 2;
-        /// `...T`
-        const VARIADIC  = 1 << 3;
-
-        const FIXED         = Self::REQUIRED.bits() | Self::OPTIONAL.bits();
-        const VARIABLE      = Self::REST.bits() | Self::VARIADIC.bits();
-        const NON_REQUIRED  = Self::OPTIONAL.bits() | Self::REST.bits() | Self::VARIADIC.bits();
-        const NON_REST      = Self::REQUIRED.bits() | Self::OPTIONAL.bits() | Self::VARIADIC.bits();
-    }
-}
 
 #[derive(Debug)]
 pub struct TupleTy<'cx> {
@@ -285,11 +266,11 @@ pub struct SingleSigTy<'cx> {
 pub struct MappedTy<'cx> {
     pub symbol: SymbolID,
     pub decl: &'cx ast::MappedTy<'cx>,
-    pub alias_symbol: Option<SymbolID>,
-    pub alias_ty_arguments: Option<super::Tys<'cx>>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub links: ObjectMappedTyLinksID<'cx>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

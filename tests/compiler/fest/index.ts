@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type 'MovableCollection'
+    //~^ ERROR: Type '{ }' is not assignable to type 'MovableCollection'
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -444,7 +444,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   const a0: {a: number} = {a: 42};
   const except: Except<{a: number; b: string}, 'b'> = a0;
   const _a: unknown = except.b;
-  //~^ ERROR: Property 'b' does not exist on type 'mapped type'.
+  //~^ ERROR: Property 'b' does not exist on type '{ }'.
 
   const nonStrict = {
     a: 1,
@@ -2211,7 +2211,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const someFunction: SimplifiedFunction = {};
   
   const b0: SomeFunction = someFunction;
-  //~^ ERROR: Type 'mapped type' is not assignable to type 'SomeFunction'.
+  //~^ ERROR: Type '{ }' is not assignable to type 'SomeFunction'.
 
   const c0: Simplify<{ a: boolean, b: string } & { a: number }> = n();
   const c1: Simplify<{a?: string} & {c:number}> = {c: 42};

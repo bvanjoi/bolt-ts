@@ -372,6 +372,7 @@ pub struct TyChecker<'cx> {
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    numeric_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -752,6 +753,7 @@ impl<'cx> TyChecker<'cx> {
             any_base_type_index_info: Default::default(),
 
             number_or_bigint_ty: Default::default(),
+            numeric_string_ty: Default::default(),
             any_fn_ty: Default::default(),
             circular_constraint_ty: Default::default(),
             no_constraint_ty: Default::default(),
@@ -919,12 +921,13 @@ impl<'cx> TyChecker<'cx> {
                 )*
             };
         }
-        // TODO: lazy
+        // TODO: lazy or make them const
         make_global!({
             (boolean_ty,                    this.get_union_ty::<false>(&[regular_false_ty, regular_true_ty],                 ty::UnionReduction::Lit, None, None, None, None)),
             (string_or_number_ty,           this.get_union_ty::<false>(&[this.string_ty, this.number_ty],                    ty::UnionReduction::Lit, None, None, None, None)),
             (string_number_symbol_ty,       this.get_union_ty::<false>(&[this.string_ty, this.number_ty, this.es_symbol_ty], ty::UnionReduction::Lit, None, None, None, None)),
             (number_or_bigint_ty,           this.get_union_ty::<false>(&[this.number_ty, this.bigint_ty],                    ty::UnionReduction::Lit, None, None, None, None)),
+            (numeric_string_ty,             this.get_template_lit_ty(&[keyword::IDENT_EMPTY, keyword::IDENT_EMPTY], &[number_ty])),
             (global_number_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_NUMBER_CLASS))),
             (global_boolean_ty,             this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_BOOLEAN_CLASS))),
             (global_string_ty,              this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_STRING_CLASS))),
@@ -2117,11 +2120,13 @@ impl<'cx> TyChecker<'cx> {
         };
         let ty = self.get_type_of_symbol(symbol);
         let name = SymbolName::Atom(name);
-        let Some(prop) = self.get_prop_of_ty::<false, false>(ty, name) else {
-            return false;
-        };
-        let decl = prop.decl(&self.binder);
-        self.p.node(decl).is_static()
+        if let Some(prop) = self.get_prop_of_ty::<false, false>(ty, name)
+            && let Some(value_declaration) = self.symbol(prop).value_decl
+        {
+            self.p.node(value_declaration).is_static()
+        } else {
+            false
+        }
     }
 
     fn report_non_existent_prop(
@@ -3959,7 +3964,32 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.is_generic_object_ty(indexed_access_ty.object_ty) {
-            // TODO:
+            if let Some(name) = self.get_prop_name_from_index(indexed_access_ty.index_ty) {
+                let t = self.get_apparent_ty(indexed_access_ty.object_ty);
+                let mut property_name = None;
+                if let Some(u) = t.kind.as_union() {
+                    for t in u.tys {
+                        if let Some(p) = self.get_prop_of_ty::<false, false>(t, name) {
+                            property_name = Some(p);
+                            break;
+                        }
+                    }
+                } else if let Some(p) = self.get_prop_of_ty::<false, false>(t, name) {
+                    property_name = Some(p);
+                };
+                if let Some(property_name) = property_name
+                    && self
+                        .get_declaration_modifier_flags_from_symbol::<false>(property_name)
+                        .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
+                {
+                    let error = errors::PrivateOrProtectedMemberXCannotBeAccessedOnATypeParameter {
+                        span: n.span,
+                        member: self.symbol(property_name).name.to_string(&self.atoms),
+                    };
+                    self.push_error(Box::new(error));
+                    return self.error_ty;
+                }
+            }
         }
 
         let error = errors::TypeXCannotBeUsedToIndexTypeY {
@@ -8010,6 +8040,31 @@ impl<'cx> TyChecker<'cx> {
             None
         }
     }
+
+    fn is_mapped_ty_generic_indexed_access(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+        let Some(indexed_access_ty) = ty.kind.as_indexed_access() else {
+            return false;
+        };
+        self.is_mapped_ty_generic_indexed_access_worker(indexed_access_ty)
+    }
+
+    fn is_mapped_ty_generic_indexed_access_worker(
+        &mut self,
+        indexed_access_ty: &'cx ty::IndexedAccessTy<'cx>,
+    ) -> bool {
+        let object_ty = indexed_access_ty.object_ty;
+        if !object_ty.get_object_flags().contains(ObjectFlags::MAPPED) {
+            return false;
+        };
+        let object_mapped_ty = object_ty.kind.expect_object_mapped();
+        !self.is_generic_mapped_ty(object_ty)
+            && self.is_generic_index_ty(indexed_access_ty.index_ty)
+            && !object_mapped_ty
+                .decl
+                .get_modifiers()
+                .contains(ast::MappedTyModifiers::EXCLUDE_OPTIONAL)
+            && object_mapped_ty.decl.name_ty.is_some()
+    }
 }
 
 macro_rules! global_ty {
@@ -8032,6 +8087,7 @@ global_ty!(
     string_or_number_ty,
     string_number_symbol_ty,
     number_or_bigint_ty,
+    numeric_string_ty,
     any_array_ty,
     auto_array_ty,
     any_fn_ty,

@@ -61,6 +61,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {
+        self.check_ty_param(n.ty_param);
+        if let Some(name_ty) = n.name_ty {
+            self.check_ty(name_ty);
+        }
+        if let Some(ty) = n.ty {
+            self.check_ty(ty);
+        }
         if n.ty.is_none() && self.config.compiler_options().no_implicit_any() {
             // TODO: skip when check js file
             let error = errors::MappedObjectTypeImplicitlyHasAnAnyTemplateType { span: n.span };

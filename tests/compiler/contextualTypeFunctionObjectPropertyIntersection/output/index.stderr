@@ -5,7 +5,7 @@
     ╰────
 
   × Object literal may only specify known properties, and 'bar' does not exist
-  │ in type 'mapped type & { *: undefined | (Action<{ type: "FOO"; } | { type:
+  │ in type '{ } & { *: undefined | (Action<{ type: "FOO"; } | { type:
   │ "bar"; }>); }'.
     ╭─[../../tests/compiler/contextualTypeFunctionObjectPropertyIntersection/index.ts:88:5]
  88 │ bar

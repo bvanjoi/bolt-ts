@@ -42,10 +42,6 @@ impl<'cx> TyChecker<'cx> {
             self.check_block(body)
         }
 
-        if let Some(ty) = decl.ty() {
-            self.check_ty(ty);
-        }
-
         use ast::Node::*;
         if !matches!(self.p.node(id), CtorSigDecl(_) | CtorTy(_) | ClassCtor(_)) {
             let return_ty = self.get_ret_ty_from_anno(id);

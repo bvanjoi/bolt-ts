@@ -1,0 +1,23 @@
+  × Type '"val"' cannot be used to index type 'B[Exclude]'.
+   ╭─[../../tests/compiler/infiniteConstraints/index.ts:9:37]
+ 9 │ B[Exclude<keyof B, K>]["val"]
+   · ─────────────────────────────
+   ╰────
+
+  × Type 'Value<"dup">' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/infiniteConstraints/index.ts:37:43]
+ 37 │ main
+    · ────
+    ╰────
+
+  × Type 'Value<"dup">' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/infiniteConstraints/index.ts:37:63]
+ 37 │ alternate
+    · ─────────
+    ╰────
+
+  × Type '"foo"' cannot be used to index type 'T[keyof T]'.
+    ╭─[../../tests/compiler/infiniteConstraints/index.ts:44:71]
+ 44 │ T[keyof T]["foo"]
+    · ─────────────────
+    ╰────

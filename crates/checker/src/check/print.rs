@@ -285,16 +285,36 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             }
             ty::ObjectTyKind::Reference(_) => self.print_reference_ty(ty),
             ty::ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
-            ty::ObjectTyKind::Mapped(m) => {
-                if let Some(s) = m.alias_symbol {
-                    let name = self.c.binder.symbol(s).name.expect_atom();
-                    self.c.atoms.get(name).to_string()
-                } else {
-                    "mapped type".to_string()
-                }
-            }
+            ty::ObjectTyKind::Mapped(_) => self.print_mapped_ty(ty),
             ty::ObjectTyKind::ReversedMapped(_) => todo!(),
             ty::ObjectTyKind::EvolvingArray(_) => todo!(),
+        }
+    }
+
+    fn print_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
+        let mapped = ty.kind.expect_object_mapped();
+        self.c.resolve_structured_type_members(ty);
+        if let Some(target) = mapped.target {
+            self.c
+                .print_ty(target, self.enclosing_declaration)
+                .to_string()
+        } else {
+            let members = self
+                .c
+                .expect_ty_links(ty.id)
+                .expect_structured_members()
+                .members;
+            let members = members
+                .iter()
+                .map(|(name, symbol)| {
+                    let ty = self.c.get_type_of_symbol(*symbol);
+                    let field_name = name.to_string(&self.c.atoms);
+                    let field_ty = self.c.print_ty(ty, self.enclosing_declaration);
+                    format!("{field_name}: {field_ty}; ",)
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            format!("{{ {members}}}")
         }
     }
 

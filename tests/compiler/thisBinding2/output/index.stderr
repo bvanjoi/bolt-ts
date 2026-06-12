@@ -1,0 +1,13 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/thisBinding2/index.ts:16:11]
+ 16 │ this
+    · ────
+    ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+    ╭─[../../tests/compiler/thisBinding2/index.ts:16:11]
+ 16 │ this
+    · ────
+    ╰────

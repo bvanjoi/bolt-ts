@@ -1,0 +1,89 @@
+  × Type '"bar"' is not assignable to type 'undefined | "foo"'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:24:7]
+ 24 │ entry
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ entry: TConfig["entry"]; states: TConfig["states"]; }'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:38:3]
+ 38 │ extra
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ }'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:50:3]
+ 50 │ z
+    · ─
+    ╰────
+
+  × Type '{ field: T["field"]; anotherField: T["anotherField"]; }' is not
+  │ assignable to type 'T'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:67:14]
+ 67 │ s
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ field: T["field"]; anotherField: T["anotherField"]; }'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:72:49]
+ 72 │ extra
+    · ─────
+    ╰────
+
+  × Type '{ field: T["field"]; anotherField: T["anotherField"]; }[]' is not
+  │ assignable to type 'T[]'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:79:14]
+ 79 │ arr
+    · ───
+    ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ field: T["field"]; anotherField: T["anotherField"]; }'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:85:36]
+ 85 │ extra
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type '{ x: T["x"]; }'.
+    ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:99:12]
+ 99 │ y
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ x: T["x"]; y: T["y"]; }'.
+     ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:111:12]
+ 111 │ z
+     · ─
+     ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ x: T["x"]; y: T["y"]; }'.
+     ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:114:22]
+ 114 │ z
+     · ─
+     ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ prop: T["prop"]; nested: T["nested"]; }'.
+     ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:128:67]
+ 128 │ extra
+     · ─────
+     ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ types: TConfig["types"]; invoke: TConfig["invoke"]; }'.
+     ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:180:3]
+ 180 │ extra
+     · ─────
+     ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ types: TConfig["types"]; invoke: TConfig["invoke"]; }'.
+     ╭─[../../tests/compiler/reverseMappedTypeIntersectionConstraint/index.ts:188:3]
+ 188 │ extra
+     · ─────
+     ╰────

@@ -11,7 +11,7 @@
     ╰────
 
   × Object literal may only specify known properties, and 'foo' does not exist
-  │ in type 'mapped type'.
+  │ in type '{ }'.
     ╭─[../../tests/compiler/contextualPropertyOfGenericFilteringMappedType/index.ts:44:5]
  44 │ foo
     · ───

@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+use super::ElementFlags;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
@@ -432,11 +433,12 @@ impl<'cx> TyChecker<'cx> {
                 }
                 Some(checker.string_ty)
             } else if let Some(i) = ty.kind.as_indexed_access() {
-                // TODO: isMappedTypeGenericIndexedAccess
-                let base_object_ty = get_base_constraint(checker, i.object_ty, stack);
-                let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
-                if let Some(base_object_ty) = base_object_ty
-                    && let Some(base_index_ty) = base_index_ty
+                if checker.is_mapped_ty_generic_indexed_access_worker(i) {
+                    let t = checker.substitute_indexed_mapped_ty(i.object_ty, i.index_ty);
+                    return get_base_constraint(checker, t, stack);
+                }
+                if let Some(base_object_ty) = get_base_constraint(checker, i.object_ty, stack)
+                    && let Some(base_index_ty) = get_base_constraint(checker, i.index_ty, stack)
                     && let Some(base_indexed_access) = checker.get_indexed_access_type_or_undefined(
                         base_object_ty,
                         base_index_ty,
@@ -458,16 +460,52 @@ impl<'cx> TyChecker<'cx> {
             } else if ty.kind.is_substitution_ty() {
                 let ty = checker.get_substitution_intersection(ty);
                 get_base_constraint(checker, ty, stack)
+            } else if let Some(t) = ty.kind.as_generic_tuple_type() {
+                let element_tys = checker.get_element_tys(ty);
+                let new_elements = element_tys
+                    .iter()
+                    .enumerate()
+                    .map(|(index, v)| {
+                        let constraint = if v.flags.contains(TypeFlags::TYPE_PARAMETER)
+                            && t.element_flags[index].contains(ElementFlags::VARIADIC)
+                        {
+                            get_base_constraint(checker, v, stack)
+                        } else {
+                            Some(*v)
+                        };
+                        if let Some(constraint) = constraint
+                            && checker.every_type(constraint, |this, c| {
+                                this.is_array_or_tuple(c) && !c.kind.is_generic_tuple_type()
+                            })
+                        {
+                            constraint
+                        } else {
+                            v
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let new_elements = checker.alloc(new_elements);
+                Some(checker.create_tuple_ty(new_elements, Some(t.element_flags), t.readonly))
             } else {
-                // TODO: more case
                 Some(ty)
             }
         }
 
         let mut stack = Vec::with_capacity(8);
         let res = get_immediate_base_constraint(self, ty, &mut stack);
-        self.get_mut_ty_links(ty.id)
-            .set_resolved_base_constraint(res);
+        if res == self.circular_constraint_ty() {
+            match self.get_ty_links(ty.id).get_resolved_base_constraint() {
+                Some(old) => debug_assert_eq!(res, old),
+                _ => {
+                    self.get_mut_ty_links(ty.id)
+                        .set_resolved_base_constraint(res);
+                }
+            }
+        } else {
+            self.get_mut_ty_links(ty.id)
+                .set_resolved_base_constraint(res);
+        }
+
         res
     }
 

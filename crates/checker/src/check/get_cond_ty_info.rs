@@ -48,15 +48,28 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 Some(simplified)
             };
-            if let Some(constraint) = constraint
-                && constraint != cond_ty.check_ty
-            {
-                let mapper =
-                    self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
-                let instantiated = self.get_cond_ty_instantiation::<true>(ty, mapper, None, None);
-                self.conditional_links_arena[id]
-                    .set_resolved_constraint_of_distribute(Some(instantiated));
-                return Some(instantiated);
+
+            if let Some(constraint) = constraint {
+                if constraint != cond_ty.check_ty {
+                    let mapper =
+                        self.prepend_ty_mapping(cond_ty.root.check_ty, constraint, cond_ty.mapper);
+                    let instantiated =
+                        self.get_cond_ty_instantiation::<true>(ty, mapper, None, None);
+                    self.conditional_links_arena[id]
+                        .set_resolved_constraint_of_distribute(Some(instantiated));
+                    return Some(instantiated);
+                }
+            } else {
+                debug_assert!(constraint.is_none());
+                match self.conditional_links_arena[id].get_resolved_constraint_of_distribute() {
+                    Some(ty) => {
+                        debug_assert!(ty.is_none())
+                    }
+                    None => {
+                        self.conditional_links_arena[id].set_resolved_constraint_of_distribute(None)
+                    }
+                };
+                return None;
             }
         }
         self.conditional_links_arena[id].set_resolved_constraint_of_distribute(None);

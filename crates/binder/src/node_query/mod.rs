@@ -1535,13 +1535,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     ) -> Option<&'cx ast::ObjectLit<'cx>> {
         use ast::Node::*;
         match self.node(f) {
-            ObjectMethodMember(_)
-            | GetterDecl(_)
-            | SetterDecl(_)
-            | FnExpr(_)
-            | ObjectPropAssignment(_)
+            ObjectMethodMember(_) | GetterDecl(_) | SetterDecl(_) | ObjectPropAssignment(_)
                 if let ObjectLit(n) = self.node(self.parent(f).unwrap()) =>
             {
+                Some(n)
+            }
+            FnExpr(_)
+                if let p = self.parent(f).unwrap()
+                    && let ObjectPropAssignment(_) = self.node(p) =>
+            {
+                let p = self.parent(p).unwrap();
+                let ast::Node::ObjectLit(n) = self.node(p) else {
+                    unreachable!()
+                };
                 Some(n)
             }
             _ => None,

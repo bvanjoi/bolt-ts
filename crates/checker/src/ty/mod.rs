@@ -12,6 +12,7 @@ use bolt_ts_binder::{SymbolID, SymbolName};
 use super::check::TyChecker;
 
 pub use bolt_ts_ty::CheckFlags;
+pub use bolt_ts_ty::ElementFlags;
 pub use bolt_ts_ty::IndexFlags;
 pub use bolt_ts_ty::ObjectFlags;
 pub use bolt_ts_ty::Pattern;
@@ -33,7 +34,6 @@ pub use self::links::{UnionTyLinks, UnionTyLinksArena, UnionTyLinksID};
 pub use self::mapper::{ArrayTyMapper, TyMap, TyMapper};
 pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::num_lit::NumberLitTy;
-pub use self::object_ty::ElementFlags;
 pub use self::object_ty::EvolvingArrayTy;
 pub use self::object_ty::SingleSigTy;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind, ReverseMappedTy};
@@ -484,6 +484,11 @@ impl<'cx> TyKind<'cx> {
     pub fn is_generic_tuple_type(&self) -> bool {
         self.as_object()
             .is_some_and(|o| o.kind.as_generic_tuple_type().is_some())
+    }
+
+    pub fn as_generic_tuple_type(&self) -> Option<&'cx TupleTy<'cx>> {
+        self.as_object()
+            .and_then(|o| o.kind.as_generic_tuple_type())
     }
 
     pub fn is_this_ty_param(&self) -> bool {

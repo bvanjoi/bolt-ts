@@ -2,6 +2,5 @@
 
 function addProp2(x: any): x is { a: string; a: string; } {
   //~^ ERROR: Duplicate identifier 'a'.
-  //~| ERROR: Duplicate identifier 'a'.
     return true;
 }

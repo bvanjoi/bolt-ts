@@ -1874,3 +1874,11 @@ pub struct ThisConditionWillAlwaysReturnTrueSinceThisFunctionIsAlwaysDefinedDidY
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Private or protected member '{member}' cannot be accessed on a type parameter.")]
+pub struct PrivateOrProtectedMemberXCannotBeAccessedOnATypeParameter {
+    #[label(primary)]
+    pub span: Span,
+    pub member: String,
+}

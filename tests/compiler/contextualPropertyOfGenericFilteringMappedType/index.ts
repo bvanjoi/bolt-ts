@@ -45,7 +45,7 @@ f2(
       // implicit `any`s
       //~^^ ERROR: Parameter 'value' implicitly has an 'any' type.
       //~| ERROR: Parameter 'key' implicitly has an 'any' type.
-      //~| ERROR: Object literal may only specify known properties, and 'foo' does not exist in type 'mapped type'.
+      //~| ERROR: Object literal may only specify known properties, and 'foo' does not exist in type '{ }'.
     },
   },
 );
