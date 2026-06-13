@@ -12,7 +12,3 @@ var m1 = {};
 class C5_public {
   f1() {}
 }
-var m3 = {};
-(function (m3) {
-
-})(m3);

@@ -1,0 +1,5 @@
+  × 'super' may not use type arguments.
+    ╭─[../../tests/compiler/superWithTypeArgument/index.ts:11:14]
+ 11 │ <T>
+    · ───
+    ╰────

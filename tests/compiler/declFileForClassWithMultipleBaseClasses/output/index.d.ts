@@ -1,8 +1,8 @@
 declare class A {
-  foo();
+  foo(): void;
 }
 declare class B {
-  bar();
+  bar(): void;
 }
 interface I {
   baz(): any;
@@ -10,10 +10,10 @@ interface I {
 interface J {
   bat(): any;
 }
-declare class D {
-  baz();
-  bat();
-  foo();
-  bar();
+declare class D  implement I, J {
+  baz(): void;
+  bat(): void;
+  foo(): void;
+  bar(): void;
 }
 interface I extends AB {}

@@ -52,6 +52,14 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.get_return_type_of_signature(sig)
     }
 
+    pub fn ensure_type_for_class_method_element(
+        &mut self,
+        n: &'cx ast::ClassMethodElem<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let sig = self.checker.get_sig_from_decl(n.id);
+        self.checker.get_return_type_of_signature(sig)
+    }
+
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         self.checker.print_ty(ty, None).to_string()
     }

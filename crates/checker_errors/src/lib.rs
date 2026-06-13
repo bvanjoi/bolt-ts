@@ -1882,3 +1882,12 @@ pub struct PrivateOrProtectedMemberXCannotBeAccessedOnATypeParameter {
     pub span: Span,
     pub member: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'super' is only allowed in members of object literal expressions when option 'target' is 'ES2015' or higher."
+)]
+pub struct SuperIsOnlyAllowedInMembersOfObjectLiteralExpressionsWhenOptionTargetIsEs2015OrHigher {
+    #[label(primary)]
+    pub span: Span,
+}

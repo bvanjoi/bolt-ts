@@ -803,3 +803,10 @@ pub struct ASetAccessorCannotHaveRestParameter {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'super' may not use type arguments.")]
+pub struct SuperMayNotUseTypeArguments {
+    #[label(primary)]
+    pub span: Span,
+}

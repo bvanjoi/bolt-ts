@@ -275,25 +275,25 @@ impl<'cx> TyChecker<'cx> {
             contextual_return_ty = iteration_ret_ty;
         }
         if fn_flags.contains(FnFlags::ASYNC) {
-            return self
-                .map_ty(
-                    contextual_return_ty,
-                    |this, t| this.get_awaited_ty_no_alias(t),
-                    false,
-                )
-                .and_then(|contextual_await_ty| {
-                    let ty = self.create_promise_like_ty(contextual_await_ty);
-                    Some(self.get_union_ty::<false>(
-                        &[contextual_await_ty, ty],
-                        ty::UnionReduction::Lit,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
-                });
+            self.map_ty(
+                contextual_return_ty,
+                |this, t| this.get_awaited_ty_no_alias(t),
+                false,
+            )
+            .and_then(|contextual_await_ty| {
+                let ty = self.create_promise_like_ty(contextual_await_ty);
+                Some(self.get_union_ty::<false>(
+                    &[contextual_await_ty, ty],
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                ))
+            })
+        } else {
+            Some(contextual_return_ty)
         }
-        Some(contextual_return_ty)
     }
 
     fn get_contextual_type_for_object_literal_element(
@@ -406,8 +406,8 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
-        if self.node_query(id.module()).get_iife(id).is_some() {
-            self.get_contextual_ty(id, flags)
+        if let Some(iife) = self.node_query(id.module()).get_iife(id) {
+            self.get_contextual_ty(iife.id, flags)
         } else {
             None
         }

@@ -1,0 +1,34 @@
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superInObjectLiterals_ES6/index.ts:60:17]
+ 60 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superInObjectLiterals_ES6/index.ts:56:17]
+ 56 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superInObjectLiterals_ES6/index.ts:29:9]
+ 29 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superInObjectLiterals_ES6/index.ts:25:9]
+ 25 │ super
+    · ─────
+    ╰────
+
+  × 'super' can only be referenced in members of derived classes or object
+  │ literal expressions.
+    ╭─[../../tests/compiler/superInObjectLiterals_ES6/index.ts:21:9]
+ 21 │ super
+    · ─────
+    ╰────

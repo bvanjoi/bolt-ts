@@ -1,6 +1,7 @@
 mod shortcut_binary_expr;
 
 use bolt_ts_ast::{self as ast, keyword};
+use bolt_ts_binder::SymbolFlags;
 use bolt_ts_checker::check::TyChecker;
 use bolt_ts_ecma_logical::js_double_to_int32;
 use bolt_ts_span::ModuleID;
@@ -220,8 +221,20 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         n: &'cx ast::ImportEqualsDecl<'cx>,
     ) -> ir::ImportEqualsDeclID {
         let name = self.lower_ident(n.name);
+        let import_namespace_module = match n.module_reference {
+            ast::ModuleReferenceKind::EntityName(n) => {
+                let most_left = n.get_first_identifier();
+                let symbol = self.checker.final_res(most_left.id);
+                self.checker
+                    .symbol(symbol)
+                    .flags
+                    .contains(SymbolFlags::NAMESPACE_MODULE)
+            }
+            ast::ModuleReferenceKind::ExternalModuleReference(_) => false,
+        };
         let reference = self.lower_module_reference(n.module_reference);
-        self.nodes.alloc_import_equals_decl(n.span, name, reference)
+        self.nodes
+            .alloc_import_equals_decl(n.span, name, reference, import_namespace_module)
     }
 
     fn lower_module_reference(
@@ -330,7 +343,15 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         };
         let stmts = self.lower_stmts(block.stmts);
         let block = self.nodes.alloc_module_block(block.span, stmts);
-        Some(self.nodes.alloc_module_decl(n.span, modifiers, name, block))
+        let state = self
+            .checker
+            .node_query(n.id.module())
+            .get_module_instance_state(n, |n, _| self.checker.binder.parent(n));
+        let instantiated = state != bolt_ts_binder::ModuleInstanceState::NonInstantiated;
+        Some(
+            self.nodes
+                .alloc_module_decl(n.span, modifiers, name, block, instantiated),
+        )
     }
 
     fn lower_string_lit(&mut self, n: &'cx ast::StringLit) -> ir::StringLitID {

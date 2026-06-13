@@ -14,13 +14,28 @@ pub fn visit_empty_stmt<'cx>(_: &mut impl Visitor<'cx>, _: &'cx ast::EmptyStmt) 
     // Empty statements have no child nodes to visit
 }
 
+pub fn visit_import_equals_decl<'cx>(
+    v: &mut impl Visitor<'cx>,
+    n: &'cx ast::ImportEqualsDecl<'cx>,
+) {
+    v.visit_ident(n.name);
+    match n.module_reference {
+        ast::ModuleReferenceKind::EntityName(n) => {
+            v.visit_entity_name(n);
+        }
+        ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+            v.visit_string_lit(n.module_spec());
+        }
+    }
+}
+
 pub fn visit_stmt<'cx>(v: &mut impl Visitor<'cx>, stmt: &'cx ast::Stmt) {
     use ast::StmtKind::*;
     match stmt.kind {
         Block(node) => v.visit_block_stmt(node),
         Class(node) => v.visit_class_decl(node),
         Import(node) => v.visit_import_decl(node),
-        ImportEquals(_node) => {}
+        ImportEquals(node) => v.visit_import_equals_decl(node),
         Interface(node) => v.visit_interface_decl(node),
         Expr(node) => v.visit_expr_stmt(node),
         Var(node) => v.visit_var_stmt(node),
@@ -716,7 +731,8 @@ make_visitor!(
     (visit_cond_expr, ast::CondExpr<'cx>),
     (visit_paren_expr, ast::ParenExpr<'cx>),
     (visit_expr_with_ty_args, ast::ExprWithTyArgs<'cx>),
-    (visit_prop_access_expr, ast::PropAccessExpr<'cx>)
+    (visit_prop_access_expr, ast::PropAccessExpr<'cx>),
+    (visit_import_equals_decl, ast::ImportEqualsDecl<'cx>)
 );
 
 pub fn visit_node<'cx>(v: &mut impl Visitor<'cx>, node: &ast::Node<'cx>) {

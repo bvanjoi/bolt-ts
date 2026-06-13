@@ -5,9 +5,6 @@ function b() {
   class global {}
 }
 
-(function (global) {
-
-})(global);
 function foo(global) {}
 var obj = {
   global: '123'  

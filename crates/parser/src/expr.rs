@@ -633,8 +633,9 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == TokenKind::Less {
             let _start_pos = self.token.start();
-            if let Ok(Some(_ty_args)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
-                todo!("error handler")
+            if let Ok(Some(tys)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
+                let error = Box::new(errors::SuperMayNotUseTypeArguments { span: tys.span });
+                self.push_error(error);
             }
         }
 

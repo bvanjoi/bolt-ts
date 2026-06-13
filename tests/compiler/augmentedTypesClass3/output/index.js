@@ -2,9 +2,6 @@ class c5 {
   foo() {}
 }
 
-(function (c5) {
-
-})(c5);
 class c5a {
   foo() {}
 }

@@ -31,10 +31,7 @@ var m3e = {};
   m3e.y = y
   
 })(m3e);
-var m3f = {};
-(function (m3f) {
 
-})(m3f);
 var m3g = {};
 (function (m3g) {
 

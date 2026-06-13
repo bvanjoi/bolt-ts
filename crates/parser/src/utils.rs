@@ -411,11 +411,9 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
         debug_assert!(self.token.kind == TokenKind::PrivateIdent);
         let name = self.ident_token();
+        debug_assert!(self.atoms.lock().unwrap().get(name).starts_with('#'));
         let span = self.token.span;
-        let id = self.next_node_id();
-        let private_ident = self.alloc(ast::PrivateIdent { id, span, name });
-        self.nodes
-            .insert(id, ast::Node::PrivateIdent(private_ident));
+        let private_ident = self.create_private_identifier(span, name);
         self.next_token();
         private_ident
     }

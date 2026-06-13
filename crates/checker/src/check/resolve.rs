@@ -6,7 +6,7 @@ use super::errors;
 
 impl TyChecker<'_> {
     #[inline]
-    pub(super) fn final_res(&self, id: ast::NodeID) -> SymbolID {
+    pub fn final_res(&self, id: ast::NodeID) -> SymbolID {
         self.binder
             .get(id.module())
             .final_res

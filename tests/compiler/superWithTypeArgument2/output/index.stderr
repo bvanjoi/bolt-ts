@@ -1,0 +1,11 @@
+  × 'super' may not use type arguments.
+    ╭─[../../tests/compiler/superWithTypeArgument2/index.ts:12:14]
+ 12 │ <T>
+    · ───
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/superWithTypeArgument2/index.ts:12:9]
+ 12 │ super
+    · ─────
+    ╰────

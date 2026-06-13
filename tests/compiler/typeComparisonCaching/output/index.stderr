@@ -1,0 +1,11 @@
+  × Type 'B' is not assignable to type 'A'.
+    ╭─[../../tests/compiler/typeComparisonCaching/index.ts:28:1]
+ 28 │ a
+    · ─
+    ╰────
+
+  × Type 'D' is not assignable to type 'C'.
+    ╭─[../../tests/compiler/typeComparisonCaching/index.ts:30:1]
+ 30 │ c
+    · ─
+    ╰────

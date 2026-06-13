@@ -1,7 +1,4 @@
-var ElChildren = {};
-(function (ElChildren) {
 
-})(ElChildren);
 export class Elem {
   constructor(children_) {}
 }

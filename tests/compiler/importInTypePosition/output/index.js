@@ -13,12 +13,7 @@ var A = {};
   A.Origin = Origin
   
 })(A);
-var B = {};
-(function (B) {
 
-  var a = A
-  
-})(B);
 var C = {};
 (function (C) {
 

@@ -380,6 +380,9 @@ pub struct TyChecker<'cx> {
     template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    empty_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    zero_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    zero_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
 
     deferred_global_typed_property_descriptor_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     deferred_global_template_strings_array_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -482,7 +485,7 @@ pub fn node_query<'cx, 'a>(
 }
 
 impl<'cx> TyChecker<'cx> {
-    fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
+    pub fn node_query(&self, module_id: ModuleID) -> NodeQuery<'cx, '_> {
         node_query(module_id, &self.p, &self.binder)
     }
 
@@ -794,6 +797,10 @@ impl<'cx> TyChecker<'cx> {
             iteration_tys_of_async_iterator: Default::default(),
             iteration_tys_of_iterator_result: Default::default(),
 
+            empty_string_ty: Default::default(),
+            zero_ty: Default::default(),
+            zero_bigint_ty: Default::default(),
+
             unknown_empty_object_ty: Default::default(),
 
             deferred_global_typed_property_descriptor_ty: Default::default(),
@@ -967,6 +974,9 @@ impl<'cx> TyChecker<'cx> {
             (no_ty_pred,                    this.create_ident_ty_pred(keyword::IDENT_EMPTY, 0, any_ty)),
             (enum_number_index_info,        this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: number_ty, val_ty: string_ty, is_readonly: true, declaration: None })),
             (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false, declaration: None })),
+            (empty_string_ty,               this.get_string_literal_type::<false>(keyword::IDENT_EMPTY, None)),
+            (zero_ty,                       this.get_number_literal_type::<false>(0.0.into(), None)),
+            (zero_bigint_ty,                this.get_bigint_literal_type(false, keyword::IDENT_EMPTY))
         });
 
         let silent_never_sig_links = SigLinks::default().with_resolved_ret_ty(silent_never_ty);
@@ -7985,7 +7995,7 @@ impl<'cx> TyChecker<'cx> {
                 if n.is_ambient()
                     || self
                         .node_query(node.module())
-                        .get_module_instance_state(n, None, |n, _| self.parent(n))
+                        .get_module_instance_state(n, |n, _| self.parent(n))
                         != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::EXPORT_NAMESPACE.union(DeclarationSpaces::EXPORT_VALUE)
@@ -8114,6 +8124,9 @@ global_ty!(
     mark_super_ty,
     mark_sub_ty,
     mark_other_ty,
+    empty_string_ty,
+    zero_ty,
+    zero_bigint_ty
 );
 
 fn resolve_external_module_name(

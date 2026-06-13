@@ -153,6 +153,14 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn get_module_instance_state(
         &self,
         m: &'cx ast::ModuleDecl<'cx>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+    ) -> ModuleInstanceState {
+        self.get_module_instance_state_worker(m, None, parent_of)
+    }
+
+    fn get_module_instance_state_worker(
+        &self,
+        m: &'cx ast::ModuleDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
         parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
@@ -294,7 +302,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     state
                 }
-                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited), parent_of),
+                ModuleDecl(ns) => {
+                    this.get_module_instance_state_worker(ns, Some(visited), parent_of)
+                }
                 Ident(_)
                     if this
                         .node_flags(node)

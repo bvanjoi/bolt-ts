@@ -1,0 +1,5 @@
+  × Type 'typeof Foo' is not comparable to type '0'.
+   ╭─[../../tests/compiler/switchAssignmentCompat/index.ts:8:10]
+ 8 │ Foo
+   · ───
+   ╰────

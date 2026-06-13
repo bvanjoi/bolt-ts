@@ -1,7 +1,4 @@
-var A = {};
-(function (A) {
 
-})(A);
 var B = {};
 (function (B) {
 

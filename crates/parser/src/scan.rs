@@ -331,7 +331,7 @@ impl ParserState<'_, '_> {
         Some(ch)
     }
 
-    fn scan_identifier(&mut self, ch: u8) -> Option<Token> {
+    fn scan_identifier<const IS_PRIVATE: bool>(&mut self, ch: u8) -> Option<Token> {
         let start = self.pos;
         let mut first = true;
         loop {
@@ -359,6 +359,7 @@ impl ParserState<'_, '_> {
                 self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
             }
         }
+        let start = if IS_PRIVATE { start - 1 } else { start };
         Some(self.get_ident_token(Cow::Borrowed(&self.input[start..self.pos]), start as u32))
     }
 
@@ -860,7 +861,7 @@ impl ParserState<'_, '_> {
                         && is_ascii_identifier_start(ch)
                     {
                         self.pos += 1;
-                        if let Some(token) = self.scan_identifier(ch)
+                        if let Some(token) = self.scan_identifier::<true>(ch)
                             && token.kind == TokenKind::Ident
                         {
                             debug_assert!(
@@ -971,7 +972,7 @@ impl ParserState<'_, '_> {
                     }
                     continue;
                 }
-                _ => match self.scan_identifier(ch) {
+                _ => match self.scan_identifier::<false>(ch) {
                     Some(token) => token,
                     None => {
                         let span = Span::new(start as u32, self.pos as u32, self.module_id);

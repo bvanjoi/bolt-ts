@@ -205,7 +205,6 @@ impl<'ir> JSEmitter<'_, 'ir> {
     fn emit_private_ident(&mut self, ident: ir::PrivateIdentID) {
         let ident = self.nodes.get_private_ident(&ident);
         let content = self.atoms.get(ident.name());
-        self.emitter.print().p("#");
         self.emitter.print().p(content);
     }
 
@@ -751,6 +750,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
             .modifiers()
             .map(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
             .unwrap_or_default()
+            || !ns.instantiated()
         {
             return;
         }
@@ -800,13 +800,12 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         })
                         .collect::<Vec<_>>(),
                 ),
-                ir::Stmt::Class(c) => Some(vec![
-                    self.nodes
-                        .get_class_decl(c)
-                        .name()
-                        .map(|name| self.nodes.get_ident(&name).name())
-                        .unwrap(),
-                ]),
+                ir::Stmt::Class(c) => self
+                    .nodes
+                    .get_class_decl(c)
+                    .name()
+                    .map(|name| self.nodes.get_ident(&name).name())
+                    .map(|name| vec![name]),
                 ir::Stmt::Fn(f) => {
                     if let Some(name) = self.nodes.get_fn_decl(f).name() {
                         Some(vec![self.nodes.get_ident(&name).name()])
@@ -875,7 +874,11 @@ impl<'ir> JSEmitter<'_, 'ir> {
                     }
                     ir::Stmt::Class(c) => {
                         let c = this.nodes.get_class_decl(c);
-                        c.modifiers().map(|ms| (ms, c.name().unwrap()))
+                        if let Some(name) = c.name() {
+                            c.modifiers().map(|ms| (ms, name))
+                        } else {
+                            return;
+                        }
                     }
                     ir::Stmt::Module(n) => {
                         let n = this.nodes.get_module_decl(n);
@@ -988,6 +991,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
     fn emit_import_equals_decl(&mut self, n: ir::ImportEqualsDeclID) {
         let n = self.nodes.get_import_equals_decl(&n);
+        if n.import_namespace_module() {
+            return;
+        }
         self.emitter.print().p("var");
         self.emitter.print().p_whitespace();
         self.emit_ident(n.name());

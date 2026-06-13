@@ -925,6 +925,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.resolve_expr(n.init);
             }
             Method(n) => {
+                self.resolve_prop_name(n.name);
                 self.resolve_ty_params(n.ty_params);
                 self.resolve_params(n.params);
                 if let Some(ty) = n.ty {

@@ -395,7 +395,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
         let nq = self.node_query(node.id.module());
-        let state = nq.get_module_instance_state(node, None, |n, _| self.parent(n));
+        let state = nq.get_module_instance_state(node, |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 

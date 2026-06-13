@@ -46,7 +46,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         ns: &'cx ast::ModuleDecl<'cx>,
     ) -> SymbolID {
         let nq = self.node_query();
-        let state = nq.get_module_instance_state(ns, None, |_, index| {
+        let state = nq.get_module_instance_state(ns, |_, index| {
             if self.block_parent_stack.len() == index {
                 None
             } else {

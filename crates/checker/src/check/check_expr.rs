@@ -290,6 +290,50 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn extract_definitely_falsy_tys(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        self.map_ty(
+            ty,
+            |this, t| {
+                // get_definitely_falsy_part_of_ty
+                Some(if t.flags.contains(TypeFlags::STRING) {
+                    this.empty_string_ty()
+                } else if t.flags.contains(TypeFlags::NUMBER) {
+                    this.zero_ty()
+                } else if t.flags.contains(TypeFlags::BIG_INT) {
+                    this.zero_bigint_ty()
+                } else if t == this.regular_false_ty
+                    || t.flags.intersects(
+                        TypeFlags::VOID
+                            .union(TypeFlags::UNDEFINED)
+                            .union(TypeFlags::NULL)
+                            .union(TypeFlags::ANY_OR_UNKNOWN),
+                    )
+                    || (t.flags.contains(TypeFlags::STRING_LITERAL)
+                        && match t.kind {
+                            ty::TyKind::StringLit(n) => n.val == keyword::IDENT_EMPTY,
+                            _ => unreachable!(),
+                        })
+                    || (t.flags.contains(TypeFlags::NUMBER_LITERAL)
+                        && match t.kind {
+                            ty::TyKind::NumberLit(n) => n.val.val() == 0.,
+                            _ => unreachable!(),
+                        })
+                    || (t.flags.contains(TypeFlags::BIG_INT_LITERAL)
+                        && match t.kind {
+                            ty::TyKind::BigIntLit(n) => n.val == keyword::IDENT_EMPTY,
+                            _ => unreachable!(),
+                        })
+                {
+                    t
+                } else {
+                    this.never_ty
+                })
+            },
+            false,
+        )
+        .unwrap()
+    }
+
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
@@ -326,9 +370,22 @@ impl<'cx> TyChecker<'cx> {
             LogicalAnd => {
                 self.check_truthiness_of_ty(left_ty, left);
                 if self.has_type_facts(left_ty, ty::TypeFacts::TRUTHY) {
-                    left_ty
+                    let a = if self.config.compiler_options().strict_null_checks() {
+                        left_ty
+                    } else {
+                        self.get_base_ty_of_literal_ty(right_ty)
+                    };
+                    let a = self.extract_definitely_falsy_tys(a);
+                    self.get_union_ty::<false>(
+                        &[a, right_ty],
+                        ty::UnionReduction::Subtype,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
                 } else {
-                    right_ty
+                    left_ty
                 }
             }
             LogicalOr => {
@@ -336,9 +393,8 @@ impl<'cx> TyChecker<'cx> {
                 if self.has_type_facts(left_ty, ty::TypeFacts::FALSY) {
                     let left_ty = self.remove_definitely_falsy_tys(left_ty);
                     let left_ty = self.get_non_nullable_ty(left_ty);
-                    let tys = &[left_ty, right_ty];
                     self.get_union_ty::<false>(
-                        tys,
+                        &[left_ty, right_ty],
                         ty::UnionReduction::Subtype,
                         None,
                         None,
@@ -803,7 +859,18 @@ impl<'cx> TyChecker<'cx> {
         let has_extends = match self.p.node(class_like_decl) {
             ast::Node::ClassDecl(c) => c.extends.is_some(),
             ast::Node::ClassExpr(c) => c.extends.is_some(),
-            _ => unreachable!("class like: {:#?}", self.p.node(class_like_decl)),
+            ast::Node::ObjectLit(n) => {
+                return if *self.config.compiler_options().target() < Target::ES2015 {
+                    let error = errors::SuperIsOnlyAllowedInMembersOfObjectLiteralExpressionsWhenOptionTargetIsEs2015OrHigher {
+                        span: n.span
+                    };
+                    self.push_error(Box::new(error));
+                    self.error_ty
+                } else {
+                    self.any_ty
+                };
+            }
+            _ => unreachable!(),
         };
         if !has_extends {
             let error = errors::SuperCanOnlyBeReferencedInADerivedClass { span: node.span };
@@ -2371,8 +2438,47 @@ impl<'cx> TyChecker<'cx> {
                 assign.right.span(),
                 assign.op.as_str(),
             ),
-            LogicalAndEq => todo!(),
-            LogicalOrEq => todo!(),
+            LogicalAndEq => {
+                self.check_truthiness_of_ty(l, assign.left);
+                self.check_assign_op(l, r, assign.left, assign.right);
+                if self.has_type_facts(l, ty::TypeFacts::TRUTHY) {
+                    let a = if self.config.compiler_options().strict_null_checks() {
+                        l
+                    } else {
+                        self.get_base_ty_of_literal_ty(r)
+                    };
+                    let a = self.extract_definitely_falsy_tys(a);
+                    self.get_union_ty::<false>(
+                        &[a, r],
+                        ty::UnionReduction::Subtype,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                } else {
+                    l
+                }
+            }
+            LogicalOrEq => {
+                self.check_truthiness_of_ty(l, assign.left);
+                self.check_assign_op(l, r, assign.left, assign.right);
+                if self.has_type_facts(l, ty::TypeFacts::FALSY) {
+                    let l = self.remove_definitely_falsy_tys(l);
+                    let l = self.get_non_nullable_ty(l);
+                    let tys = &[l, r];
+                    self.get_union_ty::<false>(
+                        tys,
+                        ty::UnionReduction::Subtype,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                } else {
+                    l
+                }
+            }
             NullishEq => self.undefined_ty,
         }
     }

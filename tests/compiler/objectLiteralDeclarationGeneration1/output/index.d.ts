@@ -1,1 +1,1 @@
-declare class y<T extends {}> {}
+declare class y <T extends {}>{}
