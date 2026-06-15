@@ -155,7 +155,7 @@ impl<'cx> SignatureDeclaration<'cx> for crate::ClassCtor<'cx> {
         self.id
     }
     fn type_parameters(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
+        None
     }
     fn parameters(&self) -> Option<crate::ParamsDecl<'cx>> {
         Some(self.params)

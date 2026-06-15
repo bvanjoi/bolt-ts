@@ -354,7 +354,6 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ty_params: Option<ast::TyParams<'cx>>,
         name_span: Span,
         params: ast::ParamsDecl<'cx>,
         ret: Option<&'cx ast::Ty<'cx>>,
@@ -365,7 +364,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             modifiers,
-            ty_params,
             name_span,
             params,
             ret,
@@ -457,6 +455,26 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::MethodSignature(sig));
         self.insert_node_flags(id, ast::NodeFlags::empty());
         sig
+    }
+
+    #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
+    fn create_object_property_assignment(
+        &mut self,
+        span: Span,
+        name: &'cx ast::PropName<'cx>,
+        init: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ObjectPropAssignment<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ObjectPropAssignment {
+            id,
+            span,
+            name,
+            init,
+        });
+        self.insert_node(id, ast::Node::ObjectPropAssignment(node));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        node
     }
 
     #[inline(always)]
@@ -1535,6 +1553,25 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::PrivateIdent { id, span, name });
         self.insert_node(id, ast::Node::PrivateIdent(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_expression_with_type_arguments(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) -> &'cx ast::ExprWithTyArgs<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExprWithTyArgs {
+            id,
+            span,
+            expr,
+            ty_args,
+        });
+        self.insert_node(id, ast::Node::ExprWithTyArgs(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

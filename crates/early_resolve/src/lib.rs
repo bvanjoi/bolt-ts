@@ -549,7 +549,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 }
             }
             Typeof(n) => {
-                self.resolve_entity_name::<true>(n.name, MEANING_FOR_VALUE);
+                match n.name.kind {
+                    ast::EntityNameKind::Ident(n) if n.name == keyword::KW_THIS => {}
+                    ast::EntityNameKind::Qualified(n)
+                        if n.left.get_first_identifier().name == keyword::KW_THIS => {}
+                    _ => {
+                        self.resolve_entity_name::<true>(n.name, MEANING_FOR_VALUE);
+                    }
+                }
                 if let Some(ty_args) = n.ty_args {
                     self.resolve_tys(ty_args.list);
                 }

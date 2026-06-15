@@ -281,7 +281,7 @@ pub struct PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("'{decl}' is referenced directly or indirectly in its own base expression.")]
-pub struct DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
+pub struct XIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
     #[label(primary)]
     pub span: Span,
     pub decl: String,

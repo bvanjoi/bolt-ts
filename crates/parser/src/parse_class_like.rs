@@ -237,14 +237,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                         expr
                     } else {
                         let ty_arguments = self.try_parse_ty_args();
-                        let id = self.next_node_id();
-                        let expr = self.alloc(ast::ExprWithTyArgs {
-                            id,
-                            span: self.new_span(start_pos),
-                            expr,
-                            ty_args: ty_arguments,
-                        });
-                        self.nodes.insert(id, ast::Node::ExprWithTyArgs(expr));
+                        let span = self.new_span(start_pos);
+                        let expr =
+                            self.create_expression_with_type_arguments(span, expr, ty_arguments);
                         expr
                     };
                     if is_first {
@@ -331,6 +326,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             };
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters(flags);
+            self.check_parameters(params, CheckParameterFlags::empty());
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);
@@ -404,9 +400,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.try_parse(|this| {
             let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
-                let ty_params = this.p().parse_ty_params();
-                let params = this.p().parse_parameters(SignatureFlags::empty());
+                if let Some(_) = this.p().parse_ty_params() {
+                    let span = bolt_ts_span::Span::new(
+                        name_span.hi(),
+                        this.p().pos as u32,
+                        this.p().module_id,
+                    );
+                    let error =
+                        errors::TypeParametersCannotAppearOnAConstructorDeclaration { span };
+                    this.p().push_error(Box::new(error));
+                }
 
+                let params = this.p().parse_parameters(SignatureFlags::empty());
                 let ret = this.p().parse_return_ty::<true, false>()?;
                 let flags = if mods.is_some_and(|m| m.flags.contains(ast::ModifierFlags::ASYNC)) {
                     SignatureFlags::ASYNC.union(SignatureFlags::AWAIT)
@@ -437,7 +442,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let span = this.p().new_span(start);
                 let ctor = this
                     .p()
-                    .create_class_ctor(span, mods, ty_params, name_span, params, ret, body);
+                    .create_class_ctor(span, mods, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });

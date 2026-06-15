@@ -398,7 +398,7 @@ impl<'cx> TyChecker<'cx> {
             }
             base_ty = self.get_return_type_of_signature(ctors[0]);
         }
-        if base_ty == self.error_ty {
+        if self.is_error(base_ty) {
             return vec![];
         }
 

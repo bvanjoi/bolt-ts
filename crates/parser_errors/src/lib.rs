@@ -810,3 +810,10 @@ pub struct SuperMayNotUseTypeArguments {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type parameters cannot appear on a constructor declaration.")]
+pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
+    #[label(primary)]
+    pub span: Span,
+}

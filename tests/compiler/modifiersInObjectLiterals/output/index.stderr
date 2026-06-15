@@ -1,0 +1,23 @@
+  × Modifier cannot be used here.
+   ╭─[../../tests/compiler/modifiersInObjectLiterals/index.ts:6:2]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × Modifier cannot be used here.
+   ╭─[../../tests/compiler/modifiersInObjectLiterals/index.ts:7:2]
+ 7 │ private
+   · ───────
+   ╰────
+
+  × Modifier cannot be used here.
+   ╭─[../../tests/compiler/modifiersInObjectLiterals/index.ts:8:2]
+ 8 │ protected
+   · ─────────
+   ╰────
+
+  × Modifier cannot be used here.
+   ╭─[../../tests/compiler/modifiersInObjectLiterals/index.ts:9:2]
+ 9 │ abstract
+   · ────────
+   ╰────

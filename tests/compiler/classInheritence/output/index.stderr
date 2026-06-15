@@ -12,9 +12,9 @@ Advice:
    ╰────
 
   × 'A' is referenced directly or indirectly in its own base expression.
-   ╭─[../../tests/compiler/classInheritence/index.ts:4:1]
- 4 │ class A extends A { }
-   · ─────────────────────
+   ╭─[../../tests/compiler/classInheritence/index.ts:4:7]
+ 4 │ A
+   · ─
    ╰────
 
   × Class 'A' used before its declaration.

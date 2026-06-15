@@ -73,9 +73,10 @@ impl<'cx> TyChecker<'cx> {
             if let ast::EntityNameKind::Ident(ident) = expr_name.kind
                 && ident.name == keyword::KW_THIS
             {
-                // TODO: check this expr
+                self.check_this_expr(ident.id, ident.span)
+            } else {
+                self.check_entity_name(expr_name, None)
             }
-            self.check_entity_name(expr_name, None)
         } else {
             // exprWithTyArgs node
             self.check_expression(node.expr().unwrap(), None)

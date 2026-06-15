@@ -211,13 +211,11 @@ pub fn visit_class_elem<'cx>(v: &mut impl Visitor<'cx>, elem: &'cx ast::ClassEle
     }
 }
 pub fn visit_class_ctor<'cx>(v: &mut impl Visitor<'cx>, n: &'cx ast::ClassCtor<'cx>) {
-    if let Some(ty_params) = n.ty_params {
-        for ty_param in ty_params {
-            v.visit_ty_param(ty_param);
-        }
-    }
     for param in n.params {
         v.visit_param_decl(param);
+    }
+    if let Some(ty) = n.ret {
+        v.visit_ty(ty);
     }
     if let Some(body) = n.body {
         v.visit_block_stmt(body);

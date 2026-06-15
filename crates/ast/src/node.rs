@@ -394,7 +394,6 @@ impl<'cx> Node<'cx> {
             Node::ArrowFnExpr(n) => n.ty_params,
             Node::ClassDecl(n) => n.ty_params,
             Node::ClassExpr(n) => n.ty_params,
-            Node::ClassCtor(n) => n.ty_params,
             Node::CtorSigDecl(n) => n.ty_params,
             Node::ClassMethodElem(n) => n.ty_params,
             Node::TypeAliasDecl(n) => n.ty_params,

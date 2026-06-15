@@ -576,7 +576,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_node_deferred(n.id);
                 self.undefined_widening_ty
             }
-            This(n) => self.check_this_expr(n),
+            This(n) => self.check_this_expr(n.id, n.span),
             Super(n) => self.check_super_expr(n),
             As(n) => self.check_assertion(n.id, n.expr, n.ty, check_mode),
             TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty, check_mode),
@@ -1315,18 +1315,23 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_this_expr(&mut self, expr: &'cx ast::ThisExpr) -> &'cx ty::Ty<'cx> {
-        let is_ty_query = self.node_query(expr.id.module()).is_in_type_query(expr.id);
+    pub(super) fn check_this_expr(
+        &mut self,
+        expr_id: ast::NodeID,
+        expr_span: bolt_ts_span::Span,
+    ) -> &'cx ty::Ty<'cx> {
+        // TODO: can we remove is_part_of_ty_query?
+        let is_ty_query = self.node_query(expr_id.module()).is_in_type_query(expr_id);
         let mut container_id = self
-            .node_query(expr.id.module())
-            .get_this_container(expr.id, true, true);
+            .node_query(expr_id.module())
+            .get_this_container(expr_id, true, true);
         let mut container = self.p.node(container_id);
 
         let mut captured_by_arrow_fn = false;
         let mut this_in_computed_prop_name = false;
 
         if container.is_class_ctor() {
-            self.check_this_before_super(expr.id, expr.span, container_id, |this, span| {
+            self.check_this_before_super(expr_id, expr_span, container_id, |this, span| {
                 let error =
                     errors::SuperMustBeCalledBeforeAccessingThisInTheConstructorOfADerivedClass {
                         span,
@@ -1357,11 +1362,11 @@ impl<'cx> TyChecker<'cx> {
         if this_in_computed_prop_name {
             todo!()
         } else if container.is_module_decl() {
-            let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr.span };
+            let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr_span };
             self.push_error(Box::new(error));
         }
 
-        let ty = self.try_get_this_ty_at::<true>(expr.id, Some(container_id));
+        let ty = self.try_get_this_ty_at::<true>(expr_id, Some(container_id));
 
         if self.config.compiler_options().no_implicit_this() {
             let global_this_ty = self.get_type_of_symbol(self.global_this_symbol);
@@ -1372,7 +1377,7 @@ impl<'cx> TyChecker<'cx> {
                 None => {
                     let mut error =
                         errors::ThisImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotation {
-                            span: expr.span,
+                            span: expr_span,
                             related: None,
                         };
                     if !container.is_program()
@@ -1381,7 +1386,7 @@ impl<'cx> TyChecker<'cx> {
                         && outside_this != global_this_ty
                     {
                         error.related = Some(errors::AnOuterValueOfThisIsShadowedByThisContainer {
-                            span: expr.span,
+                            span: expr_span,
                         });
                     }
                     self.push_error(Box::new(error));

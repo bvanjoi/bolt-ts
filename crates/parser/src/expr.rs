@@ -838,7 +838,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let modifiers = self.parse_modifiers::<false, false>(false);
 
-        let check_invalid_modifiers = |this: &mut Self| {
+        let check_invalid_modifiers_for_method_like = |this: &mut Self| {
             if let Some(ms) = &modifiers {
                 for m in ms.list {
                     if m.kind() != ModifierKind::Async {
@@ -850,14 +850,14 @@ impl<'cx> ParserState<'cx, '_> {
         };
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             let decl =
                 self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             let decl =
                 self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
@@ -877,7 +877,7 @@ impl<'cx> ParserState<'cx, '_> {
         if asterisk_token.is_some()
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             return self.parse_object_method_decl(start, name, asterisk_token);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
@@ -900,15 +900,16 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(member);
         }
         self.expect(TokenKind::Colon);
-        let value = self.parse_assign_expr_or_higher::<false>()?;
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::ObjectPropAssignment {
-            id,
-            span: self.new_span(start),
-            name,
-            init: value,
-        });
-        self.nodes.insert(id, ast::Node::ObjectPropAssignment(kind));
+        let init = self.parse_assign_expr_or_higher::<false>()?;
+        let span = self.new_span(start);
+        if let Some(ms) = &modifiers {
+            for m in ms.list {
+                let error = errors::ModifierCannotBeUsedHere { span: m.span() };
+                self.push_error(Box::new(error));
+            }
+        }
+
+        let kind = self.create_object_property_assignment(span, name, init);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::PropAssignment(kind),
         });
@@ -1477,14 +1478,8 @@ impl<'cx> ParserState<'cx, '_> {
                     continue;
                 }
                 if let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())? {
-                    let id = self.next_node_id();
-                    let ele = self.alloc(ast::ExprWithTyArgs {
-                        id,
-                        span: self.new_span(start as u32),
-                        expr,
-                        ty_args: Some(ty_args),
-                    });
-                    self.nodes.insert(id, ast::Node::ExprWithTyArgs(ele));
+                    let span = self.new_span(start as u32);
+                    let ele = self.create_expression_with_type_arguments(span, expr, Some(ty_args));
                     expr = self.alloc(ast::Expr {
                         kind: ast::ExprKind::ExprWithTyArgs(ele),
                     });

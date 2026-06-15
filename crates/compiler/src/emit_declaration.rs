@@ -202,7 +202,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
                         CallSig(n) => this.visit_call_sig_decl(n),
-                        CtorSig(_n) => todo!(),
+                        CtorSig(n) => this.visit_ctor_sig_decl(n),
                         Setter(_n) => todo!(),
                         Getter(_n) => todo!(),
                     }
@@ -215,6 +215,28 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_newline();
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_ctor_sig_decl(&mut self, node: &'cx bolt_ts_ast::CtorSigDecl<'cx>) {
+        self.emitter.print().p("new");
+        self.emitter.print().p_whitespace();
+        self.emit_type_parameters(node.ty_params);
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.emit_ret_ty(node.ty);
+        self.emitter.print().p_semi();
     }
 
     fn visit_call_sig_decl(&mut self, node: &'cx ast::CallSigDecl<'cx>) {
@@ -269,6 +291,28 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             let ty_str = self.resolver.print_type(ty);
             self.emitter.print().p(&ty_str);
         }
+        self.emitter.print().p_semi();
+    }
+
+    fn visit_ctor_ty(&mut self, node: &'cx bolt_ts_ast::CtorTy<'cx>) {
+        self.emitter.print().p("new");
+        self.emitter.print().p_whitespace();
+        self.emit_type_parameters(node.ty_params);
+        self.emitter.print().p_l_paren();
+        self.emit_list(
+            node.params,
+            |this, item| {
+                this.visit_param_decl(item);
+            },
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+        self.emitter.print().p_arrow_right();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.ty);
         self.emitter.print().p_semi();
     }
 

@@ -786,9 +786,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ClassCtor(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
                 self.bind_params(n.params);
                 if let Some(ret) = n.ret {
                     self.bind(ret.id());
