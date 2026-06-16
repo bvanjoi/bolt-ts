@@ -6,20 +6,7 @@
 
 Advice: 
   ☞ Class 'Color' is defined here
-    ╭─[../../tests/compiler/derivedClasses/index.ts:10:7]
- 10 │ Color
-    · ─────
-    ╰────
-
-  × Class 'Color' used before its declaration.
-   ╭─[../../tests/compiler/derivedClasses/index.ts:1:19]
- 1 │ Color
+   ╭─[../../tests/compiler/derivedClasses/index.ts:9:7]
+ 9 │ Color
    · ─────
    ╰────
-
-Advice: 
-  ☞ Class 'Color' is defined here
-    ╭─[../../tests/compiler/derivedClasses/index.ts:10:7]
- 10 │ Color
-    · ─────
-    ╰────

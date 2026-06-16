@@ -366,9 +366,9 @@ pub struct TyChecker<'cx> {
     global_boolean_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_regexp_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     global_this_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    mark_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    mark_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    mark_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    marker_super_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    marker_sub_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    marker_other_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -784,9 +784,9 @@ impl<'cx> TyChecker<'cx> {
             global_newable_fn_ty: Default::default(),
             global_object_ty: Default::default(),
             array_variances: Default::default(),
-            mark_super_ty: Default::default(),
-            mark_sub_ty: Default::default(),
-            mark_other_ty: Default::default(),
+            marker_super_ty: Default::default(),
+            marker_sub_ty: Default::default(),
+            marker_other_ty: Default::default(),
             template_constraint_ty: Default::default(),
 
             any_iteration_tys: Default::default(),
@@ -960,9 +960,9 @@ impl<'cx> TyChecker<'cx> {
             (empty_object_ty,               this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None, None)),
             (empty_ty_literal_ty,           this.create_anonymous_ty_with_resolved(Some(empty_ty_literal_symbol), Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None, None)),
             (unknown_empty_object_ty,       this.create_anonymous_ty_with_resolved(None, Default::default(), this.alloc(Default::default()), Default::default(), Default::default(), Default::default(), None, None)),
-            (mark_sub_ty,                   this.create_param_ty::<false>(None)),
-            (mark_other_ty,                 this.create_param_ty::<false>(None)),
-            (mark_super_ty,                 this.create_param_ty::<false>(None)),
+            (marker_sub_ty,                 this.create_param_ty::<false>(None)),
+            (marker_other_ty,               this.create_param_ty::<false>(None)),
+            (marker_super_ty,               this.create_param_ty::<false>(None)),
             (template_constraint_ty,        this.get_union_ty::<false>(&[string_ty, number_ty, boolean_ty, bigint_ty, null_ty, undefined_ty], ty::UnionReduction::Lit, None, None, None, None)),
             (any_iteration_tys,             this.create_iteration_tys(any_ty, any_ty, any_ty)),
             (no_iteration_tys,              this.alloc(ty::IterationTys {yield_ty: error_ty, return_ty: error_ty, next_ty: error_ty})),
@@ -2731,8 +2731,8 @@ impl<'cx> TyChecker<'cx> {
         if param.is_this_ty {
             // assert!(param.constraint.is_none());
             Some(self.tys[ty.id.as_usize() + 2])
-        } else if ty == self.mark_sub_ty() {
-            Some(self.mark_super_ty())
+        } else if ty == self.marker_sub_ty() {
+            Some(self.marker_super_ty())
         } else {
             self.get_ty_links(ty.id).get_param_ty_constraint()
         }
@@ -7603,7 +7603,7 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
         }
-        let bases = self.get_base_tys(ty);
+        let bases = self.get_base_tys(target);
         if bases.len() != 1 {
             return None;
         }
@@ -8121,9 +8121,9 @@ global_ty!(
     global_object_ty,
     global_regexp_ty,
     template_constraint_ty,
-    mark_super_ty,
-    mark_sub_ty,
-    mark_other_ty,
+    marker_super_ty,
+    marker_sub_ty,
+    marker_other_ty,
     empty_string_ty,
     zero_ty,
     zero_bigint_ty

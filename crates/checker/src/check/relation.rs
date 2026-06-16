@@ -1246,8 +1246,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_unconstrained_ty_param(&mut self, ty: &'cx Ty<'cx>) -> bool {
-        ty.flags.contains(TypeFlags::TYPE_PARAMETER)
-            && self.get_constraint_of_ty_param(ty).is_none()
+        debug_assert!(ty.flags.contains(TypeFlags::TYPE_PARAMETER));
+        self.get_constraint_of_ty_param(ty).is_none()
     }
 
     pub(super) fn get_relation_key<const IGNORE_CONSTRAINTS: bool>(

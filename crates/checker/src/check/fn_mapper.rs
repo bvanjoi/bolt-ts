@@ -148,9 +148,9 @@ impl<'cx> ty::TyMap<'cx> for ReportUnreliableMapper {
         checker: &mut TyChecker<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if checker.enable_out_of_band_variance_marker_handler
-            && (ty == checker.mark_super_ty()
-                || ty == checker.mark_sub_ty()
-                || ty == checker.mark_other_ty())
+            && (ty == checker.marker_super_ty()
+                || ty == checker.marker_sub_ty()
+                || ty == checker.marker_other_ty())
         {
             if let Some(flags) = checker.propagating_variance_flags.as_mut() {
                 *flags |= RelationComparisonResult::REPORT_UNRELIABLE;
@@ -171,9 +171,9 @@ impl<'cx> ty::TyMap<'cx> for ReportUnmeasurableMapper {
         checker: &mut TyChecker<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if checker.enable_out_of_band_variance_marker_handler
-            && (ty == checker.mark_super_ty()
-                || ty == checker.mark_sub_ty()
-                || ty == checker.mark_other_ty())
+            && (ty == checker.marker_super_ty()
+                || ty == checker.marker_sub_ty()
+                || ty == checker.marker_other_ty())
         {
             if let Some(flags) = checker.propagating_variance_flags.as_mut() {
                 *flags |= RelationComparisonResult::REPORT_UNMEASURABLE;

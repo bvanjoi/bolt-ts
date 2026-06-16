@@ -934,11 +934,11 @@ impl<'cx> TyChecker<'cx> {
                 CheckFlags::empty()
             };
             if arity > 0 {
-                let mut _ty_params = Vec::with_capacity(arity);
+                let mut type_parameters = Vec::with_capacity(arity);
                 debug_assert_eq!(arity, element_flags.len());
                 for (i, flag) in element_flags.iter().enumerate() {
-                    let ty_param = this.create_param_ty::<false>(None);
-                    _ty_params.push(ty_param);
+                    let type_parameter = this.create_param_ty::<false>(None);
+                    type_parameters.push(type_parameter);
                     combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
@@ -952,7 +952,7 @@ impl<'cx> TyChecker<'cx> {
                             name,
                             symbol_flags,
                             SymbolLinks::default()
-                                .with_ty(ty_param)
+                                .with_ty(type_parameter)
                                 .with_check_flags(check_flags),
                             None,
                             None,
@@ -961,7 +961,7 @@ impl<'cx> TyChecker<'cx> {
                         props.push(property);
                     }
                 }
-                ty_params = Some(this.alloc(_ty_params));
+                ty_params = Some(this.alloc(type_parameters));
             }
 
             let fixed_length = props.len();

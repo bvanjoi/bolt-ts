@@ -4,6 +4,5 @@
 
 class derived extends base { }
 //~^ ERROR: Class 'base' used before its declaration.
-//~| ERROR: Class 'base' used before its declaration.
  
 class base { constructor (public n: number) { } }

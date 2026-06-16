@@ -2,11 +2,8 @@
 
 class A extends B<string> { }
 //~^ ERROR: Class 'B' used before its declaration.
-//~| ERROR: Class 'B' used before its declaration.
 class B<U> extends C { }
 //~^ ERROR: Class 'C' used before its declaration.
-//~| ERROR: Class 'C' used before its declaration.
-//~| ERROR: Class 'C' used before its declaration.
 class C {
     constructor(p: string) { }
 }
