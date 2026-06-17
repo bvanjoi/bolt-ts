@@ -18,7 +18,6 @@ mod create_ty;
 mod cycle_check;
 mod discriminant;
 mod elaborate_error;
-
 mod eval;
 mod expect;
 mod flow;
@@ -193,6 +192,12 @@ impl<'cx> FlowLoopTypesArena<'cx> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct FlowLoopTypesArenaId<'cx>(bolt_ts_arena::la_arena::Idx<Vec<&'cx ty::Ty<'cx>>>);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct TemplateLiteralTyKey<'cx> {
+    texts: &'cx [Atom],
+    tys: &'cx [&'cx ty::Ty<'cx>],
+}
+
 pub struct TyChecker<'cx> {
     pub atoms: AtomIntern,
     pub diags: Vec<bolt_ts_errors::Diag>,
@@ -221,6 +226,7 @@ pub struct TyChecker<'cx> {
     string_mapping_tys: StringMappingTyMap<'cx>,
     type_name: nohash_hasher::IntMap<TyID, std::borrow::Cow<'static, str>>,
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
+    template_literal_tys: FxHashMap<TemplateLiteralTyKey<'cx>, &'cx ty::Ty<'cx>>,
 
     inferences: Vec<InferenceContext<'cx>>,
     inference_contextual: Vec<InferenceContextual>,
@@ -673,6 +679,7 @@ impl<'cx> TyChecker<'cx> {
             num_lit_tys: no_hashmap_with_capacity(1024),
             string_lit_tys: fx_hashmap_with_capacity(1024),
             bigint_lit_tys: fx_hashmap_with_capacity(512),
+            template_literal_tys: fx_hashmap_with_capacity(32),
             union_tys: UnionMap::new(1024),
             union_of_union_tys: fx_hashmap_with_capacity(1024),
             substitution_tys: fx_hashmap_with_capacity(1024),
@@ -2231,7 +2238,7 @@ impl<'cx> TyChecker<'cx> {
         self.push_error(Box::new(error));
     }
 
-    pub(super) fn check_property_access_expr_or_qualified_name(
+    pub(super) fn check_property_access_expression_or_qualified_name(
         &mut self,
         node: ast::NodeID,
         left: ast::NodeID,
@@ -2332,6 +2339,17 @@ impl<'cx> TyChecker<'cx> {
                 }
                 return self.error_ty;
             };
+            if index_info.is_readonly && {
+                let nq = self.node_query(node.module());
+                nq.is_assignment_target(node) || nq.is_delete_target(node)
+            } {
+                let error = errors::IndexSignatureInTypeXOnlyPermitsReading {
+                    span: self.p.node(node).span(),
+                    ty: self.print_ty(apparent_left_ty, None).to_string(),
+                };
+                self.push_error(Box::new(error));
+            }
+
             if self.config.compiler_options().no_unchecked_indexed_access()
                 && self
                     .node_query(node.module())
@@ -2644,7 +2662,7 @@ impl<'cx> TyChecker<'cx> {
             self.check_property_access_chain(node, check_mode)
         } else {
             let left_ty = self.check_non_null_expr(node.expr);
-            self.check_property_access_expr_or_qualified_name(
+            self.check_property_access_expression_or_qualified_name(
                 node.id,
                 node.expr.id(),
                 left_ty,
@@ -2715,7 +2733,7 @@ impl<'cx> TyChecker<'cx> {
         let non_optional_ty = self.get_optional_expression_ty(left_ty, n.expr);
         let expr_id = n.expr.id();
         let non_null_ty = self.check_non_null_type(non_optional_ty, expr_id);
-        let ty = self.check_property_access_expr_or_qualified_name(
+        let ty = self.check_property_access_expression_or_qualified_name(
             n.id,
             expr_id,
             non_null_ty,

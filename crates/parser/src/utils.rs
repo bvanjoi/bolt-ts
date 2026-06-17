@@ -801,20 +801,19 @@ impl<'cx> ParserState<'cx, '_> {
                 this.next_token();
                 Ok(true)
             } else if matches!(this.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
-                let len = this.diags.len();
                 match this.token.kind {
                     ast::TokenKind::LBracket => {
+                        let len = this.diags.len();
                         this.parse_array_binding_pat();
+                        Ok(len == this.diags.len())
                     }
                     ast::TokenKind::LBrace => {
+                        let len = this.diags.len();
                         this.parse_object_binding_pat();
+                        Ok(len == this.diags.len())
                     }
-                    _ => {
-                        this.parse_binding_ident();
-                    }
+                    _ => Ok(false),
                 }
-                this.diags.truncate(len);
-                Ok(true)
             } else {
                 Ok(false)
             }

@@ -45,16 +45,8 @@ impl<'cx> ParserState<'cx, '_> {
                 let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Colon);
                 let false_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
-                let id = self.next_node_id();
-                let ty = self.alloc(ast::CondTy {
-                    id,
-                    span: self.new_span(start),
-                    check_ty: ty,
-                    extends_ty,
-                    true_ty,
-                    false_ty,
-                });
-                self.nodes.insert(id, ast::Node::CondTy(ty));
+                let span = self.new_span(start);
+                let ty = self.create_conditional_type(span, ty, extends_ty, true_ty, false_ty);
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Cond(ty),
                 });
@@ -864,13 +856,8 @@ impl<'cx> ParserState<'cx, '_> {
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let pos = self.token.start();
             let ty = self.parse_ty()?;
-            let id = self.next_node_id();
-            let ty = self.alloc(ast::RestTy {
-                id,
-                span: self.new_span(pos),
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::RestTy(ty));
+            let span = self.new_span(pos);
+            let ty = self.create_rest_type(span, ty);
             let ty = self.alloc(ast::Ty {
                 kind: ast::TyKind::Rest(ty),
             });

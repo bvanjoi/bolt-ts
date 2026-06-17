@@ -1,0 +1,5 @@
+  × Index signature in type 'Test' only permits reading.
+    ╭─[../../tests/compiler/propertyAccessOfReadonlyIndexSignature/index.ts:11:1]
+ 11 │ a.foo
+    · ─────
+    ╰────

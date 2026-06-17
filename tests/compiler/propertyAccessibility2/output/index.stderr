@@ -1,0 +1,5 @@
+  × Property 'x' is private and only accessible within class 'C'.
+   ╭─[../../tests/compiler/propertyAccessibility2/index.ts:9:9]
+ 9 │ C.x
+   · ───
+   ╰────

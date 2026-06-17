@@ -1575,4 +1575,36 @@ pub trait ASTFactory<'cx> {
         self.insert_node_flags(id, self.node_context_flags());
         node
     }
+
+    #[inline]
+    fn create_rest_type(&mut self, span: Span, ty: &'cx ast::Ty<'cx>) -> &'cx ast::RestTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::RestTy { id, span, ty });
+        self.insert_node(id, ast::Node::RestTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_conditional_type(
+        &mut self,
+        span: Span,
+        check_ty: &'cx ast::Ty<'cx>,
+        extends_ty: &'cx ast::Ty<'cx>,
+        true_ty: &'cx ast::Ty<'cx>,
+        false_ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::CondTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CondTy {
+            id,
+            span,
+            check_ty,
+            extends_ty,
+            true_ty,
+            false_ty,
+        });
+        self.insert_node(id, ast::Node::CondTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
 }

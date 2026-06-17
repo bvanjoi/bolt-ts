@@ -7,3 +7,9 @@ function f() {
     var arguments = [];
     //~^ ERROR: Invalid use of 'arguments' in strict mode.
 }
+
+type A<TArray extends unknown[]> = {
+    [K in keyof TArray]: number extends K ? (TArray extends unknown ? [] : [])[number] : never
+}
+
+type T = [({a?: string})?, ({a?: string})?];

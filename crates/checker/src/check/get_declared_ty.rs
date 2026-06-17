@@ -161,7 +161,7 @@ impl<'cx> TyChecker<'cx> {
             // TODO: non_null
             self.check_entity_name(node.left, None)
         };
-        self.check_property_access_expr_or_qualified_name(
+        self.check_property_access_expression_or_qualified_name(
             node.id,
             node.left.id(),
             left_ty,

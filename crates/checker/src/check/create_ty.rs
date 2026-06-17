@@ -7,6 +7,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
 use super::SymbolLinks;
+use super::TemplateLiteralTyKey;
 use super::UnionOfUnionTysKey;
 use super::get_iteration_tys::AsyncIterationTysResolver;
 use super::get_iteration_tys::IterationTysResolver;
@@ -1784,10 +1785,20 @@ impl<'cx> TyChecker<'cx> {
                 return new_tys[0];
             }
         }
-        // TODO: cache;
-        let new_texts = self.alloc(new_texts);
-        let new_tys = self.alloc(new_tys);
-        self.create_template_lit_ty(new_texts, new_tys)
+        let new_texts: &'cx [bolt_ts_atom::Atom] = self.alloc(new_texts);
+        let new_tys: &'cx [&'cx ty::Ty<'cx>] = self.alloc(new_tys);
+        let key = TemplateLiteralTyKey {
+            texts: new_texts,
+            tys: new_tys,
+        };
+        if let Some(cache) = self.template_literal_tys.get(&key) {
+            return cache;
+        }
+
+        let ty = self.create_template_lit_ty(new_texts, new_tys);
+        let prev = self.template_literal_tys.insert(key, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 
     fn create_template_lit_ty(

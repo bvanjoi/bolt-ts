@@ -419,8 +419,7 @@ impl<'cx> TyChecker<'cx> {
                     .filter_map(|t| get_base_constraint(checker, t, stack))
                     .collect::<Vec<_>>();
                 if constraints.len() == t.tys.len() {
-                    let tys = checker.alloc(constraints);
-                    Some(checker.get_template_lit_ty(t.texts, tys))
+                    Some(checker.get_template_lit_ty(t.texts, &constraints))
                 } else {
                     Some(checker.string_ty)
                 }
