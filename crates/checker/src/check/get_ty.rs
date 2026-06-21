@@ -3024,8 +3024,8 @@ impl<'cx> TyChecker<'cx> {
             .expect_object_evolving_array()
             .element_ty;
         // create_final_array_ty
-        let element_ty = if element_ty.flags.contains(TypeFlags::NEVER) {
-            self.auto_array_ty()
+        if element_ty.flags.contains(TypeFlags::NEVER) {
+            return self.auto_array_ty();
         } else if let Some(u) = element_ty.kind.as_union() {
             self.get_union_ty::<false>(u.tys, ty::UnionReduction::Subtype, None, None, None, None)
         } else {

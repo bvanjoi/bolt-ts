@@ -1,11 +1,11 @@
-  × Property 'length' does not exist on type 'number'.
-    ╭─[../../tests/compiler/functionAssignment/index.ts:40:17]
- 40 │ length
-    · ──────
-    ╰────
-
   × Type 'number' is not assignable to type 'string'.
     ╭─[../../tests/compiler/functionAssignment/index.ts:27:5]
  27 │ n
     · ─
+    ╰────
+
+  × Property 'length' does not exist on type 'number'.
+    ╭─[../../tests/compiler/functionAssignment/index.ts:40:17]
+ 40 │ length
+    · ──────
     ╰────

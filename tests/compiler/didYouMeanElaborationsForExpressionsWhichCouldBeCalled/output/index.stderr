@@ -1,0 +1,25 @@
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled/index.ts:14:5]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Type 'DateConstructor' is missing the following properties from type
+  │ 'Date': getVarDate, toDateString, and 40 more.
+    ╭─[../../tests/compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled/index.ts:16:5]
+ 16 │ y
+    · ─
+    ╰────
+
+  × Argument of type '() => number' is not assignable to parameter of type
+  │ 'number'.
+    ╭─[../../tests/compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled/index.ts:23:4]
+ 23 │ getNum
+    · ──────
+    ╰────
+
+  × Type '() => number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/didYouMeanElaborationsForExpressionsWhichCouldBeCalled/index.ts:32:5]
+ 32 │ getNum
+    · ──────
+    ╰────

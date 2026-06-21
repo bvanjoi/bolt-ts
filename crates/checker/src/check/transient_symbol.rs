@@ -36,6 +36,7 @@ impl<'cx> TyChecker<'cx> {
             export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: None,
+            last_assignment_position: None,
         };
         let symbols = self.get_mut_transient_symbols();
         let id = create_transient_symbol(symbols, symbol);

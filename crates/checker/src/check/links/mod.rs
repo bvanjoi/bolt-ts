@@ -54,6 +54,12 @@ macro_rules! _links {
                             None => unreachable!("`{}` is not defined", stringify!($x)),
                         };
                     }
+                    #[allow(unused)]
+                    #[track_caller]
+                    pub fn [<clear_ $x>](&mut self) {
+                        debug_assert!(self.$x.is_some());
+                        self.$x = None;
+                    }
                 )*
             }
         }

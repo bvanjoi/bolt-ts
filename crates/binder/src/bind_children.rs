@@ -175,9 +175,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn bind_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
-        for ty_param in ty_params {
-            self.bind(ty_param.id);
+    fn bind_type_parameters(&mut self, ty_params: Option<ast::TyParams<'cx>>) {
+        if let Some(ty_params) = ty_params {
+            for ty_param in ty_params {
+                self.bind(ty_param.id);
+            }
         }
     }
 
@@ -697,6 +699,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             CallExpr(n) => self.bind_call_expr_flow(n),
+            ImportExpression(_) => {}
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
             Program(n) => {
                 self.bind_stmts_under(node, n.stmts());
@@ -741,9 +744,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -760,9 +761,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -811,9 +810,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_modifiers(mods);
                 }
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -849,9 +846,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_modifiers(mods);
                 }
                 self.bind(n.name.id);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -861,9 +856,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             TypeAliasDecl(n) => {
                 self.bind(n.name.id);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind(n.ty.id());
             }
             InterfaceExtendsClause(n) => {
@@ -985,9 +978,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ObjectMethodMember(n) => {
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1002,9 +993,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1015,9 +1004,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -1032,11 +1019,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             NewExpr(n) => {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 if let Some(args) = n.args {
                     for arg in args {
                         self.bind(arg.id());
@@ -1062,9 +1045,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ArrowFnExpr(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1114,11 +1095,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             LitTy(_) => {}
             ReferTy(n) => {
                 self.bind_entity_name(n.name);
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             ArrayTy(n) => {
                 self.bind(n.ele.id());
@@ -1128,9 +1105,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.index_ty.id());
             }
             FnTy(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 self.bind(n.ty.id());
             }
@@ -1138,9 +1113,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(modifiers) = n.modifiers {
                     self.bind_modifiers(modifiers);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 self.bind(n.ty.id());
             }
@@ -1167,18 +1140,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.ty.id());
             }
             CallSigDecl(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
                 }
             }
             CtorSigDecl(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1195,9 +1164,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             MethodSignature(n) => {
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1233,11 +1200,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             TypeofTy(n) => {
                 self.bind_entity_name(n.name);
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             MappedTy(n) => {
                 self.bind(n.ty_param.id);
@@ -1253,8 +1216,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             PredTy(n) => {
                 match n.name {
-                    bolt_ts_ast::PredTyName::Ident(n) => self.bind(n.id),
-                    bolt_ts_ast::PredTyName::This(n) => self.bind(n.id),
+                    ast::PredTyName::Ident(n) => self.bind(n.id),
+                    ast::PredTyName::This(n) => self.bind(n.id),
                 }
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1289,22 +1252,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ExprWithTyArgs(n) => {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             SpreadElement(n) => {
                 self.bind(n.expr.id());
             }
             TaggedTemplateExpr(n) => {
                 self.bind(n.tag.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 self.bind(n.tpl.id());
             }
             LabeledStmt(n) => {
@@ -1347,11 +1302,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             JsxOpeningElem(n) => {
                 self.bind(n.tag_name.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for attr in n.attrs {
                     self.bind(attr.id());
                 }
@@ -1361,11 +1312,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             JsxSelfClosingElem(n) => {
                 self.bind(n.tag_name.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for attr in n.attrs {
                     self.bind(attr.id());
                 }
@@ -1421,15 +1368,28 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExternalModuleReference(n) => {
                 self.bind(n.module_spec().id);
             }
-            ClassSemiElem(_n) => {}
-            ImportExpression(_) => {}
-            ImportType(_) => {}
+            ImportType(n) => {
+                self.bind(n.argument.id());
+                self.bind_type_arguments(n.type_arguments);
+                if let Some(qualifier) = n.qualifier {
+                    self.bind_entity_name(qualifier);
+                }
+            }
+            ClassSemiElem(_) => {}
             NewMetaProperty(n) => {
                 self.bind(n.name.id);
             }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn bind_type_arguments(&mut self, ty_args: Option<&'cx ast::Tys<'cx>>) {
+        if let Some(ty_args) = ty_args {
+            for ty in ty_args.list {
+                self.bind(ty.id());
+            }
+        }
     }
 
     fn bind_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) {
@@ -1629,22 +1589,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         } else {
             let expr = bolt_ts_ast::Expr::skip_parens(n.expr);
             if matches!(expr.kind, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_)) {
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }
                 self.bind(n.expr.id());
             } else {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }
@@ -2127,11 +2079,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.arg.id());
             }
             ast::Node::CallExpr(n) => {
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }

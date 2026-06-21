@@ -1127,6 +1127,23 @@ pub struct CallExpr<'cx> {
     pub args: Exprs<'cx>,
 }
 
+impl<'cx> CallExpr<'cx> {
+    pub fn is_require_call<const REQUIRE_STRING_LITERAL_LIKE_ARGUMENT: bool>(&self) -> bool {
+        if let ExprKind::Ident(ident) = &self.expr.kind
+            && ident.name == keyword::IDENT_REQUIRE
+            && self.args.len() == 1
+        {
+            if REQUIRE_STRING_LITERAL_LIKE_ARGUMENT {
+                self.args[0].kind.is_string_literal_like()
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
+}
+
 /// ```txt
 /// let a = <string>'hello';
 ///         ^^^^^^^^^^^^^^^

@@ -24,6 +24,7 @@ members = [
   "crates/parser",
   "crates/parser_errors",
   "crates/path",
+  "crates/scanner",
   "crates/semver",
   "crates/tracing",
   "crates/ty",

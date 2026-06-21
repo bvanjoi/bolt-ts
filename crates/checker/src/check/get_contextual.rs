@@ -315,7 +315,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let nq = self.node_query(id.module());
         if nq.has_dynamic_name(id)
-            && let Some(name) = nq.get_name_of_decl(id)
+            && let Some(name) = nq.get_name_of_declaration(id)
             && let ast::DeclarationName::Computed(name) = name
             && let expr_ty = self.check_expression(name.expr, None)
             && expr_ty.usable_as_prop_name()

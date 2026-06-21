@@ -7,30 +7,37 @@
   × Property 'bar' of type '() => any' is not assignable to 'string' index
   │ type 'number'.
     ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:10:2]
- 10 │ bar():any
-    · ─────────
+ 10 │ bar
+    · ───
+    ╰────
+
+  × Property 'bar' of type '() => any' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:10:2]
+ 10 │ bar
+    · ───
     ╰────
 
   × Duplicate index signature for type 'string'.
-    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:15:2]
- 15 │ [s:string]:number;
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:16:2]
+ 16 │ [s:string]:number;
     · ──────────────────
     ╰────
 
   × Duplicate index signature for type 'string'.
-    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:17:2]
- 17 │ [s:string]:number;
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:18:2]
+ 18 │ [s:string]:number;
     · ──────────────────
     ╰────
 
   × Duplicate index signature for type 'string'.
-    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:23:2]
- 23 │ [s:A]:number;
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:24:2]
+ 24 │ [s:A]:number;
     · ─────────────
     ╰────
 
   × Duplicate index signature for type 'string'.
-    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:25:2]
- 25 │ [s:A]:number;
+    ╭─[../../tests/compiler/interfaceMemberValidation/index.ts:26:2]
+ 26 │ [s:A]:number;
     · ─────────────
     ╰────

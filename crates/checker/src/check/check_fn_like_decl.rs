@@ -49,9 +49,29 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.get_effective_ret_type_node(id).is_none() {
-            if body.is_none() {
+            if body.is_none() && !self.is_private_within_ambient(id) {
                 self.report_implicit_any(id, self.any_ty, None);
             }
+        }
+    }
+
+    fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
+        let n = self.p.node(id);
+        n.has_effective_modifier(ast::ModifierFlags::PRIVATE) || {
+            self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+                && Self::is_private_identifier_class_element_declaration(&n)
+        }
+    }
+
+    pub(super) fn is_private_identifier_class_element_declaration(n: &ast::Node<'cx>) -> bool {
+        match n {
+            ast::Node::ClassPropElem(ast::ClassPropElem { name, .. })
+            | ast::Node::ClassMethodElem(ast::ClassMethodElem { name, .. })
+            | ast::Node::GetterDecl(ast::GetterDecl { name, .. })
+            | ast::Node::SetterDecl(ast::SetterDecl { name, .. }) => {
+                matches!(name.kind, ast::PropNameKind::PrivateIdent(_))
+            }
+            _ => false,
         }
     }
 

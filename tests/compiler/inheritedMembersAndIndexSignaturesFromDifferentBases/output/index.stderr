@@ -1,0 +1,41 @@
+  × Property 'm' of type '{ }' is not assignable to 'string' index type '{ a:
+  │ any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:21:11]
+ 21 │ D
+    · ─
+    ╰────
+
+  × Property '0' of type '{ }' is not assignable to 'string' index type '{ a:
+  │ any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:28:11]
+ 28 │ F
+    · ─
+    ╰────
+
+  × Property '0' of type '{ }' is not assignable to 'number' index type '{ a:
+  │ any; b: any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:28:11]
+ 28 │ F
+    · ─
+    ╰────
+
+  × Property 'm' of type '{ }' is not assignable to 'string' index type '{ a:
+  │ any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:32:11]
+ 32 │ G
+    · ─
+    ╰────
+
+  × Property '0' of type '{ }' is not assignable to 'string' index type '{ a:
+  │ any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:32:11]
+ 32 │ G
+    · ─
+    ╰────
+
+  × Property '0' of type '{ }' is not assignable to 'number' index type '{ a:
+  │ any; b: any; }'.
+    ╭─[../../tests/compiler/inheritedMembersAndIndexSignaturesFromDifferentBases/index.ts:32:11]
+ 32 │ G
+    · ─
+    ╰────

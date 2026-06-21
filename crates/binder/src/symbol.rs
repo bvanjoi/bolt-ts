@@ -224,6 +224,7 @@ pub struct Symbol {
     pub export_symbol: Option<SymbolID>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: Option<bool>,
+    pub last_assignment_position: Option<isize>,
 }
 
 impl Symbol {
@@ -240,6 +241,7 @@ impl Symbol {
             export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: None,
+            last_assignment_position: None,
         }
     }
 }

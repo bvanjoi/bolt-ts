@@ -403,7 +403,15 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_spreadable_property(&self, prop: SymbolID) -> bool {
         let s = self.symbol(prop);
-        // TODO: s.decls.iter().any(|decl| self.is_private_identifier_class_element_declaration(decl))
+        if let Some(declarations) = s.decls.as_ref()
+            && declarations.iter().any(|decl| {
+                let n = self.p.node(*decl);
+                Self::is_private_identifier_class_element_declaration(&n)
+            })
+        {
+            return false;
+        }
+
         let flags = s.flags;
         return !flags.intersects(
             SymbolFlags::METHOD

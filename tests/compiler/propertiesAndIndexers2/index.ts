@@ -25,4 +25,5 @@ interface B extends A {
     //~^ ERROR: Property '"-NaN"' of type 'string' is not assignable to 'string' index type 'number'.
     6(): string;
     //~^ ERROR: Property '6' of type '() => string' is not assignable to 'number' index type 'string'.
+    //~| ERROR: Property '6' of type '() => string' is not assignable to 'string' index type 'number'.
 }

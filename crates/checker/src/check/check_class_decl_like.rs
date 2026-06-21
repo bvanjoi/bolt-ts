@@ -5,6 +5,7 @@ use super::{TyChecker, errors};
 
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
+use bolt_ts_ast_visitor::{noop_visit_function_like_node, noop_visit_type_node};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
 use bolt_ts_ty::CheckFlags;
@@ -41,31 +42,23 @@ impl<'cx> TyChecker<'cx> {
             ret: Option<&'cx ast::CallExpr<'cx>>,
         }
 
-        use bolt_ts_ast_visitor::Visitor;
+        use bolt_ts_ast_visitor::{ControlFlow, Visitor};
         impl<'cx> Visitor<'cx> for FindFirstSuperCall<'cx> {
-            fn visit_fn_decl(&mut self, _: &'cx bolt_ts_ast::FnDecl<'cx>) {}
-            fn visit_class_decl(&mut self, _: &'cx bolt_ts_ast::ClassDecl<'cx>) {}
-            fn visit_call_expr(&mut self, node: &'cx bolt_ts_ast::CallExpr<'cx>) {
+            type Result = ControlFlow;
+            noop_visit_function_like_node!();
+            fn visit_call_expr(&mut self, node: &'cx bolt_ts_ast::CallExpr<'cx>) -> ControlFlow {
                 if let ast::ExprKind::Super(_) = node.expr.kind {
                     debug_assert!(self.ret.is_none());
                     self.ret = Some(node);
-                    return;
-                }
-                bolt_ts_ast_visitor::visit_call_expr(self, node);
-            }
-            fn visit_block_stmt(&mut self, node: &'cx bolt_ts_ast::BlockStmt<'cx>) {
-                for stmt in node.stmts {
-                    self.visit_stmt(stmt);
-                    if self.ret.is_some() {
-                        break;
-                    }
+                    ControlFlow::Break
+                } else {
+                    bolt_ts_ast_visitor::visit_call_expr(self, node)
                 }
             }
         }
 
         let mut v = FindFirstSuperCall { ret: None };
         v.visit_block_stmt(body);
-
         v.ret
     }
 
@@ -300,9 +293,7 @@ impl<'cx> TyChecker<'cx> {
         let class_id = class.id();
         let symbol = self.get_symbol_of_declaration(class_id);
 
-        if let Some(ty_params) = class.ty_params() {
-            self.check_ty_params(ty_params);
-        }
+        self.check_type_parameters(class.ty_params());
 
         let ty = self.get_declared_ty_of_symbol(symbol);
         let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
@@ -324,7 +315,7 @@ impl<'cx> TyChecker<'cx> {
                     && self
                         .p
                         .node(decl)
-                        .has_effective_modifier(bolt_ts_ast::ModifierKind::Private)
+                        .has_effective_modifier(bolt_ts_ast::ModifierFlags::PRIVATE)
                     && let Some(class_decl) =
                         self.get_class_like_decl_of_symbol(static_base_ty.symbol().unwrap())
                     && !self

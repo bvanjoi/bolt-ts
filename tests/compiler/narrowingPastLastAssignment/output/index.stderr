@@ -1,0 +1,18 @@
+  × Variable 'x' implicitly has type 'any' in some locations where its type
+  │ cannot be determined.
+    ╭─[../../tests/compiler/narrowingPastLastAssignment/index.ts:94:9]
+ 94 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/narrowingPastLastAssignment/index.ts:97:20]
+ 97 │ x
+    · ─
+    ╰────
+
+  × 'foo' is possibly 'undefined'.
+     ╭─[../../tests/compiler/narrowingPastLastAssignment/index.ts:169:9]
+ 169 │ foo
+     · ───
+     ╰────

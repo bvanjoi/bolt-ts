@@ -8,9 +8,7 @@ use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn check_interface_declaration(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
-        if let Some(ty_params) = interface.ty_params {
-            self.check_ty_params(ty_params);
-        }
+        self.check_type_parameters(interface.ty_params);
 
         self.check_exports_on_merged_decls(interface.id);
 
@@ -82,7 +80,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_ty_for_duplicate_index_sigs_worker(&mut self, index_symbol: SymbolID) {
-        let s = self.binder.symbol(index_symbol);
+        let s = self.symbol(index_symbol);
         let Some(decls) = s.decls.as_ref() else {
             return;
         };

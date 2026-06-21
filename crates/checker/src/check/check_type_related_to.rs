@@ -671,7 +671,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         };
                         let field = self.c.atoms.get(name).to_string();
                         // let decl = self.c.symbol(symbol).decls.as_ref().unwrap()[0];
-                        let span = self.c.p.node(self.error_node.unwrap()).span();
+                        let error_node = self.error_node.unwrap();
+                        let error_node = self.c.p.node(error_node);
+                        let span = error_node.name().map_or(error_node.span(), |n| n.span());
                         let error = errors::PropertyXIsMissing {
                             span,
                             field,
@@ -1833,7 +1835,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         } else if let Some(t) = target.kind.as_template_lit_ty() {
             if source.kind.is_template_lit_ty() {
-                // TODO:
+                if self.relation == RelationKind::Comparable {
+                    // TODO: return templateLiteralTypesDefinitelyUnrelated
+                    todo!()
+                }
+                self.c
+                    .instantiate_ty_worker(source, self.c.report_unreliable_mapper);
             }
             if self.c.is_ty_matched_by_template_lit_ty(source, t) {
                 return Ternary::TRUE;
@@ -3215,7 +3222,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             } else {
                 let related = if check_mode.contains(SigCheckMode::BIVARIANT_CALLBACK) {
-                    compare(self, target_ret_ty, source_ret_ty, false)
+                    let mut res = compare(self, target_ret_ty, source_ret_ty, false);
+                    if res == Ternary::FALSE {
+                        res = compare(self, source_ret_ty, target_ret_ty, report_error)
+                    }
+                    res
                 } else {
                     compare(self, source_ret_ty, target_ret_ty, report_error)
                 };

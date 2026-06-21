@@ -1891,3 +1891,30 @@ pub struct SuperIsOnlyAllowedInMembersOfObjectLiteralExpressionsWhenOptionTarget
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type parameter defaults can only reference previously declared type parameters.")]
+pub struct TypeParameterDefaultsCanOnlyReferencePreviouslyDeclaredTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Variable '{variable}' implicitly has type '{ty}' in some locations where its type cannot be determined."
+)]
+pub struct VariableXImplicitlyHasTypeYInSomeLocationsWhereItsTypeCannotBeDetermined {
+    #[label(primary)]
+    pub span: Span,
+    pub variable: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Variable '{variable}' implicitly has an '{ty}' type.")]
+pub struct VariableXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub variable: String,
+    pub ty: String,
+}

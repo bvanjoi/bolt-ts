@@ -9,6 +9,7 @@ interface i2 extends i1 { name: number; yo: string; }
 interface foo {
  bar():any;
  //~^ ERROR: Property 'bar' of type '() => any' is not assignable to 'string' index type 'number'.
+ //~| ERROR: Property 'bar' of type '() => any' is not assignable to 'string' index type 'number'.
  bar():any;
  new():void;
  new():void;

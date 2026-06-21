@@ -8,6 +8,7 @@ use super::CheckMode;
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
+use super::flow::flow_loop_ctx_len;
 use super::links::SigLinks;
 use super::ty;
 use super::ty::CheckFlags;
@@ -283,13 +284,21 @@ impl<'cx> TyChecker<'cx> {
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
-        if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
-            if cached != resolving_sig {
-                return cached;
-            }
-        } else {
+        let cached = self.get_node_links(node).get_resolved_sig();
+        if let Some(cached) = cached
+            && cached != resolving_sig
+        {
+            // TODO: candidates_out_array
+            return cached;
+        }
+        let saved_resolution_start = self.resolution_start;
+        if cached.is_none() {
+            self.resolution_start = self.resolution_tys.len() as i32;
             self.get_mut_node_links(node)
                 .set_resolved_sig(resolving_sig);
+        } else {
+            self.get_mut_node_links(node)
+                .override_resolved_sig(resolving_sig);
         }
 
         let check_mode = check_mode.unwrap_or(CheckMode::empty());
@@ -300,7 +309,17 @@ impl<'cx> TyChecker<'cx> {
             _ => unreachable!(),
         };
 
-        self.get_mut_node_links(node).override_resolved_sig(sig);
+        self.resolution_start = saved_resolution_start;
+        if sig != resolving_sig {
+            if self.flow_loop_start == flow_loop_ctx_len(self) {
+                self.get_mut_node_links(node).override_resolved_sig(sig);
+            } else if let Some(cached) = cached {
+                self.get_mut_node_links(node).override_resolved_sig(cached);
+            } else {
+                self.get_mut_node_links(node).clear_resolved_sig();
+            }
+        }
+
         sig
     }
 

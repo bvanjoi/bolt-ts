@@ -103,7 +103,7 @@ impl<'cx> TyChecker<'cx> {
             if self.is_evolving_array_op_target(refer) {
                 self.auto_array_ty()
             } else {
-                self.get_final_array_ty(evolved_ty)
+                self.finalize_evolving_array_ty(evolved_ty)
             }
         } else {
             evolved_ty

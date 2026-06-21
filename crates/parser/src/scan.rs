@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
 use bolt_ts_span::Span;
 
-use super::{CommentDirective, scan_integer::parse_integer, utils::parse_pseudo_bigint};
-use super::{CommentDirectiveKind, ParserState, TokenValue, errors, unicode};
+use super::{CommentDirective, utils::parse_pseudo_bigint};
+use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
 
 #[inline(always)]
 fn is_ascii_letter(ch: u8) -> bool {
@@ -25,9 +25,9 @@ fn is_ascii_identifier_start(ch: u8) -> bool {
 fn is_non_ascii_identifier_start(ch: u32, is_es5_target: bool) -> bool {
     debug_assert!(ch > 127);
     if is_es5_target {
-        unicode::is_unicode_es5_identifier_start(ch)
+        bolt_ts_scanner::is_unicode_es5_identifier_start(ch)
     } else {
-        unicode::is_unicode_esnext_identifier_start(ch)
+        bolt_ts_scanner::is_unicode_esnext_identifier_start(ch)
     }
 }
 
@@ -50,9 +50,9 @@ pub fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
     if ch <= 127 {
         is_ascii_identifier_part(ch as u8)
     } else if is_es5_target {
-        unicode::is_unicode_es5_identifier_part(ch)
+        bolt_ts_scanner::is_unicode_es5_identifier_part(ch)
     } else {
-        unicode::is_unicode_esnext_identifier_part(ch)
+        bolt_ts_scanner::is_unicode_esnext_identifier_part(ch)
     }
 }
 
@@ -285,7 +285,7 @@ impl ParserState<'_, '_> {
                 // float
                 s.parse::<f64>().unwrap()
             } else {
-                parse_integer::<10>(s)
+                bolt_ts_scanner::parse_integer::<10>(s)
             };
             self.token_value = Some(TokenValue::Number { value: num });
             TokenKind::Number
@@ -471,7 +471,7 @@ impl ParserState<'_, '_> {
                 Span::new(start as u32, self.pos as u32, self.module_id),
             )
         } else {
-            let value = parse_integer::<RADIX>(s);
+            let value = bolt_ts_scanner::parse_integer::<RADIX>(s);
             self.token_value = Some(TokenValue::Number { value });
             Token::new(
                 TokenKind::Number,
@@ -479,6 +479,7 @@ impl ParserState<'_, '_> {
             )
         }
     }
+
     pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();

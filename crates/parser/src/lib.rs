@@ -12,19 +12,18 @@ mod parsed_map;
 mod parsing_ctx;
 mod pragmas;
 mod scan;
-mod scan_integer;
 mod scan_pragma;
 mod state;
 mod stmt;
 mod touch;
 mod ty;
-mod unicode;
 mod utils;
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_ast_visitor::Visitor;
+use bolt_ts_ast_visitor::{ControlFlow, Visitor};
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_scanner::TokenValue;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
@@ -150,28 +149,6 @@ impl<'cx> ParseResultForGraph<'cx> {
 
     pub fn is_global_source_file(&self, id: ast::NodeID) -> bool {
         !self.is_external_or_commonjs_module() && self.node(id).is_program()
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum TokenValue {
-    Number { value: f64 },
-    Ident { value: Atom },
-}
-
-impl TokenValue {
-    fn number(self) -> f64 {
-        match self {
-            TokenValue::Number { value } => value,
-            TokenValue::Ident { .. } => unreachable!(),
-        }
-    }
-
-    fn ident(self) -> Atom {
-        match self {
-            TokenValue::Ident { value } => value,
-            TokenValue::Number { .. } => unreachable!(),
-        }
     }
 }
 
@@ -354,7 +331,8 @@ struct CollectDepsResult<'cx> {
 }
 
 impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
-    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) {
+    type Result = bolt_ts_ast_visitor::ControlFlow;
+    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) -> ControlFlow {
         let module_name = match node.kind {
             ast::StmtKind::Import(n) => Some(n.module),
             ast::StmtKind::Export(n) => n.module_spec(),
@@ -389,15 +367,18 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
                         if let Some(block) = n.block {
                             self.in_ambient_module = true;
                             for stmt in block.stmts {
-                                self.visit_stmt(stmt);
+                                if self.visit_stmt(stmt).is_break() {
+                                    self.in_ambient_module = false;
+                                    return ControlFlow::Break;
+                                }
                             }
                             self.in_ambient_module = false;
                         }
                     }
                 }
-                return;
+                return ControlFlow::Continue;
             }
-            _ => return,
+            _ => return ControlFlow::Continue,
         };
         if let Some(module_name) = module_name
             && !(self.in_ambient_module
@@ -411,6 +392,7 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
             });
         }
         // TODO: use_uri_style_node_core_modules
+        ControlFlow::Continue
     }
 }
 

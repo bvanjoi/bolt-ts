@@ -15,6 +15,7 @@ bolt_ts_ast_factory = { path = "../ast_factory" }
 bolt_ts_ast_visitor = { path = "../ast_visitor" }
 bolt_ts_errors = { path = "../../helper/errors" }
 bolt_ts_parser_errors = { path = "../parser_errors" }
+bolt_ts_scanner = { path = "../scanner" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
 bolt_ts_config = { path = "../config" }
@@ -33,4 +34,3 @@ serde_json = { workspace = true }
 indexmap = { workspace = true }
 pretty-duration = "0.1.1"
 tracing = { workspace = true }
-unicode-id-start = { version = "1.3.1" }

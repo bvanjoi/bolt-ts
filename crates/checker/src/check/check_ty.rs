@@ -23,9 +23,7 @@ impl<'cx> TyChecker<'cx> {
             Tuple(n) => self.check_tuple_ty(n),
             Fn(n) => {
                 // TODO: check_signature_decl
-                if let Some(ty_params) = n.ty_params {
-                    self.check_ty_params(ty_params);
-                }
+                self.check_type_parameters(n.ty_params);
                 for param in n.params {
                     self.check_var_like_decl(*param);
                 }

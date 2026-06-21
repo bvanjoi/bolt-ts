@@ -1626,13 +1626,18 @@ impl<'cx> TyChecker<'cx> {
                         is_used: bool,
                     }
                     impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
-                        fn visit_ident(&mut self, node: &'cx bolt_ts_ast::Ident) {
+                        type Result = bolt_ts_ast_visitor::ControlFlow;
+                        fn visit_ident(
+                            &mut self,
+                            node: &'cx bolt_ts_ast::Ident,
+                        ) -> bolt_ts_ast_visitor::ControlFlow {
                             if let Some(symbol) = self.cx.get_symbol_at_location(node.id)
                                 && symbol == self.tested_symbol
                             {
-                                // TODO: return early rather than visit all
                                 self.is_used = true;
+                                return bolt_ts_ast_visitor::ControlFlow::Break;
                             }
+                            bolt_ts_ast_visitor::ControlFlow::Continue
                         }
                     }
                     let mut v = Visitor {
@@ -1659,24 +1664,26 @@ impl<'cx> TyChecker<'cx> {
                     is_used: bool,
                 }
                 impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
-                    fn visit_ident(&mut self, node: &'cx bolt_ts_ast::Ident) {
+                    type Result = bolt_ts_ast_visitor::ControlFlow;
+                    fn visit_ident(
+                        &mut self,
+                        node: &'cx bolt_ts_ast::Ident,
+                    ) -> bolt_ts_ast_visitor::ControlFlow {
                         let Some(child_symbol) = self.cx.get_symbol_at_location(node.id) else {
-                            return;
+                            return bolt_ts_ast_visitor::ControlFlow::Continue;
                         };
                         if child_symbol != self.tested_symbol {
-                            return;
+                            return bolt_ts_ast_visitor::ControlFlow::Continue;
                         }
                         if matches!(self.cond_expr.kind, ast::ExprKind::Ident(_)) {
-                            // TODO: return early rather than visit all
                             self.is_used = true;
-                            return;
+                            return bolt_ts_ast_visitor::ControlFlow::Break;
                         }
                         if let Some(p) = self.cx.parent(self.tested_node.id)
                             && self.cx.p.node(p).is_bin_expr()
                         {
-                            // TODO: return early rather than visit all
                             self.is_used = true;
-                            return;
+                            return bolt_ts_ast_visitor::ControlFlow::Break;
                         }
                         let mut tested_expression = self.cx.parent(self.tested_node.id);
                         let mut child_expression = self.cx.parent(node.id);
@@ -1691,10 +1698,9 @@ impl<'cx> TyChecker<'cx> {
                                 if self.cx.get_symbol_at_location(t.id)
                                     == self.cx.get_symbol_at_location(c.id)
                                 {
-                                    // TODO: return early rather than visit all
                                     self.is_used = true;
                                 }
-                                return;
+                                return bolt_ts_ast_visitor::ControlFlow::Continue;
                             }
 
                             if let ast::Node::ThisExpr(t) = t_node
@@ -1703,10 +1709,9 @@ impl<'cx> TyChecker<'cx> {
                                 if self.cx.get_symbol_at_location(t.id)
                                     == self.cx.get_symbol_at_location(c.id)
                                 {
-                                    // TODO: return early rather than visit all
                                     self.is_used = true;
                                 }
-                                return;
+                                return bolt_ts_ast_visitor::ControlFlow::Continue;
                             }
 
                             if let ast::Node::PropAccessExpr(t) = t_node
@@ -1715,7 +1720,7 @@ impl<'cx> TyChecker<'cx> {
                                 if self.cx.get_symbol_at_location(t.id)
                                     != self.cx.get_symbol_at_location(c.id)
                                 {
-                                    return;
+                                    return bolt_ts_ast_visitor::ControlFlow::Continue;
                                 }
                                 child_expression = Some(c.expr.id());
                                 tested_expression = Some(t.expr.id());
@@ -1728,6 +1733,7 @@ impl<'cx> TyChecker<'cx> {
                                 tested_expression = Some(t.expr.id());
                             }
                         }
+                        bolt_ts_ast_visitor::ControlFlow::Continue
                     }
                 }
                 let body = this.p.node(body);

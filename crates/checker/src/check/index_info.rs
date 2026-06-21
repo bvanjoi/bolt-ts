@@ -60,7 +60,7 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: is_binary_expression
                 let name = self
                     .node_query(decl.module())
-                    .get_name_of_decl(decl)
+                    .get_name_of_declaration(decl)
                     .unwrap();
                 use bolt_ts_ast::DeclarationName;
                 let key_ty = match name {

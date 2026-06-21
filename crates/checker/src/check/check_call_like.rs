@@ -30,6 +30,7 @@ use bolt_ts_utils::no_hashset_with_capacity;
 pub(super) trait CallLikeExpr<'cx>: r#trait::CallLike<'cx> {
     fn resolve_sig(&self, checker: &mut TyChecker<'cx>, check_mode: CheckMode) -> &'cx Sig<'cx>;
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr>;
+    fn as_call_expr(&self) -> Option<&ast::CallExpr<'cx>>;
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
@@ -42,6 +43,9 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
             _ => None,
         }
     }
+    fn as_call_expr(&self) -> Option<&ast::CallExpr<'cx>> {
+        Some(self)
+    }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
@@ -49,6 +53,9 @@ impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
         checker.resolve_new_expr(self, check_mode)
     }
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
+        None
+    }
+    fn as_call_expr(&self) -> Option<&'cx bolt_ts_ast::CallExpr<'cx>> {
         None
     }
 }
@@ -83,6 +90,9 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
             ast::ExprKind::Super(super_expr) => Some(super_expr),
             _ => None,
         }
+    }
+    fn as_call_expr(&self) -> Option<&'cx ast::CallExpr<'cx>> {
+        None
     }
 }
 
@@ -143,7 +153,7 @@ impl<'cx> TyChecker<'cx> {
         let ret_ty = self.get_return_type_of_signature(sig);
 
         if ret_ty.flags.intersects(TypeFlags::ES_SYMBOL_LIKE)
-            && self.is_symbol_or_symbol_for_call(expr_id)
+            && self.is_symbol_or_symbol_for_call(expr)
         {
             let p = self.parent(expr_id).unwrap();
             let n = self.node_query(p.module()).walk_up_paren_expressions(p);
@@ -153,8 +163,7 @@ impl<'cx> TyChecker<'cx> {
         ret_ty
     }
 
-    fn is_symbol_or_symbol_for_call(&mut self, node: ast::NodeID) -> bool {
-        let n = self.p.node(node);
+    pub(super) fn is_symbol_or_symbol_for_call(&mut self, n: &impl CallLikeExpr<'cx>) -> bool {
         let Some(call) = n.as_call_expr() else {
             return false;
         };
@@ -164,7 +173,6 @@ impl<'cx> TyChecker<'cx> {
         {
             left = n.expr;
         }
-
         let ast::ExprKind::Ident(ident) = left.kind else {
             return false;
         };
@@ -264,8 +272,13 @@ impl<'cx> TyChecker<'cx> {
             );
             self.instantiate_ty(ty, sig.mapper)
         } else if let Some(node_id) = sig.node_id {
-            self.get_ret_ty_from_anno(node_id)
-                .unwrap_or_else(|| self.get_return_type_from_body(node_id, None))
+            self.get_ret_ty_from_anno(node_id).unwrap_or_else(|| {
+                if self.p.node(node_id).fn_body().is_none() {
+                    self.any_ty
+                } else {
+                    self.get_return_type_from_body(node_id, None)
+                }
+            })
         } else {
             self.any_ty
         };
@@ -297,8 +310,13 @@ impl<'cx> TyChecker<'cx> {
             }
             ty = self.any_ty;
         }
-        self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
-        ty
+        match self.get_sig_links(sig.id).get_resolved_ret_ty() {
+            Some(ty) => ty,
+            None => {
+                self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ty);
+                ty
+            }
+        }
     }
 
     pub(super) fn get_rest_ty_of_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1397,6 +1415,12 @@ impl<'cx> TyChecker<'cx> {
             &effective_call_arguments,
             check_mode,
         );
+        if self.get_node_links(n.id()).get_resolved_sig().is_some() {
+            self.get_mut_node_links(n.id())
+                .override_resolved_sig(candidate);
+        } else {
+            self.get_mut_node_links(n.id()).set_resolved_sig(candidate);
+        }
 
         for sig in &candidates {
             if (sig.min_args_count as usize) < min_required_params {

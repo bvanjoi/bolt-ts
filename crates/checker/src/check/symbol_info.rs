@@ -668,7 +668,7 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    fn resolve_ident<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
+    pub(super) fn resolve_ident<const IGNORE_ERROR: bool, const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         n: &'cx ast::Ident,
         meaning: SymbolFlags,
@@ -792,14 +792,14 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
-        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
+        let Some(name) = self.node_query(id.module()).get_name_of_declaration(id) else {
             return false;
         };
         name.is_dynamic_name()
     }
 
     fn has_late_bindable_name(&mut self, id: ast::NodeID) -> bool {
-        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
+        let Some(name) = self.node_query(id.module()).get_name_of_declaration(id) else {
             return false;
         };
         self.is_late_bindable_name(&name)
@@ -824,7 +824,7 @@ impl<'cx> super::TyChecker<'cx> {
     }
 
     pub(super) fn has_late_bindable_index_signature(&mut self, id: ast::NodeID) -> bool {
-        let Some(name) = self.node_query(id.module()).get_name_of_decl(id) else {
+        let Some(name) = self.node_query(id.module()).get_name_of_declaration(id) else {
             return false;
         };
         self.is_late_bindable_index_signature(&name)
@@ -1434,6 +1434,14 @@ impl<'cx> TyChecker<'cx> {
             self.get_transient_symbols().get(symbol)
         } else {
             binder_symbol(self, symbol)
+        }
+    }
+
+    pub fn symbol_mut(&mut self, symbol: SymbolID) -> &mut bolt_ts_binder::Symbol {
+        if symbol.is_transient() {
+            self.get_mut_transient_symbols().get_mut(symbol)
+        } else {
+            self.binder.symbol_mut(symbol)
         }
     }
 }

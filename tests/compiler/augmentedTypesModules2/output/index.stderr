@@ -1,0 +1,20 @@
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+   ╭─[../../tests/compiler/augmentedTypesModules2/index.ts:9:11]
+ 9 │ m2a
+   · ───
+   ╰────
+
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+    ╭─[../../tests/compiler/augmentedTypesModules2/index.ts:13:11]
+ 13 │ m2b
+    · ───
+    ╰────
+
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+    ╭─[../../tests/compiler/augmentedTypesModules2/index.ts:20:11]
+ 20 │ m2cc
+    · ────
+    ╰────

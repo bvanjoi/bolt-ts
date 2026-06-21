@@ -859,9 +859,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
-        if let Some(ty_params) = n.ty_params {
-            self.check_ty_params(ty_params);
-        }
+        self.check_type_parameters(n.ty_params);
         self.check_ty(n.ty);
     }
 

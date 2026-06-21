@@ -1,0 +1,76 @@
+  × Property '"1"' of type 'string' is not assignable to 'number' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:10:12]
+ 10 │ "1"
+    · ───
+    ╰────
+
+  × Property '"-1"' of type 'string' is not assignable to 'number' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:12:12]
+ 12 │ "-1"
+    · ────
+    ╰────
+
+  × Property '"-2.5"' of type 'string' is not assignable to 'number' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:14:12]
+ 14 │ "-2.5"
+    · ──────
+    ╰────
+
+  × Property '"3.141592"' of type 'string' is not assignable to 'number' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:16:12]
+ 16 │ "3.141592"
+    · ──────────
+    ╰────
+
+  × Property '"1.2e-20"' of type 'string' is not assignable to 'number' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:18:12]
+ 18 │ "1.2e-20"
+    · ─────────
+    ╰────
+
+  × Property '"Infinity"' of type 'string' is not assignable to 'number' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:20:12]
+ 20 │ "Infinity"
+    · ──────────
+    ╰────
+
+  × Property '"-Infinity"' of type 'string' is not assignable to 'number'
+  │ index type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:22:12]
+ 22 │ "-Infinity"
+    · ───────────
+    ╰────
+
+  × Property '"NaN"' of type 'string' is not assignable to 'number' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:24:12]
+ 24 │ "NaN"
+    · ─────
+    ╰────
+
+  × Property '"9007199254740992"' of type 'string' is not assignable to
+  │ 'number' index type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:26:12]
+ 26 │ "9007199254740992"
+    · ──────────────────
+    ╰────
+
+  × Property '"-9007199254740992"' of type 'string' is not assignable to
+  │ 'number' index type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:28:12]
+ 28 │ "-9007199254740992"
+    · ───────────────────
+    ╰────
+
+  × Property '"0"' of type 'string' is not assignable to 'number' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexersForNumericNames/index.ts:30:12]
+ 30 │ "0"
+    · ───
+    ╰────

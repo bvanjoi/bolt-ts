@@ -67,6 +67,7 @@ with_option!(
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
+    (no_error_truncation, bool),
     (es_module_interop, bool),
     (target, RawTarget),
     (module, RawModule),
@@ -134,6 +135,9 @@ impl RawCompilerOptions {
         }
         if self.no_unused_parameters.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_UNUSED_PARAMETERS);
+        }
+        if self.no_error_truncation.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::NO_ERROR_TRUNCATION);
         }
         if get_strict_option_value(self.use_unknown_in_catch_variables) {
             flags.insert(super::CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES);

@@ -1,6 +1,6 @@
 use bolt_ts_ecma_logical::JS_MAX_SAFE_INTEGER;
 
-pub(super) fn parse_integer<const RADIX: u8>(s: &str) -> f64 {
+pub fn parse_integer<const RADIX: u8>(s: &str) -> f64 {
     debug_assert!(matches!(RADIX, 2 | 8 | 10 | 16));
     debug_assert!(!s.is_empty());
     debug_assert!(!s.contains('_'));

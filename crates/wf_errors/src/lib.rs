@@ -1,8 +1,8 @@
 use bolt_ts_checker_errors::DeclKind;
+use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_errors::diag_ext;
 use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
-use bolt_ts_errors::DiagnosticExt;
 use bolt_ts_span::Span;
 
 use thiserror;

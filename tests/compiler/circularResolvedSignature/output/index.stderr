@@ -1,0 +1,10 @@
+  × Type '{ value: string; foo: (arg: any) => void; bar: (arg: any) =>
+  │ void; }' is not assignable to type 'Readonly<{ value: number; foo: (arg:
+  │ any) => void; bar: (arg: any) => void; }>'.
+    ╭─[../../tests/compiler/circularResolvedSignature/index.ts:14:52]
+ 14 │ ╭─▶ ({   //~ERROR: Type '{ value: string; foo: (arg: any) => void; bar: (arg: any) => void; }' is not assignable to type 'Readonly<{ value: number; foo: (arg: any) => void; bar: (arg: any) => void; }>'.
+ 15 │ │           value: "string", // this should be a number
+ 16 │ │           foo: (arg) => setState(arg),
+ 17 │ │           bar: (arg) => setState(arg),
+ 18 │ ╰─▶     })
+    ╰────

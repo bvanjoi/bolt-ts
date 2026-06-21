@@ -69,6 +69,7 @@ use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr};
 use bolt_ts_ast::{FnFlags, keyword};
+use bolt_ts_ast_visitor::noop_visit_type_node;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_binder::{AccessKind, AssignmentKind, ModuleInstanceState, NodeQuery};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
@@ -1118,8 +1119,14 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_numerical_literal_name(&self, name: bolt_ts_atom::Atom) -> bool {
+        if name == keyword::IDENT_INFINITY
+            || name == keyword::IDENT_NAN
+            || name == keyword::NUMBER_NEGATIVE_INFINITY
+        {
+            return true;
+        }
         let s = self.atoms.get(name);
-        is_numerical_literal_string(s)
+        fast_is_js_to_number_and_js_to_string_equal_origin(s)
     }
 
     fn get_base_constraint_or_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -1298,43 +1305,87 @@ impl<'cx> TyChecker<'cx> {
         prop_ty: &'cx ty::Ty<'cx>,
     ) {
         let value_decl = self.symbol(prop).value_decl;
-        let name = value_decl.and_then(|d| self.node_query(d.module()).get_name_of_decl(d));
+        let name = value_decl.and_then(|d| self.node_query(d.module()).get_name_of_declaration(d));
         if let Some(name) = name
             && matches!(name, ast::DeclarationName::PrivateIdent(_))
         {
             return;
         }
 
-        for index_info in self.get_applicable_index_infos(ty, prop_name_ty) {
+        let index_infos = self.get_applicable_index_infos(ty, prop_name_ty);
+        let interface_declaration = if ty.get_object_flags().contains(ObjectFlags::INTERFACE) {
+            let symbol = ty.symbol().unwrap();
+            let symbol = self.symbol(symbol);
+            symbol.get_declaration_of_kind(|n| self.p.node(n).is_interface_decl())
+        } else {
+            None
+        };
+        let local_prop_declaration = if self.get_parent_of_symbol(prop) == ty.symbol() {
+            value_decl
+        } else {
+            None
+        };
+
+        for index_info in index_infos {
             if !self.is_type_assignable_to(prop_ty, index_info.val_ty) {
-                let prop_decl = self.get_symbol_decl(prop).unwrap();
-                let prop_node = self.p.node(prop_decl);
-                let prop_name = match prop_node {
-                    ast::Node::ClassPropElem(prop) => prop.name,
-                    ast::Node::PropSignature(prop) => prop.name,
-                    ast::Node::ClassMethodElem(prop) => prop.name,
-                    ast::Node::MethodSignature(prop) => prop.name,
-                    _ => unreachable!("{:#?}", prop_node),
+                let local_index_declaration = if let Some(n) = index_info.declaration
+                    && let s = self.final_res(n.id)
+                    && self.get_parent_of_symbol(s) == ty.symbol()
+                {
+                    Some(n.id)
+                } else {
+                    None
                 };
-                let prop_name = match prop_name.kind {
-                    ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
-                    ast::PropNameKind::NumLit(num) => num.val.to_string(),
-                    ast::PropNameKind::StringLit { raw, .. } => {
-                        format!("\"{}\"", self.atoms.get(raw.val))
-                    }
-                    ast::PropNameKind::Computed(_) => "[...]".to_string(),
-                    ast::PropNameKind::PrivateIdent(_) => todo!(),
-                    ast::PropNameKind::BigIntLit(_) => todo!(),
+                let error_node = if let Some(local_prop_declaration) = local_prop_declaration {
+                    Some(local_prop_declaration)
+                } else if let Some(local_index_declaration) = local_index_declaration {
+                    Some(local_index_declaration)
+                } else if let Some(interface_declaration) = interface_declaration
+                    && !self.get_base_tys(ty).iter().any(|base| {
+                        let name = self.symbol(prop).name;
+                        self.get_prop_of_object_ty(base, name).is_some()
+                            && self.get_index_ty_of_ty(base, index_info.key_ty).is_some()
+                    })
+                {
+                    Some(interface_declaration)
+                } else {
+                    None
                 };
-                let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
-                    span: prop_node.span(),
-                    prop: prop_name,
-                    ty_b: self.print_ty(prop_ty, None).to_string(),
-                    ty_c: self.print_ty(index_info.key_ty, None).to_string(),
-                    index_ty_d: self.print_ty(index_info.val_ty, None).to_string(),
-                };
-                self.push_error(Box::new(error));
-                return;
+                if let Some(error_node) = error_node {
+                    let prop_decl = self.get_symbol_decl(prop).unwrap();
+                    let prop_node = self.p.node(prop_decl);
+                    let prop_name = match prop_node {
+                        ast::Node::ClassPropElem(prop) => prop.name,
+                        ast::Node::PropSignature(prop) => prop.name,
+                        ast::Node::ClassMethodElem(prop) => prop.name,
+                        ast::Node::MethodSignature(prop) => prop.name,
+                        _ => unreachable!("{:#?}", prop_node),
+                    };
+                    let prop_name = match prop_name.kind {
+                        ast::PropNameKind::Ident(ident) => self.atoms.get(ident.name).to_string(),
+                        ast::PropNameKind::NumLit(num) => num.val.to_string(),
+                        ast::PropNameKind::StringLit { raw, .. } => {
+                            format!("\"{}\"", self.atoms.get(raw.val))
+                        }
+                        ast::PropNameKind::Computed(_) => "[...]".to_string(),
+                        ast::PropNameKind::PrivateIdent(_) => todo!(),
+                        ast::PropNameKind::BigIntLit(_) => todo!(),
+                    };
+                    let error_node = self.p.node(error_node);
+                    let error_span = if let Some(name) = error_node.name() {
+                        name.span()
+                    } else {
+                        error_node.span()
+                    };
+                    let error = errors::PropertyAOfTypeBIsNotAssignableToCIndexTypeD {
+                        span: error_span,
+                        prop: prop_name,
+                        ty_b: self.print_ty(prop_ty, None).to_string(),
+                        ty_c: self.print_ty(index_info.key_ty, None).to_string(),
+                        index_ty_d: self.print_ty(index_info.val_ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
             }
         }
 
@@ -1459,7 +1510,7 @@ impl<'cx> TyChecker<'cx> {
                             .value_decl
                             .and_then(|v_decl| {
                                 self.node_query(v_decl.module())
-                                    .get_name_of_decl(v_decl)
+                                    .get_name_of_declaration(v_decl)
                                     .map(|name| {
                                         let kind = match name {
                                             ast::DeclarationName::Ident(ident) => {
@@ -1675,6 +1726,7 @@ impl<'cx> TyChecker<'cx> {
             .get_inference_sig(context_inference)
             .map(|sig| self.get_return_type_of_signature(sig))
             .and_then(|ret_ty| self.get_single_call_or_ctor_sig(ret_ty));
+
         if let Some(ret_sig) = ret_sig
             && self.get_sig_links(ret_sig.id).get_ty_params().is_none()
             && !self
@@ -3420,6 +3472,228 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    fn is_past_last_assignment(
+        &mut self,
+        symbol: SymbolID,
+        location: Option<&'cx ast::Ident>,
+    ) -> bool {
+        let s = self.symbol(symbol);
+        let Some(value_declaration) = s.value_decl else {
+            return false;
+        };
+        let Some(parent) =
+            self.node_query(value_declaration.module())
+                .find_ancestor(value_declaration, |n| {
+                    let n = self.p.node(n);
+                    if n.is_fn_like() || n.is_program() {
+                        Some(true)
+                    } else {
+                        None
+                    }
+                })
+        else {
+            return false;
+        };
+        let links = self.get_node_links(parent);
+        if !links.flags().contains(NodeCheckFlags::ASSIGNMENTS_MARKED) {
+            self.get_mut_node_links(parent)
+                .config_flags(|flags| flags | NodeCheckFlags::ASSIGNMENTS_MARKED);
+            // has_parent_with_assignments_marked
+            if let Some(parent_parent) = self.parent(parent)
+                && self
+                    .node_query(parent_parent.module())
+                    .find_ancestor(parent_parent, |n| {
+                        let node = self.p.node(n);
+                        if (node.is_fn_like() || node.is_program())
+                            && self
+                                .node_links
+                                .get(&n)
+                                .and_then(|links| links.get_flags())
+                                .is_some_and(|flags| {
+                                    flags.contains(NodeCheckFlags::ASSIGNMENTS_MARKED)
+                                })
+                        {
+                            Some(true)
+                        } else {
+                            None
+                        }
+                    })
+                    .is_none()
+            {
+                self.mark_node_assignments(parent);
+            }
+        }
+
+        let s = self.symbol(symbol);
+        s.last_assignment_position
+            .is_none_or(|last| location.is_some_and(|loc| last.abs() < loc.span.lo() as isize))
+    }
+
+    fn mark_node_assignments(&mut self, node: ast::NodeID) {
+        struct Visitor<'a, 'cx> {
+            c: &'a mut TyChecker<'cx>,
+        }
+        impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+            type Result = ();
+
+            noop_visit_type_node!();
+
+            fn visit_enum_decl(&mut self, _: &'cx bolt_ts_ast::EnumDecl<'cx>) -> () {}
+
+            fn visit_ident(&mut self, node: &'cx bolt_ts_ast::Ident) -> Self::Result {
+                let assignment_target = self
+                    .c
+                    .node_query(node.id.module())
+                    .get_assignment_target_kind(node.id);
+                if assignment_target != AssignmentKind::None {
+                    let symbol = self.c.final_res(node.id);
+                    let s = self.c.symbol(symbol);
+                    let has_definite_assignment = assignment_target == AssignmentKind::Definite
+                        || s.last_assignment_position.is_some_and(|p| p < 0);
+                    if self.c.is_parameter_or_mutable_local_variable(s) {
+                        if s.last_assignment_position
+                            .is_none_or(|p| p.abs() != isize::MAX)
+                        {
+                            let referencing_function = self
+                                .c
+                                .node_query(node.id.module())
+                                .find_ancestor(node.id, |n| {
+                                    let n = self.c.p.node(n);
+                                    if n.is_fn_like() || n.is_program() {
+                                        Some(true)
+                                    } else {
+                                        None
+                                    }
+                                });
+                            let declaring_function = s.value_decl.and_then(|id| {
+                                self.c.node_query(id.module()).find_ancestor(id, |n| {
+                                    let n = self.c.p.node(n);
+                                    if n.is_fn_like() || n.is_program() {
+                                        Some(true)
+                                    } else {
+                                        None
+                                    }
+                                })
+                            });
+                            let pos = if referencing_function == declaring_function {
+                                // extend_assignment_positions
+                                let mut pos = node.span.lo();
+                                let mut node = Some(node.id);
+                                let value_declaration = s.value_decl.unwrap();
+                                let value_declaration_pos =
+                                    self.c.p.node(value_declaration).span().lo();
+                                while let Some(id) = node
+                                    && let n = self.c.p.node(id)
+                                    && n.span().lo() > value_declaration_pos
+                                {
+                                    match n {
+                                        ast::Node::VarStmt(_) | ast::Node::ExprStmt(_)
+                                        | ast::Node::IfStmt(_) | ast::Node::WhileStmt(_)
+                                        | ast::Node::ForStmt(_) | ast::Node::ForInStmt(_)
+                                        | ast::Node::ForOfStmt(_) | ast::Node::DoWhileStmt(_)
+                                        | ast::Node::SwitchStmt(_) | ast::Node::TryStmt(_)
+                                        | ast::Node::ClassDecl(_) // TODO: with stmt
+                                        => {
+                                            pos = n.span().hi();
+                                        },
+                                        _ => {}
+                                    }
+                                    node = self.c.parent(id);
+                                }
+                                pos as isize
+                            } else {
+                                isize::MAX
+                            };
+                            self.c.symbol_mut(symbol).last_assignment_position = Some(pos);
+                        }
+                        if has_definite_assignment
+                            && let s = self.c.symbol_mut(symbol)
+                            && let Some(last_assignment_position) = s.last_assignment_position
+                            && last_assignment_position > 0
+                        {
+                            s.last_assignment_position = Some(-last_assignment_position);
+                        }
+                    }
+                }
+            }
+
+            fn visit_export_named_spec(
+                &mut self,
+                node: &'cx bolt_ts_ast::ExportNamedSpec<'cx>,
+            ) -> Self::Result {
+                let p = self.c.parent(node.id).unwrap();
+                let p = self.c.parent(p).unwrap();
+                let export_declaration = self.c.p.node(p).expect_export_decl();
+                let name = node.prop_name;
+                // TODO: is_typeonly
+                if export_declaration.module_spec().is_none()
+                    && let ast::ModuleExportNameKind::Ident(name) = name.kind
+                {
+                    let symbol = self.c.resolve_ident::<true, true>(name, SymbolFlags::VALUE);
+                    if symbol != Symbol::ERR
+                        && let s = self.c.symbol(symbol)
+                        && self.c.is_parameter_or_mutable_local_variable(s)
+                    {
+                        let sign = s
+                            .last_assignment_position
+                            .is_some_and(|p| p < 0)
+                            .then_some(-1)
+                            .unwrap_or(1);
+                        let s = self.c.symbol_mut(symbol);
+                        s.last_assignment_position = Some(sign * isize::MAX);
+                    }
+                }
+            }
+
+            fn visit_export_shorthand_spec(
+                &mut self,
+                node: &'cx bolt_ts_ast::ExportShorthandSpec<'cx>,
+            ) -> Self::Result {
+                let p = self.c.parent(node.id).unwrap();
+                let p = self.c.parent(p).unwrap();
+                let export_declaration = self.c.p.node(p).expect_export_decl();
+                let name = node.name;
+                // TODO: is_typeonly
+                if export_declaration.module_spec().is_none() {
+                    let symbol = self.c.resolve_ident::<true, true>(name, SymbolFlags::VALUE);
+                    if symbol != Symbol::ERR
+                        && let s = self.c.symbol(symbol)
+                        && self.c.is_parameter_or_mutable_local_variable(s)
+                    {
+                        let sign = s
+                            .last_assignment_position
+                            .is_some_and(|p| p < 0)
+                            .then_some(-1)
+                            .unwrap_or(1);
+                        let s = self.c.symbol_mut(symbol);
+                        s.last_assignment_position = Some(sign * isize::MAX);
+                    }
+                }
+            }
+        }
+
+        let node = self.p.node(node);
+        let mut v = Visitor { c: self };
+        bolt_ts_ast_visitor::visit_node(&mut v, &node);
+    }
+
+    fn is_symbol_assigned_definitely(&mut self, symbol: SymbolID) -> bool {
+        let s = self.symbol(symbol);
+        match s.last_assignment_position {
+            Some(pos) => pos < 0,
+            None => {
+                self.is_symbol_assigned(symbol) && {
+                    let s = self.symbol(symbol);
+                    s.last_assignment_position.is_some_and(|pos| pos < 0)
+                }
+            }
+        }
+    }
+
+    fn is_symbol_assigned(&mut self, symbol: SymbolID) -> bool {
+        !self.is_past_last_assignment(symbol, None)
+    }
+
     fn check_ident(
         &mut self,
         ident: &'cx ast::Ident,
@@ -3550,7 +3824,6 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.get_narrowable_ty_for_reference(ty, ident.id, check_mode);
 
-        let s = self.symbol(local_or_export_symbol);
         let immediate_decl = decl;
 
         let decl_container = self
@@ -3581,11 +3854,10 @@ impl<'cx> TyChecker<'cx> {
                 ) || self
                     .node_query(flow_container.module())
                     .is_object_lit_or_class_expr_method_or_accessor(flow_container))
-                && (
-                    (self.is_constant_variable(s) && ty != self.auto_array_ty())
-                        || (self.is_parameter_or_mutable_local_variable(s))
-                    // TODO: is_past_assignment
-                )
+                && let s = self.symbol(local_or_export_symbol)
+                && ((self.is_constant_variable(s) && ty != self.auto_array_ty())
+                    || (self.is_parameter_or_mutable_local_variable(s)
+                        && self.is_past_last_assignment(local_or_export_symbol, Some(ident))))
             {
                 flow_container = self
                     .node_query(flow_container.module())
@@ -3595,12 +3867,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let is_never_initialized = if let Some(v) = self.p.node(immediate_decl).as_var_decl() {
-            // TODO: is not in for init && !is_symbol_assigned_definitely
-            v.init.is_none()
+            let parent = self.parent(immediate_decl).unwrap();
+            let parent = self.p.node(parent);
+            !parent.is_for_in_stmt()
+                && !parent.is_for_of_stmt()
+                && v.init.is_none()
                 && v.excl.is_none()
                 && self
                     .node_query(v.id.module())
                     .is_mutable_local_variable_declaration(v)
+                && !self.is_symbol_assigned_definitely(symbol)
         } else {
             false
         };
@@ -3684,7 +3960,22 @@ impl<'cx> TyChecker<'cx> {
         {
             if flow_ty == self.auto_ty || flow_ty == self.auto_array_ty() {
                 if self.config.compiler_options().no_implicit_any() {
-                    todo!()
+                    let name = self
+                        .node_query(decl.module())
+                        .get_name_of_declaration(decl)
+                        .unwrap();
+                    let error = errors::VariableXImplicitlyHasTypeYInSomeLocationsWhereItsTypeCannotBeDetermined {
+                        span: name.span(),
+                        variable: self.symbol(symbol).name.to_string(&self.atoms),
+                        ty: self.print_ty(flow_ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                    let error = errors::VariableXImplicitlyHasAnYType {
+                        span: ident.span,
+                        variable: self.symbol(symbol).name.to_string(&self.atoms),
+                        ty: self.print_ty(flow_ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
                 }
                 return self.convert_auto_to_any(flow_ty);
             }
@@ -4029,14 +4320,57 @@ impl<'cx> TyChecker<'cx> {
         self.error_ty
     }
 
-    fn check_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
+    fn check_type_parameters(&mut self, type_parameters: Option<ast::TyParams<'cx>>) {
+        if let Some(type_parameters) = type_parameters {
+            self.check_type_parameters_worker(type_parameters);
+        }
+    }
+
+    fn check_type_parameters_worker(&mut self, ty_params: ast::TyParams<'cx>) {
         let mut seen_default = false;
         for (i, ty_param) in ty_params.iter().enumerate() {
             self.check_ty_param(ty_param);
 
-            if ty_param.default.is_some() {
+            // check_type_parameter_diagnostic
+            if let Some(default) = ty_param.default {
                 seen_default = true;
-                // TODO: create_ty_from_ty_reference
+                // check_type_parameters_not_referenced
+                struct Visitor<'a, 'cx> {
+                    c: &'a mut TyChecker<'cx>,
+                    index: usize,
+                    type_parameters: ast::TyParams<'cx>,
+                }
+                impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+                    type Result = bolt_ts_ast_visitor::ControlFlow;
+                    fn visit_refer_ty(
+                        &mut self,
+                        node: &'cx ast::ReferTy<'cx>,
+                    ) -> bolt_ts_ast_visitor::ControlFlow {
+                        let ty = self.c.get_ty_from_ty_reference(node);
+                        if ty.flags.contains(TypeFlags::TYPE_PARAMETER) {
+                            for i in self.index..self.type_parameters.len() {
+                                let ty_param = self.type_parameters[i];
+                                if ty.symbol().unwrap()
+                                    == self.c.get_symbol_of_declaration(ty_param.id)
+                                {
+                                    let error =
+                                        errors::TypeParameterDefaultsCanOnlyReferencePreviouslyDeclaredTypeParameters {
+                                            span: node.span,
+                                        };
+                                    self.c.push_error(Box::new(error));
+                                    break;
+                                }
+                            }
+                        }
+                        bolt_ts_ast_visitor::ControlFlow::Continue
+                    }
+                }
+                let mut visitor = Visitor {
+                    c: self,
+                    index: i,
+                    type_parameters: ty_params,
+                };
+                bolt_ts_ast_visitor::visit_ty(&mut visitor, default);
             } else if seen_default {
                 // TODO: Required_type_parameters_may_not_follow_optional_type_parameters
             }
@@ -4115,7 +4449,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for YieldExprVisitor<'a, 'cx> {
-            fn visit_yield_expr(&mut self, y: &'cx bolt_ts_ast::YieldExpr) {
+            type Result = bolt_ts_ast_visitor::ControlFlow;
+            fn visit_yield_expr(
+                &mut self,
+                y: &'cx bolt_ts_ast::YieldExpr,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
                 // ======
                 let mut yield_expr_ty = if let Some(expr) = y.expr {
                     let check_mode = if let Some(check_mode) = self.check_mode {
@@ -4164,15 +4502,35 @@ impl<'cx> TyChecker<'cx> {
                 }
                 // ======
                 let Some(expr) = y.expr else {
-                    return;
+                    return bolt_ts_ast_visitor::ControlFlow::Continue;
                 };
-                self.visit_expr(expr);
+                self.visit_expr(expr)
             }
 
-            fn visit_enum_decl(&mut self, _: &'cx bolt_ts_ast::EnumDecl<'cx>) {}
-            fn visit_interface_decl(&mut self, _: &'cx bolt_ts_ast::InterfaceDecl<'cx>) {}
-            fn visit_module_decl(&mut self, _: &'cx bolt_ts_ast::ModuleDecl<'cx>) {}
-            fn visit_type_alias_decl(&mut self, _: &'cx bolt_ts_ast::TypeAliasDecl<'cx>) {}
+            fn visit_enum_decl(
+                &mut self,
+                _: &'cx bolt_ts_ast::EnumDecl<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+            fn visit_interface_decl(
+                &mut self,
+                _: &'cx bolt_ts_ast::InterfaceDecl<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+            fn visit_module_decl(
+                &mut self,
+                _: &'cx bolt_ts_ast::ModuleDecl<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+            fn visit_type_alias_decl(
+                &mut self,
+                _: &'cx bolt_ts_ast::TypeAliasDecl<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
             // TODO: is_fn_like
             // TODO: exclude type
         }
@@ -6074,16 +6432,23 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for ContainReferenceVisitor<'cx, '_> {
-            fn visit_this_ty(&mut self, _: &'cx bolt_ts_ast::ThisTy) {
+            type Result = bolt_ts_ast_visitor::ControlFlow;
+            fn visit_this_ty(
+                &mut self,
+                _: &'cx bolt_ts_ast::ThisTy,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
                 let t = self.tp.kind.expect_param();
                 if t.is_this_ty {
                     self.contain_reference = true;
+                    return bolt_ts_ast_visitor::ControlFlow::Break;
                 }
+                bolt_ts_ast_visitor::ControlFlow::Continue
             }
-            fn visit_ident(&mut self, n: &'cx bolt_ts_ast::Ident) {
-                if self.contain_reference {
-                    return;
-                }
+            fn visit_ident(
+                &mut self,
+                n: &'cx bolt_ts_ast::Ident,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                debug_assert!(!self.contain_reference);
                 let t = self.tp.kind.expect_param();
                 let nq = self.checker.node_query(n.id.module());
                 if !t.is_this_ty
@@ -6092,12 +6457,15 @@ impl<'cx> TyChecker<'cx> {
                     && self.checker.get_ty_from_ident(n) == self.tp
                 {
                     self.contain_reference = true;
+                    return bolt_ts_ast_visitor::ControlFlow::Break;
                 }
+                bolt_ts_ast_visitor::ControlFlow::Continue
             }
-            fn visit_typeof_ty(&mut self, n: &'cx bolt_ts_ast::TypeofTy<'cx>) {
-                if self.contain_reference {
-                    return;
-                }
+            fn visit_typeof_ty(
+                &mut self,
+                n: &'cx bolt_ts_ast::TypeofTy<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                debug_assert!(!self.contain_reference);
                 let entity_name = n.name;
                 let first_identifier = entity_name.get_first_identifier();
                 if first_identifier.name != keyword::KW_THIS {
@@ -6129,17 +6497,20 @@ impl<'cx> TyChecker<'cx> {
                             })
                         }) {
                             self.contain_reference = true;
+                            return bolt_ts_ast_visitor::ControlFlow::Break;
                         }
-                        return;
+                        return bolt_ts_ast_visitor::ControlFlow::Continue;
                     }
                 }
 
                 self.contain_reference = true;
+                bolt_ts_ast_visitor::ControlFlow::Break
             }
-            fn visit_method_signature(&mut self, n: &'cx bolt_ts_ast::MethodSignature<'cx>) {
-                if self.contain_reference {
-                    return;
-                }
+            fn visit_method_signature(
+                &mut self,
+                n: &'cx bolt_ts_ast::MethodSignature<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                debug_assert!(!self.contain_reference);
                 if n.ty_params.is_some_and(|ty_params| {
                     ty_params.iter().any(|ty_param| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
@@ -6156,12 +6527,15 @@ impl<'cx> TyChecker<'cx> {
                     v.contain_reference
                 }) {
                     self.contain_reference = true;
+                    return bolt_ts_ast_visitor::ControlFlow::Break;
                 }
+                bolt_ts_ast_visitor::ControlFlow::Continue
             }
-            fn visit_class_method_elem(&mut self, n: &'cx bolt_ts_ast::ClassMethodElem<'cx>) {
-                if self.contain_reference {
-                    return;
-                }
+            fn visit_class_method_elem(
+                &mut self,
+                n: &'cx bolt_ts_ast::ClassMethodElem<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                debug_assert!(!self.contain_reference);
                 if n.ty.is_none() && n.body.is_some()
                     || n.ty_params.is_some_and(|ty_params| {
                         ty_params.iter().any(|ty_param| {
@@ -6182,12 +6556,15 @@ impl<'cx> TyChecker<'cx> {
                     })
                 {
                     self.contain_reference = true;
+                    return bolt_ts_ast_visitor::ControlFlow::Break;
                 }
+                bolt_ts_ast_visitor::ControlFlow::Continue
             }
-            fn visit_object_method_member(&mut self, n: &'cx bolt_ts_ast::ObjectMethodMember<'cx>) {
-                if self.contain_reference {
-                    return;
-                }
+            fn visit_object_method_member(
+                &mut self,
+                n: &'cx bolt_ts_ast::ObjectMethodMember<'cx>,
+            ) -> bolt_ts_ast_visitor::ControlFlow {
+                debug_assert!(!self.contain_reference);
                 if n.ty_params.is_some_and(|ty_params| {
                     ty_params.iter().any(|ty_param| {
                         let mut v = ContainReferenceVisitor::new(self.tp, self.checker);
@@ -6204,7 +6581,9 @@ impl<'cx> TyChecker<'cx> {
                     v.contain_reference
                 }) {
                     self.contain_reference = true;
+                    return bolt_ts_ast_visitor::ControlFlow::Break;
                 }
+                bolt_ts_ast_visitor::ControlFlow::Continue
             }
         }
 
@@ -6333,6 +6712,65 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_return_type_of_single_non_generic_call_signature(
+        &mut self,
+        func_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        if let Some(sig) = self.get_single_call_or_ctor_sig(func_ty)
+            && self.get_sig_links(sig.id).get_ty_params().is_none()
+        {
+            Some(self.get_return_type_of_signature(sig))
+        } else {
+            None
+        }
+    }
+
+    fn get_quick_type_of_expression(
+        &mut self,
+        node: &'cx ast::Expr<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let expr = ast::Expr::skip_parens(node);
+        // TODO: js doc
+        match expr.kind {
+            ast::ExprKind::Await(n) => {
+                let ty = self.get_quick_type_of_expression(n.expr)?;
+                self.get_awaited_ty(ty)
+            }
+            ast::ExprKind::Call(n)
+                if !matches!(n.expr.kind, ast::ExprKind::Super(_))
+                    && !n.is_require_call::<true>()
+                    && !self.is_symbol_or_symbol_for_call(n) =>
+            {
+                // TODO: && !isImportCall(expr)
+                if self
+                    .p
+                    .node_flags(n.id)
+                    .contains(ast::NodeFlags::OPTIONAL_CHAIN)
+                {
+                    // get_return_type_of_single_non_generic_signature_of_call_chain
+                    let func_ty = self.check_expression(n.expr, None);
+                    match self.get_return_type_of_single_non_generic_call_signature(func_ty) {
+                        Some(return_ty) => {
+                            let non_optional_ty = self.get_optional_expression_ty(func_ty, n.expr);
+                            Some(self.propagate_optional_ty_marker(
+                                return_ty,
+                                n.id,
+                                non_optional_ty != return_ty,
+                            ))
+                        }
+                        None => None,
+                    }
+                } else {
+                    let func_ty = self.check_non_null_expr(n.expr);
+                    self.get_return_type_of_single_non_generic_call_signature(func_ty)
+                }
+            }
+            // TODO: is_assertion
+            // TODO: literal or boolean
+            _ => None,
+        }
+    }
+
     pub(super) fn check_declaration_initializer(
         &mut self,
         decl: &impl VarLike<'cx>,
@@ -6340,9 +6778,9 @@ impl<'cx> TyChecker<'cx> {
         contextual_ty: Option<&'cx ty::Ty<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let init = decl.init().unwrap();
-        // TODO: get_quick_ty_of_expr
-
-        let ty = if let Some(contextual_ty) = contextual_ty {
+        let ty = if let Some(ty) = self.get_quick_type_of_expression(init) {
+            ty
+        } else if let Some(contextual_ty) = contextual_ty {
             self.check_expr_with_contextual_ty(init, contextual_ty, None, check_mode)
         } else {
             self.check_expression_cached(init, Some(check_mode))
@@ -8168,19 +8606,135 @@ fn resolve_external_module_name(
     }
 }
 
-fn is_numerical_literal_string(s: &str) -> bool {
+fn fast_is_js_to_number_and_js_to_string_equal_origin(s: &str) -> bool {
+    debug_assert!(s != "NaN");
+    debug_assert!(s != "Infinity");
+    debug_assert!(s != "-Infinity");
     let bytes = s.as_bytes();
-    let mut number = 0.;
-    for byte in bytes {
-        if !byte.is_ascii_digit() {
-            return false;
-        }
-        number = number * 10. + f64::from(*byte - b'0');
-        const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0; // 2^53 - 1
-        const MIN_SAFE_INTEGER: f64 = -9_007_199_254_740_991.0; // -(2^53 - 1)
-        if number >= MAX_SAFE_INTEGER || number <= MIN_SAFE_INTEGER {
-            return false;
-        }
+    if bytes.is_empty() {
+        return false;
     }
-    true
+    let neg = bytes.first() == Some(&b'-');
+    let bytes = if neg { &bytes[1..] } else { bytes };
+    let mut dot_offset = usize::MAX;
+    let mut has_exponent = false;
+    let mut number = 0;
+    let mut neg_exp = false;
+    let mut exponent = 0;
+    let mut dot_number = 0.;
+    let mut index = 0;
+    let mut start_with_zero = false;
+    while let Some(byte) = bytes.get(index) {
+        match byte {
+            b'0'..=b'9' => {
+                if index == 0 && *byte == b'0' {
+                    start_with_zero = true;
+                } else if start_with_zero {
+                    return false;
+                }
+                if has_exponent {
+                    exponent = exponent * 10 + (byte - b'0') as i32;
+                } else if dot_offset != usize::MAX {
+                    dot_offset += 1;
+                    dot_number += (byte - b'0') as f64 / 10_f64.powi(dot_offset as i32);
+                } else {
+                    number = number * 10 + (byte - b'0') as i64;
+                }
+            }
+            b'.' => {
+                if dot_offset != usize::MAX || has_exponent {
+                    return false;
+                }
+                dot_offset = 0;
+            }
+            b'e' | b'E' => {
+                if has_exponent {
+                    return false;
+                }
+                let Some(next) = bytes.get(index + 1) else {
+                    return false;
+                };
+                if next.eq(&b'-') {
+                    neg_exp = true;
+                    index += 1;
+                }
+                has_exponent = true;
+            }
+            _ => return false,
+        }
+        index += 1;
+    }
+
+    if number > 9007199254740992 || number < -9007199254740992 {
+        return false;
+    }
+
+    let number = (number as f64 + dot_number) * if neg { -1. } else { 1. };
+    let number = if neg_exp {
+        number / 10_f64.powi(exponent)
+    } else {
+        number * 10_f64.powi(exponent)
+    };
+
+    let abs_number = number.abs();
+    if abs_number > 0. && abs_number < 1e-6 {
+        debug_assert!(!has_exponent || neg_exp);
+        has_exponent
+    } else if abs_number > 1e21 {
+        debug_assert!(has_exponent || !neg_exp);
+        !has_exponent
+    } else if has_exponent {
+        false
+    } else if number == 0. {
+        !neg
+    } else {
+        true
+    }
+}
+
+#[test]
+fn test_fast_is_js_to_number_and_js_to_string_equal_origin() {
+    #[track_caller]
+    fn ensure(s: &str) {
+        assert!(fast_is_js_to_number_and_js_to_string_equal_origin(s));
+    }
+    #[track_caller]
+    fn ensure_not(s: &str) {
+        assert!(!fast_is_js_to_number_and_js_to_string_equal_origin(s));
+    }
+    ensure("0");
+    ensure("1");
+    ensure("-1");
+    ensure("-2.5");
+    ensure("3.141592");
+    ensure("1.2e-20");
+    ensure("9007199254740992");
+    ensure("-9007199254740992");
+    ensure_not("1.2e10");
+    ensure_not("1.2e+10");
+    ensure_not("+1.2e+10");
+    ensure_not("-1.2e+10");
+    ensure_not("9007199254740993");
+    ensure_not("-9007199254740993");
+    ensure_not("1.2e");
+    ensure_not("1.2e+");
+    ensure_not(" 1");
+    ensure_not("1    ");
+    ensure_not("");
+    ensure_not("    ");
+    ensure_not("1 0 1");
+    ensure_not("hunter2");
+    ensure_not("+Infinity");
+    ensure_not("+NaN");
+    ensure_not("-NaN");
+    ensure_not("+1");
+    ensure_not("1e0");
+    ensure_not("-0");
+    ensure_not("-0e0");
+    ensure_not("0xF00D");
+    ensure_not("0xBEEF");
+    ensure_not("0123");
+    ensure_not("0o123");
+    ensure_not("0b101101001010");
+    ensure_not("0.000000000000000000012");
 }

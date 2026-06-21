@@ -13,5 +13,7 @@ class C extends B {
     //~^ ERROR: Constructors for derived classes must contain a 'super' call.
     //~| ERROR: 'super' must be called before accessing a property of 'super' in the constructor of a derived class.
     //~| ERROR: 'super' cannot be referenced in constructor arguments.
+    //~| ERROR: 'super' must be called before accessing a property of 'super' in the constructor of a derived class.
+    //~| ERROR: 'super' cannot be referenced in constructor arguments.
   }
 }

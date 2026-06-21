@@ -1,0 +1,11 @@
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/promisesWithConstraints/index.ts:19:1]
+ 19 │ b
+    · ─
+    ╰────
+
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/promisesWithConstraints/index.ts:25:1]
+ 25 │ b2
+    · ──
+    ╰────

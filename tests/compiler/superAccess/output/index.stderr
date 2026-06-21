@@ -24,3 +24,10 @@ Advice:
  15 │ super.f
     · ───────
     ╰────
+
+  × Only public and protected methods of the base class are accessible via the
+  │ 'super' keyword.
+    ╭─[../../tests/compiler/superAccess/index.ts:15:18]
+ 15 │ super.f
+    · ───────
+    ╰────

@@ -231,7 +231,7 @@ impl<'cx> TyChecker<'cx> {
                 } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
                     let span = self
                         .node_query(o.module())
-                        .get_name_of_decl(o)
+                        .get_name_of_declaration(o)
                         .unwrap()
                         .span();
                     let error = errors::OverloadSignaturesMustAllBeAmbientOrNonAmbient { span };
@@ -242,7 +242,7 @@ impl<'cx> TyChecker<'cx> {
                     let error = errors::OverloadSignaturesMustAllBePublicPrivateOrProtected {
                         span: self
                             .node_query(o.module())
-                            .get_name_of_decl(o)
+                            .get_name_of_declaration(o)
                             .unwrap()
                             .span(),
                     };

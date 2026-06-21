@@ -208,6 +208,7 @@ prefilled_atom_map!(
         },
         NUMBER: {
             NUMBER_ZERO:                            ["0", 145],
+            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 146]
         },
     }
 );

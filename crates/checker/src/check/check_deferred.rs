@@ -17,6 +17,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub fn check_deferred_nodes(&mut self, module_id: bolt_ts_span::ModuleID) {
         let mut checked = fx_hashset_with_capacity(self.deferred_nodes[module_id.as_usize()].len());
+        self.deferred_nodes[module_id.as_usize()].reverse();
         while let Some(node) = self.deferred_nodes[module_id.as_usize()].pop() {
             if checked.insert(node.index_as_u32()) {
                 self.check_deferred_node(node);

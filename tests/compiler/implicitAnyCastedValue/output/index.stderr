@@ -1,0 +1,11 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:58:24]
+ 58 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:68:24]
+ 68 │ x
+    · ─
+    ╰────

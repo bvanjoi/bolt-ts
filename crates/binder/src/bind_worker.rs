@@ -589,7 +589,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ArrowFnExpr(n) => {
                 self.bind_fn_expr(n);
             }
-            CallExpr(_) => {}
+            CallExpr(_) => {
+                // TODO: assignment_kind
+            }
+            ImportExpression(_) => {
+                // TODO: assignment_kind
+            }
             ClassExpr(node) => {
                 self.in_strict_mode = true;
                 self.bind_class_like_decl::<true>(node);

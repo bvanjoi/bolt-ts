@@ -1,7 +1,7 @@
 use bolt_ts_span::ModuleID;
 
+use super::ExprKind;
 use super::ModifierFlags;
-use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
 
@@ -640,8 +640,8 @@ impl<'cx> Node<'cx> {
         self.has_syntactic_modifier(ModifierFlags::READONLY)
     }
 
-    pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
-        self.has_syntactic_modifier(kind.into_flag())
+    pub fn has_effective_modifier(&self, flags: ModifierFlags) -> bool {
+        self.has_syntactic_modifier(flags)
     }
 
     pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {

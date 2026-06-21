@@ -74,9 +74,24 @@ impl Binder {
 
     #[inline(always)]
     #[track_caller]
+    fn get_mut(&mut self, id: ModuleID) -> &mut ResolveResult {
+        let index = id.as_usize();
+        debug_assert!(index < self.bind_results.len());
+        unsafe { self.bind_results.get_unchecked_mut(index) }
+    }
+
+    #[inline(always)]
+    #[track_caller]
     pub fn symbol(&self, id: SymbolID) -> &Symbol {
         let m = id.module();
         self.get(m).symbols.get(id)
+    }
+
+    #[inline(always)]
+    #[track_caller]
+    pub fn symbol_mut(&mut self, id: SymbolID) -> &mut Symbol {
+        let m = id.module();
+        self.get_mut(m).symbols.get_mut(id)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {

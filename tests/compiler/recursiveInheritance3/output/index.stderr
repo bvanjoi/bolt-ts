@@ -1,0 +1,5 @@
+  × Property 'other' is missing.
+   ╭─[../../tests/compiler/recursiveInheritance3/index.ts:4:7]
+ 4 │ C
+   · ─
+   ╰────

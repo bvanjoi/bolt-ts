@@ -43,14 +43,14 @@
 
   × 'super' must be called before accessing 'this' in the constructor of a
   │ derived class.
-    ╭─[../../tests/compiler/baseCheck/index.ts:27:68]
- 27 │ this
+    ╭─[../../tests/compiler/baseCheck/index.ts:22:59]
+ 22 │ this
     · ────
     ╰────
 
   × 'super' must be called before accessing 'this' in the constructor of a
   │ derived class.
-    ╭─[../../tests/compiler/baseCheck/index.ts:22:59]
- 22 │ this
+    ╭─[../../tests/compiler/baseCheck/index.ts:27:68]
+ 27 │ this
     · ────
     ╰────

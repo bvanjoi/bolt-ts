@@ -28,29 +28,15 @@ Warning:
 
   × 'this' implicitly has type 'any' because it does not have a type
   │ annotation.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:41:20]
- 41 │ this
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:15:20]
+ 15 │ this
     · ────
     ╰────
 
 Warning: 
   ⚠ An outer value of 'this' is shadowed by this container.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:41:20]
- 41 │ this
-    · ────
-    ╰────
-
-  × 'this' implicitly has type 'any' because it does not have a type
-  │ annotation.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:32:25]
- 32 │ this
-    · ────
-    ╰────
-
-Warning: 
-  ⚠ An outer value of 'this' is shadowed by this container.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:32:25]
- 32 │ this
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:15:20]
+ 15 │ this
     · ────
     ╰────
 
@@ -70,14 +56,28 @@ Warning:
 
   × 'this' implicitly has type 'any' because it does not have a type
   │ annotation.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:15:20]
- 15 │ this
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:32:25]
+ 32 │ this
     · ────
     ╰────
 
 Warning: 
   ⚠ An outer value of 'this' is shadowed by this container.
-    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:15:20]
- 15 │ this
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:32:25]
+ 32 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:41:20]
+ 41 │ this
+    · ────
+    ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+    ╭─[../../tests/compiler/thisInFunctionCall/index.ts:41:20]
+ 41 │ this
     · ────
     ╰────

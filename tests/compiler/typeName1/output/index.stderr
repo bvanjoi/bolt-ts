@@ -45,8 +45,8 @@
   × Property 'z' of type 'I' is not assignable to 'string' index type '{ x:
   │ any; y: any; }'.
     ╭─[../../tests/compiler/typeName1/index.ts:28:10]
- 28 │ z:I
-    · ───
+ 28 │ z
+    · ─
     ╰────
 
   × Type 'number' is not assignable to type '() => boolean'.
