@@ -1,0 +1,99 @@
+  × Type 'number' is not assignable to type '{ f: (s: string) => number; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:14:5]
+ 14 │ x1
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '{ f: (s: string) => number; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:16:5]
+ 16 │ x2
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '(s: string) => number'.
+    ╭─[../../tests/compiler/typeName1/index.ts:18:5]
+ 18 │ x3
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '{ x: any; y: any; z: number; f:
+  │ (n: number) => string; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:20:5]
+ 20 │ x4
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '(s: string) => number'.
+    ╭─[../../tests/compiler/typeName1/index.ts:22:5]
+ 22 │ x5
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '{ z: number; f: (n: number) =>
+  │ string; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:24:5]
+ 24 │ x6
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type '(s: string) => boolean'.
+    ╭─[../../tests/compiler/typeName1/index.ts:26:5]
+ 26 │ x7
+    · ──
+    ╰────
+
+  × Property 'z' of type 'I' is not assignable to 'string' index type '{ x:
+  │ any; y: any; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:28:10]
+ 28 │ z
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type '() => boolean'.
+    ╭─[../../tests/compiler/typeName1/index.ts:28:5]
+ 28 │ x8
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'I'.
+    ╭─[../../tests/compiler/typeName1/index.ts:31:5]
+ 31 │ x9
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'I[][][][]'.
+    ╭─[../../tests/compiler/typeName1/index.ts:33:5]
+ 33 │ x10
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type '{ z: I; x: boolean; }[][]'.
+    ╭─[../../tests/compiler/typeName1/index.ts:35:5]
+ 35 │ x11
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type '{ z: I; x: boolean; y: (s:
+  │ string) => boolean; w: () => boolean; }[][]'.
+    ╭─[../../tests/compiler/typeName1/index.ts:37:5]
+ 37 │ x12
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type '() => { }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:39:5]
+ 39 │ x13
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type '() => string'.
+    ╭─[../../tests/compiler/typeName1/index.ts:41:5]
+ 41 │ x14
+    · ───
+    ╰────
+
+  × Type 'typeof C' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/typeName1/index.ts:43:5]
+ 43 │ x15
+    · ───
+    ╰────

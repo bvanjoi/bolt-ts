@@ -1,0 +1,6 @@
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/controlFlowLoopAnalysis/index.ts:16:25]
+ 16 │ x
+    · ─
+    ╰────

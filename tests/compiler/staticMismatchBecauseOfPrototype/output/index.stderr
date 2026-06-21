@@ -1,0 +1,6 @@
+  × Property 'n' in type 'B<B>' is not assignable to the same property in base
+  │ type 'A'.
+    ╭─[../../tests/compiler/staticMismatchBecauseOfPrototype/index.ts:14:5]
+ 14 │ n
+    · ─
+    ╰────

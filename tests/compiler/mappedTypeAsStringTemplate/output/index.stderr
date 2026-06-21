@@ -1,0 +1,5 @@
+  × Property 'xy' is missing.
+   ╭─[../../tests/compiler/mappedTypeAsStringTemplate/index.ts:9:5]
+ 9 │ c
+   · ─
+   ╰────

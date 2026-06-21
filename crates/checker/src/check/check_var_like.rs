@@ -45,6 +45,7 @@ impl<'cx> TyChecker<'cx> {
 
         let symbol = self.get_symbol_of_declaration(decl_id);
         let ty = self.get_type_of_symbol(symbol);
+        let ty = self.convert_auto_to_any(ty);
         let s = self.binder.symbol(symbol);
         if decl_id == s.value_decl.unwrap() {
             if let Some(init) = decl.init() {
@@ -140,7 +141,10 @@ impl<'cx> TyChecker<'cx> {
                     _ => unreachable!(),
                 }
 
-                // TODO: `is_in_ambient_context` then `return`
+                if self.node_query(id.module()).is_in_ambient_or_type_node(id) {
+                    return;
+                }
+
                 let need_check_initializer = self.p.node(id).has_only_expr_init()
                     && decl.init().is_some()
                     && self

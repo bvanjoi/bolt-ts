@@ -1,0 +1,5 @@
+  × Property '"a"' does not exist on type '{ a: string; } | { b: number; }'.
+   ╭─[../../tests/compiler/destructuringFromUnionSpread/index.ts:9:9]
+ 9 │ a
+   · ─
+   ╰────

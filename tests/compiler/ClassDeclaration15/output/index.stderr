@@ -1,0 +1,6 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/ClassDeclaration15/index.ts:7:4]
+ 7 │ foo
+   · ───
+   ╰────

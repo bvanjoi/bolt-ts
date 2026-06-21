@@ -4,24 +4,9 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 use super::TyChecker;
 use super::errors;
 
-#[derive(Debug, Clone, Copy)]
-pub enum ExpectedArgsCount {
-    Count(usize),
-    Range { lo: usize, hi: usize },
-}
-
-impl std::fmt::Display for ExpectedArgsCount {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExpectedArgsCount::Count(c) => write!(f, "{c}"),
-            ExpectedArgsCount::Range { lo, hi } => write!(f, "{lo}-{hi}"),
-        }
-    }
-}
-
 impl TyChecker<'_> {
     #[inline]
-    pub(super) fn final_res(&self, id: ast::NodeID) -> SymbolID {
+    pub fn final_res(&self, id: ast::NodeID) -> SymbolID {
         self.binder
             .get(id.module())
             .final_res

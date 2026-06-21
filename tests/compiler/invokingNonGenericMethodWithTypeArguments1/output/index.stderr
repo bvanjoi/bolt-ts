@@ -1,0 +1,5 @@
+  × Property 'foo' does not exist on type 'Foo<Foo>'.
+   ╭─[../../tests/compiler/invokingNonGenericMethodWithTypeArguments1/index.ts:7:14]
+ 7 │ foo
+   · ───
+   ╰────

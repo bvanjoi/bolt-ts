@@ -8,6 +8,7 @@ use super::ty::AccessFlags;
 use super::ty::Ty;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::r#trait::VarLike;
 use bolt_ts_binder::SymbolFlags;
@@ -182,7 +183,7 @@ impl<'cx> TyChecker<'cx> {
                 )
                 .unwrap()
             } else {
-                self.create_array_ty(element_ty, false)
+                self.create_array_ty_worker::<false>(element_ty)
             }
         } else if self.is_array_like_ty(parent_parent_ty) {
             let index_ty = self.get_number_literal_type_from_number(index() as f64);
@@ -294,7 +295,6 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             let symbol = self.get_symbol_of_declaration(binding.id);
-            // TODO: getFlowTypeOfDestructuring
             self.get_rest_ty(parent_parent_ty, &literal_members, Some(symbol))
         } else {
             let index_ty = match binding.name {
@@ -314,8 +314,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
-            // TODO: getFlowTypeOfDestructuring
-            decl_ty
+            self.get_flow_type_of_object_destructuring(binding.id, decl_ty)
         };
         if binding.init().is_none() {
             return element_ty;
@@ -352,9 +351,67 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    pub(super) fn get_flow_type_of_object_destructuring(
+        &mut self,
+        n: ast::NodeID,
+        declared_ty: &'cx Ty<'cx>,
+    ) -> &'cx Ty<'cx> {
+        let parent = match self.p.node(n) {
+            ast::Node::ObjectBindingElem(_) => {
+                let parent = self.parent(n).unwrap();
+                debug_assert!(self.p.node(parent).is_object_pat());
+                self.parent(parent).unwrap()
+            }
+            ast::Node::ObjectPropAssignment(_) | ast::Node::ObjectShorthandMember(_) => {
+                let parent = self.parent(n).unwrap();
+                debug_assert!(self.p.node(parent).is_object_lit());
+                self.parent(parent).unwrap()
+            }
+            _ => unreachable!(),
+        };
+        match self.p.node(parent) {
+            ast::Node::VarDecl(parent)
+                if let Some(init) = parent.init
+                    && let Some(flow) = self.get_flow_node_of_node(init.id()) =>
+            {
+                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
+            }
+            ast::Node::AssignExpr(parent)
+                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) =>
+            {
+                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
+            }
+            ast::Node::PropAccessExpr(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ArrayLit(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ObjectBindingElem(_) => {
+                // TODO:
+                declared_ty
+            }
+            ast::Node::ArrayBinding(_) => {
+                // TODO:
+                declared_ty
+            }
+            _ => declared_ty,
+        }
+    }
+
     fn is_spreadable_property(&self, prop: SymbolID) -> bool {
         let s = self.symbol(prop);
-        // TODO: s.decls.iter().any(|decl| self.is_private_identifier_class_element_declaration(decl))
+        if let Some(declarations) = s.decls.as_ref()
+            && declarations.iter().any(|decl| {
+                let n = self.p.node(*decl);
+                Self::is_private_identifier_class_element_declaration(&n)
+            })
+        {
+            return false;
+        }
+
         let flags = s.flags;
         return !flags.intersects(
             SymbolFlags::METHOD
@@ -377,7 +434,7 @@ impl<'cx> TyChecker<'cx> {
         props: &[ast::PropNameKind<'cx>],
         symbol: Option<SymbolID>,
     ) -> &'cx Ty<'cx> {
-        let source = self.filter_type(source, |this, t| !t.flags.contains(ty::TypeFlags::NULLABLE));
+        let source = self.filter_type(source, |_, t| !t.flags.intersects(ty::TypeFlags::NULLABLE));
         if source.flags.contains(ty::TypeFlags::NEVER) {
             return self.empty_object_ty();
         } else if source.flags.contains(ty::TypeFlags::UNION) {
@@ -411,7 +468,7 @@ impl<'cx> TyChecker<'cx> {
                 lit_ty_from_property,
                 omit_key_ty,
                 relation::RelationKind::Assignable,
-            ) && (self.get_declaration_modifier_flags_from_symbol(prop, None)
+            ) && (self.get_declaration_modifier_flags_from_symbol::<false>(prop)
                 & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                 .is_empty()
                 && self.is_spreadable_property(prop)
@@ -490,7 +547,7 @@ impl<'cx> TyChecker<'cx> {
             })
     }
 
-    fn get_ty_for_object_binding_elem(
+    fn get_ty_for_object_binding_element(
         &mut self,
         binding: &'cx ast::ObjectBindingElem<'cx>,
         parent: &'cx ast::ObjectPat<'cx>,
@@ -530,8 +587,9 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         let parent_id = self.parent(id).unwrap();
         let parent = self.p.node(parent_id);
+        let is_variable_declaration = self.p.node(id).is_var_decl();
 
-        if self.p.node(id).is_var_decl() {
+        if is_variable_declaration {
             match parent {
                 ast::Node::ForInStmt(stmt) => {
                     let expr_ty = self.check_expression(stmt.expr, Some(check_mode));
@@ -558,7 +616,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ast::Node::ObjectPat(pat) => {
                 let n = self.p.node(id).expect_object_binding_elem();
-                return self.get_ty_for_object_binding_elem(n, pat);
+                return self.get_ty_for_object_binding_element(n, pat);
             }
             _ => {}
         }
@@ -566,6 +624,28 @@ impl<'cx> TyChecker<'cx> {
         let decl_node = self.p.node(id);
 
         let is_optional = INCLUDE_OPTIONALITY && decl_node.is_optional_decl();
+
+        if self
+            .node_query(id.module())
+            .is_catch_clause_var_decl_or_binding_ele(id)
+        {
+            return Some(if let Some(decl_ty) = decl.decl_ty() {
+                let decl_ty = self.get_ty_from_type_node(decl_ty);
+                if self.is_type_any(decl_ty) || decl_ty == self.unknown_ty {
+                    self.unknown_ty
+                } else {
+                    self.error_ty
+                }
+            } else if self
+                .config
+                .compiler_options()
+                .use_unknown_in_catch_variables()
+            {
+                self.unknown_ty
+            } else {
+                self.any_ty
+            });
+        }
 
         if let Some(decl_ty) = decl.decl_ty() {
             let ty = self.get_ty_from_type_node(decl_ty);
@@ -580,6 +660,39 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.add_optionality::<false>(ty, is_optional)
             });
+        }
+
+        if (self.config.compiler_options().no_implicit_any()
+            || self.node_query(id.module()).is_in_js_file(id))
+            && is_variable_declaration
+            && let Some(declaration_name) = decl_node.name()
+            && matches!(declaration_name, ast::DeclarationName::Ident(_))
+            && let nq = self.node_query(id.module())
+            && !nq
+                .get_combined_modifier_flags(id)
+                .contains(ast::ModifierFlags::EXPORT)
+            && !self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+        {
+            if !nq
+                .get_combined_node_flags(id)
+                .intersects(ast::NodeFlags::CONSTANT)
+                && decl.init().is_none_or(|init| {
+                    // is_null_or_undefined
+                    let init = ast::Expr::skip_parens(init);
+                    match init.kind {
+                        ast::ExprKind::Ident(n) if matches!(n.name, keyword::KW_UNDEFINED) => true,
+                        ast::ExprKind::NullLit(_) => true,
+                        _ => false,
+                    }
+                })
+            {
+                return Some(self.auto_ty);
+            } else if decl
+                .init()
+                .is_some_and(|init| matches!(init.kind, ast::ExprKind::ArrayLit(n) if n.is_empty()))
+            {
+                return Some(self.auto_array_ty());
+            }
         }
 
         if let Some(param_decl) = decl.as_param() {
@@ -626,7 +739,7 @@ impl<'cx> TyChecker<'cx> {
         decl: &impl crate::r#trait::VarLike<'cx>,
         ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        let widened = self.get_widened_lit_ty_for_init(decl, ty);
+        let widened = self.get_widened_literal_ty_for_initializer(decl, ty);
         if self.node_query(decl.id().module()).is_in_js_file(decl.id()) {
             todo!()
         }
@@ -673,7 +786,7 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn widen_ty_for_var_like_decl<const REPORT_ERROR: bool>(
+    pub(super) fn widen_ty_for_variable_like_declaration<const REPORT_ERROR: bool>(
         &mut self,
         ty: Option<&'cx Ty<'cx>>,
         decl: &impl r#trait::VarLike<'cx>,

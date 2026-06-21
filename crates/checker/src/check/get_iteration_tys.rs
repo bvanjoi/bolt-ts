@@ -884,16 +884,16 @@ impl<'cx> TyChecker<'cx> {
         if !ty.get_object_flags().contains(ty::ObjectFlags::REFERENCE) {
             return false;
         }
-        for target in targets {
-            // TODO: tuple?
-            let Some(t) = ty.kind.as_object_reference() else {
-                unreachable!()
-            };
-            if t.target.eq(target) {
-                return true;
-            }
-        }
-        false
+        let Some(object_ty) = ty.kind.as_object() else {
+            unreachable!()
+        };
+        let ty = match object_ty.kind {
+            ty::ObjectTyKind::Interface(_) => ty,
+            ty::ObjectTyKind::Reference(t) => t.target,
+            ty::ObjectTyKind::Tuple(t) => t.ty,
+            _ => unreachable!("{object_ty:#?}"),
+        };
+        targets.iter().any(|target| ty.eq(target))
     }
 
     fn get_iteration_tys_of_iterable_cached(

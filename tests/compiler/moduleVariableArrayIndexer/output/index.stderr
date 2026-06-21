@@ -1,0 +1,5 @@
+  × The value 'undefined' cannot be used here.
+   ╭─[../../tests/compiler/moduleVariableArrayIndexer/index.ts:7:13]
+ 7 │ undefined
+   · ─────────
+   ╰────

@@ -1,0 +1,53 @@
+  × Declarations must be initialized.
+   ╭─[../../tests/compiler/constDeclarations-errors/index.ts:7:7]
+ 7 │ c1
+   · ──
+   ╰────
+
+  × Declarations must be initialized.
+   ╭─[../../tests/compiler/constDeclarations-errors/index.ts:9:7]
+ 9 │ c2
+   · ──
+   ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:11:7]
+ 11 │ c3
+    · ──
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:11:11]
+ 11 │ c4
+    · ──
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:11:15]
+ 11 │ c5
+    · ──
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:11:27]
+ 11 │ c6
+    · ──
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:24:11]
+ 24 │ c9
+    · ──
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:28:20]
+ 28 │ c11
+    · ───
+    ╰────
+
+  × Cannot assign to 'c8' because it is a constant.
+    ╭─[../../tests/compiler/constDeclarations-errors/index.ts:20:27]
+ 20 │ c8
+    · ──
+    ╰────

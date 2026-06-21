@@ -74,7 +74,11 @@ impl<'cx> Ty<'cx> {
     }
 
     pub fn skip_ty_parens(&'cx self) -> &'cx Ty<'cx> {
-        self
+        if let TyKind::Paren(paren) = self.kind {
+            paren.ty.skip_ty_parens()
+        } else {
+            self
+        }
     }
 
     pub fn is_simple_tuple_ty(&self) -> bool {
@@ -609,7 +613,6 @@ pub struct MappedTy<'cx> {
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Token>,
     pub ty: Option<&'cx Ty<'cx>>,
-    pub members: &'cx [&'cx ObjectTyMember<'cx>],
 }
 
 bitflags::bitflags! {

@@ -1,0 +1,12 @@
+  × Type '() => any' is not assignable to type 'any[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest4/index.ts:27:1]
+ 27 │ arr_any
+    · ───────
+    ╰────
+
+  × Type 'C3' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest4/index.ts:29:1]
+ 29 │ arr_any
+    · ───────
+    ╰────

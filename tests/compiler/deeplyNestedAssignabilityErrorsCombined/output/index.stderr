@@ -1,0 +1,15 @@
+  × Type '{ a: { b: { c: { d: { e: { f: () => { g:
+  │ number; }; }; }; }; }; }; }' is not assignable to type '{ a: { b: { c:
+  │ { d: { e: { f: () => { g: string; }; }; }; }; }; }; }'.
+   ╭─[../../tests/compiler/deeplyNestedAssignabilityErrorsCombined/index.ts:7:1]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Type '{ a: { b: { c: { d: { e: { f: typeof Ctor2; }; }; }; }; }; }' is not
+  │ assignable to type '{ a: { b: { c: { d: { e: { f: typeof
+  │ Ctor1; }; }; }; }; }; }'.
+    ╭─[../../tests/compiler/deeplyNestedAssignabilityErrorsCombined/index.ts:20:1]
+ 20 │ x2
+    · ──
+    ╰────

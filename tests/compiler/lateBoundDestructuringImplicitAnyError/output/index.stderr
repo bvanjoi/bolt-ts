@@ -1,0 +1,37 @@
+  × Type '{ prop: string; }' has no matching index signature for type
+  │ 'string'.
+   ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:8:6]
+ 8 │ [named]
+   · ───────
+   ╰────
+
+  × Type '{ [idx: number]: string }' has no matching index signature for type
+  │ 'string'.
+    ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:20:6]
+ 20 │ [named]
+    · ───────
+    ╰────
+
+  × Type 'unique symbol' cannot be used as an index type.
+    ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:29:6]
+ 29 │ [symed]
+    · ───────
+    ╰────
+
+  × Type 'unique symbol' cannot be used as an index type.
+    ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:32:6]
+ 32 │ [symed]
+    · ───────
+    ╰────
+
+  × Type 'symbol' cannot be used as an index type.
+    ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:35:6]
+ 35 │ [symed2]
+    · ────────
+    ╰────
+
+  × Type 'symbol' cannot be used as an index type.
+    ╭─[../../tests/compiler/lateBoundDestructuringImplicitAnyError/index.ts:38:6]
+ 38 │ [symed2]
+    · ────────
+    ╰────

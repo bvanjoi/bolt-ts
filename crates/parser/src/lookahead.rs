@@ -1,7 +1,7 @@
 use super::state::LanguageVariant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
-use bolt_ts_ast::{TokenKind, keyword};
+use bolt_ts_ast::{BinPrec, TokenKind, keyword};
 
 pub(super) struct Lookahead<'a, 'cx, 'p> {
     p: &'a mut ParserState<'cx, 'p>,
@@ -138,7 +138,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         loop {
             match self.p.token.kind {
                 Var | Let | Const | Function | Class | Enum => return true,
-                Abstract | Async | Declare | Public | Private | Protected /* TODO: Accessor */=> {
+                Abstract | Async | Declare | Public | Private | Protected | Accessor => {
                     let prev = self.p.token.kind;
                     self.p.next_token();
                     if self.p.has_preceding_line_break() {
@@ -223,6 +223,25 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
     pub(super) fn next_token_is_ident(&mut self) -> PResult<bool> {
         self.p.next_token();
         Ok(self.p.is_ident())
+    }
+
+    pub(super) fn is_unparenthesized_async_arrow_fn_worker(&mut self) -> Tristate {
+        use bolt_ts_ast::TokenKind::*;
+        if self.p.token.kind == TokenKind::Async {
+            self.p.next_token();
+            if self.p.has_preceding_line_break() || self.p.token.kind == EqGreat {
+                return Tristate::False;
+            }
+            if let Ok(expr) = self.p.parse_binary_expr(BinPrec::Lowest) {
+                if !self.p.has_preceding_line_break()
+                    && matches!(expr.kind, bolt_ts_ast::ExprKind::Ident(_))
+                    && self.p.token.kind == EqGreat
+                {
+                    return Tristate::True;
+                }
+            }
+        }
+        Tristate::False
     }
 
     fn is_paren_arrow_fn_expr_worker(&mut self) -> Tristate {

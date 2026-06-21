@@ -1,6 +1,6 @@
 use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::{SymbolID, SymbolName};
-use bolt_ts_ty::ObjectFlags;
+use bolt_ts_ty::{ElementFlags, ObjectFlags};
 use bolt_ts_utils::FxIndexMap;
 
 use super::PromiseOrAwaitableTyLinksID;
@@ -22,6 +22,12 @@ pub enum ObjectTyKind<'cx> {
     Reference(&'cx ReferenceTy<'cx>),
     Mapped(&'cx MappedTy<'cx>),
     ReversedMapped(&'cx ReverseMappedTy<'cx>),
+    EvolvingArray(&'cx EvolvingArrayTy<'cx>),
+}
+
+#[derive(Debug, Clone)]
+pub struct EvolvingArrayTy<'cx> {
+    pub element_ty: &'cx Ty<'cx>,
 }
 
 impl<'cx> ObjectTyKind<'cx> {
@@ -90,6 +96,7 @@ ty_kind_as_object_ty_kind!(&'cx InterfaceTy<'cx>, interface);
 ty_kind_as_object_ty_kind!(&'cx ReferenceTy<'cx>, reference);
 ty_kind_as_object_ty_kind!(&'cx MappedTy<'cx>, mapped);
 ty_kind_as_object_ty_kind!(&'cx ReverseMappedTy<'cx>, reverse_mapped);
+ty_kind_as_object_ty_kind!(&'cx EvolvingArrayTy<'cx>, evolving_array);
 
 macro_rules! as_object_ty_kind {
     ($kind: ident, $ty:ty, $name: ident) => {
@@ -117,25 +124,7 @@ as_object_ty_kind!(Interface, &'cx InterfaceTy<'cx>, interface);
 as_object_ty_kind!(Reference, &'cx ReferenceTy<'cx>, reference);
 as_object_ty_kind!(Mapped, &'cx MappedTy<'cx>, mapped);
 as_object_ty_kind!(ReversedMapped, &'cx ReverseMappedTy<'cx>, reverse_mapped);
-
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq)]
-    pub struct ElementFlags: u8 {
-        /// `T`
-        const REQUIRED  = 1 << 0;
-        /// `T?`
-        const OPTIONAL  = 1 << 1;
-        /// `...T[]`
-        const REST      = 1 << 2;
-        /// `...T`
-        const VARIADIC  = 1 << 3;
-
-        const FIXED         = Self::REQUIRED.bits() | Self::OPTIONAL.bits();
-        const VARIABLE      = Self::REST.bits() | Self::VARIADIC.bits();
-        const NON_REQUIRED  = Self::OPTIONAL.bits() | Self::REST.bits() | Self::VARIADIC.bits();
-        const NON_REST      = Self::REQUIRED.bits() | Self::OPTIONAL.bits() | Self::VARIADIC.bits();
-    }
-}
+as_object_ty_kind!(EvolvingArray, &'cx EvolvingArrayTy<'cx>, evolving_array);
 
 #[derive(Debug)]
 pub struct TupleTy<'cx> {
@@ -212,6 +201,7 @@ pub struct IndexInfo<'cx> {
     pub key_ty: &'cx Ty<'cx>,
     pub val_ty: &'cx Ty<'cx>,
     pub is_readonly: bool,
+    pub declaration: Option<&'cx ast::IndexSigDecl<'cx>>,
 }
 
 impl PartialEq for &IndexInfo<'_> {
@@ -276,11 +266,11 @@ pub struct SingleSigTy<'cx> {
 pub struct MappedTy<'cx> {
     pub symbol: SymbolID,
     pub decl: &'cx ast::MappedTy<'cx>,
-    pub alias_symbol: Option<SymbolID>,
-    pub alias_ty_arguments: Option<super::Tys<'cx>>,
     pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
     pub links: ObjectMappedTyLinksID<'cx>,
+    pub alias_symbol: Option<SymbolID>,
+    pub alias_ty_arguments: Option<super::Tys<'cx>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

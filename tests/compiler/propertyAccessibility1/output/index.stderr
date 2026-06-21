@@ -1,0 +1,5 @@
+  × Property 'privProp' is private and only accessible within class 'Foo'.
+    ╭─[../../tests/compiler/propertyAccessibility1/index.ts:10:1]
+ 10 │ f.privProp
+    · ──────────
+    ╰────

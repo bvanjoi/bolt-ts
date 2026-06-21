@@ -1,0 +1,17 @@
+  × Type 'string' is not assignable to type '"foo" | "bar"'.
+    ╭─[../../tests/compiler/indirectDiscriminantAndExcessProperty/index.ts:13:5]
+ 13 │ type
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type '"foo" | "bar"'.
+    ╭─[../../tests/compiler/indirectDiscriminantAndExcessProperty/index.ts:20:5]
+ 20 │ type
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type '"foo" | "bar"'.
+    ╭─[../../tests/compiler/indirectDiscriminantAndExcessProperty/index.ts:28:5]
+ 28 │ type
+    · ────
+    ╰────

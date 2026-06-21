@@ -6,6 +6,7 @@ mod temp_dir;
 mod temp_files;
 
 pub use common::TestConfig;
+pub use common::{CompilerOption, CompilerOptions};
 pub use header::TestProps;
 pub use temp_dir::{TempDir, tempdir};
 pub use temp_files::build_temp_files;

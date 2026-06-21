@@ -51,7 +51,7 @@ impl<'cx> TyChecker<'cx> {
         if false_ty.flags.contains(TypeFlags::NEVER)
             && self.get_actual_ty_variable(true_ty) == self.get_actual_ty_variable(cond_ty.check_ty)
         {
-            if cond_ty.check_ty.flags.intersects(TypeFlags::ANY) || {
+            if cond_ty.check_ty.flags.contains(TypeFlags::ANY) || {
                 let source = self.get_restrictive_instantiation(cond_ty.check_ty);
                 let target = self.get_restrictive_instantiation(cond_ty.extends_ty);
                 self.is_type_assignable_to(source, target)
@@ -64,13 +64,13 @@ impl<'cx> TyChecker<'cx> {
             && self.get_actual_ty_variable(false_ty)
                 == self.get_actual_ty_variable(cond_ty.check_ty)
         {
-            if !cond_ty.check_ty.flags.intersects(TypeFlags::ANY) && {
+            if !cond_ty.check_ty.flags.contains(TypeFlags::ANY) && {
                 let source = self.get_restrictive_instantiation(cond_ty.check_ty);
                 let target = self.get_restrictive_instantiation(cond_ty.extends_ty);
                 self.is_type_assignable_to(source, target)
             } {
                 return Some(self.never_ty);
-            } else if cond_ty.check_ty.flags.intersects(TypeFlags::ANY)
+            } else if cond_ty.check_ty.flags.contains(TypeFlags::ANY)
                 || self.is_intersection_empty(cond_ty.check_ty, cond_ty.extends_ty)
             {
                 return Some(self.get_simplified_ty::<WRITING>(false_ty));

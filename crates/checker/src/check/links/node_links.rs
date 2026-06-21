@@ -3,6 +3,13 @@ use super::super::ty;
 use super::NodeCheckFlags;
 use super::links;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExhaustiveState {
+    Computing,
+    True,
+    False,
+}
+
 links!(
     NodeLinks,
     (resolved_ty, &'cx ty::Ty<'cx>),
@@ -16,9 +23,10 @@ links!(
     (enum_member_value, EnumMemberValue),
     (assertion_expression_ty, &'cx ty::Ty<'cx>),
     (context_free_ty, &'cx ty::Ty<'cx>),
-    (is_exhaustive, bool),
+    (is_exhaustive, ExhaustiveState),
     (type_checked, bool),
-    (switch_tys, ty::Tys<'cx>)
+    (switch_tys, ty::Tys<'cx>),
+    (parameter_initializer_contains_undefined, bool)
 );
 
 impl NodeLinks<'_> {

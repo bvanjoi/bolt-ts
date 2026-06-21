@@ -1,0 +1,5 @@
+  × Property 'prop' is missing.
+    ╭─[../../tests/compiler/inferenceFromIncompleteSource/index.ts:14:11]
+ 14 │ {items: [{name:' string'}], itemKey: 'name' }
+    · ─────────────────────────────────────────────
+    ╰────

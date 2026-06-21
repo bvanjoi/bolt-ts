@@ -1,5 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/capturedLetConstInLoop2.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 
 // ========let
 function foo0(x) {

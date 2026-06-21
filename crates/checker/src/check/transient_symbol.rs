@@ -36,6 +36,7 @@ impl<'cx> TyChecker<'cx> {
             export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: None,
+            last_assignment_position: None,
         };
         let symbols = self.get_mut_transient_symbols();
         let id = create_transient_symbol(symbols, symbol);
@@ -105,7 +106,7 @@ impl<'cx> TyChecker<'cx> {
         let flags = s.flags;
         (flags.contains(SymbolFlags::PROPERTY)
             && self
-                .get_declaration_modifier_flags_from_symbol(symbol, None)
+                .get_declaration_modifier_flags_from_symbol::<false>(symbol)
                 .contains(ast::ModifierFlags::READONLY))
             || flags.contains(SymbolFlags::ENUM_MEMBER)
             || (flags.intersects(SymbolFlags::VARIABLE)

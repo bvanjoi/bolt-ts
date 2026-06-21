@@ -1,0 +1,65 @@
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:15:19]
+ 15 │ a1
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:17:19]
+ 17 │ a2
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:19:19]
+ 19 │ a3
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:28:19]
+ 28 │ b0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:32:19]
+ 32 │ b3
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:41:19]
+ 41 │ c0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:44:19]
+ 44 │ c2
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:54:11]
+ 54 │ d0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:56:11]
+ 56 │ d1
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:58:11]
+ 58 │ d2
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'false'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue8/index.ts:60:11]
+ 60 │ d3
+    · ──
+    ╰────

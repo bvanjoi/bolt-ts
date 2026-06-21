@@ -7,7 +7,7 @@ use bolt_ts_ast::r#trait;
 use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
-    fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
+    pub(super) fn check_param_decl(&mut self, param: &'cx ast::ParamDecl<'cx>) {
         self.check_var_like_decl(param);
         if param.dotdotdot.is_some()
             && let ast::BindingKind::Ident(_) = param.name.kind
@@ -37,17 +37,9 @@ impl<'cx> TyChecker<'cx> {
 
         self.check_sig_decl(id);
 
-        for param in decl.params() {
-            self.check_param_decl(param)
-        }
-
         let body = r#trait::FnDeclLike::body(decl);
         if let Some(body) = body {
             self.check_block(body)
-        }
-
-        if let Some(ty) = decl.ty() {
-            self.check_ty(ty);
         }
 
         use ast::Node::*;
@@ -57,9 +49,29 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.get_effective_ret_type_node(id).is_none() {
-            if body.is_none() {
+            if body.is_none() && !self.is_private_within_ambient(id) {
                 self.report_implicit_any(id, self.any_ty, None);
             }
+        }
+    }
+
+    fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
+        let n = self.p.node(id);
+        n.has_effective_modifier(ast::ModifierFlags::PRIVATE) || {
+            self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+                && Self::is_private_identifier_class_element_declaration(&n)
+        }
+    }
+
+    pub(super) fn is_private_identifier_class_element_declaration(n: &ast::Node<'cx>) -> bool {
+        match n {
+            ast::Node::ClassPropElem(ast::ClassPropElem { name, .. })
+            | ast::Node::ClassMethodElem(ast::ClassMethodElem { name, .. })
+            | ast::Node::GetterDecl(ast::GetterDecl { name, .. })
+            | ast::Node::SetterDecl(ast::SetterDecl { name, .. }) => {
+                matches!(name.kind, ast::PropNameKind::PrivateIdent(_))
+            }
+            _ => false,
         }
     }
 
@@ -87,7 +99,12 @@ impl<'cx> TyChecker<'cx> {
             return;
         };
 
-        if n.is_method_signature() || !self.fn_has_implicit_return(fn_id) {
+        if n.is_method_signature()
+            || n.fn_body().is_none()
+            || n.as_arrow_fn_expr()
+                .is_some_and(|n| matches!(n.body, ast::ArrowFnExprBody::Expr(_)))
+            || !self.fn_has_implicit_return(fn_id)
+        {
             return;
         }
 

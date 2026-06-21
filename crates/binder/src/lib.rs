@@ -7,7 +7,7 @@ mod bind_ret_or_throw;
 mod bind_worker;
 mod container_flags;
 mod create;
-pub mod errors;
+pub use bolt_ts_binder_errors as errors;
 mod flow;
 mod flow_in_node;
 mod merge;
@@ -28,6 +28,8 @@ use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub use self::create::set_value_declaration;
+pub use self::flow::FlowArrayMutation;
+pub use self::flow::FlowArrayMutationNode;
 pub use self::flow::{FlowFlags, FlowID, FlowNode, FlowNodeKind, FlowNodes};
 pub use self::flow_in_node::{FlowInNode, FlowInNodes};
 pub use self::merge::merge_global_symbol;
@@ -72,9 +74,24 @@ impl Binder {
 
     #[inline(always)]
     #[track_caller]
+    fn get_mut(&mut self, id: ModuleID) -> &mut ResolveResult {
+        let index = id.as_usize();
+        debug_assert!(index < self.bind_results.len());
+        unsafe { self.bind_results.get_unchecked_mut(index) }
+    }
+
+    #[inline(always)]
+    #[track_caller]
     pub fn symbol(&self, id: SymbolID) -> &Symbol {
         let m = id.module();
         self.get(m).symbols.get(id)
+    }
+
+    #[inline(always)]
+    #[track_caller]
+    pub fn symbol_mut(&mut self, id: SymbolID) -> &mut Symbol {
+        let m = id.module();
+        self.get_mut(m).symbols.get_mut(id)
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
@@ -96,6 +113,7 @@ struct BinderState<'cx, 'atoms, 'parser> {
     diags: Vec<bolt_ts_errors::Diag>,
     symbols: Symbols,
     local_symbols: FxHashMap<u32, SymbolID>,
+    compiler_options: &'atoms NormalizedTsConfig,
     // TODO: use `NodeId::index` is enough
     locals: FxHashMap<ast::NodeID, SymbolTable>,
 
@@ -168,7 +186,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         atoms: &'atoms AtomIntern,
         parser: &'parser mut ParseResultForGraph<'cx>,
         module_id: ModuleID,
-        options: &NormalizedTsConfig,
+        options: &'atoms NormalizedTsConfig,
     ) -> Self {
         let symbols = Symbols::new(module_id);
         let mut flow_nodes = FlowNodes::new(module_id);
@@ -218,6 +236,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             parent_map,
             pre_switch_case_flow: None,
             block_parent_stack: vec![],
+            compiler_options: options,
         }
     }
 
@@ -287,7 +306,7 @@ fn bind<'cx, 'atoms, 'parser>(
     parser: &'parser mut ParseResultForGraph<'cx>,
     root: &'cx ast::Program,
     module_id: ModuleID,
-    options: &NormalizedTsConfig,
+    options: &'atoms NormalizedTsConfig,
 ) -> BinderState<'cx, 'atoms, 'parser> {
     let mut state = BinderState::new(atoms, parser, module_id, options);
     state.bind(root.id());

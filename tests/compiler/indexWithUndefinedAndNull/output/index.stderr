@@ -1,0 +1,35 @@
+  × Type 'undefined' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:14:21]
+ 14 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'null' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:16:9]
+ 16 │ null
+    · ────
+    ╰────
+
+  × Type 'undefined' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:18:21]
+ 18 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'null' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:20:9]
+ 20 │ null
+    · ────
+    ╰────
+
+  × Type 'false' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:24:3]
+ 24 │ false
+    · ─────
+    ╰────
+
+  × Type 'true' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexWithUndefinedAndNull/index.ts:26:3]
+ 26 │ true
+    · ────
+    ╰────

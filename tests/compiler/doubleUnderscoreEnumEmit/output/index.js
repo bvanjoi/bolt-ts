@@ -18,7 +18,7 @@ var Foo = {};
 function Bar() {
   return 'no'
 }
-var Bar = {};
+
 (function (Bar) {
 
   function __call(x) {

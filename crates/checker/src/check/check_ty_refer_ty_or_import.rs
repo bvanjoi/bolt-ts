@@ -1,6 +1,7 @@
 use bolt_ts_ast as ast;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
+use super::ElementFlags;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
@@ -13,7 +14,6 @@ use super::{TyChecker, errors};
 
 pub(super) trait TyReferTyOrImport<'cx> {
     fn id(&self) -> ast::NodeID;
-    fn span(&self) -> bolt_ts_span::Span;
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx>;
     fn ty_args(&self) -> Option<&'cx ast::Tys<'cx>>;
 }
@@ -21,9 +21,6 @@ pub(super) trait TyReferTyOrImport<'cx> {
 impl<'cx> TyReferTyOrImport<'cx> for ast::ReferTy<'cx> {
     fn id(&self) -> ast::NodeID {
         self.id
-    }
-    fn span(&self) -> bolt_ts_span::Span {
-        self.span
     }
     fn get_ty(&self, checker: &mut TyChecker<'cx>) -> &'cx ty::Ty<'cx> {
         let ty = checker.get_ty_from_ty_reference(self);
@@ -136,10 +133,9 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_inferred_ty_param_constraint(
+    fn get_inferred_type_parameter_constraint<const OMIT_TYPE_REFERENCES: bool>(
         &mut self,
         ty_param: &'cx ty::Ty<'cx>,
-        omit_ty_references: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let mut inferences = Vec::with_capacity(16);
         let decls = ty_param
@@ -154,7 +150,8 @@ impl<'cx> TyChecker<'cx> {
                     .walk_up_paren_tys_and_get_parent_and_child(parent_parent);
                 let child_ty_param = child_ty_param.map_or(parent, |n| n.id);
                 let grand_parent_node = self.p.node(grand_parent);
-                if !omit_ty_references && let Some(ty_reference) = grand_parent_node.as_refer_ty() {
+                if !OMIT_TYPE_REFERENCES && let Some(ty_reference) = grand_parent_node.as_refer_ty()
+                {
                     if let Some(ty_params) =
                         self.get_ty_params_for_ty_refer_ty_or_import(ty_reference)
                     {
@@ -188,16 +185,45 @@ impl<'cx> TyChecker<'cx> {
                         .as_named_tuple_ty()
                         .is_some_and(|n| n.dotdotdot.is_some())
                 {
-                    inferences.push(self.create_array_ty(self.unknown_ty, false));
+                    inferences.push(self.create_array_ty_worker::<false>(self.unknown_ty));
                 } else if grand_parent_node.is_template_span_ty() {
                     inferences.push(self.string_ty);
-                } else if matches!(
-                    grand_parent_node,
-                    ast::Node::TyParam(_) | ast::Node::MappedTy(_)
-                ) {
+                } else if grand_parent_node.is_ty_param()
+                    || self
+                        .p
+                        .node(self.parent(grand_parent).unwrap())
+                        .is_mapped_ty()
+                {
                     inferences.push(self.string_number_symbol_ty());
-                } else {
-                    // TODO: mapped
+                } else if let Some(mapped_type) = grand_parent_node.as_mapped_ty()
+                    && let Some(mapped_value_type) = mapped_type.ty
+                    && mapped_value_type.skip_ty_parens().id() == parent
+                    && let grand_grand_parent = self.parent(grand_parent).unwrap()
+                    && let Some(conditional_type) = self.p.node(grand_grand_parent).as_cond_ty()
+                    && conditional_type.extends_ty.id() == grand_parent
+                    && let ast::TyKind::Mapped(mapped_type_in_conditional_type_check) =
+                        conditional_type.check_ty.kind
+                    && let Some(value_type_of_mapped_type_in_conditional_type_check) =
+                        mapped_type_in_conditional_type_check.ty
+                {
+                    let node_type = self
+                        .get_ty_from_type_node(value_type_of_mapped_type_in_conditional_type_check);
+                    let source = {
+                        let s = self.get_symbol_of_declaration(
+                            mapped_type_in_conditional_type_check.ty_param.id,
+                        );
+                        self.get_declared_ty_of_ty_param(s)
+                    };
+                    let target = if let Some(constraint) =
+                        mapped_type_in_conditional_type_check.ty_param.constraint
+                    {
+                        self.get_ty_from_type_node(constraint)
+                    } else {
+                        self.string_number_symbol_ty()
+                    };
+                    let mapper = self.alloc(ty::TyMapper::make_unary(source, target));
+                    let ty = self.instantiate_ty_worker(node_type, mapper);
+                    inferences.push(ty);
                 }
             }
         }
@@ -241,7 +267,7 @@ impl<'cx> TyChecker<'cx> {
                 }
                 ty
             } else {
-                self.get_inferred_ty_param_constraint(ty_param, false)
+                self.get_inferred_type_parameter_constraint::<false>(ty_param)
                     .unwrap_or(self.no_constraint_ty())
             };
             self.get_mut_ty_links(ty_param.id)
@@ -390,12 +416,10 @@ impl<'cx> TyChecker<'cx> {
                 let constraints = t
                     .tys
                     .iter()
-                    .map(|t| get_base_constraint(checker, t, stack))
-                    .map(|c| c.unwrap())
+                    .filter_map(|t| get_base_constraint(checker, t, stack))
                     .collect::<Vec<_>>();
                 if constraints.len() == t.tys.len() {
-                    let tys = checker.alloc(constraints);
-                    Some(checker.get_template_lit_ty(t.texts, tys))
+                    Some(checker.get_template_lit_ty(t.texts, &constraints))
                 } else {
                     Some(checker.string_ty)
                 }
@@ -408,11 +432,12 @@ impl<'cx> TyChecker<'cx> {
                 }
                 Some(checker.string_ty)
             } else if let Some(i) = ty.kind.as_indexed_access() {
-                // TODO: isMappedTypeGenericIndexedAccess
-                let base_object_ty = get_base_constraint(checker, i.object_ty, stack);
-                let base_index_ty = get_base_constraint(checker, i.index_ty, stack);
-                if let Some(base_object_ty) = base_object_ty
-                    && let Some(base_index_ty) = base_index_ty
+                if checker.is_mapped_ty_generic_indexed_access_worker(i) {
+                    let t = checker.substitute_indexed_mapped_ty(i.object_ty, i.index_ty);
+                    return get_base_constraint(checker, t, stack);
+                }
+                if let Some(base_object_ty) = get_base_constraint(checker, i.object_ty, stack)
+                    && let Some(base_index_ty) = get_base_constraint(checker, i.index_ty, stack)
                     && let Some(base_indexed_access) = checker.get_indexed_access_type_or_undefined(
                         base_object_ty,
                         base_index_ty,
@@ -434,16 +459,52 @@ impl<'cx> TyChecker<'cx> {
             } else if ty.kind.is_substitution_ty() {
                 let ty = checker.get_substitution_intersection(ty);
                 get_base_constraint(checker, ty, stack)
+            } else if let Some(t) = ty.kind.as_generic_tuple_type() {
+                let element_tys = checker.get_element_tys(ty);
+                let new_elements = element_tys
+                    .iter()
+                    .enumerate()
+                    .map(|(index, v)| {
+                        let constraint = if v.flags.contains(TypeFlags::TYPE_PARAMETER)
+                            && t.element_flags[index].contains(ElementFlags::VARIADIC)
+                        {
+                            get_base_constraint(checker, v, stack)
+                        } else {
+                            Some(*v)
+                        };
+                        if let Some(constraint) = constraint
+                            && checker.every_type(constraint, |this, c| {
+                                this.is_array_or_tuple(c) && !c.kind.is_generic_tuple_type()
+                            })
+                        {
+                            constraint
+                        } else {
+                            v
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let new_elements = checker.alloc(new_elements);
+                Some(checker.create_tuple_ty(new_elements, Some(t.element_flags), t.readonly))
             } else {
-                // TODO: more case
                 Some(ty)
             }
         }
 
         let mut stack = Vec::with_capacity(8);
         let res = get_immediate_base_constraint(self, ty, &mut stack);
-        self.get_mut_ty_links(ty.id)
-            .set_resolved_base_constraint(res);
+        if res == self.circular_constraint_ty() {
+            match self.get_ty_links(ty.id).get_resolved_base_constraint() {
+                Some(old) => debug_assert_eq!(res, old),
+                _ => {
+                    self.get_mut_ty_links(ty.id)
+                        .set_resolved_base_constraint(res);
+                }
+            }
+        } else {
+            self.get_mut_ty_links(ty.id)
+                .set_resolved_base_constraint(res);
+        }
+
         res
     }
 

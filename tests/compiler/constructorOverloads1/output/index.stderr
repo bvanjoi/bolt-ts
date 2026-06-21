@@ -1,0 +1,35 @@
+  × Multiple constructor implementations are not allowed.
+   ╭─[../../tests/compiler/constructorOverloads1/index.ts:6:5]
+ 6 │ constructor
+   · ───────────
+   ╰────
+
+  × Multiple constructor implementations are not allowed.
+   ╭─[../../tests/compiler/constructorOverloads1/index.ts:8:5]
+ 8 │ constructor
+   · ───────────
+   ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/constructorOverloads1/index.ts:10:5]
+ 10 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/constructorOverloads1/index.ts:14:5]
+ 14 │ constructor
+    · ───────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/constructorOverloads1/index.ts:24:10]
+ 24 │ new Foo(f1)
+    · ───────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/constructorOverloads1/index.ts:26:10]
+ 26 │ new Foo([f1,f2,f3])
+    · ───────────────────
+    ╰────

@@ -1,0 +1,101 @@
+  × Type parameter list cannot be empty.
+   ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:6:14]
+ 6 │ <
+   · ─
+   ╰────
+
+  × Type parameter list cannot be empty.
+   ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:9:14]
+ 9 │ <
+   · ─
+   ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:12:15]
+ 12 │ <
+    · ─
+    ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:15:15]
+ 15 │ <
+    · ─
+    ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:18:14]
+ 18 │ <
+    · ─
+    ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:21:14]
+ 21 │ <
+    · ─
+    ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:24:15]
+ 24 │ <
+    · ─
+    ╰────
+
+  × Type parameter list cannot be empty.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:27:15]
+ 27 │ <
+    · ─
+    ╰────
+
+  × Type parameters cannot appear on a constructor declaration.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:33:14]
+ 33 │ <T>(
+    · ────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+   ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:6:3]
+ 6 │ constructor
+   · ───────────
+   ╰────
+
+  × Multiple constructor implementations are not allowed.
+   ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:9:3]
+ 9 │ constructor
+   · ───────────
+   ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:12:3]
+ 12 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:15:3]
+ 15 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:18:3]
+ 18 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:21:3]
+ 21 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:24:3]
+ 24 │ constructor
+    · ───────────
+    ╰────
+
+  × Multiple constructor implementations are not allowed.
+    ╭─[../../tests/compiler/parserConstructorDeclaration12/index.ts:27:3]
+ 27 │ constructor
+    · ───────────
+    ╰────

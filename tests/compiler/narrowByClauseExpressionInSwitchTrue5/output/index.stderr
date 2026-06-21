@@ -1,0 +1,149 @@
+  × Type '"B"' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:22:19]
+ 22 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:32:19]
+ 32 │ b
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:39:19]
+ 39 │ c
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:46:11]
+ 46 │ d
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"B"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:49:11]
+ 49 │ d1
+    · ──
+    ╰────
+
+  × Type '"B"' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:61:15]
+ 61 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:68:15]
+ 68 │ b
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:75:15]
+ 75 │ c
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:82:11]
+ 82 │ d
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"B"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:85:11]
+ 85 │ d1
+    · ──
+    ╰────
+
+  × Type '"B"' is not assignable to type '"A"'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:99:19]
+ 99 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:107:19]
+ 107 │ b
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:114:19]
+ 114 │ c
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:122:10]
+ 122 │ d
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"B"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:125:11]
+ 125 │ d1
+     · ──
+     ╰────
+
+  × Type '"B"' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:137:15]
+ 137 │ a
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:144:15]
+ 144 │ b
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:151:15]
+ 151 │ c
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:159:11]
+ 159 │ d
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"B"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:162:11]
+ 162 │ d1
+     · ──
+     ╰────
+
+  × Type '"B"' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:176:19]
+ 176 │ a
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:184:19]
+ 184 │ b
+     · ─
+     ╰────
+
+  × Type '"C"' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:192:19]
+ 192 │ c
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"A"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:200:11]
+ 200 │ d
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type '"B"'.
+     ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue5/index.ts:203:11]
+ 203 │ d1
+     · ──
+     ╰────

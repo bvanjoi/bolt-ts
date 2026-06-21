@@ -4,3 +4,10 @@
  9 │ yield result
    · ────────────
    ╰────
+
+  × 'yield' expression implicitly results in an 'any' type because its
+  │ containing generator lacks a return-type annotation.
+   ╭─[../../tests/compiler/yieldExpressionInFlowLoop/index.ts:9:18]
+ 9 │ yield result
+   · ────────────
+   ╰────

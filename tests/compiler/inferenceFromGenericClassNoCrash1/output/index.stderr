@@ -1,0 +1,6 @@
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/inferenceFromGenericClassNoCrash1/index.ts:11:3]
+ 11 │ t
+    · ─
+    ╰────

@@ -1,0 +1,6 @@
+  × Type '(n: number, s: string) => number' is missing the following
+  │ properties from type 'ArrayConstructor': isArray, from, and 2 more.
+   ╭─[../../tests/compiler/redefineArray/index.ts:5:1]
+ 5 │ Array
+   · ─────
+   ╰────

@@ -46,15 +46,15 @@
     · ────
     ╰────
 
-  × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:73:21]
- 73 │ a0
-    · ──
+  × Type 'boolean' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:46:15]
+ 46 │ _
+    · ─
     ╰────
 
-  × Tuple type '[string]' of length '1' has no element at index '1'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:75:19]
- 75 │ 1
+  × Tuple type '[boolean]' of length '1' has no element at index '1'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:50:12]
+ 50 │ 1
     · ─
     ╰────
 
@@ -76,14 +76,14 @@
     · ─
     ╰────
 
-  × Tuple type '[boolean]' of length '1' has no element at index '1'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:50:12]
- 50 │ 1
-    · ─
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:73:21]
+ 73 │ a0
+    · ──
     ╰────
 
-  × Type 'boolean' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:46:15]
- 46 │ _
+  × Tuple type '[string]' of length '1' has no element at index '1'.
+    ╭─[../../tests/compiler/bindingPatternCannotBeOnlyInferenceSource/index.ts:75:19]
+ 75 │ 1
     · ─
     ╰────

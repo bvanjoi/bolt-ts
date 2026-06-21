@@ -1,0 +1,5 @@
+  × Property 'A' does not exist on type 'number'.
+    ╭─[../../tests/compiler/typeValueConflict2/index.ts:14:24]
+ 14 │ A
+    · ─
+    ╰────

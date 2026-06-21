@@ -5,4 +5,4 @@ const _    = pick(['b'], { a: 'a', b: 'b' }); // T: "b"
 const {  } = pick(['b'], { a: 'a', b: 'b' }); // T: "b" | "a" ??? (before fix)
 
 const a0: { b: 'a' } = pick(['b'], { a: 'a', b: 'b' }); // T: "b"
-//~^ ERROR: Type 'Pick' is not assignable to type '{ b: "a"; }'.
+//~^ ERROR: Type 'Pick<{ a: string; b: "b"; }, "b">' is not assignable to type '{ b: "a"; }'.

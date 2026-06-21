@@ -1,0 +1,6 @@
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+   ╭─[../../tests/compiler/assignToInvalidLHS/index.ts:8:9]
+ 8 │ new y
+   · ─────
+   ╰────

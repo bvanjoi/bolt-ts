@@ -62,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
                     .flags
                     .intersects(TypeFlags::BOOLEAN_LITERAL.union(TypeFlags::NULLABLE))
                     && v == target.intrinsic_name().unwrap())
-                    // || (target.flags.contains(TypeFlags::STRING_MAPPING) && false/* TODO: handle string mapping */)
+                    || (target.flags.contains(TypeFlags::STRING_MAPPING) && self.is_member_of_string_mapping(source, target))
                 || target
                     .kind
                     .as_template_lit_ty()
@@ -78,10 +78,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_valid_spread_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_valid_spread_ty(&mut self, t: &'cx ty::Ty<'cx>) -> bool {
         let t = self
-            .map_ty(ty, |this, t| Some(this.get_base_constraint_or_ty(t)), false)
+            .map_ty(t, |this, t| Some(this.get_base_constraint_or_ty(t)), false)
             .unwrap();
+        let t = self.remove_definitely_falsy_tys(t);
         t.flags.intersects(
             TypeFlags::ANY
                 .union(TypeFlags::NON_PRIMITIVE)

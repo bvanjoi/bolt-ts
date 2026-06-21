@@ -22,12 +22,12 @@ struct TestCx<'test> {
 }
 
 pub struct RunnerCtx<'test> {
-    compiler_options: &'test serde_json::Map<String, serde_json::Value>,
+    compiler_options: &'test crate::common::CompilerOptions,
     test_file: &'test Path,
 }
 
 impl RunnerCtx<'_> {
-    pub fn compiler_options(&self) -> &serde_json::Map<String, serde_json::Value> {
+    pub fn compiler_options(&self) -> &crate::common::CompilerOptions {
         self.compiler_options
     }
     pub fn test_file(&self) -> &Path {

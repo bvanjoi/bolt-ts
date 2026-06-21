@@ -1,0 +1,4 @@
+async () => {
+  if (window) return 
+  
+};

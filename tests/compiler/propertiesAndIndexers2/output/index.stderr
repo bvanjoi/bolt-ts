@@ -1,0 +1,62 @@
+  × 'number' index type 'string' is not assignable to 'string' index type
+  │ 'number'.
+   ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:7:5]
+ 7 │ [n: number]: string;
+   · ────────────────────
+   ╰────
+
+  × Property 'c' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:14:5]
+ 14 │ c
+    · ─
+    ╰────
+
+  × Property '3' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:16:5]
+ 16 │ 3
+    · ─
+    ╰────
+
+  × Property 'Infinity' of type 'string' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:18:5]
+ 18 │ Infinity
+    · ────────
+    ╰────
+
+  × Property '"-Infinity"' of type 'string' is not assignable to 'string'
+  │ index type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:20:5]
+ 20 │ "-Infinity"
+    · ───────────
+    ╰────
+
+  × Property 'NaN' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:22:5]
+ 22 │ NaN
+    · ───
+    ╰────
+
+  × Property '"-NaN"' of type 'string' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:24:5]
+ 24 │ "-NaN"
+    · ──────
+    ╰────
+
+  × Property '6' of type '() => string' is not assignable to 'number' index
+  │ type 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:26:5]
+ 26 │ 6
+    · ─
+    ╰────
+
+  × Property '6' of type '() => string' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers2/index.ts:26:5]
+ 26 │ 6
+    · ─
+    ╰────

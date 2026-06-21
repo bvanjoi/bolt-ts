@@ -342,7 +342,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn extract_unit_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn extract_unit_ty(&self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
         if let Some(i) = ty.kind.as_intersection() {
             if let Some(ty) = i.tys.iter().find(|t| t.is_unit()) {
                 ty

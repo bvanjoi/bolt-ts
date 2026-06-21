@@ -401,10 +401,23 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
-        object_flags: ObjectFlags,
-        alias_symbol: Option<SymbolID>,
-        alias_ty_arguments: Option<ty::Tys<'cx>>,
+        mut object_flags: ObjectFlags,
+        mut alias_symbol: Option<SymbolID>,
+        mut alias_ty_arguments: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        alias_symbol = alias_symbol.or_else(|| ty.alias_symbol());
+        alias_ty_arguments = if alias_symbol.is_some() {
+            alias_ty_arguments
+        } else if let Some(alias_type_arguments) = ty.alias_ty_arguments() {
+            Some(self.instantiate_tys(alias_type_arguments, mapper))
+        } else {
+            None
+        };
+        object_flags |= if let Some(alias_type_arguments) = &alias_ty_arguments {
+            ty::Ty::get_propagating_flags_of_tys(alias_type_arguments, None)
+        } else {
+            ObjectFlags::empty()
+        };
         let target = ty.kind.expect_object_anonymous();
         self.create_instantiating_anonymous_ty(
             target.symbol.unwrap(),
@@ -469,7 +482,7 @@ impl<'cx> TyChecker<'cx> {
                     let mapper = self.prepend_ty_mapping(ty_var, ty, Some(mapper));
                     self.instantiate_ty_worker(mapped_ty, mapper)
                 } else {
-                    let target = self.create_array_ty(ty, false);
+                    let target = self.create_array_ty_worker::<false>(ty);
                     let mapper = self.prepend_ty_mapping(ty_var, target, Some(mapper));
                     let t = self.instantiate_ty_worker(mapped_ty, mapper);
                     self.get_element_ty_of_array_ty(t)
@@ -1103,7 +1116,7 @@ impl<'cx> TyChecker<'cx> {
             sig_ty_params,
             self.get_min_ty_arg_count(sig_ty_params),
         );
-        let sig = self.get_sig_instantiation_without_filling_ty_args(sig, ty_args);
+        let sig = self.get_sig_instantiation_without_filling_type_arguments(sig, ty_args);
         if let Some(inferred_ty_params) = inferred_ty_params {
             todo!()
         }
@@ -1120,7 +1133,7 @@ impl<'cx> TyChecker<'cx> {
         self.instantiate_sig::<true>(sig, mapper)
     }
 
-    fn get_sig_instantiation_without_filling_ty_args(
+    pub(super) fn get_sig_instantiation_without_filling_type_arguments(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,

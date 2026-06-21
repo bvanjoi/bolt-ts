@@ -1,0 +1,5 @@
+  × Namespace 'mod1' has no exported member 'C'.
+    ╭─[../../tests/compiler/moduleNewExportBug/index.ts:14:14]
+ 14 │ C
+    · ─
+    ╰────

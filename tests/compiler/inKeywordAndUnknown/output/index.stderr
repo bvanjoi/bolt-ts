@@ -1,0 +1,6 @@
+  × Type '{ }' may represent a primitive value, which is not permitted as the
+  │ right operand of the 'in' operator.
+    ╭─[../../tests/compiler/inKeywordAndUnknown/index.ts:15:18]
+ 15 │ y
+    · ─
+    ╰────

@@ -29,7 +29,7 @@ impl Token {
 }
 
 const KEYWORD_TOKEN_START: u8 = TokenKind::Null as u8;
-const KEYWORD_TOKEN_END: u8 = TokenKind::Type as u8;
+const KEYWORD_TOKEN_END: u8 = TokenKind::Accessor as u8;
 
 pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
     unsafe { std::mem::transmute::<u8, TokenKind>(idx as u8 + KEYWORD_TOKEN_START) }
@@ -37,7 +37,7 @@ pub const fn keyword_idx_to_token(idx: usize) -> TokenKind {
 
 pub fn atom_to_token(id: Atom) -> Option<TokenKind> {
     // The order of token kind in `KW_LIST` is same as with `TokenKind`.
-    const KW_LIST: [TokenKind; 66] = [
+    const KW_LIST: [TokenKind; 68] = [
         TokenKind::Null,
         TokenKind::False,
         TokenKind::True,
@@ -104,6 +104,8 @@ pub fn atom_to_token(id: Atom) -> Option<TokenKind> {
         TokenKind::Unique,
         TokenKind::Asserts,
         TokenKind::Type,
+        TokenKind::Override,
+        TokenKind::Accessor,
     ];
     KW_LIST.get(id.as_u32() as usize).copied()
 }
@@ -299,6 +301,7 @@ pub enum TokenKind {
     Unique,
     Asserts,
     Type,
+    Override,
     Accessor,
     // =====
     EOF,
@@ -520,7 +523,7 @@ impl TryFrom<TokenKind> for super::ModifierKind {
             TokenKind::Protected => Ok(Protected),
             TokenKind::Readonly => Ok(Readonly),
             TokenKind::Export => Ok(Export),
-            // TODO: override
+            TokenKind::Override => Ok(Override),
             TokenKind::Abstract => Ok(Abstract),
             TokenKind::Static => Ok(Static),
             TokenKind::Declare => Ok(Ambient),
@@ -548,6 +551,7 @@ impl From<TokenKind> for super::AssignOp {
             TokenKind::GreatGreatEq => ShrEq,
             TokenKind::GreatGreatGreatEq => UShrEq,
             TokenKind::CaretEq => BitXorEq,
+            TokenKind::QuestionQuestionEq => NullishEq,
             _ => unreachable!(),
         }
     }
@@ -649,7 +653,7 @@ impl TokenKind {
                  From |
                  // Global |
                       // BigInt |
-                      // Override |
+                      Override |
                       Of // Defer
         )
     }
@@ -685,6 +689,7 @@ impl TokenKind {
                 | LessLessEq
                 | GreatGreatEq
                 | GreatGreatGreatEq
+                | QuestionQuestionEq
         )
     }
 
@@ -698,13 +703,12 @@ impl TokenKind {
     }
 
     pub fn is_param_prop_modifier(self) -> bool {
-        // TODO: readonly | override
         self.is_accessibility_modifier()
+            || matches!(self, TokenKind::Override | TokenKind::Readonly)
     }
 
     pub fn is_class_ele_modifier(self) -> bool {
-        // TODO: override || accessor
-        self.is_param_prop_modifier() || matches!(self, TokenKind::Static)
+        self.is_param_prop_modifier() || matches!(self, TokenKind::Static | TokenKind::Accessor)
     }
 
     pub fn can_parse_module_export_name(self) -> bool {

@@ -1,0 +1,11 @@
+  × Property '_store' does not exist on type 'Bar<Bar>'.
+    ╭─[../../tests/compiler/es6DeclOrdering/index.ts:10:20]
+ 10 │ _store
+    · ──────
+    ╰────
+
+  × Property '_store' does not exist on type 'Bar<Bar>'.
+    ╭─[../../tests/compiler/es6DeclOrdering/index.ts:15:13]
+ 15 │ _store
+    · ──────
+    ╰────

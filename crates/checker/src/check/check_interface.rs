@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_binder::SymbolID;
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use rustc_hash::FxHashMap;
 
@@ -6,10 +7,8 @@ use super::ty;
 use super::{TyChecker, errors};
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn check_interface_decl(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
-        if let Some(ty_params) = interface.ty_params {
-            self.check_ty_params(ty_params);
-        }
+    pub(super) fn check_interface_declaration(&mut self, interface: &'cx ast::InterfaceDecl<'cx>) {
+        self.check_type_parameters(interface.ty_params);
 
         self.check_exports_on_merged_decls(interface.id);
 
@@ -50,7 +49,7 @@ impl<'cx> TyChecker<'cx> {
                         }),
                     );
                 }
-                self.check_index_constraints(ty, false);
+                self.check_index_constraints::<false>(ty, symbol);
             }
         }
 
@@ -58,6 +57,57 @@ impl<'cx> TyChecker<'cx> {
 
         for member in interface.members {
             self.check_object_ty_member(member);
+        }
+
+        self.check_ty_for_duplicate_index_sigs_of_interface_declaration(interface);
+    }
+
+    fn check_ty_for_duplicate_index_sigs_of_interface_declaration(
+        &mut self,
+        node: &'cx ast::InterfaceDecl<'cx>,
+    ) {
+        let node_symbol = self.get_symbol_of_declaration(node.id);
+        let s = self.binder.symbol(node_symbol);
+        if let Some(decls) = s.decls.as_ref()
+            && !decls.is_empty()
+            && decls[0] != node.id
+        {
+            return;
+        }
+        if let Some(index_symbol) = self.get_index_symbol(node_symbol) {
+            self.check_ty_for_duplicate_index_sigs_worker(index_symbol);
+        }
+    }
+
+    fn check_ty_for_duplicate_index_sigs_worker(&mut self, index_symbol: SymbolID) {
+        let s = self.symbol(index_symbol);
+        let Some(decls) = s.decls.as_ref() else {
+            return;
+        };
+        let mut index_signature_map: FxHashMap<&'cx ty::Ty<'cx>, Vec<ast::NodeID>> =
+            fx_hashmap_with_capacity(decls.len());
+        for declaration in decls.clone() {
+            let n = self.p.node(declaration);
+            if let Some(n) = n.as_index_sig_decl() {
+                let ty = self.get_ty_from_type_node(n.key_ty);
+                self.for_each_ty(ty, |_, ty| match index_signature_map.get_mut(ty) {
+                    Some(n) => n.push(declaration),
+                    None => {
+                        index_signature_map.insert(ty, vec![declaration]);
+                    }
+                });
+            }
+        }
+        for item in index_signature_map {
+            if item.1.len() > 1 {
+                for declaration in item.1 {
+                    let error = errors::DuplicateIndexSignatureForTypeX {
+                        span: self.p.node(declaration).span(),
+                        ty: self.print_ty(item.0, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+            }
         }
     }
 

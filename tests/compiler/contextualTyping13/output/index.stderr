@@ -1,3 +1,9 @@
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/contextualTyping13/index.ts:6:7]
+ 6 │ a
+   · ─
+   ╰────
+
   × Block-scoped variable 'a' used before its declaration.
     ╭─[../../tests/compiler/contextualTyping13/index.ts:12:19]
  12 │ a
@@ -10,9 +16,3 @@ Advice:
  12 │ a: string = a
     · ─────────────
     ╰────
-
-  × Type 'number' is not assignable to type 'string'.
-   ╭─[../../tests/compiler/contextualTyping13/index.ts:6:7]
- 6 │ a
-   · ─
-   ╰────

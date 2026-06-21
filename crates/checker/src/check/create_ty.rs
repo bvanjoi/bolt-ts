@@ -7,6 +7,7 @@ use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
 use super::SymbolLinks;
+use super::TemplateLiteralTyKey;
 use super::UnionOfUnionTysKey;
 use super::get_iteration_tys::AsyncIterationTysResolver;
 use super::get_iteration_tys::IterationTysResolver;
@@ -14,6 +15,7 @@ use super::get_iteration_tys::SyncIterationTysResolver;
 use super::instantiation_ty_map::SubstitutionKey;
 use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
 use super::links::TyLinks;
+use super::relation;
 use super::relation::RelationKind;
 
 use super::ty;
@@ -517,7 +519,18 @@ impl<'cx> TyChecker<'cx> {
         element_ty: &'cx ty::Ty<'cx>,
         readonly: bool,
     ) -> &'cx ty::Ty<'cx> {
-        let target = if readonly {
+        if readonly {
+            self.create_array_ty_worker::<true>(element_ty)
+        } else {
+            self.create_array_ty_worker::<false>(element_ty)
+        }
+    }
+
+    pub(super) fn create_array_ty_worker<const READONLY: bool>(
+        &mut self,
+        element_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let target = if READONLY {
             self.global_readonly_array_ty()
         } else {
             self.global_array_ty()
@@ -619,7 +632,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             if reduction == UnionReduction::Subtype {
-                set = self.remove_subtypes(set);
+                set = self.remove_subtypes(set, includes.contains(TypeFlags::OBJECT));
             }
 
             if set.is_empty() {
@@ -757,22 +770,101 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn remove_subtypes(&mut self, mut tys: Vec<&'cx ty::Ty<'cx>>) -> Vec<&'cx ty::Ty<'cx>> {
+    fn remove_subtypes(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+        has_object_tys: bool,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
         let len = tys.len();
         if len < 2 {
             return tys;
         }
+        // TODO: subtype_reduction_cache
+        let has_empty_object = has_object_tys
+            && tys.iter().any(|t| {
+                t.flags.contains(TypeFlags::OBJECT) && !self.is_generic_mapped_ty(t) && {
+                    self.resolve_structured_type_members(t);
+                    self.is_empty_resolved_ty(t)
+                }
+            });
         let mut i = len;
         while i > 0 {
             i -= 1;
             let source = tys[i];
-            if source.kind.is_structured_or_instantiable() {
-                for target in tys.iter() {
-                    if !source.eq(target)
-                        && self.is_type_related_to(source, target, RelationKind::StrictSubtype)
-                    {
+            if has_empty_object || source.kind.is_structured_or_instantiable() {
+                if source.flags.contains(TypeFlags::TYPE_PARAMETER)
+                    && self
+                        .get_base_constraint_or_ty(source)
+                        .flags
+                        .contains(TypeFlags::UNION)
+                {
+                    let target = tys
+                        .iter()
+                        .map(|t| if source.eq(t) { self.never_ty } else { t })
+                        .collect::<Vec<_>>();
+                    let target = self.get_union_ty::<false>(
+                        &target,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                    if self.is_type_related_to(
+                        source,
+                        target,
+                        relation::RelationKind::StrictSubtype,
+                    ) {
                         tys.remove(i);
-                        break;
+                    }
+                    continue;
+                }
+                const FLAGS: TypeFlags = TypeFlags::OBJECT
+                    .union(TypeFlags::INTERSECTION)
+                    .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE);
+                let key_property = if source.flags.intersects(FLAGS) {
+                    self.get_props_of_ty(source).iter().find_map(|p| {
+                        let ty = self.get_type_of_symbol(*p);
+                        if ty.is_unit() { Some(*p) } else { None }
+                    })
+                } else {
+                    None
+                };
+                let key_property_ty = key_property.map(|p| {
+                    let ty = self.get_type_of_symbol(p);
+                    self.get_regular_ty_of_literal_ty(ty)
+                });
+                for target in tys.iter() {
+                    if !source.eq(target) {
+                        if let Some(key_property) = key_property
+                            && target.flags.intersects(FLAGS)
+                        {
+                            let name = self.symbol(key_property).name;
+                            if let Some(t) = self.get_ty_of_prop_of_ty(target, name)
+                                && t.is_unit()
+                                && self.get_regular_ty_of_literal_ty(t) != key_property_ty.unwrap()
+                            {
+                                continue;
+                            }
+                        }
+                        if self.is_type_related_to(source, target, RelationKind::StrictSubtype) && {
+                            !(match source.kind.as_object_reference() {
+                                Some(r) => r.target,
+                                None => source,
+                            })
+                            .get_object_flags()
+                            .contains(ObjectFlags::CLASS)
+                                || !(match target.kind.as_object_reference() {
+                                    Some(r) => r.target,
+                                    None => target,
+                                })
+                                .get_object_flags()
+                                .contains(ObjectFlags::CLASS)
+                                || self.is_ty_derived_from(source, target)
+                        } {
+                            tys.remove(i);
+                            break;
+                        }
                     }
                 }
             }
@@ -843,11 +935,11 @@ impl<'cx> TyChecker<'cx> {
                 CheckFlags::empty()
             };
             if arity > 0 {
-                let mut _ty_params = Vec::with_capacity(arity);
+                let mut type_parameters = Vec::with_capacity(arity);
                 debug_assert_eq!(arity, element_flags.len());
                 for (i, flag) in element_flags.iter().enumerate() {
-                    let ty_param = this.create_param_ty::<false>(None);
-                    _ty_params.push(ty_param);
+                    let type_parameter = this.create_param_ty::<false>(None);
+                    type_parameters.push(type_parameter);
                     combined_flags |= *flag;
                     if !combined_flags.intersects(ElementFlags::VARIABLE) {
                         let name = SymbolName::EleNum(i.into());
@@ -861,7 +953,7 @@ impl<'cx> TyChecker<'cx> {
                             name,
                             symbol_flags,
                             SymbolLinks::default()
-                                .with_ty(ty_param)
+                                .with_ty(type_parameter)
                                 .with_check_flags(check_flags),
                             None,
                             None,
@@ -870,7 +962,7 @@ impl<'cx> TyChecker<'cx> {
                         props.push(property);
                     }
                 }
-                ty_params = Some(this.alloc(_ty_params));
+                ty_params = Some(this.alloc(type_parameters));
             }
 
             let fixed_length = props.len();
@@ -1693,10 +1785,20 @@ impl<'cx> TyChecker<'cx> {
                 return new_tys[0];
             }
         }
-        // TODO: cache;
-        let new_texts = self.alloc(new_texts);
-        let new_tys = self.alloc(new_tys);
-        self.create_template_lit_ty(new_texts, new_tys)
+        let new_texts: &'cx [bolt_ts_atom::Atom] = self.alloc(new_texts);
+        let new_tys: &'cx [&'cx ty::Ty<'cx>] = self.alloc(new_tys);
+        let key = TemplateLiteralTyKey {
+            texts: new_texts,
+            tys: new_tys,
+        };
+        if let Some(cache) = self.template_literal_tys.get(&key) {
+            return cache;
+        }
+
+        let ty = self.create_template_lit_ty(new_texts, new_tys);
+        let prev = self.template_literal_tys.insert(key, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 
     fn create_template_lit_ty(
@@ -1923,7 +2025,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_partially_inferable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         !ty.get_object_flags()
-            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+            .contains(ObjectFlags::NON_INFERRABLE_TYPE)
             || ty.is_object_literal()
                 && self.get_props_of_ty(ty).iter().any(|&prop| {
                     let t = self.get_type_of_symbol(prop);
@@ -2127,5 +2229,27 @@ impl<'cx> TyChecker<'cx> {
         let type_arguments: ty::Tys<'cx> =
             self.alloc([iterated_ty, self.void_ty, self.undefined_ty]);
         self.create_ty_from_generic_global_ty(global_iterable_ty, type_arguments)
+    }
+
+    fn create_evolving_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
+        debug_assert!(self.evolving_array_tys.get(&element_ty.id).is_none());
+        let ty = self.alloc(ty::EvolvingArrayTy { element_ty });
+        self.create_object_ty(
+            ty::ObjectTyKind::EvolvingArray(ty),
+            ObjectFlags::EVOLVING_ARRAY,
+        )
+    }
+
+    pub(super) fn get_evolving_array_ty(
+        &mut self,
+        element_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.evolving_array_tys.get(&element_ty.id) {
+            return ty;
+        }
+        let ty = self.create_evolving_array_ty(element_ty);
+        let prev = self.evolving_array_tys.insert(element_ty.id, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 }

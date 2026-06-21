@@ -1,0 +1,11 @@
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/coAndContraVariantInferences8/index.ts:22:11]
+ 22 │ c
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/coAndContraVariantInferences8/index.ts:30:11]
+ 30 │ c
+    · ─
+    ╰────

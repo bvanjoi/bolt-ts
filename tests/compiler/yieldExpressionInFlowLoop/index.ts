@@ -8,5 +8,6 @@ function* f() {
     while (1) {
         result = yield result;
         //~^ ERROR: 'yield' expression implicitly results in an 'any' type because its containing generator lacks a return-type annotation.
+        //~| ERROR: 'yield' expression implicitly results in an 'any' type because its containing generator lacks a return-type annotation.
     }
 }

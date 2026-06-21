@@ -1,0 +1,5 @@
+  × Overload signatures must all be ambient or non-ambient.
+    ╭─[../../tests/compiler/constructorOverloads7/index.ts:27:18]
+ 27 │ EF1
+    · ───
+    ╰────

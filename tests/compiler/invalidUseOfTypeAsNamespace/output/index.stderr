@@ -1,0 +1,12 @@
+  × Cannot find name 'OhNo'.
+   ╭─[../../tests/compiler/invalidUseOfTypeAsNamespace/index.ts:8:16]
+ 8 │ OhNo
+   · ────
+   ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+   ╭─[../../tests/compiler/invalidUseOfTypeAsNamespace/index.ts:5:11]
+ 5 │ OhNo
+   · ────
+   ╰────

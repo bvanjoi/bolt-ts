@@ -3,12 +3,10 @@ use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName, SymbolTable};
 use bolt_ts_span::Span;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity};
 
-use crate::check::infer::InferencePriority;
-
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::{Cycle, ResolutionKey};
-use super::infer::InferenceFlags;
+use super::infer::{InferenceInfo, InferencePriority};
 use super::links::SigLinks;
 use super::ty::ExtraSig;
 use super::ty::{self, CheckFlags, IndexFlags, ObjectFlags, SigFlags, SigID, SigKind, TypeFlags};
@@ -400,7 +398,7 @@ impl<'cx> TyChecker<'cx> {
             }
             base_ty = self.get_return_type_of_signature(ctors[0]);
         }
-        if base_ty == self.error_ty {
+        if self.is_error(base_ty) {
             return vec![];
         }
 
@@ -498,6 +496,7 @@ impl<'cx> TyChecker<'cx> {
         };
         let mapper: Option<&'cx dyn ty::TyMap<'cx>>;
         let base_tys = self.get_base_tys(source);
+        let base_tys_is_empty = base_tys.is_empty();
 
         let mut members;
         let mut call_sigs;
@@ -505,14 +504,20 @@ impl<'cx> TyChecker<'cx> {
         let mut index_infos;
         if Self::range_eq(ty_params, ty_args, 0, ty_params.len()) {
             mapper = None;
-            members = ty
-                .symbol()
-                .map(|symbol| {
-                    // TODO: remove clone
-                    self.get_members_of_symbol(symbol).clone().0
-                })
-                .unwrap_or_default();
-            if base_tys.is_empty() {
+
+            members = if let Some(source_symbol) = ty.symbol()
+                && base_tys_is_empty
+            {
+                // TODO: remove clone
+                self.get_members_of_symbol(source_symbol).clone().0
+            } else {
+                declared
+                    .props
+                    .iter()
+                    .map(|&s| (self.symbol(s).name, s))
+                    .collect::<FxIndexMap<_, _>>()
+            };
+            if base_tys_is_empty {
                 let m = self.alloc(ty::StructuredMembers {
                     members: self.alloc(members),
                     call_sigs: declared.call_sigs,
@@ -539,9 +544,7 @@ impl<'cx> TyChecker<'cx> {
                 .to_vec();
         }
 
-        if !base_tys.is_empty() {
-            // TODO: if (source.symbol && members === getMembersOfSymbol(source.symbol)) {
-
+        if !base_tys_is_empty {
             for base_ty in base_tys {
                 let instantiated_base_ty = if let Some(this_arg) = ty_args.last() {
                     let ty = self.instantiate_ty(base_ty, mapper);
@@ -702,9 +705,10 @@ impl<'cx> TyChecker<'cx> {
         if let Some(this_param) = links.get_this_param() {
             new_links.set_this_param(this_param)
         };
+        let next = self.new_sig(next);
         let prev = self.sig_links.insert(next.id, new_links);
-        debug_assert!(prev.is_none());
-        self.new_sig(next)
+        debug_assert!(prev.is_none(), "id: {:#?}", next.id);
+        next
     }
 
     fn get_default_construct_sigs(
@@ -862,15 +866,16 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
+            // infer_reverse_mapped_type_worker
             let template_ty = self.get_template_ty_from_mapped_ty(target_mapped_ty);
-            let inference =
-                self.create_inference_context(&[ty_param], None, InferenceFlags::empty());
-            self.infer_tys::<false>(inference, source, template_ty, InferencePriority::empty());
-            assert!(self.inference(inference).inferences.len() == 1);
-            Some(
-                self.get_ty_from_inference(inference, 0)
-                    .unwrap_or(self.unknown_ty),
-            )
+            let inference_info = InferenceInfo::create(ty_param);
+            let inferences = self.inference_infos_arena.alloc([inference_info].into());
+            self.infer_tys::<false>(inferences, source, template_ty, InferencePriority::empty());
+            assert!(self.inference_infos_arena.get(inferences).len() == 1);
+            let ty = self
+                .get_ty_from_inference(inferences, 0)
+                .unwrap_or(self.unknown_ty);
+            Some(self.get_widened_ty(ty))
         } else {
             None
         };
@@ -934,6 +939,7 @@ impl<'cx> TyChecker<'cx> {
                     key_ty: self.string_ty,
                     val_ty,
                     is_readonly: readonly_mask && index_info.is_readonly,
+                    declaration: None,
                 });
                 self.alloc([index_info])
             } else {
@@ -1425,12 +1431,12 @@ impl<'cx> TyChecker<'cx> {
             let left_name = if i >= left_count {
                 None
             } else {
-                Some(self.get_param_name_at_pos(left, i))
+                Some(self.get_parameter_name_at_position(left, i, None))
             };
             let right_name = if i >= right_count {
                 None
             } else {
-                Some(self.get_param_name_at_pos(right, i))
+                Some(self.get_parameter_name_at_position(right, i, None))
             };
             let param_name = if left_name == right_name {
                 left_name
@@ -1444,7 +1450,7 @@ impl<'cx> TyChecker<'cx> {
             let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
             let links = SymbolLinks::default()
                 .with_ty(if is_rest_param {
-                    self.create_array_ty(union_param_ty, false)
+                    self.create_array_ty_worker::<false>(union_param_ty)
                 } else {
                     union_param_ty
                 })
@@ -1499,16 +1505,6 @@ impl<'cx> TyChecker<'cx> {
         let this_ty =
             self.get_intersection_ty(&[left_ty, right_ty], IntersectionFlags::None, None, None);
         Some(self.create_transient_symbol_with_ty(left, this_ty))
-    }
-
-    fn get_param_name_at_pos(&mut self, sig: &'cx ty::Sig<'cx>, pos: usize) -> SymbolName {
-        let param_count = sig.params.len() - if sig.has_rest_param() { 1 } else { 0 };
-        if pos < param_count {
-            let symbol = sig.params[pos];
-            self.symbol(symbol).name
-        } else {
-            todo!()
-        }
     }
 
     fn combine_sigs_of_union_members(
@@ -1901,6 +1897,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty,
                     symbol: info.symbol,
                     is_readonly,
+                    declaration: None,
                 });
                 return;
             }
@@ -2138,6 +2135,7 @@ impl<'cx> TyChecker<'cx> {
                         val_ty,
                         is_readonly,
                         symbol: Symbol::ERR,
+                        declaration: None,
                     });
                     this.append_index_info(&mut index_infos, index_info, true);
                 }

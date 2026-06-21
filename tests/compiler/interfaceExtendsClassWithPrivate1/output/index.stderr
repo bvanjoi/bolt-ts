@@ -1,0 +1,23 @@
+  × Property 'other' is missing.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate1/index.ts:25:1]
+ 25 │ i
+    · ─
+    ╰────
+
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate1/index.ts:29:1]
+ 29 │ d
+    · ─
+    ╰────
+
+  × Property 'other' is missing.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate1/index.ts:33:1]
+ 33 │ d
+    · ─
+    ╰────
+
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/interfaceExtendsClassWithPrivate1/index.ts:33:1]
+ 33 │ d
+    · ─
+    ╰────

@@ -23,9 +23,7 @@ impl<'cx> TyChecker<'cx> {
             Tuple(n) => self.check_tuple_ty(n),
             Fn(n) => {
                 // TODO: check_signature_decl
-                if let Some(ty_params) = n.ty_params {
-                    self.check_ty_params(ty_params);
-                }
+                self.check_type_parameters(n.ty_params);
                 for param in n.params {
                     self.check_var_like_decl(*param);
                 }
@@ -61,6 +59,13 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_mapped_ty(&mut self, n: &'cx ast::MappedTy<'cx>) {
+        self.check_ty_param(n.ty_param);
+        if let Some(name_ty) = n.name_ty {
+            self.check_ty(name_ty);
+        }
+        if let Some(ty) = n.ty {
+            self.check_ty(ty);
+        }
         if n.ty.is_none() && self.config.compiler_options().no_implicit_any() {
             // TODO: skip when check js file
             let error = errors::MappedObjectTypeImplicitlyHasAnAnyTemplateType { span: n.span };
@@ -151,7 +156,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
-        self.check_index_constraints(ty, false);
+        self.check_index_constraints::<false>(ty, ty.symbol().unwrap());
         // TODO: duplicate index signatures check
     }
 

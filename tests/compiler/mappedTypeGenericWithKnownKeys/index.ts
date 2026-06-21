@@ -11,7 +11,7 @@ function test<Shape extends Record<string, string>>(shape: Shape, key: keyof Sha
     obj[key] = 2;
 
     obj.unknownLiteralKey = 3; // error
-    //~^ ERROR: Property 'unknownLiteralKey' does not exist on type 'Record'.
+    //~^ ERROR: Property 'unknownLiteralKey' does not exist on type 'Record<keyof Shape | "knownLiteralKey", number>'.
     obj['' as string] = 4; // error
-    //~^ ERROR: Type 'Record' is generic and can only be indexed for reading.
+    //~^ ERROR: Type 'Record<keyof Shape | "knownLiteralKey", number>' is generic and can only be indexed for reading.
 }

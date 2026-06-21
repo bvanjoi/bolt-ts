@@ -59,7 +59,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
-    pub fn get_name_of_decl(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
+    pub fn get_name_of_declaration(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
         self.parse_result
             .nodes
             .get_non_assigned_name_of_decl(id)
@@ -73,7 +73,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn has_dynamic_name(&self, id: ast::NodeID) -> bool {
-        let Some(name) = self.get_name_of_decl(id) else {
+        let Some(name) = self.get_name_of_declaration(id) else {
             return false;
         };
         name.is_dynamic_name()
@@ -86,10 +86,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         loop {
             let parent_id = self.parent(n).unwrap();
             let parent_node = self.node(parent_id);
-            if matches!(parent_node, ObjectBindingElem(_) | ArrayBinding(_)) {
-                n = parent_id;
-            } else {
-                break parent_id;
+            match parent_node {
+                ast::Node::ObjectBindingElem(_) => {
+                    let parent_parent_id = self.parent(parent_id).unwrap();
+                    debug_assert!(matches!(self.node(parent_parent_id), ObjectPat(_)));
+                    n = parent_parent_id;
+                }
+                ast::Node::ArrayBinding(_) => {
+                    let parent_parent_id = self.parent(parent_id).unwrap();
+                    debug_assert!(matches!(self.node(parent_parent_id), ArrayPat(_)));
+                    n = parent_parent_id;
+                }
+                _ => break parent_id,
             }
         }
     }
@@ -143,6 +151,14 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn get_module_instance_state(
+        &self,
+        m: &'cx ast::ModuleDecl<'cx>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+    ) -> ModuleInstanceState {
+        self.get_module_instance_state_worker(m, None, parent_of)
+    }
+
+    fn get_module_instance_state_worker(
         &self,
         m: &'cx ast::ModuleDecl<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
@@ -286,7 +302,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     state
                 }
-                ModuleDecl(ns) => this.get_module_instance_state(ns, Some(visited), parent_of),
+                ModuleDecl(ns) => {
+                    this.get_module_instance_state_worker(ns, Some(visited), parent_of)
+                }
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -318,19 +336,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_immediately_invoked_fn_expr(
         &self,
-        id: ast::NodeID,
+        func: ast::NodeID,
     ) -> Option<&'cx ast::CallExpr<'cx>> {
-        let n = self.node(id);
-        if n.is_fn_expr() || n.is_arrow_fn_expr() {
-            let mut prev = id;
-            let mut parent_id = self.parent(id)?;
-            let mut parent = self.node(parent_id);
-            while parent.is_paren_expr() {
+        let func_node = self.node(func);
+        if matches!(func_node, ast::Node::FnExpr(_) | ast::Node::ArrowFnExpr(_)) {
+            let mut prev = func;
+            let mut parent_id = self.parent(func).unwrap();
+            let mut parent_node = self.node(parent_id);
+            while parent_node.is_paren_expr() {
                 prev = parent_id;
                 parent_id = self.parent(parent_id)?;
-                parent = self.node(parent_id);
+                parent_node = self.node(parent_id);
             }
-            if let Some(call) = parent.as_call_expr()
+            if let Some(call) = parent_node.as_call_expr()
                 && call.expr.id() == prev
             {
                 return Some(call);
@@ -505,10 +523,21 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 }
             } else {
                 match node {
-                    FnDecl(_) | FnExpr(_) | ModuleDecl(_) | ClassPropElem(_)
-                    | ClassMethodElem(_) | MethodSignature(_) | ClassCtor(_) | CtorSigDecl(_)
-                    | GetterDecl(_) | SetterDecl(_) | IndexSigDecl(_) | EnumDecl(_)
-                    | Program(_) | PropSignature(_) => return id,
+                    FnDecl(_)
+                    | FnExpr(_)
+                    | ModuleDecl(_)
+                    | ClassPropElem(_)
+                    | ClassMethodElem(_)
+                    | MethodSignature(_)
+                    | ClassCtor(_)
+                    | CtorSigDecl(_)
+                    | GetterDecl(_)
+                    | SetterDecl(_)
+                    | IndexSigDecl(_)
+                    | EnumDecl(_)
+                    | Program(_)
+                    | PropSignature(_)
+                    | ObjectMethodMember(_) => return id,
                     _ => {}
                 }
             }
@@ -549,16 +578,13 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node_flags(id).contains(ast::NodeFlags::AMBIENT)
             || self
                 .find_ancestor(id, |node| {
-                    if matches!(
+                    matches!(
                         self.node(node),
                         ast::Node::InterfaceDecl(_)
                             | ast::Node::TypeAliasDecl(_)
                             | ast::Node::ObjectLitTy(_)
-                    ) {
-                        Some(true)
-                    } else {
-                        None
-                    }
+                    )
+                    .then_some(true)
                 })
                 .is_some()
     }
@@ -610,7 +636,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: for_in and for_of
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
-                    id = self.parent(self.parent(p).unwrap()).unwrap();
+                    id = self.parent(p).unwrap();
                 }
                 _ => return None,
             }
@@ -950,9 +976,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.find_ancestor(parent, |n| {
             let n = self.node(n);
             if (n.is_fn_like() && self.get_immediately_invoked_fn_expr(node).is_none())
+                || n.is_module_block()
                 || n.is_program()
                 || n.is_class_prop_elem()
-                || n.is_module_block()
             {
                 Some(true)
             } else {
@@ -1191,6 +1217,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         match self.node(parent) {
             ast::Node::QualifiedName(n) => n.right.id == node,
             ast::Node::PropAccessExpr(n) => n.name.id == node,
+            ast::Node::NewMetaProperty(n) => n.name.id == node,
             // TODO: meta_property
             _ => false,
         }
@@ -1338,9 +1365,9 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_mutable_local_variable_declaration(&self, decl: &'cx ast::VarDecl<'cx>) -> bool {
-        let p = self.parent(decl.id).unwrap();
-        self.node_flags(p).contains(ast::NodeFlags::LET)
-            && !(self
+        self.node_flags(decl.id).contains(ast::NodeFlags::LET) && {
+            let p = self.parent(decl.id).unwrap();
+            !(self
                 .get_combined_modifier_flags(decl.id)
                 .contains(ast::ModifierFlags::EXPORT)
                 || (match self.node(p) {
@@ -1350,9 +1377,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     ast::Node::CatchClause(_)
                     | ast::Node::ForInStmt(_)
-                    | ast::Node::ForOfStmt(_) => false,
+                    | ast::Node::ForOfStmt(_)
+                    | ast::Node::ForStmt(_) => false,
                     _ => unreachable!(),
                 }))
+        }
     }
 
     pub fn is_var_const(&self, node: ast::NodeID) -> bool {
@@ -1508,6 +1537,45 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: js
             }
             _ => None,
+        }
+    }
+
+    pub fn get_containing_object_literal(
+        &self,
+        f: ast::NodeID,
+    ) -> Option<&'cx ast::ObjectLit<'cx>> {
+        use ast::Node::*;
+        match self.node(f) {
+            ObjectMethodMember(_) | GetterDecl(_) | SetterDecl(_) | ObjectPropAssignment(_)
+                if let ObjectLit(n) = self.node(self.parent(f).unwrap()) =>
+            {
+                Some(n)
+            }
+            FnExpr(_)
+                if let p = self.parent(f).unwrap()
+                    && let ObjectPropAssignment(_) = self.node(p) =>
+            {
+                let p = self.parent(p).unwrap();
+                let ast::Node::ObjectLit(n) = self.node(p) else {
+                    unreachable!()
+                };
+                Some(n)
+            }
+            _ => None,
+        }
+    }
+
+    pub fn is_destructuring_assignment_target(&self, node: ast::NodeID) -> bool {
+        let Some(parent) = self.parent(node) else {
+            return false;
+        };
+        match self.node(parent) {
+            ast::Node::BinExpr(p) => p.left.id() == node,
+            ast::Node::ForInStmt(p) => match p.init {
+                bolt_ts_ast::ForInitKind::Var(list) => list.iter().any(|decl| decl.id == node),
+                bolt_ts_ast::ForInitKind::Expr(expr) => expr.id() == node,
+            },
+            _ => false,
         }
     }
 }

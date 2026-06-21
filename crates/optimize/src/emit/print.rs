@@ -97,6 +97,10 @@ impl PPrint {
     pub fn p_pipe(&mut self) {
         self.p("|")
     }
+    /// `&`
+    pub fn p_ampersand(&mut self) {
+        self.p("&")
+    }
     /// `"`
     pub fn p_double_quote(&mut self) {
         self.p("\"")

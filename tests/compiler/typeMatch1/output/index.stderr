@@ -10,7 +10,8 @@
     · ──
     ╰────
 
-  × Operator '==' cannot be applied to types 'typeof C' and 'typeof D'.
+  × This comparison appears to be unintentional because the types 'typeof C'
+  │ and 'typeof D' have no overlap.
     ╭─[../../tests/compiler/typeMatch1/index.ts:27:1]
  27 │ C==D
     · ────

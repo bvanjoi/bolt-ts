@@ -49,7 +49,7 @@ impl<'cx> FnLike<'cx> for crate::ClassCtor<'cx> {
         self.id
     }
     fn ty_params(&self) -> Option<crate::TyParams<'cx>> {
-        self.ty_params
+        None
     }
     fn params(&self) -> crate::ParamsDecl<'cx> {
         self.params

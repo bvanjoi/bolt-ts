@@ -1,0 +1,5 @@
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/es6ClassTest/index.ts:30:44]
+ 30 │ z
+    · ─
+    ╰────

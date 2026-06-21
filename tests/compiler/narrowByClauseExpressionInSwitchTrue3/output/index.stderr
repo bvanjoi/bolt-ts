@@ -1,0 +1,19 @@
+  × Property 'radius' does not exist on type 'never'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue3/index.ts:21:32]
+ 21 │ radius
+    · ──────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '"square"'
+  │ and '"circle"' have no overlap.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue3/index.ts:20:9]
+ 20 │ shape.kind === "circle"
+    · ───────────────────────
+    ╰────
+
+  × This comparison appears to be unintentional because the types '"square"'
+  │ and '"circle"' have no overlap.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue3/index.ts:24:14]
+ 24 │ shape.kind === "circle"
+    · ───────────────────────
+    ╰────

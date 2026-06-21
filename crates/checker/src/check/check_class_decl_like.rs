@@ -5,8 +5,10 @@ use super::{TyChecker, errors};
 
 use bolt_ts_ast::r#trait::ClassLike;
 use bolt_ts_ast::{self as ast, pprint_entity_name, pprint_ident, print_prop_name};
+use bolt_ts_ast_visitor::{noop_visit_function_like_node, noop_visit_type_node};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{SymbolFlags, SymbolID};
+use bolt_ts_ty::CheckFlags;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity};
 
 bitflags::bitflags! {
@@ -40,31 +42,23 @@ impl<'cx> TyChecker<'cx> {
             ret: Option<&'cx ast::CallExpr<'cx>>,
         }
 
-        use bolt_ts_ast_visitor::Visitor;
+        use bolt_ts_ast_visitor::{ControlFlow, Visitor};
         impl<'cx> Visitor<'cx> for FindFirstSuperCall<'cx> {
-            fn visit_fn_decl(&mut self, _: &'cx bolt_ts_ast::FnDecl<'cx>) {}
-            fn visit_class_decl(&mut self, _: &'cx bolt_ts_ast::ClassDecl<'cx>) {}
-            fn visit_call_expr(&mut self, node: &'cx bolt_ts_ast::CallExpr<'cx>) {
+            type Result = ControlFlow;
+            noop_visit_function_like_node!();
+            fn visit_call_expr(&mut self, node: &'cx bolt_ts_ast::CallExpr<'cx>) -> ControlFlow {
                 if let ast::ExprKind::Super(_) = node.expr.kind {
                     debug_assert!(self.ret.is_none());
                     self.ret = Some(node);
-                    return;
-                }
-                bolt_ts_ast_visitor::visit_call_expr(self, node);
-            }
-            fn visit_block_stmt(&mut self, node: &'cx bolt_ts_ast::BlockStmt<'cx>) {
-                for stmt in node.stmts {
-                    self.visit_stmt(stmt);
-                    if self.ret.is_some() {
-                        break;
-                    }
+                    ControlFlow::Break
+                } else {
+                    bolt_ts_ast_visitor::visit_call_expr(self, node)
                 }
             }
         }
 
         let mut v = FindFirstSuperCall { ret: None };
         v.visit_block_stmt(body);
-
         v.ret
     }
 
@@ -103,7 +97,8 @@ impl<'cx> TyChecker<'cx> {
                     false
                 } || ctor.params.iter().any(|p| {
                     p.modifiers.is_some_and(|ms| {
-                        ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                        ms.flags
+                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
                     })
                 });
                 if super_call_should_be_root_level {
@@ -298,15 +293,13 @@ impl<'cx> TyChecker<'cx> {
         let class_id = class.id();
         let symbol = self.get_symbol_of_declaration(class_id);
 
-        if let Some(ty_params) = class.ty_params() {
-            self.check_ty_params(ty_params);
-        }
+        self.check_type_parameters(class.ty_params());
 
         let ty = self.get_declared_ty_of_symbol(symbol);
         let ty_with_this = self.get_type_with_this_argument::<false>(ty, None);
         let static_ty = self.get_type_of_symbol(symbol);
         self.check_class_for_duplicate_decls(class);
-        self.check_index_constraints(ty, false);
+        self.check_index_constraints::<false>(ty, symbol);
 
         if let Some(base_ty_node) = self.get_effective_base_type_node(class_id) {
             let base_tys = self.get_base_tys(ty);
@@ -322,7 +315,7 @@ impl<'cx> TyChecker<'cx> {
                     && self
                         .p
                         .node(decl)
-                        .has_effective_modifier(bolt_ts_ast::ModifierKind::Private)
+                        .has_effective_modifier(bolt_ts_ast::ModifierFlags::PRIVATE)
                     && let Some(class_decl) =
                         self.get_class_like_decl_of_symbol(static_base_ty.symbol().unwrap())
                     && !self
@@ -407,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let derived = self.get_target_symbol(base_s_in_type);
                     let base_declaration_flags =
-                        self.get_declaration_modifier_flags_from_symbol(base, None);
+                        self.get_declaration_modifier_flags_from_symbol::<false>(base);
                     if derived == base {
                         let derived_class_decl =
                             self.get_class_like_decl_of_symbol(ty.symbol().unwrap());
@@ -441,22 +434,89 @@ impl<'cx> TyChecker<'cx> {
                             );
                         }
                     } else {
-                        // TODO:
                         let derived_declaration_flags =
-                            self.get_declaration_modifier_flags_from_symbol(derived, None);
+                            self.get_declaration_modifier_flags_from_symbol::<false>(derived);
                         if base_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
                             || derived_declaration_flags.contains(ast::ModifierFlags::PRIVATE)
                         {
                             continue;
                         }
+                        let base_s = self.symbol(base);
                         let base_property_flags =
-                            base_flags.intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                            base_flags.intersection(SymbolFlags::PROPERTY_OR_ACCESSOR);
                         let derived_symbol = self.symbol(derived);
                         let derived_property_flags = derived_symbol
                             .flags
-                            .intersects(SymbolFlags::PROPERTY_OR_ACCESSOR);
-                        if base_property_flags && derived_property_flags {
-                            // TODO:
+                            .intersection(SymbolFlags::PROPERTY_OR_ACCESSOR);
+                        let is_property_abstract_or_interface = |this: &Self, declaration: ast::NodeID, base_declaration_flags: ast::ModifierFlags| {
+                            base_declaration_flags.contains(ast::ModifierFlags::ABSTRACT) && {
+                                let n = this.p.node(declaration);
+                                !n.is_class_prop_elem() || n.initializer().is_none()
+                            } || this.parent(declaration).is_some_and(|p| this.p.node(p).is_interface_decl())
+                        };
+                        if !base_property_flags.is_empty() && !derived_property_flags.is_empty() {
+                            let base_check_flags = self.get_check_flags(base);
+                            if (if base_check_flags.intersects(CheckFlags::SYNTHETIC) {
+                                base_s.decls.as_ref().is_some_and(|decls| {
+                                    decls.iter().any(|d| {
+                                        is_property_abstract_or_interface(
+                                            self,
+                                            *d,
+                                            base_declaration_flags,
+                                        )
+                                    })
+                                })
+                            } else {
+                                base_s.decls.as_ref().is_some_and(|decls| {
+                                    decls.iter().all(|d| {
+                                        is_property_abstract_or_interface(
+                                            self,
+                                            *d,
+                                            base_declaration_flags,
+                                        )
+                                    })
+                                })
+                            }) || base_check_flags.contains(CheckFlags::MAPPED)
+                                || derived_symbol.value_decl.is_some_and(|n| {
+                                    let n = self.p.node(n);
+                                    n.is_bin_expr() || n.is_assign_expr()
+                                })
+                            {
+                                continue;
+                            }
+
+                            let overridden_instance_property = base_property_flags
+                                != SymbolFlags::PROPERTY
+                                && derived_property_flags == SymbolFlags::PROPERTY;
+                            let overridden_instance_accessor = base_property_flags
+                                == SymbolFlags::PROPERTY
+                                && derived_property_flags != SymbolFlags::PROPERTY;
+                            if overridden_instance_property {
+                                let error = errors::XIsDefinedAsAnAccessorInClassYButIsOverriddenHereInZAsAnInstanceProperty {
+                                    span: derived_symbol.value_decl.and_then(|decl| self.p.node(decl).name().map(|n| n.span())).unwrap_or_else(|| {
+                                        self.p.node(derived_symbol.value_decl.unwrap()).span()
+                                    }),
+                                    x: base_s_name.to_string(&self.atoms),
+                                    class_y: self.print_ty(base_ty, None).to_string(),
+                                    class_z: self.print_ty(ty, None).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            } else if overridden_instance_accessor {
+                                let error = errors::XIsDefinedAsAPropertyInClassYButIsOverriddenHereInZAsAnAccessor {
+                                    span: derived_symbol.value_decl.and_then(|decl| self.p.node(decl).name().map(|n| n.span())).unwrap_or_else(|| {
+                                        self.p.node(derived_symbol.value_decl.unwrap()).span()
+                                    }),
+                                    x: base_s_name.to_string(&self.atoms),
+                                    class_y: self.print_ty(base_ty, None).to_string(),
+                                    class_z: self.print_ty(ty, None).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            } else if self.config.compiler_options().use_define_for_class_fields() {
+                                // TODO:
+                            }
+
+                            // correct case
+                            continue;
                         } else if self.is_prototype_prop(base) {
                             // TODO:
                         } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
@@ -566,6 +626,22 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        for ele in class.elems().list {
+            use bolt_ts_ast::ClassElemKind::*;
+            match ele.kind {
+                Prop(n) => self.check_class_prop_ele(n),
+                Method(n) => self.check_class_method_element(n),
+                Ctor(n) => self.check_class_ctor(n),
+                IndexSig(_) => {}
+                Getter(n) => self.check_getter_decl(n),
+                Setter(n) => self.check_accessor_decl(n),
+                StaticBlockDecl(n) => {
+                    self.check_block(n.body);
+                }
+                Semi(_) => {}
+            }
+        }
+
         // check_property_initialization
         if self.config.compiler_options().strict_null_checks()
             && self
@@ -603,7 +679,7 @@ impl<'cx> TyChecker<'cx> {
                             || prop_ty.contains_undefined_ty())
                         {
                             if ctor.is_none_or(|ctor| {
-                                !self.is_prop_initialized_in_ctor(prop_name, prop_ty, ctor)
+                                !self.is_property_initialized_in_constructor(prop.id, ctor)
                             }) {
                                 let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
                                     span: prop_name.span(),
@@ -616,31 +692,15 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-
-        for ele in class.elems().list {
-            use bolt_ts_ast::ClassElemKind::*;
-            match ele.kind {
-                Prop(n) => self.check_class_prop_ele(n),
-                Method(n) => self.check_class_method_element(n),
-                Ctor(n) => self.check_class_ctor(n),
-                IndexSig(_) => {}
-                Getter(n) => self.check_getter_decl(n),
-                Setter(n) => self.check_accessor_decl(n),
-                StaticBlockDecl(n) => {
-                    self.check_block(n.body);
-                }
-                Semi(_) => {}
-            }
-        }
     }
 
-    fn is_prop_initialized_in_ctor(
+    fn is_property_initialized_in_constructor(
         &self,
-        prop_name: &'cx ast::PropName<'cx>,
-        prop_ty: &'cx ty::Ty<'cx>,
+        property: ast::NodeID,
         ctor: &'cx ast::ClassCtor<'cx>,
     ) -> bool {
-        // TODO:
-        true
+        // ensure class constructor had been checked
+        self.property_initializer_in_class_constructor_map
+            .has(ctor, property)
     }
 }

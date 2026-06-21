@@ -1,0 +1,11 @@
+  × Type alias name cannot be 'undefined'.
+    ╭─[../../tests/compiler/typeNamedUndefined2/index.ts:10:21]
+ 10 │ undefined
+    · ─────────
+    ╰────
+
+  × Type alias name cannot be 'undefined'.
+    ╭─[../../tests/compiler/typeNamedUndefined2/index.ts:24:17]
+ 24 │ undefined
+    · ─────────
+    ╰────

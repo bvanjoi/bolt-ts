@@ -14,5 +14,6 @@ class MyDerived extends MyBase {
         //~^ ERROR: Only public and protected methods of the base class are accessible via the 'super' keyword.
         var l5 = super.f();   // Expected => Error: Only public instance methods of the base class are accessible via the 'super' keyword
         //~^ ERROR: Only public and protected methods of the base class are accessible via the 'super' keyword.
+        //~| ERROR: Only public and protected methods of the base class are accessible via the 'super' keyword.
     }
 }

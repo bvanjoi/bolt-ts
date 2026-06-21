@@ -2,6 +2,7 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use super::CheckParameterFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
@@ -410,11 +411,9 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_private_ident(&mut self) -> &'cx ast::PrivateIdent {
         debug_assert!(self.token.kind == TokenKind::PrivateIdent);
         let name = self.ident_token();
+        debug_assert!(self.atoms.lock().unwrap().get(name).starts_with('#'));
         let span = self.token.span;
-        let id = self.next_node_id();
-        let private_ident = self.alloc(ast::PrivateIdent { id, span, name });
-        self.nodes
-            .insert(id, ast::Node::PrivateIdent(private_ident));
+        let private_ident = self.create_private_identifier(span, name);
         self.next_token();
         private_ident
     }
@@ -507,6 +506,11 @@ impl<'cx> ParserState<'cx, '_> {
                         push_already_seen_error(self, m);
                     }
                 }
+                ast::ModifierKind::Ambient => {
+                    if flags.contains(ast::ModifierFlags::AMBIENT) {
+                        push_already_seen_error(self, m);
+                    }
+                }
                 _ => {}
             }
 
@@ -596,10 +600,9 @@ impl<'cx> ParserState<'cx, '_> {
                 .unwrap_or_default()
     }
 
-    pub(super) fn parse_params_worker(
+    pub(super) fn parse_params_worker<const ALLOW_AMBIGUITY: bool>(
         &mut self,
         flags: SignatureFlags,
-        allow_ambiguity: bool,
     ) -> ast::ParamsDecl<'cx> {
         let saved_yield_context = self
             .node_context_flags
@@ -613,14 +616,27 @@ impl<'cx> ParserState<'cx, '_> {
 
         let old_error = self.diags.len();
         let params = self.parse_delimited_list::<false, _>(ParsingContext::PARAMETERS, |this| {
-            if allow_ambiguity {
-                Self::parse_parameter(this, allow_ambiguity)
-            } else {
-                Self::parse_parameter(this, false)
-            }
+            Self::parse_parameter::<ALLOW_AMBIGUITY>(this)
         });
         let has_error = self.diags.len() > old_error;
         if !has_error {
+            // check parameters
+            let mut seen_optional = false;
+            for parameter in params {
+                if !seen_optional && parameter.question.is_some() {
+                    seen_optional = true;
+                } else if seen_optional
+                    && parameter.question.is_none()
+                    && parameter.dotdotdot.is_none()
+                    && parameter.init.is_none()
+                {
+                    self.push_error(Box::new(
+                        errors::ARequiredParameterCannotFollowAnOptionalParameter {
+                            span: parameter.name.span,
+                        },
+                    ));
+                }
+            }
             let last_is_rest = params
                 .last()
                 .map(|p| p.dotdotdot.is_some())
@@ -649,12 +665,12 @@ impl<'cx> ParserState<'cx, '_> {
         params
     }
 
-    pub(super) fn parse_parameters(&mut self) -> ast::ParamsDecl<'cx> {
+    pub(super) fn parse_parameters(&mut self, flags: SignatureFlags) -> ast::ParamsDecl<'cx> {
         use bolt_ts_ast::TokenKind::*;
         if !self.expect(LParen) {
             return &[];
         }
-        let params = self.parse_params_worker(SignatureFlags::empty(), true);
+        let params = self.parse_params_worker::<true>(flags);
         self.expect(RParen);
         params
     }
@@ -671,14 +687,14 @@ impl<'cx> ParserState<'cx, '_> {
         self.create_binding(ast::BindingKind::Ident(ident))
     }
 
-    pub(super) fn parse_parameter(
+    pub(super) fn parse_parameter<const ALLOW_AMBIGUITY_NAME: bool>(
         &mut self,
-        allow_ambiguity_name: bool,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.full_start_pos as u32;
         let modifiers = self.parse_modifiers::<false, false>(false);
-        const INVALID_MODIFIERS: ast::ModifierFlags =
-            ast::ModifierFlags::STATIC.union(ast::ModifierFlags::EXPORT);
+        const INVALID_MODIFIERS: ast::ModifierFlags = ast::ModifierFlags::STATIC
+            .union(ast::ModifierFlags::EXPORT)
+            .union(ast::ModifierFlags::AMBIENT);
         if modifiers
             .map(|ms| ms.flags.intersects(INVALID_MODIFIERS))
             .unwrap_or_default()
@@ -708,7 +724,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        if !allow_ambiguity_name
+        if !ALLOW_AMBIGUITY_NAME
             && !(self.token.kind.is_binding_ident()
                 || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
         {
@@ -717,15 +733,32 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_name_of_param()?;
         self.check_contextual_binding(name);
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
+        let ty = self.parse_ty_anno()?;
+        let init = self.parse_init()?;
+
+        let modifier_contain_parameter_property_modifier = modifiers.is_some_and(|ms| {
+            ms.flags
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+        });
+
+        if modifier_contain_parameter_property_modifier
+            && !matches!(name.kind, ast::BindingKind::Ident(_))
+        {
+            let error =
+                errors::AParameterPropertyMayNotBeDeclaredUsingABindingPattern { span: name.span };
+            self.push_error(Box::new(error));
+        }
+
         if dotdotdot.is_some() {
-            if let Some(ms) = modifiers
-                && ms.flags.intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
-            {
+            if modifier_contain_parameter_property_modifier {
+                let ms = modifiers.unwrap();
                 let kinds = ms
                     .list
                     .iter()
                     .filter_map(|m| {
-                        if ast::ModifierFlags::PARAMETER_PROPERTY.contains(m.kind().into_flag()) {
+                        if ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER
+                            .contains(m.kind().into_flag())
+                        {
                             Some(m.kind())
                         } else {
                             None
@@ -741,9 +774,11 @@ impl<'cx> ParserState<'cx, '_> {
                 let error = errors::ARestParameterCannotBeOptional { span: question };
                 self.push_error(Box::new(error));
             }
+            if let Some(init) = init {
+                let error = errors::ARestParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
         };
-        let ty = self.parse_ty_anno()?;
-        let init = self.parse_init()?;
         let span = self.new_span(start);
         let decl =
             self.create_parameter_declaration(span, modifiers, dotdotdot, name, question, ty, init);
@@ -766,11 +801,19 @@ impl<'cx> ParserState<'cx, '_> {
                 this.next_token();
                 Ok(true)
             } else if matches!(this.token.kind, TokenKind::LBracket | TokenKind::LBrace) {
-                let len = this.diags.len();
-                // todo: parse ident or pattern
-                this.parse_ident(None);
-                this.diags.truncate(len);
-                Ok(true)
+                match this.token.kind {
+                    ast::TokenKind::LBracket => {
+                        let len = this.diags.len();
+                        this.parse_array_binding_pat();
+                        Ok(len == this.diags.len())
+                    }
+                    ast::TokenKind::LBrace => {
+                        let len = this.diags.len();
+                        this.parse_object_binding_pat();
+                        Ok(len == this.diags.len())
+                    }
+                    _ => Ok(false),
+                }
             } else {
                 Ok(false)
             }
@@ -780,6 +823,7 @@ impl<'cx> ParserState<'cx, '_> {
         (t == TokenKind::Less)
             || (t == TokenKind::LParen
                 && self.lookahead(|this| {
+                    // is_unambiguously_start_of_function_type
                     this.p().next_token();
                     let t = this.p().token.kind;
                     use bolt_ts_ast::TokenKind::*;
@@ -867,7 +911,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume '['
         let mut params = Vec::with_capacity(1);
         if self.is_list_element(ParsingContext::PARAMETERS, false) {
-            if let Ok(param) = self.parse_parameter(true) {
+            if let Ok(param) = self.parse_parameter::<true>() {
                 params.push(param);
             };
 
@@ -973,7 +1017,7 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::GetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        if !self.parse_parameters().is_empty() {
+        if !self.parse_parameters(SignatureFlags::empty()).is_empty() {
             self.push_error(Box::new(errors::AGetAccessorCannotHaveParameters {
                 span: name.span(),
             }));
@@ -995,8 +1039,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::SetterDecl<'cx>> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        let params = self.parse_parameters(SignatureFlags::empty());
+        self.check_parameters(params, CheckParameterFlags::empty());
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),
@@ -1010,6 +1054,21 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             params
         };
+        if let Some(value_parameter) = params.last() {
+            if let Some(span) = value_parameter.dotdotdot {
+                let error = errors::ASetAccessorCannotHaveRestParameter { span };
+                self.push_error(Box::new(error));
+            }
+            if let Some(span) = value_parameter.question {
+                let error = errors::ASetAccessorCannotHaveAnOptionalParameter { span };
+                self.push_error(Box::new(error));
+            }
+            if let Some(init) = value_parameter.init {
+                let error =
+                    errors::ASetAccessorParameterCannotHaveAnInitializer { span: init.span() };
+                self.push_error(Box::new(error));
+            }
+        }
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);

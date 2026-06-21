@@ -183,6 +183,12 @@ impl<'cx> CaseOrDefaultClause<'cx> {
             CaseOrDefaultClause::Default(c) => c.stmts,
         }
     }
+    pub fn id(&self) -> NodeID {
+        match self {
+            CaseOrDefaultClause::Case(c) => c.id,
+            CaseOrDefaultClause::Default(c) => c.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -548,13 +554,6 @@ pub enum ClassElemKind<'cx> {
     Semi(&'cx ClassSemiElem),
 }
 
-#[derive(Debug, Clone)]
-pub struct ClassStaticBlockDecl<'cx> {
-    pub id: NodeID,
-    pub span: Span,
-    pub body: &'cx BlockStmt<'cx>,
-}
-
 impl<'cx> ClassElemKind<'cx> {
     pub fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>> {
         use crate::ClassElemKind::*;
@@ -568,8 +567,17 @@ impl<'cx> ClassElemKind<'cx> {
         }
     }
     pub fn is_static(&self) -> bool {
-        let ms = self.modifiers();
-        ms.is_some_and(|ms| ms.flags.contains(ModifierFlags::STATIC))
+        let m = match self {
+            ClassElemKind::Ctor(n) => n.modifiers,
+            ClassElemKind::Prop(n) => n.modifiers,
+            ClassElemKind::Method(n) => n.modifiers,
+            ClassElemKind::IndexSig(n) => n.modifiers,
+            ClassElemKind::Getter(n) => n.modifiers,
+            ClassElemKind::Setter(n) => n.modifiers,
+            ClassElemKind::StaticBlockDecl(_) => return true,
+            ClassElemKind::Semi(_) => return false,
+        };
+        m.is_some_and(|ms| ms.flags.contains(ModifierFlags::STATIC))
     }
 
     pub fn id(&self) -> NodeID {
@@ -609,6 +617,13 @@ impl<'cx> ClassElemKind<'cx> {
                 .modifiers
                 .is_some_and(|ms| ms.flags.contains(ModifierFlags::ABSTRACT))
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassStaticBlockDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub body: &'cx BlockStmt<'cx>,
 }
 
 #[derive(Debug, Clone)]
@@ -674,7 +689,6 @@ pub struct ClassCtor<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub ty_params: Option<TyParams<'cx>>,
     pub name_span: Span,
     pub params: ParamsDecl<'cx>,
     pub ret: Option<&'cx self::Ty<'cx>>,
@@ -888,7 +902,7 @@ bitflags::bitflags! {
             | ModifierFlags::DECORATOR.bits();
 
         const ACCESSIBILITY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits();
-        const PARAMETER_PROPERTY = Self::PUBLIC.bits() | Self::PRIVATE.bits() | Self::PROTECTED.bits() | Self::READONLY.bits() | Self::OVERRIDE.bits();
+        const PARAMETER_PROPERTY_MODIFIER = Self::ACCESSIBILITY.bits() | Self::READONLY.bits() | Self::OVERRIDE.bits();
         const NON_PUBLIC_ACCESSIBILITY_MODIFIER = Self::PRIVATE.bits() | Self::PROTECTED.bits();
         const SYNTACTIC_MODIFIER = Self::SYNTACTIC_OR_JS_MODIFIERS.bits() | Self::SYNTACTIC_ONLY_MODIFIERS.bits();
     }

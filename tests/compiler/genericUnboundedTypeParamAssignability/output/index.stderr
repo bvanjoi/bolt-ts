@@ -10,7 +10,8 @@
     · ─
     ╰────
 
-  × Argument of type 'T' is not assignable to parameter of type 'Record'.
+  × Argument of type 'T' is not assignable to parameter of type
+  │ 'Record<string, any>'.
     ╭─[../../tests/compiler/genericUnboundedTypeParamAssignability/index.ts:22:6]
  22 │ t
     · ─

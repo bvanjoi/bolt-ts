@@ -143,24 +143,25 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_qualified_name(
+    pub(super) fn check_qualified_name(
         &mut self,
         node: &'cx ast::QualifiedName<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let left_ty = if matches!(node.left.kind, ast::EntityNameKind::Ident(n) if n.name == keyword::KW_THIS)
+        let left_ty = if let ast::EntityNameKind::Ident(n) = node.left.kind
+            && n.name == keyword::KW_THIS
+            // TODO: can we remove is_part_of_ty_query?
             && self
                 .node_query(node.id.module())
                 .is_part_of_ty_query(node.id)
         {
-            // TODO: non_null
-            // TODO: check_this_expr
-            self.check_entity_name(node.left, None)
+            let ty = self.check_this_expr(n.id, n.span);
+            self.check_non_null_type(ty, n.id)
         } else {
             // TODO: non_null
             self.check_entity_name(node.left, None)
         };
-        self.check_property_access_expr_or_qualified_name(
+        self.check_property_access_expression_or_qualified_name(
             node.id,
             node.left.id(),
             left_ty,
@@ -235,13 +236,16 @@ impl<'cx> TyChecker<'cx> {
         }
         if let Cycle::Some(_) = self.pop_ty_resolution() {
             let decl = self.p.node(decl);
-            let name = if let ast::Node::ClassDecl(c) = decl {
-                self.atoms.get(c.name.unwrap().name).to_string()
-            } else {
-                unreachable!()
+            let (name, span) = match decl {
+                ast::Node::ClassDecl(c) if let Some(name) = c.name => {
+                    let s = self.atoms.get(name.name).to_string();
+                    let span = name.span;
+                    (s, span)
+                }
+                _ => unreachable!(),
             };
-            let error = errors::DeclIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
-                span: decl.span(),
+            let error = errors::XIsReferencedDirectlyOrIndirectlyInItsOwnBaseExpression {
+                span,
                 decl: name,
             };
             self.push_error(Box::new(error));
@@ -344,7 +348,10 @@ impl<'cx> TyChecker<'cx> {
                 promise_or_awaitable_links,
                 pattern: None,
             });
-            let ty = self.create_object_ty(ty::ObjectTyKind::Reference(ty), ObjectFlags::REFERENCE);
+            let ty = self.create_object_ty(
+                ty::ObjectTyKind::Reference(ty),
+                ObjectFlags::REFERENCE.union(ObjectFlags::CLASS),
+            );
             assert!(!self.ty_links.contains_key(&ty.id));
             self.ty_links
                 .insert(ty.id, TyLinks::default().with_resolved_ty_args(ty_params));

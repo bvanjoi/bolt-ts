@@ -1,0 +1,29 @@
+  × 'B' is referenced directly or indirectly in its own base expression.
+   ╭─[../../tests/compiler/recursiveBaseCheck/index.ts:9:18]
+ 9 │ B
+   · ─
+   ╰────
+
+  × 'A' is referenced directly or indirectly in its own base expression.
+    ╭─[../../tests/compiler/recursiveBaseCheck/index.ts:12:18]
+ 12 │ A
+    · ─
+    ╰────
+
+  × 'AmChart' is referenced directly or indirectly in its own base expression.
+    ╭─[../../tests/compiler/recursiveBaseCheck/index.ts:15:18]
+ 15 │ AmChart
+    · ───────
+    ╰────
+
+  × 'D' is referenced directly or indirectly in its own base expression.
+    ╭─[../../tests/compiler/recursiveBaseCheck/index.ts:18:18]
+ 18 │ D
+    · ─
+    ╰────
+
+  × 'C' is referenced directly or indirectly in its own base expression.
+   ╭─[../../tests/compiler/recursiveBaseCheck/index.ts:6:11]
+ 6 │ C
+   · ─
+   ╰────

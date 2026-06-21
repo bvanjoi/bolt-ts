@@ -6,20 +6,7 @@
 
 Advice: 
   ☞ Class 'B' is defined here
-    ╭─[../../tests/compiler/classOrder2/index.ts:10:7]
- 10 │ B
-    · ─
-    ╰────
-
-  × Class 'B' used before its declaration.
-   ╭─[../../tests/compiler/classOrder2/index.ts:2:17]
- 2 │ B
+   ╭─[../../tests/compiler/classOrder2/index.ts:9:7]
+ 9 │ B
    · ─
    ╰────
-
-Advice: 
-  ☞ Class 'B' is defined here
-    ╭─[../../tests/compiler/classOrder2/index.ts:10:7]
- 10 │ B
-    · ─
-    ╰────

@@ -1,0 +1,5 @@
+  × Not all code paths return a value.
+   ╭─[../../tests/compiler/noImplicitReturnsWithProtectedBlocks2/index.ts:9:20]
+ 9 │ number
+   · ──────
+   ╰────

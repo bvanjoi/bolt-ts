@@ -1,0 +1,35 @@
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:60:17]
+ 60 │ x
+    · ─
+    ╰────
+
+  × Property 'E' does not exist on type 'typeof M'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:62:21]
+ 62 │ E
+    · ─
+    ╰────
+
+  × Namespace 'M' has no exported member 'I'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:66:16]
+ 66 │ I
+    · ─
+    ╰────
+
+  × Namespace 'M' has no exported member 'I'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:66:23]
+ 66 │ I
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'typeof M'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:71:11]
+ 71 │ x
+    · ─
+    ╰────
+
+  × Property 'E' does not exist on type 'typeof M'.
+    ╭─[../../tests/compiler/moduleVisibilityTest2/index.ts:73:15]
+ 73 │ E
+    · ─
+    ╰────

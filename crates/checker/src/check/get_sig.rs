@@ -1,4 +1,5 @@
 use bolt_ts_ast::keyword;
+use bolt_ts_ast::keyword::is_prim_value_name;
 use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
@@ -7,6 +8,7 @@ use super::CheckMode;
 use super::TyChecker;
 use super::ast;
 use super::check_call_like::CallLikeExpr;
+use super::flow::flow_loop_ctx_len;
 use super::links::SigLinks;
 use super::ty;
 use super::ty::CheckFlags;
@@ -282,13 +284,21 @@ impl<'cx> TyChecker<'cx> {
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Sig<'cx> {
         let resolving_sig = self.resolving_sig();
-        if let Some(cached) = self.get_node_links(node).get_resolved_sig() {
-            if cached != resolving_sig {
-                return cached;
-            }
-        } else {
+        let cached = self.get_node_links(node).get_resolved_sig();
+        if let Some(cached) = cached
+            && cached != resolving_sig
+        {
+            // TODO: candidates_out_array
+            return cached;
+        }
+        let saved_resolution_start = self.resolution_start;
+        if cached.is_none() {
+            self.resolution_start = self.resolution_tys.len() as i32;
             self.get_mut_node_links(node)
                 .set_resolved_sig(resolving_sig);
+        } else {
+            self.get_mut_node_links(node)
+                .override_resolved_sig(resolving_sig);
         }
 
         let check_mode = check_mode.unwrap_or(CheckMode::empty());
@@ -299,7 +309,17 @@ impl<'cx> TyChecker<'cx> {
             _ => unreachable!(),
         };
 
-        self.get_mut_node_links(node).override_resolved_sig(sig);
+        self.resolution_start = saved_resolution_start;
+        if sig != resolving_sig {
+            if self.flow_loop_start == flow_loop_ctx_len(self) {
+                self.get_mut_node_links(node).override_resolved_sig(sig);
+            } else if let Some(cached) = cached {
+                self.get_mut_node_links(node).override_resolved_sig(cached);
+            } else {
+                self.get_mut_node_links(node).clear_resolved_sig();
+            }
+        }
+
         sig
     }
 
@@ -348,7 +368,7 @@ impl<'cx> TyChecker<'cx> {
                 && let Some(parent_parent) = self.parent(decl).and_then(|n| self.parent(decl))
                 && self.p.node(parent_parent).is_for_of_stmt()
             {
-                // TODO:
+                todo!()
             }
             None
         } else {
@@ -366,7 +386,7 @@ impl<'cx> TyChecker<'cx> {
         }
         use ast::ExprKind::*;
         match n.kind {
-            Ident(n) => {
+            Ident(n) if !is_prim_value_name(n.name) => {
                 let symbol = self.final_res(n.id);
                 let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
                 self.get_explicit_ty_of_symbol(symbol)
@@ -406,7 +426,7 @@ impl<'cx> TyChecker<'cx> {
             } else if let parent = self.parent(node).unwrap()
                 && let Some(stmt) = self.p.node(parent).as_expr_stmt()
             {
-                func_ty = self.get_ty_of_dotted_name(stmt.expr);
+                func_ty = self.get_ty_of_dotted_name(expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
                 if self.node_query(node.module()).is_optional_chain(node) {
                     todo!()

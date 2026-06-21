@@ -95,7 +95,9 @@ impl<'cx> ty::TyMap<'cx> for FixingMapper<'cx> {
                 if !checker.inference_info(self.inference, idx).is_fixed {
                     // TODO: `inferFromIntraExpressionSites`
                     checker.clear_cached_inferences(self.inference);
-                    checker.inferences[self.inference.as_usize()].inferences[idx].is_fixed = true;
+                    let inferences = checker.inferences[self.inference.as_usize()].inferences;
+                    let inferences = checker.inference_infos_arena.get_mut(inferences);
+                    inferences[idx].is_fixed = true;
                 }
                 return checker.get_inferred_ty(self.inference, idx);
             }
@@ -146,9 +148,9 @@ impl<'cx> ty::TyMap<'cx> for ReportUnreliableMapper {
         checker: &mut TyChecker<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if checker.enable_out_of_band_variance_marker_handler
-            && (ty == checker.mark_super_ty()
-                || ty == checker.mark_sub_ty()
-                || ty == checker.mark_other_ty())
+            && (ty == checker.marker_super_ty()
+                || ty == checker.marker_sub_ty()
+                || ty == checker.marker_other_ty())
         {
             if let Some(flags) = checker.propagating_variance_flags.as_mut() {
                 *flags |= RelationComparisonResult::REPORT_UNRELIABLE;
@@ -169,9 +171,9 @@ impl<'cx> ty::TyMap<'cx> for ReportUnmeasurableMapper {
         checker: &mut TyChecker<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         if checker.enable_out_of_band_variance_marker_handler
-            && (ty == checker.mark_super_ty()
-                || ty == checker.mark_sub_ty()
-                || ty == checker.mark_other_ty())
+            && (ty == checker.marker_super_ty()
+                || ty == checker.marker_sub_ty()
+                || ty == checker.marker_other_ty())
         {
             if let Some(flags) = checker.propagating_variance_flags.as_mut() {
                 *flags |= RelationComparisonResult::REPORT_UNMEASURABLE;

@@ -1,0 +1,18 @@
+  × Parameter 'value' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualPropertyOfGenericFilteringMappedType/index.ts:44:11]
+ 44 │ value
+    · ─────
+    ╰────
+
+  × Parameter 'key' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualPropertyOfGenericFilteringMappedType/index.ts:44:17]
+ 44 │  key
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'foo' does not exist
+  │ in type '{ }'.
+    ╭─[../../tests/compiler/contextualPropertyOfGenericFilteringMappedType/index.ts:44:5]
+ 44 │ foo
+    · ───
+    ╰────

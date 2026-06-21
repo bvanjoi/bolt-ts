@@ -1,0 +1,17 @@
+  × A required parameter cannot follow an optional parameter.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors1/index.ts:6:9]
+ 6 │ arg2
+   · ────
+   ╰────
+
+  × A rest parameter cannot be optional.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors1/index.ts:8:8]
+ 8 │ ?
+   · ─
+   ╰────
+
+  × A rest parameter cannot have an initializer.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors1/index.ts:11:21]
+ 11 │ []
+    · ──
+    ╰────

@@ -1,6 +1,7 @@
+use super::CheckMode;
 use super::TyChecker;
 
-use bolt_ts_ast as ast;
+use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
 
 impl TyChecker<'_> {
@@ -48,13 +49,50 @@ impl TyChecker<'_> {
         }
     }
 
-    fn get_symbol_of_name_or_prop_access_expr(&self, id: ast::NodeID) -> Option<SymbolID> {
+    fn get_symbol_of_name_or_prop_access_expr(&mut self, mut id: ast::NodeID) -> Option<SymbolID> {
         // TODO:
+
+        while self
+            .node_query(id.module())
+            .is_right_side_of_qualified_name_or_prop_access(id)
+        {
+            id = self.parent(id).unwrap();
+        }
+
         let node = self.p.node(id);
-        if node.is_ident() {
-            Some(self.final_res(id))
-        } else {
-            None
+        match node {
+            ast::Node::Ident(_) => Some(self.final_res(id)),
+            ast::Node::PrivateIdent(_) => todo!(),
+            ast::Node::PropAccessExpr(n) => {
+                if let Some(s) = self.get_node_links(id).get_resolved_symbol() {
+                    return Some(s);
+                };
+
+                self.check_property_access_expression(n, Some(CheckMode::empty()));
+                if self.get_node_links(id).get_resolved_symbol().is_none() {
+                    let expr = self.check_expression_cached(n.expr, None);
+                    let literal_ty = self.get_string_literal_type_from_string(n.name.name);
+                    let resolved_symbol = self.get_applicable_index_symbol(expr, literal_ty);
+                    if let Some(resolved_symbol) = resolved_symbol {
+                        self.get_mut_node_links(id)
+                            .set_resolved_symbol(resolved_symbol);
+                        return Some(resolved_symbol);
+                    }
+
+                    return resolved_symbol;
+                }
+
+                self.get_node_links(id).get_resolved_symbol()
+            }
+            ast::Node::QualifiedName(n) => {
+                if let Some(s) = self.get_node_links(id).get_resolved_symbol() {
+                    return Some(s);
+                };
+                self.check_qualified_name(n, Some(CheckMode::empty()));
+                // TODO: is_doc
+                self.get_node_links(id).get_resolved_symbol()
+            }
+            _ => None,
         }
     }
 
@@ -70,7 +108,12 @@ impl TyChecker<'_> {
                 Some(parent_symbol)
             };
         }
-        match self.p.node(id) {
+        // TODO: is_literal_computed_property_declaration_name
+        let n = self.p.node(id);
+        if let Ident(n) = n {
+            // TODO: other
+        }
+        match n {
             Ident(_) | PrivateIdent(_) | PropAccessExpr(_) | QualifiedName(_)
                 if !nq.is_this_in_type_query(id) =>
             {

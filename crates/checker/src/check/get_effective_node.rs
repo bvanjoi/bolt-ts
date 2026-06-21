@@ -165,7 +165,7 @@ impl<'cx> TyChecker<'cx> {
                                         parent: arg.id(),
                                         is_spread: flags.contains(ty::ElementFlags::VARIABLE),
                                         ty: if flags.contains(ty::ElementFlags::REST) {
-                                            self.create_array_ty(ty, false)
+                                            self.create_array_ty_worker::<false>(ty)
                                         } else {
                                             ty
                                         },

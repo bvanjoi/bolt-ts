@@ -5,7 +5,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait::{BinaryLike, BinaryLikeOp};
 
 impl<'cx> TyChecker<'cx> {
-    fn check_assign_op(
+    pub(super) fn check_assign_op(
         &mut self,
         assign_ty: &'cx ty::Ty<'cx>,
         value_ty: &'cx ty::Ty<'cx>,

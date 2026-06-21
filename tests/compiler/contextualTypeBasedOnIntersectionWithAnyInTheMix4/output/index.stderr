@@ -1,0 +1,11 @@
+  × Type '"bar"' is not assignable to type '"foo"'.
+    ╭─[../../tests/compiler/contextualTypeBasedOnIntersectionWithAnyInTheMix4/index.ts:39:12]
+ 39 │ "bar"
+    · ─────
+    ╰────
+
+  × Type '{ prop: "bar"; }' is not assignable to type '{ prop: "foo"; }'.
+    ╭─[../../tests/compiler/contextualTypeBasedOnIntersectionWithAnyInTheMix4/index.ts:55:12]
+ 55 │ ({ prop: "bar" })
+    · ─────────────────
+    ╰────

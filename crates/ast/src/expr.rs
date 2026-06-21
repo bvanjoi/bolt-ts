@@ -1,6 +1,7 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_ecma_logical::js_double_to_boolean;
 
+use super::keyword::is_prim_value_name;
 use super::*;
 
 pub type Exprs<'cx> = &'cx [&'cx Expr<'cx>];
@@ -57,6 +58,7 @@ impl<'cx> Expr<'cx> {
             Delete(n) => n.span,
             Yield(n) => n.span,
             Import(n) => n.span,
+            NewMetaProperty(n) => n.span,
         }
     }
 
@@ -106,11 +108,20 @@ impl<'cx> Expr<'cx> {
             Await(n) => n.id,
             Yield(n) => n.id,
             Import(n) => n.id,
+            NewMetaProperty(n) => n.id,
         }
     }
 
     pub fn is_string_lit_like(&self) -> bool {
         self.kind.is_string_literal_like()
+    }
+
+    pub fn as_string_literal_like(&self) -> Option<Atom> {
+        match self.kind {
+            ExprKind::StringLit(lit) => Some(lit.val),
+            ExprKind::NoSubstitutionTemplateLit(lit) => Some(lit.val),
+            _ => None,
+        }
     }
 
     pub fn is_signed_numeric_lit(&self) -> bool {
@@ -122,7 +133,8 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn is_entity_name_expr(&self) -> bool {
-        matches!(self.kind, ExprKind::Ident(_)) || self.is_prop_access_entity_name_expr()
+        matches!(self.kind, ExprKind::Ident(n) if !is_prim_value_name(n.name))
+            || self.is_prop_access_entity_name_expr()
     }
 
     pub fn is_prop_access_entity_name_expr(&self) -> bool {
@@ -356,6 +368,7 @@ pub enum ExprKind<'cx> {
     JsxElem(&'cx JsxElem<'cx>),
     JsxSelfClosingElem(&'cx JsxSelfClosingElem<'cx>),
     JsxFrag(&'cx JsxFrag<'cx>),
+    NewMetaProperty(&'cx NewMetaProperty<'cx>),
 }
 
 impl<'cx> ExprKind<'cx> {
@@ -514,6 +527,13 @@ pub struct ExprWithTyArgs<'cx> {
     pub span: Span,
     pub expr: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NewMetaProperty<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub name: &'cx Ident,
 }
 
 #[derive(Debug, Clone)]
@@ -881,6 +901,12 @@ pub struct ArrayLit<'cx> {
     pub elems: Exprs<'cx>,
 }
 
+impl ArrayLit<'_> {
+    pub fn is_empty(&self) -> bool {
+        self.elems.is_empty()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ImportExpression {
     pub id: NodeID,
@@ -1099,6 +1125,23 @@ pub struct CallExpr<'cx> {
     pub ty_args: Option<&'cx self::Tys<'cx>>,
     pub question: Option<Span>,
     pub args: Exprs<'cx>,
+}
+
+impl<'cx> CallExpr<'cx> {
+    pub fn is_require_call<const REQUIRE_STRING_LITERAL_LIKE_ARGUMENT: bool>(&self) -> bool {
+        if let ExprKind::Ident(ident) = &self.expr.kind
+            && ident.name == keyword::IDENT_REQUIRE
+            && self.args.len() == 1
+        {
+            if REQUIRE_STRING_LITERAL_LIKE_ARGUMENT {
+                self.args[0].kind.is_string_literal_like()
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
 }
 
 /// ```txt

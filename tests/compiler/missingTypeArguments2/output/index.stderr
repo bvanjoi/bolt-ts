@@ -1,0 +1,23 @@
+  × Generic type 'A<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/missingTypeArguments2/index.ts:7:14]
+ 7 │ A
+   · ─
+   ╰────
+
+  × Generic type 'A<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/missingTypeArguments2/index.ts:9:5]
+ 9 │ A
+   · ─
+   ╰────
+
+  × Generic type 'A<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments2/index.ts:11:10]
+ 11 │ A
+    · ─
+    ╰────
+
+  × Generic type 'A<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments2/index.ts:13:5]
+ 13 │ A
+    · ─
+    ╰────

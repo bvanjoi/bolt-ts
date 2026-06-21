@@ -1,0 +1,23 @@
+  × Property 'super' does not exist on type 'Sub1<SubSub1>'.
+    ╭─[../../tests/compiler/super1/index.ts:21:22]
+ 21 │ super
+    · ─────
+    ╰────
+
+  × Property 'prototype' does not exist on type 'Base2<SubE2>'.
+    ╭─[../../tests/compiler/super1/index.ts:35:22]
+ 35 │ prototype
+    · ─────────
+    ╰────
+
+  × Property 'bar' does not exist on type 'Base3<SubE3>'.
+    ╭─[../../tests/compiler/super1/index.ts:49:22]
+ 49 │ bar
+    · ───
+    ╰────
+
+  × 'super' can only be referenced in a derived class.
+    ╭─[../../tests/compiler/super1/index.ts:70:20]
+ 70 │ super
+    · ─────
+    ╰────

@@ -5,24 +5,6 @@ use bolt_ts_ast::r#trait::ParenRuleTrait;
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
-bitflags::bitflags! {
-    #[derive(Clone, Copy, Debug)]
-    pub struct VarDeclarationContext: u8 {
-        const FOR = 1 << 0;
-        const CONST = 1 << 1;
-        const AMBIENT = 1 << 2;
-        const LET = 1 << 3;
-    }
-}
-
-impl VarDeclarationContext {
-    pub const fn init_should_exit(&self) -> bool {
-        self.contains(VarDeclarationContext::CONST)
-            && !self.contains(VarDeclarationContext::AMBIENT)
-            && !self.contains(VarDeclarationContext::FOR)
-    }
-}
-
 pub trait ASTFactory<'cx> {
     fn next_node_id(&mut self) -> NodeID;
     fn insert_node(&mut self, node_id: NodeID, node: ast::Node<'cx>);
@@ -372,7 +354,6 @@ pub trait ASTFactory<'cx> {
         &mut self,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
-        ty_params: Option<ast::TyParams<'cx>>,
         name_span: Span,
         params: ast::ParamsDecl<'cx>,
         ret: Option<&'cx ast::Ty<'cx>>,
@@ -383,7 +364,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             modifiers,
-            ty_params,
             name_span,
             params,
             ret,
@@ -475,6 +455,26 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::MethodSignature(sig));
         self.insert_node_flags(id, ast::NodeFlags::empty());
         sig
+    }
+
+    #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
+    fn create_object_property_assignment(
+        &mut self,
+        span: Span,
+        name: &'cx ast::PropName<'cx>,
+        init: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::ObjectPropAssignment<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ObjectPropAssignment {
+            id,
+            span,
+            name,
+            init,
+        });
+        self.insert_node(id, ast::Node::ObjectPropAssignment(node));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        node
     }
 
     #[inline(always)]
@@ -620,8 +620,11 @@ pub trait ASTFactory<'cx> {
         excl: Option<Span>,
         ty: Option<&'cx ast::Ty<'cx>>,
         init: Option<&'cx ast::Expr<'cx>>,
-        ctx: VarDeclarationContext,
+        flags: ast::NodeFlags,
     ) -> &'cx ast::VarDecl<'cx> {
+        debug_assert!(
+            flags == ast::NodeFlags::LET || flags == ast::NodeFlags::CONST || flags.is_empty()
+        );
         let id = self.next_node_id();
         let node = self.alloc(ast::VarDecl {
             id,
@@ -632,12 +635,27 @@ pub trait ASTFactory<'cx> {
             init,
         });
         self.insert_node(id, ast::Node::VarDecl(node));
-        let flags = match ctx {
-            c if c.contains(VarDeclarationContext::CONST) => ast::NodeFlags::CONST,
-            c if c.contains(VarDeclarationContext::LET) => ast::NodeFlags::LET,
-            _ => ast::NodeFlags::empty(),
-        } | self.node_context_flags();
-        self.insert_node_flags(id, flags);
+        self.insert_node_flags(id, flags | self.node_context_flags());
+        node
+    }
+
+    #[inline(always)]
+    fn create_var_stmt(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        declaration_list: &'cx [&'cx ast::VarDecl<'cx>],
+    ) -> &'cx ast::VarStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::VarStmt {
+            id,
+            span,
+            modifiers,
+            list: declaration_list,
+        });
+        self.insert_node(id, ast::Node::VarStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        self.set_external_module_indicator_if_has_export_modifier(node.id, modifiers);
         node
     }
 
@@ -649,7 +667,6 @@ pub trait ASTFactory<'cx> {
         init: ast::ForInitKind<'cx>,
         expr: &'cx ast::Expr<'cx>,
         body: &'cx ast::Stmt<'cx>,
-        flags: ast::NodeFlags,
     ) -> &'cx ast::ForOfStmt<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::ForOfStmt {
@@ -661,7 +678,30 @@ pub trait ASTFactory<'cx> {
             body,
         });
         self.insert_node(id, ast::Node::ForOfStmt(node));
-        self.insert_node_flags(id, flags | self.node_context_flags());
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline(always)]
+    fn create_for_stmt(
+        &mut self,
+        span: Span,
+        init: Option<ast::ForInitKind<'cx>>,
+        cond: Option<&'cx ast::Expr<'cx>>,
+        incr: Option<&'cx ast::Expr<'cx>>,
+        body: &'cx ast::Stmt<'cx>,
+    ) -> &'cx ast::ForStmt<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ForStmt {
+            id,
+            span,
+            init,
+            body,
+            cond,
+            incr,
+        });
+        self.insert_node(id, ast::Node::ForStmt(node));
+        self.insert_node_flags(id, self.node_context_flags());
         node
     }
 
@@ -979,6 +1019,32 @@ pub trait ASTFactory<'cx> {
         self.insert_node(id, ast::Node::ExportAssign(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
+    }
+
+    #[inline]
+    fn create_interface_declaration(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::Ident,
+        ty_params: Option<ast::TyParams<'cx>>,
+        extends: Option<&'cx ast::InterfaceExtendsClause<'cx>>,
+        members: ast::ObjectTyMembers<'cx>,
+    ) -> &'cx ast::InterfaceDecl<'cx> {
+        let id = self.next_node_id();
+        let decl = self.alloc(ast::InterfaceDecl {
+            id,
+            span,
+            modifiers,
+            name,
+            ty_params,
+            extends,
+            members,
+        });
+        self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
+        self.insert_node(id, ast::Node::InterfaceDecl(decl));
+        self.insert_node_flags(id, self.node_context_flags());
+        decl
     }
 
     #[inline]
@@ -1408,6 +1474,136 @@ pub trait ASTFactory<'cx> {
             init,
         });
         self.insert_node(id, ast::Node::ParamDecl(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_non_null_expression(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> &'cx ast::NonNullExpr<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::NonNullExpr { id, span, expr });
+        self.insert_node(id, ast::Node::NonNullExpr(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_new_meta_property(
+        &mut self,
+        span: Span,
+        name: &'cx ast::Ident,
+    ) -> &'cx ast::NewMetaProperty<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::NewMetaProperty { id, span, name });
+        self.insert_node(id, ast::Node::NewMetaProperty(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_constructor_type(
+        &mut self,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::CtorTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CtorTy {
+            id,
+            span,
+            modifiers,
+            ty_params,
+            params,
+            ty,
+        });
+        self.insert_node(id, ast::Node::CtorTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_function_type(
+        &mut self,
+        span: Span,
+        ty_params: Option<ast::TyParams<'cx>>,
+        params: ast::ParamsDecl<'cx>,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::FnTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::FnTy {
+            id,
+            span,
+            ty_params,
+            params,
+            ty,
+        });
+        self.insert_node(id, ast::Node::FnTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_private_identifier(&mut self, span: Span, name: Atom) -> &'cx ast::PrivateIdent {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::PrivateIdent { id, span, name });
+        self.insert_node(id, ast::Node::PrivateIdent(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_expression_with_type_arguments(
+        &mut self,
+        span: Span,
+        expr: &'cx ast::Expr<'cx>,
+        ty_args: Option<&'cx ast::Tys<'cx>>,
+    ) -> &'cx ast::ExprWithTyArgs<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::ExprWithTyArgs {
+            id,
+            span,
+            expr,
+            ty_args,
+        });
+        self.insert_node(id, ast::Node::ExprWithTyArgs(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_rest_type(&mut self, span: Span, ty: &'cx ast::Ty<'cx>) -> &'cx ast::RestTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::RestTy { id, span, ty });
+        self.insert_node(id, ast::Node::RestTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    #[inline]
+    fn create_conditional_type(
+        &mut self,
+        span: Span,
+        check_ty: &'cx ast::Ty<'cx>,
+        extends_ty: &'cx ast::Ty<'cx>,
+        true_ty: &'cx ast::Ty<'cx>,
+        false_ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::CondTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::CondTy {
+            id,
+            span,
+            check_ty,
+            extends_ty,
+            true_ty,
+            false_ty,
+        });
+        self.insert_node(id, ast::Node::CondTy(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

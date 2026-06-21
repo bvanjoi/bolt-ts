@@ -1,0 +1,41 @@
+  × Type 'typeof W' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:30:5]
+ 30 │ z
+    · ─
+    ╰────
+
+  × Type 'W' is not assignable to type 'typeof W'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:33:5]
+ 33 │ b
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'typeof W'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:36:5]
+ 36 │ d
+    · ─
+    ╰────
+
+  × Type '4' is not assignable to type 'W.a'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:38:5]
+ 38 │ e
+    · ─
+    ╰────
+
+  × Type 'W' is not assignable to type 'WStatic'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:40:5]
+ 40 │ f
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'WStatic'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:42:5]
+ 42 │ g
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'W'.
+    ╭─[../../tests/compiler/enumAssignmentCompat/index.ts:44:5]
+ 44 │ h
+    · ─
+    ╰────

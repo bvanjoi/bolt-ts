@@ -1,0 +1,11 @@
+  × Namespace 'D' has no exported member 'inner'.
+    ╭─[../../tests/compiler/innerAliases/index.ts:23:10]
+ 23 │ inner
+    · ─────
+    ╰────
+
+  × Property 'inner' does not exist on type 'typeof D'.
+    ╭─[../../tests/compiler/innerAliases/index.ts:26:11]
+ 26 │ inner
+    · ─────
+    ╰────

@@ -6,26 +6,13 @@
 
 Advice: 
   ☞ Class 'A' is defined here
-   ╭─[../../tests/compiler/classInheritence/index.ts:4:7]
- 4 │ A
+   ╭─[../../tests/compiler/classInheritence/index.ts:3:7]
+ 3 │ A
    · ─
    ╰────
 
   × 'A' is referenced directly or indirectly in its own base expression.
-   ╭─[../../tests/compiler/classInheritence/index.ts:4:1]
- 4 │ class A extends A { }
-   · ─────────────────────
-   ╰────
-
-  × Class 'A' used before its declaration.
-   ╭─[../../tests/compiler/classInheritence/index.ts:1:17]
- 1 │ A
-   · ─
-   ╰────
-
-Advice: 
-  ☞ Class 'A' is defined here
-   ╭─[../../tests/compiler/classInheritence/index.ts:4:7]
- 4 │ A
+   ╭─[../../tests/compiler/classInheritence/index.ts:3:7]
+ 3 │ A
    · ─
    ╰────

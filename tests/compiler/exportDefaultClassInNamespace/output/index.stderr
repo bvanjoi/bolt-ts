@@ -1,0 +1,11 @@
+  × A default export can only be used in an ECMAScript-style module.
+   ╭─[../../tests/compiler/exportDefaultClassInNamespace/index.ts:6:20]
+ 6 │ class
+   · ─────
+   ╰────
+
+  × A default export can only be used in an ECMAScript-style module.
+    ╭─[../../tests/compiler/exportDefaultClassInNamespace/index.ts:11:29]
+ 11 │ class
+    · ─────
+    ╰────

@@ -26,6 +26,7 @@ impl<'cx> TyChecker<'cx> {
                     val_ty: self.any_ty,
                     is_readonly: false,
                     symbol: Symbol::ERR,
+                    declaration: None,
                 }));
                 continue;
             }
@@ -90,7 +91,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let ty =
                 self.check_declaration_initializer(elem, CheckMode::empty(), Some(contextual_ty));
-            let ty = self.get_widened_lit_ty_for_init(elem, ty);
+            let ty = self.get_widened_literal_ty_for_initializer(elem, ty);
             return self.add_optionality::<false>(ty, true);
         }
 
@@ -122,7 +123,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let ty =
                 self.check_declaration_initializer(elem, CheckMode::empty(), Some(contextual_ty));
-            let ty = self.get_widened_lit_ty_for_init(elem, ty);
+            let ty = self.get_widened_literal_ty_for_initializer(elem, ty);
             return self.add_optionality::<false>(ty, true);
         }
 

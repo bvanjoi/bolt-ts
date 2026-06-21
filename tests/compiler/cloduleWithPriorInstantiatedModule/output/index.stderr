@@ -1,0 +1,6 @@
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+   ╭─[../../tests/compiler/cloduleWithPriorInstantiatedModule/index.ts:6:11]
+ 6 │ Moclodule
+   · ─────────
+   ╰────

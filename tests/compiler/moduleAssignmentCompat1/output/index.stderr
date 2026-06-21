@@ -1,0 +1,11 @@
+  × Cannot find name 'A'.
+    ╭─[../../tests/compiler/moduleAssignmentCompat1/index.ts:13:8]
+ 13 │ A
+    · ─
+    ╰────
+
+  × Cannot find name 'B'.
+    ╭─[../../tests/compiler/moduleAssignmentCompat1/index.ts:15:8]
+ 15 │ B
+    · ─
+    ╰────

@@ -1,0 +1,6 @@
+  × Type '{ type: "A"; }' is not assignable to type 'ValidType'.
+    ╭─[../../tests/compiler/partialDiscriminatedUnionMemberHasGoodError/index.ts:24:13]
+ 24 │ ╭─▶ {     //~ERROR: Type '{ type: "A"; }' is not assignable to type 'ValidType'.
+ 25 │ │           type: "A"
+ 26 │ ╰─▶     }
+    ╰────

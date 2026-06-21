@@ -1,0 +1,13 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/narrowingOfDottedNames/index.ts:74:5]
+ 74 │ x
+    · ─
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/narrowingOfDottedNames/index.ts:84:5]
+ 84 │ x
+    · ─
+    ╰────

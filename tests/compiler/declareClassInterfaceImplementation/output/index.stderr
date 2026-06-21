@@ -1,0 +1,5 @@
+  × Class 'Buffer' incorrectly implements interface 'IBuffer'.
+   ╭─[../../tests/compiler/declareClassInterfaceImplementation/index.ts:9:33]
+ 9 │ IBuffer
+   · ───────
+   ╰────

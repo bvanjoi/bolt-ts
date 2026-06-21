@@ -13,6 +13,7 @@ bolt_ts_config = { path = "../config" }
 bolt_ts_middle = { path = "../middle" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }
 bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_checker_errors = { path = "../checker_errors" }
 bolt_ts_module_graph = { path = "../module_graph" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_parser = { path = "../parser" }
@@ -27,4 +28,3 @@ nohash-hasher = { workspace = true }
 thin-vec = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 tracing = { workspace = true }
-thiserror = { workspace = true }

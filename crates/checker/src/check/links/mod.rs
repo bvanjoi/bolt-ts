@@ -54,6 +54,12 @@ macro_rules! _links {
                             None => unreachable!("`{}` is not defined", stringify!($x)),
                         };
                     }
+                    #[allow(unused)]
+                    #[track_caller]
+                    pub fn [<clear_ $x>](&mut self) {
+                        debug_assert!(self.$x.is_some());
+                        self.$x = None;
+                    }
                 )*
             }
         }
@@ -63,7 +69,7 @@ macro_rules! _links {
 use _links as links;
 use bolt_ts_ast::NodeID;
 
-pub use self::node_links::NodeLinks;
+pub use self::node_links::{ExhaustiveState, NodeLinks};
 pub use self::sig_links::SigLinks;
 pub use self::symbol_links::SymbolLinks;
 pub use self::ty_links::TyLinks;

@@ -1,0 +1,11 @@
+  × Type '"y"' is not assignable to type '"x"'.
+    ╭─[../../tests/compiler/literalFreshnessPropagationOnNarrowing/index.ts:45:5]
+ 45 │ x2
+    · ──
+    ╰────
+
+  × Type 'string[]' is not assignable to type '(XY)[]'.
+    ╭─[../../tests/compiler/literalFreshnessPropagationOnNarrowing/index.ts:69:5]
+ 69 │ arr
+    · ───
+    ╰────

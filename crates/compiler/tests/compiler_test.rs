@@ -54,118 +54,144 @@ fn eval_in_test<'cx>(
     )
 }
 
-fn run_test(entry: &std::path::Path, try_run_node: bool) {
-    const DEFAULT_OUTPUT: &str = "output";
+fn run_test_with(
+    dir: &std::path::Path,
+    file_name: &str,
+    option: serde_json::Map<String, serde_json::Value>,
+    output: String,
+    try_run_node: bool,
+) -> Result<(), Vec<compile_test::errors::Error>> {
+    assert!(file_name == "index.ts" || file_name == "index.tsx");
+    assert!(
+        !dir.join("tsconfig.json").exists(),
+        "use tsconfig d instead of providing tsconfig.json file"
+    );
+    let default_include = if file_name == "index.ts" {
+        vec!["./*.ts".to_string()]
+    } else {
+        vec![file_name.to_string()]
+    };
+    let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
+    let tsconfig = RawTsConfig::default()
+        .with_compiler_options(compiler_options)
+        .with_include_if_none(default_include)
+        .config_compiler_options(|c| c.with_out_dir(output.clone()));
 
+    let cwd = dir.normalize();
+    let tsconfig = tsconfig.normalize();
+    let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
+    let type_arena = bolt_ts_arena::bumpalo::Bump::new();
+    let mut compiler_result = eval_in_test(cwd, tsconfig, &parser_arena, &type_arena);
+    let output_dir = dir.join(output);
+    if !output_dir.exists() {
+        std::fs::create_dir(&output_dir).unwrap();
+    }
+    let output_files = compiler_result.steal_output_files();
+    let output_err_path = output_dir.join(file_name).with_extension("stderr");
+    let diags = compiler_result.steal_diags();
+    if diags.is_empty() {
+        let _ = std::fs::remove_file(output_err_path);
+
+        let mut index_file_path = None;
+        for (p, content) in &output_files {
+            if content.trim().is_empty() {
+                continue;
+            }
+
+            if p.ends_with("index.js") {
+                let temp_node_file =
+                    compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
+                assert!(temp_node_file.is_absolute());
+                assert!(temp_node_file.ends_with("index.js"));
+                if !temp_node_file.exists() {
+                    std::fs::create_dir_all(temp_node_file.parent().unwrap()).unwrap();
+                }
+                std::fs::write(temp_node_file.as_path(), content).unwrap();
+                index_file_path = Some(temp_node_file);
+            }
+
+            expect_test::expect_file![p].assert_eq(content);
+        }
+
+        if let Some(index_file_path) = index_file_path
+            && try_run_node
+        {
+            match run_node_with_assert_context(&index_file_path) {
+                Ok(_) => {}
+                Err(_) => return Err(vec![]),
+            }
+        }
+        Ok(())
+    } else {
+        let module_arena = compiler_result.steal_module_arena();
+        let errors = diags
+            .iter()
+            .filter_map(|diag| {
+                let labels = diag.inner.labels()?;
+                let kind = diag.inner.severity().map_or(
+                    compile_test::errors::ErrorKind::Error,
+                    |severity| match severity {
+                        Severity::Advice => compile_test::errors::ErrorKind::Help,
+                        Severity::Warning => compile_test::errors::ErrorKind::Warning,
+                        Severity::Error => compile_test::errors::ErrorKind::Error,
+                    },
+                );
+
+                let primary_label = labels
+                    .into_iter()
+                    .find(|label| label.primary())
+                    .expect("at least one primary label");
+                let msg = if let Some(msg) = primary_label.label() {
+                    msg.to_string()
+                } else {
+                    diag.inner.to_string()
+                };
+                let code = module_arena.get_content(diag.inner.module_id());
+                let start =
+                    bolt_ts_errors::miette_label_span_to_line_position(primary_label, code).0;
+                Some(compile_test::errors::Error {
+                    line_num: start.line + 1,
+                    kind: Some(kind),
+                    msg,
+                })
+            })
+            .collect::<Vec<compile_test::errors::Error>>();
+        let err_msg = diags
+            .into_iter()
+            .map(|diag| diag.emit_message(&module_arena, true))
+            .collect::<Vec<_>>()
+            .join("\n");
+        expect_test::expect_file![output_err_path].assert_eq(&err_msg);
+        Err(errors)
+    }
+}
+
+fn run_test(entry: &std::path::Path, try_run_node: bool) {
     run(entry, |test_ctx| {
         let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
         let dir = test_ctx.test_file().parent().unwrap();
-
-        let compiler_options: RawCompilerOptions =
-            serde_json::from_value(test_ctx.compiler_options().clone().into()).unwrap();
-
-        assert!(file_name == "index.ts" || file_name == "index.tsx");
-        assert!(
-            !dir.join("tsconfig.json").exists(),
-            "use tsconfig d instead of providing tsconfig.json file"
-        );
-
-        let default_include = if file_name == "index.ts" {
-            vec!["./*.ts".to_string()]
+        let mut options = test_ctx.compiler_options().to_serde_json();
+        if options.len() == 1 {
+            run_test_with(
+                dir,
+                file_name,
+                options.pop().unwrap().0,
+                "output".to_string(),
+                try_run_node,
+            )
         } else {
-            vec![file_name.to_string()]
-        };
-        let tsconfig = RawTsConfig::default()
-            .with_compiler_options(compiler_options)
-            .with_include_if_none(default_include)
-            .config_compiler_options(|c| c.with_out_dir(DEFAULT_OUTPUT.to_string()));
-
-        let cwd = dir.normalize();
-        let tsconfig = tsconfig.normalize();
-        let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
-        let type_arena = bolt_ts_arena::bumpalo::Bump::new();
-        let mut compiler_result = eval_in_test(cwd, tsconfig, &parser_arena, &type_arena);
-        let output_dir = dir.join(DEFAULT_OUTPUT);
-        if !output_dir.exists() {
-            std::fs::create_dir(&output_dir).unwrap();
-        }
-        let output_files = compiler_result.steal_output_files();
-        let output_err_path = output_dir.join(file_name).with_extension("stderr");
-        let diags = compiler_result.steal_diags();
-        if diags.is_empty() {
-            let _ = std::fs::remove_file(output_err_path);
-
-            let mut index_file_path = None;
-            for (p, content) in &output_files {
-                if content.trim().is_empty() {
-                    continue;
-                }
-
-                if p.ends_with("index.js") {
-                    let temp_node_file =
-                        compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
-                    assert!(temp_node_file.is_absolute());
-                    assert!(temp_node_file.ends_with("index.js"));
-                    if !temp_node_file.exists() {
-                        std::fs::create_dir_all(temp_node_file.parent().unwrap()).unwrap();
-                    }
-                    std::fs::write(temp_node_file.as_path(), content).unwrap();
-                    index_file_path = Some(temp_node_file);
-                }
-
-                expect_test::expect_file![p].assert_eq(content);
-            }
-
-            if let Some(index_file_path) = index_file_path
-                && try_run_node
-            {
-                match run_node_with_assert_context(&index_file_path) {
-                    Ok(_) => {}
-                    Err(_) => return Err(vec![]),
+            let mut errors = vec![];
+            for (option, output) in options {
+                let output = format!("output{}", output.unwrap());
+                if let Err(err) = run_test_with(dir, file_name, option, output, try_run_node) {
+                    errors.extend(err);
                 }
             }
-            Ok(())
-        } else {
-            let module_arena = compiler_result.steal_module_arena();
-            let errors = diags
-                .iter()
-                .filter_map(|diag| {
-                    let labels = diag.inner.labels()?;
-                    let kind = diag.inner.severity().map_or(
-                        compile_test::errors::ErrorKind::Error,
-                        |severity| match severity {
-                            Severity::Advice => compile_test::errors::ErrorKind::Help,
-                            Severity::Warning => compile_test::errors::ErrorKind::Warning,
-                            Severity::Error => compile_test::errors::ErrorKind::Error,
-                        },
-                    );
-
-                    let primary_label = labels
-                        .into_iter()
-                        .find(|label| label.primary())
-                        .expect("at least one primary label");
-                    let msg = if let Some(msg) = primary_label.label() {
-                        msg.to_string()
-                    } else {
-                        diag.inner.to_string()
-                    };
-                    let code = module_arena.get_content(diag.inner.module_id());
-                    let start =
-                        bolt_ts_errors::miette_label_span_to_line_position(primary_label, code).0;
-                    Some(compile_test::errors::Error {
-                        line_num: start.line + 1,
-                        kind: Some(kind),
-                        msg,
-                    })
-                })
-                .collect::<Vec<compile_test::errors::Error>>();
-            let err_msg = diags
-                .into_iter()
-                .map(|diag| diag.emit_message(&module_arena, true))
-                .collect::<Vec<_>>()
-                .join("\n");
-            expect_test::expect_file![output_err_path].assert_eq(&err_msg);
-            Err(errors)
+            if errors.is_empty() {
+                Ok(())
+            } else {
+                Err(errors)
+            }
         }
     });
 }

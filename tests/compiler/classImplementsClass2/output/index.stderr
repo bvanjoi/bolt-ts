@@ -1,7 +1,7 @@
   × Property 'foo' is missing.
-   ╭─[../../tests/compiler/classImplementsClass2/index.ts:4:1]
- 4 │ class C implements A {}
-   · ───────────────────────
+   ╭─[../../tests/compiler/classImplementsClass2/index.ts:4:7]
+ 4 │ C
+   · ─
    ╰────
 
   × Property 'foo' is missing.

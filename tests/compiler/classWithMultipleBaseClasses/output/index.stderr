@@ -1,19 +1,11 @@
   × Property 'foo' is missing.
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:1]
- 20 │ ╭─▶ class D implements I, J {
- 21 │ │     //~^ ERROR: Property 'foo' is missing.
- 22 │ │     //~| ERROR: Property 'bar' is missing.
- 23 │ │       baz() { }
- 24 │ │       bat() { }
- 25 │ ╰─▶ }
+    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:7]
+ 20 │ D
+    · ─
     ╰────
 
   × Property 'bar' is missing.
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:1]
- 20 │ ╭─▶ class D implements I, J {
- 21 │ │     //~^ ERROR: Property 'foo' is missing.
- 22 │ │     //~| ERROR: Property 'bar' is missing.
- 23 │ │       baz() { }
- 24 │ │       bat() { }
- 25 │ ╰─▶ }
+    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:7]
+ 20 │ D
+    · ─
     ╰────

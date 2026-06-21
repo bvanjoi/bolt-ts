@@ -1,0 +1,5 @@
+  × Class 'derived' incorrectly extends base class 'base'.
+   ╭─[../../tests/compiler/shadowPrivateMembers/index.ts:6:7]
+ 6 │ derived
+   · ───────
+   ╰────

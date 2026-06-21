@@ -46,7 +46,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         ns: &'cx ast::ModuleDecl<'cx>,
     ) -> SymbolID {
         let nq = self.node_query();
-        let state = nq.get_module_instance_state(ns, None, |_, index| {
+        let state = nq.get_module_instance_state(ns, |_, index| {
             if self.block_parent_stack.len() == index {
                 None
             } else {
@@ -299,14 +299,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             let name = match n.name.kind {
                 bolt_ts_ast::BindingKind::Ident(ident) => SymbolName::Atom(ident.name),
                 bolt_ts_ast::BindingKind::ObjectPat(_) => {
-                    todo!()
+                    // TODO: delay_span_bug
+                    return;
                 }
-                bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
+                bolt_ts_ast::BindingKind::ArrayPat(_) => {
+                    // TODO: delay_span_bug
+                    return;
+                }
             };
             self.declare_symbol(
                 Some(name),
                 loc,
-                None,
+                Some(self.final_res[&class_decl]),
                 n.id,
                 includes,
                 SymbolFlags::PROPERTY_EXCLUDES,
@@ -585,7 +589,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ArrowFnExpr(n) => {
                 self.bind_fn_expr(n);
             }
-            CallExpr(_) => {}
+            CallExpr(_) => {
+                // TODO: assignment_kind
+            }
+            ImportExpression(_) => {
+                // TODO: assignment_kind
+            }
             ClassExpr(node) => {
                 self.in_strict_mode = true;
                 self.bind_class_like_decl::<true>(node);
@@ -907,10 +916,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Paren(n) => self.is_narrowable_reference(n.expr),
             NonNull(n) => self.is_narrowable_reference(n.expr),
             EleAccess(n) => self.ele_access_is_narrowable_reference(n),
-            Bin(_) => {
-                // TODO: n.op.kind == Comma
-                false
-            }
+            Bin(n) if n.op.kind == ast::BinOpKind::Comma => self.is_narrowable_reference(n.right),
             Assign(n) => n.left.is_left_hand_side_expr_kind(),
             _ => false,
         }

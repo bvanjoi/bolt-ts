@@ -20,7 +20,7 @@ function user<T>(t: T) {
   f2(t); // error in strict, unbounded T doesn't satisfy the constraint
   //~^ ERROR: Argument of type 'T' is not assignable to parameter of type '{ }'.
   f3(t); // error in strict, unbounded T doesn't satisfy the constraint
-  //~^ ERROR: Argument of type 'T' is not assignable to parameter of type 'Record'.
+  //~^ ERROR: Argument of type 'T' is not assignable to parameter of type 'Record<string, any>'.
   t.toString();  // error, for the same reason as f1()
   //~^ ERROR: Property 'toString' does not exist on type 'T'.
 }

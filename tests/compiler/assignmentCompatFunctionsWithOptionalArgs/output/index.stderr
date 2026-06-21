@@ -1,0 +1,18 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/assignmentCompatFunctionsWithOptionalArgs/index.ts:5:10]
+ 5 │ foo
+   · ───
+   ╰────
+
+  × Type 'false' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/assignmentCompatFunctionsWithOptionalArgs/index.ts:9:17]
+ 9 │ name
+   · ────
+   ╰────
+
+  × Property 'id' is missing.
+    ╭─[../../tests/compiler/assignmentCompatFunctionsWithOptionalArgs/index.ts:11:5]
+ 11 │ { name: "hello" }
+    · ─────────────────
+    ╰────

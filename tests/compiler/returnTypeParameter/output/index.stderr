@@ -1,0 +1,20 @@
+  × Cannot find name 'T'.
+   ╭─[../../tests/compiler/returnTypeParameter/index.ts:7:34]
+ 7 │ T
+   · ─
+   ╰────
+
+Advice: 
+  ☞ 'T' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/returnTypeParameter/index.ts:7:34]
+ 7 │ T>(a: T): T { return T
+   · ┬                    ─
+   · ╰── 'T' is defined here.
+   ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/returnTypeParameter/index.ts:5:22]
+ 5 │ T
+   · ─
+   ╰────

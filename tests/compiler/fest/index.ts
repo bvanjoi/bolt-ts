@@ -330,7 +330,7 @@ type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Conditi
   const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
   const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
   const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
-  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick'.
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick<Example, string>'.
 }
 
 // ========== ConditionalSimplify ==========
@@ -398,7 +398,7 @@ type ConditionalSimplifyDeep<Type, ExcludeType = never, IncludeType = unknown> =
 
   function f0(movableNodeSimplifiedFail: MovableNodeSimplifiedFail) {
     let a0: MovableCollection = movableNodeSimplifiedFail;
-    //~^ ERROR: Type 'mapped type' is not assignable to type 'MovableCollection'
+    //~^ ERROR: Type '{ }' is not assignable to type 'MovableCollection'
   }
   function f1(movableNodeSimplifiedPass: MovableNodeSimplifiedPass) {
     let a0: MovableCollection = movableNodeSimplifiedPass;
@@ -444,7 +444,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   const a0: {a: number} = {a: 42};
   const except: Except<{a: number; b: string}, 'b'> = a0;
   const _a: unknown = except.b;
-  //~^ ERROR: Property 'b' does not exist on type 'mapped type'.
+  //~^ ERROR: Property 'b' does not exist on type '{ }'.
 
   const nonStrict = {
     a: 1,
@@ -459,7 +459,7 @@ type Except<ObjectType, KeysType extends keyof ObjectType, Options extends Excep
   }
 
   const strictAssignment: typeof strictExcept = nonStrict;
-  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except'.
+  //~^ ERROR: Type '{ a: number; b: string; }' is not assignable to type 'Except<{ a: number; b: string; }, "b", { requireExactProps: true; }>'.
 
   // Generic properties
   type Example = {
@@ -2201,7 +2201,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const a4: Record<string, unknown> = valueAsLiteral;
   const a5: Record<string, unknown> = valueAsSimplifiedInterface;
   const a6: Record<string, unknown> = valueAsInterface; // Index signature is missing in interface
-  //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record'. 
+  //~^ ERROR: Type 'SomeInterface' is not assignable to type 'Record<string, unknown>'. 
 
   // The following tests should be fixed once we have determined the cause of the bug reported in https://github.com/sindresorhus/type-fest/issues/436
   
@@ -2211,7 +2211,7 @@ type Simplify<T> = {[KeyType in keyof T]: T[KeyType]} & {};
   const someFunction: SimplifiedFunction = {};
   
   const b0: SomeFunction = someFunction;
-  //~^ ERROR: Type 'mapped type' is not assignable to type 'SomeFunction'.
+  //~^ ERROR: Type '{ }' is not assignable to type 'SomeFunction'.
 
   const c0: Simplify<{ a: boolean, b: string } & { a: number }> = n();
   const c1: Simplify<{a?: string} & {c:number}> = {c: 42};

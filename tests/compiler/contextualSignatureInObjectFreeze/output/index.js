@@ -1,0 +1,3 @@
+Object.freeze({
+  f: function () {}  
+});

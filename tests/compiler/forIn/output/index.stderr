@@ -1,0 +1,11 @@
+  × The left-hand side of a 'for...in' statement cannot use a type annotation.
+   ╭─[../../tests/compiler/forIn/index.ts:7:10]
+ 7 │ i
+   · ─
+   ╰────
+
+  × Cannot find name 'k'.
+    ╭─[../../tests/compiler/forIn/index.ts:26:4]
+ 26 │ k
+    · ─
+    ╰────

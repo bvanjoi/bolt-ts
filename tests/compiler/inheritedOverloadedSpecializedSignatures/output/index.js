@@ -1,0 +1,12 @@
+var b;
+b('foo').charAt(0);
+var c;
+var x1 = c('B2');
+var x2 = c('B1');
+var x3 = c('A2');
+var x4 = c('A1');
+var x5 = c('A0');
+var x6 = c('C1');
+var x7 = c('C2');
+var x8 = c('C');
+var x9 = c('generic');

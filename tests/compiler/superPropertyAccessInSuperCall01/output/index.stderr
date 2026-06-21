@@ -1,0 +1,6 @@
+  × 'super' must be called before accessing a property of 'super' in the
+  │ constructor of a derived class.
+    ╭─[../../tests/compiler/superPropertyAccessInSuperCall01/index.ts:13:9]
+ 13 │ super
+    · ─────
+    ╰────

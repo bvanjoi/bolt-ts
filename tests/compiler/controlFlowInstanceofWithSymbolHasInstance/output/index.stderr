@@ -1,0 +1,11 @@
+  × Type 'Set<number>' is not assignable to type '42'.
+    ╭─[../../tests/compiler/controlFlowInstanceofWithSymbolHasInstance/index.ts:20:11]
+ 20 │ a
+    · ─
+    ╰────
+
+  × Type 'B | C' is not assignable to type '42'.
+    ╭─[../../tests/compiler/controlFlowInstanceofWithSymbolHasInstance/index.ts:78:15]
+ 78 │ a
+    · ─
+    ╰────

@@ -380,10 +380,10 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Ternary {
         let source_prop_flags = self
             .c
-            .get_declaration_modifier_flags_from_symbol(source_prop, None);
+            .get_declaration_modifier_flags_from_symbol::<false>(source_prop);
         let target_prop_flags = self
             .c
-            .get_declaration_modifier_flags_from_symbol(target_prop, None);
+            .get_declaration_modifier_flags_from_symbol::<false>(target_prop);
         if source_prop_flags.contains(ast::ModifierFlags::PRIVATE)
             || target_prop_flags.contains(ast::ModifierFlags::PRIVATE)
         {
@@ -394,7 +394,39 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 return Ternary::FALSE;
             }
         } else if target_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
-            // TODO:
+            let is_valid_override_of = {
+                !self
+                    .c
+                    .for_each_prop(target_prop, |this, tp| {
+                        if this
+                            .get_declaration_modifier_flags_from_symbol::<false>(tp)
+                            .contains(ast::ModifierFlags::PROTECTED)
+                        {
+                            let Some(base_class) = this.get_declaring_class(tp) else {
+                                return Some(true);
+                            };
+                            // is_property_in_class_derived_from
+                            this.for_each_prop(source_prop, |this, sp| {
+                                let source_class = this.get_declaring_class(sp);
+                                if let Some(source_class) = source_class {
+                                    Some(this.has_base_ty(source_class, base_class))
+                                } else {
+                                    Some(false)
+                                }
+                            })
+                            .map(|r| !r)
+                        } else {
+                            Some(false)
+                        }
+                    })
+                    .unwrap()
+            };
+            if !is_valid_override_of {
+                if report_error {
+                    // TODO:
+                }
+                return Ternary::FALSE;
+            }
         } else if source_prop_flags.contains(ast::ModifierFlags::PROTECTED) {
             if report_error {
                 // TODO:
@@ -579,7 +611,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     let target_check_ty = if source_flags.contains(ElementFlags::VARIADIC)
                         && target_flags.contains(ElementFlags::REST)
                     {
-                        self.c.create_array_ty(target_ty, false)
+                        self.c.create_array_ty_worker::<false>(target_ty)
                     } else {
                         self.c.remove_missing_ty(
                             target_ty,
@@ -639,7 +671,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         };
                         let field = self.c.atoms.get(name).to_string();
                         // let decl = self.c.symbol(symbol).decls.as_ref().unwrap()[0];
-                        let span = self.c.p.node(self.error_node.unwrap()).span();
+                        let error_node = self.error_node.unwrap();
+                        let error_node = self.c.p.node(error_node);
+                        let span = error_node.name().map_or(error_node.span(), |n| n.span());
                         let error = errors::PropertyXIsMissing {
                             span,
                             field,
@@ -1801,7 +1835,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             }
         } else if let Some(t) = target.kind.as_template_lit_ty() {
             if source.kind.is_template_lit_ty() {
-                // TODO:
+                if self.relation == RelationKind::Comparable {
+                    // TODO: return templateLiteralTypesDefinitelyUnrelated
+                    todo!()
+                }
+                self.c
+                    .instantiate_ty_worker(source, self.c.report_unreliable_mapper);
             }
             if self.c.is_ty_matched_by_template_lit_ty(source, t) {
                 return Ternary::TRUE;
@@ -2054,6 +2093,30 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 } else {
                     Ternary::FALSE
                 };
+            } else if source.kind.is_generic_tuple_type()
+                && target.is_tuple()
+                && !target.kind.is_generic_tuple_type()
+            {
+                let constraint = self.c.get_base_constraint_or_ty(source);
+                if constraint != source {
+                    return self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        report_error,
+                        IntersectionState::empty(),
+                    );
+                }
+            } else if matches!(
+                self.relation,
+                RelationKind::Subtype | RelationKind::StrictSubtype
+            ) && self.c.is_empty_object_ty(target)
+                && target
+                    .get_object_flags()
+                    .contains(ObjectFlags::FRESH_LITERAL)
+                && !self.c.is_empty_object_ty(source)
+            {
+                return Ternary::FALSE;
             }
 
             if source.kind.is_object_or_intersection() {
@@ -2951,15 +3014,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             && self.c.config.compiler_options().strict_function_types()
             && !matches!(
                 self.c.p.node(target.def_id()),
-                ClassCtor(_)
-                    | CtorTy(_)
-                    | MethodSignature(_)
-                    | ClassMethodElem(_)
-                    | ObjectMethodMember(_)
+                ClassCtor(_) | MethodSignature(_) | ClassMethodElem(_) | ObjectMethodMember(_)
             );
 
         if let Some(source_this_ty) = self.c.get_this_ty_of_sig(source)
-            && source_this_ty != self.c.any_ty
+            && source_this_ty != self.c.void_ty
             && let Some(target_this_ty) = self.c.get_this_ty_of_sig(target)
         {
             let mut related = Ternary::FALSE;
@@ -3091,8 +3150,12 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
         if !check_mode.contains(SigCheckMode::IGNORE_RETURN_TYPES) {
             let ret_ty = |this: &mut Self, sig: &'cx ty::Sig<'cx>| {
-                // TODO: cycle
-                this.c.get_return_type_of_signature(sig)
+                if this.c.is_resolving_ret_ty_of_sig(sig) {
+                    this.c.any_ty
+                } else {
+                    // TODO: js
+                    this.c.get_return_type_of_signature(sig)
+                }
             };
             let target_ret_ty = ret_ty(self, target);
             if target_ret_ty == self.c.any_ty || target_ret_ty == self.c.void_ty {
@@ -3159,7 +3222,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 }
             } else {
                 let related = if check_mode.contains(SigCheckMode::BIVARIANT_CALLBACK) {
-                    compare(self, target_ret_ty, source_ret_ty, false)
+                    let mut res = compare(self, target_ret_ty, source_ret_ty, false);
+                    if res == Ternary::FALSE {
+                        res = compare(self, source_ret_ty, target_ret_ty, report_error)
+                    }
+                    res
                 } else {
                     compare(self, source_ret_ty, target_ret_ty, report_error)
                 };
@@ -3185,11 +3252,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
         let source_prop_access = self
             .c
-            .get_declaration_modifier_flags_from_symbol(source, None)
+            .get_declaration_modifier_flags_from_symbol::<false>(source)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let target_prop_access = self
             .c
-            .get_declaration_modifier_flags_from_symbol(target, None)
+            .get_declaration_modifier_flags_from_symbol::<false>(target)
             & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
 
         if source_prop_access != target_prop_access {
@@ -3278,7 +3345,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         let error_target = self.c.filter_type(reduced_target, |_, t| {
                             TyChecker::is_excess_property_check_target(t)
                         });
-                        let span = self.c.p.node(self.c.get_symbol_decl(*prop).unwrap()).span();
+                        let span = self
+                            .c
+                            .p
+                            .node(self.c.get_symbol_decl(*prop).unwrap())
+                            .name()
+                            .map(|n| n.span())
+                            .unwrap();
                         let prop = self.c.atoms.get(name).to_string();
                         let ty = self.c.print_ty(error_target, None).to_string();
                         let error = errors::ObjectLitMayOnlySpecifyKnownPropAndFieldDoesNotExist {

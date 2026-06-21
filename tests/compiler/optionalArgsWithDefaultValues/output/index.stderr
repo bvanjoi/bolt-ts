@@ -1,0 +1,47 @@
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:6:25]
+ 6 │ y
+   · ─
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+   ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:6:43]
+ 6 │ z
+   · ─
+   ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:11:27]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:11:45]
+ 11 │ z
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:14:28]
+ 14 │ y
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:14:46]
+ 14 │ z
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:19:10]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/optionalArgsWithDefaultValues/index.ts:21:13]
+ 21 │ y
+    · ─
+    ╰────

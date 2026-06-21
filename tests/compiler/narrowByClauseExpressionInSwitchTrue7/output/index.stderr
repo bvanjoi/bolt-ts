@@ -1,0 +1,5 @@
+  × Type 'Derived2' is not assignable to type 'never'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue7/index.ts:86:19]
+ 86 │ never
+    · ─────
+    ╰────

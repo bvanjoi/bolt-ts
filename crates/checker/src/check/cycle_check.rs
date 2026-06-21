@@ -1,6 +1,7 @@
 use super::TyChecker;
 use super::ty::{SigID, TyID};
 
+use bolt_ts_ast as ast;
 use bolt_ts_binder::SymbolID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,6 +14,7 @@ pub(super) enum ResolutionKey {
     ResolvedTypeArguments(TyID),
     DeclaredType(SymbolID),
     ImmediateBaseConstraint(TyID),
+    ParameterInitializerContainsUndefined(ast::NodeID),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +66,10 @@ impl TyChecker<'_> {
                     .get_immediate_base_constraint()
                     .is_some()
             }
+            ResolutionKey::ParameterInitializerContainsUndefined(n) => self
+                .node_links
+                .get(&n)
+                .is_some_and(|l| l.get_parameter_initializer_contains_undefined().is_some()),
         }
     }
 

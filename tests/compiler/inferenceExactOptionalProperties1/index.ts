@@ -6,3 +6,6 @@
 //@compiler-options: noEmit
 
 type Test1 = { prop?: never } extends { prop?: infer T } ? T : false; // never
+
+const a: Test1 = 42;
+//~^ ERROR: Type 'number' is not assignable to type 'never'.

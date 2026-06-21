@@ -3,6 +3,19 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict
 
+type AAAAAAA<V> = { data: V };
+declare const bbbbbb: <CCC, DDD>(
+    opA: () => CCC, 
+    opB: (thing: CCC) => DDD, 
+) => DDD
+declare const eeee: () => { data: number };
+declare function ffff<gggg>(): (thing: gggg) => gggg;
+declare function hhhh<E>(factory: () => AAAAAAA<E>): void;
+hhhh(() => bbbbbb(
+    eeee,
+    ffff(),
+));
+
 type Op<I, O> = (thing: Thing<I>) => Thing<O>;
 type Thing<T> = {
     value: T;
@@ -32,4 +45,4 @@ const result2 = createAndUnbox(() => thing.pipe(
 ));
 
 const result3: Thing<string> = result1;
-//~^ ERROR: Type 'Thing' is not assignable to type 'Thing'.
+//~^ ERROR: Type 'Thing<number>' is not assignable to type 'Thing<string>'.

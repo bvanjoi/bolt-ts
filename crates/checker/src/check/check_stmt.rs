@@ -26,7 +26,7 @@ impl<'cx> TyChecker<'cx> {
             Block(node) => self.check_block(node),
             Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
-            Interface(node) => self.check_interface_decl(node),
+            Interface(node) => self.check_interface_declaration(node),
             Module(node) => self.check_module_decl(node),
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
@@ -60,8 +60,6 @@ impl<'cx> TyChecker<'cx> {
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
         let expr_ty = self.check_expression(node.expr, None);
-        let mut first_default_clause = None;
-        let mut has_duplicate_default_clause = false;
 
         for clause in node.case_block.clauses {
             match clause {
@@ -82,19 +80,11 @@ impl<'cx> TyChecker<'cx> {
                             }),
                         );
                     }
+                    for stmt in n.stmts {
+                        self.check_stmt(stmt);
+                    }
                 }
                 Default(n) => {
-                    if !has_duplicate_default_clause {
-                        match first_default_clause {
-                            Some(first_default_clause) => {
-                                has_duplicate_default_clause = true;
-                                todo!("error handler")
-                            }
-                            None => {
-                                first_default_clause = Some(n);
-                            }
-                        }
-                    }
                     for stmt in n.stmts {
                         self.check_stmt(stmt);
                     }
@@ -341,6 +331,9 @@ impl<'cx> TyChecker<'cx> {
             };
             self.push_error(Box::new(error));
         }
+
+        self.check_stmt(node.body);
+        // TODO: node.locals
     }
 
     fn check_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) {
@@ -402,7 +395,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
         let nq = self.node_query(node.id.module());
-        let state = nq.get_module_instance_state(node, None, |n, _| self.parent(n));
+        let state = nq.get_module_instance_state(node, |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 
@@ -631,9 +624,10 @@ impl<'cx> TyChecker<'cx> {
                 unreachable!()
             };
             match object_ty.kind {
-                ty::ObjectTyKind::Interface(_) => true,
+                ty::ObjectTyKind::Interface(_) => ty == target,
                 ty::ObjectTyKind::Reference(t) => t.target == target,
-                _ => unreachable!(),
+                ty::ObjectTyKind::Tuple(t) => t.ty == target,
+                _ => unreachable!("{object_ty:#?}"),
             }
         }
     }
@@ -840,13 +834,22 @@ impl<'cx> TyChecker<'cx> {
                 return;
             }
         }
+        let fn_flags = self.p.node(container).fn_flags();
+        let unwrapped_expr_ty = if fn_flags.contains(ast::FnFlags::ASYNC) {
+            self.check_awaited_ty(expr_ty, false, container, |this| {})
+        } else {
+            expr_ty
+        };
 
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {
             let error_node = ret_expr.map(|expr| expr.id());
             self.check_type_assignable_to_and_optionally_elaborate(
-                expr_ty, ret_ty, error_node, error_node,
+                unwrapped_expr_ty,
+                ret_ty,
+                error_node,
+                error_node,
             );
         }
     }
@@ -856,9 +859,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_type_alias_decl(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
-        if let Some(ty_params) = n.ty_params {
-            self.check_ty_params(ty_params);
-        }
+        self.check_type_parameters(n.ty_params);
         self.check_ty(n.ty);
     }
 

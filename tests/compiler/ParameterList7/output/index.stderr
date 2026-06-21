@@ -1,0 +1,11 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/ParameterList7/index.ts:6:14]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/ParameterList7/index.ts:8:14]
+ 8 │ private
+   · ───────
+   ╰────

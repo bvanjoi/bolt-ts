@@ -1,0 +1,12 @@
+  × Type '"cccc"' is not assignable to type '"42"'.
+    ╭─[../../tests/compiler/inferenceExactOptionalProperties2/index.ts:12:7]
+ 12 │ a0
+    · ──
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type
+  │ '"counter"'.
+    ╭─[../../tests/compiler/inferenceExactOptionalProperties2/index.ts:78:11]
+ 78 │ "alarm"
+    · ───────
+    ╰────

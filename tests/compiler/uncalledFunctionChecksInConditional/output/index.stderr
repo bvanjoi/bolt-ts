@@ -1,0 +1,62 @@
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:10:5]
+ 10 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:15:14]
+ 15 │ isBar
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:15:5]
+ 15 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:21:5]
+ 21 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:41:10]
+ 41 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:46:5]
+ 46 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:51:22]
+ 51 │ isFoo
+    · ─────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:56:16]
+ 56 │ z
+    · ─
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional/index.ts:61:22]
+ 61 │ isFoo
+    · ─────
+    ╰────

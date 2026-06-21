@@ -1,6 +1,7 @@
 use super::BinderState;
 use super::container_flags::container_flags_for_node;
 use super::create::DeclareSymbolProperty;
+use super::flow::FlowArrayMutationNode;
 use super::flow::FlowFlags;
 use super::flow::FlowID;
 use super::flow::FlowNodeKind;
@@ -11,6 +12,8 @@ use super::symbol::{SymbolID, SymbolName};
 use bolt_ts_ast as ast;
 use bolt_ts_ast::BinOpKind;
 use bolt_ts_ast::NodeFlags;
+use bolt_ts_ast::keyword::is_push_or_unshift;
+use bolt_ts_ast::r#trait::VarLike;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_if_stmt(&mut self, n: &'cx ast::IfStmt<'cx>) {
@@ -33,12 +36,102 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_try_stmt(&mut self, stmt: &'cx ast::TryStmt<'cx>) {
-        self.bind(stmt.try_block.id);
-        if let Some(catch) = stmt.catch_clause {
-            self.bind(catch.id);
+        let save_return_target = self.current_return_target;
+        let save_exception_target = self.current_exception_target;
+        let normal_exit_label = self.flow_nodes.create_branch_label();
+        let return_label = self.flow_nodes.create_branch_label();
+        let mut exception_label = self.flow_nodes.create_branch_label();
+        if stmt.finally_block.is_some() {
+            self.current_return_target = Some(return_label);
         }
+        self.flow_nodes
+            .add_antecedent(exception_label, self.current_flow.unwrap());
+        self.current_exception_target = Some(exception_label);
+        self.bind(stmt.try_block.id);
+        self.flow_nodes
+            .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+        if let Some(catch) = stmt.catch_clause {
+            self.current_flow = Some(self.finish_flow_label(exception_label));
+            exception_label = self.flow_nodes.create_branch_label();
+            self.flow_nodes
+                .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+            self.current_exception_target = Some(exception_label);
+            self.bind(catch.id);
+            self.flow_nodes
+                .add_antecedent(normal_exit_label, self.current_flow.unwrap());
+        }
+        self.current_return_target = save_return_target;
+        self.current_exception_target = save_exception_target;
         if let Some(finally) = stmt.finally_block {
+            let finally_label = self.flow_nodes.create_branch_label();
+            let mut antecedents = vec![];
+            if let Some(list) = self.flow_nodes.antecedent_of_label(normal_exit_label) {
+                antecedents.extend_from_slice(list);
+            }
+            if let Some(list) = self.flow_nodes.antecedent_of_label(exception_label) {
+                antecedents.extend_from_slice(list);
+            }
+            if let Some(list) = self.flow_nodes.antecedent_of_label(return_label) {
+                antecedents.extend_from_slice(list);
+            }
+            let FlowNodeKind::Label(f) = &mut self.flow_nodes.get_mut_flow_node(finally_label).kind
+            else {
+                unreachable!()
+            };
+            f.antecedent = Some(antecedents);
+            self.current_flow = Some(finally_label);
             self.bind(finally.id);
+            if self
+                .flow_nodes
+                .get_flow_node(self.current_flow.unwrap())
+                .flags
+                .contains(FlowFlags::UNREACHABLE)
+            {
+                self.current_flow = Some(self.unreachable_flow_node);
+            } else {
+                if let Some(current_return_target) = self.current_return_target
+                    && let Some(antecedents) = self.flow_nodes.antecedent_of_label(return_label)
+                {
+                    let antecedents = antecedents.to_vec();
+
+                    let reduced_label = self.flow_nodes.create_reduced_label(
+                        finally_label,
+                        antecedents,
+                        self.current_flow.unwrap(),
+                    );
+                    self.flow_nodes
+                        .add_antecedent(current_return_target, reduced_label);
+                }
+
+                if let Some(current_exception_target) = self.current_exception_target
+                    && let Some(antecedents) = self.flow_nodes.antecedent_of_label(exception_label)
+                {
+                    let antecedents = antecedents.to_vec();
+                    let reduced_label = self.flow_nodes.create_reduced_label(
+                        finally_label,
+                        antecedents,
+                        self.current_flow.unwrap(),
+                    );
+                    self.flow_nodes
+                        .add_antecedent(current_exception_target, reduced_label);
+                }
+                self.current_flow = Some(
+                    if let Some(antecedents) =
+                        self.flow_nodes.antecedent_of_label(normal_exit_label)
+                    {
+                        let antecedents = antecedents.to_vec();
+                        self.flow_nodes.create_reduced_label(
+                            finally_label,
+                            antecedents,
+                            self.current_flow.unwrap(),
+                        )
+                    } else {
+                        self.unreachable_flow_node
+                    },
+                );
+            }
+        } else {
+            self.current_flow = Some(self.finish_flow_label(normal_exit_label));
         }
     }
 
@@ -82,9 +175,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn bind_ty_params(&mut self, ty_params: ast::TyParams<'cx>) {
-        for ty_param in ty_params {
-            self.bind(ty_param.id);
+    fn bind_type_parameters(&mut self, ty_params: Option<ast::TyParams<'cx>>) {
+        if let Some(ty_params) = ty_params {
+            for ty_param in ty_params {
+                self.bind(ty_param.id);
+            }
         }
     }
 
@@ -604,6 +699,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             CallExpr(n) => self.bind_call_expr_flow(n),
+            ImportExpression(_) => {}
             NonNullExpr(n) => self.bind_non_null_expr_flow(n),
             Program(n) => {
                 self.bind_stmts_under(node, n.stmts());
@@ -648,9 +744,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -667,9 +761,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -693,9 +785,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ClassCtor(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
                 self.bind_params(n.params);
                 if let Some(ret) = n.ret {
                     self.bind(ret.id());
@@ -721,9 +810,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_modifiers(mods);
                 }
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -759,9 +846,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_modifiers(mods);
                 }
                 self.bind(n.name.id);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -771,9 +856,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             TypeAliasDecl(n) => {
                 self.bind(n.name.id);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind(n.ty.id());
             }
             InterfaceExtendsClause(n) => {
@@ -895,9 +978,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ObjectMethodMember(n) => {
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -912,9 +993,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -925,9 +1004,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(name) = n.name {
                     self.bind(name.id);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 if let Some(extends) = n.extends {
                     self.bind(extends.id);
                 }
@@ -942,11 +1019,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             NewExpr(n) => {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 if let Some(args) = n.args {
                     for arg in args {
                         self.bind(arg.id());
@@ -958,12 +1031,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.right.id());
                 if !self.is_assignment_target(n.id) {
                     self.bind_assignment_target_flow(n.left);
+                    if n.op == ast::AssignOp::Eq
+                        && let ast::ExprKind::EleAccess(left) = n.left.kind
+                    {
+                        if self.is_narrowable_operand(left.expr) {
+                            let f = self.create_flow_array_mutation(
+                                self.current_flow.unwrap(),
+                                FlowArrayMutationNode::AssignmentExpression(n),
+                            );
+                            self.current_flow = Some(f);
+                        }
+                    }
                 }
             }
             ArrowFnExpr(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1013,11 +1095,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             LitTy(_) => {}
             ReferTy(n) => {
                 self.bind_entity_name(n.name);
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             ArrayTy(n) => {
                 self.bind(n.ele.id());
@@ -1027,9 +1105,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.index_ty.id());
             }
             FnTy(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 self.bind(n.ty.id());
             }
@@ -1037,9 +1113,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(modifiers) = n.modifiers {
                     self.bind_modifiers(modifiers);
                 }
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 self.bind(n.ty.id());
             }
@@ -1066,18 +1140,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.ty.id());
             }
             CallSigDecl(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
                 }
             }
             CtorSigDecl(n) => {
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1094,9 +1164,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             MethodSignature(n) => {
                 self.bind_prop_name(n.name);
-                if let Some(ty_params) = n.ty_params {
-                    self.bind_ty_params(ty_params);
-                }
+                self.bind_type_parameters(n.ty_params);
                 self.bind_params(n.params);
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1132,11 +1200,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             TypeofTy(n) => {
                 self.bind_entity_name(n.name);
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             MappedTy(n) => {
                 self.bind(n.ty_param.id);
@@ -1146,17 +1210,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
                 }
-                for m in n.members {
-                    self.bind_object_ty_member(m);
-                }
             }
             TyOp(n) => {
                 self.bind(n.ty.id());
             }
             PredTy(n) => {
                 match n.name {
-                    bolt_ts_ast::PredTyName::Ident(n) => self.bind(n.id),
-                    bolt_ts_ast::PredTyName::This(n) => self.bind(n.id),
+                    ast::PredTyName::Ident(n) => self.bind(n.id),
+                    ast::PredTyName::This(n) => self.bind(n.id),
                 }
                 if let Some(ty) = n.ty {
                     self.bind(ty.id());
@@ -1191,22 +1252,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ExprWithTyArgs(n) => {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
             }
             SpreadElement(n) => {
                 self.bind(n.expr.id());
             }
             TaggedTemplateExpr(n) => {
                 self.bind(n.tag.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 self.bind(n.tpl.id());
             }
             LabeledStmt(n) => {
@@ -1249,11 +1302,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             JsxOpeningElem(n) => {
                 self.bind(n.tag_name.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for attr in n.attrs {
                     self.bind(attr.id());
                 }
@@ -1263,11 +1312,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             JsxSelfClosingElem(n) => {
                 self.bind(n.tag_name.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty in ty_args.list {
-                        self.bind(ty.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for attr in n.attrs {
                     self.bind(attr.id());
                 }
@@ -1323,12 +1368,28 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ExternalModuleReference(n) => {
                 self.bind(n.module_spec().id);
             }
-            ClassSemiElem(_n) => {}
-            ImportExpression(_) => {}
-            ImportType(_) => {}
+            ImportType(n) => {
+                self.bind(n.argument.id());
+                self.bind_type_arguments(n.type_arguments);
+                if let Some(qualifier) = n.qualifier {
+                    self.bind_entity_name(qualifier);
+                }
+            }
+            ClassSemiElem(_) => {}
+            NewMetaProperty(n) => {
+                self.bind(n.name.id);
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn bind_type_arguments(&mut self, ty_args: Option<&'cx ast::Tys<'cx>>) {
+        if let Some(ty_args) = ty_args {
+            for ty in ty_args.list {
+                self.bind(ty.id());
+            }
+        }
     }
 
     fn bind_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) {
@@ -1398,11 +1459,17 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             || self.is_narrowable_expression(p.expr);
         let mut fallthrough_flow = self.unreachable_flow_node;
 
-        for i in 0..n.clauses.len() {
+        let mut i = 0;
+        while i < n.clauses.len() {
             let clause_start = i;
-            // while clause.stmts().is_empty() && i + 1 < n.clauses.len() {
-            // TODO:
-            // }
+            while n.clauses[i].stmts().is_empty() && i + 1 < n.clauses.len() {
+                if fallthrough_flow == self.unreachable_flow_node {
+                    debug_assert!(self.pre_switch_case_flow.is_some());
+                    self.current_flow = self.pre_switch_case_flow;
+                }
+                self.bind(n.clauses[i].id());
+                i += 1;
+            }
             let prev_case_label = self.flow_nodes.create_branch_label();
             let antecedent = if is_narrowing_switch {
                 self.create_flow_switch_clause(
@@ -1423,7 +1490,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 ast::CaseOrDefaultClause::Default(c) => self.bind(c.id),
             }
             fallthrough_flow = self.current_flow.unwrap();
-            // TODO: clause.fallthrough_flow = fallthrough_flow;
+            if !self
+                .flow_nodes
+                .get_flow_node(self.current_flow.unwrap())
+                .flags
+                .contains(FlowFlags::UNREACHABLE)
+                && i != n.clauses.len() - 1
+                && self
+                    .compiler_options
+                    .compiler_options()
+                    .no_fallthrough_cases_in_switch()
+            {
+                // TODO: fallthrough_flow_node
+            }
+            i += 1;
         }
     }
 
@@ -1459,9 +1539,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if let Some(ty) = n.ty {
             self.bind(ty.id());
         }
-        if let Some(init) = n.init {
-            self.bind(init.id());
+        self.bind_initializer(n.init);
+    }
+
+    fn bind_initializer(&mut self, init: Option<&'cx ast::Expr<'cx>>) {
+        let Some(init) = init else { return };
+        let entry_flow = self.current_flow;
+        self.bind(init.id());
+        if entry_flow == Some(self.unreachable_flow_node) || entry_flow == self.current_flow {
+            return;
         }
+        let exit_flow = self.flow_nodes.create_branch_label();
+        self.flow_nodes
+            .add_antecedent(exit_flow, entry_flow.unwrap());
+        self.flow_nodes
+            .add_antecedent(exit_flow, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(exit_flow));
     }
 
     fn bind_object_binding_elem_flow(&mut self, n: &ast::ObjectBindingElem<'cx>) {
@@ -1474,16 +1567,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind_binding(name);
             }
         }
-        if let Some(init) = n.init {
-            self.bind(init.id());
-        }
+        self.bind_initializer(n.init());
     }
 
     fn bind_array_binding_flow(&mut self, n: &ast::ArrayBinding<'cx>) {
         self.bind_binding(n.name);
-        if let Some(init) = n.init {
-            self.bind(init.id());
-        }
+        self.bind_initializer(n.init);
     }
 
     fn bind_non_null_expr_flow(&mut self, n: &ast::NonNullExpr<'cx>) {
@@ -1500,22 +1589,14 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         } else {
             let expr = bolt_ts_ast::Expr::skip_parens(n.expr);
             if matches!(expr.kind, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_)) {
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }
                 self.bind(n.expr.id());
             } else {
                 self.bind(n.expr.id());
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }
@@ -1526,10 +1607,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        if let ast::ExprKind::PropAccess(prop_access) = n.expr.kind {
-            // TODO: private
-            // && let n = prop_access.name
-            // && self.is_narrowable_operand(prop_access.expr)
+        if let ast::ExprKind::PropAccess(property_access) = n.expr.kind
+            && self.is_narrowable_operand(property_access.expr)
+            && is_push_or_unshift(property_access.name.name)
+        {
+            // TODO: only handler identifier
+            let f = self.create_flow_array_mutation(
+                self.current_flow.unwrap(),
+                FlowArrayMutationNode::CallExpression(n),
+            );
+            self.current_flow = Some(f);
         }
     }
 
@@ -1773,8 +1860,22 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.finish_flow_label(post_while_label));
     }
 
-    fn bind_do_stmt(&mut self, _n: &ast::DoWhileStmt<'cx>) {
-        // TODO:
+    fn bind_do_stmt(&mut self, n: &ast::DoWhileStmt<'cx>) {
+        let pre_do_label = self.flow_nodes.create_loop_label();
+        let pre_condition_label = {
+            let t = self.flow_nodes.create_loop_label();
+            self.set_continue_target(t)
+        };
+        let post_do_label = self.flow_nodes.create_branch_label();
+        self.flow_nodes
+            .add_antecedent(pre_do_label, self.current_flow.unwrap());
+        self.current_flow = Some(pre_do_label);
+        self.bind_iterative_stmt(n.stmt, pre_do_label, pre_condition_label);
+        self.flow_nodes
+            .add_antecedent(pre_condition_label, self.current_flow.unwrap());
+        self.current_flow = Some(self.finish_flow_label(pre_condition_label));
+        self.bind_cond(Some(n.expr), pre_do_label, post_do_label);
+        self.current_flow = Some(self.finish_flow_label(post_do_label));
     }
 
     fn bind_for_stmt(&mut self, n: &ast::ForStmt<'cx>) {
@@ -1803,8 +1904,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
         self.current_flow = Some(pre_loop_label);
         if let Some(cond) = n.cond {
-            // TODO: bind_cond
-            self.bind(cond.id());
+            self.bind_cond(Some(cond), pre_body_label, post_loop_label);
         }
         self.current_flow = Some(self.finish_flow_label(pre_body_label));
 
@@ -1979,11 +2079,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.arg.id());
             }
             ast::Node::CallExpr(n) => {
-                if let Some(ty_args) = n.ty_args {
-                    for ty_arg in ty_args.list {
-                        self.bind(ty_arg.id());
-                    }
-                }
+                self.bind_type_arguments(n.ty_args);
                 for arg in n.args {
                     self.bind(arg.id());
                 }

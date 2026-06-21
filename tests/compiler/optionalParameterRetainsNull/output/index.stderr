@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type '"bar" | "foo"'.
+    ╭─[../../tests/compiler/optionalParameterRetainsNull/index.ts:16:5]
+ 16 │ b2
+    · ──
+    ╰────

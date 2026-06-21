@@ -1,0 +1,12 @@
+  × Argument of type 'string' is not assignable to parameter of type '"bar"'.
+    ╭─[../../tests/compiler/inferFromGenericFunctionReturnTypes3/index.ts:32:30]
+ 32 │ value2
+    · ──────
+    ╰────
+
+  × Type '{ state: State.A; }[] | { state: State.B; }[]' is not assignable to
+  │ type '{ state: State.A; }[]'.
+     ╭─[../../tests/compiler/inferFromGenericFunctionReturnTypes3/index.ts:185:26]
+ 185 │ !!true ? [{ state: State.A }] : [{ state: State.B }]
+     · ────────────────────────────────────────────────────
+     ╰────

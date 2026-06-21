@@ -1,0 +1,5 @@
+  × Property 'options' is private and only accessible within class 'Base'.
+    ╭─[../../tests/compiler/privateAccessInSubclass1/index.ts:11:5]
+ 11 │ this.options
+    · ────────────
+    ╰────

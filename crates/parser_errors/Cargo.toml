@@ -1,0 +1,10 @@
+[package]
+name = "bolt_ts_parser_errors"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bolt_ts_ast = { path = "../ast" }
+bolt_ts_errors = { path = "../../helper/errors" }
+bolt_ts_span = { path = "../../helper/span" }
+thiserror = { workspace = true }

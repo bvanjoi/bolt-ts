@@ -1,0 +1,11 @@
+  × Identifier expected.
+    ╭─[../../tests/compiler/enumConflictsWithGlobalIdentifier/index.ts:10:1]
+ 10 │ var
+    · ───
+    ╰────
+
+  × Cannot find name 'IgnoreRulesSpecific'.
+   ╭─[../../tests/compiler/enumConflictsWithGlobalIdentifier/index.ts:9:9]
+ 9 │ IgnoreRulesSpecific
+   · ───────────────────
+   ╰────

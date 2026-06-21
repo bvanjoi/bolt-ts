@@ -1,0 +1,20 @@
+  × The right-hand side of an 'instanceof' expression must not be an
+  │ instantiation expression.
+    ╭─[../../tests/compiler/instanceofOnInstantiationExpression/index.ts:14:21]
+ 14 │ Box<number>
+    · ───────────
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must not be an
+  │ instantiation expression.
+    ╭─[../../tests/compiler/instanceofOnInstantiationExpression/index.ts:16:21]
+ 16 │ (Box<number>)
+    · ─────────────
+    ╰────
+
+  × The right-hand side of an 'instanceof' expression must not be an
+  │ instantiation expression.
+    ╭─[../../tests/compiler/instanceofOnInstantiationExpression/index.ts:18:21]
+ 18 │ ((Box<number>))
+    · ───────────────
+    ╰────

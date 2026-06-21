@@ -1,0 +1,11 @@
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults1/index.ts:13:16]
+ 13 │ :
+    · ─
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults1/index.ts:15:16]
+ 15 │ :
+    · ─
+    ╰────

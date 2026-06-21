@@ -1,0 +1,7 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'FindConditions<any>', but here has type
+  │ 'FindConditions<Entity>'.
+    ╭─[../../tests/compiler/noExcessiveStackDepthError/index.ts:17:9]
+ 17 │ x
+    · ─
+    ╰────

@@ -1,6 +1,6 @@
   × Object literal may only specify known properties, and 'b' does not exist
   │ in type '{ a: number; }'.
    ╭─[../../tests/compiler/objectLitStructuralTypeMismatch/index.ts:3:27]
- 3 │ b: 5
-   · ────
+ 3 │ b
+   · ─
    ╰────

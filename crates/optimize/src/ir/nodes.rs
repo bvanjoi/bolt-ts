@@ -138,6 +138,7 @@ decl_nodes!(
     spread_element: SpreadElement,
     template_head: TemplateHead,
     template_span: TemplateSpan,
+    new_meta_property: NewMetaProperty,
 
     jsx_elem: JsxElem,
     jsx_opening_elem: JsxOpeningElem,
@@ -987,6 +988,7 @@ impl Nodes {
         span: Span,
         name: IdentID,
         module_reference: ModuleReferenceKind,
+        import_namespace_module: bool,
     ) -> ImportEqualsDeclID {
         let idx = ImportEqualsDeclID(usize_into_idx(self.import_equals_decl_nodes.0.len()));
         let id = self.import_equals_decl_nodes.0.alloc(ImportEqualsDecl {
@@ -994,6 +996,7 @@ impl Nodes {
             span,
             name,
             module_reference,
+            import_namespace_module,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -1098,6 +1101,7 @@ impl Nodes {
         modifiers: Option<Modifiers>,
         name: ModuleName,
         block: ModuleBlockID,
+        instantiated: bool,
     ) -> ModuleDeclID {
         let idx = ModuleDeclID(usize_into_idx(self.module_decl_nodes.0.len()));
         let id = self.module_decl_nodes.0.alloc(ModuleDecl {
@@ -1106,6 +1110,7 @@ impl Nodes {
             modifiers,
             name,
             block,
+            instantiated,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -1624,6 +1629,7 @@ impl Nodes {
     pub fn alloc_object_binding_elem(
         &mut self,
         span: Span,
+        dotdotdot: Option<Span>,
         name: ObjectBindingName,
         init: Option<Expr>,
     ) -> ObjectBindingElemID {
@@ -1631,7 +1637,7 @@ impl Nodes {
         let id = self.object_binding_elem_nodes.0.alloc(ObjectBindingElem {
             id: idx,
             span,
-            dotdotdot: None, // This will be set later if needed
+            dotdotdot,
             name,
             init,
         });
@@ -1827,6 +1833,17 @@ impl Nodes {
             span,
             asterisk,
             expr,
+        });
+        debug_assert_eq!(id, idx.0);
+        idx
+    }
+
+    pub fn alloc_new_meta_property(&mut self, span: Span, name: IdentID) -> NewMetaPropertyID {
+        let idx = NewMetaPropertyID(usize_into_idx(self.new_meta_property_nodes.0.len()));
+        let id = self.new_meta_property_nodes.0.alloc(NewMetaProperty {
+            id: idx,
+            span,
+            name,
         });
         debug_assert_eq!(id, idx.0);
         idx
@@ -2366,6 +2383,23 @@ impl TemplateHead {
 
     pub fn text(&self) -> Atom {
         self.text
+    }
+}
+
+#[derive(Debug)]
+pub struct NewMetaProperty {
+    id: NewMetaPropertyID,
+    span: Span,
+    name: IdentID,
+}
+
+impl NewMetaProperty {
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    pub fn name(&self) -> IdentID {
+        self.name
     }
 }
 
@@ -3271,6 +3305,7 @@ pub struct ImportEqualsDecl {
     span: Span,
     name: IdentID,
     module_reference: ModuleReferenceKind,
+    import_namespace_module: bool,
 }
 
 impl ImportEqualsDecl {
@@ -3284,6 +3319,10 @@ impl ImportEqualsDecl {
 
     pub fn module_reference(&self) -> ModuleReferenceKind {
         self.module_reference
+    }
+
+    pub fn import_namespace_module(&self) -> bool {
+        self.import_namespace_module
     }
 }
 
@@ -3831,6 +3870,7 @@ pub struct ModuleDecl {
     modifiers: Option<Modifiers>,
     name: ModuleName,
     block: ModuleBlockID,
+    instantiated: bool,
 }
 
 impl ModuleDecl {
@@ -3848,6 +3888,10 @@ impl ModuleDecl {
 
     pub fn block(&self) -> ModuleBlockID {
         self.block
+    }
+
+    pub fn instantiated(&self) -> bool {
+        self.instantiated
     }
 }
 
@@ -4233,6 +4277,7 @@ pub enum Expr {
     Fn(FnExprID),
     Call(CallExprID),
     Cond(CondExprID),
+    NewMetaProperty(NewMetaPropertyID),
     JsxElem(JsxElemID),
     JsxSelfClosingElem(JsxSelfClosingElemID),
     JsxFrag(JsxFragID),

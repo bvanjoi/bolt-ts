@@ -1,0 +1,1 @@
+wrapResolver(resolver() || []);

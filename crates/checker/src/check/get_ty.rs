@@ -2,10 +2,11 @@ use std::ops::Not;
 
 use super::create_ty::IntersectionFlags;
 use super::get_iteration_tys::IterationTypeKind;
+use super::infer::InferenceInfosArenaId;
 use super::infer::{InferenceFlags, InferencePriority};
 use super::ty::{self, Ty, TyKind, TypeFlags};
 use super::ty::{AccessFlags, CheckFlags, ElementFlags, IndexFlags, ObjectFlags, TyMapper};
-use super::{CheckMode, F64Represent, InferenceContextId, TyChecker};
+use super::{CheckMode, F64Represent, TyChecker};
 use super::{IndexedAccessTyMap, ResolutionKey, TyCacheTrait, errors};
 
 use bolt_ts_ast::keyword::is_prim_ty_name;
@@ -14,6 +15,7 @@ use bolt_ts_ast::{pprint_binding, r#trait};
 use bolt_ts_atom::Atom;
 use bolt_ts_binder::{AssignmentKind, Symbol};
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_utils::fx_hashmap_with_capacity;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum WideningKind {
@@ -49,7 +51,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let flags = self.symbol(id).flags;
-        debug_assert!(!flags.contains(SymbolFlags::OBJECT_LITERAL));
 
         if flags.intersects(SymbolFlags::VARIABLE.union(SymbolFlags::PROPERTY)) {
             self.get_ty_of_var_or_param_or_prop(id)
@@ -441,12 +442,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn get_ty_from_inference(
+    pub(super) fn get_ty_from_inference(
         &mut self,
-        inference: InferenceContextId,
+        inferences: InferenceInfosArenaId<'cx>,
         idx: usize,
     ) -> Option<&'cx Ty<'cx>> {
-        let inference = &self.inferences[inference.as_usize()].inferences[idx];
+        let inferences = self.inference_infos_arena.get(inferences);
+        let inference = &inferences[idx];
         if let Some(tys) = &inference.candidates {
             // TODO: remove clone
             let tys = tys.clone();
@@ -643,7 +645,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub fn get_conditional_flow_of_ty(
+    pub(super) fn get_conditional_flow_of_ty(
         &mut self,
         ty: &'cx Ty<'cx>,
         mut node: ast::NodeID,
@@ -668,12 +670,32 @@ impl<'cx> TyChecker<'cx> {
                     constraints.push(constraint);
                 }
             } else if ty.flags.contains(TypeFlags::TYPE_PARAMETER)
-                && parent_node.as_mapped_ty().is_some_and(|mapped_ty| {
-                    mapped_ty.name_ty.is_none() && mapped_ty.ty.is_some_and(|ty| ty.id() == node)
-                })
+                && let Some(mapped_ty) = parent_node.as_mapped_ty()
+                && mapped_ty.name_ty.is_none()
+                && mapped_ty.ty.is_some_and(|ty| ty.id() == node)
             {
-                // TODO:
-                // let mapped_ty = self.get_ty_from_type_node()
+                let mapped_ty = {
+                    // get_ty_from_type_node
+                    let ty = self.get_ty_from_mapped_ty_node(mapped_ty);
+                    self.get_conditional_flow_of_ty(ty, mapped_ty.id)
+                };
+                let mapped_ty = mapped_ty.kind.expect_object_mapped();
+                if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
+                    && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
+                    && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                {
+                    let tys = &[self.number_ty, self.numeric_string_ty()];
+                    let t = self.get_union_ty::<false>(
+                        tys,
+                        ty::UnionReduction::Lit,
+                        None,
+                        None,
+                        None,
+                        None,
+                    );
+                    constraints.push(t);
+                }
             }
             node = parent;
         }
@@ -893,7 +915,7 @@ impl<'cx> TyChecker<'cx> {
         name
     }
 
-    fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
+    pub(super) fn get_prop_name_from_index(&self, index_ty: &'cx Ty<'cx>) -> Option<SymbolName> {
         if index_ty.usable_as_prop_name() {
             Some(self.get_prop_name_from_ty(index_ty))
         } else {
@@ -901,11 +923,18 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_end_elem_count(&mut self, ty: &'cx Ty<'cx>, flags: ElementFlags) -> usize {
-        let tup = ty.as_tuple().unwrap();
-        tup.element_flags.len()
-            - if let Some(i) = tup.element_flags.iter().rposition(|f| !f.intersects(flags)) {
-                i - 1
+    fn get_end_element_count(
+        &mut self,
+        tuple: &'cx ty::TupleTy<'cx>,
+        flags: ElementFlags,
+    ) -> usize {
+        tuple.element_flags.len()
+            - if let Some(i) = tuple
+                .element_flags
+                .iter()
+                .rposition(|f| !f.intersects(flags))
+            {
+                i + 1
             } else {
                 0
             }
@@ -913,10 +942,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_total_fixed_elem_count(&mut self, ty: &'cx Ty<'cx>) -> usize {
         let tup = ty.as_tuple().unwrap();
-        tup.fixed_length + self.get_end_elem_count(ty, ElementFlags::FIXED)
+        tup.fixed_length + self.get_end_element_count(tup, ElementFlags::FIXED)
     }
 
-    fn get_tuple_elem_ty_out_of_start_count(
+    fn get_tuple_element_ty_out_of_start_count(
         &mut self,
         ty: &'cx Ty<'cx>,
         index: usize,
@@ -925,6 +954,7 @@ impl<'cx> TyChecker<'cx> {
         self.map_ty(
             ty,
             |this, t| {
+                debug_assert!(t.is_tuple());
                 let Some(rest_ty) = this.get_rest_ty_of_tuple_ty(t) else {
                     return Some(this.undefined_ty);
                 };
@@ -1037,28 +1067,49 @@ impl<'cx> TyChecker<'cx> {
         if let Some(prop_name) = prop_name {
             if access_flags.contains(AccessFlags::Contextual) {
                 return Some(
-                    self.get_ty_of_prop_of_contextual_ty(object_ty, prop_name, None)
+                    self.get_ty_of_property_of_contextual_ty(object_ty, prop_name, None)
                         .unwrap_or(self.any_ty),
                 );
             }
             if let Some(prop) = self.get_prop_of_ty::<false, false>(object_ty, prop_name) {
-                if let Some(access_expr) = access_expr
-                    && let assignment_target_kind = self
+                if access_flags.contains(AccessFlags::REPORT_DEPRECATED)
+                    && let Some(access_node) = access_node
+                    && let Some(decls) = self.symbol(prop).decls.as_ref()
+                {
+                    // TODO: deprecated
+                }
+                if let Some(access_expr) = access_expr {
+                    if let assignment_target_kind = self
                         .node_query(access_expr.module())
                         .get_assignment_target_kind(access_expr)
-                    && self.is_assignment_to_readonly_entity(
-                        access_expr,
-                        prop,
-                        assignment_target_kind,
-                    )
-                {
-                    let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
-                        span: self.p.node(access_expr).span(),
-                        prop: self.symbol(prop).name.to_string(&self.atoms),
-                    };
-                    self.push_error(Box::new(error));
-                    return None;
+                        && self.is_assignment_to_readonly_entity(
+                            access_expr,
+                            prop,
+                            assignment_target_kind,
+                        )
+                    {
+                        let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {
+                            span: self.p.node(access_expr).span(),
+                            prop: self.symbol(prop).name.to_string(&self.atoms),
+                        };
+                        self.push_error(Box::new(error));
+                        return None;
+                    }
+                    if access_flags.contains(AccessFlags::CACHE_SYMBOL) {
+                        let access_node = access_node.unwrap();
+                        match self.get_node_links(access_node).get_resolved_symbol() {
+                            Some(old) => {
+                                debug_assert!(old == prop);
+                            }
+                            None => {
+                                self.get_mut_node_links(access_node)
+                                    .set_resolved_symbol(prop);
+                            }
+                        }
+                    }
+                    // TODO: if isThisPropertyAccessInConstructor
                 }
+
                 let prop_ty = if access_flags.contains(AccessFlags::WRITING) {
                     self.get_write_type_of_symbol(prop)
                 } else {
@@ -1104,9 +1155,10 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 // TODO: num is not integer
-                if index > 0. {
+                if index >= 0. {
+                    // TODO: error_if_writing_to_readonly
                     return Some(
-                        self.get_tuple_elem_ty_out_of_start_count(
+                        self.get_tuple_element_ty_out_of_start_count(
                             object_ty,
                             index as usize,
                             access_flags
@@ -1512,8 +1564,9 @@ impl<'cx> TyChecker<'cx> {
             potential_alias,
             alias_ty_arguments,
         );
-        if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
+        if let Some(_) = self.get_node_links(node.id).get_resolved_ty() {
             // TODO: delay bug
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
             return ty;
         }
         self.get_mut_node_links(node.id).set_resolved_ty(ty);
@@ -1840,7 +1893,8 @@ impl<'cx> TyChecker<'cx> {
                 if !check_ty_deferred {
                     const PRIORITY: InferencePriority =
                         InferencePriority::NO_CONSTRAINTS.union(InferencePriority::ALWAYS_STRICT);
-                    self.infer_tys::<false>(context, check_ty, extends_ty, PRIORITY);
+                    let inferences = self.inference(context).inferences;
+                    self.infer_tys::<false>(inferences, check_ty, extends_ty, PRIORITY);
                 }
 
                 let m = self.inference(context).mapper;
@@ -2548,7 +2602,9 @@ impl<'cx> TyChecker<'cx> {
                     };
                     if tys.is_empty() {
                         if let Some(contextual_ret_ty) = self.get_contextual_ret_ty(id, None) {
-                            // TODO: unwrap_return_ty
+                            let contextual_ret_ty = self
+                                .unwrap_ret_ty(contextual_ret_ty, fn_flags)
+                                .unwrap_or(self.void_ty);
                             ret_ty = Some(
                                 if self.some_type(contextual_ret_ty, |_, t| {
                                     t.flags.contains(TypeFlags::UNDEFINED)
@@ -2664,9 +2720,31 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_of_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
         // TODO: quick check
-        // TODO: type_cached
+        let id = expr.id();
+        let flags = self.get_node_links(id).flags();
+        if flags.contains(super::NodeCheckFlags::TYPE_CHECKED)
+            && let Some(flow_ty_cache) = &self.flow_ty_cache
+        {
+            if let Some(cache) = flow_ty_cache.get(&id) {
+                return cache;
+            }
+        }
+        let saved_flow_invocation_count = self.flow_invocation_count;
         let ty = self.check_expression(expr, Some(CheckMode::TYPE_ONLY));
-        // TODO: flow_invocation_count
+        if saved_flow_invocation_count != self.flow_invocation_count {
+            match &mut self.flow_ty_cache {
+                Some(n) => {
+                    n.insert(id, ty);
+                }
+                None => {
+                    let mut flow_ty_cache = fx_hashmap_with_capacity(4);
+                    flow_ty_cache.insert(id, ty);
+                    self.flow_ty_cache = Some(flow_ty_cache);
+                }
+            };
+            self.get_mut_node_links(id)
+                .config_flags(|flags| flags | super::NodeCheckFlags::TYPE_CHECKED);
+        }
         ty
     }
 
@@ -2850,8 +2928,8 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(crate) fn get_ty_arguments(&mut self, ty: &'cx ty::Ty<'cx>) -> ty::Tys<'cx> {
-        if let Some(ty) = self.get_ty_links(ty.id).get_resolved_ty_args() {
-            return ty;
+        if let Some(type_arguments) = self.get_ty_links(ty.id).get_resolved_ty_args() {
+            return type_arguments;
         };
 
         let Some(r) = ty.kind.as_object_reference() else {
@@ -2928,5 +3006,36 @@ impl<'cx> TyChecker<'cx> {
         } else {
             t.is_unit()
         }
+    }
+
+    pub(super) fn get_final_array_ty(
+        &mut self,
+        evolving_array_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(evolving_array_ty.kind.is_object_evolving_array());
+        if let Some(cache) = self
+            .final_array_ty_of_evolving_array_cache
+            .get(&evolving_array_ty.id)
+        {
+            return cache;
+        };
+        let element_ty = evolving_array_ty
+            .kind
+            .expect_object_evolving_array()
+            .element_ty;
+        // create_final_array_ty
+        if element_ty.flags.contains(TypeFlags::NEVER) {
+            return self.auto_array_ty();
+        } else if let Some(u) = element_ty.kind.as_union() {
+            self.get_union_ty::<false>(u.tys, ty::UnionReduction::Subtype, None, None, None, None)
+        } else {
+            element_ty
+        };
+        let ty = self.create_array_ty_worker::<false>(element_ty);
+        let prev = self
+            .final_array_ty_of_evolving_array_cache
+            .insert(evolving_array_ty.id, ty);
+        debug_assert!(prev.is_none());
+        ty
     }
 }

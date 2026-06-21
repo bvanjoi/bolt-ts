@@ -12,6 +12,13 @@ use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, TokenFlags, keyword}
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 
+bitflags::bitflags! {
+    pub(super) struct CheckParameterFlags: u8 {
+        const MISSING_BODY = 1 << 1;
+        const CONSTRUCTOR = 1 << 0;
+    }
+}
+
 impl<'cx> ParserState<'cx, '_> {
     fn is_update_expr(&self) -> bool {
         use bolt_ts_ast::TokenKind::*;
@@ -61,6 +68,22 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn try_parse_async_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
+        &mut self,
+    ) -> Option<&'cx ast::Expr<'cx>> {
+        if self.token.kind == TokenKind::Async
+            && self.lookahead(Lookahead::is_unparenthesized_async_arrow_fn_worker) == Tristate::True
+            && let async_modifier = self.parse_async_modifier()
+            && let Ok(expr) = self.parse_binary_expr(BinPrec::Lowest)
+            && let ast::ExprKind::Ident(ident) = expr.kind
+            && let Ok(expr) = self
+                .parse_simple_arrow_fn_expr::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(ident, async_modifier)
+        {
+            return Some(expr);
+        }
+        None
+    }
+
     fn parse_possible_paren_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
     ) -> PResult<Option<&'cx ast::Expr<'cx>>> {
@@ -71,16 +94,34 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     // TODO: put it into `parse_params`
-    pub(super) fn check_params<const CONTAINER_IS_CTOR_IMPL: bool>(
+    pub(super) fn check_parameters(
         &mut self,
         params: &'cx [&'cx ast::ParamDecl<'cx>],
+        flags: CheckParameterFlags,
     ) {
+        let is_container = flags.contains(CheckParameterFlags::CONSTRUCTOR);
         for param in params {
-            if let Some(mods) = param.modifiers {
+            if let Some(ms) = param.modifiers {
+                if ms
+                    .flags
+                    .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+                {
+                    if !flags.contains(
+                        CheckParameterFlags::MISSING_BODY.union(CheckParameterFlags::CONSTRUCTOR),
+                    ) {
+                        let error = Box::new(
+                            errors::AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
+                                span: ms.span,
+                            },
+                        );
+                        self.push_error(error);
+                    }
+                }
+
                 let mut flags = ModifierFlags::empty();
 
-                for m in mods.list {
-                    if CONTAINER_IS_CTOR_IMPL
+                for m in ms.list {
+                    if is_container
                         && ModifierFlags::ACCESSIBILITY.contains(m.kind().into_flag())
                         && flags.intersects(ModifierFlags::ACCESSIBILITY)
                     {
@@ -88,15 +129,6 @@ impl<'cx> ParserState<'cx, '_> {
                         self.push_error(Box::new(error));
                     }
                     flags.insert(m.kind().into_flag());
-                }
-
-                if !CONTAINER_IS_CTOR_IMPL {
-                    let error = Box::new(
-                        errors::AParamPropIsOnlyAllowedInAConstructorImplementation {
-                            span: mods.span,
-                        },
-                    );
-                    self.push_error(error);
                 }
             }
         }
@@ -138,19 +170,20 @@ impl<'cx> ParserState<'cx, '_> {
             }
             params = &[];
         } else {
-            params = self.parse_params_worker(signature_flags, ALLOW_AMBIGUITY);
+            params = self.parse_params_worker::<ALLOW_AMBIGUITY>(signature_flags);
             if !self.expect(TokenKind::RParen) && !ALLOW_AMBIGUITY {
                 return Err(());
             }
         }
-
-        self.check_params::<false>(params);
 
         // let has_ret_colon = self.token.kind == TokenKind::Colon;
         let ty = self.parse_return_ty::<true, false>()?;
         if !ALLOW_AMBIGUITY && !matches!(self.token.kind, TokenKind::EqGreat | TokenKind::LBrace) {
             return Err(());
         }
+
+        self.check_parameters(params, CheckParameterFlags::empty());
+
         let last_token = self.token.kind;
         self.expect(TokenKind::EqGreat);
         let body = if matches!(last_token, TokenKind::EqGreat | TokenKind::LBrace) {
@@ -209,16 +242,19 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_simple_arrow_fn_expr<const ALLOW_RETURN_TYPE_IN_ARROW_FN: bool>(
         &mut self,
         param: &'cx ast::Ident,
+        async_modifier: Option<&'cx ast::Modifier>,
     ) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::EqGreat);
+        debug_assert!(async_modifier.is_none_or(|m| m.kind() == ast::ModifierKind::Async));
         let name = self.parse_binding_with_ident(Some(param));
         let parameter =
             self.create_parameter_declaration(param.span, None, None, name, None, None, None);
         let parameters = self.alloc([parameter]);
         self.expect(TokenKind::EqGreat);
-        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(false)?;
+        let is_async = async_modifier.is_some();
+        let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(is_async)?;
         let span = self.new_span(param.span.lo());
-        let expr = self.create_arrow_fn_expr(span, None, None, parameters, None, body);
+        let expr = self.create_arrow_fn_expr(span, async_modifier, None, parameters, None, body);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });
@@ -272,13 +308,17 @@ impl<'cx> ParserState<'cx, '_> {
         if let Ok(Some(expr)) = self.try_parse_paren_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>() {
             return Ok(expr);
         };
+        if let Some(expr) = self.try_parse_async_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>()
+        {
+            return Ok(expr);
+        }
 
         let start = self.token.start();
         let expr = self.parse_binary_expr(BinPrec::Lowest)?;
         if let ast::ExprKind::Ident(ident) = expr.kind
             && self.token.kind == TokenKind::EqGreat
         {
-            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident)
+            self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident, None)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
             match expr.kind {
                 ast::ExprKind::Ident(n) => {
@@ -310,7 +350,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
+    pub(super) fn parse_binary_expr(&mut self, prec: BinPrec) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         let left = self.parse_unary_expr()?;
         self.parse_binary_expr_rest(prec, left, start)
@@ -593,8 +633,9 @@ impl<'cx> ParserState<'cx, '_> {
 
         if self.token.kind == TokenKind::Less {
             let _start_pos = self.token.start();
-            if let Ok(Some(_ty_args)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
-                todo!("error handler")
+            if let Ok(Some(tys)) = self.try_parse(|l| l.p().parse_ty_args_in_expr()) {
+                let error = Box::new(errors::SuperMayNotUseTypeArguments { span: tys.span });
+                self.push_error(error);
             }
         }
 
@@ -757,8 +798,9 @@ impl<'cx> ParserState<'cx, '_> {
             SignatureFlags::empty()
         };
         let ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        // TODO: is_async
+        let params = self.parse_parameters(is_generator);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
         let body = self.parse_fn_block(is_generator);
         let span = self.new_span(start);
@@ -796,7 +838,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let modifiers = self.parse_modifiers::<false, false>(false);
 
-        let check_invalid_modifiers = |this: &mut Self| {
+        let check_invalid_modifiers_for_method_like = |this: &mut Self| {
             if let Some(ms) = &modifiers {
                 for m in ms.list {
                     if m.kind() != ModifierKind::Async {
@@ -808,14 +850,14 @@ impl<'cx> ParserState<'cx, '_> {
         };
 
         if self.parse_contextual_modifier(TokenKind::Get) {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             let decl =
                 self.parse_getter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::Getter(decl),
             }));
         } else if self.parse_contextual_modifier(TokenKind::Set) {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             let decl =
                 self.parse_setter_accessor_decl(start, modifiers, false, SignatureFlags::empty())?;
             return Ok(self.alloc(ast::ObjectMember {
@@ -835,7 +877,7 @@ impl<'cx> ParserState<'cx, '_> {
         if asterisk_token.is_some()
             || matches!(self.token.kind, TokenKind::LParen | TokenKind::Less)
         {
-            check_invalid_modifiers(self);
+            check_invalid_modifiers_for_method_like(self);
             return self.parse_object_method_decl(start, name, asterisk_token);
         } else if let Some(name) = name.kind.as_ident()
             && self.token.kind != TokenKind::Colon
@@ -858,15 +900,16 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(member);
         }
         self.expect(TokenKind::Colon);
-        let value = self.parse_assign_expr_or_higher::<false>()?;
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::ObjectPropAssignment {
-            id,
-            span: self.new_span(start),
-            name,
-            init: value,
-        });
-        self.nodes.insert(id, ast::Node::ObjectPropAssignment(kind));
+        let init = self.parse_assign_expr_or_higher::<false>()?;
+        let span = self.new_span(start);
+        if let Some(ms) = &modifiers {
+            for m in ms.list {
+                let error = errors::ModifierCannotBeUsedHere { span: m.span() };
+                self.push_error(Box::new(error));
+            }
+        }
+
+        let kind = self.create_object_property_assignment(span, name, init);
         let member = self.alloc(ast::ObjectMember {
             kind: ast::ObjectMemberKind::PropAssignment(kind),
         });
@@ -1174,6 +1217,22 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::New);
         let start = self.token.start();
         self.next_token(); // consume `new`
+        if self.parse_optional(ast::TokenKind::Dot).is_some() {
+            let name = self.parse_ident_name();
+            if name.name != keyword::IDENT_TARGET {
+                let error = errors::XIsNotAValidMetaPropertyForKeywordYDidYouMeanZ {
+                    span: name.span,
+                    x: self.atoms.lock().unwrap().get(name.name).to_string(),
+                    y: "new",
+                    z: "target",
+                };
+                self.push_error(Box::new(error));
+            }
+            let span = self.new_span(start);
+            let expr = self.create_new_meta_property(span, name);
+            let kind = ast::ExprKind::NewMetaProperty(expr);
+            return Ok(self.alloc(ast::Expr { kind }));
+        }
         let expr = self.parse_primary_expr()?;
         let mut expr = self.parse_member_expr_rest(start as usize, expr, false)?;
         let mut ty_args = None;
@@ -1412,27 +1471,15 @@ impl<'cx> ParserState<'cx, '_> {
             if question_dot_token.is_none() {
                 if self.token.kind == TokenKind::Excl && !self.has_preceding_line_break() {
                     self.next_token();
-                    let id = self.next_node_id();
-                    let ele = self.alloc(ast::NonNullExpr {
-                        id,
-                        span: self.new_span(start as u32),
-                        expr,
-                    });
-                    self.nodes.insert(id, ast::Node::NonNullExpr(ele));
-                    expr = self.alloc(ast::Expr {
-                        kind: ast::ExprKind::NonNull(ele),
-                    });
+                    let span = self.new_span(start as u32);
+                    let non_null_expr = self.create_non_null_expression(span, expr);
+                    let kind = ast::ExprKind::NonNull(non_null_expr);
+                    expr = self.alloc(ast::Expr { kind });
                     continue;
                 }
                 if let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())? {
-                    let id = self.next_node_id();
-                    let ele = self.alloc(ast::ExprWithTyArgs {
-                        id,
-                        span: self.new_span(start as u32),
-                        expr,
-                        ty_args: Some(ty_args),
-                    });
-                    self.nodes.insert(id, ast::Node::ExprWithTyArgs(ele));
+                    let span = self.new_span(start as u32);
+                    let ele = self.create_expression_with_type_arguments(span, expr, Some(ty_args));
                     expr = self.alloc(ast::Expr {
                         kind: ast::ExprKind::ExprWithTyArgs(ele),
                     });

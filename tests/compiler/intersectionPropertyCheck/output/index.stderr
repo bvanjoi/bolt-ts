@@ -1,8 +1,8 @@
   × Object literal may only specify known properties, and 'y' does not exist
   │ in type '{ x: string; }'.
    ╭─[../../tests/compiler/intersectionPropertyCheck/index.ts:6:68]
- 6 │ y: 2
-   · ────
+ 6 │ y
+   · ─
    ╰────
 
   × Type '{ y: string; }' has no properties in common with type '{ x:

@@ -1,0 +1,12 @@
+  × Type '"c"' is not assignable to type 'keyof T'.
+   ╭─[../../tests/compiler/keyofIsLiteralContexualType/index.ts:9:37]
+ 9 │ "c"
+   · ───
+   ╰────
+
+  × Property 'b' does not exist on type 'Pick<{ a: number; b: number; c:
+  │ number; }, "a" | "c">'.
+    ╭─[../../tests/compiler/keyofIsLiteralContexualType/index.ts:18:11]
+ 18 │ b
+    · ─
+    ╰────

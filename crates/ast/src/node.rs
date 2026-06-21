@@ -1,7 +1,7 @@
 use bolt_ts_span::ModuleID;
 
+use super::ExprKind;
 use super::ModifierFlags;
-use super::{ExprKind, ModifierKind};
 
 bolt_ts_utils::module_index!(NodeID);
 
@@ -143,6 +143,7 @@ pub enum Node<'cx> {
     PrivateIdent(&'cx super::PrivateIdent),
     ComputedPropName(&'cx super::ComputedPropName<'cx>),
     ExprWithTyArgs(&'cx super::ExprWithTyArgs<'cx>),
+    NewMetaProperty(&'cx super::NewMetaProperty<'cx>),
 
     // ty
     LitTy(&'cx super::LitTy),
@@ -325,6 +326,7 @@ impl<'cx> Node<'cx> {
             ExportShorthandSpec(n) => Some(DeclarationName::Ident(n.name)),
             ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
             ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
+            IndexSigDecl(n) => DeclarationName::from_binding(n.key),
             _ => None,
         }
     }
@@ -392,7 +394,6 @@ impl<'cx> Node<'cx> {
             Node::ArrowFnExpr(n) => n.ty_params,
             Node::ClassDecl(n) => n.ty_params,
             Node::ClassExpr(n) => n.ty_params,
-            Node::ClassCtor(n) => n.ty_params,
             Node::CtorSigDecl(n) => n.ty_params,
             Node::ClassMethodElem(n) => n.ty_params,
             Node::TypeAliasDecl(n) => n.ty_params,
@@ -400,6 +401,7 @@ impl<'cx> Node<'cx> {
             Node::CallSigDecl(n) => n.ty_params,
             Node::InterfaceDecl(n) => n.ty_params,
             Node::FnTy(n) => n.ty_params,
+            Node::ObjectMethodMember(n) => n.ty_params,
             _ => None,
         }
     }
@@ -496,7 +498,8 @@ impl<'cx> Node<'cx> {
         }));
         matches!(
             self,
-            VarDecl(_)
+            ArrowFnExpr(_)
+                | VarDecl(_)
                 | ObjectShorthandMember(_)
                 | ObjectPropAssignment(_)
                 | PropSignature(_)
@@ -509,7 +512,6 @@ impl<'cx> Node<'cx> {
                 | ClassMethodElem(_)
                 | EnumDecl(_)
                 | EnumMember(_)
-                | ArrowFnExpr(_)
                 | FnExpr(_)
                 | ClassCtor(_)
                 | FnDecl(_)
@@ -638,8 +640,8 @@ impl<'cx> Node<'cx> {
         self.has_syntactic_modifier(ModifierFlags::READONLY)
     }
 
-    pub fn has_effective_modifier(&self, kind: ModifierKind) -> bool {
-        self.has_syntactic_modifier(kind.into_flag())
+    pub fn has_effective_modifier(&self, flags: ModifierFlags) -> bool {
+        self.has_syntactic_modifier(flags)
     }
 
     pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
@@ -1136,6 +1138,7 @@ impl<'cx> Node<'cx> {
                 | SuperExpr(_)
                 | NonNullExpr(_)
                 | ExprWithTyArgs(_)
+                | NewMetaProperty(_)
         )
         // TODO: SyntaxKind.MetaProperty:
         // TODO: SyntaxKind.ImportKeyword:
@@ -1315,6 +1318,11 @@ as_node!(
         ExprWithTyArgs,
         super::ExprWithTyArgs<'cx>,
         expr_with_ty_args
+    ),
+    (
+        NewMetaProperty,
+        super::NewMetaProperty<'cx>,
+        new_meta_property
     ),
     (IndexSigDecl, super::IndexSigDecl<'cx>, index_sig_decl),
     (PropAccessExpr, super::PropAccessExpr<'cx>, prop_access_expr),

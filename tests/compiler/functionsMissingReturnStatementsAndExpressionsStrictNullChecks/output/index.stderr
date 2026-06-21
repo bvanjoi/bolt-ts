@@ -1,0 +1,40 @@
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:10:17]
+ 10 │ undefined | number
+    · ──────────────────
+    ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:15:17]
+ 15 │ number
+    · ──────
+    ╰────
+
+  × Type '() => void' is not assignable to type '() => number'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:28:7]
+ 28 │ f22
+    · ───
+    ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:37:23]
+ 37 │ Promise<undefined | number>
+    · ───────────────────────────
+    ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:42:23]
+ 42 │ Promise<number>
+    · ───────────────
+    ╰────
+
+  × Argument of type '() => void' is not assignable to parameter of type '()
+  │ => undefined'.
+    ╭─[../../tests/compiler/functionsMissingReturnStatementsAndExpressionsStrictNullChecks/index.ts:62:3]
+ 62 │ h1
+    · ──
+    ╰────

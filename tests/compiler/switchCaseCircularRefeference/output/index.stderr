@@ -1,0 +1,6 @@
+  × Type '{ a: "A"; b: any; } | { a: "C"; e: any; }' is not comparable to type
+  │ '"A" | "C"'.
+   ╭─[../../tests/compiler/switchCaseCircularRefeference/index.ts:8:10]
+ 8 │ x
+   · ─
+   ╰────

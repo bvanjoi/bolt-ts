@@ -1,8 +1,10 @@
+use crate::check::links::SymbolLinks;
+
 use super::TyChecker;
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;
-use bolt_ts_binder::{Symbol, SymbolID, SymbolName};
+use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_index_symbol(&mut self, symbol: SymbolID) -> Option<SymbolID> {
@@ -39,12 +41,11 @@ impl<'cx> TyChecker<'cx> {
         let mut computed_property_symbols = Vec::with_capacity(1);
         for decl in decls {
             let n = self.p.node(decl);
-            if n.is_index_sig_decl() {
-                let decl = n.expect_index_sig_decl();
-                let val_ty = self.get_ty_from_type_node(decl.ty);
+            if let Some(declaration) = n.as_index_sig_decl() {
+                let val_ty = self.get_ty_from_type_node(declaration.ty);
                 index_infos.push({
-                    let key_ty = self.get_ty_from_type_node(decl.key_ty);
-                    let is_readonly = decl
+                    let key_ty = self.get_ty_from_type_node(declaration.key_ty);
+                    let is_readonly = declaration
                         .modifiers
                         .is_some_and(|mods| mods.flags.contains(ast::ModifierFlags::READONLY));
                     self.alloc(ty::IndexInfo {
@@ -52,13 +53,14 @@ impl<'cx> TyChecker<'cx> {
                         val_ty,
                         symbol,
                         is_readonly,
+                        declaration: Some(declaration),
                     })
                 });
             } else if self.has_late_bindable_index_signature(decl) {
                 // TODO: is_binary_expression
                 let name = self
                     .node_query(decl.module())
-                    .get_name_of_decl(decl)
+                    .get_name_of_declaration(decl)
                     .unwrap();
                 use bolt_ts_ast::DeclarationName;
                 let key_ty = match name {
@@ -185,6 +187,7 @@ impl<'cx> TyChecker<'cx> {
             val_ty: union_ty,
             symbol: Symbol::ERR,
             is_readonly,
+            declaration: None,
         })
     }
 
@@ -212,10 +215,27 @@ impl<'cx> TyChecker<'cx> {
         let Some(first_decl) = s.decls.as_ref().and_then(|decls| decls.first()).copied() else {
             return false;
         };
-        self.p
-            .node(first_decl)
-            .name()
-            .is_some_and(|name| matches!(name, ast::DeclarationName::NumLit(_)))
+        let Some(name) = self.p.node(first_decl).name() else {
+            return false;
+        };
+        // is_numeric_name
+        match name {
+            ast::DeclarationName::NumLit(_) => true,
+            ast::DeclarationName::StringLit { key, .. } => {
+                let s = self.atoms.get(key);
+                s.parse::<f64>().is_ok()
+            }
+            ast::DeclarationName::Ident(n) => {
+                let s = self.atoms.get(n.name);
+                s.parse::<f64>().is_ok()
+            }
+            ast::DeclarationName::Computed(n) => {
+                // is_numeric_computed_name
+                let ty = self.check_computed_property_name(n);
+                self.is_type_assignable_to_kind::<false>(ty, TypeFlags::NUMBER_LIKE)
+            }
+            _ => false,
+        }
     }
 
     fn is_symbol_with_symbol_name(&mut self, symbol: SymbolID) -> bool {
@@ -334,5 +354,49 @@ impl<'cx> TyChecker<'cx> {
             unreachable!("name: {:?}", name.to_string(&self.atoms))
         };
         self.get_applicable_index_info(ty, key_ty)
+    }
+
+    pub(super) fn get_applicable_index_symbol(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        key_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<SymbolID> {
+        let infos = self.get_applicable_index_infos(ty, key_ty);
+        if !infos.is_empty() {
+            self.resolve_structured_type_members(ty);
+            let resolved = self.expect_ty_links(ty.id).expect_structured_members();
+            let symbol = resolved.members.get(&SymbolName::Index).copied();
+            if infos == self.get_index_infos_of_ty(ty) {
+                return symbol;
+            } else if let Some(symbol) = symbol {
+                // let symbol_links = self.get_symbol_links(symbol);
+                let declaration_list = infos
+                    .iter()
+                    .filter_map(|i| i.declaration)
+                    .collect::<Vec<_>>();
+                // TODO: filtered_index_symbol_cache
+
+                let parent = if let Some(alias_symbol) = ty.alias_symbol() {
+                    Some(alias_symbol)
+                } else if let Some(symbol) = ty.symbol() {
+                    Some(symbol)
+                } else {
+                    let id = self.parent(declaration_list[0].id).unwrap();
+                    self.get_symbol_at_location(id)
+                };
+                let copy = self.create_transient_symbol(
+                    SymbolName::Index,
+                    SymbolFlags::SIGNATURE.union(SymbolFlags::TRANSIENT),
+                    SymbolLinks::default(),
+                    Some(declaration_list.iter().map(|n| n.id).collect()),
+                    None,
+                    parent,
+                );
+                // symbolLinks.filteredIndexSymbolCache.set(nodeListId, copy);
+                return Some(copy);
+            }
+        }
+
+        None
     }
 }

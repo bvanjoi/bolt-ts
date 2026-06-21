@@ -11,3 +11,4 @@ interface Array<T> {
 var a: Array<string>;
 var r5 = a.reduce((x, y) => x + y);
 //~^ ERROR: Variable 'a' is used before being assigned.
+//~| ERROR: Variable 'a' is used before being assigned.

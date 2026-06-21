@@ -1,0 +1,5 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/constructorOverloads6/index.ts:8:25]
+ 8 │ {
+   · ─
+   ╰────

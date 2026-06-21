@@ -180,8 +180,14 @@ impl<'cx> TyChecker<'cx> {
                     .find(|&sig| !self.is_implementation_compatible_with_overload(body_sig, sig))
                 {
                     let error_node = first_error_sig.def_id();
+                    let error_node = self.p.node(error_node);
+                    let span = match error_node.ident_name() {
+                        Some(ident) => ident.span,
+                        None if let ast::Node::ClassCtor(n) = error_node => n.name_span,
+                        _ => unreachable!(),
+                    };
                     let error = errors::ThisOverloadSignatureIsNotCompatibleWithItsImplementationSignature {
-                            span: self.p.node(error_node).ident_name().unwrap().span,
+                            span,
                         };
                     self.push_error(Box::new(error));
                 }
@@ -210,7 +216,7 @@ impl<'cx> TyChecker<'cx> {
         some_overload_flags: ast::ModifierFlags,
         allow_overload_flags: ast::ModifierFlags,
     ) {
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let decls = s.decls.as_ref().unwrap();
         assert!(!decls.is_empty());
         if !(some_overload_flags ^ allow_overload_flags).is_empty() {
@@ -225,11 +231,24 @@ impl<'cx> TyChecker<'cx> {
                 } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
                     let span = self
                         .node_query(o.module())
-                        .get_name_of_decl(o)
+                        .get_name_of_declaration(o)
                         .unwrap()
                         .span();
                     let error = errors::OverloadSignaturesMustAllBeAmbientOrNonAmbient { span };
                     self.push_error(Box::new(error));
+                } else if deviation_in_file
+                    .intersects(ast::ModifierFlags::PRIVATE.union(ast::ModifierFlags::PROTECTED))
+                {
+                    let error = errors::OverloadSignaturesMustAllBePublicPrivateOrProtected {
+                        span: self
+                            .node_query(o.module())
+                            .get_name_of_declaration(o)
+                            .unwrap()
+                            .span(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if deviation_in_file.contains(ast::ModifierFlags::ABSTRACT) {
+                    todo!()
                 }
             }
         }

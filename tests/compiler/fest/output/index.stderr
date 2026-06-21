@@ -71,10 +71,10 @@
      ╰────
 
   × Object literal may only specify known properties, and 'b' does not exist
-  │ in type 'ConditionalPick'.
+  │ in type 'ConditionalPick<Example, string>'.
      ╭─[../../tests/compiler/fest/index.ts:332:70]
- 332 │ b: '42'
-     · ───────
+ 332 │ b
+     · ─
      ╰────
 
   × Type '(a: number) => number' is not assignable to type 'SomeFunction'.
@@ -83,19 +83,20 @@
      · ──
      ╰────
 
-  × Type 'mapped type' is not assignable to type 'MovableCollection'.
+  × Type '{ }' is not assignable to type 'MovableCollection'.
      ╭─[../../tests/compiler/fest/index.ts:400:9]
  400 │ a0
      · ──
      ╰────
 
-  × Property 'b' does not exist on type 'mapped type'.
+  × Property 'b' does not exist on type '{ }'.
      ╭─[../../tests/compiler/fest/index.ts:446:30]
  446 │ b
      · ─
      ╰────
 
-  × Type '{ a: number; b: string; }' is not assignable to type 'Except'.
+  × Type '{ a: number; b: string; }' is not assignable to type 'Except<{ a:
+  │ number; b: string; }, "b", { requireExactProps: true; }>'.
      ╭─[../../tests/compiler/fest/index.ts:461:9]
  461 │ strictAssignment
      · ────────────────
@@ -421,13 +422,13 @@
       · ─
       ╰────
 
-  × Type 'SomeInterface' is not assignable to type 'Record'.
+  × Type 'SomeInterface' is not assignable to type 'Record<string, unknown>'.
       ╭─[../../tests/compiler/fest/index.ts:2203:9]
  2203 │ a6
       · ──
       ╰────
 
-  × Type 'mapped type' is not assignable to type 'SomeFunction'.
+  × Type '{ }' is not assignable to type 'SomeFunction'.
       ╭─[../../tests/compiler/fest/index.ts:2213:9]
  2213 │ b0
       · ──

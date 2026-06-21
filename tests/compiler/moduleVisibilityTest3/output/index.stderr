@@ -1,0 +1,17 @@
+  × Cannot find name 'modes'.
+    ╭─[../../tests/compiler/moduleVisibilityTest3/index.ts:24:22]
+ 24 │ modes
+    · ─────
+    ╰────
+
+  × Namespace '_modes' has no exported member 'Mode'.
+    ╭─[../../tests/compiler/moduleVisibilityTest3/index.ts:24:39]
+ 24 │ Mode
+    · ────
+    ╰────
+
+  × Namespace '_modes' has no exported member 'Mode'.
+    ╭─[../../tests/compiler/moduleVisibilityTest3/index.ts:27:22]
+ 27 │ Mode
+    · ────
+    ╰────

@@ -1,0 +1,29 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/paramPropertiesInSignatures/index.ts:6:14]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/paramPropertiesInSignatures/index.ts:8:14]
+ 8 │ private
+   · ───────
+   ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/paramPropertiesInSignatures/index.ts:14:14]
+ 14 │ public
+    · ──────
+    ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/paramPropertiesInSignatures/index.ts:16:14]
+ 16 │ private
+    · ───────
+    ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/paramPropertiesInSignatures/index.ts:18:14]
+ 18 │ public
+    · ──────
+    ╰────

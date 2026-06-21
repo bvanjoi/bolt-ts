@@ -1,8 +1,5 @@
+
 var m4 = {};
-(function (m4) {
-
-})(m4);
-
 (function (m4) {
 
 })(m4);
@@ -29,11 +26,8 @@ var m4b = {};
 
   m4b[m4b['One'] = 0] = 'One'
 })(m4b);
+
 var m4c = {};
-(function (m4c) {
-
-})(m4c);
-
 (function (m4c) {
 
   m4c[m4c['One'] = 0] = 'One'
@@ -57,8 +51,4 @@ var m5 = {};
   var y = 2;
   m5.y = y
   
-})(m5);
-
-(function (m5) {
-
 })(m5);

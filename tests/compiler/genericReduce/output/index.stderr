@@ -1,0 +1,17 @@
+  × Property 'x' does not exist on type 'number'.
+    ╭─[../../tests/compiler/genericReduce/index.ts:10:4]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Property 'x' does not exist on type 'number'.
+    ╭─[../../tests/compiler/genericReduce/index.ts:13:4]
+ 13 │ x
+    · ─
+    ╰────
+
+  × Property 'toExponential' does not exist on type 'string'.
+    ╭─[../../tests/compiler/genericReduce/index.ts:18:4]
+ 18 │ toExponential
+    · ─────────────
+    ╰────

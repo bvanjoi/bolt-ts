@@ -1,0 +1,73 @@
+  × Property 'x' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:45:1]
+ 45 │ c1.x
+    · ────
+    ╰────
+
+  × Property 'f' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:47:1]
+ 47 │ c1.f
+    · ────
+    ╰────
+
+  × Property 'sx' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:49:1]
+ 49 │ C1.sx
+    · ─────
+    ╰────
+
+  × Property 'sf' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:51:1]
+ 51 │ C1.sf
+    · ─────
+    ╰────
+
+  × Property 'x' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:55:1]
+ 55 │ c2.x
+    · ────
+    ╰────
+
+  × Property 'f' is protected and only accessible within class 'C2' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:57:1]
+ 57 │ c2.f
+    · ────
+    ╰────
+
+  × Property 'sx' is protected and only accessible within class 'C1' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:59:1]
+ 59 │ C2.sx
+    · ─────
+    ╰────
+
+  × Property 'sf' is protected and only accessible within class 'C2' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/protectedMembers/index.ts:61:1]
+ 61 │ C2.sf
+    · ─────
+    ╰────
+
+  × Type 'B1' is not assignable to type 'A1'.
+     ╭─[../../tests/compiler/protectedMembers/index.ts:110:1]
+ 110 │ a1
+     · ──
+     ╰────
+
+  × Type 'A1' is not assignable to type 'B1'.
+     ╭─[../../tests/compiler/protectedMembers/index.ts:112:1]
+ 112 │ b1
+     · ──
+     ╰────
+
+  × Class 'B3' incorrectly extends base class 'A3'.
+     ╭─[../../tests/compiler/protectedMembers/index.ts:126:7]
+ 126 │ B3
+     · ──
+     ╰────

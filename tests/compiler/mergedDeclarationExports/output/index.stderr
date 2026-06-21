@@ -1,0 +1,41 @@
+  × Individual declarations in merged declaration 'c' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:18:11]
+ 18 │ c
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'c' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:20:18]
+ 20 │ c
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'd' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:24:11]
+ 24 │ d
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'd' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:26:14]
+ 26 │ d
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'N' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:30:11]
+ 30 │ N
+    · ─
+    ╰────
+
+  × Individual declarations in merged declaration 'N' must be all exported or
+  │ all local.
+    ╭─[../../tests/compiler/mergedDeclarationExports/index.ts:32:18]
+ 32 │ N
+    · ─
+    ╰────

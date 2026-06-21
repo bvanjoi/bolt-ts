@@ -65,7 +65,7 @@ impl<'cx> TyChecker<'cx> {
             .binder
             .symbol(symbol)
             .flags
-            .intersects(SymbolFlags::TYPE_ALIAS)
+            .contains(SymbolFlags::TYPE_ALIAS)
         {
             let ty_params = self.get_symbol_links(symbol).get_ty_params().unwrap();
             let tys = self.instantiate_tys(ty_params, mapper);
@@ -114,12 +114,13 @@ impl<'cx> TyChecker<'cx> {
         self.get_mut_symbol_links(symbol).set_variances(empty_array);
         let mut variances = Vec::with_capacity(ty_params.len());
         for tp in ty_params {
+            // TODO: in out
             let old_reliability_flags = self.reliability_flags;
             let old_enable_out_of_band_variance_marker_handler =
                 self.enable_out_of_band_variance_marker_handler;
             self.enable_out_of_band_variance_marker_handler = true;
-            let ty_with_super = self.create_marker_ty(symbol, tp, self.mark_super_ty());
-            let ty_with_sub = self.create_marker_ty(symbol, tp, self.mark_sub_ty());
+            let ty_with_super = self.create_marker_ty(symbol, tp, self.marker_super_ty());
+            let ty_with_sub = self.create_marker_ty(symbol, tp, self.marker_sub_ty());
             let mut variance = if self.is_type_assignable_to(ty_with_sub, ty_with_super) {
                 VarianceFlags::COVARIANT
             } else {
@@ -130,7 +131,7 @@ impl<'cx> TyChecker<'cx> {
                 VarianceFlags::INVARIANT
             };
             if variance == VarianceFlags::BIVARIANT && {
-                let ty = self.create_marker_ty(symbol, tp, self.mark_other_ty());
+                let ty = self.create_marker_ty(symbol, tp, self.marker_other_ty());
                 self.is_type_assignable_to(ty, ty_with_super)
             } {
                 variance = VarianceFlags::INDEPENDENT;

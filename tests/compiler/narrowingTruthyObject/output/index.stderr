@@ -1,0 +1,5 @@
+  × 'x' is possibly 'null'.
+   ╭─[../../tests/compiler/narrowingTruthyObject/index.ts:8:9]
+ 8 │ x
+   · ─
+   ╰────

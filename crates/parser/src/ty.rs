@@ -1,3 +1,4 @@
+use super::CheckParameterFlags;
 use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -44,16 +45,8 @@ impl<'cx> ParserState<'cx, '_> {
                 let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
                 self.expect(TokenKind::Colon);
                 let false_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
-                let id = self.next_node_id();
-                let ty = self.alloc(ast::CondTy {
-                    id,
-                    span: self.new_span(start),
-                    check_ty: ty,
-                    extends_ty,
-                    true_ty,
-                    false_ty,
-                });
-                self.nodes.insert(id, ast::Node::CondTy(ty));
+                let span = self.new_span(start);
+                let ty = self.create_conditional_type(span, ty, extends_ty, true_ty, false_ty);
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Cond(ty),
                 });
@@ -223,36 +216,18 @@ impl<'cx> ParserState<'cx, '_> {
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        let params = self.parse_parameters(SignatureFlags::TYPE);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
+        let span = self.new_span(start);
         let ty = if is_ctor_ty {
-            let id = self.next_node_id();
-            let ctor_ty = self.alloc(ast::CtorTy {
-                id,
-                span: self.new_span(start),
-                modifiers,
-                ty_params,
-                params,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::CtorTy(ctor_ty));
-            self.alloc(ast::Ty {
-                kind: ast::TyKind::Ctor(ctor_ty),
-            })
+            let node = self.create_constructor_type(span, modifiers, ty_params, params, ty);
+            let kind = ast::TyKind::Ctor(node);
+            self.alloc(ast::Ty { kind })
         } else {
-            let id = self.next_node_id();
-            let fn_ty = self.alloc(ast::FnTy {
-                id,
-                span: self.new_span(start),
-                ty_params,
-                params,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::FnTy(fn_ty));
-            self.alloc(ast::Ty {
-                kind: ast::TyKind::Fn(fn_ty),
-            })
+            let node = self.create_function_type(span, ty_params, params, ty);
+            let kind = ast::TyKind::Fn(node);
+            self.alloc(ast::Ty { kind })
         };
         Ok(ty)
     }
@@ -800,7 +775,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty = self.parse_ty_anno()?;
         self.parse_semi();
-        let members = self.parse_list(ParsingContext::TYPE_MEMBERS, Self::parse_ty_member);
+        let _ = self.parse_list(ParsingContext::TYPE_MEMBERS, Self::parse_ty_member);
         self.expect(TokenKind::RBrace);
         let id = self.next_node_id();
         let kind = self.alloc(ast::MappedTy {
@@ -811,7 +786,6 @@ impl<'cx> ParserState<'cx, '_> {
             name_ty,
             question_token,
             ty,
-            members,
         });
         self.nodes.insert(id, ast::Node::MappedTy(kind));
         let ty = self.alloc(ast::Ty {
@@ -882,13 +856,8 @@ impl<'cx> ParserState<'cx, '_> {
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let pos = self.token.start();
             let ty = self.parse_ty()?;
-            let id = self.next_node_id();
-            let ty = self.alloc(ast::RestTy {
-                id,
-                span: self.new_span(pos),
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::RestTy(ty));
+            let span = self.new_span(pos);
+            let ty = self.create_rest_type(span, ty);
             let ty = self.alloc(ast::Ty {
                 kind: ast::TyKind::Rest(ty),
             });
@@ -945,8 +914,8 @@ impl<'cx> ParserState<'cx, '_> {
         let question = self.parse_optional(TokenKind::Question).map(|t| t.span);
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
-            let params = self.parse_parameters();
-            self.check_params::<false>(params);
+            let params = self.parse_parameters(SignatureFlags::TYPE);
+            self.check_parameters(params, CheckParameterFlags::empty());
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
@@ -986,8 +955,8 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let ty_params = self.parse_ty_params();
-        let params = self.parse_parameters();
-        self.check_params::<false>(params);
+        let params = self.parse_parameters(SignatureFlags::TYPE);
+        self.check_parameters(params, CheckParameterFlags::empty());
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);

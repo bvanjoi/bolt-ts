@@ -52,6 +52,7 @@ impl<'cx> TyChecker<'cx> {
         id: ast::NodeID,
         flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
+        // TODO: in_with_statement
         let includes_caches = flags.is_none_or(|flags| ContextFlags::empty() == flags);
         if let Some(ctx) = self.find_context_node(id, includes_caches) {
             return ctx.ty;
@@ -69,9 +70,6 @@ impl<'cx> TyChecker<'cx> {
             }
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
-            AssignExpr(parent) if id == parent.right.id() => {
-                self.get_contextual_ty_for_assign(parent, flags)
-            }
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
                 let element_idx = self.p.index_of_node(parent.elems, id);
@@ -106,6 +104,71 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     Some(self.get_ty_from_type_node(parent.ty))
                 }
+            }
+            AssignExpr(parent) => {
+                // get_contextual_type_for_binary_operand
+                if matches!(
+                    parent.op,
+                    ast::AssignOp::Eq
+                        | ast::AssignOp::LogicalOrEq
+                        | ast::AssignOp::LogicalAndEq
+                        | ast::AssignOp::NullishEq
+                ) && id == parent.right.id()
+                {
+                    self.get_contextual_ty_for_assign(parent, flags)
+                } else {
+                    None
+                }
+            }
+            BinExpr(parent) => {
+                // get_contextual_type_for_binary_operand
+                match parent.op.kind {
+                    ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish => {
+                        let ty = self.get_contextual_ty(parent.id, flags);
+                        if id == parent.right.id() {
+                            if let Some(ty) = ty {
+                                Some(if ty.pattern().is_some() {
+                                    self.get_ty_of_expr(parent.left)
+                                } else {
+                                    ty
+                                })
+                            } else {
+                                // TODO: if !isDefaultedExpandoInitializer(binaryExpression) { self.get_ty_of_expr(parent.left) }
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    ast::BinOpKind::LogicalAnd | ast::BinOpKind::Comma
+                        if id == parent.right.id() =>
+                    {
+                        self.get_contextual_ty(parent.id, flags)
+                    }
+                    _ => None,
+                }
+                // switch (operatorToken.kind) {
+                //     case SyntaxKind.EqualsToken:
+                //     case SyntaxKind.AmpersandAmpersandEqualsToken:
+                //     case SyntaxKind.BarBarEqualsToken:
+                //     case SyntaxKind.QuestionQuestionEqualsToken:
+                //         return node === right ? getContextualTypeForAssignmentDeclaration(binaryExpression) : undefined;
+                //     case SyntaxKind.BarBarToken:
+                //     case SyntaxKind.QuestionQuestionToken:
+                //         // When an || expression has a contextual type, the operands are contextually typed by that type, except
+                //         // when that type originates in a binding pattern, the right operand is contextually typed by the type of
+                //         // the left operand. When an || expression has no contextual type, the right operand is contextually typed
+                //         // by the type of the left operand, except for the special case of Javascript declarations of the form
+                //         // `namespace.prop = namespace.prop || {}`.
+                //         const type = getContextualType(binaryExpression, contextFlags);
+                //         return node === right && (type && type.pattern || !type && !isDefaultedExpandoInitializer(binaryExpression)) ?
+                //             getTypeOfExpression(left) : type;
+                //     case SyntaxKind.AmpersandAmpersandToken:
+                //     case SyntaxKind.CommaToken:
+                //         return node === right ? getContextualType(binaryExpression, contextFlags) : undefined;
+                //     default:
+                //         return undefined;
+                // }
             }
             SpreadAssignment(_) => {
                 let parent_parent = self.parent(parent_id).unwrap();
@@ -212,25 +275,25 @@ impl<'cx> TyChecker<'cx> {
             contextual_return_ty = iteration_ret_ty;
         }
         if fn_flags.contains(FnFlags::ASYNC) {
-            return self
-                .map_ty(
-                    contextual_return_ty,
-                    |this, t| this.get_awaited_ty_no_alias(t),
-                    false,
-                )
-                .and_then(|contextual_await_ty| {
-                    let ty = self.create_promise_like_ty(contextual_await_ty);
-                    Some(self.get_union_ty::<false>(
-                        &[contextual_await_ty, ty],
-                        ty::UnionReduction::Lit,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
-                });
+            self.map_ty(
+                contextual_return_ty,
+                |this, t| this.get_awaited_ty_no_alias(t),
+                false,
+            )
+            .and_then(|contextual_await_ty| {
+                let ty = self.create_promise_like_ty(contextual_await_ty);
+                Some(self.get_union_ty::<false>(
+                    &[contextual_await_ty, ty],
+                    ty::UnionReduction::Lit,
+                    None,
+                    None,
+                    None,
+                    None,
+                ))
+            })
+        } else {
+            Some(contextual_return_ty)
         }
-        Some(contextual_return_ty)
     }
 
     fn get_contextual_type_for_object_literal_element(
@@ -248,16 +311,16 @@ impl<'cx> TyChecker<'cx> {
             let symbol = self.get_symbol_of_declaration(id);
             let name = self.symbol(symbol).name;
             let name_ty = self.get_symbol_links(symbol).get_name_ty();
-            return self.get_ty_of_prop_of_contextual_ty(ty, name, name_ty);
+            return self.get_ty_of_property_of_contextual_ty(ty, name, name_ty);
         }
         let nq = self.node_query(id.module());
         if nq.has_dynamic_name(id)
-            && let Some(name) = nq.get_name_of_decl(id)
+            && let Some(name) = nq.get_name_of_declaration(id)
             && let ast::DeclarationName::Computed(name) = name
             && let expr_ty = self.check_expression(name.expr, None)
             && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
-            && let Some(prop_ty) = self.get_ty_of_prop_of_contextual_ty(ty, prop_name, None)
+            && let Some(prop_ty) = self.get_ty_of_property_of_contextual_ty(ty, prop_name, None)
         {
             Some(prop_ty)
         } else if let Some(name) = element.name() {
@@ -283,12 +346,24 @@ impl<'cx> TyChecker<'cx> {
         n: &'cx ast::ObjectMethodMember<'cx>,
         context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        // TODO: NodeFlags.InWithStatement
+        if self
+            .p
+            .node_flags(n.id)
+            .contains(ast::NodeFlags::IN_WITH_STATEMENT)
+        {
+            return None;
+        }
         self.get_contextual_type_for_object_literal_element(n, context_flags)
     }
 
-    fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
-        // TODO: signature.compositeSignatures
+    pub(super) fn is_resolving_ret_ty_of_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> bool {
+        if let Some(composite_sigs) = sig.composite_sigs
+            && composite_sigs
+                .iter()
+                .any(|s| self.is_resolving_ret_ty_of_sig(s))
+        {
+            return true;
+        }
         self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
             && self
                 .find_resolution_cycle_start_index(super::ResolutionKey::ResolvedReturnType(sig.id))
@@ -324,15 +399,15 @@ impl<'cx> TyChecker<'cx> {
                         TypeFlags::ANY_OR_UNKNOWN
                             .union(TypeFlags::VOID)
                             .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
-                    ) || this.get_awaited_ty_of_promise(t, None).is_none()
+                    ) || this.get_awaited_ty_of_promise(t, None).is_some()
                 })
             } else {
                 ret_ty
             });
         }
 
-        if self.node_query(id.module()).get_iife(id).is_some() {
-            self.get_contextual_ty(id, flags)
+        if let Some(iife) = self.node_query(id.module()).get_iife(id) {
+            self.get_contextual_ty(iife.id, flags)
         } else {
             None
         }
@@ -415,7 +490,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let symbol = self.get_symbol_of_declaration(n.id);
                     let name = self.symbol(symbol).name;
-                    return self.get_ty_of_prop_of_contextual_ty(parent_ty, name, None);
+                    return self.get_ty_of_property_of_contextual_ty(parent_ty, name, None);
                 }
             }
         }
@@ -563,7 +638,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
-                    && let Some(t) = this.get_ty_of_prop_of_contextual_ty(
+                    && let Some(t) = this.get_ty_of_property_of_contextual_ty(
                         t,
                         SymbolName::EleNum(index.into()),
                         None,
@@ -584,7 +659,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn get_ty_of_prop_of_contextual_ty(
+    pub(super) fn get_ty_of_property_of_contextual_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         name: SymbolName,
@@ -726,7 +801,7 @@ impl<'cx> TyChecker<'cx> {
                 let t = self.get_false_ty_from_cond_ty(c);
                 self.get_actual_ty_variable(t)
             };
-            true_ty.flags.intersects(TypeFlags::NEVER)
+            true_ty.flags.contains(TypeFlags::NEVER)
                 && false_ty == self.get_actual_ty_variable(c.check_ty)
                 && self.is_type_assignable_to(property_name_ty, c.extends_ty)
         } else if let Some(i) = constraint.kind.as_intersection() {
@@ -1066,7 +1141,7 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
-    fn get_parameter_name_at_position(
+    pub(super) fn get_parameter_name_at_position(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         pos: usize,
@@ -1079,7 +1154,11 @@ impl<'cx> TyChecker<'cx> {
         let rest_param = sig.params.get(param_count).copied().unwrap_or(Symbol::ERR);
         let rest_ty = override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(rest_param));
         if let Some(tuple_ty) = rest_ty.as_tuple() {
+            let index = pos - param_count;
             todo!()
+            // const associatedName = tupleType.labeledElementDeclarations?.[index];
+            // const elementFlags = tupleType.elementFlags[index];
+            // return getTupleElementLabel(associatedName, index, elementFlags, restParameter);
         } else {
             self.symbol(rest_param).name
         }
@@ -1187,7 +1266,7 @@ impl<'cx> TyChecker<'cx> {
                             let name = param_name.unwrap_or(SymbolName::ParamIndex(i as u32));
                             let links = links::SymbolLinks::default()
                                 .with_ty(if is_rest_params {
-                                    self.create_array_ty(union_param_type, false)
+                                    self.create_array_ty_worker::<false>(union_param_type)
                                 } else {
                                     union_param_type
                                 })
@@ -1245,11 +1324,15 @@ impl<'cx> TyChecker<'cx> {
                     };
                     let min_args_count = left.min_args_count.max(right.min_args_count);
                     let composite_sigs = if left.composite_kind == Some(TypeFlags::INTERSECTION)
-                        && left.composite_sigs.is_some()
+                        && let Some(left_composite_sigs) = left.composite_sigs
                     {
-                        self.alloc(vec![left, right])
+                        // TODO: reduce alloc
+                        let mut composite_sigs = Vec::with_capacity(left_composite_sigs.len() + 1);
+                        composite_sigs.extend_from_slice(left_composite_sigs);
+                        composite_sigs.push(*right);
+                        self.alloc(composite_sigs)
                     } else {
-                        self.alloc(vec![*right])
+                        self.alloc(vec![left, *right])
                     };
                     let mapper = param_mapper.map(|mapper| {
                         if left.composite_kind == Some(TypeFlags::INTERSECTION)

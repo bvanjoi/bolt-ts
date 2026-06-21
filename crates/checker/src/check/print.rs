@@ -85,9 +85,8 @@ struct Ctx<'a, 'cx> {
 
 impl<'a, 'cx> Ctx<'a, 'cx> {
     fn print_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
-        if let Some(alias_symbol) = ty.alias_symbol() {
-            let s = self.c.binder.symbol(alias_symbol);
-            return s.name.to_string(&self.c.atoms);
+        if let Some(name) = self.print_alias_symbol(ty) {
+            return name;
         } else if ty.kind.is_array(self.c) {
             let tys = self.c.get_ty_arguments(ty);
             let ele = tys[0];
@@ -107,24 +106,31 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             ty::TyKind::Object(_) => self.print_object_ty(ty),
             ty::TyKind::NumberLit(_) => self.print_number_lit_ty(ty),
             ty::TyKind::BigIntLit(lit) => format!("{}n", self.c.atoms.get(lit.val)),
-            ty::TyKind::Union(union) => union.tys.iter().fold(String::new(), |mut s, ty| {
-                if !s.is_empty() {
-                    s.push_str(" | ");
-                }
-                if ty.kind.is_object_anonymous()
-                    && (!self.c.get_signatures_of_type(ty, SigKind::Call).is_empty()
-                        || !self
-                            .c
-                            .get_signatures_of_type(ty, SigKind::Constructor)
-                            .is_empty())
-                {
-                    let t = self.c.print_ty(ty, self.enclosing_declaration);
-                    s.push_str(&format!("({t})",))
+            ty::TyKind::Union(union) => {
+                if let Some(enum_symbol) = union.enum_symbol {
+                    let name = self.c.binder.symbol(enum_symbol).name;
+                    self.c.atoms.get(name.expect_atom()).to_string()
                 } else {
-                    s.push_str(self.c.print_ty(ty, self.enclosing_declaration))
+                    union.tys.iter().fold(String::new(), |mut s, ty| {
+                        if !s.is_empty() {
+                            s.push_str(" | ");
+                        }
+                        if ty.kind.is_object_anonymous()
+                            && (!self.c.get_signatures_of_type(ty, SigKind::Call).is_empty()
+                                || !self
+                                    .c
+                                    .get_signatures_of_type(ty, SigKind::Constructor)
+                                    .is_empty())
+                        {
+                            let t = self.c.print_ty(ty, self.enclosing_declaration);
+                            s.push_str(&format!("({t})",))
+                        } else {
+                            s.push_str(self.c.print_ty(ty, self.enclosing_declaration))
+                        }
+                        s
+                    })
                 }
-                s
-            }),
+            }
             ty::TyKind::Intersection(i) => i.tys.iter().fold(String::new(), |mut s, ty| {
                 if !s.is_empty() {
                     s.push_str(" & ");
@@ -147,7 +153,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 let Some(symbol) = param.symbol else {
                     return "dummy_parameter".to_string();
                 };
-                let name = self.c.binder.symbol(symbol).name;
+                let name = self.c.symbol(symbol).name;
                 self.c.atoms.get(name.expect_atom()).to_string()
             }
             ty::TyKind::IndexedAccess(n) => {
@@ -194,6 +200,25 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             }
             ty::TyKind::UniqueESSymbol(_) => "unique symbol".to_string(),
             ty::TyKind::Enum(n) => self.print_enum_symbol(n.symbol),
+        }
+    }
+
+    fn print_alias_symbol(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<String> {
+        if let Some(alias_symbol) = ty.alias_symbol() {
+            let s = self.c.binder.symbol(alias_symbol);
+            let name = s.name.to_string(&self.c.atoms);
+            if let Some(alias_type_arguments) = ty.alias_ty_arguments() {
+                let args = alias_type_arguments
+                    .iter()
+                    .map(|ty| self.c.print_ty(ty, self.enclosing_declaration).to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Some(format!("{}<{}>", name, args));
+            } else {
+                return Some(name);
+            }
+        } else {
+            None
         }
     }
 
@@ -260,15 +285,36 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             }
             ty::ObjectTyKind::Reference(_) => self.print_reference_ty(ty),
             ty::ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
-            ty::ObjectTyKind::Mapped(m) => {
-                if let Some(s) = m.alias_symbol {
-                    let name = self.c.binder.symbol(s).name.expect_atom();
-                    self.c.atoms.get(name).to_string()
-                } else {
-                    "mapped type".to_string()
-                }
-            }
+            ty::ObjectTyKind::Mapped(_) => self.print_mapped_ty(ty),
             ty::ObjectTyKind::ReversedMapped(_) => todo!(),
+            ty::ObjectTyKind::EvolvingArray(_) => todo!(),
+        }
+    }
+
+    fn print_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
+        let mapped = ty.kind.expect_object_mapped();
+        self.c.resolve_structured_type_members(ty);
+        if let Some(target) = mapped.target {
+            self.c
+                .print_ty(target, self.enclosing_declaration)
+                .to_string()
+        } else {
+            let members = self
+                .c
+                .expect_ty_links(ty.id)
+                .expect_structured_members()
+                .members;
+            let members = members
+                .iter()
+                .map(|(name, symbol)| {
+                    let ty = self.c.get_type_of_symbol(*symbol);
+                    let field_name = name.to_string(&self.c.atoms);
+                    let field_ty = self.c.print_ty(ty, self.enclosing_declaration);
+                    format!("{field_name}: {field_ty}; ",)
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            format!("{{ {members}}}")
         }
     }
 

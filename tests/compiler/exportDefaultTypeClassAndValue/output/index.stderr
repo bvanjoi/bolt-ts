@@ -1,0 +1,17 @@
+  × A module cannot have multiple default exports.
+    ╭─[../../tests/compiler/exportDefaultTypeClassAndValue/index.ts:12:16]
+ 12 │ Bar
+    · ───
+    ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/exportDefaultTypeClassAndValue/index.ts:7:1]
+ 7 │ export default foo
+   · ──────────────────
+   ╰────
+
+  × Cannot redeclare exported variable 'default'.
+   ╭─[../../tests/compiler/exportDefaultTypeClassAndValue/index.ts:9:22]
+ 9 │ Foo
+   · ───
+   ╰────

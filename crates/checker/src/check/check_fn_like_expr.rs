@@ -245,7 +245,9 @@ impl<'cx> TyChecker<'cx> {
                     && self.get_sig_links(sig.id).get_resolved_ret_ty().is_none()
                 {
                     let ret_ty = self.get_return_type_from_body(id, check_mode);
-                    self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
+                    if self.get_sig_links(sig.id).get_resolved_ret_ty().is_none() {
+                        self.get_mut_sig_links(sig.id).set_resolved_ret_ty(ret_ty);
+                    }
                 }
 
                 self.check_sig_decl(id);
@@ -257,10 +259,16 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_sig_decl(&mut self, id: ast::NodeID) {
         let n = self.p.node(id);
         let ty_params = self.get_effective_ty_param_decls(id);
-        self.check_ty_params(ty_params);
+        self.check_type_parameters_worker(ty_params);
 
         if let Some(return_ty) = n.ret_ty() {
             self.check_ty(return_ty);
+        }
+
+        if let Some(params) = n.params() {
+            for param in params {
+                self.check_param_decl(param);
+            }
         }
 
         // check signature declaration

@@ -40,6 +40,15 @@ pub enum FlowNodeKind<'cx> {
     Assign(FlowAssign),
     Call(FlowCall<'cx>),
     Switch(FlowSwitchClause<'cx>),
+    Reduced(FlowReduceLabel),
+    ArrayMutation(FlowArrayMutation<'cx>),
+}
+
+#[derive(Clone, Debug)]
+pub struct FlowReduceLabel {
+    pub target: FlowID,
+    pub antecedents: Vec<FlowID>,
+    pub antecedent: FlowID,
 }
 
 #[derive(Clone, Debug)]
@@ -58,12 +67,26 @@ pub struct FlowCall<'cx> {
 
 #[derive(Clone, Debug)]
 pub struct FlowAssign {
+    // TODO: use specific node
     pub node: ast::NodeID,
     pub antecedent: FlowID,
 }
 
 #[derive(Clone, Debug)]
+pub struct FlowArrayMutation<'cx> {
+    pub node: FlowArrayMutationNode<'cx>,
+    pub antecedent: FlowID,
+}
+
+#[derive(Clone, Debug, Copy)]
+pub enum FlowArrayMutationNode<'cx> {
+    CallExpression(&'cx ast::CallExpr<'cx>),
+    AssignmentExpression(&'cx ast::AssignExpr<'cx>),
+}
+
+#[derive(Clone, Debug)]
 pub struct FlowCond {
+    // TODO: use specific node
     pub node: ast::NodeID,
     pub antecedent: FlowID,
 }
@@ -146,6 +169,23 @@ impl<'cx> FlowNodes<'cx> {
         self.insert_flow_node(node)
     }
 
+    pub(super) fn create_reduced_label(
+        &mut self,
+        target: FlowID,
+        antecedents: Vec<FlowID>,
+        antecedent: FlowID,
+    ) -> FlowID {
+        let node = FlowNode {
+            flags: FlowFlags::REDUCE_LABEL,
+            kind: FlowNodeKind::Reduced(FlowReduceLabel {
+                target,
+                antecedents,
+                antecedent,
+            }),
+        };
+        self.insert_flow_node(node)
+    }
+
     pub(super) fn add_antecedent(&mut self, label: FlowID, antecedent: FlowID) {
         if self
             .get_flow_node(antecedent)
@@ -168,6 +208,13 @@ impl<'cx> FlowNodes<'cx> {
             .get_or_insert_with(std::vec::Vec::new)
             .push(antecedent);
         self.set_flow_node_referenced(antecedent);
+    }
+
+    pub(super) fn antecedent_of_label(&mut self, label: FlowID) -> Option<&[FlowID]> {
+        let FlowNodeKind::Label(f) = &self.get_flow_node(label).kind else {
+            unreachable!()
+        };
+        f.antecedent.as_deref()
     }
 
     pub fn set_flow_node_referenced(&mut self, id: FlowID) {
@@ -219,6 +266,35 @@ impl<'cx> FlowNodes<'cx> {
 }
 
 impl<'cx> super::BinderState<'cx, '_, '_> {
+    pub(super) fn create_flow_array_mutation(
+        &mut self,
+        antecedent: FlowID,
+        node: FlowArrayMutationNode<'cx>,
+    ) -> FlowID {
+        debug_assert!(match node {
+            FlowArrayMutationNode::CallExpression(n)
+                if matches!(n.expr.kind, ast::ExprKind::PropAccess(_)) =>
+                true,
+            FlowArrayMutationNode::AssignmentExpression(n)
+                if n.op == ast::AssignOp::Eq
+                    && matches!(n.left.kind, ast::ExprKind::EleAccess(_)) =>
+                true,
+            _ => false,
+        });
+        self.flow_nodes.set_flow_node_referenced(antecedent);
+        self.has_flow_effects = true;
+        let node = FlowArrayMutation { node, antecedent };
+        let result = FlowNode {
+            flags: FlowFlags::ARRAY_MUTATION,
+            kind: FlowNodeKind::ArrayMutation(node),
+        };
+        let id = self.flow_nodes.insert_flow_node(result);
+        if let Some(current_exception_target) = self.current_exception_target {
+            self.flow_nodes.add_antecedent(current_exception_target, id);
+        }
+        id
+    }
+
     pub(super) fn create_flow_switch_clause(
         &mut self,
         antecedent: FlowID,
@@ -281,6 +357,7 @@ impl<'cx> super::BinderState<'cx, '_, '_> {
     }
 
     pub(super) fn create_flow_assign(&mut self, antecedent: FlowID, node: ast::NodeID) -> FlowID {
+        self.flow_nodes.set_flow_node_referenced(antecedent);
         self.has_flow_effects = true;
         let node = FlowAssign { node, antecedent };
         let result = FlowNode {

@@ -1,0 +1,24 @@
+  × Function with bodies can only merge with classes that are ambient.
+   ╭─[../../tests/compiler/callOverloads3/index.ts:5:10]
+ 5 │ Foo
+   · ───
+   ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+   ╭─[../../tests/compiler/callOverloads3/index.ts:8:10]
+ 8 │ Foo
+   · ───
+   ╰────
+
+  × Class declaration cannot implement overload list for 'Foo'.
+    ╭─[../../tests/compiler/callOverloads3/index.ts:10:7]
+ 10 │ Foo
+    · ───
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/callOverloads3/index.ts:5:10]
+ 5 │ Foo
+   · ───
+   ╰────

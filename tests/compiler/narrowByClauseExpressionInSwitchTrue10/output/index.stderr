@@ -1,0 +1,83 @@
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:14:19]
+ 14 │ a0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:15:19]
+ 15 │ a1
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:23:19]
+ 23 │ a20
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:33:19]
+ 33 │ a40
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:35:19]
+ 35 │ a50
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:44:11]
+ 44 │ a6
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:45:11]
+ 45 │ a7
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:54:15]
+ 54 │ a0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:55:15]
+ 55 │ a1
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:61:15]
+ 61 │ a20
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:69:15]
+ 69 │ a40
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'true'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:71:15]
+ 71 │ a50
+    · ───
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:79:11]
+ 79 │ a0
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type '42'.
+    ╭─[../../tests/compiler/narrowByClauseExpressionInSwitchTrue10/index.ts:80:11]
+ 80 │ a1
+    · ──
+    ╰────

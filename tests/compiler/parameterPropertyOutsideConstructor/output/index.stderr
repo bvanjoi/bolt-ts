@@ -1,0 +1,5 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/parameterPropertyOutsideConstructor/index.ts:7:9]
+ 7 │ public
+   · ──────
+   ╰────

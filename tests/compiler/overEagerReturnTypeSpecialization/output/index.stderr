@@ -1,0 +1,5 @@
+  × Type 'I1<number>' is not assignable to type 'I1<string>'.
+    ╭─[../../tests/compiler/overEagerReturnTypeSpecialization/index.ts:10:5]
+ 10 │ r1
+    · ──
+    ╰────

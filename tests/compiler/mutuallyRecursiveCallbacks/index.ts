@@ -7,4 +7,4 @@ type Bar<T> = (foo: Foo<T>) => Foo<T>;
 declare function foo<T>(bar: Bar<T>): void;
 declare var bar: Bar<{}>;
 bar = foo;
-//~^ ERROR: Type '(bar: Bar) => void' is not assignable to type 'Bar'.
+//~^ ERROR: Type '(bar: Bar<T>) => void' is not assignable to type 'Bar<{ }>'.

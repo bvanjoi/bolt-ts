@@ -42,17 +42,11 @@ impl<'cx> Nodes<'cx> {
         }
     }
 
-    pub fn is_param_prop_decl(&self, id: ast::NodeID, parent: ast::NodeID) -> bool {
-        let n = self.get(id);
-        n.as_param_decl()
-            .is_some_and(|param| self.param_is_prop_decl(param, parent))
-    }
-
     pub fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {
         // TODO: has_syntactic_modifier
         param.modifiers.is_some_and(|mods| {
             mods.flags
-                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY)
+                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
         }) && self.get(parent).is_class_ctor()
     }
 

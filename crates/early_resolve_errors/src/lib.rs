@@ -1,0 +1,186 @@
+use bolt_ts_errors::DiagnosticExt;
+use bolt_ts_errors::diag_ext;
+use bolt_ts_errors::miette;
+use bolt_ts_errors::miette::Diagnostic;
+use bolt_ts_span::Span;
+
+use thiserror;
+use thiserror::Error;
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot find name '{name}'.")]
+pub struct CannotFindName {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    #[related]
+    pub errors: Vec<CannotFindNameHelperKind>,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+
+pub enum CannotFindNameHelperKind {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    DidYouMeanTheStaticMember(DidYouMeanTheStaticMember),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    AnInterfaceCannotExtendAPrimTy(AnInterfaceCannotExtendAPrimTy),
+    // #[error(transparent)]
+    // #[diagnostic(transparent)]
+    // AClassCannotImplementAPrimTy(AClassCannotImplementAPrimTy),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    CannotUseNamespaceAsTyOrValue(CannotUseNamespaceAsTyOrValue),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ShorthandPropertyNeedAnInitializer(ShorthandPropertyNeedAnInitializer),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    OnlyReferToATypeButIsBeingUsedAsValueHere(OnlyReferToATypeButIsBeingUsedAsValueHere),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    BaseClassExpressionsCannotReferenceClassTypeParameters(
+        BaseClassExpressionsCannotReferenceClassTypeParameters,
+    ),
+    #[error(transparent)]
+    #[diagnostic(severity(Advice))]
+    InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(
+        InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor,
+    ),
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    CannotUseTypeAsNamespace(CannotUseTypeAsNamespace),
+}
+
+impl CannotFindNameHelperKind {
+    pub fn into_diag(
+        self,
+    ) -> Box<dyn bolt_ts_errors::diag_ext::DiagnosticExt + Send + Sync + 'static> {
+        match self {
+            CannotFindNameHelperKind::DidYouMeanTheStaticMember(diag) => Box::new(diag),
+            CannotFindNameHelperKind::AnInterfaceCannotExtendAPrimTy(diag) => Box::new(diag),
+            CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(diag) => Box::new(diag),
+            CannotFindNameHelperKind::ShorthandPropertyNeedAnInitializer(diag) => Box::new(diag),
+            CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(diag) => {
+                Box::new(diag)
+            }
+            CannotFindNameHelperKind::BaseClassExpressionsCannotReferenceClassTypeParameters(
+                diag,
+            ) => Box::new(diag),
+            CannotFindNameHelperKind::InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor(diag) => Box::new(diag),
+            CannotFindNameHelperKind::CannotUseTypeAsNamespace(diag) => {
+                Box::new(diag)
+            },
+        }
+    }
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Base class expressions cannot reference class type parameters.")]
+#[diagnostic(severity(Advice))]
+pub struct BaseClassExpressionsCannotReferenceClassTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' only refers to a type, but is being used as a value here.")]
+#[diagnostic(severity(Advice))]
+pub struct OnlyReferToATypeButIsBeingUsedAsValueHere {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+    #[label("'{name}' is defined here.")]
+    pub defined_here: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Did you mean the static member '{class_name}.{prop_name}'?")]
+#[diagnostic(severity(Advice))]
+pub struct DidYouMeanTheStaticMember {
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub prop_name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An interface cannot extend a primitive type like '{ty}'.")]
+#[diagnostic(help = "It can only extend other named object types.")]
+pub struct AnInterfaceCannotExtendAPrimTy {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot use type as a namespace.")]
+#[diagnostic(severity(Advice))]
+pub struct CannotUseTypeAsNamespace {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Cannot use namespace as a {}.", if *is_ty { "type" } else { "value" })]
+#[diagnostic(severity(Advice))]
+pub struct CannotUseNamespaceAsTyOrValue {
+    #[label(primary)]
+    pub span: Span,
+    pub is_ty: bool,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Parameter '{name}' cannot reference itself.")]
+pub struct ParameterXCannotReferenceItself {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Shorthand property need an initializer.")]
+#[diagnostic(severity(Advice))]
+pub struct ShorthandPropertyNeedAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Static members cannot reference class type parameters.")]
+pub struct StaticMembersCannotReferenceClassTypeParameters {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Parameter '{parameter}' cannot reference identifier '{identifier}' declared after it.")]
+pub struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
+    #[label(primary)]
+    pub span: Span,
+    pub parameter: String,
+    pub identifier: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error(
+    "Initializer of instance member variable '{x}' cannot reference identifier '{y}' declared in the constructor."
+)]
+pub struct InitializerOfInstanceMemberVariable0CannotReferenceIdentifier1DeclaredInTheConstructor {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Cannot initialize outer scoped variable '{x}' in the same scope as block scoped declaration '{y}'."
+)]
+pub struct CannotInitializeOuterScopedVariableXInTheSameScopeAsBlockScopedDeclarationY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

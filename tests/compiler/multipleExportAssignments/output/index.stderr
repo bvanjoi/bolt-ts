@@ -1,0 +1,8 @@
+  × Duplicate identifier 'export ='.
+    ╭─[../../tests/compiler/multipleExportAssignments/index.ts:20:10]
+ 19 │ server;
+    · ───┬──
+    ·    ╰── Previous definition here
+ 20 │ export = connectExport
+    ·          ─────────────
+    ╰────

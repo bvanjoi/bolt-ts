@@ -1,0 +1,13 @@
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type '{ x: T["x"]; }'.
+   ╭─[../../tests/compiler/reverseMappedTypeLimitedConstraint/index.ts:9:13]
+ 9 │ y
+   · ─
+   ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ }'.
+    ╭─[../../tests/compiler/reverseMappedTypeLimitedConstraint/index.ts:18:3]
+ 18 │ z
+    · ─
+    ╰────

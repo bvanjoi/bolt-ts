@@ -1,56 +1,56 @@
   × Object literal may only specify known properties, and 'multipleOf' does
   │ not exist in type 'Float'.
     ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:32:5]
- 32 │ multipleOf: 5
-    · ─────────────
+ 32 │ multipleOf
+    · ──────────
     ╰────
 
   × Object literal may only specify known properties, and 'p3' does not exist
   │ in type '{ p1: "left"; p2: boolean; }'.
     ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:44:5]
- 44 │ p3: 42
-    · ──────
+ 44 │ p3
+    · ──
     ╰────
 
   × Object literal may only specify known properties, and 'p4' does not exist
   │ in type '{ p1: "left"; p2: true; p3: number; } | { p1: "left"; p2:
   │ boolean; }'.
     ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:54:5]
- 54 │ p4: "hello"
-    · ───────────
+ 54 │ p4
+    · ──
     ╰────
 
   × Object literal may only specify known properties, and 'p3' does not exist
   │ in type '{ p1: "right"; p2: false; p4: string; }'.
     ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:62:5]
- 62 │ p3: 42
-    · ──────
+ 62 │ p3
+    · ──
     ╰────
 
   × Object literal may only specify known properties, and 'b' does not exist
   │ in type 'Common | Common & A'.
     ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:89:5]
- 89 │ b: 1
-    · ────
+ 89 │ b
+    · ─
     ╰────
 
   × Object literal may only specify known properties, and 'b' does not exist
   │ in type 'Common | A'.
      ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:100:5]
- 100 │ b: 1
-     · ────
+ 100 │ b
+     · ─
      ╰────
 
   × Object literal may only specify known properties, and 'autoIncrement' does
   │ not exist in type 'StringAttribute | OneToOneAttribute'.
      ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:139:5]
- 139 │ autoIncrement: true
-     · ───────────────────
+ 139 │ autoIncrement
+     · ─────────────
      ╰────
 
   × Object literal may only specify known properties, and 'autoIncrement' does
   │ not exist in type 'StringAttribute'.
      ╭─[../../tests/compiler/excessPropertyCheckWithMultipleDiscriminants/index.ts:146:5]
- 146 │ autoIncrement: true
-     · ───────────────────
+ 146 │ autoIncrement
+     · ─────────────
      ╰────
