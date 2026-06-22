@@ -466,7 +466,11 @@ impl<'cx> TyChecker<'cx> {
         self.type_has_protected_accessible_base(target, first_base)
     }
 
-    fn is_constructor_access(&mut self, expr: &impl CallLikeExpr<'cx>, sig: &'cx Sig<'cx>) -> bool {
+    fn is_constructor_accessible(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        sig: &'cx Sig<'cx>,
+    ) -> bool {
         let Some(d) = sig.node_id else {
             return true;
         };
@@ -502,7 +506,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::Node::ClassDecl(_) | ast::Node::ClassExpr(_)
                 ));
                 let symbol = self.get_symbol_of_declaration(containing_class);
-                let containing_ty = self.get_type_of_symbol(symbol);
+                let containing_ty = self.get_declared_ty_of_symbol(symbol);
                 if self.type_has_protected_accessible_base(class_symbol, containing_ty) {
                     return true;
                 }
@@ -551,7 +555,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ctor_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Constructor);
         if !ctor_sigs.is_empty() {
-            if !self.is_constructor_access(expr, ctor_sigs[0]) {
+            if !self.is_constructor_accessible(expr, ctor_sigs[0]) {
                 return self.resolve_error_call(expr);
             }
             let abstract_sigs = ctor_sigs

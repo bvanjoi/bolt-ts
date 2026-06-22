@@ -2077,7 +2077,11 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_args,
         });
         let ty = self.get_cond_ty::<false>(root, None, alias_symbol, alias_ty_args);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 

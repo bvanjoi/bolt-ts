@@ -1449,17 +1449,18 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             if !sigs.is_empty() {
-                if sigs.len() == 1 {
-                    return Some(sigs[0]);
+                Some(if sigs.len() == 1 {
+                    sigs[0]
                 } else {
                     let sigs = self.alloc(sigs);
-                    self.create_union_sig(sigs[0], sigs);
-                }
+                    self.create_union_sig(sigs[0], sigs)
+                })
+            } else {
+                None
             }
         } else {
-            return self.get_contextual_call_sig(ty, id);
+            self.get_contextual_call_sig(ty, id)
         }
-        None
     }
 
     pub(super) fn is_context_sensitive_fn_or_object_literal_method(&self, id: ast::NodeID) -> bool {
