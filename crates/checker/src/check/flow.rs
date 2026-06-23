@@ -42,7 +42,7 @@ impl FlowTy<'_> {
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_flow_node_of_node(&self, node: ast::NodeID) -> Option<FlowID> {
         let module = node.module().as_usize();
-        debug_assert!(module < self.flow_in_nodes.len());
+        debug_assert!(module < self.flow_nodes.len());
         unsafe {
             self.flow_nodes
                 .get_unchecked(module)
@@ -52,7 +52,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn flow_node(&self, id: FlowID) -> &FlowNode<'cx> {
         let module = id.module().as_usize();
-        debug_assert!(module < self.flow_in_nodes.len());
+        debug_assert!(module < self.flow_nodes.len());
         unsafe { self.flow_nodes.get_unchecked(module).get_flow_node(id) }
     }
 
@@ -2787,6 +2787,53 @@ impl<'cx> TyChecker<'cx> {
             object_expr_is_strict_and_under_strict,
             is_uninitialize_property_access_under_class_constructor,
         )
+    }
+
+    pub(super) fn get_flow_ty_in_constructor(
+        &mut self,
+        property: &'cx ast::ClassPropElem<'cx>,
+        property_symbol: SymbolID,
+        constructor: &'cx ast::ClassCtor<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let flow_in_node = self.get_flow_in_node_of_node(constructor.id);
+        let return_flow_node = match flow_in_node {
+            FlowInNode::Noop => return None,
+            FlowInNode::FnLike(n) => n.return_flow_node,
+        };
+        let flow_ty = self.get_flow_ty_of_property(property, property_symbol, return_flow_node);
+        if self.config.compiler_options().no_implicit_any()
+            && (flow_ty == self.auto_ty || flow_ty == self.auto_array_ty())
+        {
+            // TODO: implicit error
+        }
+        if self.every_type(flow_ty, |this, t| this.is_nullable_ty(t)) {
+            None
+        } else {
+            Some(self.convert_auto_to_any(flow_ty))
+        }
+    }
+
+    pub(super) fn get_flow_ty_of_property(
+        &mut self,
+        property: &'cx ast::ClassPropElem<'cx>,
+        symbol: SymbolID,
+        flow_node: Option<FlowID>,
+    ) -> &'cx ty::Ty<'cx> {
+        let initial_ty = Some(
+            if let Some(value_declaration) = self.symbol(symbol).value_decl
+                && (!self.is_auto_typed_property_worker(value_declaration)
+                    || self
+                        .node_query(value_declaration.module())
+                        .get_effective_modifier_flags(value_declaration)
+                        .contains(ast::ModifierFlags::AMBIENT))
+            {
+                self.get_ty_of_property_in_base_class(symbol)
+                    .unwrap_or(self.undefined_ty)
+            } else {
+                self.undefined_ty
+            },
+        );
+        self.get_flow_ty_of_reference(property.id, self.auto_ty, initial_ty, None, flow_node)
     }
 }
 

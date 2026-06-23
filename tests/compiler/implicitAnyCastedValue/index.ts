@@ -44,6 +44,7 @@ function castedNull() {
 }
 
 function notCastedNull() {
+//~^ ERROR: 'notCastedNull', which lacks return-type annotation, implicitly has an 'any' return type.
     return null;  // this should be an error
 }
 

@@ -1578,4 +1578,24 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             _ => false,
         }
     }
+
+    pub fn find_constructor_declaration(
+        &self,
+        class_decl: ast::NodeID,
+    ) -> Option<&'cx ast::ClassCtor<'cx>> {
+        let elements = match self.node(class_decl) {
+            ast::Node::ClassDecl(n) => n.elems,
+            ast::Node::ClassExpr(n) => n.elems,
+            _ => return None,
+        };
+        elements.list.iter().find_map(|elem| {
+            if let ast::ClassElemKind::Ctor(c) = elem.kind
+                && c.body.is_some()
+            {
+                Some(c)
+            } else {
+                None
+            }
+        })
+    }
 }

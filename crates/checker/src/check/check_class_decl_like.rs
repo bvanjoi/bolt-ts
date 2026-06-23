@@ -63,10 +63,19 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
-        self.check_fn_like_decl(ctor);
-
-        if ctor.body.is_none() {
-            return;
+        self.check_sig_decl(ctor.id);
+        let symbol = self.get_symbol_of_declaration(ctor.id);
+        let first_fn_decl = self
+            .symbol(symbol)
+            .decls
+            .as_ref()
+            .and_then(|decls| decls.iter().find(|&&d| self.p.node(d).is_class_ctor()));
+        if first_fn_decl.is_some_and(|&decl| decl == ctor.id) {
+            self.check_fn_like_symbol(symbol);
+        }
+        match ctor.body {
+            Some(body) => self.check_block(body),
+            None => return,
         }
 
         let containing_class_decl = self.parent(ctor.id).unwrap();
@@ -626,18 +635,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        for ele in class.elems().list {
+        for element in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
-            match ele.kind {
+            match element.kind {
                 Prop(n) => self.check_class_prop_ele(n),
                 Method(n) => self.check_class_method_element(n),
                 Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_getter_decl(n),
                 Setter(n) => self.check_accessor_decl(n),
-                StaticBlockDecl(n) => {
-                    self.check_block(n.body);
-                }
+                StaticBlockDecl(n) => self.check_block(n.body),
                 Semi(_) => {}
             }
         }

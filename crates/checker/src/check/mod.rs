@@ -71,7 +71,7 @@ use bolt_ts_ast::{self as ast, pprint_elem_access_expr, pprint_prop_access_expr}
 use bolt_ts_ast::{FnFlags, keyword};
 use bolt_ts_ast_visitor::noop_visit_type_node;
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_binder::{AccessKind, AssignmentKind, ModuleInstanceState, NodeQuery};
+use bolt_ts_binder::{AccessKind, AssignmentKind, ModuleInstanceState, NodeQuery, prop_name};
 use bolt_ts_binder::{FlowID, FlowInNodes, FlowNodes};
 use bolt_ts_binder::{GlobalSymbols, MergedSymbols, ResolveResult, SymbolTable, Symbols};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID, SymbolName};
@@ -5455,6 +5455,32 @@ impl<'cx> TyChecker<'cx> {
                 }
                 false
             }
+            ast::Node::ClassPropElem(n) => {
+                // ```
+                // class C {
+                //    x
+                //   ~~~
+                //    constructor() { this.x = xxxxx }
+                // }
+                // ```
+                let (target_access_expr, target_property_name) =
+                    get_access_expression_and_property_name(self, t);
+                if let Some(target_property_name) = target_property_name {
+                    let source_property_name = prop_name(n.name);
+                    if source_property_name == target_property_name {
+                        debug_assert!({
+                            use ast::Node::*;
+                            let expr = self.p.node(target_access_expr.unwrap());
+                            !matches!(
+                                expr,
+                                ParenExpr(_) | NonNullExpr(_) | AssignExpr(_) | BinExpr(_)
+                            )
+                        });
+                        return true;
+                    }
+                }
+                false
+            }
             _ => false,
         }
     }
@@ -8530,6 +8556,25 @@ impl<'cx> TyChecker<'cx> {
                 .get_modifiers()
                 .contains(ast::MappedTyModifiers::EXCLUDE_OPTIONAL)
             && object_mapped_ty.decl.name_ty.is_some()
+    }
+
+    fn is_auto_typed_property(&self, symbol: SymbolID) -> bool {
+        self.symbol(symbol)
+            .value_decl
+            .is_some_and(|n| self.is_auto_typed_property_worker(n))
+    }
+
+    fn is_auto_typed_property_worker(&self, value_declaration: ast::NodeID) -> bool {
+        let n = self.p.node(value_declaration);
+        let Some(n) = n.as_class_prop_elem() else {
+            return false;
+        };
+        n.ty.is_none() && n.init.is_none() && {
+            self.config.compiler_options().no_implicit_any()
+                || self
+                    .node_query(value_declaration.module())
+                    .is_in_js_file(value_declaration)
+        }
     }
 }
 

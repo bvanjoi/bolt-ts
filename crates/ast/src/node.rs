@@ -557,31 +557,16 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn fn_body(&self) -> Option<super::ArrowFnExprBody<'cx>> {
-        if let Some(f) = self.as_arrow_fn_expr() {
-            return Some(f.body);
+        match self {
+            self::Node::ArrowFnExpr(f) => Some(f.body),
+            self::Node::FnExpr(f) => Some(super::ArrowFnExprBody::Block(&f.body)),
+            self::Node::ObjectMethodMember(f) => Some(super::ArrowFnExprBody::Block(&f.body)),
+            self::Node::FnDecl(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
+            self::Node::ClassMethodElem(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
+            self::Node::ClassCtor(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
+            self::Node::GetterDecl(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
+            _ => None,
         }
-        macro_rules! fn_body {
-            ($($node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) => Some(super::ArrowFnExprBody::Block(&n.body)),)*
-                    _ => None,
-                }
-            };
-        }
-
-        if let Some(body) = fn_body!(FnExpr, ObjectMethodMember) {
-            return Some(body);
-        }
-
-        macro_rules! fn_body_with_option {
-            ($( $node_kind:ident),* $(,)?) => {
-                match self {
-                    $(Node::$node_kind(n) if n.body.is_some() => Some(super::ArrowFnExprBody::Block(n.body.unwrap())),)*
-                    _ => None,
-                }
-            };
-        }
-        fn_body_with_option!(FnDecl, ClassMethodElem, ClassCtor, GetterDecl)
     }
 
     pub fn fn_flags(&self) -> FnFlags {
