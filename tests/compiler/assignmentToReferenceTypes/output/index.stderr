@@ -1,0 +1,30 @@
+  × Cannot find name 'M'.
+   ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:8:1]
+ 8 │ M
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+   ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:6:11]
+ 6 │ M
+   · ─
+   ╰────
+
+  × Cannot assign to 'C' because it is a class.
+    ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:13:1]
+ 13 │ C
+    · ─
+    ╰────
+
+  × Cannot assign to 'E' because it is a enum.
+    ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:18:1]
+ 18 │ E
+    · ─
+    ╰────
+
+  × Cannot assign to 'f' because it is a function.
+    ╭─[../../tests/compiler/assignmentToReferenceTypes/index.ts:22:1]
+ 22 │ f
+    · ─
+    ╰────

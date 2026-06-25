@@ -1,5 +1,6 @@
-use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
+use bolt_ts_ast::{self as ast, NodeFlags, NodeID, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
@@ -7,9 +8,8 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
-use crate::parsing_ctx::ParseContext;
-
 use super::PResult;
+use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
@@ -282,11 +282,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn create_ident_by_atom(&mut self, name: Atom, span: Span) -> &'cx ast::Ident {
-        let id = self.next_node_id();
-        let ident = self.alloc(ast::Ident { id, name, span });
-        self.nodes.insert(id, Node::Ident(ident));
-        self.node_flags_map.insert(id, self.node_context_flags);
-        ident
+        self.create_identifier(name, span)
     }
 
     pub(super) fn create_ident(
@@ -364,7 +360,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
         let id = self.next_node_id();
-        self.alloc(ast::LitTy { id, kind, span })
+        let lit = self.alloc(ast::LitTy { id, kind, span });
+        self.insert_node(id, ast::Node::LitTy(lit));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        lit
     }
 
     pub(super) fn parse(&mut self) -> &'cx ast::Program<'cx> {
@@ -381,10 +380,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
             Ok(stmt)
         });
-        let id = self.next_node_id();
-        let program = ast::Program::new(id, self.new_span(start as u32), stmts);
-        let program = self.alloc(program);
-        self.nodes.insert(id, Node::Program(program));
+        let program = self.create_program(self.new_span(start as u32), stmts);
         program
     }
 

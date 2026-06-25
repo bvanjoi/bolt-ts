@@ -81,21 +81,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        let id = state.next_node_id();
-        let decl = state.alloc(ast::ClassDecl {
-            id,
-            span,
-            modifiers,
-            name,
-            ty_params,
-            extends,
-            implements,
-            elems,
-        });
-        state.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        state.node_flags_map.insert(id, state.node_context_flags);
-        state.nodes.insert(decl.id, ast::Node::ClassDecl(decl));
-        decl
+        state.create_class_declaration(span, modifiers, name, ty_params, extends, implements, elems)
     }
 }
 
@@ -113,20 +99,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        assert!(modifiers.is_none());
-        let id = state.next_node_id();
-        let expr = state.alloc(ast::ClassExpr {
-            id,
-            span,
-            name,
-            ty_params,
-            extends,
-            implements,
-            elems,
-        });
-        state.node_flags_map.insert(id, state.node_context_flags);
-        state.nodes.insert(expr.id, ast::Node::ClassExpr(expr));
-        expr
+        state.create_class_expression(span, name, ty_params, extends, implements, elems)
     }
 }
 
@@ -292,13 +265,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 self.push_error(Box::new(error));
             }
-            let id = self.next_node_id();
-            let clause = self.alloc(ast::ClassExtendsClause {
-                id,
-                span: self.new_span(start),
-                expr_with_ty_args: expr,
-            });
-            self.nodes.insert(id, ast::Node::ClassExtendsClause(clause));
+            let clause = self.create_class_extends_clause(self.new_span(start), expr);
             return Ok(Some(clause));
         }
         Ok(None)
@@ -330,7 +297,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);
-            let method = self.create_class_method_elem(
+            let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
             );
             self.alloc(ast::ClassElem {
@@ -354,7 +321,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let ty = this.parse_ty_anno()?;
                 let init = this.parse_init()?;
                 let span = this.new_span(start);
-                let prop = this.create_class_prop_elem(
+                let prop = this.create_class_property_element(
                     span,
                     modifiers,
                     name,
@@ -442,7 +409,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let span = this.p().new_span(start);
                 let ctor = this
                     .p()
-                    .create_class_ctor(span, mods, name_span, params, ret, body);
+                    .create_class_constructor(span, mods, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -461,7 +428,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             TokenKind::Semi => {
                 self.next_token();
                 let span = self.new_span(start);
-                let elem = self.create_semi_class_elem(span);
+                let elem = self.create_class_semi_element(span);
                 return Ok(self.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Semi(elem),
                 }));
@@ -555,7 +522,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let body =
             self.do_inside_of_parse_context(ParseContext::CLASS_STATIC_BLOCK, Self::parse_block);
         let span = self.new_span(start as u32);
-        let block = self.create_class_static_block_decl(span, body);
+        let block = self.create_class_static_block_declaration(span, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),
         }))

@@ -40,9 +40,11 @@ impl<'cx> ParserState<'cx, '_> {
                 span: t.span,
             };
             let right = self.parse_assign_expr_or_higher::<false>()?;
-            let kind =
-                ast::ExprKind::Bin(self.create_binary_expr(self.new_span(start), expr, op, right));
-            expr = self.alloc(ast::Expr { kind });
+            let span = self.new_span(start);
+            let kind = self.create_binary_expression(span, expr, op, right);
+            expr = self.alloc(ast::Expr {
+                kind: ast::ExprKind::Bin(kind),
+            });
         }
         Ok(expr)
     }
@@ -192,7 +194,8 @@ impl<'cx> ParserState<'cx, '_> {
             ast::ArrowFnExprBody::Expr(self.parse_ident(None))
         };
         let span = self.new_span(start);
-        let expr = self.create_arrow_fn_expr(span, modifier, ty_params, params, ty, body);
+        let expr =
+            self.create_arrow_function_expression(span, modifier, ty_params, params, ty, body);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });
@@ -254,7 +257,14 @@ impl<'cx> ParserState<'cx, '_> {
         let is_async = async_modifier.is_some();
         let body = self.parse_arrow_fn_expr_body::<ALLOW_RETURN_TYPE_IN_ARROW_FN>(is_async)?;
         let span = self.new_span(param.span.lo());
-        let expr = self.create_arrow_fn_expr(span, async_modifier, None, parameters, None, body);
+        let expr = self.create_arrow_function_expression(
+            span,
+            async_modifier,
+            None,
+            parameters,
+            None,
+            body,
+        );
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrowFn(expr),
         });
@@ -289,10 +299,10 @@ impl<'cx> ParserState<'cx, '_> {
             let asterisk = self.parse_optional(TokenKind::Asterisk).map(|t| t.span);
             let expr = self.parse_assign_expr_or_higher::<true>()?;
             let span = self.new_span(start);
-            self.create_yield_expr(span, asterisk, Some(expr))
+            self.create_yield_expression(span, asterisk, Some(expr))
         } else {
             let span = self.new_span(start);
-            self.create_yield_expr(span, None, None)
+            self.create_yield_expression(span, None, None)
         };
         Ok(self.alloc(ast::Expr {
             kind: ast::ExprKind::Yield(kind),
@@ -391,25 +401,10 @@ impl<'cx> ParserState<'cx, '_> {
             let kind = if matches!(t.kind, TokenKind::As | TokenKind::Satisfies) {
                 let ty = self.parse_ty()?;
                 if t.kind == TokenKind::Satisfies {
-                    let next_expr_id = self.next_node_id();
-                    let expr = self.alloc(ast::SatisfiesExpr {
-                        id: next_expr_id,
-                        span: self.new_span(start),
-                        expr: left,
-                        ty,
-                    });
-                    self.nodes
-                        .insert(next_expr_id, ast::Node::SatisfiesExpr(expr));
+                    let expr = self.create_satisfies_expression(self.new_span(start), left, ty);
                     ast::ExprKind::Satisfies(expr)
                 } else {
-                    let next_expr_id = self.next_node_id();
-                    let expr = self.alloc(ast::AsExpr {
-                        id: next_expr_id,
-                        span: self.new_span(start),
-                        expr: left,
-                        ty,
-                    });
-                    self.nodes.insert(next_expr_id, ast::Node::AsExpr(expr));
+                    let expr = self.create_as_expression(self.new_span(start), left, ty);
                     ast::ExprKind::As(expr)
                 }
             } else {
@@ -418,10 +413,10 @@ impl<'cx> ParserState<'cx, '_> {
                     span: t.span,
                 };
                 let right = self.parse_binary_expr(next_prec)?;
-                let expr = self.create_binary_expr(self.new_span(start), left, op, right);
+                let expr = self.create_binary_expression(self.new_span(start), left, op, right);
                 ast::ExprKind::Bin(expr)
             };
-            left = self.alloc(ast::Expr { kind });
+            left = self.alloc(ast::Expr { kind: kind });
         }
     }
 
@@ -441,14 +436,7 @@ impl<'cx> ParserState<'cx, '_> {
         let op = self.token.kind.into();
         self.next_token();
         let expr = f(self)?;
-        let id = self.next_node_id();
-        let unary = self.alloc(ast::PrefixUnaryExpr {
-            id,
-            span: self.new_span(start),
-            op,
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::PrefixUnaryExpr(unary));
+        let unary = self.create_prefix_unary_expression(self.new_span(start), op, expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::PrefixUnary(unary),
         });
@@ -477,7 +465,7 @@ impl<'cx> ParserState<'cx, '_> {
                     let start = self.token.start();
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
-                    let expr = self.create_await_expr(self.new_span(start), expr);
+                    let expr = self.create_await_expression(self.new_span(start), expr);
                     let expr = self.alloc(ast::Expr {
                         kind: ast::ExprKind::Await(expr),
                     });
@@ -510,7 +498,7 @@ impl<'cx> ParserState<'cx, '_> {
             let error = errors::DeleteCannotBeCalledOnAnIdentifierInStrictMode { span };
             self.push_error(Box::new(error));
         }
-        let n = self.create_delete_expr(span, expr);
+        let n = self.create_delete_expression(span, expr);
         let n = self.alloc(ast::Expr {
             kind: ast::ExprKind::Delete(n),
         });
@@ -537,7 +525,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::Void);
         let expr = self.parse_simple_unary_expr()?;
         let span = self.new_span(start);
-        let expr = self.create_void_expr(span, expr);
+        let expr = self.create_void_expression(span, expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Void(expr),
         });
@@ -548,13 +536,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.expect(TokenKind::Typeof);
         let expr = self.parse_simple_unary_expr()?;
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::TypeofExpr {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::TypeofExpr(kind));
+        let kind = self.create_typeof_expression(self.new_span(start), expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Typeof(kind),
         });
@@ -647,15 +629,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.expect(TokenKind::Dot);
             let name = self.parse_right_side_of_dot::<true>();
-            let id = self.next_node_id();
-            let expr = self.alloc(ast::PropAccessExpr {
-                id,
-                span: self.new_span(start),
-                expr,
-                question_dot: None,
-                name,
-            });
-            self.nodes.insert(id, ast::Node::PropAccessExpr(expr));
+            let expr = self.create_property_access_expression(self.new_span(start), expr, name);
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::PropAccess(expr),
             });
@@ -741,9 +715,9 @@ impl<'cx> ParserState<'cx, '_> {
                 let span = self.new_span(start as u32);
                 let call_expr = if question_dot.is_some() || self.try_reparse_optional_chain(expr) {
                     let question = question_dot.map(|question| question.span);
-                    self.create_call_chain(span, expr, ty_args, question, args)
+                    self.create_call_expression_chain(span, expr, ty_args, question, args)
                 } else {
-                    self.create_call_expr(span, expr, ty_args, args)
+                    self.create_call_expression(span, expr, ty_args, args)
                 };
                 expr = self.alloc(ast::Expr {
                     kind: ast::ExprKind::Call(call_expr),
@@ -823,13 +797,8 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let expr = self.parse_assign_expr_or_higher::<true>()?;
-            let id = self.next_node_id();
-            let n = self.alloc(ast::SpreadAssignment {
-                id,
-                span: self.new_span(start),
-                expr,
-            });
-            self.nodes.insert(id, ast::Node::SpreadAssignment(n));
+            let span = self.new_span(start);
+            let n = self.create_spread_assignment(span, expr);
             let m = self.alloc(ast::ObjectMember {
                 kind: ast::ObjectMemberKind::SpreadAssignment(n),
             });
@@ -922,13 +891,8 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `(`
         let expr = self.parse_expr()?;
         self.expect(TokenKind::RParen);
-        let id = self.next_node_id();
-        let expr = self.alloc(ast::ParenExpr {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::ParenExpr(expr));
+        let span = self.new_span(start);
+        let expr = self.create_parentheses_expression(span, expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Paren(expr),
         });
@@ -946,31 +910,18 @@ impl<'cx> ParserState<'cx, '_> {
             open_bracket_parsed,
             start as usize,
         );
-        let id = self.next_node_id();
-        let lit = self.alloc(ast::ArrayLit {
-            id,
-            span: self.new_span(start),
-            elems,
-        });
-        self.nodes.insert(id, ast::Node::ArrayLit(lit));
+        let lit = self.create_array_literal(self.new_span(start), elems);
 
-        (self.alloc(ast::Expr {
-            // id: expr_id,
+        self.alloc(ast::Expr {
             kind: ast::ExprKind::ArrayLit(lit),
-        })) as _
+        })
     }
 
     fn parse_spread_element(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         let start = self.token.start();
         self.expect(TokenKind::DotDotDot);
         let expr = self.parse_assign_expr_or_higher::<true>()?;
-        let id = self.next_node_id();
-        let node = self.alloc(ast::SpreadElement {
-            id,
-            span: self.new_span(start),
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::SpreadElement(node));
+        let node = self.create_spread_element(self.new_span(start), expr);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::SpreadElement(node),
         });
@@ -983,7 +934,7 @@ impl<'cx> ParserState<'cx, '_> {
             |this| match this.token.kind {
                 TokenKind::DotDotDot => this.parse_spread_element(),
                 TokenKind::Comma => {
-                    let omit_expr = this.create_omit_expr(this.token.span);
+                    let omit_expr = this.create_omit_expression(this.token.span);
                     let expr = this.alloc(ast::Expr {
                         kind: ast::ExprKind::Omit(omit_expr),
                     });
@@ -1000,7 +951,8 @@ impl<'cx> ParserState<'cx, '_> {
         val: bolt_ts_atom::Atom,
     ) -> &'cx ast::BigIntLit {
         let lit = self.create_lit((neg, val), self.token.span);
-        self.nodes.insert(lit.id, ast::Node::BigIntLit(lit));
+        self.insert_node(lit.id, ast::Node::BigIntLit(lit));
+        self.insert_node_flags(lit.id, ast::NodeFlags::empty());
         self.next_token();
         lit
     }
@@ -1020,14 +972,14 @@ impl<'cx> ParserState<'cx, '_> {
             }
             False | True => {
                 let v = self.token.kind == True;
-                let lit = self.create_lit(v, self.token.span);
-                self.nodes.insert(lit.id, ast::Node::BoolLit(lit));
+                let lit = self.create_boolean_literal(v, self.token.span);
                 self.next_token();
                 ast::ExprKind::BoolLit(lit)
             }
             Null => {
                 let lit = self.create_lit((), self.token.span);
-                self.nodes.insert(lit.id, ast::Node::NullLit(lit));
+                self.insert_node(lit.id, ast::Node::NullLit(lit));
+                self.insert_node_flags(lit.id, ast::NodeFlags::empty());
                 self.next_token();
                 ast::ExprKind::NullLit(lit)
             }
@@ -1040,34 +992,25 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ExprKind::NoSubstitutionTemplateLit(lit)
             }
             This => {
-                let this = self.create_this_expr(self.token.span);
+                let this = self.create_this_expression(self.token.span);
                 self.next_token();
                 ast::ExprKind::This(this)
             }
             Regexp => {
-                let id = self.next_node_id();
                 let val = self.ident_token();
-                let lit = self.alloc(ast::RegExpLit {
-                    id,
-                    span: self.token.span,
-                    val,
-                });
+                let lit = self.create_regular_expression_literal(self.token.span, val);
                 self.next_token();
-                self.nodes.insert(lit.id, ast::Node::RegExpLit(lit));
                 ast::ExprKind::RegExpLit(lit)
             }
             _ => unreachable!(),
         };
-        self.alloc(ast::Expr { kind })
+        self.alloc(ast::Expr { kind: kind })
     }
 
     fn make_super_expr(&mut self) -> &'cx ast::Expr<'cx> {
         let span = self.token.span;
         self.expect(TokenKind::Super);
-        let id = self.next_node_id();
-        let node = self.alloc(ast::SuperExpr { id, span });
-        self.nodes.insert(node.id, ast::Node::SuperExpr(node));
-
+        let node = self.create_super_expression(span);
         self.alloc(ast::Expr {
             kind: ast::ExprKind::Super(node),
         })
@@ -1119,14 +1062,7 @@ impl<'cx> ParserState<'cx, '_> {
             this.parse_template_span::<IS_TAGGED_TEMPLATE>()
                 .map(|n| (n, !n.is_tail))
         })?;
-        let id = self.next_node_id();
-        let n = self.alloc(ast::TemplateExpr {
-            id,
-            span: self.new_span(start),
-            head,
-            spans,
-        });
-        self.nodes.insert(n.id, ast::Node::TemplateExpr(n));
+        let n = self.create_template_expression(self.new_span(start), head, spans);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::Template(n),
         });
@@ -1139,13 +1075,7 @@ impl<'cx> ParserState<'cx, '_> {
         if !IS_TAGGED_TEMPLATE && self.token_flags.intersects(TokenFlags::IS_INVALID) {
             self.re_scan_template_token::<IS_TAGGED_TEMPLATE>();
         }
-        let id = self.next_node_id();
-        let node = self.alloc(ast::TemplateHead {
-            id,
-            span: self.token.span,
-            text: self.token_value.unwrap().ident(),
-        });
-        self.nodes.insert(node.id, ast::Node::TemplateHead(node));
+        let node = self.create_template_head(self.token.span, self.token_value.unwrap().ident());
         self.next_token();
         Ok(node)
     }
@@ -1194,15 +1124,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let expr = self.allow_in_and(Self::parse_expr)?;
         let (text, is_tail) = self.parse_template_span_text::<IS_TAGGED_TEMPLATE>();
-        let id = self.next_node_id();
-        let node = self.alloc(ast::TemplateSpan {
-            id,
-            span: self.new_span(start),
-            expr,
-            text,
-            is_tail,
-        });
-        self.nodes.insert(node.id, ast::Node::TemplateSpan(node));
+        let node = self.create_template_span(self.new_span(start), expr, text, is_tail);
         Ok(node)
     }
 
@@ -1277,17 +1199,11 @@ impl<'cx> ParserState<'cx, '_> {
         );
         let close = RBrace;
         self.parse_expected_matching_brackets(open, close, open_brace_parsed, start as usize);
-        let id = self.next_node_id();
-        let lit = self.alloc(ast::ObjectLit {
-            id,
-            span: self.new_span(start),
-            members: props,
-        });
-        self.nodes.insert(id, ast::Node::ObjectLit(lit));
+        let lit = self.create_object_literal(self.new_span(start), props);
 
-        (self.alloc(ast::Expr {
+        self.alloc(ast::Expr {
             kind: ast::ExprKind::ObjectLit(lit),
-        })) as _
+        })
     }
 
     fn parse_cond_expr_rest<const ALLOW_RET_TY_IN_ARROW_FN: bool>(
@@ -1303,7 +1219,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.expect(TokenKind::Colon);
             let when_false = self.parse_assign_expr_or_higher::<ALLOW_RET_TY_IN_ARROW_FN>()?;
             let span = self.new_span(start);
-            let expr = self.create_conditional_expr(span, cond, when_true, when_false);
+            let expr = self.create_conditional_expression(span, cond, when_true, when_false);
             let expr = self.alloc(ast::Expr {
                 kind: ast::ExprKind::Cond(expr),
             });
@@ -1329,9 +1245,9 @@ impl<'cx> ParserState<'cx, '_> {
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
         if is_optional_chain {
-            self.create_prop_access_chain(span, expr, question_dot, name)
+            self.create_property_access_chain(span, expr, question_dot, name)
         } else {
-            self.create_prop_access_expr(span, expr, name)
+            self.create_property_access_expression(span, expr, name)
         }
     }
 
@@ -1358,9 +1274,9 @@ impl<'cx> ParserState<'cx, '_> {
         let expr = NoParenRule.paren_left_side_of_access(expr, false);
         let span = self.new_span(start as u32);
         let ele = if is_optional_chain {
-            self.create_element_access_expr_chain(span, expr, question_dot, arg)
+            self.create_element_access_expression_chain(span, expr, question_dot, arg)
         } else {
-            self.create_element_access_expr(span, expr, arg)
+            self.create_element_access_expression(span, expr, arg)
         };
         Ok(ele)
     }
@@ -1408,7 +1324,7 @@ impl<'cx> ParserState<'cx, '_> {
             ));
         }
         let span = self.new_span(start as u32);
-        let expr = self.create_tagged_template_expr(span, tag, ty_args, tpl);
+        let expr = self.create_tagged_template_expression(span, tag, ty_args, tpl);
         let expr = self.alloc(ast::Expr {
             kind: ast::ExprKind::TaggedTemplate(expr),
         });

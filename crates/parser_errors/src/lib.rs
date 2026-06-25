@@ -394,6 +394,13 @@ impl ArgumentsCannotBeReferenced {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property assignment expected.")]
+pub struct PropertyAssignmentExpected {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Property or signature expected.")]
 pub struct PropertyOrSignatureExpected {
     #[label(primary)]

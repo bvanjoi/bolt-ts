@@ -2157,7 +2157,7 @@ impl<'cx> TyChecker<'cx> {
                         None,
                     )
                 } else {
-                    self.narrow_ty(ty, declared_ty, refer, n.left.id(), true)
+                    self.narrow_ty(ty, declared_ty, refer, expr.id(), true)
                 }
             }
             _ => self.narrow_ty(ty, declared_ty, refer, expr.id(), true),
@@ -2202,7 +2202,41 @@ impl<'cx> TyChecker<'cx> {
                 );
             }
         }
-        // TODO: contains_missing_ty
+        if self.contains_missing_ty(ty)
+            && let ast::ExprKind::PropAccess(call_access) = call_expr.expr.kind
+            && let Some(reference_access_expr) = match self.p.node(refer) {
+                ast::Node::PropAccessExpr(n) => Some(n.expr),
+                ast::Node::EleAccessExpr(n) => Some(n.expr),
+                _ => None,
+            }
+        {
+            if call_access.name.name == keyword::IDENT_HAS_OWN_PROPERTY
+                && call_expr.args.len() == 1
+                && let reference_candidate = self.get_reference_candidate(call_access.expr)
+                && self.is_matching_reference(reference_access_expr.id(), reference_candidate.id())
+                && let argument = call_expr.args[0]
+                && match argument.kind {
+                    ast::ExprKind::StringLit(s)
+                        if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
+                    {
+                        access_property_name.as_atom().is_some_and(|p| p == s.val)
+                    }
+                    ast::ExprKind::NoSubstitutionTemplateLit(s)
+                        if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
+                    {
+                        access_property_name.as_atom().is_some_and(|p| p == s.val)
+                    }
+                    _ => false,
+                }
+            {
+                let facts = if assume_true {
+                    TypeFacts::NE_UNDEFINED
+                } else {
+                    TypeFacts::EQ_UNDEFINED
+                };
+                return self.get_ty_with_facts(ty, facts);
+            }
+        }
         ty
     }
 

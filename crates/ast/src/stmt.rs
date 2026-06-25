@@ -555,8 +555,8 @@ pub enum ClassElemKind<'cx> {
 }
 
 impl<'cx> ClassElemKind<'cx> {
-    pub fn modifiers(&self) -> Option<&'cx crate::Modifiers<'cx>> {
-        use crate::ClassElemKind::*;
+    pub fn modifiers(&self) -> Option<&'cx self::Modifiers<'cx>> {
+        use self::ClassElemKind::*;
         match self {
             IndexSig(n) => n.modifiers,
             Prop(n) => n.modifiers,

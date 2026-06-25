@@ -113,14 +113,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::BlockStmt {
-            id,
-            span: self.new_span(start),
-            stmts,
-        });
-        self.nodes.insert(id, ast::Node::BlockStmt(stmt));
-        stmt
+        self.create_block_statement(self.new_span(start), stmts)
     }
 
     pub(super) fn parse_ty_params(&mut self) -> Option<ast::TyParams<'cx>> {
@@ -394,9 +387,9 @@ impl<'cx> ParserState<'cx, '_> {
             let span = self.new_span(start);
             let kind = self.create_computed_prop_name(span, expr);
 
-            (self.alloc(ast::PropName {
+            self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
-            })) as _
+            })
         } else if self.token.kind == TokenKind::PrivateIdent {
             let ident = self.parse_private_ident();
             let kind = ast::PropNameKind::PrivateIdent(ident);
@@ -522,7 +515,11 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             let span = self.new_span(start);
             let modifiers = self.alloc(list);
-            Some(self.create_modifiers(span, modifiers, flags))
+            Some(self.alloc(ast::Modifiers {
+                span,
+                flags,
+                list: modifiers,
+            }))
         }
     }
 
@@ -684,7 +681,10 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.create_ident(true, None)
         };
-        self.create_binding(ast::BindingKind::Ident(ident))
+        self.alloc(ast::Binding {
+            span: ident.span,
+            kind: ast::BindingKind::Ident(ident),
+        })
     }
 
     pub(super) fn parse_parameter<const ALLOW_AMBIGUITY_NAME: bool>(
@@ -863,7 +863,8 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_string_lit(&mut self) -> &'cx ast::StringLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
-        self.nodes.insert(lit.id, ast::Node::StringLit(lit));
+        self.insert_node(lit.id, ast::Node::StringLit(lit));
+        self.insert_node_flags(lit.id, ast::NodeFlags::empty());
         self.next_token();
         lit
     }
@@ -873,8 +874,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> &'cx ast::NoSubstitutionTemplateLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
-        self.nodes
-            .insert(lit.id, ast::Node::NoSubstitutionTemplateLit(lit));
+        self.insert_node(lit.id, ast::Node::NoSubstitutionTemplateLit(lit));
+        self.insert_node_flags(lit.id, ast::NodeFlags::empty());
         self.next_token();
         lit
     }
@@ -883,22 +884,15 @@ impl<'cx> ParserState<'cx, '_> {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
-    fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
+    fn parse_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
         let start = self.token.start();
         let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
         let name = self.alloc(ast::EntityName {
             kind: ast::EntityNameKind::Ident(ident),
         });
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::ReferTy {
-            id,
-            span: self.new_span(start),
-            name,
-            ty_args: None,
-        });
-        self.nodes.insert(id, ast::Node::ReferTy(ty));
+        let refer = self.create_reference_type(self.new_span(start), name, None);
         self.alloc(ast::Ty {
-            kind: ast::TyKind::Refer(ty),
+            kind: ast::TyKind::Refer(refer),
         })
     }
 
@@ -964,12 +958,12 @@ impl<'cx> ParserState<'cx, '_> {
         let (name, name_ty) = if let Some(param) = params.first() {
             (
                 param.name,
-                param.ty.unwrap_or_else(|| self.create_missing_ty()),
+                param.ty.unwrap_or_else(|| self.parse_missing_ty()),
             )
         } else {
             let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
             let name = self.parse_binding_with_ident(Some(missing_ident));
-            (name, self.create_missing_ty())
+            (name, self.parse_missing_ty())
         };
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
@@ -978,12 +972,12 @@ impl<'cx> ParserState<'cx, '_> {
                 let span = Span::new(lo, lo + 1, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
-                self.create_missing_ty()
+                self.parse_missing_ty()
             }
         };
         self.parse_ty_member_semi();
         let span = self.new_span(start);
-        let sig = self.create_index_sig_decl(span, modifiers, name, name_ty, ty);
+        let sig = self.create_index_signature_declaration(span, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 
@@ -1027,7 +1021,7 @@ impl<'cx> ParserState<'cx, '_> {
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
-        Ok(self.create_getter_decl(span, modifiers, name, ty, body))
+        Ok(self.create_getter_declaration(span, modifiers, name, ty, body))
     }
 
     pub(super) fn parse_setter_accessor_decl(
@@ -1073,7 +1067,7 @@ impl<'cx> ParserState<'cx, '_> {
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
-        Ok(self.create_setter_decl(span, modifiers, name, params, body))
+        Ok(self.create_setter_declaration(span, modifiers, name, params, body))
     }
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {

@@ -1,5 +1,6 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
@@ -60,22 +61,9 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
             name.is_some()
                 || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::DEFAULT))
         );
-        let id = state.next_node_id();
-        let decl = state.alloc(ast::FnDecl {
-            id,
-            span,
-            modifiers,
-            asterisk,
-            name,
-            ty_params,
-            params,
-            ty,
-            body,
-        });
-        state.node_flags_map.insert(id, state.node_context_flags);
-        state.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        state.nodes.insert(decl.id, ast::Node::FnDecl(decl));
-        decl
+        state.create_function_declaration(
+            span, modifiers, asterisk, name, ty_params, params, ty, body,
+        )
     }
 }
 
@@ -103,9 +91,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
         ty: Option<&'cx ast::Ty<'cx>>,
         body: Option<&'cx ast::BlockStmt<'cx>>,
     ) -> Self::Node {
-        let id = state.next_node_id();
-        let expr = state.alloc(ast::FnExpr {
-            id,
+        state.create_function_expression(
             span,
             async_modifier,
             asterisk,
@@ -113,10 +99,8 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
             ty_params,
             params,
             ty,
-            body: body.unwrap(),
-        });
-        state.nodes.insert(expr.id, ast::Node::FnExpr(expr));
-        expr
+            body.unwrap(),
+        )
     }
 }
 

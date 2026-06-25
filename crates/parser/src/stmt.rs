@@ -144,7 +144,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.create_case_block(span, clauses)
         };
         let span = self.new_span(start);
-        Ok(self.create_switch_stmt(span, expr, case_block))
+        Ok(self.create_switch_statement(span, expr, case_block))
     }
 
     fn parse_debugger_stmt(&mut self) -> PResult<&'cx ast::DebuggerStmt> {
@@ -152,12 +152,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `debugger`
         self.parse_optional(TokenKind::Semi);
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::DebuggerStmt {
-            id,
-            span: self.new_span(start),
-        });
-        self.nodes.insert(id, ast::Node::DebuggerStmt(stmt));
+        let stmt = self.create_debugger_statement(self.new_span(start));
         Ok(stmt)
     }
 
@@ -180,14 +175,7 @@ impl<'cx> ParserState<'cx, '_> {
             open_pos,
         );
         self.parse_optional(TokenKind::Semi);
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::DoWhileStmt {
-            id,
-            span: self.new_span(start),
-            stmt,
-            expr,
-        });
-        self.nodes.insert(id, ast::Node::DoWhileStmt(stmt));
+        let stmt = self.create_do_while_statement(self.new_span(start), stmt, expr);
         Ok(stmt)
     }
 
@@ -207,15 +195,7 @@ impl<'cx> ParserState<'cx, '_> {
             ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
             Self::parse_stmt,
         )?;
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::WhileStmt {
-            id,
-            span: self.new_span(start),
-            expr,
-            stmt,
-        });
-        self.nodes.insert(id, ast::Node::WhileStmt(stmt));
-        self.node_flags_map.insert(id, self.node_context_flags);
+        let stmt = self.create_while_statement(self.new_span(start), expr, stmt);
         Ok(stmt)
     }
 
@@ -245,14 +225,7 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let block = self.parse_block();
-        let id = self.next_node_id();
-        let clause = self.alloc(ast::CatchClause {
-            id,
-            span: self.new_span(start),
-            var,
-            block,
-        });
-        self.nodes.insert(id, ast::Node::CatchClause(clause));
+        let clause = self.create_catch_clause(self.new_span(start), var, block);
         Ok(clause)
     }
 
@@ -274,15 +247,8 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::TryStmt {
-            id,
-            span: self.new_span(start),
-            try_block,
-            catch_clause,
-            finally_block,
-        });
-        self.nodes.insert(id, ast::Node::TryStmt(stmt));
+        let stmt =
+            self.create_try_statement(self.new_span(start), try_block, catch_clause, finally_block);
         Ok(stmt)
     }
 
@@ -344,7 +310,7 @@ impl<'cx> ParserState<'cx, '_> {
                 ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
                 Self::parse_stmt,
             )?;
-            let node = self.create_for_of_stmt(
+            let node = self.create_for_of_statement(
                 self.new_span(start),
                 await_token.map(|t| t.span),
                 init,
@@ -362,7 +328,7 @@ impl<'cx> ParserState<'cx, '_> {
                 Self::parse_stmt,
             )?;
             let span = self.new_span(start);
-            let node = self.create_for_in_stmt(span, init, expr, body);
+            let node = self.create_for_in_statement(span, init, expr, body);
             self.check_invalid_type_annotation_in_for_in_or_of_stmt::<true>(&init);
             Ok(ast::StmtKind::ForIn(node))
         } else {
@@ -391,7 +357,7 @@ impl<'cx> ParserState<'cx, '_> {
                 }
             }
             let span = self.new_span(start);
-            let node = self.create_for_stmt(span, init, cond, incr, body);
+            let node = self.create_for_statement(span, init, cond, incr, body);
             Ok(ast::StmtKind::For(node))
         }
     }
@@ -416,7 +382,7 @@ impl<'cx> ParserState<'cx, '_> {
             todo!("error handler")
         };
         let span = self.new_span(start);
-        let decl = self.create_enum_decl(span, modifiers, name, members);
+        let decl = self.create_enum_declaration(span, modifiers, name, members);
         Ok(decl)
     }
 
@@ -460,7 +426,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.allow_in_and(Self::parse_expr)?
         };
         let span = self.new_span(start);
-        let node = self.create_throw_stmt(span, expr);
+        let node = self.create_throw_statement(span, expr);
         if !self.try_parse_semi() {
             todo!()
         }
@@ -494,7 +460,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_ident_name();
         let block = self.parse_module_block();
         let span = self.new_span(start);
-        let ret = self.create_module_decl::<false>(
+        let ret = self.create_module_declaration::<false>(
             span,
             mods,
             ast::ModuleName::Ident(name),
@@ -519,14 +485,7 @@ impl<'cx> ParserState<'cx, '_> {
             this.external_module_indicator = save_external_module_indicator;
 
             this.expect(TokenKind::RBrace);
-            let id = this.next_node_id();
-            let block = this.alloc(ast::ModuleBlock {
-                id,
-                span: this.new_span(start),
-                stmts,
-            });
-            this.nodes.insert(id, ast::Node::ModuleBlock(block));
-            block
+            this.create_module_block(this.new_span(start), stmts)
         })
     }
 
@@ -548,7 +507,13 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
-        self.create_module_decl::<IS_GLOBAL_ARGUMENT>(span, mods, name, block, self.has_export_decl)
+        self.create_module_declaration::<IS_GLOBAL_ARGUMENT>(
+            span,
+            mods,
+            name,
+            block,
+            self.has_export_decl,
+        )
     }
 
     fn parse_type_alias_decl(
@@ -562,12 +527,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty_params = self.parse_ty_params();
         self.expect(TokenKind::Eq);
         let ty = if self.token.kind == TokenKind::Intrinsic {
-            let id = self.next_node_id();
-            let t = self.alloc(ast::IntrinsicTy {
-                id,
-                span: self.token.span,
-            });
-            self.nodes.insert(id, ast::Node::IntrinsicTy(t));
+            let t = self.create_intrinsic_type(self.token.span);
             let t = self.alloc(ast::Ty {
                 kind: ast::TyKind::Intrinsic(t),
             });
@@ -577,17 +537,13 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_ty()?
         };
         self.parse_semi();
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::TypeAliasDecl {
-            id,
-            span: self.new_span(start),
+        let decl = self.create_type_alias_declaration(
+            self.new_span(start),
             modifiers,
             name,
             ty_params,
             ty,
-        });
-        self.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        self.nodes.insert(id, ast::Node::TypeAliasDecl(decl));
+        );
         Ok(decl)
     }
 
@@ -673,7 +629,7 @@ impl<'cx> ParserState<'cx, '_> {
         let expr = self.parse_assign_expr_or_higher::<true>()?;
         self.parse_semi();
         let span = self.new_span(start);
-        Ok(self.create_export_assign::<IS_EXPORT_EQUALS>(span, expr))
+        Ok(self.create_export_assignment::<IS_EXPORT_EQUALS>(span, expr))
     }
 
     fn parse_export_decl(&mut self, start: u32) -> PResult<&'cx ast::ExportDecl<'cx>> {
@@ -697,14 +653,7 @@ impl<'cx> ParserState<'cx, '_> {
             ast::ExportClauseKind::Specs(specs)
         };
         let clause = self.alloc(ast::ExportClause { is_type_only, kind });
-        let id = self.next_node_id();
-        let decl = self.alloc(ast::ExportDecl {
-            id,
-            span: self.new_span(start),
-            clause,
-        });
-        self.nodes.insert(id, ast::Node::ExportDecl(decl));
-        self.set_external_module_indicator(id);
+        let decl = self.create_export_declaration(self.new_span(start), clause);
         self.parse_semi();
         Ok(decl)
     }
@@ -716,27 +665,14 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let specs = self.alloc(ast::SpecsExport {
-            id,
-            span: self.new_span(start),
-            list,
-            module,
-        });
-        self.nodes.insert(id, ast::Node::SpecsExport(specs));
+        let specs = self.create_named_exports_declaration(self.new_span(start), list, module);
         specs
     }
 
     fn parse_glob_export(&mut self, start: u32) -> &'cx ast::GlobExport<'cx> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
-        let id = self.next_node_id();
-        let n = self.alloc(ast::GlobExport {
-            id,
-            span: self.new_span(start),
-            module,
-        });
-        self.nodes.insert(id, ast::Node::GlobExport(n));
+        let n = self.create_global_export_declaration(self.new_span(start), module);
         n
     }
 
@@ -744,14 +680,7 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_module_export_name(|this| this.create_ident(true, None));
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
-        let id = self.next_node_id();
-        let ns = self.alloc(ast::NsExport {
-            id,
-            span: self.new_span(start),
-            name,
-            module,
-        });
-        self.nodes.insert(id, ast::Node::NsExport(ns));
+        let ns = self.create_namespace_export_declaration(self.new_span(start), name, module);
         ns
     }
 
@@ -839,7 +768,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_semi();
 
         let span = self.new_span(start);
-        let decl = self.create_import_decl(span, clause, module);
+        let decl = self.create_import_declaration(span, clause, module);
         ast::StmtKind::Import(decl)
     }
 
@@ -876,15 +805,8 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        let id = self.next_node_id();
-        let clause = self.alloc(ast::ImportClause {
-            id,
-            span: self.new_span(start as u32),
-            is_type_only,
-            name,
-            kind,
-        });
-        self.nodes.insert(id, ast::Node::ImportClause(clause));
+        let clause =
+            self.create_import_clause(self.new_span(start as u32), is_type_only, name, kind);
         clause
     }
 
@@ -895,13 +817,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `*`
         self.expect(TokenKind::As);
         let name = self.create_ident(true, None);
-        let id = self.next_node_id();
-        let ns = self.alloc(ast::NsImport {
-            id,
-            span: self.new_span(start),
-            name,
-        });
-        self.nodes.insert(id, ast::Node::NsImport(ns));
+        let ns = self.create_namespace_import(self.new_span(start), name);
         ns
     }
 
@@ -956,10 +872,7 @@ impl<'cx> ParserState<'cx, '_> {
                 },
             );
             let span = self.new_span(start);
-            let id = self.next_node_id();
-            let clause = self.alloc(ast::InterfaceExtendsClause { id, span, list });
-            self.nodes
-                .insert(id, ast::Node::InterfaceExtendsClause(clause));
+            let clause = self.create_interface_extends_clause(span, list);
             Some(clause)
         } else {
             None
@@ -1009,10 +922,7 @@ impl<'cx> ParserState<'cx, '_> {
                 },
             );
             let span = self.new_span(start);
-            let id = self.next_node_id();
-            let clause = self.alloc(ast::ClassImplementsClause { id, span, list });
-            self.nodes
-                .insert(id, ast::Node::ClassImplementsClause(clause));
+            let clause = self.create_class_implements_clause(span, list);
             Some(clause)
         } else {
             None
@@ -1024,7 +934,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token(); // consume `;`
         let span = self.new_span(start);
-        self.create_empty_stmt(span)
+        self.create_empty_statement(span)
     }
 
     fn parse_var_stmt(
@@ -1049,19 +959,9 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         let span = self.new_span(start);
-        let node = self.create_var_stmt(span, modifiers, list);
+        let node = self.create_variable_statement(span, modifiers, list);
         self.parse_semi();
         node
-    }
-
-    pub(super) fn set_external_module_indicator_if_has_export_mod(
-        &mut self,
-        mods: Option<&'cx ast::Modifiers<'cx>>,
-        node: ast::NodeID,
-    ) {
-        if mods.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT)) {
-            self.set_external_module_indicator(node);
-        }
     }
 
     #[inline]
@@ -1097,7 +997,10 @@ impl<'cx> ParserState<'cx, '_> {
             LBrace => ast::BindingKind::ObjectPat(self.parse_object_binding_pat()),
             _ => ast::BindingKind::Ident(self.parse_binding_ident()),
         };
-        self.create_binding(kind)
+        self.alloc(ast::Binding {
+            span: kind.span(),
+            kind,
+        })
     }
 
     fn parse_object_binding_elem(&mut self) -> PResult<&'cx ast::ObjectBindingElem<'cx>> {
@@ -1126,15 +1029,7 @@ impl<'cx> ParserState<'cx, '_> {
             self.alloc(ast::ObjectBindingName::Prop { prop_name, name })
         };
         let init = self.parse_init()?;
-        let id = self.next_node_id();
-        let ele = self.alloc(ast::ObjectBindingElem {
-            id,
-            span: self.new_span(start),
-            dotdotdot,
-            name,
-            init,
-        });
-        self.nodes.insert(id, ast::Node::ObjectBindingElem(ele));
+        let ele = self.create_object_binding_element(self.new_span(start), dotdotdot, name, init);
         Ok(ele)
     }
 
@@ -1149,13 +1044,7 @@ impl<'cx> ParserState<'cx, '_> {
             )
         });
         self.expect(TokenKind::RBrace);
-        let id = self.next_node_id();
-        let pat = self.alloc(ast::ObjectPat {
-            id,
-            span: self.new_span(start),
-            elems,
-        });
-        self.nodes.insert(id, ast::Node::ObjectPat(pat));
+        let pat = self.create_object_binding_pattern(self.new_span(start), elems);
         pat
     }
 
@@ -1170,34 +1059,20 @@ impl<'cx> ParserState<'cx, '_> {
             )
         });
         self.expect(TokenKind::RBracket);
-        let id = self.next_node_id();
-        let pat = self.alloc(ast::ArrayPat {
-            id,
-            span: self.new_span(start),
-            elems,
-        });
-        self.nodes.insert(id, ast::Node::ArrayPat(pat));
+        let pat = self.create_array_binding_pattern(self.new_span(start), elems);
         pat
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {
         let kind = if self.token.kind == TokenKind::Comma {
-            let omit_expr = self.create_omit_expr(self.token.span);
+            let omit_expr = self.create_omit_expression(self.token.span);
             ast::ArrayBindingElemKind::Omit(omit_expr)
         } else {
             let start = self.token.start();
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
             let name = self.parse_ident_or_pat();
             let init = self.parse_init()?;
-            let id = self.next_node_id();
-            let binding = self.alloc(ast::ArrayBinding {
-                id,
-                span: self.new_span(start),
-                dotdotdot,
-                name,
-                init,
-            });
-            self.nodes.insert(id, ast::Node::ArrayBinding(binding));
+            let binding = self.create_array_binding(self.new_span(start), dotdotdot, name, init);
             ast::ArrayBindingElemKind::Binding(binding)
         };
         let elem = self.alloc(ast::ArrayBindingElem { kind });
@@ -1290,7 +1165,7 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = self.parse_ty_anno()?;
         let init = self.parse_init()?;
         let span = self.new_span(start);
-        Ok(self.create_var_decl(span, name, excl, ty, init, flags))
+        Ok(self.create_variable_declaration(span, name, excl, ty, init, flags))
     }
 
     fn parse_var_decl_list<const IN_FOR_STMT_INITIALIZER: bool>(
@@ -1330,15 +1205,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::IfStmt {
-            id,
-            span: self.new_span(start),
-            expr,
-            then,
-            else_then,
-        });
-        self.nodes.insert(id, ast::Node::IfStmt(stmt));
+        let stmt = self.create_if_statement(self.new_span(start), expr, then, else_then);
         Ok(stmt)
     }
 
@@ -1362,7 +1229,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         self.parse_semi();
         let span = self.new_span(start);
-        let stmt = self.create_ret_stmt(span, expr);
+        let stmt = self.create_return_statement(span, expr);
         Ok(stmt)
     }
 
@@ -1382,7 +1249,7 @@ impl<'cx> ParserState<'cx, '_> {
             let stmt =
                 self.do_inside_of_parse_context(ParseContext::ALLOW_BREAK, Self::parse_stmt)?;
             let span = self.new_span(start);
-            let stmt = self.create_labeled_stmt(span, ident, stmt);
+            let stmt = self.create_labeled_statement(span, ident, stmt);
             self.labels.pop();
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
