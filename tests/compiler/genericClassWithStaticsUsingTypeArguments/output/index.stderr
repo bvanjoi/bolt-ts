@@ -1,0 +1,41 @@
+  × Static members cannot reference class type parameters.
+   ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:8:20]
+ 8 │ T
+   · ─
+   ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:11:15]
+ 11 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:14:15]
+ 14 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:17:30]
+ 17 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:20:29]
+ 20 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:23:18]
+ 23 │ T
+    · ─
+    ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/genericClassWithStaticsUsingTypeArguments/index.ts:23:24]
+ 23 │ T
+    · ─
+    ╰────

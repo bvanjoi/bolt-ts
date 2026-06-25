@@ -418,7 +418,7 @@ impl<'cx> TyChecker<'cx> {
                 .union(SymbolFlags::GET_ACCESSOR)
                 .union(SymbolFlags::SET_ACCESSOR),
         ) || s.decls.as_ref().is_none_or(|decls| {
-            decls.iter().any(|decl| {
+            !decls.iter().any(|decl| {
                 if let Some(p) = self.parent(*decl) {
                     self.p.node(p).is_class_like()
                 } else {
@@ -456,7 +456,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let mut spreadable_props = vec![];
-        let mut unsparedable_to_rest_keys = vec![];
+        let mut unspreadable_to_rest_keys = vec![];
 
         for &prop in self.get_props_of_ty(source) {
             let lit_ty_from_property = self.get_literal_ty_from_prop(
@@ -468,25 +468,22 @@ impl<'cx> TyChecker<'cx> {
                 lit_ty_from_property,
                 omit_key_ty,
                 relation::RelationKind::Assignable,
-            ) && (self.get_declaration_modifier_flags_from_symbol::<false>(prop)
-                & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
-                .is_empty()
+            ) && !self
+                .get_declaration_modifier_flags_from_symbol::<false>(prop)
+                .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                 && self.is_spreadable_property(prop)
             {
                 spreadable_props.push(prop);
             } else {
-                unsparedable_to_rest_keys.push(lit_ty_from_property);
+                unspreadable_to_rest_keys.push(lit_ty_from_property);
             }
         }
 
         if self.is_generic_object_ty(source) || self.is_generic_index_ty(omit_key_ty) {
-            if unsparedable_to_rest_keys.len() > 0 {
-                // If the type we're spreading from has properties that cannot
-                // be spread into the rest type (e.g. getters, methods), ensure
-                // they are explicitly omitted, as they would in the non-generic case.
-                let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
+            if !unspreadable_to_rest_keys.is_empty() {
+                let mut tys = Vec::with_capacity(unspreadable_to_rest_keys.len() + 1);
                 tys.push(omit_key_ty);
-                tys.extend(unsparedable_to_rest_keys);
+                tys.extend(unspreadable_to_rest_keys);
                 omit_key_ty = self.get_union_ty::<false>(
                     &tys,
                     ty::UnionReduction::Lit,

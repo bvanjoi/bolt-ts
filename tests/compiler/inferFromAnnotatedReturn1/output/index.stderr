@@ -1,0 +1,5 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inferFromAnnotatedReturn1/index.ts:10:36]
+ 10 │ 'foo'
+    · ─────
+    ╰────
