@@ -212,6 +212,19 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
+    fn check_module_declaration_error(&mut self, span: bolt_ts_span::Span) {
+        if self
+            .parse_context
+            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK))
+        {
+            return;
+        }
+
+        let error =
+            errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule { span };
+        self.push_error(Box::new(error));
+    }
+
     fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Catch);
         let start = self.token.start();
@@ -467,6 +480,7 @@ impl<'cx> ParserState<'cx, '_> {
             Some(block),
             self.has_export_decl,
         );
+        self.check_module_declaration_error(name.span);
         self.has_export_decl = save_has_export_decl;
         ret
     }

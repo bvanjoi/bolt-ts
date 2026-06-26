@@ -824,3 +824,10 @@ pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
+pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
+    #[label(primary)]
+    pub span: Span,
+}

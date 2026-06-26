@@ -33,12 +33,12 @@ fn print_entity_name(name: &ast::EntityName, atoms: &bolt_ts_atom::AtomIntern) -
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_ty_refer_name(
+    pub(super) fn resolve_ty_refer_name<const IGNORE_ERROR: bool>(
         &mut self,
         name: &'cx ast::EntityName<'cx>,
         meaning: SymbolFlags,
     ) -> SymbolID {
-        self.resolve_entity_name::<false, false>(name, meaning)
+        self.resolve_entity_name::<IGNORE_ERROR, false>(name, meaning)
     }
 
     pub(super) fn ty_args_from_ty_refer_node(
@@ -120,7 +120,8 @@ impl<'cx> TyChecker<'cx> {
             if new_alias_symbol.is_some() {
                 alias_ty_args = self.get_ty_args_for_alias_symbol(new_alias_symbol)
             } else if self.p.node(node.id()).is_ty_refer_ty() {
-                let alias_symbol = self.resolve_ty_refer_name(node.name(), SymbolFlags::ALIAS);
+                let alias_symbol =
+                    self.resolve_ty_refer_name::<true>(node.name(), SymbolFlags::ALIAS);
                 if alias_symbol != Symbol::ERR
                     && let resolved = self.resolve_alias(alias_symbol)
                     && self
@@ -302,7 +303,7 @@ impl<'cx> TyChecker<'cx> {
                 _ => {}
             }
         }
-        let symbol = self.resolve_ty_refer_name(name, SymbolFlags::TYPE);
+        let symbol = self.resolve_ty_refer_name::<false>(name, SymbolFlags::TYPE);
         self.get_mut_node_links(id).set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);
         self.get_mut_node_links(id).set_resolved_ty(ty);

@@ -660,7 +660,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_containing_class(expr.id())
                     .unwrap();
                 if let Some(base_ty_node) = self.get_effective_base_type_node(n) {
-                    let base_ctors = self.get_instantiated_constructors_for_ty_args(
+                    let base_ctors = self.get_instantiated_constructors_for_type_arguments(
                         super_ty,
                         base_ty_node.expr_with_ty_args.ty_args,
                         base_ty_node.id,

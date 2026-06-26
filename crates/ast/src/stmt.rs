@@ -540,6 +540,18 @@ impl<'cx> ClassElem<'cx> {
     pub fn id(&self) -> NodeID {
         self.kind.id()
     }
+
+    pub fn is_private_identifier_class_element_declaration(&self) -> bool {
+        match self.kind {
+            self::ClassElemKind::Prop(self::ClassPropElem { name, .. })
+            | self::ClassElemKind::Method(self::ClassMethodElem { name, .. })
+            | self::ClassElemKind::Getter(self::GetterDecl { name, .. })
+            | self::ClassElemKind::Setter(self::SetterDecl { name, .. }) => {
+                matches!(name.kind, self::PropNameKind::PrivateIdent(_))
+            }
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

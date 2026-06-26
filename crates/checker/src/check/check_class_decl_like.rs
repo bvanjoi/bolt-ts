@@ -73,10 +73,10 @@ impl<'cx> TyChecker<'cx> {
         if first_fn_decl.is_some_and(|&decl| decl == ctor.id) {
             self.check_fn_like_symbol(symbol);
         }
-        match ctor.body {
-            Some(body) => self.check_block(body),
-            None => return,
-        }
+        let Some(constructor_body) = ctor.body else {
+            return;
+        };
+        self.check_block(constructor_body);
 
         let containing_class_decl = self.parent(ctor.id).unwrap();
         let extends = match self.p.node(containing_class_decl) {
@@ -95,23 +95,70 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
 
-                let super_call_should_be_root_level = !self.emit_standard_class_fields && {
-                    let class = self.parent(ctor.id).unwrap();
-                    let elements = match self.p.node(class) {
-                        ast::Node::ClassExpr(n) => n.elems,
-                        ast::Node::ClassDecl(n) => n.elems,
-                        _ => unreachable!(),
-                    };
-                    // TODO: is_instance_property_with_initializer_or_private_identifier_property
-                    false
-                } || ctor.params.iter().any(|p| {
-                    p.modifiers.is_some_and(|ms| {
-                        ms.flags
-                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-                    })
-                });
+                let super_call_should_be_root_level = !self.emit_standard_class_fields
+                    && ({
+                        let class = self.parent(ctor.id).unwrap();
+                        let elements = match self.p.node(class) {
+                            ast::Node::ClassExpr(n) => n.elems,
+                            ast::Node::ClassDecl(n) => n.elems,
+                            _ => unreachable!(),
+                        };
+                        elements.list.iter().any(|element| {
+                            // is_instance_property_with_initializer_or_private_identifier_property
+                            if element.is_private_identifier_class_element_declaration() {
+                                return true;
+                            }
+                            let ast::ClassElemKind::Prop(n) = element.kind else {
+                                return false;
+                            };
+                            if n.modifiers
+                                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
+                            {
+                                return false;
+                            };
+                            n.init.is_some()
+                        })
+                    } || ctor.params.iter().any(|p| {
+                        p.modifiers.is_some_and(|ms| {
+                            ms.flags
+                                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+                        })
+                    }));
                 if super_call_should_be_root_level {
-                    // TODO:
+                    // super_call_is_root_level_in_constructor
+                    let super_call_parent = self.parent(first_super_call.id).unwrap();
+                    let super_call_parent = self
+                        .node_query(super_call_parent.module())
+                        .walk_up_paren_expressions(super_call_parent);
+                    let super_call_is_root_level_in_constructor =
+                        if let ast::Node::ExprStmt(_) = self.p.node(super_call_parent) {
+                            self.parent(super_call_parent).unwrap() == constructor_body.id
+                        } else {
+                            false
+                        };
+                    if !super_call_is_root_level_in_constructor {
+                        // TODO:
+                    } else {
+                        let mut super_call_statement = None;
+                        for stmt in constructor_body.stmts {
+                            const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+                            if let ast::StmtKind::Expr(n) = stmt.kind
+                                && let Some(n) =
+                                    ast::Expr::skip_outer_expr::<FLAGS>(n.expr).as_super_call()
+                            {
+                                super_call_statement = Some(n);
+                                break;
+                            } else if self.node_immediately_references_super_or_this(stmt.id()) {
+                                break;
+                            }
+                        }
+                        if super_call_statement.is_none() {
+                            let error = errors::ASuperCallMustBeTheFirstStatementInTheConstructorToReferToSuperOrThisWhenADerivedClassContainsInitializedPropertiesParameterPropertiesOrPrivateIdentifiers {
+                              span: ctor.name_span,
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
                 }
             } else if !extends_null {
                 let error = errors::ConstructorsForDerivedClassesMustContainASuperCall {
@@ -120,6 +167,60 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
         }
+    }
+
+    fn node_immediately_references_super_or_this(&self, n: ast::NodeID) -> bool {
+        struct Visitor<'a, 'cx> {
+            c: &'a TyChecker<'cx>,
+            ret: bool,
+        }
+
+        impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+            type Result = bolt_ts_ast_visitor::ControlFlow;
+
+            noop_visit_type_node!();
+
+            fn visit_this_expr(&mut self, _: &ast::ThisExpr) -> Self::Result {
+                self.ret = true;
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_super_expr(&mut self, _: &ast::SuperExpr) -> Self::Result {
+                self.ret = true;
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_arrow_fn_expr(&mut self, _: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_fn_decl(&mut self, _: &'cx ast::FnDecl<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_fn_expr(&mut self, _: &'cx ast::FnExpr<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_block_stmt(&mut self, n: &'cx ast::BlockStmt<'cx>) -> Self::Result {
+                let p = self.c.parent(n.id).unwrap();
+                match self.c.p.node(p) {
+                    ast::Node::ClassCtor(_)
+                    | ast::Node::ClassMethodElem(_)
+                    | ast::Node::GetterDecl(_)
+                    | ast::Node::SetterDecl(_) => return bolt_ts_ast_visitor::ControlFlow::Break,
+                    _ => {}
+                }
+                bolt_ts_ast_visitor::ControlFlow::Continue
+            }
+        }
+        let mut v = Visitor {
+            c: self,
+            ret: false,
+        };
+        let n = self.p.node(n);
+        bolt_ts_ast_visitor::visit_node(&mut v, &n);
+        v.ret
     }
 
     fn check_class_method_element(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
@@ -387,6 +488,65 @@ impl<'cx> TyChecker<'cx> {
                         }),
                     );
                 };
+
+                if base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                    if !self.is_mixin_constructor_ty(static_ty) {
+                        let span = class.span();
+                        let fallback_span = bolt_ts_span::Span::new(
+                            span.lo(),
+                            span.lo() + "class".len() as u32,
+                            span.module(),
+                        );
+                        let error = errors::AMixinClassMustHaveAConstructorWithASingleRestParameterOfTypeAny {
+                            span: class.name().map_or(fallback_span, |name| name.span),
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        let constructor_signatures =
+                            self.get_signatures_of_type(base_ctor_ty, ty::SigKind::Constructor);
+                        if constructor_signatures
+                            .iter()
+                            .any(|sig| sig.flags.contains(ty::SigFlags::ABSTRACT))
+                            && !class
+                                .modifiers()
+                                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+                        {
+                            let span = class.span();
+                            let fallback_span = bolt_ts_span::Span::new(
+                                span.lo(),
+                                span.lo() + "class".len() as u32,
+                                span.module(),
+                            );
+                            let error = errors::AMixinClassThatExtendsFromATypeVariableContainingAnAbstractConstructSignatureMustAlsoBeDeclaredAbstract {
+                                span: class.name().map_or(fallback_span, |name| name.span),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+
+                if !static_base_ty.symbol().is_some_and(|symbol| {
+                    self.binder
+                        .symbol(symbol)
+                        .flags
+                        .contains(SymbolFlags::CLASS)
+                }) && !base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                    && let constructors = self.get_instantiated_constructors_for_type_arguments(
+                        static_base_ty,
+                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.id,
+                    )
+                    && constructors.iter().any(|sig| {
+                        // TODO: exclude js constructors
+                        let ret_ty = self.get_return_type_of_signature(sig);
+                        !self.is_type_identical_to(ret_ty, base_ty)
+                    })
+                {
+                    let error = errors::BaseConstructorsMustAllHaveTheSameReturnType {
+                        span: base_ty_node.expr_with_ty_args.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
 
                 // ====== check_kinds_of_property_member_overrides ======
                 let base_properties = self.get_props_of_ty(base_ty);

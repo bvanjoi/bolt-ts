@@ -7112,7 +7112,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn get_instantiated_constructors_for_ty_args(
+    fn get_instantiated_constructors_for_type_arguments(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,

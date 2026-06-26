@@ -1251,6 +1251,7 @@ pub trait ASTFactory<'cx> {
         node
     }
 
+    #[inline(always)]
     fn create_module_declaration<const IS_GLOBAL_ARGUMENT: bool>(
         &mut self,
         span: bolt_ts_span::Span,
