@@ -152,15 +152,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_module_instance_state(
         &self,
-        m: &'cx ast::ModuleDecl<'cx>,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
         parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
-        self.get_module_instance_state_worker(m, None, parent_of)
+        let Some(module_block) = module_block else {
+            return ModuleInstanceState::Instantiated;
+        };
+        self.get_module_instance_state_inner(module_block, None, parent_of)
     }
 
-    fn get_module_instance_state_worker(
+    pub fn get_module_instance_state_worker(
         &self,
-        m: &'cx ast::ModuleDecl<'cx>,
+        module_block: &'cx ast::ModuleBlock<'cx>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+    ) -> ModuleInstanceState {
+        self.get_module_instance_state_inner(module_block, None, parent_of)
+    }
+
+    fn get_module_instance_state_inner(
+        &self,
+        module_block: &'cx ast::ModuleBlock<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
         parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
@@ -302,9 +313,17 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     state
                 }
-                ModuleDecl(ns) => {
-                    this.get_module_instance_state_worker(ns, Some(visited), parent_of)
-                }
+                NestedModuleDecl(ns) => this.get_module_instance_state_inner(
+                    ns.block.module_block(),
+                    Some(visited),
+                    parent_of,
+                ),
+                BlockModuleDecl(ns) => match ns.block {
+                    Some(block) => {
+                        this.get_module_instance_state_inner(block, Some(visited), parent_of)
+                    }
+                    None => ModuleInstanceState::Instantiated,
+                },
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -316,15 +335,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         }
 
-        if let Some(block) = m.block {
-            if let Some(visited) = visited {
-                cache(self, block.id, visited, parent_of)
-            } else {
-                let mut default_map = nohash_hasher::IntMap::default();
-                cache(self, block.id, &mut default_map, parent_of)
-            }
+        if let Some(visited) = visited {
+            cache(self, module_block.id, visited, parent_of)
         } else {
-            ModuleInstanceState::Instantiated
+            let mut default_map = nohash_hasher::IntMap::default();
+            cache(self, module_block.id, &mut default_map, parent_of)
         }
     }
 
@@ -416,15 +431,23 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node(root).is_param_decl()
     }
 
-    pub fn is_module_augmentation_external(&self, ns: &ast::ModuleDecl<'_>) -> bool {
-        let p = self.parent(ns.id).unwrap();
+    pub fn is_module_augmentation_external(&self, n: ast::NodeID) -> bool {
+        debug_assert!(matches!(
+            self.node(n),
+            ast::Node::NestedModuleDecl(_) | ast::Node::BlockModuleDecl(_)
+        ));
+        let p = self.parent(n).unwrap();
         match self.node(p) {
             ast::Node::Program(_) => self.parse_result.external_module_indicator.is_some(),
             ast::Node::ModuleBlock(n) => {
-                let p_id = self.parent(n.id).unwrap();
-                let p = self.node(p_id).expect_module_decl();
-                p.is_ambient()
-                    && self.node(self.parent(p_id).unwrap()).is_program()
+                let p = self.parent(n.id).unwrap();
+                let is_ambient = match self.node(p) {
+                    ast::Node::NestedModuleDecl(n) => n.is_ambient(),
+                    ast::Node::BlockModuleDecl(n) => n.is_ambient(),
+                    _ => unreachable!(),
+                };
+                is_ambient
+                    && self.node(self.parent(p).unwrap()).is_program()
                     && self.parse_result.external_module_indicator.is_none()
             }
             _ => false,
@@ -433,8 +456,15 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn is_external_module_augmentation(&self, id: ast::NodeID) -> bool {
         let n = self.node(id);
-        n.as_module_decl()
-            .is_some_and(|ns| ns.is_ambient() && self.is_module_augmentation_external(ns))
+        match n {
+            ast::Node::NestedModuleDecl(n) => {
+                n.is_ambient() && self.is_module_augmentation_external(n.id)
+            }
+            ast::Node::BlockModuleDecl(n) => {
+                n.is_ambient() && self.is_module_augmentation_external(n.id)
+            }
+            _ => false,
+        }
     }
 
     pub fn find_ancestor(
@@ -525,7 +555,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 match node {
                     FnDecl(_)
                     | FnExpr(_)
-                    | ModuleDecl(_)
+                    | NestedModuleDecl(_)
+                    | BlockModuleDecl(_)
                     | ClassPropElem(_)
                     | ClassMethodElem(_)
                     | MethodSignature(_)
@@ -720,7 +751,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 ExportShorthandSpec(n) => n.name.id == id,
                 GetterDecl(n) => n.name.id() == id,
                 SetterDecl(n) => n.name.id() == id,
-                ModuleDecl(n) => n.name.id() == id,
+                NestedModuleDecl(n) => n.name.id == id,
+                BlockModuleDecl(n) => n.name.id() == id,
                 ArrayBinding(n) => n.name.id() == id,
                 _ => false,
             }

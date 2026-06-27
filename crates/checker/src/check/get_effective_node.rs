@@ -206,7 +206,7 @@ impl<'cx> TyChecker<'cx> {
                 && !modifier_flags.contains(ast::ModifierFlags::AMBIENT)
                 && !(parent_node.is_module_block()
                     && self.parent(p).is_some_and(|pp| {
-                        self.p.node(pp).is_module_decl()
+                        self.p.node(pp).is_module_declaration()
                             && self
                                 .p
                                 .node_flags(pp)

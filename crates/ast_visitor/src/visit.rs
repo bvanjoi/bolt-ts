@@ -210,7 +210,8 @@ pub fn visit_stmt<'cx, V: Visitor<'cx>>(v: &mut V, stmt: &'cx ast::Stmt) -> V::R
         Var(node) => v.visit_var_stmt(node),
         Try(node) => v.visit_try_stmt(node),
         TypeAlias(node) => v.visit_type_alias_decl(node),
-        Module(node) => v.visit_module_decl(node),
+        NestedModule(node) => v.visit_nested_module_decl(node),
+        BlockModule(node) => v.visit_block_module_decl(node),
         While(node) => v.visit_while_stmt(node),
         If(node) => v.visit_if_stmt(node),
         Enum(node) => v.visit_enum_decl(node),
@@ -306,15 +307,34 @@ pub fn visit_type_alias_decl<'cx, V: Visitor<'cx>>(
     v.visit_ty(n.ty)
 }
 
-pub fn visit_module_decl<'cx, V: Visitor<'cx>>(
+pub fn visit_block_module_decl<'cx, V: Visitor<'cx>>(
     v: &mut V,
-    decl: &'cx ast::ModuleDecl<'cx>,
+    n: &'cx ast::BlockModuleDecl<'cx>,
 ) -> V::Result {
-    visit_return!(visit_module_name(v, decl.name));
-    if let Some(block) = decl.block {
+    visit_return!(visit_module_name(v, n.name));
+    if let Some(block) = n.block {
         return v.visit_module_block(block);
     }
     V::Result::output()
+}
+
+pub fn visit_nested_module_decl<'cx, V: Visitor<'cx>>(
+    v: &mut V,
+    n: &'cx ast::NestedModuleDecl<'cx>,
+) -> V::Result {
+    visit_return!(v.visit_ident(n.name));
+    visit_return!(visit_nested_module_block(v, &n.block));
+    V::Result::output()
+}
+
+pub fn visit_nested_module_block<'cx, V: Visitor<'cx>>(
+    v: &mut V,
+    block: &ast::NestedModuleBlock<'cx>,
+) -> V::Result {
+    match block {
+        ast::NestedModuleBlock::NestedModule(n) => v.visit_nested_module_decl(n),
+        ast::NestedModuleBlock::ModuleBlock(n) => v.visit_module_block(n),
+    }
 }
 
 pub fn visit_module_name<'cx, V: Visitor<'cx>>(v: &mut V, name: ast::ModuleName<'cx>) -> V::Result {
@@ -1655,7 +1675,8 @@ pub fn visit_node<'cx, V: Visitor<'cx>>(v: &mut V, node: &ast::Node<'cx>) -> V::
         RetStmt(n) => v.visit_ret_stmt(n),
         EmptyStmt(n) => v.visit_empty_stmt(n),
         ClassDecl(n) => v.visit_class_decl(n),
-        ModuleDecl(n) => v.visit_module_decl(n),
+        NestedModuleDecl(n) => v.visit_nested_module_decl(n),
+        BlockModuleDecl(n) => v.visit_block_module_decl(n),
         ClassCtor(n) => v.visit_class_ctor(n),
         ClassPropElem(n) => v.visit_class_prop_elem(n),
         ClassMethodElem(n) => v.visit_class_method_elem(n),

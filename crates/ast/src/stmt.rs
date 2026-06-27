@@ -37,7 +37,8 @@ pub enum StmtKind<'cx> {
     Expr(&'cx ExprStmt<'cx>),
     Interface(&'cx InterfaceDecl<'cx>),
     TypeAlias(&'cx TypeAliasDecl<'cx>),
-    Module(&'cx ModuleDecl<'cx>),
+    NestedModule(&'cx NestedModuleDecl<'cx>),
+    BlockModule(&'cx BlockModuleDecl<'cx>),
     Throw(&'cx ThrowStmt<'cx>),
     Enum(&'cx EnumDecl<'cx>),
     Import(&'cx ImportDecl<'cx>),
@@ -66,7 +67,8 @@ impl<'cx> Stmt<'cx> {
             Expr(n) => n.id,
             Interface(i) => i.id,
             TypeAlias(t) => t.id,
-            Module(n) => n.id,
+            NestedModule(n) => n.id,
+            BlockModule(n) => n.id,
             Throw(t) => t.id,
             Enum(e) => e.id,
             Import(n) => n.id,
@@ -104,7 +106,8 @@ impl<'cx> Stmt<'cx> {
             StmtKind::Expr(n) => n.span,
             StmtKind::Interface(n) => n.span,
             StmtKind::TypeAlias(n) => n.span,
-            StmtKind::Module(n) => n.span,
+            StmtKind::NestedModule(n) => n.span,
+            StmtKind::BlockModule(n) => n.span,
             StmtKind::Throw(n) => n.span,
             StmtKind::Enum(n) => n.span,
             StmtKind::Import(n) => n.span,
@@ -136,7 +139,8 @@ impl<'cx> Stmt<'cx> {
             StmtKind::Class(n) => n.name.is_some_and(|i| i.name == name.name),
             StmtKind::Interface(n) => n.name.name == name.name,
             StmtKind::TypeAlias(n) => n.name.name == name.name,
-            StmtKind::Module(n) => match n.name {
+            StmtKind::NestedModule(n) => n.name.name == name.name,
+            StmtKind::BlockModule(n) => match n.name {
                 ModuleName::Ident(ident) => ident.name == name.name,
                 ModuleName::StringLit(lit) => lit.val == name.name,
             },
@@ -360,22 +364,49 @@ pub struct ThrowStmt<'cx> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ModuleDecl<'cx> {
+pub struct BlockModuleDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
-    pub is_global_argument: bool,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub is_global_argument: bool,
     pub name: ModuleName<'cx>,
     pub block: Option<&'cx ModuleBlock<'cx>>,
 }
 
-impl ModuleDecl<'_> {
-    pub const fn is_ambient(&self) -> bool {
-        matches!(self.name, ModuleName::StringLit(_)) || self.is_global_scope_argument()
+impl<'cx> BlockModuleDecl<'cx> {
+    pub fn is_ambient(&self) -> bool {
+        self.is_global_argument || matches!(self.name, ModuleName::StringLit(_))
     }
+}
 
-    pub const fn is_global_scope_argument(&self) -> bool {
+#[derive(Debug, Clone)]
+pub struct NestedModuleDecl<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub modifiers: Option<&'cx Modifiers<'cx>>,
+    pub is_global_argument: bool,
+    pub name: &'cx self::Ident,
+    pub block: NestedModuleBlock<'cx>,
+}
+
+impl<'cx> NestedModuleDecl<'cx> {
+    pub fn is_ambient(&self) -> bool {
         self.is_global_argument
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum NestedModuleBlock<'cx> {
+    NestedModule(&'cx NestedModuleDecl<'cx>),
+    ModuleBlock(&'cx ModuleBlock<'cx>),
+}
+
+impl<'cx> NestedModuleBlock<'cx> {
+    pub fn module_block(&self) -> &'cx ModuleBlock<'cx> {
+        match self {
+            NestedModuleBlock::NestedModule(n) => n.block.module_block(),
+            NestedModuleBlock::ModuleBlock(b) => b,
+        }
     }
 }
 

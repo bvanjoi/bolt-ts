@@ -132,7 +132,8 @@ pub(super) fn container_flags_for_node(
         // TODO: JsDocTypeLiteral
         // TODO: JSX
         InterfaceDecl(_) => ContainerFlags::IS_CONTAINER.union(ContainerFlags::IS_INTERFACE),
-        ModuleDecl(_) | TypeAliasDecl(_) | MappedTy(_) | IndexSigDecl(_) => C_AND_L,
+        BlockModuleDecl(_) | NestedModuleDecl(_) | TypeAliasDecl(_) | MappedTy(_)
+        | IndexSigDecl(_) => C_AND_L,
         Program(_) => C_AND_L_AND_CF,
         ObjectMethodMember(_) => C_AND_L_AND_CF_AND_F_AND_O,
         ClassCtor(_) | FnDecl(_) | MethodSignature(_) | CallSigDecl(_) => C_AND_L_AND_CF_AND_F,

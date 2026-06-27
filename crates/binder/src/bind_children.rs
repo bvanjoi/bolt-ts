@@ -154,7 +154,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let block_container = self.block_scope_container.unwrap();
         let c = self.p.node(block_container);
         match c {
-            ast::Node::ModuleDecl(_) => {
+            ast::Node::NestedModuleDecl(_) | ast::Node::BlockModuleDecl(_) => {
                 self.declare_module_member(name, node, includes, exclude_flags)
             }
             ast::Node::Program(_) if self.p.is_external_or_commonjs_module() => {
@@ -382,7 +382,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let c = self.p.node(container);
         use ast::Node::*;
         match c {
-            ModuleDecl(_) => {
+            NestedModuleDecl(_) | BlockModuleDecl(_) => {
                 self.declare_module_member(name, current, symbol_flags, symbol_excludes)
             }
             Program(_) => {
@@ -774,11 +774,23 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_class_elem(elem);
                 }
             }
-            ModuleDecl(n) => {
-                use ast::ModuleName::*;
+            NestedModuleDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
+                self.bind(n.name.id);
+                match n.block {
+                    ast::NestedModuleBlock::NestedModule(n) => self.bind(n.id),
+                    ast::NestedModuleBlock::ModuleBlock(n) => self.bind(n.id),
+                }
+            }
+            BlockModuleDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
                 match n.name {
-                    Ident(n) => self.bind(n.id),
-                    StringLit(n) => self.bind(n.id),
+                    ast::ModuleName::Ident(n) => self.bind(n.id),
+                    ast::ModuleName::StringLit(n) => self.bind(n.id),
                 }
                 if let Some(block) = n.block {
                     self.bind(block.id);

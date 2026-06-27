@@ -17,36 +17,41 @@ use super::symbol::{SymbolID, SymbolName};
 use super::symbol_name_from_enum_member_name;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
-    fn bind_ns_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
-        let name = match ns.name {
-            ast::ModuleName::Ident(ident) => SymbolName::Atom(ident.name),
-            ast::ModuleName::StringLit(lit) => SymbolName::Atom(lit.val),
-        };
-
-        let s = if ns.is_ambient() {
-            if self.node_query().is_module_augmentation_external(ns) {
-                self.declare_module_symbol(name, ns)
+    fn bind_module_declaration(
+        &mut self,
+        module_name: SymbolName,
+        module_declaration_id: ast::NodeID,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
+        is_ambient: bool,
+    ) {
+        let s = if is_ambient {
+            if self
+                .node_query()
+                .is_module_augmentation_external(module_declaration_id)
+            {
+                self.declare_module_symbol(module_name, module_declaration_id, module_block)
             } else {
                 self.declare_symbol_and_add_to_symbol_table(
-                    name,
-                    ns.id,
+                    module_name,
+                    module_declaration_id,
                     SymbolFlags::VALUE_MODULE,
                     SymbolFlags::VALUE_MODULE_EXCLUDES,
                 )
             }
         } else {
-            self.declare_module_symbol(name, ns)
+            self.declare_module_symbol(module_name, module_declaration_id, module_block)
         };
-        self.create_final_res(ns.id, s);
+        self.create_final_res(module_declaration_id, s);
     }
 
     fn declare_module_symbol(
         &mut self,
         name: SymbolName,
-        ns: &'cx ast::ModuleDecl<'cx>,
+        module_declaration_id: ast::NodeID,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
     ) -> SymbolID {
         let nq = self.node_query();
-        let state = nq.get_module_instance_state(ns, |_, index| {
+        let state = nq.get_module_instance_state(module_block, |_, index| {
             if self.block_parent_stack.len() == index {
                 None
             } else {
@@ -66,7 +71,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolFlags::NAMESPACE_MODULE_EXCLUDES,
             )
         };
-        self.declare_symbol_and_add_to_symbol_table(name, ns.id, includes, excludes)
+        self.declare_symbol_and_add_to_symbol_table(name, module_declaration_id, includes, excludes)
     }
 
     fn bind_type_alias_decl(&mut self, t: &'cx ast::TypeAliasDecl<'cx>) {
@@ -606,7 +611,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             InterfaceDecl(node) => self.bind_interface_decl(node),
             TypeAliasDecl(node) => self.bind_type_alias_decl(node),
             EnumDecl(node) => self.bind_enum_decl(node),
-            ModuleDecl(node) => self.bind_ns_decl(node),
+            NestedModuleDecl(n) => {
+                self.bind_module_declaration(
+                    SymbolName::Atom(n.name.name),
+                    n.id,
+                    Some(n.block.module_block()),
+                    n.is_ambient(),
+                );
+            }
+            BlockModuleDecl(n) => {
+                let module_name = match n.name {
+                    ast::ModuleName::Ident(ident) => SymbolName::Atom(ident.name),
+                    ast::ModuleName::StringLit(lit) => SymbolName::Atom(lit.val),
+                };
+                self.bind_module_declaration(module_name, n.id, n.block, n.is_ambient());
+            }
             ImportEqualsDecl(ast::ImportEqualsDecl { id, name, .. })
             | ImportNamedSpec(ast::ImportNamedSpec { id, name, .. })
             | ImportShorthandSpec(ast::ImportShorthandSpec { id, name, .. })

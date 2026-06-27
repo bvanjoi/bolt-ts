@@ -65,7 +65,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Namespace | Module => {
                 if self.is_start_of_decl() {
-                    ast::StmtKind::Module(self.parse_module_decl(None))
+                    self.parse_module_decl(None)
                 } else {
                     self.parse_expr_or_labeled_stmt()?
                 }
@@ -448,38 +448,42 @@ impl<'cx> ParserState<'cx, '_> {
 
     fn parse_module_decl(
         &mut self,
-        mods: Option<&'cx ast::Modifiers<'cx>>,
-    ) -> &'cx ast::ModuleDecl<'cx> {
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+    ) -> ast::StmtKind<'cx> {
         let save_has_export_decl = self.has_export_decl;
         self.has_export_decl = false;
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
             let name = ast::ModuleName::Ident(self.create_ident(true, None));
-            return self.parse_ambient_external_module_decl::<true>(start, mods, name);
+            return self.parse_ambient_external_module_decl::<true>(start, modifiers, name);
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
             if self.token.kind == TokenKind::String {
-                if mods.is_none_or(|mods| !mods.flags.contains(ast::ModifierFlags::AMBIENT)) {
+                if modifiers.is_none_or(|mods| !mods.flags.contains(ast::ModifierFlags::AMBIENT)) {
                     let error = errors::OnlyAmbientModulesCanUseQuotedNames {
                         span: self.token.span,
                     };
                     self.push_error(Box::new(error));
                 }
                 let name = ast::ModuleName::StringLit(self.parse_string_lit());
-                return self.parse_ambient_external_module_decl::<false>(start, mods, name);
+                return self.parse_ambient_external_module_decl::<false>(start, modifiers, name);
             }
         }
         let name = self.parse_ident_name();
+        if self.parse_optional(TokenKind::Dot).is_some() {
+            todo!()
+        }
         let block = self.parse_module_block();
         let span = self.new_span(start);
-        let ret = self.create_module_declaration::<false>(
+        let module = self.create_block_module_declaration::<false>(
             span,
-            mods,
+            modifiers,
             ast::ModuleName::Ident(name),
             Some(block),
             self.has_export_decl,
         );
+        let ret = ast::StmtKind::BlockModule(module);
         self.check_module_declaration_error(name.span);
         self.has_export_decl = save_has_export_decl;
         ret
@@ -506,9 +510,9 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_ambient_external_module_decl<const IS_GLOBAL_ARGUMENT: bool>(
         &mut self,
         start: u32,
-        mods: Option<&'cx ast::Modifiers<'cx>>,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: ast::ModuleName<'cx>,
-    ) -> &'cx ast::ModuleDecl<'cx> {
+    ) -> ast::StmtKind<'cx> {
         let _flags = if IS_GLOBAL_ARGUMENT {
             NodeFlags::GLOBAL_AUGMENTATION
         } else {
@@ -521,13 +525,14 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
         let span = self.new_span(start);
-        self.create_module_declaration::<IS_GLOBAL_ARGUMENT>(
+        let module = self.create_block_module_declaration::<IS_GLOBAL_ARGUMENT>(
             span,
-            mods,
+            modifiers,
             name,
             block,
             self.has_export_decl,
-        )
+        );
+        ast::StmtKind::BlockModule(module)
     }
 
     fn parse_type_alias_decl(
@@ -574,11 +579,11 @@ impl<'cx> ParserState<'cx, '_> {
             Var | Let | Const => ast::StmtKind::Var(self.parse_var_stmt(mods)),
             Function => ast::StmtKind::Fn(self.parse_fn_decl(mods)?),
             Class => ast::StmtKind::Class(self.parse_class_decl(mods)?),
-            Module | Namespace => ast::StmtKind::Module(self.parse_module_decl(mods)),
+            Module | Namespace => self.parse_module_decl(mods),
             Ident => {
                 let id = self.ident_token();
                 if id == keyword::IDENT_GLOBAL {
-                    ast::StmtKind::Module(self.parse_module_decl(mods))
+                    self.parse_module_decl(mods)
                 } else {
                     unreachable!("{:#?}", self.atoms.lock().unwrap().get(id));
                 }

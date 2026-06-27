@@ -4509,25 +4509,31 @@ impl<'cx> TyChecker<'cx> {
 
             fn visit_enum_decl(
                 &mut self,
-                _: &'cx bolt_ts_ast::EnumDecl<'cx>,
+                _: &'cx ast::EnumDecl<'cx>,
             ) -> bolt_ts_ast_visitor::ControlFlow {
                 bolt_ts_ast_visitor::ControlFlow::Break
             }
             fn visit_interface_decl(
                 &mut self,
-                _: &'cx bolt_ts_ast::InterfaceDecl<'cx>,
+                _: &'cx ast::InterfaceDecl<'cx>,
             ) -> bolt_ts_ast_visitor::ControlFlow {
                 bolt_ts_ast_visitor::ControlFlow::Break
             }
-            fn visit_module_decl(
+            fn visit_nested_module_decl(
                 &mut self,
-                _: &'cx bolt_ts_ast::ModuleDecl<'cx>,
-            ) -> bolt_ts_ast_visitor::ControlFlow {
+                _: &'cx ast::NestedModuleDecl<'cx>,
+            ) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+            fn visit_block_module_decl(
+                &mut self,
+                _: &'cx ast::BlockModuleDecl<'cx>,
+            ) -> Self::Result {
                 bolt_ts_ast_visitor::ControlFlow::Break
             }
             fn visit_type_alias_decl(
                 &mut self,
-                _: &'cx bolt_ts_ast::TypeAliasDecl<'cx>,
+                _: &'cx ast::TypeAliasDecl<'cx>,
             ) -> bolt_ts_ast_visitor::ControlFlow {
                 bolt_ts_ast_visitor::ControlFlow::Break
             }
@@ -8473,11 +8479,25 @@ impl<'cx> TyChecker<'cx> {
                 // TODO: jsDoc
                 DeclarationSpaces::EXPORT_TYPE
             }
-            ModuleDecl(n) => {
+            NestedModuleDecl(n) => {
                 if n.is_ambient()
                     || self
                         .node_query(node.module())
-                        .get_module_instance_state(n, |n, _| self.parent(n))
+                        .get_module_instance_state_worker(n.block.module_block(), |n, _| {
+                            self.parent(n)
+                        })
+                        != ModuleInstanceState::NonInstantiated
+                {
+                    DeclarationSpaces::EXPORT_NAMESPACE.union(DeclarationSpaces::EXPORT_VALUE)
+                } else {
+                    DeclarationSpaces::EXPORT_NAMESPACE
+                }
+            }
+            BlockModuleDecl(n) => {
+                if n.is_ambient()
+                    || self
+                        .node_query(node.module())
+                        .get_module_instance_state(n.block, |n, _| self.parent(n))
                         != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::EXPORT_NAMESPACE.union(DeclarationSpaces::EXPORT_VALUE)

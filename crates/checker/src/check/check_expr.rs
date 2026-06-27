@@ -1361,7 +1361,7 @@ impl<'cx> TyChecker<'cx> {
 
         if this_in_computed_prop_name {
             todo!()
-        } else if container.is_module_decl() {
+        } else if container.is_module_declaration() {
             let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr_span };
             self.push_error(Box::new(error));
         }

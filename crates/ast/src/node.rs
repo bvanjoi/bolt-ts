@@ -66,12 +66,13 @@ pub enum Node<'cx> {
     RetStmt(&'cx super::RetStmt<'cx>),
     EmptyStmt(&'cx super::EmptyStmt),
     ClassDecl(&'cx super::ClassDecl<'cx>),
-    ModuleDecl(&'cx super::ModuleDecl<'cx>),
     ClassCtor(&'cx super::ClassCtor<'cx>),
     ClassPropElem(&'cx super::ClassPropElem<'cx>),
     ClassMethodElem(&'cx super::ClassMethodElem<'cx>),
     ClassSemiElem(&'cx super::ClassSemiElem),
     ClassStaticBlockDecl(&'cx super::ClassStaticBlockDecl<'cx>),
+    NestedModuleDecl(&'cx super::NestedModuleDecl<'cx>),
+    BlockModuleDecl(&'cx super::BlockModuleDecl<'cx>),
     GetterDecl(&'cx super::GetterDecl<'cx>),
     SetterDecl(&'cx super::SetterDecl<'cx>),
     InterfaceDecl(&'cx super::InterfaceDecl<'cx>),
@@ -199,6 +200,11 @@ impl<'cx> Node<'cx> {
         matches!(self, StringLit(_) | NoSubstitutionTemplateLit(_))
     }
 
+    pub fn is_module_declaration(&self) -> bool {
+        use Node::*;
+        matches!(self, NestedModuleDecl(_) | BlockModuleDecl(_))
+    }
+
     pub fn is_class_like(&self) -> bool {
         use Node::*;
         matches!(self, ClassDecl(_) | ClassExpr(_))
@@ -311,9 +317,10 @@ impl<'cx> Node<'cx> {
             InterfaceDecl(n) => Some(DeclarationName::Ident(n.name)),
             TypeAliasDecl(n) => Some(DeclarationName::Ident(n.name)),
             TyParam(n) => Some(DeclarationName::Ident(n.name)),
-            ModuleDecl(n) => match n.name {
-                crate::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
-                crate::ModuleName::StringLit(_) => None,
+            NestedModuleDecl(n) => Some(DeclarationName::Ident(n.name)),
+            BlockModuleDecl(n) => match n.name {
+                super::ModuleName::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                super::ModuleName::StringLit(_) => None,
             },
             ExportAssign(n) => {
                 if let ExprKind::Ident(ident) = n.expr.kind {
@@ -371,9 +378,10 @@ impl<'cx> Node<'cx> {
             },
             ObjectShorthandMember(n) => Some(n.name),
             TyParam(n) => Some(n.name),
-            ModuleDecl(n) => match n.name {
-                crate::ModuleName::Ident(ident) => Some(ident),
-                crate::ModuleName::StringLit(_) => None,
+            NestedModuleDecl(n) => Some(n.name),
+            BlockModuleDecl(n) => match n.name {
+                super::ModuleName::Ident(ident) => Some(ident),
+                super::ModuleName::StringLit(_) => None,
             },
             EnumDecl(n) => Some(n.name),
             _ => None,
@@ -472,9 +480,10 @@ impl<'cx> Node<'cx> {
                 | InterfaceDecl(_)
                 | TypeAliasDecl(_)
                 | EnumDecl(_)
-                | ModuleDecl(_)
+                | NestedModuleDecl(_)
+                | BlockModuleDecl(_)
                 | ImportDecl(_)
-                // TODO: import equal default
+                | ImportEqualsDecl(_)
                 | ExportDecl(_)
                 | ExportAssign(_) // TODO: namespace export default
         )
@@ -527,7 +536,8 @@ impl<'cx> Node<'cx> {
                 | SetterDecl(_)
                 | ObjectLit(_)
                 | Program(_)
-                | ModuleDecl(_)
+                | NestedModuleDecl(_)
+                | BlockModuleDecl(_)
                 | ArrayBinding(_)
                 | ObjectBindingElem(_)
                 | CallSigDecl(_)
@@ -659,7 +669,8 @@ impl<'cx> Node<'cx> {
             Node::FnDecl(n) => n.modifiers,
             Node::VarStmt(n) => n.modifiers,
             Node::ClassDecl(n) => n.modifiers,
-            Node::ModuleDecl(n) => n.modifiers,
+            Node::NestedModuleDecl(n) => n.modifiers,
+            Node::BlockModuleDecl(n) => n.modifiers,
             Node::TypeAliasDecl(n) => n.modifiers,
             Node::InterfaceDecl(n) => n.modifiers,
             Node::ParamDecl(n) => n.modifiers,
@@ -681,7 +692,8 @@ impl<'cx> Node<'cx> {
             Node::FnDecl(n) => n.modifiers,
             Node::VarStmt(n) => n.modifiers,
             Node::ClassDecl(n) => n.modifiers,
-            Node::ModuleDecl(n) => n.modifiers,
+            Node::NestedModuleDecl(n) => n.modifiers,
+            Node::BlockModuleDecl(n) => n.modifiers,
             Node::TypeAliasDecl(n) => n.modifiers,
             Node::InterfaceDecl(n) => n.modifiers,
             Node::ParamDecl(n) => n.modifiers,
@@ -701,7 +713,8 @@ impl<'cx> Node<'cx> {
 
     pub fn is_block_scope(&self, parent: Option<&Self>) -> bool {
         if self.is_program()
-            || self.is_module_decl()
+            || self.is_nested_module_decl()
+            || self.is_block_module_decl()
             || self.is_for_stmt()
             || self.is_for_in_stmt()
             || self.is_for_of_stmt()
@@ -819,7 +832,8 @@ impl<'cx> Node<'cx> {
                 | IndexSigDecl(_)
                 | MappedTy(_)
                 | MethodSignature(_)
-                | ModuleDecl(_)
+                | NestedModuleDecl(_)
+                | BlockModuleDecl(_)
                 | ObjectMethodMember(_)
                 | Program(_)
                 | SetterDecl(_)
@@ -846,11 +860,15 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_effective_module_decl(&self) -> bool {
-        self.is_ident() || self.is_module_decl()
+        self.is_ident() || self.is_nested_module_decl() || self.is_block_module_decl()
     }
 
     pub fn is_ambient_module(&self) -> bool {
-        self.as_module_decl().is_some_and(|n| n.is_ambient())
+        match self {
+            Node::NestedModuleDecl(n) => n.is_ambient(),
+            Node::BlockModuleDecl(n) => n.is_ambient(),
+            _ => false,
+        }
     }
 
     pub fn get_external_module_name(&self) -> Option<&'cx super::StringLit> {
@@ -858,7 +876,8 @@ impl<'cx> Node<'cx> {
         match self {
             ImportDecl(n) => Some(n.module),
             ExportDecl(n) => n.module_spec(),
-            ModuleDecl(n) => match n.name {
+            NestedModuleDecl(_) => None,
+            BlockModuleDecl(n) => match n.name {
                 crate::ModuleName::StringLit(n) => Some(n),
                 _ => None,
             },
@@ -921,7 +940,8 @@ impl<'cx> Node<'cx> {
     pub fn error_span(&self) -> bolt_ts_span::Span {
         match self {
             Node::VarDecl(n) => n.name.span,
-            Node::ModuleDecl(n) => n.name.span(),
+            Node::NestedModuleDecl(n) => n.name.span,
+            Node::BlockModuleDecl(n) => n.name.span(),
             _ => self.span(),
         }
     }
@@ -1184,7 +1204,16 @@ as_node!(
     (EmptyStmt, super::EmptyStmt, empty_stmt),
     (ClassDecl, super::ClassDecl<'cx>, class_decl),
     (EnumDecl, super::EnumDecl<'cx>, enum_decl),
-    (ModuleDecl, super::ModuleDecl<'cx>, module_decl),
+    (
+        NestedModuleDecl,
+        super::NestedModuleDecl<'cx>,
+        nested_module_decl
+    ),
+    (
+        BlockModuleDecl,
+        super::BlockModuleDecl<'cx>,
+        block_module_decl
+    ),
     (BlockStmt, super::BlockStmt<'cx>, block_stmt),
     (ModuleBlock, super::ModuleBlock<'cx>, module_block),
     (VarDecl, super::VarDecl<'cx>, var_decl),

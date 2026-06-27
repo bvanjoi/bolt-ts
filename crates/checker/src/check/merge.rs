@@ -96,11 +96,14 @@ pub fn merge_module_augmentation_list_for_global<'cx>(
 
         for augmentation in p.module_augmentations.iter() {
             let ns_id = c.bind_list[idx].parent_map.parent(*augmentation).unwrap();
-            let ns = p.node(ns_id).expect_module_decl();
-            if !ns.is_global_argument {
+            let is_global_argument = match p.node(ns_id) {
+                bolt_ts_ast::Node::NestedModuleDecl(ns) => ns.is_global_argument,
+                bolt_ts_ast::Node::BlockModuleDecl(ns) => ns.is_global_argument,
+                _ => unreachable!(),
+            };
+            if !is_global_argument {
                 continue;
             }
-            let ns_id = ns.id;
             let ns_symbol = c.symbol_of_decl(ns_id);
             let ns_s = c.get_symbol(ns_symbol);
             let decls = ns_s.decls.as_ref().unwrap();
@@ -195,11 +198,15 @@ impl<'cx> super::TyChecker<'cx> {
                     .parent_map
                     .parent(*augmentation)
                     .unwrap();
-                let ns = p.node(ns_id).expect_module_decl();
-                if ns.is_global_argument {
+                let is_global_argument = match p.node(ns_id) {
+                    bolt_ts_ast::Node::NestedModuleDecl(ns) => ns.is_global_argument,
+                    bolt_ts_ast::Node::BlockModuleDecl(ns) => ns.is_global_argument,
+                    _ => unreachable!(),
+                };
+                if is_global_argument {
                     continue;
                 }
-                queue.push((ns, *augmentation));
+                queue.push((ns_id, *augmentation));
             }
         }
 
@@ -211,10 +218,14 @@ impl<'cx> super::TyChecker<'cx> {
     fn merge_module_augmentation_for_non_global(
         &mut self,
         module_name: bolt_ts_ast::NodeID,
-        module_augmentation: &'cx bolt_ts_ast::ModuleDecl<'cx>,
+        module_augmentation: bolt_ts_ast::NodeID,
     ) {
-        assert!(!module_augmentation.is_global_argument);
-        let ns_id = module_augmentation.id;
+        debug_assert!(match self.p.node(module_augmentation) {
+            bolt_ts_ast::Node::NestedModuleDecl(ns) => !ns.is_global_argument,
+            bolt_ts_ast::Node::BlockModuleDecl(ns) => !ns.is_global_argument,
+            _ => unreachable!(),
+        });
+        let ns_id = module_augmentation;
         let ns_symbol = self.get_symbol_of_declaration(ns_id);
         let ns_s = MergeSymbol::get_symbol(self, ns_symbol);
         let decls = ns_s.decls.as_ref().unwrap();

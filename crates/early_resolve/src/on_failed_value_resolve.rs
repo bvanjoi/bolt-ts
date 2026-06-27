@@ -114,7 +114,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             None
         } else {
             let ns = self.symbol(symbol).decls.as_ref().unwrap()[0];
-            let span = self.p.node(ns).expect_module_decl().name.span();
+            let span = match self.p.node(ns) {
+                ast::Node::NestedModuleDecl(n) => n.name.span,
+                ast::Node::BlockModuleDecl(n) => n.name.span(),
+                _ => unreachable!(),
+            };
             let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
                 errors::CannotUseNamespaceAsTyOrValue { span, is_ty: false },
             );
@@ -179,7 +183,11 @@ impl<'cx> Resolver<'cx, '_, '_> {
             None
         } else {
             let ns = self.symbol(symbol).decls.as_ref().unwrap()[0];
-            let span = self.p.node(ns).expect_module_decl().name.span();
+            let span = match self.p.node(ns) {
+                ast::Node::NestedModuleDecl(n) => n.name.span,
+                ast::Node::BlockModuleDecl(n) => n.name.span(),
+                _ => unreachable!(),
+            };
             let error = errors::CannotFindNameHelperKind::CannotUseNamespaceAsTyOrValue(
                 errors::CannotUseNamespaceAsTyOrValue { span, is_ty: true },
             );

@@ -1252,14 +1252,54 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    fn create_module_declaration<const IS_GLOBAL_ARGUMENT: bool>(
+    fn create_nested_module_declaration<const IS_GLOBAL_ARGUMENT: bool>(
         &mut self,
-        span: bolt_ts_span::Span,
+        span: Span,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::Ident,
+        block: ast::NestedModuleBlock<'cx>,
+        has_export_decl: bool,
+    ) -> &'cx ast::NestedModuleDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::NestedModuleDecl {
+            id,
+            span,
+            modifiers,
+            is_global_argument: IS_GLOBAL_ARGUMENT,
+            name,
+            block,
+        });
+        let flags = self.node_context_flags();
+        // set_export_context_flags
+        let flags = if flags.contains(ast::NodeFlags::AMBIENT) && !has_export_decl {
+            flags | ast::NodeFlags::EXPORT_CONTEXT
+        } else {
+            flags & ast::NodeFlags::EXPORT_CONTEXT.complement()
+        };
+        self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
+        self.insert_node(id, ast::Node::NestedModuleDecl(node));
+        self.insert_node_flags(id, flags);
+        node
+    }
+
+    #[inline(always)]
+    fn create_block_module_declaration<const IS_GLOBAL_ARGUMENT: bool>(
+        &mut self,
+        span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: ast::ModuleName<'cx>,
         block: Option<&'cx ast::ModuleBlock<'cx>>,
         has_export_decl: bool,
-    ) -> &'cx ast::ModuleDecl<'cx> {
+    ) -> &'cx ast::BlockModuleDecl<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::BlockModuleDecl {
+            id,
+            span,
+            modifiers,
+            is_global_argument: IS_GLOBAL_ARGUMENT,
+            name,
+            block,
+        });
         let flags = self.node_context_flags();
         // set_export_context_flags
         let flags =
@@ -1268,17 +1308,8 @@ pub trait ASTFactory<'cx> {
             } else {
                 flags & ast::NodeFlags::EXPORT_CONTEXT.complement()
             };
-        let id = self.next_node_id();
-        let node = self.alloc(ast::ModuleDecl {
-            id,
-            span,
-            modifiers,
-            name,
-            block,
-            is_global_argument: IS_GLOBAL_ARGUMENT,
-        });
         self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
-        self.insert_node(id, ast::Node::ModuleDecl(node));
+        self.insert_node(id, ast::Node::BlockModuleDecl(node));
         self.insert_node_flags(id, flags);
         node
     }
