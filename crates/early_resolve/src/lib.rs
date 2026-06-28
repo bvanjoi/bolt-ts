@@ -1342,8 +1342,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
                 if match n {
                     Program(_) => true,
                     NestedModuleDecl(n) => {
-                        !n.is_global_argument
-                            && resolver.p.node_flags(n.id).intersects(NodeFlags::AMBIENT)
+                        resolver.p.node_flags(n.id).intersects(NodeFlags::AMBIENT)
                     }
                     BlockModuleDecl(n) => {
                         !n.is_global_argument

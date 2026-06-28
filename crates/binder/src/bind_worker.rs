@@ -616,7 +616,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     SymbolName::Atom(n.name.name),
                     n.id,
                     Some(n.block.module_block()),
-                    n.is_ambient(),
+                    false,
                 );
             }
             BlockModuleDecl(n) => {

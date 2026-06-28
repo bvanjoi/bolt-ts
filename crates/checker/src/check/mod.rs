@@ -8480,13 +8480,10 @@ impl<'cx> TyChecker<'cx> {
                 DeclarationSpaces::EXPORT_TYPE
             }
             NestedModuleDecl(n) => {
-                if n.is_ambient()
-                    || self
-                        .node_query(node.module())
-                        .get_module_instance_state_worker(n.block.module_block(), |n, _| {
-                            self.parent(n)
-                        })
-                        != ModuleInstanceState::NonInstantiated
+                if self
+                    .node_query(node.module())
+                    .get_module_instance_state_worker(n.block.module_block(), |n, _| self.parent(n))
+                    != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::EXPORT_NAMESPACE.union(DeclarationSpaces::EXPORT_VALUE)
                 } else {

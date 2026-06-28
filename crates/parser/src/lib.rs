@@ -1,4 +1,5 @@
 use bolt_ts_parser_errors as errors;
+mod check;
 mod expr;
 mod jsx;
 mod lookahead;

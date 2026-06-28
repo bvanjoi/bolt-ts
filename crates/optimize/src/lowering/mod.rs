@@ -364,27 +364,39 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
         &mut self,
         n: &'cx ast::NestedModuleDecl<'cx>,
     ) -> ir::ModuleDeclID {
-        todo!()
-        // let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
-        // let name = self.lower_ident(n.name);
-        // let stmts = match n.block {
-        //     ast::NestedModuleBlock::NestedModule(n) => {}
-        //     ast::NestedModuleBlock::ModuleBlock(n) => {}
-        // };
-        // let state = self
-        //     .checker
-        //     .node_query(n.id.module())
-        //     .get_module_instance_state_worker(n.block, |n, _| self.checker.binder.parent(n));
-        // let instantiated = state != bolt_ts_binder::ModuleInstanceState::NonInstantiated;
-        // let block = self.nodes.alloc_module_block(n.span, stmts);
-        // let decl = self.nodes.alloc_module_decl(
-        //     n.span,
-        //     modifiers,
-        //     ir::ModuleName::Ident(name),
-        //     block,
-        //     instantiated,
-        // );
-        // ir::Stmt::Module(decl)
+        let modifiers = n.modifiers.as_ref().map(|ms| self.lower_modifiers(ms));
+        let name = self.lower_ident(n.name);
+        match n.block {
+            ast::NestedModuleBlock::Nested(n) => {
+                let module = self.lower_nested_module_declaration(n);
+                let instantiated = self.nodes.get_module_decl(&module).instantiated();
+                let stmts = vec![ir::Stmt::Module(module)];
+                let block = self.nodes.alloc_module_block(n.span, stmts);
+                self.nodes.alloc_module_decl(
+                    n.span,
+                    modifiers,
+                    ir::ModuleName::Ident(name),
+                    block,
+                    instantiated,
+                )
+            }
+            ast::NestedModuleBlock::Block(block) => {
+                let state = self
+                    .checker
+                    .node_query(n.id.module())
+                    .get_module_instance_state_worker(block, |n, _| self.checker.binder.parent(n));
+                let instantiated = state != bolt_ts_binder::ModuleInstanceState::NonInstantiated;
+                let stmts = self.lower_stmts(block.stmts);
+                let block = self.nodes.alloc_module_block(block.span, stmts);
+                self.nodes.alloc_module_decl(
+                    n.span,
+                    modifiers,
+                    ir::ModuleName::Ident(name),
+                    block,
+                    instantiated,
+                )
+            }
+        }
     }
 
     fn lower_string_lit(&mut self, n: &'cx ast::StringLit) -> ir::StringLitID {

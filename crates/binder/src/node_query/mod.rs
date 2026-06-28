@@ -442,7 +442,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             ast::Node::ModuleBlock(n) => {
                 let p = self.parent(n.id).unwrap();
                 let is_ambient = match self.node(p) {
-                    ast::Node::NestedModuleDecl(n) => n.is_ambient(),
+                    ast::Node::NestedModuleDecl(n) => false,
                     ast::Node::BlockModuleDecl(n) => n.is_ambient(),
                     _ => unreachable!(),
                 };
@@ -457,9 +457,6 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     pub fn is_external_module_augmentation(&self, id: ast::NodeID) -> bool {
         let n = self.node(id);
         match n {
-            ast::Node::NestedModuleDecl(n) => {
-                n.is_ambient() && self.is_module_augmentation_external(n.id)
-            }
             ast::Node::BlockModuleDecl(n) => {
                 n.is_ambient() && self.is_module_augmentation_external(n.id)
             }

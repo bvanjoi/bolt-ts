@@ -384,28 +384,21 @@ pub struct NestedModuleDecl<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub modifiers: Option<&'cx Modifiers<'cx>>,
-    pub is_global_argument: bool,
     pub name: &'cx self::Ident,
     pub block: NestedModuleBlock<'cx>,
 }
 
-impl<'cx> NestedModuleDecl<'cx> {
-    pub fn is_ambient(&self) -> bool {
-        self.is_global_argument
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum NestedModuleBlock<'cx> {
-    NestedModule(&'cx NestedModuleDecl<'cx>),
-    ModuleBlock(&'cx ModuleBlock<'cx>),
+    Nested(&'cx NestedModuleDecl<'cx>),
+    Block(&'cx ModuleBlock<'cx>),
 }
 
 impl<'cx> NestedModuleBlock<'cx> {
     pub fn module_block(&self) -> &'cx ModuleBlock<'cx> {
         match self {
-            NestedModuleBlock::NestedModule(n) => n.block.module_block(),
-            NestedModuleBlock::ModuleBlock(b) => b,
+            NestedModuleBlock::Nested(n) => n.block.module_block(),
+            NestedModuleBlock::Block(b) => b,
         }
     }
 }

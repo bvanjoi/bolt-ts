@@ -332,8 +332,8 @@ pub fn visit_nested_module_block<'cx, V: Visitor<'cx>>(
     block: &ast::NestedModuleBlock<'cx>,
 ) -> V::Result {
     match block {
-        ast::NestedModuleBlock::NestedModule(n) => v.visit_nested_module_decl(n),
-        ast::NestedModuleBlock::ModuleBlock(n) => v.visit_module_block(n),
+        ast::NestedModuleBlock::Nested(n) => v.visit_nested_module_decl(n),
+        ast::NestedModuleBlock::Block(n) => v.visit_module_block(n),
     }
 }
 

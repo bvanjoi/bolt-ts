@@ -1252,7 +1252,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    fn create_nested_module_declaration<const IS_GLOBAL_ARGUMENT: bool>(
+    fn create_nested_module_declaration(
         &mut self,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
@@ -1265,7 +1265,6 @@ pub trait ASTFactory<'cx> {
             id,
             span,
             modifiers,
-            is_global_argument: IS_GLOBAL_ARGUMENT,
             name,
             block,
         });

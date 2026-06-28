@@ -199,32 +199,6 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(stmt)
     }
 
-    fn check_export_default_error(&mut self, span: bolt_ts_span::Span) {
-        if self.parse_context.contains(ParseContext::MODULE_BLOCK)
-            && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
-        {
-            let error = errors::ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule { span };
-            self.push_error(Box::new(error));
-        } else if !self.parse_context.contains(ParseContext::TOP_LEVEL) {
-            let error =
-                errors::ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration { span };
-            self.push_error(Box::new(error));
-        }
-    }
-
-    fn check_module_declaration_error(&mut self, span: bolt_ts_span::Span) {
-        if self
-            .parse_context
-            .intersects(ParseContext::TOP_LEVEL.union(ParseContext::MODULE_BLOCK))
-        {
-            return;
-        }
-
-        let error =
-            errors::ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule { span };
-        self.push_error(Box::new(error));
-    }
-
     fn parse_catch_clause(&mut self) -> PResult<&'cx ast::CatchClause<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Catch);
         let start = self.token.start();
@@ -455,7 +429,9 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         if matches!(self.token.kind, TokenKind::Ident if self.ident_token() == keyword::IDENT_GLOBAL)
         {
-            let name = ast::ModuleName::Ident(self.create_ident(true, None));
+            let name = self.create_ident(true, None);
+            self.check_module_declaration_error(name.span);
+            let name = ast::ModuleName::Ident(name);
             return self.parse_ambient_external_module_decl::<true>(start, modifiers, name);
         } else if self.parse_optional(TokenKind::Namespace).is_none() {
             self.expect(TokenKind::Module);
@@ -466,27 +442,60 @@ impl<'cx> ParserState<'cx, '_> {
                     };
                     self.push_error(Box::new(error));
                 }
-                let name = ast::ModuleName::StringLit(self.parse_string_lit());
+                let name = self.parse_string_lit();
+                self.check_module_declaration_error(name.span);
+                let name = ast::ModuleName::StringLit(name);
                 return self.parse_ambient_external_module_decl::<false>(start, modifiers, name);
             }
         }
         let name = self.parse_ident_name();
-        if self.parse_optional(TokenKind::Dot).is_some() {
-            todo!()
-        }
-        let block = self.parse_module_block();
+        let block = self.parse_nested_module_block();
         let span = self.new_span(start);
-        let module = self.create_block_module_declaration::<false>(
-            span,
-            modifiers,
-            ast::ModuleName::Ident(name),
-            Some(block),
-            self.has_export_decl,
-        );
-        let ret = ast::StmtKind::BlockModule(module);
+        let module = match block {
+            ast::NestedModuleBlock::Nested(block) => {
+                let module = self.create_nested_module_declaration(
+                    span,
+                    modifiers,
+                    name,
+                    ast::NestedModuleBlock::Nested(block),
+                    self.has_export_decl,
+                );
+                ast::StmtKind::NestedModule(module)
+            }
+            ast::NestedModuleBlock::Block(block) => {
+                let module = self.create_block_module_declaration::<false>(
+                    span,
+                    modifiers,
+                    ast::ModuleName::Ident(name),
+                    Some(block),
+                    self.has_export_decl,
+                );
+                ast::StmtKind::BlockModule(module)
+            }
+        };
         self.check_module_declaration_error(name.span);
         self.has_export_decl = save_has_export_decl;
-        ret
+        module
+    }
+
+    fn parse_nested_module_block(&mut self) -> ast::NestedModuleBlock<'cx> {
+        if self.parse_optional(TokenKind::Dot).is_some() {
+            let start = self.pos as u32;
+            let name = self.parse_ident_name();
+            let block = self.parse_nested_module_block();
+            let span = self.new_span(start);
+            let module = self.create_nested_module_declaration(
+                span,
+                None,
+                name,
+                block,
+                self.has_export_decl,
+            );
+            ast::NestedModuleBlock::Nested(module)
+        } else {
+            let block = self.parse_module_block();
+            ast::NestedModuleBlock::Block(block)
+        }
     }
 
     fn parse_module_block(&mut self) -> &'cx ast::ModuleBlock<'cx> {
@@ -620,13 +629,17 @@ impl<'cx> ParserState<'cx, '_> {
                         )
                     }
                     Eq => {
+                        self.check_export_assignment_error(self.token.span);
                         self.next_token(); // consume `eq`
                         ast::StmtKind::ExportAssign(
                             self.parse_export_assignment::<true>(start, mods)?,
                         )
                     }
                     As => todo!(),
-                    _ => ast::StmtKind::Export(self.parse_export_decl(start)?),
+                    _ => {
+                        self.check_export_declaration_error(self.token.span);
+                        ast::StmtKind::Export(self.parse_export_decl(start)?)
+                    }
                 }
             }
             Type => ast::StmtKind::TypeAlias(self.parse_type_alias_decl(mods)?),

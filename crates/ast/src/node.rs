@@ -865,7 +865,7 @@ impl<'cx> Node<'cx> {
 
     pub fn is_ambient_module(&self) -> bool {
         match self {
-            Node::NestedModuleDecl(n) => n.is_ambient(),
+            Node::NestedModuleDecl(_) => false,
             Node::BlockModuleDecl(n) => n.is_ambient(),
             _ => false,
         }

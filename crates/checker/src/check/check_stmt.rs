@@ -32,8 +32,8 @@ impl<'cx> TyChecker<'cx> {
                 n.span,
                 &ast::ModuleName::Ident(n.name),
                 Some(n.block.module_block()),
-                n.is_global_argument,
-                n.is_ambient(),
+                false,
+                false,
             ),
             BlockModule(n) => self.check_module_declaration_worker(
                 n.id,
@@ -181,7 +181,10 @@ impl<'cx> TyChecker<'cx> {
                     && parent_node.is_module_block()
                     && node.module_spec().is_none()
                     && self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT);
-                if !in_ambient_external_module && !in_ambient_ns_decl && !parent_node.is_program() {
+                if !in_ambient_external_module
+                    && !in_ambient_ns_decl
+                    && parent_node.is_module_block()
+                {
                     // TODO: could this check moved into wf check?
                     let error =
                         errors::ExportDeclarationsAreNotPermittedInANamespace { span: node.span };

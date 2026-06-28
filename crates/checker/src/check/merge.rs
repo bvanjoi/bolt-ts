@@ -97,7 +97,7 @@ pub fn merge_module_augmentation_list_for_global<'cx>(
         for augmentation in p.module_augmentations.iter() {
             let ns_id = c.bind_list[idx].parent_map.parent(*augmentation).unwrap();
             let is_global_argument = match p.node(ns_id) {
-                bolt_ts_ast::Node::NestedModuleDecl(ns) => ns.is_global_argument,
+                bolt_ts_ast::Node::NestedModuleDecl(ns) => false,
                 bolt_ts_ast::Node::BlockModuleDecl(ns) => ns.is_global_argument,
                 _ => unreachable!(),
             };
@@ -199,7 +199,7 @@ impl<'cx> super::TyChecker<'cx> {
                     .parent(*augmentation)
                     .unwrap();
                 let is_global_argument = match p.node(ns_id) {
-                    bolt_ts_ast::Node::NestedModuleDecl(ns) => ns.is_global_argument,
+                    bolt_ts_ast::Node::NestedModuleDecl(ns) => false,
                     bolt_ts_ast::Node::BlockModuleDecl(ns) => ns.is_global_argument,
                     _ => unreachable!(),
                 };
@@ -221,7 +221,7 @@ impl<'cx> super::TyChecker<'cx> {
         module_augmentation: bolt_ts_ast::NodeID,
     ) {
         debug_assert!(match self.p.node(module_augmentation) {
-            bolt_ts_ast::Node::NestedModuleDecl(ns) => !ns.is_global_argument,
+            bolt_ts_ast::Node::NestedModuleDecl(ns) => true,
             bolt_ts_ast::Node::BlockModuleDecl(ns) => !ns.is_global_argument,
             _ => unreachable!(),
         });

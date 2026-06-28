@@ -522,6 +522,13 @@ pub struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An export assignment must be at the top level of a file or module declaration.")]
+pub struct AnExportAssignmentMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "'await' expressions are only allowed within async functions and at the top levels of modules."
 )]
@@ -828,6 +835,13 @@ pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
 pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An export declaration can only be used at the top level of a namespace or module.")]
+pub struct AnExportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
     pub span: Span,
 }

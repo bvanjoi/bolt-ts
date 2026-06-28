@@ -780,8 +780,8 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
                 self.bind(n.name.id);
                 match n.block {
-                    ast::NestedModuleBlock::NestedModule(n) => self.bind(n.id),
-                    ast::NestedModuleBlock::ModuleBlock(n) => self.bind(n.id),
+                    ast::NestedModuleBlock::Nested(n) => self.bind(n.id),
+                    ast::NestedModuleBlock::Block(n) => self.bind(n.id),
                 }
             }
             BlockModuleDecl(n) => {
