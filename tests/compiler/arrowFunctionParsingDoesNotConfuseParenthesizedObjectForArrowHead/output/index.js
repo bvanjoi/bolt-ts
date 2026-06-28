@@ -4,9 +4,9 @@ var test = () => (({
   prop: !value,
   run: () => {
     if (!a.b()) {
-      return 'special'
+      return 'special';
     }
     
-    return 'default'
+    return 'default';
   }  
 }));

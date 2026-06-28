@@ -1,10 +1,10 @@
 class a {
   static get x() {
-    return null
+    return null;
   }
 }
 class b extends a {
   static x() {
-    return '20'
+    return '20';
   }
 }

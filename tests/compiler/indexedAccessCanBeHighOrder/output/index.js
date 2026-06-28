@@ -1,6 +1,6 @@
 function impl(a, b) {
   var item = get(a, b);
-  return find(item)
+  return find(item);
 }
 var o = {
   x: 42  

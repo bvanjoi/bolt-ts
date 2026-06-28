@@ -127,6 +127,12 @@ impl<'cx> TyChecker<'cx> {
                 // check_method_declaration
                 self.check_fn_like_decl(n);
             }
+            ast::ObjectTyMemberKind::CtorSig(n) => {
+                self.check_sig_decl(n.id);
+            }
+            ast::ObjectTyMemberKind::CallSig(n) => {
+                self.check_sig_decl(n.id);
+            }
             _ => {
                 // TODO:
             }

@@ -7,5 +7,5 @@ new Elem('');
 new Elem('');
 new Elem('');
 function g(p1, p2) {
-  return f(p1, p2)
+  return f(p1, p2);
 }

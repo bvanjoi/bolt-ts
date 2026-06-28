@@ -1,5 +1,5 @@
 function f(y, f, x) {
-  return [y, f(x)]
+  return [y, f(x)];
 }
 var a, b;
 var d = f(b, (x) => (x.a), a);

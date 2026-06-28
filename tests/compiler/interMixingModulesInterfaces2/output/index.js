@@ -5,7 +5,7 @@ var A = {};
   (function (B) {
   
     function createB() {
-      return null
+      return null;
     }
     B.createB = createB;
     

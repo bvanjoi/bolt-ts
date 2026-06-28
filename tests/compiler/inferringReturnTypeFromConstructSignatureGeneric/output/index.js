@@ -1,20 +1,20 @@
 class GenericObject {
   give(value) {
-    return value
+    return value;
   }
 }
 class GenericNumber {
   give(value) {
-    return value
+    return value;
   }
 }
 class GenericNumberOrString {
   give(value) {
-    return value
+    return value;
   }
 }
 function g(type) {
-  return new type()
+  return new type();
 }
 var g1 = g(GenericObject);
 g1.give({});

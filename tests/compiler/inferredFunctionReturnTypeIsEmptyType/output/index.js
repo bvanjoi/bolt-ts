@@ -1,8 +1,8 @@
 function foo() {
   if (true) {
-    return 42
+    return 42;
   } else {
-    return '42'
+    return '42';
   }
   
 }

@@ -4,7 +4,7 @@ class Point {
     
     this.y = y}
   toString() {
-    return 'x=' + this.x + ' y=' + this.y
+    return 'x=' + this.x + ' y=' + this.y;
   }
 }
 class ColoredPoint extends Point {
@@ -13,7 +13,7 @@ class ColoredPoint extends Point {
     this.color = color
     }
   toString() {
-    return super.toString() + ' color=' + this.color
+    return super.toString() + ' color=' + this.color;
   }
 }
 var p = new Point(1, 2);

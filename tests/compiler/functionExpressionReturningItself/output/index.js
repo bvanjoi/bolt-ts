@@ -1,3 +1,3 @@
 var x = function somefn() {
-  return somefn
+  return somefn;
 };

@@ -55,12 +55,12 @@ if (nonNull == undefined) {
 
 var foo = (value) => {
   if (!value) {
-    return 'foo'
+    return 'foo';
   }
   
   if (value === 'xyz') {
-    return value
+    return value;
   }
   
-  return ''
+  return '';
 };

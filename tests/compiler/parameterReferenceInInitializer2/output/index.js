@@ -1,3 +1,3 @@
 function Example(x = function (x) {
-  return x
+  return x;
 }) {}

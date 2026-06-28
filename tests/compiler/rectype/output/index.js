@@ -2,7 +2,7 @@ var M = {};
 (function (M) {
 
   function f(p) {
-    return f
+    return f;
   }
   M.f = f;
   

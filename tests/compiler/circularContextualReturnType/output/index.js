@@ -1,5 +1,5 @@
 Object.freeze({
   foo() {
-    return Object.freeze('a')
+    return Object.freeze('a');
   }  
 });

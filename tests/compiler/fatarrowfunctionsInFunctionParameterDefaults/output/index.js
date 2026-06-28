@@ -1,4 +1,4 @@
 function fn(x = () => (this), y = x()) {
-  return y
+  return y;
 }
 fn.call(4);

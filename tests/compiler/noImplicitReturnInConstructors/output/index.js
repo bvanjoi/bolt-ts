@@ -1,3 +1,3 @@
 class C {
-  constructor() {return }
+  constructor() {return ;}
 }

@@ -12,10 +12,10 @@ var SyntaxKind = {};
 
 buildOverload('updateImportDeclaration').overload({
   0(node, modifiers, importClause, moduleSpecifier, assertClause) {
-    return updateImportDeclaration(node, modifiers, importClause, moduleSpecifier, assertClause)
+    return updateImportDeclaration(node, modifiers, importClause, moduleSpecifier, assertClause);
   },
   1(node, _decorators, modifiers, importClause, moduleSpecifier, assertClause) {
-    return updateImportDeclaration(node, modifiers, importClause, moduleSpecifier, assertClause)
+    return updateImportDeclaration(node, modifiers, importClause, moduleSpecifier, assertClause);
   }  
 }).bind({
   0: ([, modifiers, importClause, moduleSpecifier, assertClause, other]) => ((other === undefined) && (modifiers === undefined || every(modifiers, isModifier)) && (importClause === undefined || !isArray(importClause)) && (moduleSpecifier === undefined || isExpression(moduleSpecifier)) && (assertClause === undefined || isAssertClause(assertClause))),

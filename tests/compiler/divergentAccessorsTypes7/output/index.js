@@ -2,7 +2,7 @@ class Test {
   constructor() {}
   set value(value) {}
   get value() {
-    return null
+    return null;
   }
 }
 var a = new Test();

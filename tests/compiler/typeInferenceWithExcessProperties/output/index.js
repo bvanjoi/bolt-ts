@@ -1,5 +1,5 @@
 function parrot(obj) {
-  return obj
+  return obj;
 }
 parrot({
   name: 'TypeScript'  

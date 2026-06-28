@@ -1093,7 +1093,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
             Fn(id) => self.emit_fn_decl(id),
             If(id) => self.emit_if_stmt(id),
             Block(id) => self.emit_block_stmt(id),
-            Ret(id) => self.emit_ret_stmt(id),
+            Ret(id) => {
+                self.emit_ret_stmt(id);
+                self.emitter.print().p_semi();
+            }
             Class(id) => self.emit_class_decl(id),
             Throw(id) => self.emit_throw_stmt(id),
             Module(id) => self.emit_module_decl(id),

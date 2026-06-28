@@ -1,6 +1,6 @@
 class C {
   get x() {
-    return null
+    return null;
   }
   set x(p) {}
 }

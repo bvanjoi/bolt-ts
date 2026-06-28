@@ -1,4 +1,4 @@
 function from(arg) {
-  return undefined
+  return undefined;
 }
 var ff = from(false).foo('');

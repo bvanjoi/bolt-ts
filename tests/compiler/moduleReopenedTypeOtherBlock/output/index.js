@@ -10,7 +10,7 @@ var M = {};
 
   class C2 {
     f() {
-      return null
+      return null;
     }
   }
   M.C2 = C2;

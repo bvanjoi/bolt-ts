@@ -6,11 +6,11 @@ function M() {
       return {
               t,
         x        
-      }
+      };
     }
   };
   var v = new m();
-  return v.f()
+  return v.f();
 }
 var g = class G {};
 var h = new g();

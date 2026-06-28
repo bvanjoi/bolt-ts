@@ -9,7 +9,7 @@ for ( var propname in HTMLDOMPropertyConfig.Properties) {
 }
 function repeatString(string, times) {
   if (times === 1) {
-    return string
+    return string;
   }
   
   if (times < 0) {
@@ -27,24 +27,24 @@ function repeatString(string, times) {
     }
     
   }
-  return repeated
+  return repeated;
 }
 function endsWith(haystack, needle) {
-  return haystack.slice(-needle.length) === needle
+  return haystack.slice(-needle.length) === needle;
 }
 function trimEnd(haystack, needle) {
-  return endsWith(haystack, needle) ? haystack.slice(0, -needle.length) : haystack
+  return endsWith(haystack, needle) ? haystack.slice(0, -needle.length) : haystack;
 }
 function hyphenToCamelCase(string) {
   return string.replace(/-(.)/g, function (match, chr) {
-    return chr.toUpperCase()
-  })
+    return chr.toUpperCase();
+  });
 }
 function isEmpty(string) {
-  return !/[^\s]/.test(string)
+  return !/[^\s]/.test(string);
 }
 function isConvertiblePixelValue(value) {
-  return /^\d+px$/.test(value)
+  return /^\d+px$/.test(value);
 }
 export class HTMLtoJSX {
   output;
@@ -53,13 +53,13 @@ export class HTMLtoJSX {
   _visitText = (node) => {
     var parentTag = node.parentNode && node.parentNode.tagName.toLowerCase();
     if (parentTag === 'textarea' || parentTag === 'style') {
-      return 
+      return ;
     }
     
     var text = '';
     if (this._inPreTag) {
       text = text.replace(/\r/g, '').replace(/( {2,}|\n|\t|\{|\})/g, function (whitespace) {
-        return '{' + JSON.stringify(whitespace) + '}'
+        return '{' + JSON.stringify(whitespace) + '}';
       });
     } else {
       if (text.indexOf('

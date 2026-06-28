@@ -1,4 +1,4 @@
 function f(p) {
-  return p
+  return p;
 }
 var v = f([(x) => (x)]);

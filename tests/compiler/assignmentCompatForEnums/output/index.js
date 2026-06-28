@@ -7,7 +7,7 @@ var TokenType = {};
 ;
 var list = {};
 function returnType() {
-  return null
+  return null;
 }
 function foo() {
   var x = returnType();

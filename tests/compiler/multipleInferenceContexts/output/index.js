@@ -5,6 +5,6 @@ var r2 = Moon({
   },
   render() {
     var h = (x) => (x);
-    return h(this.get('msg'))
+    return h(this.get('msg'));
   }  
 });

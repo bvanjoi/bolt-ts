@@ -1,6 +1,6 @@
 var getType = (params) => {
   var {foo, ...rest} = params;
-  return rest
+  return rest;
 };
 
 switch (params.tag) {

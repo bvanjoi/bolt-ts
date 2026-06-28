@@ -7,10 +7,10 @@ class B {
 function f(value) {
   switch (value.kind) {
     case 'A':
-      return 0
+      return 0;
     
     case 'B':
-      return 1
+      return 1;
     
   }
 }

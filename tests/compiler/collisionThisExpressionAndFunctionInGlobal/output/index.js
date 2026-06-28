@@ -1,4 +1,4 @@
 function _this() {
-  return 10
+  return 10;
 }
 var f = () => (this);

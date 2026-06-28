@@ -5,6 +5,6 @@ var a = {
     return {
           ...obj,
       metadata: 213      
-    }
+    };
   }  
 };

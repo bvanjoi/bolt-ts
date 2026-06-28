@@ -28,7 +28,7 @@ function reducer(action) {
       break;
     
     default:
-      return assertNever(action)
+      return assertNever(action);
     
   }
 }

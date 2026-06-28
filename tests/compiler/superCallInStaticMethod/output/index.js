@@ -16,11 +16,11 @@ class Other extends Doing {
         super.staticMethod();
       },
       b: super.staticMethod()      
-    }
+    };
   }
   static get staticGetter() {
     super.staticMethod();
-    return 0
+    return 0;
   }
   static set staticGetter(value) {
     super.staticMethod();

@@ -1,6 +1,6 @@
 class Shape {
   static create() {
-    return new Shape()
+    return new Shape();
   }
 }
 var x = Shape;

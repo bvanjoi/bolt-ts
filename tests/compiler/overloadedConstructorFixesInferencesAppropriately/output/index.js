@@ -2,7 +2,7 @@ class AsyncLoader {
   constructor(...args) {}
 }
 function load() {
-  return null
+  return null;
 }
 new AsyncLoader({
   asyncLoad: load,

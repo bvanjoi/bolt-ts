@@ -1,5 +1,5 @@
 function delegate(instance, method, data) {
-  return function () {}
+  return function () {};
 }
 class Foo {
   Bar() {

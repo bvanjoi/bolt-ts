@@ -9,13 +9,13 @@ function invoke(item) {
 invoke({
   kind: 'a',
   method(a) {
-    return +a
+    return +a;
   }  
 });
 var kind = 'a';
 invoke({
   kind,
   method(a) {
-    return +a
+    return +a;
   }  
 });

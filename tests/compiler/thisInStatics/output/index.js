@@ -4,6 +4,6 @@ class C {
   }
   static get x() {
     var y = this;
-    return y
+    return y;
   }
 }

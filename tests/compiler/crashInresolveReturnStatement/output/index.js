@@ -5,7 +5,7 @@ class WorkItemToolbar {
 }
 class CreateCopyOfWorkItemDialog {
   getDialogResult() {
-    return null
+    return null;
   }
 }
 function createWorkItemDialog(dialogType) {}

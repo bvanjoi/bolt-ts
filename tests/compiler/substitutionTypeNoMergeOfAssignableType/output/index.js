@@ -1,5 +1,5 @@
 function makeEntityStore(config) {
-  return {}
+  return {};
 }
 var myTest = makeEntityStore({
   test: {

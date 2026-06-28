@@ -8,16 +8,16 @@ foo(function (x) {
   v;
 });
 ['hello'].every(function (v, i, a) {
-  return true
+  return true;
 });
 [1].every(function (v, i, a) {
-  return true
+  return true;
 });
 [1].every(function (v, i, a) {
-  return true
+  return true;
 });
 ['s'].every(function (v, i, a) {
-  return true
+  return true;
 });
 ['s'].forEach(function (v, i, a) {
   v;

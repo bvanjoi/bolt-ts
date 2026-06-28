@@ -1942,3 +1942,19 @@ pub struct BaseConstructorsMustAllHaveTheSameReturnType {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Construct signature, which lacks return-type annotation, implicitly has an 'any' return type."
+)]
+pub struct ConstructSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Call signature, which lacks return-type annotation, implicitly has an 'any' return type.")]
+pub struct CallSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+    #[label(primary)]
+    pub span: Span,
+}

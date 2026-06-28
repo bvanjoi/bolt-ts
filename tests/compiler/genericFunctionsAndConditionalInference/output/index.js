@@ -1,5 +1,5 @@
 function foo(obj) {
-  return unboxify(obj)
+  return unboxify(obj);
 }
 var qq = foo({
   u: {
