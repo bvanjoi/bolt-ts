@@ -1252,7 +1252,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    fn create_nested_module_declaration(
+    fn create_nested_module_declaration<const IN_NESTED: bool>(
         &mut self,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
@@ -1270,11 +1270,11 @@ pub trait ASTFactory<'cx> {
         });
         let flags = self.node_context_flags();
         // set_export_context_flags
-        let flags = if flags.contains(ast::NodeFlags::AMBIENT) && !has_export_decl {
+        let flags = if IN_NESTED || flags.contains(ast::NodeFlags::AMBIENT) && !has_export_decl {
             flags | ast::NodeFlags::EXPORT_CONTEXT
         } else {
             flags & ast::NodeFlags::EXPORT_CONTEXT.complement()
-        };
+        } | ast::NodeFlags::NESTED_NAMESPACE;
         self.set_external_module_indicator_if_has_export_modifier(id, modifiers);
         self.insert_node(id, ast::Node::NestedModuleDecl(node));
         self.insert_node_flags(id, flags);

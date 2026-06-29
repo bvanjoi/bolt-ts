@@ -1958,3 +1958,11 @@ pub struct CallSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnTy
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Import name cannot be '{name}'.")]
+pub struct ImportNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

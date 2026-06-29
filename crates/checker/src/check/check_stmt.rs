@@ -252,8 +252,40 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn check_type_name_is_reserved(
+        &mut self,
+        name: &'cx ast::Ident,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if keyword::is_reserved_type_name(name.name) {
+            push_error(self);
+        }
+    }
+
     fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
         self.check_import_binding(node.id);
+        if !matches!(
+            node.module_reference,
+            ast::ModuleReferenceKind::ExternalModuleReference(_)
+        ) {
+            let symbol = self.get_symbol_of_declaration(node.id);
+            let target = self.resolve_alias(symbol);
+            if target != Symbol::ERR {
+                let target_flags = self.get_symbol_flags::<false>(target);
+                if target_flags.intersects(SymbolFlags::VALUE) {
+                    // TODO :
+                }
+                if target_flags.intersects(SymbolFlags::TYPE) {
+                    self.check_type_name_is_reserved(node.name, |this| {
+                        let error = errors::ImportNameCannotBeX {
+                            span: node.name.span,
+                            name: this.atoms.get(node.name.name).to_string(),
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                }
+            }
+        }
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {

@@ -1,0 +1,20 @@
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type 'substitution | (() => substitution)'.
+    ╭─[../../tests/compiler/noInferUnionExcessPropertyCheck1/index.ts:13:33]
+ 13 │ y
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type 'substitution | substitution'.
+    ╭─[../../tests/compiler/noInferUnionExcessPropertyCheck1/index.ts:22:33]
+ 22 │ y
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'y' does not exist
+  │ in type '{ x: string; } | (() => { x: string; })'.
+    ╭─[../../tests/compiler/noInferUnionExcessPropertyCheck1/index.ts:31:33]
+ 31 │ y
+    · ─
+    ╰────

@@ -171,19 +171,7 @@ impl<'cx> CheckState<'cx> {
         name: &'cx ast::Ident,
         push_error: impl FnOnce(&mut Self),
     ) {
-        if matches!(
-            name.name,
-            keyword::IDENT_ANY
-                | keyword::IDENT_UNKNOWN
-                | keyword::IDENT_NEVER
-                | keyword::IDENT_NUMBER
-                | keyword::IDENT_BIGINT
-                | keyword::IDENT_STRING
-                | keyword::IDENT_SYMBOL
-                | keyword::KW_VOID
-                | keyword::IDENT_OBJECT
-                | keyword::KW_UNDEFINED
-        ) {
+        if keyword::is_reserved_type_name(name.name) {
             push_error(self);
         }
     }

@@ -750,12 +750,18 @@ impl<'cx> TyChecker<'cx> {
             let ctor_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Constructor);
             if let Some(sig) = ctor_sigs.first() {
                 assert_eq!(ctor_sigs.len(), 1);
-                let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
-                    unreachable!()
+
+                let ty = match sig.class_decl {
+                    Some(class_decl) => {
+                        let decl = self.p.node(class_decl).expect_class_decl();
+                        format!("typeof {}", self.atoms.get(decl.name.unwrap().name))
+                    }
+                    _ => self.print_ty(func_ty, None).to_string(),
                 };
+
                 let error = errors::ValueOfTypeIsNotCallable {
                     span: expr.callee().span(),
-                    ty: format!("typeof {}", self.atoms.get(decl.name.unwrap().name)),
+                    ty,
                 };
                 self.push_error(Box::new(error));
             } else {
@@ -876,25 +882,28 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx Sig<'cx>,
     ) -> bool {
         // TODO: other case
-        let param_count = sig.get_param_count(self);
-        let min_args = self.get_min_arg_count(sig);
+        let mut call_is_incomplete = false;
+
+        let effective_parameter_count = sig.get_param_count(self);
+        let effective_minimum_arguments = self.get_min_arg_count(sig);
         let arg_count = effective_call_arguments.len();
         if effective_call_arguments.is_empty() {
-            return min_args == 0;
+            return effective_minimum_arguments == 0;
         } else if let Some(spread_arg_index) = effective_call_arguments.get_spared_argument_index()
         {
-            return spread_arg_index >= min_args && spread_arg_index < param_count;
+            return spread_arg_index >= effective_minimum_arguments
+                && spread_arg_index < effective_parameter_count;
         }
 
-        if arg_count > param_count && !self.has_effective_rest_param(sig) {
+        if arg_count > effective_parameter_count && !self.has_effective_rest_param(sig) {
             return false;
         }
 
-        if arg_count >= min_args {
+        if call_is_incomplete || arg_count >= effective_minimum_arguments {
             return true;
         }
 
-        for i in arg_count..min_args {
+        for i in arg_count..effective_minimum_arguments {
             let ty = self.get_ty_at_pos(sig, i);
             if self
                 .filter_type(ty, |_, ty| ty.flags.contains(TypeFlags::VOID))
@@ -1220,6 +1229,13 @@ impl<'cx> TyChecker<'cx> {
 
                     check_candidate =
                         self.get_sig_instantiation(candidate, ty_arg_tys, false, None);
+
+                    if candidate.get_non_array_rest_ty(self).is_some()
+                        && !self.has_correct_arity(effective_call_arguments, check_candidate)
+                    {
+                        *candidate_for_argument_arity_error = Some(check_candidate);
+                        continue;
+                    }
                 }
 
                 if self.get_signature_applicability_error(

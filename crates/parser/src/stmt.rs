@@ -453,7 +453,7 @@ impl<'cx> ParserState<'cx, '_> {
         let span = self.new_span(start);
         let module = match block {
             ast::NestedModuleBlock::Nested(block) => {
-                let module = self.create_nested_module_declaration(
+                let module = self.create_nested_module_declaration::<false>(
                     span,
                     modifiers,
                     name,
@@ -484,7 +484,7 @@ impl<'cx> ParserState<'cx, '_> {
             let name = self.parse_ident_name();
             let block = self.parse_nested_module_block();
             let span = self.new_span(start);
-            let module = self.create_nested_module_declaration(
+            let module = self.create_nested_module_declaration::<true>(
                 span,
                 None,
                 name,

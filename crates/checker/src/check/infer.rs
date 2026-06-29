@@ -563,17 +563,12 @@ impl<'cx> TyChecker<'cx> {
                                         })
                                     })
                                 && (0..self.inference_infos_len(inference)).all(|other| {
-                                    other == idx
-                                        && self
-                                            .get_constraint_of_ty_param(
-                                                self.inference_info(inference, other)
-                                                    .type_parameter,
-                                            )
-                                            .is_some_and(|t| {
-                                                t != self
-                                                    .inference_info(inference, idx)
-                                                    .type_parameter
-                                            })
+                                    other != idx
+                                        && self.get_constraint_of_ty_param(
+                                            self.inference_info(inference, other).type_parameter,
+                                        ) != Some(
+                                            self.inference_info(inference, idx).type_parameter,
+                                        )
                                         || self
                                             .inference_info(inference, other)
                                             .candidates
