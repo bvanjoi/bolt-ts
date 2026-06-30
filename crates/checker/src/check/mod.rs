@@ -4560,6 +4560,7 @@ impl<'cx> TyChecker<'cx> {
         body: &'cx ast::BlockStmt<'cx>,
         check_mode: Option<CheckMode>,
     ) -> Option<Vec<&'cx ty::Ty<'cx>>> {
+        let fn_flags = self.p.node(f).fn_flags();
         let mut has_ret_with_no_expr = self.fn_has_implicit_return(f);
         let mut has_ret_of_ty_never = false;
 
@@ -4570,12 +4571,37 @@ impl<'cx> TyChecker<'cx> {
             v: &mut Vec<T>,
             has_ret_with_no_expr: &mut bool,
             has_ret_of_ty_never: &mut bool,
+            fn_id: ast::NodeID,
+            fn_flags: FnFlags,
         ) {
             let node = checker.p.node(id);
             match node {
                 ast::Node::RetStmt(n) => {
                     if let Some(ret_expr) = n.expr {
-                        let expr = ast::Expr::skip_parens(ret_expr);
+                        let mut expr = ast::Expr::skip_parens(ret_expr);
+                        if fn_flags.contains(FnFlags::ASYNC)
+                            && let ast::ExprKind::Await(n) = expr.kind
+                        {
+                            // TODO: exclude_jsdoc_type_assertion: true
+                            expr = ast::Expr::skip_parens(n.expr)
+                        }
+                        if let ast::ExprKind::Call(call) = expr.kind
+                            && let ast::ExprKind::Ident(n) = call.expr.kind
+                            && let t = checker.check_expression_cached(call.expr, None)
+                            && let f_symbol = checker.final_res(fn_id)
+                            && t.symbol() == Some(checker.get_merged_symbol(f_symbol))
+                            && ({
+                                let value_declaration =
+                                    checker.symbol(f_symbol).value_decl.unwrap();
+                                !checker
+                                    .p
+                                    .node(value_declaration)
+                                    .is_fn_expr_or_arrow_fn_expr()
+                            } || checker.is_constant_reference(call.expr.id()))
+                        {
+                            *has_ret_of_ty_never = true;
+                            return;
+                        }
                         // TODO: async function and await call;
                         // TODO: const reference
                     } else {
@@ -4593,6 +4619,8 @@ impl<'cx> TyChecker<'cx> {
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
+                            fn_id,
+                            fn_flags,
                         )
                     });
                 }
@@ -4604,6 +4632,8 @@ impl<'cx> TyChecker<'cx> {
                         v,
                         has_ret_with_no_expr,
                         has_ret_of_ty_never,
+                        fn_id,
+                        fn_flags,
                     );
                     if let Some(else_then) = n.else_then {
                         for_each_return_stmt(
@@ -4613,6 +4643,8 @@ impl<'cx> TyChecker<'cx> {
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
+                            fn_id,
+                            fn_flags,
                         );
                     }
                 }
@@ -4630,6 +4662,8 @@ impl<'cx> TyChecker<'cx> {
                                 v,
                                 has_ret_with_no_expr,
                                 has_ret_of_ty_never,
+                                fn_id,
+                                fn_flags,
                             );
                         }
                     }
@@ -4642,6 +4676,8 @@ impl<'cx> TyChecker<'cx> {
                         v,
                         has_ret_with_no_expr,
                         has_ret_of_ty_never,
+                        fn_id,
+                        fn_flags,
                     );
                     if let Some(catch) = n.catch_clause {
                         for_each_return_stmt(
@@ -4651,6 +4687,8 @@ impl<'cx> TyChecker<'cx> {
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
+                            fn_id,
+                            fn_flags,
                         );
                     }
                     if let Some(finally) = n.finally_block {
@@ -4661,6 +4699,8 @@ impl<'cx> TyChecker<'cx> {
                             v,
                             has_ret_with_no_expr,
                             has_ret_of_ty_never,
+                            fn_id,
+                            fn_flags,
                         );
                     }
                 }
@@ -4687,6 +4727,8 @@ impl<'cx> TyChecker<'cx> {
             &mut aggregated_tys,
             &mut has_ret_with_no_expr,
             &mut has_ret_of_ty_never,
+            f,
+            fn_flags,
         );
 
         let may_return_never = || {
@@ -8591,6 +8633,34 @@ impl<'cx> TyChecker<'cx> {
                 || self
                     .node_query(value_declaration.module())
                     .is_in_js_file(value_declaration)
+        }
+    }
+
+    fn is_constant_reference(&mut self, node: ast::NodeID) -> bool {
+        match self.p.node(node) {
+            ast::Node::ThisExpr(_) => true,
+            ast::Node::Ident(n) if !self.node_query(n.id.module()).is_this_in_type_query(n.id) => {
+                let symbol = self.final_res(n.id);
+                let s = self.symbol(symbol);
+                self.is_constant_variable(s)
+                    || (self.is_parameter_or_mutable_local_variable(s)
+                        && !self.is_symbol_assigned(symbol))
+                    || {
+                        self.symbol(symbol)
+                            .value_decl
+                            .is_some_and(|n| self.p.node(n).is_fn_expr())
+                    }
+            }
+            ast::Node::PropAccessExpr(ast::PropAccessExpr { id, expr, .. })
+            | ast::Node::EleAccessExpr(ast::EleAccessExpr { id, expr, .. }) => {
+                self.is_constant_reference(expr.id()) && {
+                    self.get_node_links(*id)
+                        .get_resolved_symbol()
+                        .is_some_and(|s| self.is_readonly_symbol(s))
+                }
+            }
+            // TODO: ast::Node::ObjectBinding(n) | ast::Node::ArrayBinding
+            _ => false,
         }
     }
 }
