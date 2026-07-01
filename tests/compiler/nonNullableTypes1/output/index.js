@@ -5,7 +5,7 @@ function error() {
   throw new Error()
 }
 function f2(x) {
-  return x || error()
+  return x || error();
 }
 function f3(x) {
   var y = x;

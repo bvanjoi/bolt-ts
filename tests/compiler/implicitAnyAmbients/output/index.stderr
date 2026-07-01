@@ -1,0 +1,59 @@
+  × Variable 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:7:9]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:11:16]
+ 11 │ x
+    · ─
+    ╰────
+
+  × 'f', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:11:5]
+ 11 │ function f(x);
+    · ──────────────
+    ╰────
+
+  × 'f2', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:14:5]
+ 14 │ function f2(x: any);
+    · ────────────────────
+    ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:19:9]
+ 19 │ foo()
+    · ─────
+    ╰────
+
+  × 'foo2', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:21:9]
+ 21 │ foo2(x: any)
+    · ────────────
+    ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:27:9]
+ 27 │ foo();
+    · ──────
+    ╰────
+
+  × 'foo2', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:29:9]
+ 29 │ foo2(x: any);
+    · ─────────────
+    ╰────
+
+  × Variable 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyAmbients/index.ts:35:13]
+ 35 │ y
+    · ─
+    ╰────

@@ -5,6 +5,7 @@ use super::{CheckMode, TyChecker};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::r#trait;
+use bolt_ts_checker_errors as errors;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LanguageFeatures {
@@ -274,13 +275,22 @@ impl<'cx> TyChecker<'cx> {
         // check signature declaration
         let ret_ty_node = self.get_effective_ret_type_node(id);
         let ret_ty_error_location = ret_ty_node;
+
+        // TODO: injs
+
         if self.config.compiler_options().no_implicit_any() && ret_ty_node.is_none() {
             match n {
-                ast::Node::CtorSigDecl(_) => {
-                    todo!()
+                ast::Node::CtorSigDecl(n) => {
+                    let error = errors::ConstructSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+                        span: n.span,
+                    };
+                    self.push_error(Box::new(error));
                 }
-                ast::Node::CallSigDecl(_) => {
-                    todo!()
+                ast::Node::CallSigDecl(n) => {
+                    let error = errors::CallSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+                        span: n.span,
+                    };
+                    self.push_error(Box::new(error));
                 }
                 _ => {}
             }

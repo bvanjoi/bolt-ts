@@ -2077,7 +2077,11 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_args,
         });
         let ty = self.get_cond_ty::<false>(root, None, alias_symbol, alias_ty_args);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 
@@ -2200,7 +2204,7 @@ impl<'cx> TyChecker<'cx> {
                 .map(|ty| Self::get_tuple_element_flags(ty))
                 .collect();
             let element_flags = self.alloc(element_flags);
-            self.get_tuple_target_ty(element_flags, readonly)
+            self.get_tuple_target_ty(element_flags, readonly, None)
         };
 
         let ty = if target == self.empty_generic_ty() {
@@ -2485,9 +2489,14 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
-            ast::Node::ObjectMethodMember(_)
+            ast::Node::FnDecl(_)
+            | ast::Node::ObjectMethodMember(_)
             | ast::Node::ClassMethodElem(_)
-            | ast::Node::MethodSignature(_) => {
+            | ast::Node::MethodSignature(_)
+            | ast::Node::GetterDecl(_)
+            | ast::Node::SetterDecl(_)
+            | ast::Node::FnExpr(_)
+            | ast::Node::ArrowFnExpr(_) => {
                 let ty_as_string = self.print_ty(ty, None).to_string();
                 let decl_name = self.p.node(decl).name();
                 if no_implicit_any && decl_name.is_none() {
@@ -2513,7 +2522,24 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
-            _ => {}
+            ast::Node::MappedTy(_) => {
+                if no_implicit_any {
+                    todo!()
+                }
+            }
+            _ => {
+                let decl_name = self.p.node(decl).name();
+                if no_implicit_any {
+                    let error = errors::VariableXImplicitlyHasAnYType {
+                        span: self.p.node(decl).span(),
+                        variable: decl_name.unwrap().to_string(&self.atoms),
+                        ty: self.print_ty(ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    // todo!()
+                }
+            }
         }
     }
 
@@ -2631,13 +2657,13 @@ impl<'cx> TyChecker<'cx> {
 
         if ret_ty.is_some() || yield_ty.is_some() || next_ty.is_some() {
             if let Some(yield_ty) = yield_ty {
-                self.report_errors_from_widening(id, yield_ty, Some(WideningKind::FunctionReturn));
+                self.report_errors_from_widening(id, yield_ty, Some(WideningKind::GeneratorYield));
             }
             if let Some(ret_ty) = ret_ty {
                 self.report_errors_from_widening(id, ret_ty, Some(WideningKind::FunctionReturn));
             }
             if let Some(next_ty) = next_ty {
-                self.report_errors_from_widening(id, next_ty, Some(WideningKind::FunctionReturn));
+                self.report_errors_from_widening(id, next_ty, Some(WideningKind::GeneratorNext));
             }
             if ret_ty.is_some_and(|ret_ty| ret_ty.is_unit())
                 || yield_ty.is_some_and(|yield_ty| yield_ty.is_unit())

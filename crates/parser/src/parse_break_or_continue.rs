@@ -1,5 +1,6 @@
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast::{self as ast};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::parsing_ctx::ParseContext;
@@ -34,10 +35,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
-        let id = state.next_node_id();
-        let stmt = state.alloc(ast::BreakStmt { id, span, label });
-        state.nodes.insert(stmt.id, ast::Node::BreakStmt(stmt));
-        stmt
+        state.create_break_statement(span, label)
     }
 }
 
@@ -53,10 +51,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
-        let id = state.next_node_id();
-        let stmt = state.alloc(ast::ContinueStmt { id, span, label });
-        state.nodes.insert(stmt.id, ast::Node::ContinueStmt(stmt));
-        stmt
+        state.create_continue_statement(span, label)
     }
 }
 

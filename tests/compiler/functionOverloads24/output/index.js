@@ -1,5 +1,5 @@
 function foo(bar) {
-  return function () {}
+  return function () {};
 }
 var x = foo(5);
 var x0 = x;

@@ -2,7 +2,7 @@ class Foo {
   x() {
     var _this = 10;
     function inner(_this) {
-      return (x) => (this)
+      return (x) => (this);
     }
   }
   y() {

@@ -2,7 +2,7 @@ class A {
   foo() {
     for ( var x of [0]) {
       var f = function () {
-        return x
+        return x;
       };
       this.bar(f());
     }
@@ -11,11 +11,11 @@ class A {
   baz() {
     for ( var x of [1]) {
       var a = function () {
-        return x
+        return x;
       };
       for ( var y of [1]) {
         var b = function () {
-          return y
+          return y;
         };
         this.bar(b());
       }
@@ -25,12 +25,12 @@ class A {
   baz2() {
     for ( var x of [1]) {
       var a = function () {
-        return x
+        return x;
       };
       this.bar(a());
       for ( var y of [1]) {
         var b = function () {
-          return y
+          return y;
         };
         this.bar(b());
       }

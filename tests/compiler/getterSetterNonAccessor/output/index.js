@@ -1,5 +1,5 @@
 function getFunc() {
-  return 0
+  return 0;
 }
 function setFunc(v) {}
 Object.defineProperty({}, '0', ({

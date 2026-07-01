@@ -3,6 +3,6 @@ function f() {
   try {
     throw 'WAT'
   } catch (e) {}finally {
-    return x
+    return x;
   }
 }

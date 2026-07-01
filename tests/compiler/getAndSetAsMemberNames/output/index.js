@@ -7,7 +7,7 @@ class C2 {
 }
 class C3 {
   set(x) {
-    return x + 1
+    return x + 1;
   }
 }
 class C4 {
@@ -15,10 +15,10 @@ class C4 {
 }
 class C5 {
   set = function () {
-    return true
+    return true;
   };
   get() {
-    return true
+    return true;
   }
   set t(x) {}
 }

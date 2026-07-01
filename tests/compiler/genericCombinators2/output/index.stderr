@@ -1,0 +1,11 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/genericCombinators2/index.ts:19:11]
+ 19 │ _.map<number, string, Date>(c2, (x, y) => { return x.toFixed() })
+    · ─────────────────────────────────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/genericCombinators2/index.ts:21:11]
+ 21 │ _.map<number, string, Date>(c2, rf1)
+    · ────────────────────────────────────
+    ╰────

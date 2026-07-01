@@ -1,0 +1,7 @@
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type 'IPromise2<string, number>', but here has type
+  │ 'Promise2<any, string>'.
+    ╭─[../../tests/compiler/promiseIdentity/index.ts:25:5]
+ 25 │ y
+    · ─
+    ╰────

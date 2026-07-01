@@ -283,6 +283,12 @@ impl ParserState<'_, '_> {
                 };
                 self.push_error(Box::new(error));
             }
+            ParsingContext::OBJECT_LITERAL_MEMBERS => {
+                let error = errors::PropertyAssignmentExpected {
+                    span: self.token.span,
+                };
+                self.push_error(Box::new(error));
+            }
             _ => {}
         }
     }

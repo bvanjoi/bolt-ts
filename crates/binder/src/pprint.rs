@@ -8,7 +8,7 @@ impl SymbolName {
             SymbolName::EleNum(val) => val.val().to_string(),
             SymbolName::InstantiationExpression => "__InstantiationExpression".to_string(),
             SymbolName::Container => "__Container".to_string(),
-            SymbolName::ClassExpr => "__ClassExpr".to_string(),
+            SymbolName::ClassExpr => "(Anonymous class)".to_string(),
             SymbolName::Array => "__Array".to_string(),
             SymbolName::Object => "__Object".to_string(),
             SymbolName::Fn => "__Fn".to_string(),

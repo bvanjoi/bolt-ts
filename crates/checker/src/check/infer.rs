@@ -563,17 +563,12 @@ impl<'cx> TyChecker<'cx> {
                                         })
                                     })
                                 && (0..self.inference_infos_len(inference)).all(|other| {
-                                    other == idx
-                                        && self
-                                            .get_constraint_of_ty_param(
-                                                self.inference_info(inference, other)
-                                                    .type_parameter,
-                                            )
-                                            .is_some_and(|t| {
-                                                t != self
-                                                    .inference_info(inference, idx)
-                                                    .type_parameter
-                                            })
+                                    other != idx
+                                        && self.get_constraint_of_ty_param(
+                                            self.inference_info(inference, other).type_parameter,
+                                        ) != Some(
+                                            self.inference_info(inference, idx).type_parameter,
+                                        )
                                         || self
                                             .inference_info(inference, other)
                                             .candidates
@@ -944,7 +939,7 @@ impl<'cx> TyChecker<'cx> {
         self.get_inferred_tys(inference)
     }
 
-    fn is_mutable_array_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_mutable_array_like_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         self.is_mutable_array_or_tuple_ty(ty)
             || ty
                 .flags
@@ -973,11 +968,16 @@ impl<'cx> TyChecker<'cx> {
             ty
         } else if let Some(t) = ty.as_tuple() {
             let element_types = self.get_element_tys(ty);
-            self.create_tuple_ty(element_types, Some(t.element_flags), t.readonly)
+            self.create_tuple_ty(
+                element_types,
+                Some(t.element_flags),
+                t.readonly,
+                t.labeled_element_declarations,
+            )
         } else {
             let element_types = self.alloc([ty]);
             let element_flags = self.alloc([ty::ElementFlags::VARIADIC]);
-            self.create_tuple_ty(element_types, Some(element_flags), false)
+            self.create_tuple_ty(element_types, Some(element_flags), false, None)
         }
     }
 
@@ -1020,7 +1020,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut tys = vec![];
         let mut flags = vec![];
-        // let mut names = vec![];
+        let mut names = vec![];
         for i in index..arg_count {
             let arg = args.index(i);
             if arg.is_spread_argument() {
@@ -1095,15 +1095,21 @@ impl<'cx> TyChecker<'cx> {
                 });
                 flags.push(ty::ElementFlags::REQUIRED);
             }
-            // TODO: synthetic node
-            // names.push(None);
+
+            match arg.as_ref() {
+                EffectiveCallArgument::Synthetic(n) => {
+                    names.push(n.tuple_name_source());
+                }
+                _ => names.push(None),
+            }
         }
 
         let element_types = self.alloc(tys);
         let element_flags = self.alloc(flags);
+        let names = self.alloc(names);
         let readonly = is_const_context
             && !self.some_type(rest_ty, |this, t| this.is_mutable_array_like_ty(t));
-        self.create_tuple_ty(element_types, Some(element_flags), readonly)
+        self.create_tuple_ty(element_types, Some(element_flags), readonly, Some(names))
     }
 
     pub(super) fn get_this_argument_of_call(
@@ -2500,7 +2506,12 @@ impl<'cx> InferenceState<'cx, '_> {
                                             [start_index..end_index];
                                         let flags = &source.as_tuple().unwrap().element_flags
                                             [start_index..end_index];
-                                        self.c.create_tuple_ty(tys, Some(flags), false)
+                                        let names = &&source
+                                            .as_tuple()
+                                            .unwrap()
+                                            .labeled_element_declarations
+                                            .and_then(|n| n.get(start_index..end_index));
+                                        self.c.create_tuple_ty(tys, Some(flags), false, **names)
                                     };
                                     let s = self
                                         .c

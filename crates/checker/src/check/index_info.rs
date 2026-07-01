@@ -1,6 +1,5 @@
-use crate::check::links::SymbolLinks;
-
 use super::TyChecker;
+use super::links::SymbolLinks;
 use super::ty::{self, TypeFlags};
 
 use bolt_ts_ast as ast;

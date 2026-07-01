@@ -1,0 +1,27 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/promiseIdentityWithAny2.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+export interface IPromise<T, V> {
+    then<U, W>(callback: (x: T) => IPromise<U, W>): IPromise<U, W>;
+}
+interface Promise<T, V> {
+    then(callback: (x: T) => Promise<any, any>): Promise<any, any>;
+}
+
+// Error because type parameter arity doesn't match
+var x: IPromise<string, number>;
+var x: Promise<string, boolean>;
+//~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type 'IPromise<string, number>', but here has type 'Promise<string, boolean>'.
+
+interface IPromise2<T, V> {
+    then<U, W>(callback: (x: T) => IPromise2<U, W>): IPromise2<U, W>;
+}
+interface Promise2<T, V> {
+    then<U, W>(callback: (x: T) => Promise2<string, any>): Promise2<any, any>; // Uses string instead of any!
+}
+
+// Error because string and any don't match
+var y: IPromise2<string, number>;
+var y: Promise2<string, boolean>;
+//~^ ERROR: Subsequent variable declarations must have the same type. Variable 'y' must be of type 'IPromise2<string, number>', but here has type 'Promise2<string, boolean>'.

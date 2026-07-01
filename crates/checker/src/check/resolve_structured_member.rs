@@ -387,7 +387,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let base_ty_node = base_ty_node.unwrap();
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
-            let ctors = self.get_instantiated_constructors_for_ty_args(
+            let ctors = self.get_instantiated_constructors_for_type_arguments(
                 base_ctor_ty,
                 ty_args,
                 base_ty_node.id,
@@ -913,7 +913,7 @@ impl<'cx> TyChecker<'cx> {
         let targets = {
             let a = self.get_number_literal_type_from_number(0.);
             let tys = self.alloc([replacement]);
-            let b = self.create_tuple_ty(tys, None, false);
+            let b = self.create_tuple_ty(tys, None, false, None);
             self.alloc([a, b])
         };
         let mapper = self.create_ty_mapper(sources, targets);

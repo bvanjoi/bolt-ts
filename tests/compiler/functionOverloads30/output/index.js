@@ -1,4 +1,4 @@
 function foo(bar) {
-  return bar
+  return bar;
 }
 var x = foo('bar');

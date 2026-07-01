@@ -89,29 +89,18 @@ impl<'cx> ParserState<'cx, '_> {
             }
 
             let tys = self.alloc(tys);
+            let span = self.new_span(ty.span().lo());
             let ty = if !IS_UNION_TY {
-                let id = self.next_node_id();
-                let ty = self.alloc(ast::IntersectionTy {
-                    id,
-                    span: self.new_span(ty.span().lo()),
-                    tys,
-                });
-                self.nodes.insert(id, ast::Node::IntersectionTy(ty));
+                let intersection = self.create_intersection_type(span, tys);
                 self.alloc(ast::Ty {
-                    kind: ast::TyKind::Intersection(ty),
+                    kind: ast::TyKind::Intersection(intersection),
                 })
             } else {
                 // union
                 debug_assert_eq!(expect, TokenKind::Pipe);
-                let id = self.next_node_id();
-                let ty = self.alloc(ast::UnionTy {
-                    id,
-                    span: self.new_span(ty.span().lo()),
-                    tys,
-                });
-                self.nodes.insert(id, ast::Node::UnionTy(ty));
+                let union = self.create_union_type(span, tys);
                 self.alloc(ast::Ty {
-                    kind: ast::TyKind::Union(ty),
+                    kind: ast::TyKind::Union(union),
                 })
             };
             Ok(ty)
@@ -204,7 +193,11 @@ impl<'cx> ParserState<'cx, '_> {
             let span = self.new_span(pos);
             let modifiers = self.alloc([m]);
             let flags = ast::ModifierFlags::ABSTRACT;
-            Some(self.create_modifiers(span, modifiers, flags))
+            Some(self.alloc(ast::Modifiers {
+                span,
+                flags,
+                list: modifiers,
+            }))
         } else {
             None
         }
@@ -244,15 +237,9 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.expect(TokenKind::Infer);
         let ty_param = self.parse_ty_param_of_infer_ty()?;
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::InferTy {
-            id,
-            span: self.new_span(start),
-            ty_param,
-        });
-        self.nodes.insert(id, ast::Node::InferTy(ty));
+        let infer = self.create_infer_type(self.new_span(start), ty_param);
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::Infer(ty),
+            kind: ast::TyKind::Infer(infer),
         });
         Ok(ty)
     }
@@ -295,16 +282,9 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         self.next_token();
         let ty = self.parse_ty_op_or_higher()?;
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::TypeOp {
-            id,
-            span: self.new_span(start),
-            op,
-            ty,
-        });
-        self.nodes.insert(id, ast::Node::TyOp(ty));
+        let op_ty = self.create_type_operator_type(self.new_span(start), op, ty);
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::TypeOp(ty),
+            kind: ast::TyKind::TypeOp(op_ty),
         });
         Ok(ty)
     }
@@ -325,13 +305,7 @@ impl<'cx> ParserState<'cx, '_> {
                         return Ok(ty);
                     } else {
                         self.next_token();
-                        let id = self.next_node_id();
-                        let n = self.alloc(ast::NullableTy {
-                            id,
-                            span: self.new_span(start),
-                            ty,
-                        });
-                        self.nodes.insert(id, ast::Node::NullableTy(n));
+                        let n = self.create_nullable_type(self.new_span(start), ty);
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::Nullable(n),
                         })
@@ -342,26 +316,14 @@ impl<'cx> ParserState<'cx, '_> {
                     if self.is_start_of_ty(false) {
                         let index_ty = self.parse_ty()?;
                         self.expect(TokenKind::RBracket);
-                        let id = self.next_node_id();
-                        let kind = self.alloc(ast::IndexedAccessTy {
-                            id,
-                            span: self.new_span(start),
-                            ty,
-                            index_ty,
-                        });
-                        self.nodes.insert(id, ast::Node::IndexedAccessTy(kind));
+                        let kind =
+                            self.create_indexed_access_type(self.new_span(start), ty, index_ty);
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::IndexedAccess(kind),
                         });
                     } else {
                         self.expect(TokenKind::RBracket);
-                        let id = self.next_node_id();
-                        let kind = self.alloc(ast::ArrayTy {
-                            id,
-                            span: self.new_span(ty.span().lo()),
-                            ele: ty,
-                        });
-                        self.nodes.insert(id, ast::Node::ArrayTy(kind));
+                        let kind = self.create_array_type(self.new_span(ty.span().lo()), ty);
                         ty = self.alloc(ast::Ty {
                             kind: ast::TyKind::Array(kind),
                         });
@@ -395,7 +357,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let name = self.parse_ident_name();
         let kind = ast::EntityNameKind::Ident(name);
-        let mut entity = self.alloc(ast::EntityName { kind });
+        let mut entity = self.alloc(ast::EntityName { kind: kind });
         if self.token.kind != TokenKind::Dot {
             return entity;
         }
@@ -404,14 +366,7 @@ impl<'cx> ParserState<'cx, '_> {
                 break;
             }
             let right = self.parse_right_side_of_dot::<ALLOW_RESERVED_WORD>();
-            let id = self.next_node_id();
-            let qualified = self.alloc(ast::QualifiedName {
-                id,
-                span: self.new_span(start),
-                left: entity,
-                right,
-            });
-            self.nodes.insert(id, ast::Node::QualifiedName(qualified));
+            let qualified = self.create_qualified_name(self.new_span(start), entity, right);
             entity = self.alloc(ast::EntityName {
                 kind: ast::EntityNameKind::Qualified(qualified),
             });
@@ -491,14 +446,7 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::TypeofTy {
-            id,
-            span: self.new_span(start),
-            name,
-            ty_args,
-        });
-        self.nodes.insert(id, ast::Node::TypeofTy(kind));
+        let kind = self.create_typeof_type(self.new_span(start), name, ty_args);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Typeof(kind),
         });
@@ -509,21 +457,15 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::This);
         let start = self.token.start();
         self.next_token(); // consume `this`
-        let id = self.next_node_id();
-        self.alloc(ast::ThisTy {
-            id,
-            span: self.new_span(start),
-        })
+        self.create_this_type(self.new_span(start))
     }
 
     fn parse_this_ty(&mut self) -> &'cx ast::Ty<'cx> {
         debug_assert!(self.token.kind == TokenKind::This);
         let kind = self.parse_this_ty_kind();
-        self.nodes.insert(kind.id, ast::Node::ThisTy(kind));
-
-        (self.alloc(ast::Ty {
+        self.alloc(ast::Ty {
             kind: ast::TyKind::This(kind),
-        })) as _
+        })
     }
 
     fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
@@ -540,7 +482,6 @@ impl<'cx> ParserState<'cx, '_> {
                     _ => unreachable!(),
                 };
                 let lit = self.create_lit_ty(kind, self.token.span);
-                self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                 self.next_token();
                 let ty = self.alloc(ast::Ty {
                     kind: ast::TyKind::Lit(lit),
@@ -668,7 +609,6 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = if NEG { -val } else { val };
                     let kind = ast::LitTyKind::Num(val);
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -677,7 +617,6 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = token_val.ident();
                     let kind = ast::LitTyKind::BigInt { val, neg: NEG };
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -686,7 +625,6 @@ impl<'cx> ParserState<'cx, '_> {
                     let val = token_val.ident();
                     let kind = ast::LitTyKind::String(val);
                     let lit = self.create_lit_ty(kind, self.token.span);
-                    self.nodes.insert(lit.id, ast::Node::LitTy(lit));
                     self.alloc(ast::Ty {
                         kind: ast::TyKind::Lit(lit),
                     })
@@ -703,14 +641,7 @@ impl<'cx> ParserState<'cx, '_> {
         let head = self.parse_template_head::<false>()?;
         let spans = self
             .parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))?;
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::TemplateLitTy {
-            id,
-            span: self.new_span(start),
-            head,
-            spans,
-        });
-        self.nodes.insert(id, ast::Node::TemplateLitTy(kind));
+        let kind = self.create_template_literal_type(self.new_span(start), head, spans);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::TemplateLit(kind),
         });
@@ -721,15 +652,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let ty = self.parse_ty()?;
         let (text, is_tail) = self.parse_template_span_text::<false>();
-        let id = self.next_node_id();
-        let node = self.alloc(ast::TemplateSpanTy {
-            id,
-            span: self.new_span(start),
-            ty,
-            text,
-            is_tail,
-        });
-        self.nodes.insert(node.id, ast::Node::TemplateSpanTy(node));
+        let node = self.create_template_span_type(self.new_span(start), ty, text, is_tail);
         Ok(node)
     }
 
@@ -777,17 +700,14 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_semi();
         let _ = self.parse_list(ParsingContext::TYPE_MEMBERS, Self::parse_ty_member);
         self.expect(TokenKind::RBrace);
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::MappedTy {
-            id,
-            span: self.new_span(start),
+        let kind = self.create_mapped_type(
+            self.new_span(start),
             readonly_token,
             ty_param,
             name_ty,
             question_token,
             ty,
-        });
-        self.nodes.insert(id, ast::Node::MappedTy(kind));
+        );
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Mapped(kind),
         });
@@ -812,15 +732,9 @@ impl<'cx> ParserState<'cx, '_> {
             Self::parse_tuple_ele_name_or_tuple_ele_ty,
             TokenKind::RBracket,
         );
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::TupleTy {
-            id,
-            span: self.new_span(start),
-            tys,
-        });
-        self.nodes.insert(id, ast::Node::TupleTy(ty));
+        let tuple = self.create_tuple_type(self.new_span(start), tys);
         let ty = self.alloc(ast::Ty {
-            kind: ast::TyKind::Tuple(ty),
+            kind: ast::TyKind::Tuple(tuple),
         });
         Ok(ty)
     }
@@ -833,18 +747,15 @@ impl<'cx> ParserState<'cx, '_> {
             let question = self.parse_optional(TokenKind::Question);
             self.expect(TokenKind::Colon);
             let ty = self.parse_tuple_ele_ty()?;
-            let id = self.next_node_id();
-            let ty = self.alloc(ast::NamedTupleTy {
-                id,
-                span: self.new_span(start),
-                dotdotdot: dotdotdot.map(|t| t.span),
+            let named = self.create_named_tuple_type(
+                self.new_span(start),
+                dotdotdot.map(|t| t.span),
                 name,
-                question: question.map(|t| t.span),
+                question.map(|t| t.span),
                 ty,
-            });
-            self.nodes.insert(id, ast::Node::NamedTupleTy(ty));
+            );
             let ty = self.alloc(ast::Ty {
-                kind: ast::TyKind::NamedTuple(ty),
+                kind: ast::TyKind::NamedTuple(named),
             });
             Ok(ty)
         } else {
@@ -873,16 +784,10 @@ impl<'cx> ParserState<'cx, '_> {
             ParseContext::TYPE_LITERAL_MEMBERS,
             Self::parse_object_ty_members,
         );
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::ObjectLitTy {
-            id,
-            span: self.new_span(start),
-            members,
-        });
+        let kind = self.create_object_literal_type(self.new_span(start), members);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::ObjectLit(kind),
         });
-        self.nodes.insert(id, ast::Node::ObjectLitTy(kind));
         ty
     }
 
@@ -892,13 +797,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `TokenKind:LParen`
         let ty = self.parse_ty()?;
         self.expect(TokenKind::RParen);
-        let id = self.next_node_id();
-        let kind = self.alloc(ast::ParenTy {
-            id,
-            span: self.new_span(start),
-            ty,
-        });
-        self.nodes.insert(id, ast::Node::ParenTy(kind));
+        let kind = self.create_parenthesized_type(self.new_span(start), ty);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::Paren(kind),
         });
@@ -922,16 +821,8 @@ impl<'cx> ParserState<'cx, '_> {
             ast::ObjectTyMemberKind::Method(sig)
         } else {
             let ty = self.parse_ty_anno()?;
-            let id = self.next_node_id();
-            let sig = self.alloc(ast::PropSignature {
-                id,
-                span: self.new_span(start),
-                modifiers,
-                name,
-                question,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::PropSignature(sig));
+            let sig =
+                self.create_property_signature(self.new_span(start), modifiers, name, question, ty);
             if let Some(init) = self.parse_init()? {
                 let interface = self.parse_context.contains(ParseContext::INTERFACE_MEMBERS);
                 let error = errors::AnInterfaceOrTypeLitPropertyCannotHaveAnInitializer {
@@ -961,26 +852,10 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_ty_member_semi();
         let span = self.new_span(start);
         let kind = if IS_CALL {
-            let id = self.next_node_id();
-            let decl = self.alloc(ast::CallSigDecl {
-                id,
-                span,
-                ty_params,
-                params,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::CallSigDecl(decl));
+            let decl = self.create_call_signature_declaration(span, ty_params, params, ty);
             ast::ObjectTyMemberKind::CallSig(decl)
         } else {
-            let id = self.next_node_id();
-            let decl = self.alloc(ast::CtorSigDecl {
-                id,
-                span,
-                ty_params,
-                params,
-                ty,
-            });
-            self.nodes.insert(id, ast::Node::CtorSigDecl(decl));
+            let decl = self.create_constructor_signature_declaration(span, ty_params, params, ty);
             ast::ObjectTyMemberKind::CtorSig(decl)
         };
         Ok(self.alloc(ast::ObjectTyMember { kind }))

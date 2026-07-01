@@ -162,7 +162,14 @@ impl<'cx> Resolver<'cx, '_, '_> {
             Class(class) => self.resolve_class_decl(class),
             Interface(interface) => self.resolve_interface_decl(interface),
             TypeAlias(node) => self.resolve_type_alias_decl(node),
-            Module(ns) => self.resolve_module_decl(ns),
+            NestedModule(n) => {
+                self.resolve_module_block(n.block.module_block());
+            }
+            BlockModule(n) => {
+                if let Some(block) = n.block {
+                    self.resolve_module_block(block);
+                }
+            }
             Throw(t) => {
                 self.resolve_expr(t.expr);
             }
@@ -340,12 +347,6 @@ impl<'cx> Resolver<'cx, '_, '_> {
                     }
                 }
             }
-        }
-    }
-
-    fn resolve_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
-        if let Some(block) = ns.block {
-            self.resolve_module_block(block);
         }
     }
 
@@ -1227,7 +1228,11 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
             let n = resolver.p.node(id);
             if let Some(last) = last_location {
                 match n {
-                    ast::Node::ModuleDecl(decl) if decl.name.id() == last => {
+                    ast::Node::BlockModuleDecl(n) if n.name.id() == last => {
+                        last_location = location;
+                        location = resolver.parent(id);
+                    }
+                    ast::Node::NestedModuleDecl(n) if n.name.id == last => {
                         last_location = location;
                         location = resolver.parent(id);
                     }
@@ -1327,19 +1332,24 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
         let n = resolver.p.node(id);
         match n {
             Program(_) if !resolver.p.get(id.module()).is_external_or_commonjs_module() => (),
-            Program(_) | ModuleDecl(_) => {
+            Program(_) | NestedModuleDecl(_) | BlockModuleDecl(_) => {
                 let symbol_id = resolver.merged.get_merged_symbol(
                     resolver.symbol_of_decl(id),
                     &resolver.states[id.module().as_usize()].symbols,
                 );
                 let module_exports = &resolver.symbol(symbol_id).exports();
                 let mut stop = false;
-                if n.is_program()
-                    || (n
-                        .as_module_decl()
-                        .is_some_and(|n| !n.is_global_scope_argument())
-                        && resolver.p.node_flags(id).intersects(NodeFlags::AMBIENT))
-                {
+                if match n {
+                    Program(_) => true,
+                    NestedModuleDecl(n) => {
+                        resolver.p.node_flags(n.id).intersects(NodeFlags::AMBIENT)
+                    }
+                    BlockModuleDecl(n) => {
+                        !n.is_global_argument
+                            && resolver.p.node_flags(n.id).intersects(NodeFlags::AMBIENT)
+                    }
+                    _ => unreachable!(),
+                } {
                     if let Some(result) = module_exports
                         .and_then(|table| table.0.get(&SymbolName::ExportDefault))
                         .copied()
@@ -1703,7 +1713,8 @@ fn check_var_declared_names_not_shadowed<'a, 'cx>(
                         .parent(container)
                         .is_some_and(|p| r.p.node(p).is_fn_like()),
                     ast::Node::ModuleBlock(_)
-                    | ast::Node::ModuleDecl(_)
+                    | ast::Node::NestedModuleDecl(_)
+                    | ast::Node::BlockModuleDecl(_)
                     | ast::Node::Program(_) => true,
                     _ => false,
                 }

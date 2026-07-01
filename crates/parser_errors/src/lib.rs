@@ -394,6 +394,13 @@ impl ArgumentsCannotBeReferenced {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Property assignment expected.")]
+pub struct PropertyAssignmentExpected {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Property or signature expected.")]
 pub struct PropertyOrSignatureExpected {
     #[label(primary)]
@@ -510,6 +517,13 @@ pub struct ADefaultExportCanOnlyBeUsedInAnEcmascriptStyleModule {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("A default export must be at the top level of a file or module declaration.")]
 pub struct ADefaultExportMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("An export assignment must be at the top level of a file or module declaration.")]
+pub struct AnExportAssignmentMustBeAtTheTopLevelOfAFileOrModuleDeclaration {
     #[label(primary)]
     pub span: Span,
 }
@@ -814,6 +828,20 @@ pub struct SuperMayNotUseTypeArguments {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Type parameters cannot appear on a constructor declaration.")]
 pub struct TypeParametersCannotAppearOnAConstructorDeclaration {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A namespace declaration is only allowed at the top level of a namespace or module.")]
+pub struct ANamespaceDeclarationIsOnlyAllowedAtTheTopLevelOfANamespaceOrModule {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An export declaration can only be used at the top level of a namespace or module.")]
+pub struct AnExportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
     pub span: Span,
 }

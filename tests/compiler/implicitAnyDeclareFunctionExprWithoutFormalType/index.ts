@@ -14,8 +14,10 @@ var lamda4 = () => { return null };
 
 // these should be error for implicit any return type
 var lambda5 = function temp() { return null; }
+//~^ ERROR: 'temp', which lacks return-type annotation, implicitly has an 'any' return type.
 var lambda6 = () => { return null; }
 var lambda7 = function temp() { return undefined; }
+//~^ ERROR: 'temp', which lacks return-type annotation, implicitly has an 'any' return type.
 var lambda8 = () => { return undefined; }
 
 // this shouldn't be an error

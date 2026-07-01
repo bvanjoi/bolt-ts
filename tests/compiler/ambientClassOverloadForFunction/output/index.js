@@ -1,4 +1,4 @@
 ;
 function foo() {
-  return null
+  return null;
 }

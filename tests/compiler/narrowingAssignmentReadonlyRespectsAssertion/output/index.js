@@ -11,12 +11,12 @@ function subDataFunc() {
   }, {
       val1: [5, 10],
     val2: [10, 100, 1000]    
-  }]
+  }];
 }
 function dataFunc(subFunc) {
   return {
       cases: subFunc()    
-  }
+  };
 }
 function testFunc() {
   var fixture = dataFunc(subDataFunc);

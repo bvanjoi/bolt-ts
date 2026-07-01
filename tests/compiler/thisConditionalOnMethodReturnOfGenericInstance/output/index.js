@@ -3,7 +3,7 @@ class A {
 }
 class B extends A {
   method() {
-    return ''
+    return '';
   }
 }
 class C extends B {

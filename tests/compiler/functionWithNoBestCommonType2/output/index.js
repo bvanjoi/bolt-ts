@@ -1,5 +1,5 @@
 var v = function () {
-  return true
-  return bar()
+  return true;
+  return bar();
 };
 function bar() {}

@@ -1,0 +1,14 @@
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/strictModeInConstructor/index.ts:34:17]
+ 34 │ this
+    · ────
+    ╰────
+
+  × A 'super' call must be the first statement in the constructor to refer to
+  │ 'super' or 'this' when a derived class contains initialized properties,
+  │ parameter properties, or private identifiers.
+    ╭─[../../tests/compiler/strictModeInConstructor/index.ts:31:5]
+ 31 │ constructor
+    · ───────────
+    ╰────

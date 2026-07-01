@@ -3,7 +3,7 @@ function test1(result) {
     throw result.err
   }
   
-  return result.value
+  return result.value;
 }
 function want0(x) {}
 function test2(a) {

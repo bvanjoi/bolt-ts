@@ -484,7 +484,12 @@ impl<'cx> TyChecker<'cx> {
                     })
                     .collect::<Vec<_>>();
                 let new_elements = checker.alloc(new_elements);
-                Some(checker.create_tuple_ty(new_elements, Some(t.element_flags), t.readonly))
+                Some(checker.create_tuple_ty(
+                    new_elements,
+                    Some(t.element_flags),
+                    t.readonly,
+                    t.labeled_element_declarations,
+                ))
             } else {
                 Some(ty)
             }

@@ -157,7 +157,10 @@ impl<'cx> TyChecker<'cx> {
 
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
         self.check_index_constraints::<false>(ty, ty.symbol().unwrap());
-        // TODO: duplicate index signatures check
+        let symbol = self.final_res(n.id);
+        if let Some(index_symbol) = self.get_index_symbol(symbol) {
+            self.check_ty_for_duplicate_index_sigs_worker(index_symbol);
+        }
     }
 
     fn check_method_sig(&mut self, n: &'cx ast::MethodSignature<'cx>) {

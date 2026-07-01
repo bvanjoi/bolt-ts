@@ -4,6 +4,12 @@
    · ─
    ╰────
 
+  × Property assignment expected.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:5:1]
+ 5 │ ;
+   · ─
+   ╰────
+
   × '}' expected.
    ╭─[../../tests/compiler/objectLiteralWithSemicolons4/index.ts:5:1]
  5 │ ;

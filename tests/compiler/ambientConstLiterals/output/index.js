@@ -1,8 +1,8 @@
 function f(x) {
-  return x
+  return x;
 }
 function g(x) {
-  return x
+  return x;
 }
 var E = {};
 (function (E) {

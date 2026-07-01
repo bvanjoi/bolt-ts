@@ -1,0 +1,285 @@
+  × Property 'publicProp' does not exist on type 'Omit<A, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:26:15]
+ 26 │ publicProp
+    · ──────────
+    ╰────
+
+  × Property 'publicProp' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:28:15]
+ 28 │ publicProp
+    · ──────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type 'Omit<A, "getter" | "setter"
+  │ | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:31:15]
+ 31 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:33:15]
+ 33 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type 'Omit<A, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:35:15]
+ 35 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:37:15]
+ 37 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'protectedProp' does not exist on type 'Omit<A, "getter" |
+  │ "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:40:15]
+ 40 │ protectedProp
+    · ─────────────
+    ╰────
+
+  × Property 'protectedProp' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:42:15]
+ 42 │ protectedProp
+    · ─────────────
+    ╰────
+
+  × Property 'protectedProp' does not exist on type 'Omit<A, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:44:15]
+ 44 │ protectedProp
+    · ─────────────
+    ╰────
+
+  × Property 'protectedProp' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:46:15]
+ 46 │ protectedProp
+    · ─────────────
+    ╰────
+
+  × Property 'getter' does not exist on type 'Omit<A, "getter" | "setter" |
+  │ "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:49:15]
+ 49 │ getter
+    · ──────
+    ╰────
+
+  × Property 'getter' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:51:15]
+ 51 │ getter
+    · ──────
+    ╰────
+
+  × Property 'getter' does not exist on type 'Omit<A, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:53:15]
+ 53 │ getter
+    · ──────
+    ╰────
+
+  × Property 'getter' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:55:15]
+ 55 │ getter
+    · ──────
+    ╰────
+
+  × Property 'setter' does not exist on type 'Omit<A, "getter" | "setter" |
+  │ "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:58:15]
+ 58 │ setter
+    · ──────
+    ╰────
+
+  × Property 'setter' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:60:15]
+ 60 │ setter
+    · ──────
+    ╰────
+
+  × Property 'setter' does not exist on type 'Omit<A, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:62:15]
+ 62 │ setter
+    · ──────
+    ╰────
+
+  × Property 'setter' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:64:15]
+ 64 │ setter
+    · ──────
+    ╰────
+
+  × Property 'method' does not exist on type 'Omit<A, "getter" | "setter" |
+  │ "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:67:15]
+ 67 │ method
+    · ──────
+    ╰────
+
+  × Property 'method' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:69:15]
+ 69 │ method
+    · ──────
+    ╰────
+
+  × Property 'method' does not exist on type 'Omit<A, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:71:15]
+ 71 │ method
+    · ──────
+    ╰────
+
+  × Property 'method' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:73:15]
+ 73 │ method
+    · ──────
+    ╰────
+
+  × Property 'publicProp' does not exist on type 'Omit<T, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:86:11]
+ 86 │ publicProp
+    · ──────────
+    ╰────
+
+  × Property 'publicProp' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:88:11]
+ 88 │ publicProp
+    · ──────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type 'Omit<T, "getter" | "setter"
+  │ | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:91:11]
+ 91 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type '{ publicProp: string; }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:93:11]
+ 93 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type 'Omit<T, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:95:11]
+ 95 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'privateProp' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:97:11]
+ 97 │ privateProp
+    · ───────────
+    ╰────
+
+  × Property 'protectedProp' does not exist on type 'Omit<T, "getter" |
+  │ "setter" | "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:100:11]
+ 100 │ protectedProp
+     · ─────────────
+     ╰────
+
+  × Property 'protectedProp' does not exist on type '{ publicProp: string; }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:102:11]
+ 102 │ protectedProp
+     · ─────────────
+     ╰────
+
+  × Property 'protectedProp' does not exist on type 'Omit<T, "publicProp" |
+  │ "getter" | "setter" | "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:104:11]
+ 104 │ protectedProp
+     · ─────────────
+     ╰────
+
+  × Property 'protectedProp' does not exist on type '{ }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:106:11]
+ 106 │ protectedProp
+     · ─────────────
+     ╰────
+
+  × Property 'getter' does not exist on type 'Omit<T, "getter" | "setter" |
+  │ "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:109:11]
+ 109 │ getter
+     · ──────
+     ╰────
+
+  × Property 'getter' does not exist on type '{ publicProp: string; }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:111:11]
+ 111 │ getter
+     · ──────
+     ╰────
+
+  × Property 'getter' does not exist on type 'Omit<T, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:113:11]
+ 113 │ getter
+     · ──────
+     ╰────
+
+  × Property 'getter' does not exist on type '{ }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:115:11]
+ 115 │ getter
+     · ──────
+     ╰────
+
+  × Property 'setter' does not exist on type 'Omit<T, "getter" | "setter" |
+  │ "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:118:11]
+ 118 │ setter
+     · ──────
+     ╰────
+
+  × Property 'setter' does not exist on type '{ publicProp: string; }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:120:11]
+ 120 │ setter
+     · ──────
+     ╰────
+
+  × Property 'setter' does not exist on type 'Omit<T, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:122:11]
+ 122 │ setter
+     · ──────
+     ╰────
+
+  × Property 'setter' does not exist on type '{ }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:124:11]
+ 124 │ setter
+     · ──────
+     ╰────
+
+  × Property 'method' does not exist on type 'Omit<T, "getter" | "setter" |
+  │ "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:127:11]
+ 127 │ method
+     · ──────
+     ╰────
+
+  × Property 'method' does not exist on type '{ publicProp: string; }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:129:11]
+ 129 │ method
+     · ──────
+     ╰────
+
+  × Property 'method' does not exist on type 'Omit<T, "publicProp" | "getter"
+  │ | "setter" | "method">'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:131:11]
+ 131 │ method
+     · ──────
+     ╰────
+
+  × Property 'method' does not exist on type '{ }'.
+     ╭─[../../tests/compiler/destructuringUnspreadableIntoRest/index.ts:133:11]
+ 133 │ method
+     · ──────
+     ╰────

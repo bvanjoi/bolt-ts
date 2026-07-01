@@ -122,6 +122,15 @@ impl BinderState<'_, '_, '_> {
                 self.flow_nodes
                     .add_antecedent(current_return_target, self.current_flow.unwrap());
                 self.current_flow = Some(self.finish_flow_label(current_return_target));
+                match n {
+                    ast::Node::ClassCtor(_) | ast::Node::ClassStaticBlockDecl(_) => {
+                        let return_flow_node = self.current_flow;
+                        self.flow_in_nodes
+                            .insert_return_flow_node(node, return_flow_node);
+                    }
+                    // TODO: ins_js_file && (FnDecl || FnExpr)
+                    _ => {}
+                }
             }
 
             if !is_immediately_invoked {

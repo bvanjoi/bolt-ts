@@ -2,7 +2,7 @@ var M = {};
 (function (M) {
 
   function f(p) {
-    return f
+    return f;
   }
   
   ;
@@ -17,7 +17,7 @@ var M = {};
   
 })(M);
 function f0(a) {
-  return f0
+  return f0;
 }
 ;
 f0(f0(0));

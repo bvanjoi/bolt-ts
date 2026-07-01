@@ -1,0 +1,5 @@
+  × Property 'b' does not exist on type 'typeof Foo'.
+   ╭─[../../tests/compiler/errorSupression1/index.ts:7:15]
+ 7 │ b
+   · ─
+   ╰────

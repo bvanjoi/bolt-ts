@@ -1,0 +1,23 @@
+  × Type 'A<number>' is not assignable to type 'Comparable<string>'.
+    ╭─[../../tests/compiler/genericAssignmentCompatWithInterfaces1/index.ts:16:23]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Type '{ x: A<number>; }' is not assignable to type 'I<string>'.
+    ╭─[../../tests/compiler/genericAssignmentCompatWithInterfaces1/index.ts:18:5]
+ 18 │ a2
+    · ──
+    ╰────
+
+  × Type '{ x: A<number>; }' is not assignable to type 'I<string>'.
+    ╭─[../../tests/compiler/genericAssignmentCompatWithInterfaces1/index.ts:22:5]
+ 22 │ a3
+    · ──
+    ╰────
+
+  × Type 'K<number>' is not assignable to type 'I<string>'.
+    ╭─[../../tests/compiler/genericAssignmentCompatWithInterfaces1/index.ts:24:5]
+ 24 │ a4
+    · ──
+    ╰────

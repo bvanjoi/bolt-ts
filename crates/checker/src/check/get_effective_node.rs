@@ -169,7 +169,10 @@ impl<'cx> TyChecker<'cx> {
                                         } else {
                                             ty
                                         },
-                                        tuple_name_source: None, // TODO: t.labeled_element_declarations
+                                        tuple_name_source: t
+                                            .labeled_element_declarations
+                                            .and_then(|n| n.get(j))
+                                            .and_then(|n| *n),
                                     },
                                 ));
                             }
@@ -206,7 +209,7 @@ impl<'cx> TyChecker<'cx> {
                 && !modifier_flags.contains(ast::ModifierFlags::AMBIENT)
                 && !(parent_node.is_module_block()
                     && self.parent(p).is_some_and(|pp| {
-                        self.p.node(pp).is_module_decl()
+                        self.p.node(pp).is_module_declaration()
                             && self
                                 .p
                                 .node_flags(pp)
@@ -243,7 +246,7 @@ pub struct SyntheticExpression<'cx> {
     parent: ast::NodeID,
     is_spread: bool,
     ty: &'cx ty::Ty<'cx>,
-    tuple_name_source: Option<ast::NodeID>,
+    tuple_name_source: Option<ty::TupleLabeledElementDeclaration<'cx>>,
 }
 
 impl<'cx> SyntheticExpression<'cx> {
@@ -261,6 +264,10 @@ impl<'cx> SyntheticExpression<'cx> {
 
     pub fn is_spread(&self) -> bool {
         self.is_spread
+    }
+
+    pub fn tuple_name_source(&self) -> Option<ty::TupleLabeledElementDeclaration<'cx>> {
+        self.tuple_name_source
     }
 }
 

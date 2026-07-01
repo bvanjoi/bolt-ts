@@ -1,22 +1,22 @@
 class C {
   get Foo() {
-    return 'foo'
+    return 'foo';
   }
   set Foo(foo) {}
   get Bar() {
-    return 'foo'
+    return 'foo';
   }
   set Bar(bar) {}
 }
 var o1 = {
   get Foo() {
-    return 0
+    return 0;
   },
   set Foo(val) {}  
 };
 var o2 = {
   get Foo() {
-    return 0
+    return 0;
   },
   set Foo(val) {}  
 };

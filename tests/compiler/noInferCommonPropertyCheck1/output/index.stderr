@@ -1,0 +1,20 @@
+  × Type '{ x: string; }' has no properties in common with type 'substitution
+  │ & { prop: unknown; }'.
+    ╭─[../../tests/compiler/noInferCommonPropertyCheck1/index.ts:13:20]
+ 13 │ someObj1
+    · ────────
+    ╰────
+
+  × Type '{ x: string; }' has no properties in common with type 'substitution
+  │ & substitution'.
+    ╭─[../../tests/compiler/noInferCommonPropertyCheck1/index.ts:22:33]
+ 22 │ someObj1
+    · ────────
+    ╰────
+
+  × Type '{ x: string; }' has no properties in common with type 'Partial<{ a:
+  │ unknown; b: unknown; }> & Partial<{ c: unknown; d: unknown; }>'.
+    ╭─[../../tests/compiler/noInferCommonPropertyCheck1/index.ts:31:33]
+ 31 │ someObj1
+    · ────────
+    ╰────

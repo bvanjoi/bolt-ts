@@ -505,7 +505,6 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
- "include_dir",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -513,7 +512,6 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "serde_json",
- "stacker",
  "thin-vec",
  "tracing",
 ]

@@ -1918,3 +1918,51 @@ pub struct VariableXImplicitlyHasAnYType {
     pub variable: String,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "A mixin class that extends from a type variable containing an abstract construct signature must also be declared 'abstract'."
+)]
+pub struct AMixinClassThatExtendsFromATypeVariableContainingAnAbstractConstructSignatureMustAlsoBeDeclaredAbstract
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("A mixin class must have a constructor with a single rest parameter of type 'any[]'.")]
+pub struct AMixinClassMustHaveAConstructorWithASingleRestParameterOfTypeAny {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Base constructors must all have the same return type.")]
+pub struct BaseConstructorsMustAllHaveTheSameReturnType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Construct signature, which lacks return-type annotation, implicitly has an 'any' return type."
+)]
+pub struct ConstructSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Call signature, which lacks return-type annotation, implicitly has an 'any' return type.")]
+pub struct CallSignatureWhichLacksReturnTypeAnnotationImplicitlyHasAnAnyReturnType {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Import name cannot be '{name}'.")]
+pub struct ImportNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

@@ -1,8 +1,8 @@
 function narrow(x) {
   if (x instanceof Array) {
-    return x
+    return x;
   } else {
-    return [x]
+    return [x];
   }
   
 }

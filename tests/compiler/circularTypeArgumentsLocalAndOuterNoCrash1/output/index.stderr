@@ -1,0 +1,11 @@
+  × Type arguments for 'NumArray' circularly reference themselves.
+    ╭─[../../tests/compiler/circularTypeArgumentsLocalAndOuterNoCrash1/index.ts:11:12]
+ 11 │ NumArray<X extends {} ? number : number>
+    · ────────────────────────────────────────
+    ╰────
+
+  × Type arguments for 'NumArray' circularly reference themselves.
+    ╭─[../../tests/compiler/circularTypeArgumentsLocalAndOuterNoCrash1/index.ts:11:12]
+ 11 │ NumArray<X extends {} ? number : number>
+    · ────────────────────────────────────────
+    ╰────

@@ -24,9 +24,10 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {
         let id = decl.id();
-        let fn_decl = self.p.node(id);
+        debug_assert!(!matches!(self.p.node(id), ClassCtor(_)));
         let symbol = self.get_symbol_of_declaration(id);
         let first_fn_decl = self.symbol(symbol).decls.as_ref().and_then(|decls| {
+            let fn_decl = self.p.node(id);
             decls
                 .iter()
                 .find(|&&d| self.p.node(d).is_same_kind(&fn_decl))
@@ -55,12 +56,11 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
+    pub(super) fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
         let n = self.p.node(id);
-        n.has_effective_modifier(ast::ModifierFlags::PRIVATE) || {
-            self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
-                && Self::is_private_identifier_class_element_declaration(&n)
-        }
+        (n.has_effective_modifier(ast::ModifierFlags::PRIVATE)
+            || Self::is_private_identifier_class_element_declaration(&n))
+            && self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
     }
 
     pub(super) fn is_private_identifier_class_element_declaration(n: &ast::Node<'cx>) -> bool {

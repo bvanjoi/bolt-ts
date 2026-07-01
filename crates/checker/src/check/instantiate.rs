@@ -120,7 +120,7 @@ impl<'cx> TyChecker<'cx> {
                             let n = self.p.node(n);
                             if n.is_program() {
                                 Some(true)
-                            } else if n.is_module_decl() {
+                            } else if n.is_module_declaration() {
                                 None
                             } else {
                                 Some(false)
@@ -530,6 +530,7 @@ impl<'cx> TyChecker<'cx> {
                 self.alloc(new_elements_tys),
                 Some(new_element_flags),
                 new_readonly,
+                t.labeled_element_declarations,
             )
         }
     }

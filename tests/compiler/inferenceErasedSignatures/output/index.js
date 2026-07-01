@@ -4,6 +4,6 @@ class SomeAbstractClass extends SomeBaseClass {
 }
 class SomeClass extends SomeAbstractClass {
   baz(context) {
-    return `${context}`
+    return `${context}`;
   }
 }

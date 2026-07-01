@@ -140,6 +140,13 @@ pub struct TupleTy<'cx> {
     pub element_flags: &'cx [ElementFlags],
     pub combined_flags: ElementFlags,
     pub readonly: bool,
+    pub labeled_element_declarations: Option<&'cx [Option<TupleLabeledElementDeclaration<'cx>>]>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TupleLabeledElementDeclaration<'cx> {
+    NamedTupleMember(&'cx ast::NamedTupleTy<'cx>),
+    ParameterDeclaration(&'cx ast::ParamDecl<'cx>),
 }
 
 impl<'cx> TupleTy<'cx> {

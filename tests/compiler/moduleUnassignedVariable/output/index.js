@@ -5,14 +5,14 @@ var Bar = {};
   Bar.a = a
   
   function fooA() {
-    return a
+    return a;
   }
   
   var b;
   Bar.b = b
   
   function fooB() {
-    return b
+    return b;
   }
   
 })(Bar);

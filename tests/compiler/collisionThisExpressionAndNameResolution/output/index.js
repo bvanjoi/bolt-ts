@@ -4,7 +4,7 @@ class Foo {
     var _this = 10;
     function inner() {
       console.log(_this);
-      return (x) => (this)
+      return (x) => (this);
     }
   }
 }

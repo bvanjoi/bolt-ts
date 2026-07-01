@@ -154,7 +154,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     return "dummy_parameter".to_string();
                 };
                 let name = self.c.symbol(symbol).name;
-                self.c.atoms.get(name.expect_atom()).to_string()
+                name.to_string(&self.c.atoms)
             }
             ty::TyKind::IndexedAccess(n) => {
                 let object = self

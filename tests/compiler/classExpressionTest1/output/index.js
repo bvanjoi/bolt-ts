@@ -6,9 +6,9 @@ function M() {
       return {
               t,
         x        
-      }
+      };
     }
   }
   var v = new C();
-  return v.f()
+  return v.f();
 }

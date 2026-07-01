@@ -1,6 +1,6 @@
 var foo = function (a) {
-  return a
+  return a;
 };
 foo = function (b) {
-  return b
+  return b;
 };

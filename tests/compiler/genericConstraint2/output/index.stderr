@@ -1,0 +1,11 @@
+  × Property 'comparer' is missing.
+    ╭─[../../tests/compiler/genericConstraint2/index.ts:16:7]
+ 16 │ ComparableString
+    · ────────────────
+    ╰────
+
+  × Property 'comparer' is missing.
+    ╭─[../../tests/compiler/genericConstraint2/index.ts:27:17]
+ 27 │ ComparableString
+    · ────────────────
+    ╰────

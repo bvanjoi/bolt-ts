@@ -362,7 +362,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let mut tys = Vec::with_capacity(param_count);
         let mut flags = Vec::with_capacity(param_count);
-        // let mut names = Vec::with_capacity(param_count);
+        let mut names = Vec::with_capacity(param_count);
         for i in pos..param_count {
             if i < param_count - 1 || rest_ty.is_none() {
                 tys.push(self.get_ty_at_pos(source, i));
@@ -377,9 +377,61 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             }
-            // names.push(self.getnam);
+            // get_nameable_declaration_at_pos
+            let is_valid_declaration_for_tuple_label =
+                |this: &Self,
+                 decl: ast::NodeID|
+                 -> Option<ty::TupleLabeledElementDeclaration<'cx>> {
+                    let n = this.p.node(decl);
+                    match n {
+                        ast::Node::NamedTupleTy(n) => {
+                            Some(ty::TupleLabeledElementDeclaration::NamedTupleMember(n))
+                        }
+                        ast::Node::ParamDecl(n)
+                            if matches!(n.name.kind, ast::BindingKind::Ident(_)) =>
+                        {
+                            Some(ty::TupleLabeledElementDeclaration::ParameterDeclaration(n))
+                        }
+                        _ => None,
+                    }
+                };
+            let parameter_count =
+                source.params.len() - (if source.has_rest_param() { 1 } else { 0 });
+            let name = if pos < parameter_count {
+                if let Some(value_declaration) = self.symbol(source.params[i]).value_decl
+                    && let Some(n) = is_valid_declaration_for_tuple_label(self, value_declaration)
+                {
+                    Some(n)
+                } else {
+                    None
+                }
+            } else {
+                let rest_parameter = source.params.get(param_count).copied();
+                if let Some(rest_ty) = rest_parameter.map(|s| self.get_type_of_symbol(s))
+                    && let Some(t) = rest_ty.as_tuple()
+                {
+                    let index = pos - param_count;
+                    t.labeled_element_declarations
+                        .and_then(|names| names.get(index))
+                        .and_then(|n| *n)
+                } else if let Some(rest_parameter) = rest_parameter
+                    && let Some(value_declaration) = self.symbol(rest_parameter).value_decl
+                    && let Some(n) = is_valid_declaration_for_tuple_label(self, value_declaration)
+                {
+                    Some(n)
+                } else {
+                    None
+                }
+            };
+            names.push(name);
         }
-        self.create_tuple_ty(self.alloc(tys), Some(self.alloc(flags)), readonly)
+        let names = self.alloc(names);
+        self.create_tuple_ty(
+            self.alloc(tys),
+            Some(self.alloc(flags)),
+            readonly,
+            Some(names),
+        )
     }
 
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {
@@ -466,7 +518,11 @@ impl<'cx> TyChecker<'cx> {
         self.type_has_protected_accessible_base(target, first_base)
     }
 
-    fn is_constructor_access(&mut self, expr: &impl CallLikeExpr<'cx>, sig: &'cx Sig<'cx>) -> bool {
+    fn is_constructor_accessible(
+        &mut self,
+        expr: &impl CallLikeExpr<'cx>,
+        sig: &'cx Sig<'cx>,
+    ) -> bool {
         let Some(d) = sig.node_id else {
             return true;
         };
@@ -502,7 +558,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::Node::ClassDecl(_) | ast::Node::ClassExpr(_)
                 ));
                 let symbol = self.get_symbol_of_declaration(containing_class);
-                let containing_ty = self.get_type_of_symbol(symbol);
+                let containing_ty = self.get_declared_ty_of_symbol(symbol);
                 if self.type_has_protected_accessible_base(class_symbol, containing_ty) {
                     return true;
                 }
@@ -551,7 +607,7 @@ impl<'cx> TyChecker<'cx> {
 
         let ctor_sigs = self.get_signatures_of_type(expr_ty, ty::SigKind::Constructor);
         if !ctor_sigs.is_empty() {
-            if !self.is_constructor_access(expr, ctor_sigs[0]) {
+            if !self.is_constructor_accessible(expr, ctor_sigs[0]) {
                 return self.resolve_error_call(expr);
             }
             let abstract_sigs = ctor_sigs
@@ -656,7 +712,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_containing_class(expr.id())
                     .unwrap();
                 if let Some(base_ty_node) = self.get_effective_base_type_node(n) {
-                    let base_ctors = self.get_instantiated_constructors_for_ty_args(
+                    let base_ctors = self.get_instantiated_constructors_for_type_arguments(
                         super_ty,
                         base_ty_node.expr_with_ty_args.ty_args,
                         base_ty_node.id,
@@ -746,12 +802,18 @@ impl<'cx> TyChecker<'cx> {
             let ctor_sigs = self.get_signatures_of_type(apparent_ty, ty::SigKind::Constructor);
             if let Some(sig) = ctor_sigs.first() {
                 assert_eq!(ctor_sigs.len(), 1);
-                let ast::Node::ClassDecl(decl) = self.p.node(sig.class_decl.unwrap()) else {
-                    unreachable!()
+
+                let ty = match sig.class_decl {
+                    Some(class_decl) => {
+                        let decl = self.p.node(class_decl).expect_class_decl();
+                        format!("typeof {}", self.atoms.get(decl.name.unwrap().name))
+                    }
+                    _ => self.print_ty(func_ty, None).to_string(),
                 };
+
                 let error = errors::ValueOfTypeIsNotCallable {
                     span: expr.callee().span(),
-                    ty: format!("typeof {}", self.atoms.get(decl.name.unwrap().name)),
+                    ty,
                 };
                 self.push_error(Box::new(error));
             } else {
@@ -872,25 +934,28 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx Sig<'cx>,
     ) -> bool {
         // TODO: other case
-        let param_count = sig.get_param_count(self);
-        let min_args = self.get_min_arg_count(sig);
+        let mut call_is_incomplete = false;
+
+        let effective_parameter_count = sig.get_param_count(self);
+        let effective_minimum_arguments = self.get_min_arg_count(sig);
         let arg_count = effective_call_arguments.len();
         if effective_call_arguments.is_empty() {
-            return min_args == 0;
+            return effective_minimum_arguments == 0;
         } else if let Some(spread_arg_index) = effective_call_arguments.get_spared_argument_index()
         {
-            return spread_arg_index >= min_args && spread_arg_index < param_count;
+            return spread_arg_index >= effective_minimum_arguments
+                && spread_arg_index < effective_parameter_count;
         }
 
-        if arg_count > param_count && !self.has_effective_rest_param(sig) {
+        if arg_count > effective_parameter_count && !self.has_effective_rest_param(sig) {
             return false;
         }
 
-        if arg_count >= min_args {
+        if call_is_incomplete || arg_count >= effective_minimum_arguments {
             return true;
         }
 
-        for i in arg_count..min_args {
+        for i in arg_count..effective_minimum_arguments {
             let ty = self.get_ty_at_pos(sig, i);
             if self
                 .filter_type(ty, |_, ty| ty.flags.contains(TypeFlags::VOID))
@@ -1216,6 +1281,13 @@ impl<'cx> TyChecker<'cx> {
 
                     check_candidate =
                         self.get_sig_instantiation(candidate, ty_arg_tys, false, None);
+
+                    if candidate.get_non_array_rest_ty(self).is_some()
+                        && !self.has_correct_arity(effective_call_arguments, check_candidate)
+                    {
+                        *candidate_for_argument_arity_error = Some(check_candidate);
+                        continue;
+                    }
                 }
 
                 if self.get_signature_applicability_error(

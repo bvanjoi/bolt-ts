@@ -418,7 +418,7 @@ impl<'cx> TyChecker<'cx> {
                 .union(SymbolFlags::GET_ACCESSOR)
                 .union(SymbolFlags::SET_ACCESSOR),
         ) || s.decls.as_ref().is_none_or(|decls| {
-            decls.iter().any(|decl| {
+            !decls.iter().any(|decl| {
                 if let Some(p) = self.parent(*decl) {
                     self.p.node(p).is_class_like()
                 } else {
@@ -456,7 +456,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         let mut spreadable_props = vec![];
-        let mut unsparedable_to_rest_keys = vec![];
+        let mut unspreadable_to_rest_keys = vec![];
 
         for &prop in self.get_props_of_ty(source) {
             let lit_ty_from_property = self.get_literal_ty_from_prop(
@@ -468,25 +468,22 @@ impl<'cx> TyChecker<'cx> {
                 lit_ty_from_property,
                 omit_key_ty,
                 relation::RelationKind::Assignable,
-            ) && (self.get_declaration_modifier_flags_from_symbol::<false>(prop)
-                & ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
-                .is_empty()
+            ) && !self
+                .get_declaration_modifier_flags_from_symbol::<false>(prop)
+                .intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER)
                 && self.is_spreadable_property(prop)
             {
                 spreadable_props.push(prop);
             } else {
-                unsparedable_to_rest_keys.push(lit_ty_from_property);
+                unspreadable_to_rest_keys.push(lit_ty_from_property);
             }
         }
 
         if self.is_generic_object_ty(source) || self.is_generic_index_ty(omit_key_ty) {
-            if unsparedable_to_rest_keys.len() > 0 {
-                // If the type we're spreading from has properties that cannot
-                // be spread into the rest type (e.g. getters, methods), ensure
-                // they are explicitly omitted, as they would in the non-generic case.
-                let mut tys = Vec::with_capacity(unsparedable_to_rest_keys.len() + 1);
+            if !unspreadable_to_rest_keys.is_empty() {
+                let mut tys = Vec::with_capacity(unspreadable_to_rest_keys.len() + 1);
                 tys.push(omit_key_ty);
-                tys.extend(unsparedable_to_rest_keys);
+                tys.extend(unspreadable_to_rest_keys);
                 omit_key_ty = self.get_union_ty::<false>(
                     &tys,
                     ty::UnionReduction::Lit,
@@ -662,8 +659,10 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
-        if (self.config.compiler_options().no_implicit_any()
-            || self.node_query(id.module()).is_in_js_file(id))
+        let no_implicit_any = self.config.compiler_options().no_implicit_any();
+        let no_implicit_any_or_in_js_file =
+            no_implicit_any || self.node_query(id.module()).is_in_js_file(id);
+        if no_implicit_any_or_in_js_file
             && is_variable_declaration
             && let Some(declaration_name) = decl_node.name()
             && matches!(declaration_name, ast::DeclarationName::Ident(_))
@@ -725,6 +724,35 @@ impl<'cx> TyChecker<'cx> {
             return Some(self.add_optionality::<false>(ty, is_optional));
         }
 
+        if no_implicit_any_or_in_js_file && let Some(property) = decl_node.as_class_prop_elem() {
+            if !property
+                .modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
+            {
+                debug_assert!(self.parent(property.id) == Some(parent_id));
+                let constructor = self
+                    .node_query(parent_id.module())
+                    .find_constructor_declaration(parent_id);
+                let ty = if let Some(constructor) = constructor {
+                    let property_symbol = self.final_res(property.id);
+                    self.get_flow_ty_in_constructor(property, property_symbol, constructor)
+                } else if property
+                    .modifiers
+                    .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+                {
+                    let property = self.final_res(property.id);
+                    self.get_ty_of_property_in_base_class(property)
+                } else {
+                    None
+                };
+                return ty.map(|ty| self.add_optionality::<true>(ty, is_optional));
+            } else {
+                // TODO:
+            }
+        }
+
+        // TODO: jsx
+
         match decl.name() {
             ast::r#trait::VarLikeName::ArrayPat(n) => Some(self.get_ty_from_array_pat::<false>(n)),
             ast::r#trait::VarLikeName::ObjectPat(n) => {
@@ -732,6 +760,18 @@ impl<'cx> TyChecker<'cx> {
             }
             _ => None,
         }
+    }
+
+    pub(super) fn get_ty_of_property_in_base_class(
+        &mut self,
+        property: SymbolID,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let class_ty = self.get_declaring_class(property);
+        let base_class_ty = class_ty.and_then(|ty| self.get_base_tys(ty).first());
+        base_class_ty.and_then(|ty| {
+            let name = self.symbol(property).name;
+            self.get_ty_of_prop_of_ty(ty, name)
+        })
     }
 
     fn widen_ty_inferred_from_initializer(
@@ -805,11 +845,21 @@ impl<'cx> TyChecker<'cx> {
             self.any_ty
         };
 
-        if REPORT_ERROR {
-            // TODO: !declarationBelongsToPrivateAmbientMember
+        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(decl) {
             self.report_implicit_any(decl.id(), ty, None);
         }
 
         ty
+    }
+
+    fn declaration_belongs_to_private_ambient_member(&self, decl: &impl VarLike<'cx>) -> bool {
+        let decl_id = decl.id();
+        let root = self.node_query(decl_id.module()).get_root_decl(decl_id);
+        let member_declaration = if self.p.node(root).is_param_decl() {
+            self.parent(root).unwrap()
+        } else {
+            root
+        };
+        self.is_private_within_ambient(member_declaration)
     }
 }

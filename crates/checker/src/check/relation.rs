@@ -641,7 +641,7 @@ impl<'cx> TyChecker<'cx> {
         // TODO: remove following query
         match name {
             SymbolName::Atom(n) => {
-                let name = self.atom(n);
+                let name = self.atoms.get(n);
                 if let Ok(val) = name.parse()
                     && let Some(symbol) = members.get(&SymbolName::EleNum(F64Represent::new(val)))
                 {

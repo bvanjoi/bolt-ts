@@ -3,16 +3,16 @@ class class1 {
     var x2 = {
           doStuff: (callback) => (() => {
         var _this = 2;
-        return callback(_this)
+        return callback(_this);
       })      
     };
-    return 10
+    return 10;
   }
   set a(val) {
     var x2 = {
           doStuff: (callback) => (() => {
         var _this = 2;
-        return callback(_this)
+        return callback(_this);
       })      
     };
   }
@@ -23,7 +23,7 @@ class class2 {
     var x2 = {
           doStuff: (callback) => (() => (callback(_this)))      
     };
-    return 10
+    return 10;
   }
   set a(val) {
     var _this = 2;

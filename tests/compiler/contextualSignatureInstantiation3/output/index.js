@@ -1,11 +1,11 @@
 function map(items, f) {
-  return items.map(f)
+  return items.map(f);
 }
 function identity(x) {
-  return x
+  return x;
 }
 function singleton(x) {
-  return [x]
+  return [x];
 }
 var xs = [1, 2, 3];
 var v1;

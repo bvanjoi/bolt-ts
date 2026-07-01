@@ -4,5 +4,5 @@ function doubleAndReturnAsArray(x, y, z) {
   for ( var arg of blah()) {
     result.push(arg + arg);
   }
-  return result
+  return result;
 }

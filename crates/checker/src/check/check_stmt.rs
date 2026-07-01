@@ -27,7 +27,22 @@ impl<'cx> TyChecker<'cx> {
             Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
             Interface(node) => self.check_interface_declaration(node),
-            Module(node) => self.check_module_decl(node),
+            NestedModule(n) => self.check_module_declaration_worker(
+                n.id,
+                n.span,
+                &ast::ModuleName::Ident(n.name),
+                Some(n.block.module_block()),
+                false,
+                false,
+            ),
+            BlockModule(n) => self.check_module_declaration_worker(
+                n.id,
+                n.span,
+                &n.name,
+                n.block,
+                n.is_global_argument,
+                n.is_ambient(),
+            ),
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
@@ -166,7 +181,10 @@ impl<'cx> TyChecker<'cx> {
                     && parent_node.is_module_block()
                     && node.module_spec().is_none()
                     && self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT);
-                if !in_ambient_external_module && !in_ambient_ns_decl && !parent_node.is_program() {
+                if !in_ambient_external_module
+                    && !in_ambient_ns_decl
+                    && parent_node.is_module_block()
+                {
                     // TODO: could this check moved into wf check?
                     let error =
                         errors::ExportDeclarationsAreNotPermittedInANamespace { span: node.span };
@@ -234,8 +252,40 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn check_type_name_is_reserved(
+        &mut self,
+        name: &'cx ast::Ident,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if keyword::is_reserved_type_name(name.name) {
+            push_error(self);
+        }
+    }
+
     fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
         self.check_import_binding(node.id);
+        if !matches!(
+            node.module_reference,
+            ast::ModuleReferenceKind::ExternalModuleReference(_)
+        ) {
+            let symbol = self.get_symbol_of_declaration(node.id);
+            let target = self.resolve_alias(symbol);
+            if target != Symbol::ERR {
+                let target_flags = self.get_symbol_flags::<false>(target);
+                if target_flags.intersects(SymbolFlags::VALUE) {
+                    // TODO :
+                }
+                if target_flags.intersects(SymbolFlags::TYPE) {
+                    self.check_type_name_is_reserved(node.name, |this| {
+                        let error = errors::ImportNameCannotBeX {
+                            span: node.name.span,
+                            name: this.atoms.get(node.name.name).to_string(),
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                }
+            }
+        }
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
@@ -393,9 +443,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
-        let nq = self.node_query(node.id.module());
-        let state = nq.get_module_instance_state(node, |n, _| self.parent(n));
+    fn is_instantiate_module(&self, module_block: Option<&'cx ast::ModuleBlock<'cx>>) -> bool {
+        let Some(module_block) = module_block else {
+            return true;
+        };
+        let nq = self.node_query(module_block.id.module());
+        let state = nq.get_module_instance_state(Some(module_block), |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 
@@ -416,26 +469,32 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn check_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
-        if let Some(block) = ns.block {
+    fn check_module_declaration_worker(
+        &mut self,
+        id: ast::NodeID,
+        span: bolt_ts_span::Span,
+        module_name: &ast::ModuleName<'cx>,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
+        is_global_augmentation: bool,
+        is_ambient_external_module: bool,
+    ) {
+        if let Some(block) = module_block {
             for item in block.stmts {
                 self.check_stmt(item);
             }
         }
 
-        let in_ambient_context = self.p.node_flags(ns.id).contains(NodeFlags::AMBIENT);
+        let in_ambient_context = self.p.node_flags(id).contains(NodeFlags::AMBIENT);
 
-        let is_global_augmentation = ns.is_global_scope_argument();
-        let is_ambient_external_module = ns.is_ambient();
         if is_ambient_external_module {
-            let p = self.parent(ns.id).unwrap();
+            let p = self.parent(id).unwrap();
             if self.p.get(p.module()).is_global_source_file(p) {
                 if is_global_augmentation {
                     let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
-                        span: ns.name.span()
+                        span: module_name.span()
                     };
                     self.push_error(Box::new(error));
-                } else if let ast::ModuleName::StringLit(lit) = ns.name {
+                } else if let ast::ModuleName::StringLit(lit) = module_name {
                     let module_name = self.atoms.get(lit.val);
                     if bolt_ts_path::is_external_module_relative(module_name) {
                         let error =
@@ -448,21 +507,21 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        self.check_exports_on_merged_decls(ns.id);
+        self.check_exports_on_merged_decls(id);
 
-        let symbol = self.get_symbol_of_declaration(ns.id);
+        let symbol = self.get_symbol_of_declaration(id);
         let s = self.symbol(symbol);
         if s.flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
-            && self.is_instantiate_module(ns)
+            && self.is_instantiate_module(module_block)
         {
             if s.decls.as_ref().is_some_and(|decls| decls.len() > 1) {
                 if let Some(first_none_ambient_class_or_fn) =
                     self.get_first_non_ambient_class_or_fn_decl(s)
                 {
-                    if ns.span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo() {
+                    if span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo() {
                         let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
-                            span: ns.name.span(),
+                            span: module_name.span(),
                         };
                         self.push_error(Box::new(error));
                     }

@@ -45,9 +45,8 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             check_ident_start,
             check_ident_end,
         );
-        state.alloc(ast::ModuleExportName {
-            kind: ast::ModuleExportNameKind::Ident(ident),
-        })
+        let kind = ast::ModuleExportNameKind::Ident(ident);
+        state.alloc(ast::ModuleExportName { kind })
     }
     fn finish_spec(
         &self,
@@ -60,20 +59,13 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ImportNamedSpec {
-                id,
-                span,
-                prop_name,
-                name: ident,
-            });
-            state.nodes.insert(id, ast::Node::ImportNamedSpec(spec));
+            let spec = state.create_import_named_specifier(span, prop_name, ident);
             ast::ImportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let node = state.create_import_shorthand_spec(span, ident);
+            let node = state.create_import_shorthand_specifier(span, ident);
             ast::ImportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ImportSpec { kind })
@@ -104,20 +96,13 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec {
         let kind = if let Some(prop_name) = prop_name {
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ExportNamedSpec {
-                id,
-                span,
-                prop_name,
-                name,
-            });
-            state.nodes.insert(id, ast::Node::ExportNamedSpec(spec));
+            let spec = state.create_export_named_specifier(span, prop_name, name);
             ast::ExportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let node = state.create_export_shorthand_spec(span, ident);
+            let node = state.create_export_shorthand_specifier(span, ident);
             ast::ExportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ExportSpec { kind })

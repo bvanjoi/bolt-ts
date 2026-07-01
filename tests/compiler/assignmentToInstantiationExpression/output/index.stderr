@@ -1,0 +1,32 @@
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+   ╭─[../../tests/compiler/assignmentToInstantiationExpression/index.ts:7:1]
+ 7 │ obj.fn<number>
+   · ──────────────
+   ╰────
+
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+    ╭─[../../tests/compiler/assignmentToInstantiationExpression/index.ts:12:1]
+ 12 │ getValue<number>
+    · ────────────────
+    ╰────
+
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+    ╭─[../../tests/compiler/assignmentToInstantiationExpression/index.ts:18:1]
+ 18 │ getValue2<number>
+    · ─────────────────
+    ╰────
+
+  × Variable 'getValue' is used before being assigned.
+    ╭─[../../tests/compiler/assignmentToInstantiationExpression/index.ts:12:1]
+ 12 │ getValue
+    · ────────
+    ╰────
+
+  × Variable 'getValue' is used before being assigned.
+    ╭─[../../tests/compiler/assignmentToInstantiationExpression/index.ts:12:1]
+ 12 │ getValue
+    · ────────
+    ╰────

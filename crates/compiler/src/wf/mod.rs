@@ -1,6 +1,5 @@
 use bolt_ts_ast::keyword::is_reserved_type_name;
 use bolt_ts_ast::{self as ast, keyword, pprint_ident};
-use bolt_ts_ast_visitor::ControlFlow;
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
@@ -172,19 +171,7 @@ impl<'cx> CheckState<'cx> {
         name: &'cx ast::Ident,
         push_error: impl FnOnce(&mut Self),
     ) {
-        if matches!(
-            name.name,
-            keyword::IDENT_ANY
-                | keyword::IDENT_UNKNOWN
-                | keyword::IDENT_NEVER
-                | keyword::IDENT_NUMBER
-                | keyword::IDENT_BIGINT
-                | keyword::IDENT_STRING
-                | keyword::IDENT_SYMBOL
-                | keyword::KW_VOID
-                | keyword::IDENT_OBJECT
-                | keyword::KW_UNDEFINED
-        ) {
+        if keyword::is_reserved_type_name(name.name) {
             push_error(self);
         }
     }

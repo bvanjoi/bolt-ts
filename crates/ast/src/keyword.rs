@@ -198,17 +198,18 @@ prefilled_atom_map!(
             IDENT_REQUIRE:                          ["require", 139],
             IDENT_RECORD:                           ["Record", 140],
             IDENT_NAN:                              ["NaN", 141],
-            IDENT_TARGET:                           ["target", 142]
+            IDENT_TARGET:                           ["target", 142],
+            IDENT_HAS_OWN_PROPERTY:                 ["hasOwnProperty", 143]
         },
         DIRECTIVES: {
-            DIRECTIVE_USE_STRICT:                   ["use strict", 143]
+            DIRECTIVE_USE_STRICT:                   ["use strict", 144]
         },
         SPECIAL_IDENTIFIER: {
-            SPECIAL_IDENT_ERROR:                    ["<error>", 144]
+            SPECIAL_IDENT_ERROR:                    ["<error>", 145]
         },
         NUMBER: {
-            NUMBER_ZERO:                            ["0", 145],
-            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 146]
+            NUMBER_ZERO:                            ["0", 146],
+            NUMBER_NEGATIVE_INFINITY:               ["-Infinity", 147]
         },
     }
 );

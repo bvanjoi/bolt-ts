@@ -2,7 +2,7 @@ var bar = {};
 (function (bar_1) {
 
   function bar() {
-    return this
+    return this;
   }
   bar_1.bar = bar;
   

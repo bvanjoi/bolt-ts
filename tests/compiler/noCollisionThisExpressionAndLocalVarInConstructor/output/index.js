@@ -2,7 +2,7 @@ class class1 {
   constructor() {var x2 = {
           doStuff: (callback) => (() => {
         var _this = 2;
-        return callback(_this)
+        return callback(_this);
       })      
     };}
 }

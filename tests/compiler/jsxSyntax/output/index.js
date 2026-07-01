@@ -23,7 +23,7 @@ var App3 = {};
 })(App3);
 <App >jsx is working</App>;
 function e1() {
-  return <App >jsx is working</App>
+  return <App >jsx is working</App>;
 }
 <App  />;
 <App  id='w &lt; w' />;

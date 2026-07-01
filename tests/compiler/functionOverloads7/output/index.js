@@ -1,6 +1,6 @@
 class foo {
   bar(foo) {
-    return 'foo'
+    return 'foo';
   }
   n() {
     var foo = this.bar();

@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_ast_visitor::{ControlFlow, Visitor, visit_module_name};
+use bolt_ts_ast_visitor::{Visitor, visit_module_name};
 use bolt_ts_checker::{check::TyChecker, emit_resolver::EmitResolver};
 use bolt_ts_optimize::Emitter;
 use bolt_ts_span::ModuleID;
@@ -155,7 +155,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
     }
 
-    fn visit_module_decl(&mut self, node: &'cx ast::ModuleDecl<'cx>) -> Self::Result {
+    fn visit_block_module_decl(&mut self, node: &'cx ast::BlockModuleDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
         self.emitter.print().p("namespace");
         self.emitter.print().p_whitespace();
@@ -179,6 +179,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.flags = saved_flags;
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_nested_module_decl(
+        &mut self,
+        node: &'cx bolt_ts_ast::NestedModuleDecl<'cx>,
+    ) -> Self::Result {
+        todo!()
     }
 
     fn visit_ty_param(&mut self, node: &'cx ast::TyParam<'cx>) -> Self::Result {

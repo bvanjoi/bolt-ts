@@ -1,6 +1,6 @@
 class a {
   static get x() {
-    return null
+    return null;
     ;
   }
   static set x(aValue) {}

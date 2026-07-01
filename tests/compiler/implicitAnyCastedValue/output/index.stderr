@@ -1,11 +1,20 @@
+  × 'notCastedNull', which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:46:1]
+ 46 │ ╭─▶ function notCastedNull() {
+ 47 │ │   //~^ ERROR: 'notCastedNull', which lacks return-type annotation, implicitly has an 'any' return type.
+ 48 │ │       return null;  // this should be an error
+ 49 │ ╰─▶ }
+    ╰────
+
   × Parameter 'x' implicitly has an 'any' type.
-    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:58:24]
- 58 │ x
+    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:59:24]
+ 59 │ x
     · ─
     ╰────
 
   × Parameter 'x' implicitly has an 'any' type.
-    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:68:24]
- 68 │ x
+    ╭─[../../tests/compiler/implicitAnyCastedValue/index.ts:69:24]
+ 69 │ x
     · ─
     ╰────

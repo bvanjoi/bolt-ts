@@ -1,6 +1,6 @@
 class foo {
   constructor() {function bar(foo) {
-      return 'foo'
+      return 'foo';
     }
     ;
     var test = bar('test');

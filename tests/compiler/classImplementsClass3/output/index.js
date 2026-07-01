@@ -1,11 +1,11 @@
 class A {
   foo() {
-    return 1
+    return 1;
   }
 }
 class C {
   foo() {
-    return 1
+    return 1;
   }
 }
 class C2 extends A {}

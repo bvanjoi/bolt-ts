@@ -1,9 +1,9 @@
 function foo([x]) {
   if (x) {
-    return x.a
+    return x.a;
   }
   
-  return undefined
+  return undefined;
 }
 var x = foo([{
   a: 'str'  
