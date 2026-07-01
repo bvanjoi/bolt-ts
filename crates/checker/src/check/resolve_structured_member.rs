@@ -913,7 +913,7 @@ impl<'cx> TyChecker<'cx> {
         let targets = {
             let a = self.get_number_literal_type_from_number(0.);
             let tys = self.alloc([replacement]);
-            let b = self.create_tuple_ty(tys, None, false);
+            let b = self.create_tuple_ty(tys, None, false, None);
             self.alloc([a, b])
         };
         let mapper = self.create_ty_mapper(sources, targets);

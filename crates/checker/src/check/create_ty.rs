@@ -6,6 +6,8 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
+use crate::ty::TupleLabeledElementDeclaration;
+
 use super::SymbolLinks;
 use super::TemplateLiteralTyKey;
 use super::UnionOfUnionTysKey;
@@ -74,6 +76,7 @@ impl<'cx> TyChecker<'cx> {
         element_types: ty::Tys<'cx>,
         element_flags: Option<&'cx [ElementFlags]>,
         readonly: bool,
+        named_member_declarations: Option<&'cx [Option<ty::TupleLabeledElementDeclaration<'cx>>]>,
     ) -> &'cx ty::Ty<'cx> {
         let element_flags = element_flags.unwrap_or_else(|| {
             let element_flags = element_types
@@ -82,7 +85,8 @@ impl<'cx> TyChecker<'cx> {
                 .collect::<Vec<_>>();
             self.alloc(element_flags)
         });
-        let tuple_target = self.get_tuple_target_ty(element_flags, readonly);
+        let tuple_target =
+            self.get_tuple_target_ty(element_flags, readonly, named_member_declarations);
         if tuple_target == self.empty_generic_ty() {
             self.empty_object_ty()
         } else if element_types.is_empty() {
@@ -164,6 +168,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut expanded_tys = Vec::with_capacity(element_types.len());
         let mut expanded_flags = Vec::with_capacity(element_types.len());
+        let mut expanded_declarations = Vec::with_capacity(element_types.len());
         let mut last_required_index = usize::MAX;
         let mut first_rest_index = usize::MAX;
         let mut last_optional_or_rest_index = usize::MAX;
@@ -171,7 +176,11 @@ impl<'cx> TyChecker<'cx> {
         let mut add_ele = |this: &mut Self,
                            ty: &'cx ty::Ty<'cx>,
                            flags: ElementFlags,
-                           expanded_tys: &mut Vec<&ty::Ty<'cx>>| {
+                           declaration: Option<ty::TupleLabeledElementDeclaration<'cx>>,
+                           expanded_tys: &mut Vec<&ty::Ty<'cx>>,
+                           expanded_declarations: &mut Vec<
+            Option<ty::TupleLabeledElementDeclaration<'cx>>,
+        >| {
             if flags.contains(ElementFlags::REQUIRED) {
                 last_required_index = expanded_tys.len();
             }
@@ -188,15 +197,38 @@ impl<'cx> TyChecker<'cx> {
                 expanded_tys.push(ty);
             }
             expanded_flags.push(flags);
+            expanded_declarations.push(declaration);
         };
 
         for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
             if flag.intersects(ElementFlags::VARIADIC) {
                 if ty.flags.intersects(TypeFlags::ANY) {
-                    add_ele(self, ty, ElementFlags::REST, &mut expanded_tys);
+                    let declaration = target
+                        .labeled_element_declarations
+                        .and_then(|n| n.get(i))
+                        .and_then(|n| *n);
+                    add_ele(
+                        self,
+                        ty,
+                        ElementFlags::REST,
+                        declaration,
+                        &mut expanded_tys,
+                        &mut expanded_declarations,
+                    );
                 } else if ty.kind.is_instantiable_non_primitive() || self.is_generic_mapped_ty(ty) {
-                    add_ele(self, ty, ElementFlags::VARIADIC, &mut expanded_tys);
+                    let declaration = target
+                        .labeled_element_declarations
+                        .and_then(|n| n.get(i))
+                        .and_then(|n| *n);
+                    add_ele(
+                        self,
+                        ty,
+                        ElementFlags::VARIADIC,
+                        declaration,
+                        &mut expanded_tys,
+                        &mut expanded_declarations,
+                    );
                 } else if let Some(tuple) = ty.as_tuple() {
                     let elements = self.get_element_tys(ty);
                     if elements.len() + expanded_tys.len() >= 20_000 {
@@ -212,7 +244,18 @@ impl<'cx> TyChecker<'cx> {
                         return self.error_ty;
                     }
                     for (n, t) in elements.iter().enumerate() {
-                        add_ele(self, t, tuple.element_flags[n], &mut expanded_tys);
+                        let declaration = tuple
+                            .labeled_element_declarations
+                            .and_then(|list| list.get(n))
+                            .and_then(|n| *n);
+                        add_ele(
+                            self,
+                            t,
+                            tuple.element_flags[n],
+                            declaration,
+                            &mut expanded_tys,
+                            &mut expanded_declarations,
+                        );
                     }
                 } else {
                     let t = if self.is_array_like_ty(ty) {
@@ -221,10 +264,32 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         self.error_ty
                     };
-                    add_ele(self, t, ElementFlags::REST, &mut expanded_tys);
+                    let declaration = target
+                        .labeled_element_declarations
+                        .and_then(|n| n.get(i))
+                        .and_then(|n| *n);
+                    add_ele(
+                        self,
+                        t,
+                        ElementFlags::REST,
+                        declaration,
+                        &mut expanded_tys,
+                        &mut expanded_declarations,
+                    );
                 }
             } else {
-                add_ele(self, ty, flag, &mut expanded_tys);
+                let declaration = target
+                    .labeled_element_declarations
+                    .and_then(|n| n.get(i))
+                    .and_then(|n| *n);
+                add_ele(
+                    self,
+                    ty,
+                    flag,
+                    declaration,
+                    &mut expanded_tys,
+                    &mut expanded_declarations,
+                );
             }
         }
 
@@ -234,12 +299,15 @@ impl<'cx> TyChecker<'cx> {
         //     }
         // }
 
-        // while first_rest_index < last_optional_or_rest_index {
-        //    expanded_tys[first_rest_index] =
+        // if first_rest_index < last_optional_or_rest_index {
+        //     debug_assert!(first_rest_index != usize::MAX);
+        //     expanded_declarations
         // }
 
         let expanded_flags = self.alloc(expanded_flags);
-        let tuple_target = self.get_tuple_target_ty(expanded_flags, target.readonly);
+        let expanded_declarations = self.alloc(expanded_declarations);
+        let tuple_target =
+            self.get_tuple_target_ty(expanded_flags, target.readonly, Some(expanded_declarations));
 
         if expanded_flags.is_empty() {
             tuple_target
@@ -885,6 +953,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         element_flags: &'cx [ElementFlags],
         readonly: bool,
+        named_member_declarations: Option<&'cx [Option<ty::TupleLabeledElementDeclaration<'cx>>]>,
     ) -> &'cx ty::Ty<'cx> {
         if element_flags.len() == 1 && element_flags[0].contains(ElementFlags::REST) {
             return if readonly {
@@ -909,6 +978,7 @@ impl<'cx> TyChecker<'cx> {
         if readonly {
             hasher.write_u8(b'R');
         }
+        // TODO: named_member_declarations in hash;
         let key = hasher.finish();
         if let Some(ty) = self.tuple_tys.get(&key) {
             return ty;
@@ -918,6 +988,9 @@ impl<'cx> TyChecker<'cx> {
             this: &mut TyChecker<'cx>,
             element_flags: &'cx [ElementFlags],
             readonly: bool,
+            named_member_declarations: Option<
+                &'cx [Option<ty::TupleLabeledElementDeclaration<'cx>>],
+            >,
         ) -> &'cx ty::Ty<'cx> {
             let arity = element_flags.len();
             let min_length = element_flags
@@ -1015,6 +1088,7 @@ impl<'cx> TyChecker<'cx> {
                 element_flags,
                 combined_flags,
                 readonly,
+                labeled_element_declarations: named_member_declarations,
             };
             let ty =
                 this.create_object_ty(ty::ObjectTyKind::Tuple(this.alloc(tuple)), OBJECT_FLAGS);
@@ -1023,7 +1097,7 @@ impl<'cx> TyChecker<'cx> {
             ty
         }
 
-        let ty = create_tuple_target_type(self, element_flags, readonly);
+        let ty = create_tuple_target_type(self, element_flags, readonly, named_member_declarations);
         let prev = self.tuple_tys.insert(key, ty);
         assert!(prev.is_none());
         ty
@@ -1667,11 +1741,14 @@ impl<'cx> TyChecker<'cx> {
         let end_index = TyChecker::get_ty_reference_arity(ty) - end_skip_count;
         if index > tuple.fixed_length {
             self.get_rest_ty_of_tuple_ty(ty)
-                .unwrap_or_else(|| self.create_tuple_ty(self.empty_array(), None, false))
+                .unwrap_or_else(|| self.create_tuple_ty(self.empty_array(), None, false, None))
         } else {
             let tys = &self.get_ty_arguments(ty)[index..end_index];
             let element_flags = &tuple.element_flags[index..end_index];
-            self.create_tuple_ty(tys, Some(element_flags), false)
+            let label_element_decls = tuple
+                .labeled_element_declarations
+                .map(|decls| &decls[index..end_index]);
+            self.create_tuple_ty(tys, Some(element_flags), false, label_element_decls)
         }
     }
 
@@ -2085,7 +2162,12 @@ impl<'cx> TyChecker<'cx> {
                 source_tuple.element_flags
             };
             let element_types = self.alloc(element_tys);
-            Some(self.create_tuple_ty(element_types, Some(element_flags), source_tuple.readonly))
+            Some(self.create_tuple_ty(
+                element_types,
+                Some(element_flags),
+                source_tuple.readonly,
+                source_tuple.labeled_element_declarations,
+            ))
         } else {
             let reversed = self.alloc(ty::ReverseMappedTy {
                 source,

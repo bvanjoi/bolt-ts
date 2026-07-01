@@ -530,6 +530,7 @@ impl<'cx> TyChecker<'cx> {
                 self.alloc(new_elements_tys),
                 Some(new_element_flags),
                 new_readonly,
+                t.labeled_element_declarations,
             )
         }
     }

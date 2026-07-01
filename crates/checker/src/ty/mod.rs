@@ -36,6 +36,7 @@ pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::num_lit::NumberLitTy;
 pub use self::object_ty::EvolvingArrayTy;
 pub use self::object_ty::SingleSigTy;
+pub use self::object_ty::TupleLabeledElementDeclaration;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind, ReverseMappedTy};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};

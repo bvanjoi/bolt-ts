@@ -3115,7 +3115,10 @@ impl<'cx> TyChecker<'cx> {
         if FORCE_TUPLE || is_const_context || in_tuple_context {
             let element_types = self.alloc(element_types);
             let element_flags = self.alloc(element_flags);
-            let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), false);
+            let readonly = is_const_context
+                && !contextual_ty
+                    .is_some_and(|t| self.some_type(t, |this, t| this.is_mutable_array_like_ty(t)));
+            let tuple_ty = self.create_tuple_ty(element_types, Some(element_flags), readonly, None);
             self.create_array_literal_ty(tuple_ty)
         } else {
             let ty = if element_types.is_empty() {

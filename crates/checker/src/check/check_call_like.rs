@@ -362,7 +362,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let mut tys = Vec::with_capacity(param_count);
         let mut flags = Vec::with_capacity(param_count);
-        // let mut names = Vec::with_capacity(param_count);
+        let mut names = Vec::with_capacity(param_count);
         for i in pos..param_count {
             if i < param_count - 1 || rest_ty.is_none() {
                 tys.push(self.get_ty_at_pos(source, i));
@@ -377,9 +377,61 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 unreachable!()
             }
-            // names.push(self.getnam);
+            // get_nameable_declaration_at_pos
+            let is_valid_declaration_for_tuple_label =
+                |this: &Self,
+                 decl: ast::NodeID|
+                 -> Option<ty::TupleLabeledElementDeclaration<'cx>> {
+                    let n = this.p.node(decl);
+                    match n {
+                        ast::Node::NamedTupleTy(n) => {
+                            Some(ty::TupleLabeledElementDeclaration::NamedTupleMember(n))
+                        }
+                        ast::Node::ParamDecl(n)
+                            if matches!(n.name.kind, ast::BindingKind::Ident(_)) =>
+                        {
+                            Some(ty::TupleLabeledElementDeclaration::ParameterDeclaration(n))
+                        }
+                        _ => None,
+                    }
+                };
+            let parameter_count =
+                source.params.len() - (if source.has_rest_param() { 1 } else { 0 });
+            let name = if pos < parameter_count {
+                if let Some(value_declaration) = self.symbol(source.params[i]).value_decl
+                    && let Some(n) = is_valid_declaration_for_tuple_label(self, value_declaration)
+                {
+                    Some(n)
+                } else {
+                    None
+                }
+            } else {
+                let rest_parameter = source.params.get(param_count).copied();
+                if let Some(rest_ty) = rest_parameter.map(|s| self.get_type_of_symbol(s))
+                    && let Some(t) = rest_ty.as_tuple()
+                {
+                    let index = pos - param_count;
+                    t.labeled_element_declarations
+                        .and_then(|names| names.get(index))
+                        .and_then(|n| *n)
+                } else if let Some(rest_parameter) = rest_parameter
+                    && let Some(value_declaration) = self.symbol(rest_parameter).value_decl
+                    && let Some(n) = is_valid_declaration_for_tuple_label(self, value_declaration)
+                {
+                    Some(n)
+                } else {
+                    None
+                }
+            };
+            names.push(name);
         }
-        self.create_tuple_ty(self.alloc(tys), Some(self.alloc(flags)), readonly)
+        let names = self.alloc(names);
+        self.create_tuple_ty(
+            self.alloc(tys),
+            Some(self.alloc(flags)),
+            readonly,
+            Some(names),
+        )
     }
 
     pub(super) fn get_ty_at_pos(&mut self, sig: &Sig<'cx>, pos: usize) -> &'cx ty::Ty<'cx> {

@@ -57,9 +57,6 @@ impl<'cx> MergeSymbol<'cx> for MergeModuleAugmentation<'_, 'cx> {
             .record_merged_symbol(target, source, symbols);
     }
 
-    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
-        self.atoms.get(atom)
-    }
     fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
         &self.atoms
     }
@@ -174,9 +171,6 @@ impl<'cx> MergeSymbol<'cx> for super::TyChecker<'cx> {
             .record_merged_symbol(target, source, symbols);
     }
 
-    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
-        self.atoms.get(atom)
-    }
     fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
         &self.atoms
     }

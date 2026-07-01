@@ -84,9 +84,6 @@ impl<'cx> MergeSymbol<'cx> for MergeGlobalSymbol<'_, 'cx> {
         self.merged_symbols
             .record_merged_symbol(target, source, symbols);
     }
-    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str {
-        self.atom.get(atom)
-    }
     fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern {
         self.atom
     }
@@ -101,7 +98,6 @@ pub enum SymbolTableLocation {
 }
 
 pub trait MergeSymbol<'cx> {
-    fn atom(&self, atom: bolt_ts_atom::Atom) -> &str;
     fn atom_intern(&self) -> &bolt_ts_atom::AtomIntern;
 
     fn global_loc() -> SymbolTableLocation {
@@ -310,7 +306,7 @@ pub fn merge_global_symbol<'cx>(
                 for decl in decls.clone() {
                     let error = errors::DeclarationNameConflictsWithBuiltInGlobalIdentifierX {
                         span: parser.node(decl).name().unwrap().span(),
-                        name: c.atom(keyword::IDENT_GLOBAL_THIS).to_string(),
+                        name: c.atom_intern().get(keyword::IDENT_GLOBAL_THIS).to_string(),
                     };
                     c.bind_list[m.id().as_usize()]
                         .diags

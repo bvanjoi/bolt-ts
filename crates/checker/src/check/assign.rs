@@ -206,7 +206,7 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let element_flags = self.alloc(element_flags);
-        let result = self.create_tuple_ty(element_types, Some(element_flags), false);
+        let result = self.create_tuple_ty(element_types, Some(element_flags), false, None);
         if INCLUDE_PATTERN_IN_TY {
             let (target, resolved_ty_args) = if let Some(t) = result.kind.as_object_tuple() {
                 (result, Some(t.resolved_ty_args))

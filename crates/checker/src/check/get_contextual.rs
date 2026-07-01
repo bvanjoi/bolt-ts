@@ -1141,6 +1141,79 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn get_tuple_element_label_from_binding_element(
+        &mut self,
+        name: &'cx ast::Binding<'cx>,
+        dotdotdot: bool,
+        index: u32,
+        element_flags: ty::ElementFlags,
+    ) -> SymbolName {
+        match name.kind {
+            ast::BindingKind::Ident(n) => {
+                let name = n.name;
+                return match dotdotdot {
+                    true => {
+                        if element_flags.intersects(ty::ElementFlags::VARIABLE) {
+                            SymbolName::Atom(name)
+                        } else {
+                            let name = self.atoms.get(name);
+                            let name = format!("{name}_{index}");
+                            let name = self.atoms.atom(&name);
+                            SymbolName::Atom(name)
+                        }
+                    }
+                    false => {
+                        if element_flags.intersects(ty::ElementFlags::FIXED) {
+                            SymbolName::Atom(name)
+                        } else {
+                            let name = self.atoms.get(name);
+                            let name = format!("{name}_n");
+                            let name = self.atoms.atom(&name);
+                            SymbolName::Atom(name)
+                        }
+                    }
+                };
+            }
+            ast::BindingKind::ArrayPat(n) if dotdotdot => {
+                let elements = n.elems;
+                let last_element = elements.last().and_then(|e| match e.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => None,
+                    ast::ArrayBindingElemKind::Binding(n) => Some(n),
+                });
+                let element_count = elements.len()
+                    - if last_element.is_some_and(|e| e.dotdotdot.is_some()) {
+                        1
+                    } else {
+                        0
+                    };
+                if index < element_count as u32 {
+                    let element = elements[index as usize];
+                    if let ast::ArrayBindingElemKind::Binding(n) = element.kind {
+                        return self.get_tuple_element_label_from_binding_element(
+                            n.name,
+                            n.dotdotdot.is_some(),
+                            index,
+                            element_flags,
+                        );
+                    }
+                } else if let Some(last_element) = last_element
+                    && last_element.dotdotdot.is_some()
+                {
+                    return self.get_tuple_element_label_from_binding_element(
+                        last_element.name,
+                        last_element.dotdotdot.is_some(),
+                        index - element_count as u32,
+                        element_flags,
+                    );
+                }
+            }
+            _ => {}
+        }
+        let name = format!("arg_{index}");
+        let name = self.atoms.atom(&name);
+        SymbolName::Atom(name)
+    }
+
     pub(super) fn get_parameter_name_at_position(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
@@ -1151,16 +1224,64 @@ impl<'cx> TyChecker<'cx> {
         if pos < param_count {
             return self.symbol(sig.params[pos]).name;
         }
-        let rest_param = sig.params.get(param_count).copied().unwrap_or(Symbol::ERR);
-        let rest_ty = override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(rest_param));
+        let rest_param = sig.params.get(param_count).copied();
+        let fallback_rest_param = rest_param.unwrap_or(Symbol::ERR);
+        let rest_ty =
+            override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(fallback_rest_param));
         if let Some(tuple_ty) = rest_ty.as_tuple() {
             let index = pos - param_count;
-            todo!()
-            // const associatedName = tupleType.labeledElementDeclarations?.[index];
-            // const elementFlags = tupleType.elementFlags[index];
-            // return getTupleElementLabel(associatedName, index, elementFlags, restParameter);
+            let associated_name = tuple_ty
+                .labeled_element_declarations
+                .and_then(|n| n.get(index))
+                .and_then(|n| *n);
+            let element_flags = tuple_ty.element_flags.get(index);
+            // get_tuple_element_label;
+            match associated_name {
+                Some(name) => match name {
+                    ty::TupleLabeledElementDeclaration::NamedTupleMember(n) => {
+                        SymbolName::Atom(n.name.name)
+                    }
+                    ty::TupleLabeledElementDeclaration::ParameterDeclaration(n) => {
+                        match n.name.kind {
+                            ast::BindingKind::Ident(n) => SymbolName::Atom(n.name),
+                            _ => unreachable!(),
+                        }
+                    }
+                },
+                None => match rest_param {
+                    Some(rest_param) => {
+                        let s = self.symbol(rest_param);
+                        let rest_parameter = s
+                            .value_decl
+                            .and_then(|decl| self.p.node(decl).as_param_decl());
+                        match rest_parameter {
+                            Some(rest_parameter) => self
+                                .get_tuple_element_label_from_binding_element(
+                                    rest_parameter.name,
+                                    rest_parameter.dotdotdot.is_some(),
+                                    index as u32,
+                                    element_flags.copied().unwrap_or(ty::ElementFlags::FIXED),
+                                ),
+                            None => {
+                                // TODO: optimize
+                                let name = self.symbol(rest_param).name;
+                                let name = self.atoms.get(name.expect_atom());
+                                let name = format!("{name}_{index}");
+                                let name = self.atoms.atom(&name);
+                                SymbolName::Atom(name)
+                            }
+                        }
+                    }
+                    None => {
+                        // TODO: optimize
+                        let name = format!("arg_{index}");
+                        let name = self.atoms.atom(&name);
+                        SymbolName::Atom(name)
+                    }
+                },
+            }
         } else {
-            self.symbol(rest_param).name
+            self.symbol(fallback_rest_param).name
         }
     }
 

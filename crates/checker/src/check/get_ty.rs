@@ -2204,7 +2204,7 @@ impl<'cx> TyChecker<'cx> {
                 .map(|ty| Self::get_tuple_element_flags(ty))
                 .collect();
             let element_flags = self.alloc(element_flags);
-            self.get_tuple_target_ty(element_flags, readonly)
+            self.get_tuple_target_ty(element_flags, readonly, None)
         };
 
         let ty = if target == self.empty_generic_ty() {
