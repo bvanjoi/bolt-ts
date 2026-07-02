@@ -1,0 +1,6 @@
+  × Type 'Mark<any>' is missing the following properties from type
+  │ 'Node<any>': type, name, and 2 more.
+    ╭─[../../tests/compiler/signatureCombiningRestParameters3/index.ts:87:20]
+ 87 │ extension
+    · ─────────
+    ╰────

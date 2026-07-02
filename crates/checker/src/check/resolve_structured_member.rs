@@ -1369,7 +1369,7 @@ impl<'cx> TyChecker<'cx> {
                     } else {
                         None
                     };
-                    if results.is_some() {
+                    if results.is_none() {
                         break;
                     }
                 }
