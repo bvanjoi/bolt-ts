@@ -26,13 +26,18 @@ impl<'cx> TyChecker<'cx> {
         let id = decl.id();
         debug_assert!(!matches!(self.p.node(id), ClassCtor(_)));
         let symbol = self.get_symbol_of_declaration(id);
-        let first_fn_decl = self.symbol(symbol).decls.as_ref().and_then(|decls| {
+        let local_symbol = self.get_local_symbol_of_decl(id).unwrap_or(symbol);
+        let first_fn_decl = self.symbol(local_symbol).decls.as_ref().and_then(|decls| {
             let fn_decl = self.p.node(id);
             decls
                 .iter()
                 .find(|&&d| self.p.node(d).is_same_kind(&fn_decl))
         });
         if first_fn_decl.is_some_and(|&decl| decl == id) {
+            self.check_fn_like_symbol(local_symbol);
+        }
+
+        if local_symbol != symbol && self.symbol(symbol).parent.is_some() {
             self.check_fn_like_symbol(symbol);
         }
 

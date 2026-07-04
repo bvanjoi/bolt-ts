@@ -1627,4 +1627,21 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         })
     }
+
+    pub fn subsequent_node(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        let Some(parent) = self.parent(node) else {
+            return None;
+        };
+        match self.node(parent) {
+            ast::Node::Program(n) => n
+                .stmts()
+                .iter()
+                .position(|stmt| stmt.id() == node)
+                .and_then(|i| n.stmts().get(i + 1).map(|stmt| stmt.id())),
+            _ => {
+                // TODO: more case
+                None
+            }
+        }
+    }
 }

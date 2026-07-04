@@ -26,6 +26,8 @@ impl<'cx> TyChecker<'cx> {
         let mut body_declaration = None;
         let mut some_node_flags = ast::ModifierFlags::empty();
         let mut all_node_flags = FLAGS_TO_CHECK;
+        let mut some_have_question_token = false;
+        let mut all_have_question_token = false;
         let is_ctor = s.flags.contains(SymbolFlags::CONSTRUCTOR);
 
         let mut last_seen_non_ambient_decl = None;
@@ -36,14 +38,14 @@ impl<'cx> TyChecker<'cx> {
 
         for decl in decls {
             let node = self.p.node(*decl);
-            let is_ambient_context = self.p.node_flags(*decl).contains(ast::NodeFlags::AMBIENT);
-            let is_ambient_context_or_interface = is_ambient_context
+            let in_ambient_context = self.p.node_flags(*decl).contains(ast::NodeFlags::AMBIENT);
+            let in_ambient_context_or_interface = in_ambient_context
                 || self.parent(*decl).is_some_and(|parent| {
                     let p = self.p.node(parent);
                     p.is_interface_decl() || p.is_object_lit_ty()
                 });
 
-            if node.is_class_like() && !is_ambient_context {
+            if node.is_class_like() && !in_ambient_context {
                 has_non_ambient_class = true;
             }
 
@@ -58,6 +60,9 @@ impl<'cx> TyChecker<'cx> {
                     self.get_effective_declaration_flags(*decl, FLAGS_TO_CHECK);
                 some_node_flags |= current_node_flags;
                 all_node_flags &= current_node_flags;
+                let has_question = node.has_question();
+                some_have_question_token |= has_question;
+                all_have_question_token &= has_question;
                 if let Some(body) = node.fn_body() {
                     debug_assert!(matches!(body, ArrowFnExprBody::Block(_)));
                     if body_declaration.is_none() {
@@ -71,7 +76,7 @@ impl<'cx> TyChecker<'cx> {
                     has_overloads = true;
                 }
 
-                if !is_ambient_context_or_interface {
+                if !in_ambient_context_or_interface {
                     last_seen_non_ambient_decl = Some(*decl);
                 }
             }
@@ -144,25 +149,7 @@ impl<'cx> TyChecker<'cx> {
             && n.fn_body().is_none()
             && !n.has_abstract_modifier()
         {
-            let s = self.symbol(symbol);
-            let decls = s.decls.as_ref().unwrap();
-            if s.flags.contains(SymbolFlags::CONSTRUCTOR) {
-                let node = self.p.node(decls[0]).expect_class_ctor();
-                let lo = node.span.lo();
-                let hi = lo + "constructor".len() as u32;
-                let span = Span::new(lo, hi, node.span.module());
-                let error = errors::ConstructorImplementationIsMissing { span };
-                self.diags.push(bolt_ts_errors::Diag {
-                    inner: Box::new(error),
-                });
-            } else {
-                let n = self.p.node(decls[0]);
-                let span = n.name().unwrap().span();
-                let error = errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration { span };
-                self.diags.push(bolt_ts_errors::Diag {
-                    inner: Box::new(error),
-                });
-            }
+            self.report_implementation_expected_error(&n, is_ctor);
         }
 
         if has_overloads {
@@ -171,6 +158,12 @@ impl<'cx> TyChecker<'cx> {
                 body_declaration,
                 some_node_flags,
                 all_node_flags,
+            );
+            self.check_question_token_agreement_between_overloads(
+                symbol,
+                body_declaration,
+                some_have_question_token,
+                all_have_question_token,
             );
             if let Some(body_declaration) = body_declaration {
                 let sigs = self.get_sigs_of_symbol(symbol);
@@ -192,6 +185,56 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
+        }
+    }
+
+    fn report_implementation_expected_error(
+        &mut self,
+        node: &ast::Node<'cx>,
+        is_constructor: bool,
+    ) {
+        let subsequent_node = self
+            .node_query(node.id().module())
+            .subsequent_node(node.id());
+
+        if let Some(subsequent_node) = subsequent_node
+            && let subsequent_node = self.p.node(subsequent_node)
+            && subsequent_node.is_same_kind(node)
+        {
+            if let Some(name) = node.name()
+                && let Some(subsequent_name) = subsequent_node.name()
+            {
+                let report_error = matches!(
+                    node,
+                    ast::Node::ClassMethodElem(_)
+                        | ast::Node::ObjectMethodMember(_)
+                        | ast::Node::MethodSignature(_)
+                ) && node.is_static() != subsequent_node.is_static();
+                if report_error {
+                    todo!()
+                }
+                return;
+            }
+            // TODO: name
+        }
+        if is_constructor {
+            let node = node.expect_class_ctor();
+            let lo = node.span.lo();
+            let hi = lo + "constructor".len() as u32;
+            let span = Span::new(lo, hi, node.span.module());
+            let error = errors::ConstructorImplementationIsMissing { span };
+            self.diags.push(bolt_ts_errors::Diag {
+                inner: Box::new(error),
+            });
+        } else {
+            let span = node.name().unwrap().span();
+            let error =
+                errors::FunctionImplementationIsMissingOrNotImmediatelyFollowingTheDeclaration {
+                    span,
+                };
+            self.diags.push(bolt_ts_errors::Diag {
+                inner: Box::new(error),
+            });
         }
     }
 
@@ -227,28 +270,60 @@ impl<'cx> TyChecker<'cx> {
             for o in decls.clone() {
                 let flags = self.get_effective_declaration_flags(o, FLAGS_TO_CHECK);
                 let deviation_in_file = flags ^ cannoical_flags;
-                if deviation_in_file.contains(ast::ModifierFlags::EXPORT) {
-                } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
-                    let span = self
-                        .node_query(o.module())
+                let error_span = |this: &Self| {
+                    this.node_query(o.module())
                         .get_name_of_declaration(o)
                         .unwrap()
-                        .span();
-                    let error = errors::OverloadSignaturesMustAllBeAmbientOrNonAmbient { span };
+                        .span()
+                };
+                if deviation_in_file.contains(ast::ModifierFlags::EXPORT) {
+                    let error = errors::OverloadSignaturesMustAllBeExportedOrNonExported {
+                        span: error_span(self),
+                    };
+                    self.push_error(Box::new(error));
+                } else if deviation_in_file.contains(ast::ModifierFlags::AMBIENT) {
+                    let error = errors::OverloadSignaturesMustAllBeAmbientOrNonAmbient {
+                        span: error_span(self),
+                    };
                     self.push_error(Box::new(error));
                 } else if deviation_in_file
                     .intersects(ast::ModifierFlags::PRIVATE.union(ast::ModifierFlags::PROTECTED))
                 {
                     let error = errors::OverloadSignaturesMustAllBePublicPrivateOrProtected {
-                        span: self
-                            .node_query(o.module())
-                            .get_name_of_declaration(o)
-                            .unwrap()
-                            .span(),
+                        span: error_span(self),
                     };
                     self.push_error(Box::new(error));
                 } else if deviation_in_file.contains(ast::ModifierFlags::ABSTRACT) {
                     todo!()
+                }
+            }
+        }
+    }
+
+    fn check_question_token_agreement_between_overloads(
+        &mut self,
+        symbol: SymbolID,
+        implementation: Option<ast::NodeID>,
+        some_have_question_token: bool,
+        all_have_question_token: bool,
+    ) {
+        if some_have_question_token != all_have_question_token {
+            let overloads = self.symbol(symbol).decls.as_ref().unwrap();
+            let overload = self.get_canonical_overload(overloads, implementation);
+            let canonical_has_question_token = self.p.node(overload).has_question();
+            for o in overloads.clone() {
+                let deviation = self.p.node(o).has_question() != canonical_has_question_token;
+                if deviation {
+                    let error_span = |this: &Self| {
+                        this.node_query(o.module())
+                            .get_name_of_declaration(o)
+                            .unwrap()
+                            .span()
+                    };
+                    let error = errors::OverloadSignaturesMustAllBeOptionalOrRequired {
+                        span: error_span(self),
+                    };
+                    self.push_error(Box::new(error));
                 }
             }
         }

@@ -974,6 +974,20 @@ pub struct OverloadSignaturesMustAllBeAmbientOrNonAmbient {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Overload signatures must all be exported or non-exported.")]
+pub struct OverloadSignaturesMustAllBeExportedOrNonExported {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Overload signatures must all be optional or required.")]
+pub struct OverloadSignaturesMustAllBeOptionalOrRequired {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
 #[error(
     "A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value."
 )]

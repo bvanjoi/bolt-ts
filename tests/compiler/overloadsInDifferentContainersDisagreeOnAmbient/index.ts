@@ -8,4 +8,5 @@ declare namespace M {
 namespace M {
     export function f() { }
     //~^ ERROR: Overload signatures must all be ambient or non-ambient.
+    //~| ERROR: Overload signatures must all be ambient or non-ambient.
 }

@@ -3,3 +3,9 @@
  9 │ f
    · ─
    ╰────
+
+  × Overload signatures must all be ambient or non-ambient.
+   ╭─[../../tests/compiler/overloadsInDifferentContainersDisagreeOnAmbient/index.ts:9:21]
+ 9 │ f
+   · ─
+   ╰────
