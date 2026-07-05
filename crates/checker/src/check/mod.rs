@@ -2831,14 +2831,16 @@ impl<'cx> TyChecker<'cx> {
                 {
                     source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
                 }
+                let left_ty = self.check_ident(m.name, check_mode);
+                let right_ty = self.check_expression(init, check_mode);
+                self.check_binary_like_expr_for_equal(left_ty, right_ty, m.name.id, init.id());
             }
             // TODO: check_reference_assignment
             return source_ty;
         }
         match n {
             ast::Node::AssignExpr(expr) if expr.op == ast::AssignOp::Eq => {
-                let left_ty = self.check_expression(expr.left, check_mode);
-                self.check_binary_like_expr(expr, left_ty, source_ty);
+                self.check_assignment_expression(expr, check_mode);
                 n = self.p.node(expr.left.id());
                 if self.config.compiler_options().strict_null_checks() {
                     source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);

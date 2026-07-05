@@ -2393,7 +2393,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn check_assignment_expression(
+    pub(super) fn check_assignment_expression(
         &mut self,
         assign: &'cx ast::AssignExpr<'cx>,
         check_mode: Option<CheckMode>,
@@ -2420,7 +2420,7 @@ impl<'cx> TyChecker<'cx> {
         // }
         use bolt_ts_ast::AssignOp::*;
         match assign.op {
-            Eq => self.check_binary_like_expr(assign, l, r),
+            Eq => self.check_binary_like_expr_for_equal(l, r, assign.left.id(), assign.right.id()),
             AddEq => self.check_binary_like_expr_for_add(
                 assign.left,
                 l,
@@ -2451,7 +2451,7 @@ impl<'cx> TyChecker<'cx> {
             ),
             LogicalAndEq => {
                 self.check_truthiness_of_ty(l, assign.left);
-                self.check_assign_op(l, r, assign.left, assign.right);
+                self.check_assign_op(l, r, assign.left.id(), assign.right.id());
                 if self.has_type_facts(l, ty::TypeFacts::TRUTHY) {
                     let a = if self.config.compiler_options().strict_null_checks() {
                         l
@@ -2473,7 +2473,7 @@ impl<'cx> TyChecker<'cx> {
             }
             LogicalOrEq => {
                 self.check_truthiness_of_ty(l, assign.left);
-                self.check_assign_op(l, r, assign.left, assign.right);
+                self.check_assign_op(l, r, assign.left.id(), assign.right.id());
                 if self.has_type_facts(l, ty::TypeFacts::FALSY) {
                     let l = self.remove_definitely_falsy_tys(l);
                     let l = self.get_non_nullable_ty(l);

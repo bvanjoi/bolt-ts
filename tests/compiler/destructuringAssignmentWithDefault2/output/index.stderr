@@ -1,0 +1,17 @@
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/destructuringAssignmentWithDefault2/index.ts:17:4]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/destructuringAssignmentWithDefault2/index.ts:19:7]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/destructuringAssignmentWithDefault2/index.ts:21:7]
+ 21 │ x
+    · ─
+    ╰────

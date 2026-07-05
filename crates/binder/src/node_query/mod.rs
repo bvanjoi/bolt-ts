@@ -442,7 +442,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             ast::Node::ModuleBlock(n) => {
                 let p = self.parent(n.id).unwrap();
                 let is_ambient = match self.node(p) {
-                    ast::Node::NestedModuleDecl(n) => false,
+                    ast::Node::NestedModuleDecl(_) => false,
                     ast::Node::BlockModuleDecl(n) => n.is_ambient(),
                     _ => unreachable!(),
                 };
@@ -664,6 +664,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: for_in and for_of
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
+                    id = self.parent(p).unwrap();
+                }
+                ObjectShorthandMember(n) => {
+                    if n.name.id != id {
+                        return None;
+                    }
+                    id = self.parent(p).unwrap();
+                }
+                ObjectPropAssignment(n) => {
+                    if n.name.id() == id {
+                        return None;
+                    }
                     id = self.parent(p).unwrap();
                 }
                 _ => return None,
@@ -895,9 +907,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_containing_fn(&self, id: ast::NodeID) -> Option<ast::NodeID> {
         let parent = self.parent(id)?;
-        self.find_ancestor(parent, |node| {
-            self.node(node).is_fn_decl_like().then_some(true)
-        })
+        self.find_ancestor(parent, |node| self.node(node).is_fn_like().then_some(true))
     }
 
     pub fn get_declaration_container(&self, id: ast::NodeID) -> ast::NodeID {
