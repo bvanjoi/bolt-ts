@@ -6,8 +6,6 @@ use bolt_ts_ast::keyword;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
-use crate::ty::TupleLabeledElementDeclaration;
-
 use super::SymbolLinks;
 use super::TemplateLiteralTyKey;
 use super::UnionOfUnionTysKey;

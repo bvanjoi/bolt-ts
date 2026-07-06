@@ -96,6 +96,7 @@ use self::cycle_check::ResolutionKey;
 use self::flow::FlowCacheKey;
 use self::flow::FlowTy;
 use self::flow::PropertyInitializerInClassConstructorMap;
+use self::fn_mapper::UniqueLiteralMapper;
 use self::fn_mapper::{PermissiveMapper, RestrictiveMapper};
 use self::fn_mapper::{ReportUnmeasurableMapper, ReportUnreliableMapper};
 use self::get_context::{InferenceContextual, TyContextual};
@@ -327,6 +328,7 @@ pub struct TyChecker<'cx> {
     pub non_inferrable_any_ty: &'cx ty::Ty<'cx>,
     pub intrinsic_marker_ty: &'cx ty::Ty<'cx>,
 
+    unique_literal_mapper: &'cx UniqueLiteralMapper,
     permissive_mapper: &'cx PermissiveMapper,
     restrictive_mapper: &'cx RestrictiveMapper,
     report_unreliable_mapper: &'cx ReportUnreliableMapper,
@@ -646,6 +648,7 @@ impl<'cx> TyChecker<'cx> {
             .0
             .insert(global_this_symbol_name, global_this_symbol);
 
+        let unique_literal_mapper = ty_arena.alloc(UniqueLiteralMapper);
         let restrictive_mapper = ty_arena.alloc(RestrictiveMapper);
         let permissive_mapper = ty_arena.alloc(PermissiveMapper);
         let report_unreliable_mapper = ty_arena.alloc(ReportUnreliableMapper);
@@ -751,6 +754,7 @@ impl<'cx> TyChecker<'cx> {
             non_inferrable_any_ty,
             intrinsic_marker_ty,
 
+            unique_literal_mapper,
             restrictive_mapper,
             permissive_mapper,
             report_unreliable_mapper,
@@ -6427,22 +6431,34 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn is_generic_reducible_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        if let Some(u) = ty.kind.as_union() {
-            u.object_flags
-                .intersects(ObjectFlags::CONTAINS_INTERSECTIONS)
-                && u.tys.iter().any(|t| self.is_generic_reducible_ty(t))
-        } else if ty.kind.is_intersection() {
-            self.is_reducible_intersection(ty)
-        } else {
-            false
+        match ty.kind {
+            ty::TyKind::Union(u) => self.is_generic_reducible_ty_for_union(u),
+            ty::TyKind::Intersection(i) => self.is_reducible_intersection(ty, i),
+            _ => false,
         }
     }
 
-    fn is_reducible_intersection(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let i = ty.kind.expect_intersection();
-        // TODO: cache
-        // let unique_literal_filled_instantiation = self.instantiate_ty(ty, mapper);
-        false
+    fn is_generic_reducible_ty_for_union(&mut self, u: &'cx ty::UnionTy<'cx>) -> bool {
+        u.object_flags.contains(ObjectFlags::CONTAINS_INTERSECTIONS)
+            && u.tys.iter().any(|t| self.is_generic_reducible_ty(t))
+    }
+
+    fn is_reducible_intersection(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        i: &'cx ty::IntersectionTy<'cx>,
+    ) -> bool {
+        debug_assert!(std::ptr::eq(ty.kind.expect_intersection(), i));
+        let links = i.links;
+        if let Some(cache) =
+            self.intersection_ty_links_arena[links].get_unique_literal_filled_instantiation()
+        {
+            return self.get_reduced_ty(cache) != cache;
+        }
+        let mapper = self.unique_literal_mapper;
+        let ty = self.instantiate_ty_worker(ty, mapper);
+        self.intersection_ty_links_arena[links].set_unique_literal_filled_instantiation(ty);
+        self.get_reduced_ty(ty) != ty
     }
 
     fn is_nullable_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {

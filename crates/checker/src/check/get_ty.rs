@@ -2862,11 +2862,14 @@ impl<'cx> TyChecker<'cx> {
         ty.flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || ty.kind.is_generic_tuple_type()
             || (self.is_generic_mapped_ty(ty)
-                && (!self.has_distributive_name_ty(ty)
-                    || self.get_mapped_ty_name_ty_kind(ty) == ty::MappedTyNameTyKind::Remapping))
-            || ((index_flags.contains(IndexFlags::NO_REDUCIBLE_CHECK))
-                && ty.kind.is_union()
-                && self.is_generic_reducible_ty(ty))
+                && self
+                    .get_name_ty_from_mapped_ty(ty.kind.expect_object_mapped())
+                    .is_some())
+            || (!index_flags.contains(IndexFlags::NO_REDUCIBLE_CHECK)
+                && ty
+                    .kind
+                    .as_union()
+                    .is_some_and(|u| self.is_generic_reducible_ty_for_union(u)))
             || ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
                 && ty
                     .kind

@@ -95,6 +95,7 @@ links!(
 links!(
     IntersectionTyLinks,
     (resolved_apparent_ty, &'cx super::Ty<'cx>),
+    (unique_literal_filled_instantiation, &'cx super::Ty<'cx>),
 );
 
 links!(
