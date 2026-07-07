@@ -203,6 +203,12 @@ impl<'cx> TyChecker<'cx> {
         {
             if let Some(name) = node.name()
                 && let Some(subsequent_name) = subsequent_node.name()
+                && match (name, subsequent_name) {
+                    (ast::DeclarationName::Ident(n), ast::DeclarationName::Ident(m)) => {
+                        n.name == m.name
+                    }
+                    _ => false,
+                }
             {
                 let report_error = matches!(
                     node,

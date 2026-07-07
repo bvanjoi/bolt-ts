@@ -1,4 +1,4 @@
-declare function f(addUndefined1: any, addUndefined2: number): number;
+declare function f(addUndefined1: any, addUndefined2?: number): number;
 declare function g(addUndefined: any, addDefined: number): number;
 declare let total: number;
 

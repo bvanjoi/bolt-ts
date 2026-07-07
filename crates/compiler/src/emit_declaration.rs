@@ -497,8 +497,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         IndexSig(_n) => todo!(),
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
-                        CallSig(_n) => todo!(),
-                        CtorSig(_n) => todo!(),
+                        CallSig(n) => this.visit_call_sig_decl(n),
+                        CtorSig(n) => this.visit_ctor_sig_decl(n),
                         Setter(_n) => todo!(),
                         Getter(_n) => todo!(),
                     }
@@ -576,6 +576,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
         self.visit_binding(node.name);
+        if node.question.is_some() {
+            self.emitter.print().p_question();
+        }
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
         if let Some(ty) = node.ty {
@@ -583,6 +586,19 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         } else {
             self.emitter.print().p("any");
         }
+    }
+
+    fn visit_object_pat(&mut self, n: &'cx bolt_ts_ast::ObjectPat<'cx>) -> Self::Result {
+        self.emitter.print().p_l_brace();
+        self.emit_list(
+            n.elems,
+            |this, item| this.visit_object_binding_elem(*item),
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_brace();
     }
 
     fn visit_method_signature(&mut self, node: &'cx ast::MethodSignature<'cx>) -> Self::Result {
