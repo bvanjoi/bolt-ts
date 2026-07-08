@@ -22,22 +22,22 @@ impl<'cx> TyChecker<'cx> {
         let node = ast::Expr::skip_outer_expr::<FLAGS>(node);
         match node.kind {
             Await(_) | Call(_) | TaggedTemplate(_) | EleAccess(_) | New(_) | PropAccess(_)
-            | Yield(_) | This(_) => return PredicateSemantics::SOMETIMES,
+            | Yield(_) | This(_) => PredicateSemantics::SOMETIMES,
             Bin(n) => match n.op.kind {
                 ast::BinOpKind::LogicalOr | ast::BinOpKind::LogicalAnd => {
-                    return PredicateSemantics::SOMETIMES;
+                    PredicateSemantics::SOMETIMES
                 }
                 ast::BinOpKind::Comma | ast::BinOpKind::Nullish => {
-                    return self.get_syntactic_nullishness_semantics(n.right);
+                    self.get_syntactic_nullishness_semantics(n.right)
                 }
                 _ => PredicateSemantics::NEVER,
             },
             Assign(n) => match n.op {
                 ast::AssignOp::LogicalOrEq | ast::AssignOp::LogicalAndEq => {
-                    return PredicateSemantics::SOMETIMES;
+                    PredicateSemantics::SOMETIMES
                 }
                 ast::AssignOp::Eq | ast::AssignOp::NullishEq => {
-                    return self.get_syntactic_nullishness_semantics(n.right);
+                    self.get_syntactic_nullishness_semantics(n.right)
                 }
                 _ => PredicateSemantics::NEVER,
             },

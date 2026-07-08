@@ -54,6 +54,7 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
 
 pub(super) trait ClassLike<'cx, 'p> {
     type Node;
+    #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -92,7 +93,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         self,
         state: &mut ParserState<'cx, 'p>,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        _modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
@@ -211,9 +212,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     } else {
                         let ty_arguments = self.try_parse_ty_args();
                         let span = self.new_span(start_pos);
-                        let expr =
-                            self.create_expression_with_type_arguments(span, expr, ty_arguments);
-                        expr
+
+                        self.create_expression_with_type_arguments(span, expr, ty_arguments)
                     };
                     if is_first {
                         e = Some(expr);
@@ -367,7 +367,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.try_parse(|this| {
             let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
-                if let Some(_) = this.p().parse_ty_params() {
+                if this.p().parse_ty_params().is_some() {
                     let span = bolt_ts_span::Span::new(
                         name_span.hi(),
                         this.p().pos as u32,
@@ -447,7 +447,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let modifiers = self.parse_modifiers::<false, true>(true);
         let under_type_context = |this: &Self| {
             this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
-                || modifiers.map_or(false, |ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+                || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
         };
         if let Some(ms) = modifiers {
             for m in ms.list {

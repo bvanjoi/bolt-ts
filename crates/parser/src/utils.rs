@@ -449,14 +449,11 @@ impl<'cx> ParserState<'cx, '_> {
         let _has_leading_modifier = false;
         let _has_trailing_decorator = false;
         let mut flags = ast::ModifierFlags::empty();
-        loop {
-            let Some(m) = self
-                .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
-                    flags.contains(ast::ModifierFlags::STATIC),
-                )
-            else {
-                break;
-            };
+        while let Some(m) = self
+            .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
+                flags.contains(ast::ModifierFlags::STATIC),
+            )
+        {
             let modifier_kind = m.kind();
             let modifier_flag = modifier_kind.into_flag();
 
@@ -499,10 +496,8 @@ impl<'cx> ParserState<'cx, '_> {
                         push_already_seen_error(self, m);
                     }
                 }
-                ast::ModifierKind::Ambient => {
-                    if flags.contains(ast::ModifierFlags::AMBIENT) {
-                        push_already_seen_error(self, m);
-                    }
+                ast::ModifierKind::Ambient if flags.contains(ast::ModifierFlags::AMBIENT) => {
+                    push_already_seen_error(self, m);
                 }
                 _ => {}
             }
@@ -724,9 +719,9 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        if !ALLOW_AMBIGUITY_NAME
-            && !(self.token.kind.is_binding_ident()
-                || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
+        if !(ALLOW_AMBIGUITY_NAME
+            || self.token.kind.is_binding_ident()
+            || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
         {
             return Err(());
         }
@@ -1107,7 +1102,7 @@ pub fn parse_pseudo_bigint<'a>(s: &'a str) -> std::borrow::Cow<'a, str> {
     let digits = s.trim_start_matches('0');
     let digits = if digits.is_empty() { "0" } else { digits };
 
-    let base = match log2_base {
+    let _base = match log2_base {
         1 => 2,
         3 => 8,
         4 => 16,

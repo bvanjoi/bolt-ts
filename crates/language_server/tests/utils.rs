@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use bolt_ts_compiler::add_default_libs_into_memory_files;
@@ -329,16 +331,13 @@ impl<'cx> TestState<'cx> {
     }
 
     pub fn edit_insert(&mut self, text: &str) {
-        let mut offset = self.current_caret_pos;
-
         let range = self.get_range();
 
         self.input_files[self.active_file].replace_range(range.0..range.1, "");
 
-        for ch in text.chars() {
+        for (offset, ch) in (self.current_caret_pos..).zip(text.chars()) {
             self.current_caret_pos += 1;
             self.edit_script_and_update_markers(self.active_file, offset, offset, &ch.to_string());
-            offset += 1;
         }
     }
 

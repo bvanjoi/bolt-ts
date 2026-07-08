@@ -125,8 +125,8 @@ impl<'cx> TyChecker<'cx> {
     fn eval_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        meaning: SymbolFlags,
-        ignore_errors: bool,
+        _meaningg: SymbolFlags,
+        _ignore_errorss: bool,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
         if ident.name == keyword::KW_UNDEFINED {

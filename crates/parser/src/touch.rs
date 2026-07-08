@@ -12,6 +12,7 @@ pub fn get_touching_property_name<'cx>(
     })
 }
 
+#[allow(dead_code)]
 pub fn get_touching_node<'cx>(
     root: &ast::Program<'cx>,
     pos: u32,

@@ -6,7 +6,7 @@ use bolt_ts_span::ModuleID;
 // use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 pub fn emit_declarations<'cx, 'a>(
-    entries: &Vec<ModuleID>,
+    entries: &[ModuleID],
     checker: &'a mut TyChecker<'cx>,
 ) -> Vec<(ModuleID, String)> {
     // let p = &checker.p;
@@ -16,7 +16,7 @@ pub fn emit_declarations<'cx, 'a>(
     // TODO: parallel
     entries
         // .into_par_iter()
-        .into_iter()
+        .iter()
         .filter_map(|&item| {
             let is_default_lib = checker.module_arena.get_module(item).is_default_lib();
             if is_default_lib {
@@ -121,7 +121,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 n.list,
                 |this, item| {
-                    this.visit_ty(*item);
+                    this.visit_ty(item);
                 },
                 |this, _| {
                     this.emitter.print().p_comma();
@@ -183,7 +183,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_nested_module_decl(
         &mut self,
-        node: &'cx bolt_ts_ast::NestedModuleDecl<'cx>,
+        _node: &'cx bolt_ts_ast::NestedModuleDecl<'cx>,
     ) -> Self::Result {
         todo!()
     }
@@ -272,11 +272,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_call_expr(&mut self, _: &'cx ast::CallExpr<'cx>) -> Self::Result {}
 
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) -> Self::Result {
-        if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::STATIC) {
-                self.emitter.print().p("static");
-                self.emitter.print().p_whitespace();
-            }
+        if let Some(ms) = node.modifiers
+            && ms.flags.contains(ast::ModifierFlags::STATIC)
+        {
+            self.emitter.print().p("static");
+            self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         self.emit_type_parameters(node.ty_params);
@@ -382,7 +382,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 implements.list,
                 |this, item| {
-                    this.visit_refer_ty(*item);
+                    this.visit_refer_ty(item);
                 },
                 |this, _| {
                     this.emitter.print().p_comma();
@@ -422,11 +422,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) -> Self::Result {
-        if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::STATIC) {
-                self.emitter.print().p("static");
-                self.emitter.print().p_whitespace();
-            }
+        if let Some(ms) = node.modifiers
+            && ms.flags.contains(ast::ModifierFlags::STATIC)
+        {
+            self.emitter.print().p("static");
+            self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         if node.question.is_some() {
@@ -592,7 +592,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_l_brace();
         self.emit_list(
             n.elems,
-            |this, item| this.visit_object_binding_elem(*item),
+            |this, item| this.visit_object_binding_elem(item),
             |this, _| {
                 this.emitter.print().p_comma();
                 this.emitter.print().p_whitespace();
@@ -627,7 +627,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         use ast::PropNameKind::*;
         match &node.kind {
             Ident(n) => self.visit_ident(n),
-            StringLit { raw, .. } => self.visit_string_lit(*raw),
+            StringLit { raw, .. } => self.visit_string_lit(raw),
             BigIntLit { .. } => todo!(),
             NumLit(_n) => todo!(),
             Computed(n) => {
@@ -898,7 +898,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         &mut self,
         node: &'cx bolt_ts_ast::ImportEqualsDecl<'cx>,
     ) -> Self::Result {
-        if let Some(_) = node.export_modifier {
+        if node.export_modifier.is_some() {
             self.emitter.print().p("export");
             self.emitter.print().p_whitespace();
         }

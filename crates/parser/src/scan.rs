@@ -179,10 +179,7 @@ impl ParserState<'_, '_> {
 
     fn scan_digits(&mut self) -> bool {
         let mut is_octal = true;
-        loop {
-            let Some(ch) = self.ch() else {
-                break;
-            };
+        while let Some(ch) = self.ch() {
             if !ch.is_ascii_digit() {
                 break;
             }
@@ -1451,7 +1448,7 @@ impl ParserState<'_, '_> {
         let start_of_regexp_body = start + 1;
         self.pos = start_of_regexp_body as usize;
         let mut in_escape = false;
-        let mut named_capture_groups = false;
+        let mut _named_capture_groups = false;
         let mut in_character_class = false;
         loop {
             let Some(ch) = self.ch() else {
@@ -1481,7 +1478,7 @@ impl ParserState<'_, '_> {
                     .get(self.pos + 3)
                     .is_some_and(|c| !matches!(c, b'=' | b'!'))
             {
-                named_capture_groups = true;
+                _named_capture_groups = true;
             }
             self.pos += 1;
         }

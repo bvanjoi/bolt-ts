@@ -30,7 +30,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn is_valid_number_string(&self, v: Atom, round_trip_only: bool) -> bool {
+    pub(super) fn is_valid_number_string(&self, v: Atom, _round_trip_onlyy: bool) -> bool {
         if v == keyword::IDENT_EMPTY {
             false
         } else {

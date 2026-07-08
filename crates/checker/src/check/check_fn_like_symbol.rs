@@ -115,7 +115,7 @@ impl<'cx> TyChecker<'cx> {
         if has_non_ambient_class && !is_ctor && s.flags.contains(SymbolFlags::FUNCTION) {
             let decls = s.decls.as_ref().unwrap();
             assert!(!decls.is_empty());
-            debug_assert!(decls.len() >= 1);
+            debug_assert!(!decls.is_empty());
             for decl in decls.clone() {
                 let n = self.p.node(decl);
                 match n {
@@ -200,29 +200,27 @@ impl<'cx> TyChecker<'cx> {
         if let Some(subsequent_node) = subsequent_node
             && let subsequent_node = self.p.node(subsequent_node)
             && subsequent_node.is_same_kind(node)
-        {
-            if let Some(name) = node.name()
-                && let Some(subsequent_name) = subsequent_node.name()
-                && match (name, subsequent_name) {
-                    (ast::DeclarationName::Ident(n), ast::DeclarationName::Ident(m)) => {
-                        n.name == m.name
-                    }
-                    _ => false,
+            && let Some(name) = node.name()
+            && let Some(subsequent_name) = subsequent_node.name()
+            && match (name, subsequent_name) {
+                (ast::DeclarationName::Ident(n), ast::DeclarationName::Ident(m)) => {
+                    n.name == m.name
                 }
-            {
-                let report_error = matches!(
-                    node,
-                    ast::Node::ClassMethodElem(_)
-                        | ast::Node::ObjectMethodMember(_)
-                        | ast::Node::MethodSignature(_)
-                ) && node.is_static() != subsequent_node.is_static();
-                if report_error {
-                    todo!()
-                }
-                return;
+                _ => false,
             }
-            // TODO: name
+        {
+            let report_error = matches!(
+                node,
+                ast::Node::ClassMethodElem(_)
+                    | ast::Node::ObjectMethodMember(_)
+                    | ast::Node::MethodSignature(_)
+            ) && node.is_static() != subsequent_node.is_static();
+            if report_error {
+                todo!()
+            }
+            return;
         }
+        // TODO: name
         if is_constructor {
             let node = node.expect_class_ctor();
             let lo = node.span.lo();
@@ -371,7 +369,7 @@ impl<'cx> TyChecker<'cx> {
             target,
             check_mode,
             false,
-            |this, source, target, report_error| {
+            |this, source, target, _report_errorr| {
                 if this
                     .c
                     .check_type_assignable_to(source, target, None, NOOP_HEADING_ERROR)

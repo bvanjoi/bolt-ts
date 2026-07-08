@@ -406,13 +406,6 @@ pub fn visit_prop_signature<'cx, V: Visitor<'cx>>(
     visit_optional_ty(v, n.ty)
 }
 
-pub fn visit_call_signature_declaration<'cx, V: Visitor<'cx>>(
-    v: &mut V,
-    n: &'cx ast::CallSigDecl<'cx>,
-) -> V::Result {
-    visit_call_like_signature(v, n.ty_params, n.params, n.ty)
-}
-
 pub fn visit_method_signature<'cx, V: Visitor<'cx>>(
     v: &mut V,
     node: &'cx ast::MethodSignature<'cx>,

@@ -123,7 +123,7 @@ impl<'cx> IterationTysResolver<'cx> for AsyncIterationTysResolver {
         &self,
         c: &mut TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
-        error_node: Option<bolt_ts_ast::NodeID>,
+        _error_nodee: Option<bolt_ts_ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         c.get_awaited_ty(ty)
     }
@@ -324,7 +324,7 @@ impl<'cx> TyChecker<'cx> {
         let mut iteration_tys = self
             .get_iteration_tys_of_iterator_cached(ty, resolver)
             .or_else(|| self.get_iteration_tys_of_iterator_fast(ty, resolver));
-        if let Some(error_node) = error_node
+        if let Some(_error_nodee) = error_node
             && let Some(tys) = iteration_tys
             && std::ptr::eq(tys, self.no_iteration_tys())
         {
@@ -354,7 +354,7 @@ impl<'cx> TyChecker<'cx> {
         resolver: impl IterationTysResolver<'cx>,
         method_name: bolt_ts_atom::Atom,
         error_node: Option<ast::NodeID>,
-        error_output_container: Option<ast::NodeID>,
+        _error_output_containerr: Option<ast::NodeID>,
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
         let method = self.get_prop_of_ty::<false, false>(ty, name);
@@ -383,7 +383,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array()
         };
         if method_sigs.is_empty() {
-            if let Some(error_node) = error_node {
+            if let Some(_error_nodee) = error_node {
                 todo!()
             }
             return if !method_name_is_not_next {
@@ -488,7 +488,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let mut yield_ty: Option<&'cx ty::Ty<'cx>> = None;
+        let yield_ty;
         let method_return_ty = if let Some(method_return_tys) = method_return_tys {
             self.get_intersection_ty(&method_return_tys, IntersectionFlags::None, None, None)
         } else {
@@ -500,10 +500,10 @@ impl<'cx> TyChecker<'cx> {
         let iteration_tys = self.get_iteration_tys_of_iterator_result(resolved_method_return_ty);
 
         if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
-            if let Some(error_node) = error_node {
+            if let Some(_error_nodee) = error_node {
                 todo!()
             }
-            yield_ty = Some(self.any_ty);
+            yield_ty = self.any_ty;
             match &mut return_tys {
                 Some(return_tys) => {
                     return_tys.push(self.any_ty);
@@ -513,7 +513,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         } else {
-            yield_ty = Some(iteration_tys.yield_ty);
+            yield_ty = iteration_tys.yield_ty;
             match &mut return_tys {
                 Some(return_tys) => {
                     return_tys.push(iteration_tys.return_ty);
@@ -523,7 +523,6 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        let yield_ty = yield_ty.unwrap_or(self.never_ty);
         let return_ty = self.get_union_ty::<false>(
             return_tys.as_ref().unwrap(),
             ty::UnionReduction::Lit,
@@ -638,7 +637,7 @@ impl<'cx> TyChecker<'cx> {
         resolver: impl IterationTysResolver<'cx>,
         error_node: Option<ast::NodeID>,
         error_output_container: Option<ast::NodeID>,
-        mut no_cache: bool,
+        no_cache: bool,
     ) -> &'cx ty::IterationTys<'cx> {
         let name = bolt_ts_binder::SymbolName::Atom(resolver.iterator_symbol_name());
         let name = self.get_prop_name_for_known_symbol_name(name);
@@ -709,7 +708,7 @@ impl<'cx> TyChecker<'cx> {
         resolver: impl IterationTysResolver<'cx>,
         error_node: Option<ast::NodeID>,
         error_output_container: Option<ast::NodeID>,
-        mut no_cache: bool,
+        no_cache: bool,
     ) -> &'cx ty::IterationTys<'cx> {
         let next_ty = self.get_iteration_tys_of_method(
             ty,
@@ -917,7 +916,7 @@ impl<'cx> TyChecker<'cx> {
         let yield_ty = tys.yield_ty;
         let return_ty = tys.return_ty;
         let next_ty = tys.next_ty;
-        if let Some(error_node) = error_node {
+        if let Some(_error_nodee) = error_node {
             todo!()
         }
         let yield_ty = self.get_awaited_ty(yield_ty).unwrap_or(self.any_ty);
@@ -1145,7 +1144,7 @@ impl<'cx> TyChecker<'cx> {
                 error_output_container,
             );
             if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
-                if let Some(error_node) = error_node {
+                if let Some(_error_nodee) = error_node {
                     todo!()
                 }
                 if mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {

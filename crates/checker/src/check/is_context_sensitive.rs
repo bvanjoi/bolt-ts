@@ -91,11 +91,11 @@ struct FindContextSensitiveInArrowFnBlock<'a, 'cx> {
 impl<'a, 'cx> Visitor<'cx> for FindContextSensitiveInArrowFnBlock<'a, 'cx> {
     type Result = ControlFlow;
     fn visit_ret_stmt(&mut self, node: &'cx bolt_ts_ast::RetStmt<'cx>) -> ControlFlow {
-        if let Some(n) = node.expr {
-            if self.checker.is_context_sensitive(n.id()) {
-                self.found = true;
-                return ControlFlow::Break;
-            }
+        if let Some(n) = node.expr
+            && self.checker.is_context_sensitive(n.id())
+        {
+            self.found = true;
+            return ControlFlow::Break;
         }
         ControlFlow::Continue
     }

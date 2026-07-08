@@ -1455,6 +1455,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_parameter_declaration(
         &mut self,
         span: Span,
@@ -1672,6 +1673,7 @@ pub trait ASTFactory<'cx> {
 
     // Function and class declarations
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_function_declaration(
         &mut self,
         span: Span,
@@ -1702,6 +1704,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_function_expression(
         &mut self,
         span: Span,
@@ -1731,6 +1734,7 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     fn create_class_declaration(
         &mut self,
         span: Span,

@@ -232,13 +232,12 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             if self.p.has_preceding_line_break() || self.p.token.kind == EqGreat {
                 return Tristate::False;
             }
-            if let Ok(expr) = self.p.parse_binary_expr(BinPrec::Lowest) {
-                if !self.p.has_preceding_line_break()
-                    && matches!(expr.kind, bolt_ts_ast::ExprKind::Ident(_))
-                    && self.p.token.kind == EqGreat
-                {
-                    return Tristate::True;
-                }
+            if let Ok(expr) = self.p.parse_binary_expr(BinPrec::Lowest)
+                && !self.p.has_preceding_line_break()
+                && matches!(expr.kind, bolt_ts_ast::ExprKind::Ident(_))
+                && self.p.token.kind == EqGreat
+            {
+                return Tristate::True;
             }
         }
         Tristate::False
@@ -371,6 +370,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
         matches!(self.p.token.kind, LParen | Less | Dot)
     }
 
+    #[allow(dead_code)]
     pub(super) fn next_token_is_ident_or_keyword(&mut self) -> PResult<bool> {
         self.p.next_token();
         Ok(self.p.token.kind.is_ident_or_keyword())

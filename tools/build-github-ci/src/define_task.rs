@@ -104,7 +104,7 @@ fn test_task_1() {
         fn job_id(&self) -> &str {
             "job_1"
         }
-        fn runs_on(&self) -> Vec<super::define_job::RunOn> {
+        fn runs_on(&self) -> Vec<super::define_job::RunsOn> {
             vec![]
         }
         fn steps(&self) -> Vec<super::define_step::Step> {
@@ -116,7 +116,7 @@ fn test_task_1() {
         fn job_id(&self) -> &str {
             "job_2"
         }
-        fn runs_on(&self) -> Vec<super::define_job::RunOn> {
+        fn runs_on(&self) -> Vec<super::define_job::RunsOn> {
             vec![]
         }
         fn steps(&self) -> Vec<super::define_step::Step> {

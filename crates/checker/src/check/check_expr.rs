@@ -334,6 +334,7 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
@@ -363,8 +364,8 @@ impl<'cx> TyChecker<'cx> {
                 op.span,
             ),
             BitOr => {
-                let left = self.check_non_null_type(left_ty, left.id());
-                let right = self.check_non_null_type(right_ty, right.id());
+                let _leftt = self.check_non_null_type(left_ty, left.id());
+                let _rightt = self.check_non_null_type(right_ty, right.id());
                 self.number_ty
             }
             LogicalAnd => {
@@ -620,7 +621,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_await_expr(&mut self, node: &'cx ast::AwaitExpr<'cx>) -> &'cx ty::Ty<'cx> {
         let operand_ty = self.check_expression(node.expr, None);
-        let awaited_ty = self.check_awaited_ty(operand_ty, true, node.id, |this| {});
+        let awaited_ty = self.check_awaited_ty(operand_ty, true, node.id, |_thiss| {});
         if awaited_ty == operand_ty
             && !self.is_error(awaited_ty)
             && !operand_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
@@ -755,8 +756,8 @@ impl<'cx> TyChecker<'cx> {
             .node_query(node.id.module())
             .get_super_container(node.id, true);
         let mut container = immediate_container;
-        let need_to_capture_lexical_this = false;
-        let is_async_function = false;
+        let _need_to_capture_lexical_thiss = false;
+        let _is_async_functionn = false;
 
         if !is_call_expr {
             loop {
@@ -1321,7 +1322,7 @@ impl<'cx> TyChecker<'cx> {
         expr_span: bolt_ts_span::Span,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: can we remove is_part_of_ty_query?
-        let is_ty_query = self.node_query(expr_id.module()).is_in_type_query(expr_id);
+        let _is_ty_queryy = self.node_query(expr_id.module()).is_in_type_query(expr_id);
         let mut container_id = self
             .node_query(expr_id.module())
             .get_this_container(expr_id, true, true);
@@ -1449,7 +1450,7 @@ impl<'cx> TyChecker<'cx> {
             let save_flow_loop_start = self.flow_loop_start;
             self.flow_loop_start = flow_loop_ctx_len(self);
             let ty = self.check_expression(expr, check_mode);
-            if let Some(_) = self.get_node_links(expr.id()).get_resolved_ty() {
+            if self.get_node_links(expr.id()).get_resolved_ty().is_some() {
                 // TODO: remove
                 self.get_mut_node_links(expr.id()).override_resolved_ty(ty);
             } else {
@@ -1948,8 +1949,8 @@ impl<'cx> TyChecker<'cx> {
                 Method(n) => n.name.kind.as_computed(),
                 Getter(n) => n.name.kind.as_computed(),
                 Setter(n) => n.name.kind.as_computed(),
-                Shorthand(n) => None,
-                SpreadAssignment(n) => None,
+                Shorthand(_nn) => None,
+                SpreadAssignment(_nn) => None,
             };
             let computed_named_ty = computed_name.map(|n| self.check_computed_property_name(n));
             match member.kind {
@@ -2051,17 +2052,17 @@ impl<'cx> TyChecker<'cx> {
                     );
                     properties_array.push(member_symbol);
 
-                    if let Some(contextual_ty) = contextual_ty
+                    if let Some(_contextual_tyy) = contextual_ty
                         && check_mode.contains(CheckMode::INFERENTIAL)
                         && !check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
                         && matches!(member.kind, PropAssignment(_) | Method(_))
                         && self.is_const_context(member.id())
                     {
-                        let Some(inference_context) = self.get_inference_context(member.id())
+                        let Some(_inference_contextt) = self.get_inference_context(member.id())
                         else {
                             unreachable!()
                         };
-                        let inference_node = if let PropAssignment(n) = member.kind {
+                        let _inference_nodee = if let PropAssignment(n) = member.kind {
                             n.init.id()
                         } else {
                             member.id()
@@ -2203,6 +2204,7 @@ impl<'cx> TyChecker<'cx> {
                 .unwrap();
         }
 
+        #[allow(clippy::too_many_arguments)]
         fn create_object_lit_ty<'cx>(
             this: &mut TyChecker<'cx>,
             node: &'cx ast::ObjectLit<'cx>,
@@ -2530,11 +2532,11 @@ impl<'cx> TyChecker<'cx> {
             },
             _ => (),
         }
-        if let ast::ExprKind::NumLit(lit) = expr.expr.kind {}
+        if let ast::ExprKind::NumLit(_litt) = expr.expr.kind {}
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
-                if let ty::TyKind::NumberLit(n) = operand_ty.kind {
+                if let ty::TyKind::NumberLit(_nn) = operand_ty.kind {
                     operand_ty
                 } else {
                     self.number_ty
@@ -2634,7 +2636,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn check_arithmetic_op_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
-        is_await_valid: bool,
+        _is_await_validd: bool,
         push_error: impl FnOnce(&mut Self),
     ) -> bool {
         if !self.is_type_assignable_to(ty, self.number_or_bigint_ty()) {
@@ -2702,7 +2704,7 @@ impl<'cx> TyChecker<'cx> {
             return self.number_ty;
         }
 
-        let left = self.check_arithmetic_op_ty(left_ty, false, |this| {
+        let _leftt = self.check_arithmetic_op_ty(left_ty, false, |this| {
             let error =
                 errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                     span: left_span,
@@ -2710,7 +2712,7 @@ impl<'cx> TyChecker<'cx> {
                 };
             this.push_error(Box::new(error));
         });
-        let right = self.check_arithmetic_op_ty(right_ty, false, |this| {
+        let _rightt = self.check_arithmetic_op_ty(right_ty, false, |this| {
             let error =
                 errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                     span: right_span,
@@ -2964,7 +2966,7 @@ impl<'cx> TyChecker<'cx> {
             self.push_error(Box::new(error));
             self.number_ty
         } else {
-            let left_ok = self.check_arithmetic_op_ty(left_ty, true, |this| {
+            let _left_okk = self.check_arithmetic_op_ty(left_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: left.span(),
@@ -2972,7 +2974,7 @@ impl<'cx> TyChecker<'cx> {
                     };
                 this.push_error(Box::new(error));
             });
-            let right_ok = self.check_arithmetic_op_ty(right_ty, true, |this| {
+            let _right_okk = self.check_arithmetic_op_ty(right_ty, true, |this| {
                 let error =
                     errors::TheSideOfAnArithmeticOperationMustBeOfTypeAnyNumberBigintOrAnEnumType {
                         span: right.span(),

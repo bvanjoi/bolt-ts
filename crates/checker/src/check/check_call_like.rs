@@ -233,10 +233,7 @@ impl<'cx> TyChecker<'cx> {
                 ty: composite_ty,
                 ..last
             }),
-            TyPredKind::This(last) => TyPredKind::This(ThisTyPred {
-                ty: composite_ty,
-                ..last
-            }),
+            TyPredKind::This(_) => TyPredKind::This(ThisTyPred { ty: composite_ty }),
             TyPredKind::AssertsThis(_) => TyPredKind::AssertsThis(AssertsThisTyPred {
                 ty: Some(composite_ty),
             }),
@@ -495,17 +492,16 @@ impl<'cx> TyChecker<'cx> {
             let mixin_flags = self.find_mixins(i.tys);
             let mut index = 0;
             for intersection_member in i.tys {
-                if !mixin_flags[index] {
-                    if intersection_member
+                if !mixin_flags[index]
+                    && intersection_member
                         .get_object_flags()
                         .intersects(ty::ObjectFlags::CLASS.union(ty::ObjectFlags::INTERFACE))
-                    {
-                        if intersection_member.symbol() == Some(target) {
-                            return true;
-                        }
-                        if self.type_has_protected_accessible_base(target, intersection_member) {
-                            return true;
-                        }
+                {
+                    if intersection_member.symbol() == Some(target) {
+                        return true;
+                    }
+                    if self.type_has_protected_accessible_base(target, intersection_member) {
+                        return true;
                     }
                 }
                 index += 1;
@@ -671,7 +667,7 @@ impl<'cx> TyChecker<'cx> {
     fn invocation_error(
         &mut self,
         callee_span: Span,
-        apparent_ty: &'cx ty::Ty<'cx>,
+        _apparent_tyy: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
         let error = if kind == ty::SigKind::Call {
@@ -934,7 +930,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx Sig<'cx>,
     ) -> bool {
         // TODO: other case
-        let mut call_is_incomplete = false;
+        let call_is_incomplete = false;
 
         let effective_parameter_count = sig.get_param_count(self);
         let effective_minimum_arguments = self.get_min_arg_count(sig);
@@ -994,6 +990,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_signature_applicability_error(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
@@ -1080,7 +1077,7 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
                 EffectiveCallArgument::Synthetic(n) => {
-                    let check_arg_ty = if n.is_spread() { todo!() } else { n.ty() };
+                    let _check_arg_tyy = if n.is_spread() { todo!() } else { n.ty() };
                     // if !self.check_type_related_to_and_optionally_elaborate(
                     //     check_arg_ty,
                     //     parameter_type,
@@ -1197,6 +1194,7 @@ impl<'cx> TyChecker<'cx> {
         type_argument_types
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn choose_overload(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
@@ -1343,7 +1341,7 @@ impl<'cx> TyChecker<'cx> {
         result: &mut Vec<&'cx Sig<'cx>>,
         call_chain_flags: SigFlags,
     ) {
-        debug_assert!(result.len() == 0);
+        debug_assert!(result.is_empty());
         debug_assert!(result.capacity() == sigs.len());
         let (sigs_with_literal_tys, sigs_without_literal_tys): (Vec<_>, Vec<_>) = sigs
             .iter()
@@ -1402,11 +1400,11 @@ impl<'cx> TyChecker<'cx> {
         let mut candidate_for_argument_arity_error = None;
         let mut candidate_for_type_argument_error = None;
 
-        if n.as_super_call().is_none() {
-            if let Some(ty_args) = n.ty_args() {
-                for ty_arg in ty_args.list {
-                    self.check_ty(ty_arg);
-                }
+        if n.as_super_call().is_none()
+            && let Some(ty_args) = n.ty_args()
+        {
+            for ty_arg in ty_args.list {
+                self.check_ty(ty_arg);
             }
         }
 
@@ -1481,7 +1479,7 @@ impl<'cx> TyChecker<'cx> {
             return result;
         }
 
-        let (best_match_idx, candidate) = self.get_candidate_for_overload_failure(
+        let (_best_match_idxx, candidate) = self.get_candidate_for_overload_failure(
             n,
             &candidates,
             &effective_call_arguments,
@@ -1747,13 +1745,13 @@ impl<'cx> TyChecker<'cx> {
         let mut max = usize::MIN;
         let mut max_below = usize::MIN;
         let mut min_above = usize::MAX;
-        let mut closest_sig = None;
+        let mut _closest_sig = None;
         for sig in sigs {
             let min_param = self.get_min_arg_count(sig);
             let max_param = sig.get_param_count(self);
             if min_param < min {
                 min = min_param;
-                closest_sig = Some(sig);
+                _closest_sig = Some(sig);
             }
             max = usize::max(max, max_param);
             if min_param < args.len() && min_param > max_below {
@@ -1777,8 +1775,8 @@ impl<'cx> TyChecker<'cx> {
             let error = errors::NoOverloadExpectsXArgumentsButOverloadsDoExistThatExpectEitherAOrBArguments {
                 span: expr.span(),
                 argument_count: args.len(),
-                max_below: max_below,
-                min_above: min_above,
+                max_below,
+                min_above,
             };
             self.push_error(Box::new(error));
         } else if args.len() < min {

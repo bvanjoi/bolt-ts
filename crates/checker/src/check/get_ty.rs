@@ -105,7 +105,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_of_prototype_property(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    fn get_ty_of_prototype_property(&mut self, _symboll: SymbolID) -> &'cx ty::Ty<'cx> {
         self.any_ty
         // let parent = self.symbol(symbol).parent.unwrap();
         // let class_ty = self.get_declared_ty_of_symbol(parent);
@@ -743,7 +743,7 @@ impl<'cx> TyChecker<'cx> {
         let n = self.p.node(node);
         if let Some(n) = n.as_var_decl() {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
-                && self.node_query(node.module()).is_var_const(node)
+                && self.node_query(node.module()).is_var_const_like(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
         } else if n.is_class_prop_elem() || n.is_object_prop_assignment() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
@@ -1016,7 +1016,7 @@ impl<'cx> TyChecker<'cx> {
                             && ctor_parent == s.parent.and_then(|p| self.symbol(p).value_decl))
                         || (is_assignment_declaration
                             && s.parent
-                                .map_or(false, |p| self.symbol(p).value_decl == Some(ctor)));
+                                .is_some_and(|p| self.symbol(p).value_decl == Some(ctor)));
                     return !is_writeable_symbol;
                 }
             }
@@ -1073,8 +1073,8 @@ impl<'cx> TyChecker<'cx> {
             }
             if let Some(prop) = self.get_prop_of_ty::<false, false>(object_ty, prop_name) {
                 if access_flags.contains(AccessFlags::REPORT_DEPRECATED)
-                    && let Some(access_node) = access_node
-                    && let Some(decls) = self.symbol(prop).decls.as_ref()
+                    && let Some(_access_nodee) = access_node
+                    && let Some(_declss) = self.symbol(prop).decls.as_ref()
                 {
                     // TODO: deprecated
                 }
@@ -1564,7 +1564,7 @@ impl<'cx> TyChecker<'cx> {
             potential_alias,
             alias_ty_arguments,
         );
-        if let Some(_) = self.get_node_links(node.id).get_resolved_ty() {
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
             // TODO: delay bug
             self.get_mut_node_links(node.id).override_resolved_ty(ty);
             return ty;
@@ -2191,7 +2191,7 @@ impl<'cx> TyChecker<'cx> {
         let readonly = self
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
-        let target = if Self::get_array_element_from_tuple_type_node(&node).is_some() {
+        let target = if Self::get_array_element_from_tuple_type_node(node).is_some() {
             if readonly {
                 self.global_readonly_array_ty()
             } else {
@@ -2339,7 +2339,7 @@ impl<'cx> TyChecker<'cx> {
     fn should_report_errors_from_widening_with_contextual_sig(
         &mut self,
         decl: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
+        _tyy: &'cx ty::Ty<'cx>,
         widening_kind: WideningKind,
     ) -> bool {
         let Some(sig) = self.get_contextual_sig_for_fn_like_decl(decl) else {
@@ -2750,10 +2750,9 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.get_node_links(id).flags();
         if flags.contains(super::NodeCheckFlags::TYPE_CHECKED)
             && let Some(flow_ty_cache) = &self.flow_ty_cache
+            && let Some(cache) = flow_ty_cache.get(&id)
         {
-            if let Some(cache) = flow_ty_cache.get(&id) {
-                return cache;
-            }
+            return cache;
         }
         let saved_flow_invocation_count = self.flow_invocation_count;
         let ty = self.check_expression(expr, Some(CheckMode::TYPE_ONLY));
@@ -3008,7 +3007,7 @@ impl<'cx> TyChecker<'cx> {
             match r.target.symbol() {
                 Some(symbol) => {
                     let error = errors::TypeArgumentsForXCircularlyReferenceThemselves {
-                        span: span,
+                        span,
                         name: self.symbol(symbol).name.to_string(&self.atoms),
                     };
                     self.push_error(Box::new(error));

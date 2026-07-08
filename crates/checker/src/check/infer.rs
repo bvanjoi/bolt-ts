@@ -776,7 +776,7 @@ impl<'cx> TyChecker<'cx> {
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
                     let inference_source_ty =
                         if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
-                            if let Some(ty_param) =
+                            if let Some(_ty_paramm) =
                                 self.get_sig_links(contextual_sig.id).get_ty_params()
                             {
                                 // TODO: `get_or_create_ty_from_sig`
@@ -802,12 +802,12 @@ impl<'cx> TyChecker<'cx> {
                 );
                 let ret_mapper = outer_context
                     .and_then(|outer_context| outer_context.inference)
-                    .and_then(|outer_context| {
+                    .map(|outer_context| {
                         // create_outer_return_mapper
                         if let Some(outer_ret_mapper) =
                             self.inference(outer_context).outer_ret_mapper
                         {
-                            Some(outer_ret_mapper)
+                            outer_ret_mapper
                         } else {
                             let id = self
                                 .clone_inference_context(outer_context, InferenceFlags::empty());
@@ -815,7 +815,7 @@ impl<'cx> TyChecker<'cx> {
                             let ret = self
                                 .merge_ty_mappers(self.inference(outer_context).ret_mapper, mapper);
                             self.set_inference_outer_ret_mapper(outer_context, ret);
-                            Some(ret)
+                            ret
                         }
                     });
                 let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
@@ -1664,7 +1664,7 @@ impl<'cx> InferenceState<'cx, '_> {
                 return;
             }
             source = self.c.get_union_ty::<false>(
-                &sources,
+                sources,
                 ty::UnionReduction::Lit,
                 None,
                 None,
@@ -1673,28 +1673,26 @@ impl<'cx> InferenceState<'cx, '_> {
             );
         } else if let Some(i) = target.kind.as_intersection()
             && !i.tys.iter().all(|t| self.c.is_non_generic_object_ty(t))
+            && !source.kind.is_union()
         {
-            if !source.kind.is_union() {
-                let sources = if let Some(s) = source.kind.as_intersection() {
-                    s.tys
-                } else {
-                    // TODO: remove alloc
-                    self.c.alloc([source])
-                };
-                let (sources, targets) =
-                    self.infer_from_matching_tys(sources, i.tys, |this, s, t| {
-                        this.c.is_type_identical_to(s, t)
-                    });
-                if sources.is_empty() || targets.is_empty() {
-                    return;
-                };
-                source = self
-                    .c
-                    .get_intersection_ty(sources, IntersectionFlags::None, None, None);
-                target = self
-                    .c
-                    .get_intersection_ty(targets, IntersectionFlags::None, None, None);
-            }
+            let sources = if let Some(s) = source.kind.as_intersection() {
+                s.tys
+            } else {
+                // TODO: remove alloc
+                self.c.alloc([source])
+            };
+            let (sources, targets) = self.infer_from_matching_tys(sources, i.tys, |this, s, t| {
+                this.c.is_type_identical_to(s, t)
+            });
+            if sources.is_empty() || targets.is_empty() {
+                return;
+            };
+            source = self
+                .c
+                .get_intersection_ty(sources, IntersectionFlags::None, None, None);
+            target = self
+                .c
+                .get_intersection_ty(targets, IntersectionFlags::None, None, None);
         }
 
         if target
@@ -2116,11 +2114,12 @@ impl<'cx> InferenceState<'cx, '_> {
                             {
                                 all_ty_flags &= TypeFlags::NUMBER_LIKE.complement();
                             }
-                            if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE) && false
-                            /* !is_valid_bit_int_str*/
-                            {
-                                all_ty_flags &= TypeFlags::BIG_INT_LIKE.complement();
-                            }
+                            // TODO: re-enable when is_valid_bit_int_str is implemented
+                            // if all_ty_flags.intersects(TypeFlags::BIG_INT_LIKE)
+                            //     && !self.c.is_valid_bit_int_str(str.val)
+                            // {
+                            //     all_ty_flags &= TypeFlags::BIG_INT_LIKE.complement();
+                            // }
                             let matching_ty = self
                                 .c
                                 .reduced_left(
@@ -2172,7 +2171,7 @@ impl<'cx> InferenceState<'cx, '_> {
                                         } else if right
                                             .kind
                                             .as_number_lit()
-                                            .is_some_and(|r| /*r.val == str*/ todo!())
+                                            .is_some_and(|_rr| /*r.val == str*/ todo!())
                                         {
                                             right
                                         } else if left.flags.contains(TypeFlags::BIG_INT) {
@@ -2307,20 +2306,16 @@ impl<'cx> InferenceState<'cx, '_> {
             let prop_tys = self
                 .c
                 .get_props_of_ty(source)
-                .into_iter()
+                .iter()
                 .map(|&s| self.c.get_type_of_symbol(s))
                 .collect::<Vec<_>>();
-            let index_tys = self
-                .c
-                .get_index_infos_of_ty(source)
-                .into_iter()
-                .map(|info| {
-                    if !std::ptr::eq(info, &self.c.enum_number_index_info()) {
-                        info.val_ty
-                    } else {
-                        self.c.never_ty
-                    }
-                });
+            let index_tys = self.c.get_index_infos_of_ty(source).iter().map(|info| {
+                if !std::ptr::eq(info, &self.c.enum_number_index_info()) {
+                    info.val_ty
+                } else {
+                    self.c.never_ty
+                }
+            });
             let tys = prop_tys.into_iter().chain(index_tys).collect::<Vec<_>>();
             let source =
                 self.c

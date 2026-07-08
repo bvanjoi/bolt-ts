@@ -280,16 +280,16 @@ impl<'cx> TyChecker<'cx> {
                 |this, t| this.get_awaited_ty_no_alias(t),
                 false,
             )
-            .and_then(|contextual_await_ty| {
+            .map(|contextual_await_ty| {
                 let ty = self.create_promise_like_ty(contextual_await_ty);
-                Some(self.get_union_ty::<false>(
+                self.get_union_ty::<false>(
                     &[contextual_await_ty, ty],
                     ty::UnionReduction::Lit,
                     None,
                     None,
                     None,
                     None,
-                ))
+                )
             })
         } else {
             Some(contextual_return_ty)
@@ -416,7 +416,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_contextual_ty_for_assign(
         &mut self,
         parent: &'cx ast::AssignExpr<'cx>,
-        flags: Option<ContextFlags>,
+        _flagss: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let kind = self
             .node_query(parent.id.module())
@@ -433,7 +433,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         return match ty {
                             Some(ty) => {
-                                let ty = self.get_ty_from_type_node(*ty);
+                                let ty = self.get_ty_from_type_node(ty);
                                 let mapper = self.get_symbol_links(lhs_symbol).get_ty_mapper();
                                 Some(self.instantiate_ty(ty, mapper))
                             }
@@ -558,12 +558,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         parent: &'cx ast::ArrayBinding<'cx>,
         node: ast::NodeID,
-        context_flags: Option<ContextFlags>,
+        _context_flagss: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
-            let name = parent.name;
+            let _namee = parent.name;
             let parent_parent_id = self.parent(parent.id).unwrap();
             debug_assert!(self.p.node(parent_parent_id).is_array_pat());
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
@@ -877,7 +877,7 @@ impl<'cx> TyChecker<'cx> {
                 let discriminators = n
                     .members
                     .iter()
-                    .map(|item| DiscriminatingItem::Node(*item))
+                    .map(|item| DiscriminatingItem::Node(item))
                     .chain(
                         self.get_props_of_ty(contextual_ty)
                             .iter()
@@ -986,16 +986,16 @@ impl<'cx> TyChecker<'cx> {
         for (get_discriminating_ty, property_name) in discriminators {
             let mut matched = false;
             for i in 0..tys.len() {
-                if include[i] != Ternary::FALSE {
-                    if let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name) {
-                        let discriminating_ty = get_discriminating_ty(self);
-                        if self.some_type(discriminating_ty, |this, t| {
-                            related(this, t, target_ty) != Ternary::FALSE
-                        }) {
-                            matched = true;
-                        } else {
-                            include[i] = Ternary::MAYBE;
-                        }
+                if include[i] != Ternary::FALSE
+                    && let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name)
+                {
+                    let discriminating_ty = get_discriminating_ty(self);
+                    if self.some_type(discriminating_ty, |this, t| {
+                        related(this, t, target_ty) != Ternary::FALSE
+                    }) {
+                        matched = true;
+                    } else {
+                        include[i] = Ternary::MAYBE;
                     }
                 }
             }
@@ -1009,7 +1009,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        let filtered = if include.iter().any(|&t| t == Ternary::FALSE) {
+        let filtered = if include.contains(&Ternary::FALSE) {
             let filtered_tys: Vec<_> = tys
                 .iter()
                 .enumerate()

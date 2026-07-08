@@ -697,23 +697,23 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             None
         };
-        let specs = self.create_named_exports_declaration(self.new_span(start), list, module);
-        specs
+
+        (self.create_named_exports_declaration(self.new_span(start), list, module)) as _
     }
 
     fn parse_glob_export(&mut self, start: u32) -> &'cx ast::GlobExport<'cx> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
-        let n = self.create_global_export_declaration(self.new_span(start), module);
-        n
+
+        (self.create_global_export_declaration(self.new_span(start), module)) as _
     }
 
     fn parse_ns_export(&mut self, start: u32) -> &'cx ast::NsExport<'cx> {
         let name = self.parse_module_export_name(|this| this.create_ident(true, None));
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
-        let ns = self.create_namespace_export_declaration(self.new_span(start), name, module);
-        ns
+
+        (self.create_namespace_export_declaration(self.new_span(start), name, module)) as _
     }
 
     fn parse_import_equals_declaration(
@@ -837,9 +837,7 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        let clause =
-            self.create_import_clause(self.new_span(start as u32), is_type_only, name, kind);
-        clause
+        (self.create_import_clause(self.new_span(start as u32), is_type_only, name, kind)) as _
     }
 
     fn parse_ns_import(&mut self) -> &'cx ast::NsImport<'cx> {
@@ -849,8 +847,8 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `*`
         self.expect(TokenKind::As);
         let name = self.create_ident(true, None);
-        let ns = self.create_namespace_import(self.new_span(start), name);
-        ns
+
+        (self.create_namespace_import(self.new_span(start), name)) as _
     }
 
     fn parse_module_spec(&mut self) -> &'cx ast::StringLit {
@@ -987,7 +985,7 @@ impl<'cx> ParserState<'cx, '_> {
             }));
         } else {
             for item in list {
-                self.check_variable_declaration_should_initializer(*item);
+                self.check_variable_declaration_should_initializer(item);
             }
         }
         let span = self.new_span(start);
@@ -1076,8 +1074,8 @@ impl<'cx> ParserState<'cx, '_> {
             )
         });
         self.expect(TokenKind::RBrace);
-        let pat = self.create_object_binding_pattern(self.new_span(start), elems);
-        pat
+
+        (self.create_object_binding_pattern(self.new_span(start), elems)) as _
     }
 
     pub(super) fn parse_array_binding_pat(&mut self) -> &'cx ast::ArrayPat<'cx> {
@@ -1091,8 +1089,8 @@ impl<'cx> ParserState<'cx, '_> {
             )
         });
         self.expect(TokenKind::RBracket);
-        let pat = self.create_array_binding_pattern(self.new_span(start), elems);
-        pat
+
+        (self.create_array_binding_pattern(self.new_span(start), elems)) as _
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {

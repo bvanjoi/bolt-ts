@@ -565,7 +565,7 @@ impl<'cx> TyChecker<'cx> {
                 if instantiated_base_ty != self.any_ty {
                     let instantiated_index_infos = self
                         .get_index_infos_of_ty(instantiated_base_ty)
-                        .into_iter()
+                        .iter()
                         .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                         .collect::<Vec<_>>();
                     index_infos.extend(instantiated_index_infos);
@@ -951,7 +951,7 @@ impl<'cx> TyChecker<'cx> {
         let limited_constraint = self.get_limited_constraint(r);
 
         for prop in props {
-            if let Some(limited_constraint) = limited_constraint {
+            if let Some(_limited_constraintt) = limited_constraint {
                 todo!()
             };
             let prop = *prop;
@@ -1139,7 +1139,7 @@ impl<'cx> TyChecker<'cx> {
                 .members()
                 .and_then(|m| m.0.get(&SymbolName::Constructor))
             {
-                ctor_sigs_of_class.extend(self.get_sigs_of_symbol(*symbol).into_iter())
+                ctor_sigs_of_class.extend(&*self.get_sigs_of_symbol(*symbol))
             }
 
             if symbol_flags.contains(SymbolFlags::FUNCTION) {
@@ -1226,12 +1226,7 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
             for i in 1..sigs_list.len() {
-                if self
-                    .find_matching_sig::<false, false, false>(sigs_list[i], sig)
-                    .is_none()
-                {
-                    return None;
-                }
+                self.find_matching_sig::<false, false, false>(sigs_list[i], sig)?;
             }
             return Some(self.alloc([sig]));
         }
@@ -1239,13 +1234,9 @@ impl<'cx> TyChecker<'cx> {
         for i in 0..sigs_list.len() {
             let matched = if i == list_index {
                 sig
-            } else if let Some(sig) = self
-                .find_matching_sig::<false, false, true>(sigs_list[i], sig)
-                .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))
-            {
-                sig
             } else {
-                return None;
+                self.find_matching_sig::<false, false, true>(sigs_list[i], sig)
+                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))?
             };
             match &mut result {
                 Some(result) => result.push(matched),
@@ -1271,7 +1262,7 @@ impl<'cx> TyChecker<'cx> {
             }
             for sig in sigs_list[i] {
                 if result.as_ref().is_none_or(|result| {
-                    self.find_matching_sig::<false, false, true>(&result, sig)
+                    self.find_matching_sig::<false, false, true>(result, sig)
                         .is_none()
                 }) && let Some(union_sigs) = self.find_matching_sigs(sigs_list, sig, i)
                 {
@@ -1359,15 +1350,13 @@ impl<'cx> TyChecker<'cx> {
                             )
                         }) {
                         None
-                    } else if let Some(results) = results.as_ref() {
-                        Some(
+                    } else {
+                        results.as_ref().map(|results| {
                             results
                                 .iter()
                                 .map(|s| self.combine_sigs_of_union_members(s, sig))
-                                .collect::<Vec<_>>(),
-                        )
-                    } else {
-                        None
+                                .collect::<Vec<_>>()
+                        })
                     };
                     if results.is_none() {
                         break;
@@ -1574,7 +1563,7 @@ impl<'cx> TyChecker<'cx> {
             ret: None,
             node_id: left.node_id,
             target: None,
-            mapper: mapper,
+            mapper,
             class_decl: left.class_decl,
             composite_sigs,
             composite_kind: Some(TypeFlags::UNION),

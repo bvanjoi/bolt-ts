@@ -54,10 +54,11 @@ impl<'cx> TyChecker<'cx> {
             self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, return_ty);
         }
 
-        if self.get_effective_ret_type_node(id).is_none() {
-            if body.is_none() && !self.is_private_within_ambient(id) {
-                self.report_implicit_any(id, self.any_ty, None);
-            }
+        if self.get_effective_ret_type_node(id).is_none()
+            && body.is_none()
+            && !self.is_private_within_ambient(id)
+        {
+            self.report_implicit_any(id, self.any_ty, None);
         }
     }
 
@@ -127,7 +128,7 @@ impl<'cx> TyChecker<'cx> {
             && ty.flags.contains(TypeFlags::NEVER)
         {
             todo!()
-        } else if let Some(ty) = ty
+        } else if let Some(_tyy) = ty
             && !has_explicit_return
         {
             let error =

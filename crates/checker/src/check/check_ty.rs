@@ -33,18 +33,18 @@ impl<'cx> TyChecker<'cx> {
             Mapped(n) => self.check_mapped_ty(n),
             Array(n) => self.check_array_ty(n),
             Ctor(n) => self.check_sig_decl(n.id),
-            Lit(n) => (),
-            NamedTuple(n) => (),
-            Rest(n) => (),
-            Union(n) => (),
-            Intersection(n) => (),
+            Lit(_nn) => (),
+            NamedTuple(_nn) => (),
+            Rest(_nn) => (),
+            Union(_nn) => (),
+            Intersection(_nn) => (),
             Typeof(n) => self.check_type_query(n),
-            Paren(n) => (),
-            Infer(n) => (),
-            Intrinsic(n) => (),
-            Nullable(n) => (),
-            TemplateLit(n) => (),
-            This(n) => (),
+            Paren(_nn) => (),
+            Infer(_nn) => (),
+            Intrinsic(_nn) => (),
+            Nullable(_nn) => (),
+            TemplateLit(_nn) => (),
+            This(_nn) => (),
             Import(_) => (),
         };
         self.current_node = saved_current_node;
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let sig = self.get_sig_from_decl(parent);
-        let Some(ty_predicate) = self.get_ty_predicate_of_sig(sig) else {
+        let Some(_ty_predicatee) = self.get_ty_predicate_of_sig(sig) else {
             return;
         };
         if let Some(ty) = n.ty {

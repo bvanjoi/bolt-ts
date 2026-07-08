@@ -357,7 +357,7 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let name = self.parse_ident_name();
         let kind = ast::EntityNameKind::Ident(name);
-        let mut entity = self.alloc(ast::EntityName { kind: kind });
+        let mut entity = self.alloc(ast::EntityName { kind });
         if self.token.kind != TokenKind::Dot {
             return entity;
         }
@@ -785,10 +785,10 @@ impl<'cx> ParserState<'cx, '_> {
             Self::parse_object_ty_members,
         );
         let kind = self.create_object_literal_type(self.new_span(start), members);
-        let ty = self.alloc(ast::Ty {
+
+        (self.alloc(ast::Ty {
             kind: ast::TyKind::ObjectLit(kind),
-        });
-        ty
+        })) as _
     }
 
     fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {

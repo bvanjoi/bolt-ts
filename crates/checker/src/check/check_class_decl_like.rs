@@ -84,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ClassDecl(c) => c.extends,
             _ => unreachable!(),
         };
-        if let Some(extends) = extends {
+        if let Some(_extendss) = extends {
             let extends_null = self.class_decl_extends_null(containing_class_decl);
             if let Some(first_super_call) = self.find_first_super_call_in_ctor_body(ctor) {
                 if extends_null {
@@ -372,7 +372,7 @@ impl<'cx> TyChecker<'cx> {
 
         for elem in class.elems().list {
             if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
-                for param in ctor.params {
+                for _paramm in ctor.params {
                     // TODO:
                 }
             } else if let Some(name) = elem.kind.name()
@@ -552,8 +552,8 @@ impl<'cx> TyChecker<'cx> {
                 let base_properties = self.get_props_of_ty(base_ty);
                 struct MemberInfo<'cx> {
                     missed_props: Vec<SymbolID>,
-                    base_ty: &'cx ty::Ty<'cx>,
-                    ty: &'cx ty::Ty<'cx>,
+                    _base_ty: &'cx ty::Ty<'cx>,
+                    _ty: &'cx ty::Ty<'cx>,
                 }
                 let mut not_implemented_info = fx_hashmap_with_capacity(0);
                 'base_prop_check: for base_prop in base_properties {
@@ -597,8 +597,8 @@ impl<'cx> TyChecker<'cx> {
                                 derived_class_decl,
                                 MemberInfo {
                                     missed_props: vec![*base_prop],
-                                    base_ty,
-                                    ty,
+                                    _base_ty: base_ty,
+                                    _ty: ty,
                                 },
                             );
                         }
@@ -695,7 +695,7 @@ impl<'cx> TyChecker<'cx> {
                                 unreachable!()
                             };
                             let error = errors::ClassDefinesInstanceMemberAccessorButExtendedClassDefinesItAsInstanceMemberFunction {
-                                span: span,
+                                span,
                                 class_name: self.print_ty(base_ty, None).to_string(),
                                 property_name: base_s_name.to_string(&self.atoms),
                                 extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
@@ -708,7 +708,7 @@ impl<'cx> TyChecker<'cx> {
                                 unreachable!()
                             };
                             let error = errors::ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction {
-                                span: span,
+                                span,
                                 class_name: self.print_ty(base_ty, None).to_string(),
                                 property_name: base_s_name.to_string(&self.atoms),
                                 extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
@@ -719,25 +719,25 @@ impl<'cx> TyChecker<'cx> {
                 }
 
                 for (error_node, member_info) in not_implemented_info {
-                    if member_info.missed_props.len() == 1 {
-                        if let Some(error_node) = error_node {
-                            let decl = self.p.node(error_node);
-                            if decl.is_class_expr() {
-                                let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
+                    if member_info.missed_props.len() == 1
+                        && let Some(error_node) = error_node
+                    {
+                        let decl = self.p.node(error_node);
+                        if decl.is_class_expr() {
+                            let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
                                     span: class.span(),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     class: self.print_ty(base_ty, None).to_string(),
                                 };
-                                self.push_error(Box::new(error));
-                            } else {
-                                let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
+                            self.push_error(Box::new(error));
+                        } else {
+                            let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
                                     span: class.span(),
                                     non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     abstract_class: self.print_ty(base_ty, None).to_string(),
                                 };
-                                self.push_error(Box::new(error));
-                            }
+                            self.push_error(Box::new(error));
                         }
                     }
                 }
@@ -844,16 +844,15 @@ impl<'cx> TyChecker<'cx> {
                         let prop_ty = self.get_type_of_symbol(symbol);
                         if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
                             || prop_ty.contains_undefined_ty())
-                        {
-                            if ctor.is_none_or(|ctor| {
+                            && ctor.is_none_or(|ctor| {
                                 !self.is_property_initialized_in_constructor(prop.id, ctor)
-                            }) {
-                                let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+                            })
+                        {
+                            let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
                                     span: prop_name.span(),
                                     property: prop_name.kind.to_string(&self.atoms),
                                 };
-                                self.push_error(Box::new(error));
-                            }
+                            self.push_error(Box::new(error));
                         }
                     }
                 }

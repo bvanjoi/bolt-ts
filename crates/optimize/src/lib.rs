@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod emit;
 mod interpreter;
 mod ir;

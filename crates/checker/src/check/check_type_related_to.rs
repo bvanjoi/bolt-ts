@@ -367,10 +367,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn property_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        _sourcee: &'cx Ty<'cx>,
+        _targett: &'cx Ty<'cx>,
         source_prop: SymbolID,
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
@@ -946,7 +947,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         for (i, source_ty) in source_tys.iter().enumerate() {
             if let Some(target_union) = undefined_stripped_target.kind.as_union()
                 && source_tys.len() >= target_union.tys.len()
-                && source_tys.len() % target_union.tys.len() == 0
+                && source_tys.len().is_multiple_of(target_union.tys.len())
             {
                 let related = self.is_related_to(
                     source_ty,
@@ -1054,7 +1055,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         target_tys: ty::Tys<'cx>,
-        report_error: bool,
+        _report_errorr: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if let Some(unions) = target.kind.as_union() {
@@ -2610,8 +2611,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         kind: SigKind,
-        relation: RelationKind,
-        error_node: Option<ast::NodeID>,
+        _relationn: RelationKind,
+        _error_nodee: Option<ast::NodeID>,
     ) -> Ternary {
         let source_sigs = self.c.get_signatures_of_type(source, kind);
         let target_sigs = self.c.get_signatures_of_type(target, kind);
@@ -2751,14 +2752,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             .node_query(source_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 source_node_id,
-                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
             );
         let target_accessibility = self
             .c
             .node_query(target_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 target_node_id,
-                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
             );
         if target_accessibility == ast::ModifierKind::Private.into_flag() {
             return true;
@@ -2857,7 +2858,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         } else {
             'outer: for t in target_sigs {
                 let saved = self.c.diags.len();
-                let mut should_elaborate_errors = report_error;
+                let mut _should_elaborate_errors = report_error;
                 for s in source_sigs {
                     let related = self.sig_related_to(s, t, true, report_error, intersection_state);
                     if related != Ternary::FALSE {
@@ -2865,9 +2866,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         self.c.diags.truncate(saved);
                         continue 'outer;
                     }
-                    should_elaborate_errors = false;
+                    _should_elaborate_errors = false;
                 }
-                // if should_elaborate_errors {
+                // if _should_elaborate_errors {
                 //     let error = Box::new(errors::TypeXProvidesNoMatchForTheSignatureY {
                 //         span: source,
                 //         ty: source.to_string(self),

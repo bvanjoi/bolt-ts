@@ -168,7 +168,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 } else {
                     todo!("error handle")
                 }
-                Ok(None)
             }
             TokenKind::LessSlash => {
                 // TODO: conflict marker trivia
@@ -226,8 +225,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_jsx_attrs(&mut self) -> bolt_ts_ast::JsxAttrs<'cx> {
         debug_assert!(self.variant == LanguageVariant::Jsx);
-        let attrs = self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr);
-        attrs
+
+        (self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr)) as _
     }
 
     fn parse_jsx_ele_name(&mut self) -> JsxTagName<'cx> {

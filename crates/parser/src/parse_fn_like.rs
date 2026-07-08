@@ -16,6 +16,7 @@ pub(super) trait FnLike<'cx, 'p> {
         state: &mut ParserState<'cx, 'p>,
         ms: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>>;
+    #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,

@@ -146,23 +146,23 @@ impl<'cx> Expr<'cx> {
         }
     }
 
-    fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
-        match self.kind {
-            ExprKind::Paren(_) => {
-                // TODO: js
-                (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
-            }
-            ExprKind::TyAssertion(_) | ExprKind::As(_) => {
-                (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
-            }
-            ExprKind::Satisfies(_) => {
-                (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
-            }
-            ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
-            // TODO: partially_emitted_expression
-            _ => false,
-        }
-    }
+    // fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
+    //     match self.kind {
+    //         ExprKind::Paren(_) => {
+    //             // TODO: js
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
+    //         }
+    //         ExprKind::TyAssertion(_) | ExprKind::As(_) => {
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
+    //         }
+    //         ExprKind::Satisfies(_) => {
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
+    //         }
+    //         ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
+    //         // TODO: partially_emitted_expression
+    //         _ => false,
+    //     }
+    // }
 
     pub fn skip_outer_expr<const FLAGS: u8>(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
         loop {
@@ -762,10 +762,10 @@ pub enum AssignOp {
     NullishEq,
 }
 
-impl Into<TokenKind> for AssignOp {
-    fn into(self) -> TokenKind {
+impl From<AssignOp> for TokenKind {
+    fn from(val: AssignOp) -> Self {
         use AssignOp::*;
-        match self {
+        match val {
             Eq => TokenKind::Eq,
             AddEq => TokenKind::PlusEq,
             SubEq => TokenKind::MinusEq,
@@ -1029,9 +1029,9 @@ impl std::fmt::Display for BinOpKind {
     }
 }
 
-impl Into<TokenKind> for BinOpKind {
-    fn into(self) -> TokenKind {
-        match self {
+impl From<BinOpKind> for TokenKind {
+    fn from(val: BinOpKind) -> Self {
+        match val {
             BinOpKind::Add => TokenKind::Plus,
             BinOpKind::Sub => TokenKind::Minus,
             BinOpKind::Mul => TokenKind::Asterisk,

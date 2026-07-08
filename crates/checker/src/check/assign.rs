@@ -328,7 +328,7 @@ impl<'cx> TyChecker<'cx> {
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
         for elem in pat.elems {
-            let ty = self.get_object_binding_element_ty_from_parent_ty(*elem, pat, parent_ty);
+            let ty = self.get_object_binding_element_ty_from_parent_ty(elem, pat, parent_ty);
             match elem.name {
                 ast::ObjectBindingName::Shorthand(_) => {
                     let symbol = self.get_symbol_of_declaration(elem.id);

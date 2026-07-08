@@ -316,7 +316,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        if let Some(applicable_infos) = applicable_infos {
+        if let Some(_applicable_infoss) = applicable_infos {
             // TODO: create index info
             applicable_info
         } else if let Some(applicable_info) = applicable_info {
@@ -367,7 +367,7 @@ impl<'cx> TyChecker<'cx> {
             let symbol = resolved.members.get(&SymbolName::Index).copied();
             if infos == self.get_index_infos_of_ty(ty) {
                 return symbol;
-            } else if let Some(symbol) = symbol {
+            } else if let Some(_symboll) = symbol {
                 // let symbol_links = self.get_symbol_links(symbol);
                 let declaration_list = infos
                     .iter()

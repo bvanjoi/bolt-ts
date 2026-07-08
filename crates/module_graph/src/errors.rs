@@ -4,7 +4,6 @@ use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_span::Span;
 
-use thiserror;
 use thiserror::Error;
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]

@@ -413,6 +413,10 @@ impl Symbols {
         unsafe { self.data.get_unchecked_mut(idx) }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     pub fn len(&self) -> u32 {
         self.data.len() as u32
     }

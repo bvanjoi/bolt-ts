@@ -78,7 +78,7 @@ fn list_bench_case(root: &std::path::Path) -> Vec<Case> {
 
     project_benchmarks
         .into_iter()
-        .chain(single_benchmarks.into_iter())
+        .chain(single_benchmarks)
         .collect()
 }
 

@@ -23,7 +23,7 @@ impl SymbolName {
             SymbolName::ExportEquals => "export =".to_string(),
             SymbolName::ExportDefault => "__ExportDefault".to_string(),
             SymbolName::Computed => "<computed>".to_string(),
-            SymbolName::ParamIndex(_) => "__ParamIndex".to_string(),
+            SymbolName::ParamIndex(n) => format!("__ParamIndex{}", n),
             SymbolName::ESSymbol { escaped_name, .. } => format!("{}#", atoms.get(escaped_name)),
         }
     }

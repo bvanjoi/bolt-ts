@@ -63,6 +63,12 @@ pub struct TestConfig {
 pub struct CompilerOptions(std::collections::HashMap<String, CompilerOption>);
 
 impl CompilerOptions {
+    #[allow(dead_code)]
+    pub(super) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[allow(dead_code)]
     pub(super) fn len(&self) -> usize {
         self.0.len()
     }
@@ -176,19 +182,16 @@ pub enum CompilerOption {
 
 #[test]
 fn test_to_serde_json0() {
-    let options = CompilerOptions(std::collections::HashMap::from_iter(
-        [
-            ("option1".to_string(), CompilerOption::Bool(true)),
-            (
-                "option2".to_string(),
-                CompilerOption::Multiple(vec![
-                    CompilerOption::String("value1".to_string()),
-                    CompilerOption::String("value2".to_string()),
-                ]),
-            ),
-        ]
-        .into_iter(),
-    ));
+    let options = CompilerOptions(std::collections::HashMap::from_iter([
+        ("option1".to_string(), CompilerOption::Bool(true)),
+        (
+            "option2".to_string(),
+            CompilerOption::Multiple(vec![
+                CompilerOption::String("value1".to_string()),
+                CompilerOption::String("value2".to_string()),
+            ]),
+        ),
+    ]));
     let json = options.to_serde_json();
     assert!(json.len() == 2);
     assert_eq!(json[0].1, Some("(option2=value1)".to_string()));

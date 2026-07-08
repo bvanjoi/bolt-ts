@@ -69,8 +69,11 @@ impl<'cx> TyChecker<'cx> {
         let parent_node = self.p.node(parent_id);
         if check_mode != CheckMode::empty() {
             match parent_node {
-                ast::Node::VarDecl(var) => self.get_ty_for_var_like_decl::<false>(var, check_mode),
+                ast::Node::VarDecl(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
                 ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
+                ast::Node::ObjectBindingElem(n) => {
+                    self.get_ty_for_var_like_decl::<false>(n, check_mode)
+                }
                 _ => {
                     // TODO:
                     None
@@ -88,6 +91,9 @@ impl<'cx> TyChecker<'cx> {
             match parent_node {
                 ast::Node::VarDecl(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
                 ast::Node::ParamDecl(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
+                ast::Node::ObjectBindingElem(n) => {
+                    self.get_ty_for_var_like_decl::<false>(n, check_mode)
+                }
                 _ => {
                     // TODO:
                     None
@@ -413,7 +419,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let flags = s.flags;
-        return !flags.intersects(
+        !flags.intersects(
             SymbolFlags::METHOD
                 .union(SymbolFlags::GET_ACCESSOR)
                 .union(SymbolFlags::SET_ACCESSOR),
@@ -425,7 +431,7 @@ impl<'cx> TyChecker<'cx> {
                     false
                 }
             })
-        });
+        })
     }
 
     fn get_rest_ty(

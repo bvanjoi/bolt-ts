@@ -331,7 +331,7 @@ pub enum Lib {
     #[serde(alias = "esnext")]
     ESNext,
     #[serde(alias = "dom")]
-    DOM,
+    Dom,
     #[serde(alias = "webworker")]
     WebWorker,
     #[serde(alias = "scripthost")]

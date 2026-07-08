@@ -365,7 +365,7 @@ impl<'cx> TyChecker<'cx> {
             if self.is_declaration_with_explicit_ty_annotation(decl) {
                 return Some(self.get_type_of_symbol(symbol));
             } else if self.p.node(decl).is_var_decl()
-                && let Some(parent_parent) = self.parent(decl).and_then(|n| self.parent(decl))
+                && let Some(parent_parent) = self.parent(decl).and_then(|_nn| self.parent(decl))
                 && self.p.node(parent_parent).is_for_of_stmt()
             {
                 todo!()
@@ -420,11 +420,11 @@ impl<'cx> TyChecker<'cx> {
                 _ => unreachable!(),
             };
             if let Some(bin) = n.as_bin_expr() {
-                let right_ty = self.check_non_null_expr(bin.right);
+                let _right_tyy = self.check_non_null_expr(bin.right);
                 // func_ty = Some()
                 todo!()
             } else if let parent = self.parent(node).unwrap()
-                && let Some(stmt) = self.p.node(parent).as_expr_stmt()
+                && let Some(_stmtt) = self.p.node(parent).as_expr_stmt()
             {
                 func_ty = self.get_ty_of_dotted_name(expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
@@ -541,7 +541,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     self.no_ty_pred()
                 }
-            } else if let Some(decl) = sig.node_id {
+            } else if let Some(_decll) = sig.node_id {
                 // TODO: is_function_like_decl then get from body
                 self.no_ty_pred()
             } else {

@@ -406,6 +406,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node(n).is_var_decl() && self.node(self.parent(n).unwrap()).is_catch_clause()
     }
 
+    pub fn is_catch_clause_var_declaration(&self, id: ast::NodeID) -> bool {
+        self.node(id).is_var_decl() && self.node(self.parent(id).unwrap()).is_catch_clause()
+    }
+
     pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
         let mut n = self.node(id);
         loop {
@@ -774,10 +778,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return false;
         }
 
-        loop {
-            let Some(p_id) = self.parent(id) else {
-                break;
-            };
+        while let Some(p_id) = self.parent(id) {
             let p = self.node(p_id);
             if let Some(qualified) = p.as_qualified_name()
                 && qualified.left.id() == id
@@ -853,15 +854,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     ) -> (Option<&'cx ast::ParenTy<'cx>>, ast::NodeID) {
         let mut node = n;
         let mut child = None;
-        loop {
-            let Some(n) = self.node(node).as_paren_ty() else {
-                break;
-            };
+        while let Some(n) = self.node(node).as_paren_ty() {
             child = Some(n);
-            let Some(n) = self.parent(node) else {
+            let Some(parent) = self.parent(node) else {
                 break;
             };
-            node = n;
+            node = parent;
         }
         (child, node)
     }
@@ -1423,7 +1421,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
-    pub fn is_var_const(&self, node: ast::NodeID) -> bool {
+    pub fn is_var_const_like(&self, node: ast::NodeID) -> bool {
         let block_scope_kind = self
             .get_combined_node_flags(node)
             .intersection(ast::NodeFlags::BLOCK_SCOPED);
@@ -1639,9 +1637,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn subsequent_node(&self, node: ast::NodeID) -> Option<ast::NodeID> {
-        let Some(parent) = self.parent(node) else {
-            return None;
-        };
+        let parent = self.parent(node)?;
         match self.node(parent) {
             ast::Node::Program(n) => n
                 .stmts()

@@ -25,6 +25,7 @@ pub struct EarlyResolveResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn early_resolve_parallel<'cx>(
     modules: &[Module],
     states: &[BinderResult<'cx>],
@@ -57,6 +58,7 @@ pub fn early_resolve_parallel<'cx>(
         .collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn early_resolve<'cx>(
     states: &[BinderResult<'cx>],
     module_id: bolt_ts_span::ModuleID,
@@ -408,7 +410,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                                 }
                                 _ => {}
                             }
-                            self.resolve_binding(*name);
+                            self.resolve_binding(name);
                         }
                     }
                     if let Some(init) = elem.init {
@@ -1222,29 +1224,25 @@ pub fn resolve_symbol_by_ident<'a, 'cx>(
     let mut location = resolver.parent(ident.id);
     let mut property_with_invalid_initializer = None;
 
-    loop {
+    while let Some(id) = location {
         // TODO: if ident.name == keyword::KW_CONST && is_const_assertion
-        if let Some(id) = location {
-            let n = resolver.p.node(id);
-            if let Some(last) = last_location {
-                match n {
-                    ast::Node::BlockModuleDecl(n) if n.name.id() == last => {
-                        last_location = location;
-                        location = resolver.parent(id);
-                    }
-                    ast::Node::NestedModuleDecl(n) if n.name.id == last => {
-                        last_location = location;
-                        location = resolver.parent(id);
-                    }
-                    ast::Node::EnumDecl(decl) if decl.name.id == last => {
-                        last_location = location;
-                        location = resolver.parent(id);
-                    }
-                    _ => {}
+        let n = resolver.p.node(id);
+        if let Some(last) = last_location {
+            match n {
+                ast::Node::BlockModuleDecl(n) if n.name.id() == last => {
+                    last_location = location;
+                    location = resolver.parent(id);
                 }
+                ast::Node::NestedModuleDecl(n) if n.name.id == last => {
+                    last_location = location;
+                    location = resolver.parent(id);
+                }
+                ast::Node::EnumDecl(decl) if decl.name.id == last => {
+                    last_location = location;
+                    location = resolver.parent(id);
+                }
+                _ => {}
             }
-        } else {
-            break;
         }
         let Some(id) = location else {
             break;
@@ -1629,7 +1627,7 @@ fn check_var_declared_named_not_shadowed_for_variable_declaration<'a, 'cx>(
                             }
                         }
                         bolt_ts_ast::ObjectBindingName::Prop { name, .. } => {
-                            check_for_binding(r, *name, element.id);
+                            check_for_binding(r, name, element.id);
                         }
                     }
                 }

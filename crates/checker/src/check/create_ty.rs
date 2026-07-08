@@ -409,6 +409,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn create_anonymous_ty_with_resolved(
         &mut self,
         symbol: Option<SymbolID>,
@@ -436,6 +437,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn create_instantiating_anonymous_ty(
         &mut self,
         symbol: SymbolID,
@@ -1819,7 +1821,7 @@ impl<'cx> TyChecker<'cx> {
             .iter()
             .position(|t| t.flags.intersects(TypeFlags::NEVER.union(TypeFlags::UNION)))
         {
-            return if Self::check_cross_product_union(&tys) {
+            return if Self::check_cross_product_union(tys) {
                 self.map_ty(
                     tys[union_index],
                     |this, t| {
@@ -2252,7 +2254,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_promise_return_ty(
         &mut self,
-        node_id: ast::NodeID,
+        _node_idd: ast::NodeID,
         promised_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         let promise_ty = self.create_promise_ty(promised_ty);

@@ -203,7 +203,7 @@ impl<'cx> super::TyChecker<'cx> {
         n: &'cx ast::ImportEqualsDecl<'cx>,
     ) -> SymbolID {
         match n.module_reference {
-            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+            ast::ModuleReferenceKind::ExternalModuleReference(_nn) => {
                 // TODO:
                 Symbol::ERR
             }
@@ -310,7 +310,7 @@ impl<'cx> super::TyChecker<'cx> {
         module_symbol: SymbolID,
     ) -> &'cx SymbolTable {
         struct ExportCollisionTracker<'cx> {
-            spec: bolt_ts_atom::Atom,
+            _spec: bolt_ts_atom::Atom,
             exports_with_duplicated: thin_vec::ThinVec<&'cx bolt_ts_ast::ExportDecl<'cx>>,
         }
         struct ExportCollisionTrackerTable<'cx>(FxHashMap<SymbolName, ExportCollisionTracker<'cx>>);
@@ -348,7 +348,7 @@ impl<'cx> super::TyChecker<'cx> {
                             lookup_table.0.insert(
                                 id,
                                 ExportCollisionTracker {
-                                    spec: module_spec,
+                                    _spec: module_spec,
                                     exports_with_duplicated: Default::default(),
                                 },
                             );
@@ -571,7 +571,7 @@ impl<'cx> super::TyChecker<'cx> {
                 name.push_str(&pprint_ident(q.right, &self.atoms));
                 name
             }
-            ast::Node::PropAccessExpr(n) => {
+            ast::Node::PropAccessExpr(_nn) => {
                 todo!()
             }
             _ => unreachable!(),
@@ -882,7 +882,7 @@ impl<'cx> super::TyChecker<'cx> {
     fn late_bind_member(
         &mut self,
         parent: SymbolID,
-        early_symbols: &'cx SymbolTable,
+        _early_symbolss: &'cx SymbolTable,
         late_symbols: &mut SymbolTable,
         decl: ast::NodeID,
     ) -> SymbolID {
@@ -1022,7 +1022,7 @@ fn handle_members_for_label_symbol<'cx>(
 fn get_target_of_ns_import<'cx>(
     this: &mut TyChecker<'cx>,
     n: &'cx ast::NsImport<'cx>,
-    dont_resolve_alias: bool,
+    _dont_resolve_aliass: bool,
 ) -> Option<SymbolID> {
     let p = &this.p;
     let p_id = this.parent(n.id).unwrap();
@@ -1212,7 +1212,7 @@ fn report_non_exported_member(
 fn get_target_of_export_spec(
     this: &mut TyChecker<'_>,
     node: ast::NodeID,
-    meaning: SymbolFlags,
+    _meaningg: SymbolFlags,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let n = this.p.node(node);
@@ -1243,7 +1243,7 @@ fn get_target_of_export_spec(
             }
         }
         ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-            ast::ModuleExportNameKind::Ident(ident) => {
+            ast::ModuleExportNameKind::Ident(_identt) => {
                 let p = this.parent(node).unwrap();
                 let p = this.p.node(p).expect_specs_export();
                 if p.module.is_some() {
@@ -1356,7 +1356,7 @@ fn resolve_export_by_name(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     name: SymbolName,
-    node: bolt_ts_ast::NodeID,
+    _nodee: bolt_ts_ast::NodeID,
     dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let ms = binder_symbol(this, module_symbol);

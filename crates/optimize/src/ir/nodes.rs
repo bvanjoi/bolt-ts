@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bolt_ts_arena::la_arena;
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;

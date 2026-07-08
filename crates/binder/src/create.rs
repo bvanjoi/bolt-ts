@@ -54,6 +54,7 @@ impl BinderState<'_, '_, '_> {
         assert!(prev.is_none(), "prev: {:#?}", prev.unwrap());
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn declare_symbol(
         &mut self,
         name: Option<SymbolName>,

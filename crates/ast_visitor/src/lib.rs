@@ -11,9 +11,7 @@ pub trait VisitorResult {
 }
 
 impl VisitorResult for () {
-    fn output() -> Self {
-        ()
-    }
+    fn output() -> Self {}
 
     fn branch(&self) -> ControlFlow {
         ControlFlow::Continue

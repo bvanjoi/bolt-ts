@@ -713,7 +713,7 @@ impl<'cx> TyChecker<'cx> {
             super::TyLinks::default().with_param_ty_mapper(mapper),
         );
         debug_assert!(prev.is_none());
-        let new_alias_symbol = alias_symbol.or_else(|| map.alias_symbol);
+        let new_alias_symbol = alias_symbol.or(map.alias_symbol);
         let new_alias_ty_arguments = if alias_symbol.is_some() {
             alias_ty_arguments
         } else {
@@ -1108,7 +1108,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,
-        is_js: bool,
+        _is_jss: bool,
         inferred_ty_params: Option<ty::Tys<'cx>>,
     ) -> &'cx ty::Sig<'cx> {
         let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
@@ -1118,7 +1118,7 @@ impl<'cx> TyChecker<'cx> {
             self.get_min_ty_arg_count(sig_ty_params),
         );
         let sig = self.get_sig_instantiation_without_filling_type_arguments(sig, ty_args);
-        if let Some(inferred_ty_params) = inferred_ty_params {
+        if let Some(_inferred_ty_paramss) = inferred_ty_params {
             todo!()
         }
         sig

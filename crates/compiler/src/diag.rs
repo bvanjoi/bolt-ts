@@ -7,7 +7,6 @@ use bolt_ts_parser::ParseResultForGraph;
 use bolt_ts_span::Span;
 use bolt_ts_utils::no_hashset_with_capacity;
 
-use thiserror;
 use thiserror::Error;
 
 pub(super) fn get_merged_diags(

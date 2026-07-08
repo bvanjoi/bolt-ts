@@ -981,10 +981,10 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
         }
 
-        match expr.expr.kind {
-            ast::ExprKind::PropAccess(n) if self.contains_narrowable_reference(n.expr) => true,
-            _ => false,
-        }
+        matches!(
+            expr.expr.kind,
+            ast::ExprKind::PropAccess(n) if self.contains_narrowable_reference(n.expr)
+        )
     }
 
     fn contains_narrowable_reference(&self, expr: &'cx ast::Expr<'cx>) -> bool {

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod editor_services;
 mod services;
 

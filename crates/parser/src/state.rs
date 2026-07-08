@@ -48,7 +48,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) line_map: Vec<u32>,
     pub(super) is_declaration: bool,
     pub(super) filepath: Atom,
-    pub(super) in_ambient_module: bool,
+    pub(super) _in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
@@ -58,6 +58,7 @@ pub(super) struct ParserState<'cx, 'p> {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
@@ -104,7 +105,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             line: 0,
             filepath: atom,
             is_declaration,
-            in_ambient_module: false,
+            _in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap::default(),
             has_no_default_lib: false,
@@ -380,8 +381,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
             Ok(stmt)
         });
-        let program = self.create_program(self.new_span(start as u32), stmts);
-        program
+
+        (self.create_program(self.new_span(start as u32), stmts)) as _
     }
 
     pub(super) fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {

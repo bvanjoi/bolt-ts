@@ -42,6 +42,12 @@ pub struct Emitter {
     content: PPrint,
 }
 
+impl Default for Emitter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Emitter {
     pub fn new() -> Self {
         Self {
@@ -758,10 +764,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let block = ns.block();
 
         // var name
-        fn sub_names_of_binding<'cx>(
-            this: &JSEmitter,
-            binding: ir::Binding,
-        ) -> Vec<bolt_ts_atom::Atom> {
+        fn sub_names_of_binding(this: &JSEmitter, binding: ir::Binding) -> Vec<bolt_ts_atom::Atom> {
             match binding {
                 ir::Binding::Ident(n) => vec![this.nodes.get_ident(&n).name()],
                 ir::Binding::ObjectPat(n) => this

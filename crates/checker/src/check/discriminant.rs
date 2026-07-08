@@ -1,6 +1,7 @@
 use super::TyChecker;
 use super::ty;
 
+use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast};
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
@@ -20,7 +21,9 @@ impl<'cx> TyChecker<'cx> {
             || n.is_fn_expr_or_arrow_fn_expr()
             || n.is_object_method_member()
         {
-            if let ast::Node::Ident(n) = expr {
+            if let ast::Node::Ident(n) = expr
+                && n.name != keyword::KW_UNDEFINED
+            {
                 let symbol = self.final_res(n.id);
                 let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
                 if let Some(declaration) = self.symbol(symbol).value_decl
@@ -32,7 +35,9 @@ impl<'cx> TyChecker<'cx> {
                         {
                             true
                         }
-                        // TODO: array binding element
+                        ast::Node::ArrayBinding(n) if n.init.is_none() && n.dotdotdot.is_none() => {
+                            true
+                        }
                         ast::Node::ParamDecl(n) if n.init.is_none() && n.dotdotdot.is_none() => {
                             true
                         }
@@ -49,7 +54,7 @@ impl<'cx> TyChecker<'cx> {
             if self.is_matching_reference(refer, target.id()) {
                 return Some(expr.id());
             }
-        } else if let ast::Node::Ident(ident) = expr {
+        } else if let ast::Node::Ident(_identt) = expr {
             // TODO:
         }
 
@@ -66,18 +71,17 @@ impl<'cx> TyChecker<'cx> {
         if (declared_ty.flags.contains(ty::TypeFlags::UNION)
             || computed_ty.flags.contains(ty::TypeFlags::UNION))
             && let Some(access) = self.get_candidate_discriminant_prop_access(refer, expr)
+            && let Some(name) = self.get_accessed_prop_name(access)
         {
-            if let Some(name) = self.get_accessed_prop_name(access) {
-                let ty = if declared_ty.flags.contains(ty::TypeFlags::UNION)
-                    && self.is_type_subset_of(computed_ty, declared_ty)
-                {
-                    declared_ty
-                } else {
-                    computed_ty
-                };
-                if self.is_discriminant_prop(ty, name) {
-                    return Some(access);
-                }
+            let ty = if declared_ty.flags.contains(ty::TypeFlags::UNION)
+                && self.is_type_subset_of(computed_ty, declared_ty)
+            {
+                declared_ty
+            } else {
+                computed_ty
+            };
+            if self.is_discriminant_prop(ty, name) {
+                return Some(access);
             }
         }
         None

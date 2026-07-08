@@ -107,17 +107,16 @@ impl<'cx> ParserState<'cx, '_> {
                 if ms
                     .flags
                     .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-                {
-                    if !flags.contains(
+                    && !flags.contains(
                         CheckParameterFlags::MISSING_BODY.union(CheckParameterFlags::CONSTRUCTOR),
-                    ) {
-                        let error = Box::new(
-                            errors::AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
-                                span: ms.span,
-                            },
-                        );
-                        self.push_error(error);
-                    }
+                    )
+                {
+                    let error = Box::new(
+                        errors::AParameterPropertyIsOnlyAllowedInAConstructorImplementation {
+                            span: ms.span,
+                        },
+                    );
+                    self.push_error(error);
                 }
 
                 let mut flags = ModifierFlags::empty();
@@ -416,7 +415,7 @@ impl<'cx> ParserState<'cx, '_> {
                 let expr = self.create_binary_expression(self.new_span(start), left, op, right);
                 ast::ExprKind::Bin(expr)
             };
-            left = self.alloc(ast::Expr { kind: kind });
+            left = self.alloc(ast::Expr { kind });
         }
     }
 
@@ -647,10 +646,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
         if let ast::ExprKind::NonNull(non_null) = n.kind {
             let mut expr = non_null.expr;
-            loop {
-                let ast::ExprKind::NonNull(non_null) = expr.kind else {
-                    break;
-                };
+            while let ast::ExprKind::NonNull(non_null) = expr.kind {
                 if self
                     .node_flags_map
                     .get(expr.id())
@@ -1004,7 +1000,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             _ => unreachable!(),
         };
-        self.alloc(ast::Expr { kind: kind })
+        self.alloc(ast::Expr { kind })
     }
 
     fn make_super_expr(&mut self) -> &'cx ast::Expr<'cx> {
@@ -1339,16 +1335,16 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> PResult<&'cx ast::Expr<'cx>> {
         loop {
             let mut question_dot_token = None;
-            let mut is_property_access = false;
-
-            if allow_optional_chain && self.is_start_of_optional_prop_or_element_access_chain() {
+            let is_property_access = if allow_optional_chain
+                && self.is_start_of_optional_prop_or_element_access_chain()
+            {
                 let old = self.token.span;
                 self.expect(TokenKind::QuestionDot);
                 question_dot_token = Some(old);
-                is_property_access = self.token.kind.is_ident_or_keyword();
+                self.token.kind.is_ident_or_keyword()
             } else {
-                is_property_access = self.parse_optional(TokenKind::Dot).is_some();
-            }
+                self.parse_optional(TokenKind::Dot).is_some()
+            };
 
             if is_property_access {
                 let prop = self.parse_prop_access_expr_rest(start, expr, question_dot_token);

@@ -1,5 +1,8 @@
 use std::cell::OnceCell;
 
+use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
+
 use super::ContextFlags;
 use super::FlowLoopTypesArenaId;
 use super::TyChecker;
@@ -18,14 +21,12 @@ use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{FlowFlags, FlowID, FlowInNode, FlowNode, FlowNodeKind};
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 use bolt_ts_ty::CheckFlags;
-use rustc_hash::FxHashMap;
-use rustc_hash::FxHashSet;
 
 #[derive(Debug, Clone, Copy)]
 pub enum FlowTy<'cx> {
     Ty(&'cx ty::Ty<'cx>),
     Incomplete {
-        flags: TypeFlags,
+        _flags: TypeFlags,
         ty: &'cx ty::Ty<'cx>,
     },
 }
@@ -130,7 +131,7 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
 
-        let is_element_assignment = parent_node.as_ele_access_expr().is_some_and(|parent_node| {
+        parent_node.as_ele_access_expr().is_some_and(|parent_node| {
             parent_node.expr.id() == root && {
                 let parent_parent = self.parent(parent).unwrap();
                 let parent_parent_node = self.p.node(parent_parent);
@@ -147,10 +148,10 @@ impl<'cx> TyChecker<'cx> {
                             }
                     })
             }
-        });
-        is_element_assignment
+        })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_node(
         &mut self,
         mut flow: FlowID,
@@ -308,6 +309,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_array_mutation(
         &mut self,
         flow: FlowID,
@@ -410,6 +412,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_type_at_switch_clause(
         &mut self,
         flow: FlowID,
@@ -690,6 +693,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_branch_label(
         &mut self,
         flow: FlowID,
@@ -782,6 +786,7 @@ impl<'cx> TyChecker<'cx> {
         self.create_flow_ty(ty, seen_incomplete)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_loop_label(
         &mut self,
         flow: FlowID,
@@ -1059,6 +1064,7 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_assign(
         &mut self,
         flow: FlowID,
@@ -1145,7 +1151,7 @@ impl<'cx> TyChecker<'cx> {
             }
             if let ast::Node::VarDecl(n) = self.p.node(node)
                 && let nq = self.node_query(node.module())
-                && (nq.is_var_const(node) || nq.is_in_js_file(node))
+                && (nq.is_var_const_like(node) || nq.is_in_js_file(node))
                 && let Some(init) = n.init.and_then(|init| init.kind.get_expando_init(false))
                 && matches!(init, ast::ExprKind::Fn(_) | ast::ExprKind::ArrowFn(_))
             {
@@ -1167,7 +1173,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(FlowTy::Ty(declared_ty));
         }
 
-        if let ast::Node::VarDecl(n) = self.p.node(node)
+        if let ast::Node::VarDecl(_nn) = self.p.node(node)
             && let ast::Node::ForInStmt(for_in_stmt) = self.p.node(self.parent(node).unwrap())
             && (self.is_matching_reference(refer, for_in_stmt.expr.id())
                 || self.optional_chain_contains_reference(for_in_stmt.expr.id(), refer))
@@ -1189,6 +1195,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_call(
         &mut self,
         flow: FlowID,
@@ -1254,6 +1261,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_ty_at_flow_cond(
         &mut self,
         flow: FlowID,
@@ -1487,12 +1495,17 @@ impl<'cx> TyChecker<'cx> {
         let expr_node = self.p.node(expr);
         if let ast::Node::Ident(node) = expr_node
             && !self.is_matching_reference(refer, node.id)
+            //TODO: inline_level < 5
             && let symbol = self.final_res(expr)
             && let s = self.symbol(symbol)
             && self.is_constant_variable(s)
+            && let Some(value_declaration) = s.value_decl
+            && let ast::Node::VarDecl(n) = self.p.node(value_declaration)
+            && n.ty.is_none()
+            && let Some(init) = n.init
+            && self.is_constant_reference(refer)
         {
-            //TODO: inline_level < 5
-            let value_decl = s.value_decl.unwrap();
+            return self.narrow_ty(ty, declared_ty, refer, init.id(), assume_true);
         }
 
         match expr_node {
@@ -1740,8 +1753,8 @@ impl<'cx> TyChecker<'cx> {
             LogicalAnd => {
                 if assume_true {
                     let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), true);
-                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true);
-                    ty
+
+                    (self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true)) as _
                 } else {
                     let a = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
                     let b = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false);
@@ -1769,8 +1782,8 @@ impl<'cx> TyChecker<'cx> {
                     )
                 } else {
                     let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
-                    let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false);
-                    ty
+
+                    (self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false)) as _
                 }
             }
             _ => ty,
@@ -1809,19 +1822,17 @@ impl<'cx> TyChecker<'cx> {
                 this.is_ty_presence_possible(t, name, assume_true)
             });
         }
-        if assume_true {
-            if let Some(record_symbol) = self.get_global_record_symbol() {
-                let tys = vec![
-                    ty,
-                    self.get_type_alias_instantiation(
-                        record_symbol,
-                        self.alloc([named_ty, self.unknown_ty]),
-                        None,
-                        None,
-                    ),
-                ];
-                return self.get_intersection_ty(&tys, IntersectionFlags::None, None, None);
-            }
+        if assume_true && let Some(record_symbol) = self.get_global_record_symbol() {
+            let tys = vec![
+                ty,
+                self.get_type_alias_instantiation(
+                    record_symbol,
+                    self.alloc([named_ty, self.unknown_ty]),
+                    None,
+                    None,
+                ),
+            ];
+            return self.get_intersection_ty(&tys, IntersectionFlags::None, None, None);
         }
 
         ty
@@ -1902,6 +1913,7 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn narrow_ty_by_typeof(
         &mut self,
         mut ty: &'cx ty::Ty<'cx>,
@@ -2209,33 +2221,31 @@ impl<'cx> TyChecker<'cx> {
                 ast::Node::EleAccessExpr(n) => Some(n.expr),
                 _ => None,
             }
-        {
-            if call_access.name.name == keyword::IDENT_HAS_OWN_PROPERTY
-                && call_expr.args.len() == 1
-                && let reference_candidate = self.get_reference_candidate(call_access.expr)
-                && self.is_matching_reference(reference_access_expr.id(), reference_candidate.id())
-                && let argument = call_expr.args[0]
-                && match argument.kind {
-                    ast::ExprKind::StringLit(s)
-                        if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
-                    {
-                        access_property_name.as_atom().is_some_and(|p| p == s.val)
-                    }
-                    ast::ExprKind::NoSubstitutionTemplateLit(s)
-                        if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
-                    {
-                        access_property_name.as_atom().is_some_and(|p| p == s.val)
-                    }
-                    _ => false,
+            && call_access.name.name == keyword::IDENT_HAS_OWN_PROPERTY
+            && call_expr.args.len() == 1
+            && let reference_candidate = self.get_reference_candidate(call_access.expr)
+            && self.is_matching_reference(reference_access_expr.id(), reference_candidate.id())
+            && let argument = call_expr.args[0]
+            && match argument.kind {
+                ast::ExprKind::StringLit(s)
+                    if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
+                {
+                    access_property_name.as_atom().is_some_and(|p| p == s.val)
                 }
-            {
-                let facts = if assume_true {
-                    TypeFacts::NE_UNDEFINED
-                } else {
-                    TypeFacts::EQ_UNDEFINED
-                };
-                return self.get_ty_with_facts(ty, facts);
+                ast::ExprKind::NoSubstitutionTemplateLit(s)
+                    if let Some(access_property_name) = self.get_accessed_prop_name(refer) =>
+                {
+                    access_property_name.as_atom().is_some_and(|p| p == s.val)
+                }
+                _ => false,
             }
+        {
+            let facts = if assume_true {
+                TypeFacts::NE_UNDEFINED
+            } else {
+                TypeFacts::EQ_UNDEFINED
+            };
+            return self.get_ty_with_facts(ty, facts);
         }
         ty
     }
@@ -2653,7 +2663,7 @@ impl<'cx> TyChecker<'cx> {
                     right: prop_name,
                 }))
             }
-            EleAccessExpr(n) => {
+            EleAccessExpr(_nn) => {
                 // TODO: try_get_element_access_name
                 None
             }
@@ -2674,12 +2684,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_flow_type_of_access_expression_worker(
         &mut self,
         n: ast::NodeID,
         prop: Option<SymbolID>,
         prop_ty: &'cx ty::Ty<'cx>,
-        error_node: Option<ast::NodeID>,
+        _error_nodee: Option<ast::NodeID>,
         check_mode: Option<super::CheckMode>,
         assignment_kind: AssignmentKind,
         object_expr_is_strict_and_under_strict: bool,
@@ -2965,6 +2976,6 @@ impl PropertyInitializerInClassConstructorMap {
     pub(super) fn has(&self, constructor: &ast::ClassCtor<'_>, property: ast::NodeID) -> bool {
         self.0
             .get(&constructor.id)
-            .map_or(false, |properties| properties.contains(&property))
+            .is_some_and(|properties| properties.contains(&property))
     }
 }

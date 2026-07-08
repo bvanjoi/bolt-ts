@@ -143,7 +143,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut check_ident_is_keyword = self.token.kind.is_keyword() && !self.is_ident();
         let mut check_ident_start = self.token.start();
         let mut check_ident_end = self.token.end();
-        let mut is_type_only = false;
+        let mut _is_type_only = false;
         let mut can_parse_as_keyword: bool = true;
         let mut prop_name = None;
         let mut name = self.parse_module_export_name(|this| this.create_ident(true, None));
@@ -160,7 +160,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     can_parse_as_keyword = false;
                     if self.token.kind.can_parse_module_export_name() {
                         // `{type as as ident}` or `{type as as "stringLit"}`
-                        is_type_only = true;
+                        _is_type_only = true;
                         prop_name = Some(self.alloc(ast::ModuleExportName {
                             kind: ast::ModuleExportNameKind::Ident(first_as),
                         }));
@@ -189,14 +189,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     );
                 } else {
                     // `{type as }`
-                    is_type_only = true;
+                    _is_type_only = true;
                     name = self.alloc(ast::ModuleExportName {
                         kind: ast::ModuleExportNameKind::Ident(first_as),
                     });
                 }
             } else if self.token.kind.can_parse_module_export_name() {
                 // `{type ident ... }` or `{type "stringLit" ...}`
-                is_type_only = true;
+                _is_type_only = true;
                 name = kind.parse_name(
                     self,
                     &mut check_ident_is_keyword,

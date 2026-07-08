@@ -1,5 +1,5 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_binder::{MergeSymbol, SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
 use bolt_ts_middle::F64Represent;
 use bolt_ts_span::Span;
 use bolt_ts_utils::{FxIndexMap, FxIndexSet};
@@ -776,7 +776,7 @@ impl<'cx> TyChecker<'cx> {
             );
         // TODO: should we only store the result when `ret.is_some()`?
         if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
-            let prev = self
+            let _prevv = self
                 .union_or_intersection_property_cache_without_object_function_property_augment
                 .insert(key, ret);
             // debug_assert!(prev.is_none())
@@ -851,7 +851,7 @@ impl<'cx> TyChecker<'cx> {
                         let is_instantiation =
                             self.get_target_symbol(prop) == self.get_target_symbol(single_prop);
                         if is_instantiation
-                            && self.compare_props(single_prop, prop, |this, a, b, _| {
+                            && self.compare_props(single_prop, prop, |_thiss, a, b, _| {
                                 if a == b {
                                     Ternary::TRUE
                                 } else {
@@ -862,7 +862,7 @@ impl<'cx> TyChecker<'cx> {
                             merged_instantiations =
                                 self.symbol(single_prop).parent.is_some_and(|p| {
                                     self.get_local_ty_params_of_class_or_interface_or_type_alias(p)
-                                        .map_or(false, |params| !params.is_empty())
+                                        .is_some_and(|params| !params.is_empty())
                                 });
                         } else {
                             if let Some(prop_set) = &mut prop_set {
@@ -984,9 +984,9 @@ impl<'cx> TyChecker<'cx> {
             && (!prop_flags.is_empty() || check_flags.contains(CheckFlags::PARTIAL))
             && check_flags
                 .intersects(CheckFlags::CONTAINS_PRIVATE.union(CheckFlags::CONTAINS_PROTECTED))
-            && !prop_set
+            && prop_set
                 .as_ref()
-                .is_some_and(|prop_set| get_common_declaration_of_symbols(self, prop_set).is_some())
+                .is_none_or(|prop_set| get_common_declaration_of_symbols(self, prop_set).is_none())
         {
             return None;
         }
@@ -1045,7 +1045,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or_else(|| vec![single_prop]);
 
         let mut first_value_declaration = None;
-        let mut has_non_uniform_value_declaration = false;
+        let mut _has_non_uniform_value_declaration = false;
         let mut declarations: Option<thin_vec::ThinVec<bolt_ts_ast::NodeID>> = None;
         let mut first_ty = None;
         let mut name_ty = None;
@@ -1057,7 +1057,7 @@ impl<'cx> TyChecker<'cx> {
             let prop_value_decl = s.value_decl;
             if let Some(first_value_decl) = first_value_declaration {
                 if prop_value_decl.is_some_and(|d| d == first_value_decl) {
-                    has_non_uniform_value_declaration = true;
+                    _has_non_uniform_value_declaration = true;
                 }
             } else {
                 first_value_declaration = prop_value_decl;
@@ -1331,7 +1331,7 @@ impl<'cx> TyChecker<'cx> {
                 &mut ty_params,
             );
 
-            if has_constraint_marker == true {
+            if has_constraint_marker {
                 // get generic ty reference relation key
                 return RelationKey::Generic {
                     source,

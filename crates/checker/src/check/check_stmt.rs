@@ -245,7 +245,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
-        let Some(module_name) = self.p.node(node).get_external_module_name() else {
+        let Some(_module_namee) = self.p.node(node).get_external_module_name() else {
             return false;
         };
         // TODO: more checks
@@ -514,19 +514,15 @@ impl<'cx> TyChecker<'cx> {
         if s.flags.intersects(SymbolFlags::VALUE_MODULE)
             && !in_ambient_context
             && self.is_instantiate_module(module_block)
+            && s.decls.as_ref().is_some_and(|decls| decls.len() > 1)
+            && let Some(first_none_ambient_class_or_fn) =
+                self.get_first_non_ambient_class_or_fn_decl(s)
+            && span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo()
         {
-            if s.decls.as_ref().is_some_and(|decls| decls.len() > 1) {
-                if let Some(first_none_ambient_class_or_fn) =
-                    self.get_first_non_ambient_class_or_fn_decl(s)
-                {
-                    if span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo() {
-                        let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+            let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
                             span: module_name.span(),
                         };
-                        self.push_error(Box::new(error));
-                    }
-                }
-            }
+            self.push_error(Box::new(error));
         }
     }
 
@@ -669,7 +665,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(id) = id {
             self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
         }
-        return Some(ty);
+        Some(ty)
     }
 
     pub(super) fn is_reference_to_ty(
@@ -753,7 +749,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         if candidates.is_empty() {
-            let Some(this_ty_for_error) = this_ty_for_error else {
+            let Some(_this_ty_for_errorr) = this_ty_for_error else {
                 unreachable!()
             };
             // TODO: error
@@ -895,7 +891,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let fn_flags = self.p.node(container).fn_flags();
         let unwrapped_expr_ty = if fn_flags.contains(ast::FnFlags::ASYNC) {
-            self.check_awaited_ty(expr_ty, false, container, |this| {})
+            self.check_awaited_ty(expr_ty, false, container, |_thiss| {})
         } else {
             expr_ty
         };

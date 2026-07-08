@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod cli;
 mod compiler_result;
 mod diag;
@@ -213,6 +215,7 @@ pub fn eval_from_memory_path<'cx>(
     eval_from_memory_path_worker(cwd, default_lib_dir, parser_arena, type_arena, fs, atoms)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     root: PathBuf,
     tsconfig: NormalizedTsConfig,

@@ -569,12 +569,12 @@ impl<'cx> Node<'cx> {
     pub fn fn_body(&self) -> Option<super::ArrowFnExprBody<'cx>> {
         match self {
             self::Node::ArrowFnExpr(f) => Some(f.body),
-            self::Node::FnExpr(f) => Some(super::ArrowFnExprBody::Block(&f.body)),
-            self::Node::ObjectMethodMember(f) => Some(super::ArrowFnExprBody::Block(&f.body)),
-            self::Node::FnDecl(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
-            self::Node::ClassMethodElem(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
-            self::Node::ClassCtor(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
-            self::Node::GetterDecl(f) => f.body.map(|b| super::ArrowFnExprBody::Block(b)),
+            self::Node::FnExpr(f) => Some(super::ArrowFnExprBody::Block(f.body)),
+            self::Node::ObjectMethodMember(f) => Some(super::ArrowFnExprBody::Block(f.body)),
+            self::Node::FnDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
+            self::Node::ClassMethodElem(f) => f.body.map(super::ArrowFnExprBody::Block),
+            self::Node::ClassCtor(f) => f.body.map(super::ArrowFnExprBody::Block),
+            self::Node::GetterDecl(f) => f.body.map(super::ArrowFnExprBody::Block),
             _ => None,
         }
     }
@@ -640,7 +640,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn has_syntactic_modifier(&self, flags: ModifierFlags) -> bool {
-        self.modifier_flags().map_or(false, |n| n.intersects(flags))
+        self.modifier_flags().is_some_and(|n| n.intersects(flags))
     }
 
     pub fn has_abstract_modifier(&self) -> bool {
@@ -849,10 +849,7 @@ impl<'cx> Node<'cx> {
     }
 
     pub fn is_access_expr(&self) -> bool {
-        match self {
-            Node::PropAccessExpr(_) | Node::EleAccessExpr(_) => true,
-            _ => false,
-        }
+        matches!(self, Node::PropAccessExpr(_) | Node::EleAccessExpr(_))
     }
 
     pub fn is_same_kind(&self, other: &Self) -> bool {

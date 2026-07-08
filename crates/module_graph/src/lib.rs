@@ -53,6 +53,7 @@ impl ModuleGraph {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_graph<'cx>(
     module_arena: &mut ModuleArena,
     list: &[ModuleID],

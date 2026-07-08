@@ -4,29 +4,35 @@ use super::define_step::Step;
 use serde_yaml::{Mapping, Value};
 
 #[derive(Debug, Clone, Copy)]
-pub enum RunOn {
+pub enum RunsOn {
     UbuntuLatest,
+    // MacOSLatest,
+    // WindowsLatest,
 }
 
-impl RunOn {
+impl RunsOn {
     pub fn as_str(&self) -> &str {
         match self {
-            RunOn::UbuntuLatest => "ubuntu-latest",
+            RunsOn::UbuntuLatest => "ubuntu-latest",
+            // RunsOn::MacOSLatest => "macos-latest",
+            // RunsOn::WindowsLatest => "windows-latest",
         }
     }
 }
 
-impl GenerateGithubYaml for RunOn {
+impl GenerateGithubYaml for RunsOn {
     fn to_yaml(&self) -> Value {
         match self {
-            RunOn::UbuntuLatest => Value::String("ubuntu-latest".to_string()),
+            RunsOn::UbuntuLatest => Value::String("ubuntu-latest".to_string()),
+            // RunsOn::MacOSLatest => Value::String("macos-latest".to_string()),
+            // RunsOn::WindowsLatest => Value::String("windows-latest".to_string()),
         }
     }
 }
 
 pub trait Job {
     fn job_id(&self) -> &str;
-    fn runs_on(&self) -> Vec<RunOn>;
+    fn runs_on(&self) -> Vec<RunsOn>;
     fn steps(&self) -> Vec<Step>;
     fn needs(&self) -> Option<Vec<&str>> {
         None

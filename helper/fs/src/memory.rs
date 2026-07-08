@@ -59,10 +59,10 @@ impl MemoryFS {
                 fs.create_dir(current_str).unwrap();
             }
             let path_str = path.to_str().unwrap();
-            if let Ok(metadata) = fs.metadata(path_str) {
-                if metadata.file_type == vfs::VfsFileType::Directory {
-                    return Err(errors::FsError::DirExists(PathId::new(&path, atoms)));
-                }
+            if let Ok(metadata) = fs.metadata(path_str)
+                && metadata.file_type == vfs::VfsFileType::Directory
+            {
+                return Err(errors::FsError::DirExists(PathId::new(&path, atoms)));
             }
             let mut file = fs.create_file(path_str).unwrap();
             file.write_all(content.as_bytes()).unwrap();
@@ -116,11 +116,7 @@ impl CachedFileSystem for MemoryFS {
         atoms: &mut AtomIntern,
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         let path_str = path.to_str().unwrap();
-        let path_str = if path_str.ends_with('/') {
-            &path_str[..path_str.len() - 1]
-        } else {
-            path_str
-        };
+        let path_str = path_str.strip_suffix('/').unwrap_or(path_str);
         if let Ok(metadata) = self.fs.metadata(path_str) {
             if metadata.file_type == vfs::VfsFileType::File {
                 return Err(errors::FsError::NotADir(PathId::new(path, atoms)));

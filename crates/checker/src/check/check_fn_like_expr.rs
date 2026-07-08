@@ -232,14 +232,12 @@ impl<'cx> TyChecker<'cx> {
                     && let n = self.p.node(id)
                     && n.ty_params().is_none()
                     && contextual_sig.params.len() > n.params().map_or(0, |params| params.len())
+                    && let Some(check_mode) = check_mode
+                    && check_mode.contains(CheckMode::INFERENTIAL)
                 {
-                    if let Some(check_mode) = check_mode
-                        && check_mode.contains(CheckMode::INFERENTIAL)
-                    {
-                        let inference_context = self.get_inference_context(id);
-                        let inference = inference_context.unwrap().inference.unwrap();
-                        self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
-                    }
+                    let inference_context = self.get_inference_context(id);
+                    let inference = inference_context.unwrap().inference.unwrap();
+                    self.infer_from_annotated_params_and_return(sig, contextual_sig, inference);
                 }
                 if contextual_sig.is_some()
                     && self.get_ret_ty_from_anno(id).is_none()
@@ -303,7 +301,7 @@ impl<'cx> TyChecker<'cx> {
             if fn_flags.intersection(ast::FnFlags::INVALID.union(ast::FnFlags::GENERATOR))
                 == ast::FnFlags::GENERATOR
             {
-                let ret_ty = self.get_ty_from_type_node(ret_ty_node);
+                let _ret_tyy = self.get_ty_from_type_node(ret_ty_node);
                 // TODO:
             } else if fn_flags.intersection(ast::FnFlags::ASYNC_GENERATOR) == ast::FnFlags::ASYNC {
                 self.check_async_fn_ret_ty(id, ret_ty_node, ret_ty_error_location);
@@ -313,7 +311,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_async_fn_ret_ty(
         &mut self,
-        id: ast::NodeID,
+        _idd: ast::NodeID,
         ret_ty_node: &'cx ast::Ty<'cx>,
         ret_ty_error_location: &'cx ast::Ty<'cx>,
     ) {
@@ -343,8 +341,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         with_alias: bool,
-        error_node: ast::NodeID,
-        push_error: impl FnOnce(&mut Self),
+        _error_nodee: ast::NodeID,
+        _push_errorr: impl FnOnce(&mut Self),
     ) -> &'cx ty::Ty<'cx> {
         let awaited_ty = if with_alias {
             self.get_awaited_ty(ty)
