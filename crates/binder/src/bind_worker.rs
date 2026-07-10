@@ -395,11 +395,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ParamDecl(n) => self.bind_param_decl(n),
             VarDecl(n) => self.bind_var_decl(n),
             ObjectBindingElem(n) => {
-                // self.flow_nodes
-                //     .insert_container_map(n.id, self.current_flow.unwrap());
+                self.flow_nodes
+                    .insert_flow_of_node(n.id, self.current_flow.unwrap());
                 self.bind_object_binding_ele(n);
             }
-            ArrayBinding(n) => self.bind_array_binding(n),
+            ArrayBinding(n) => {
+                self.flow_nodes
+                    .insert_flow_of_node(n.id, self.current_flow.unwrap());
+                self.bind_array_binding(n);
+            }
             PropSignature(ast::PropSignature { name, question, .. })
             | ClassPropElem(ast::ClassPropElem { name, question, .. }) => {
                 // TODO: is_auto_accessor

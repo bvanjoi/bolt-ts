@@ -844,12 +844,11 @@ impl<'cx> TyChecker<'cx> {
             });
         }
 
-        let node_check_flags;
-        if is_call_expr || self.p.node(container).is_static() {
-            node_check_flags = NodeCheckFlags::SUPER_STATIC;
+        let node_check_flags = if is_call_expr || self.p.node(container).is_static() {
+            NodeCheckFlags::SUPER_STATIC
         } else {
-            node_check_flags = NodeCheckFlags::SUPER_INSTANCE;
-        }
+            NodeCheckFlags::SUPER_INSTANCE
+        };
 
         let _ = self.get_node_links(node.id);
         self.get_mut_node_links(node.id)

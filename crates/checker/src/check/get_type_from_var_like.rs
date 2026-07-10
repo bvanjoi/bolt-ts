@@ -320,7 +320,7 @@ impl<'cx> TyChecker<'cx> {
                 None,
                 None,
             );
-            self.get_flow_type_of_object_destructuring(binding.id, decl_ty)
+            self.get_flow_type_of_destructing_for_object_binding_element(binding, decl_ty)
         };
         if binding.init().is_none() {
             return element_ty;
@@ -357,53 +357,42 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_flow_type_of_object_destructuring(
+    fn get_flow_type_of_destructing_for_object_binding_element(
         &mut self,
-        n: ast::NodeID,
+        n: &'cx ast::ObjectBindingElem<'cx>,
         declared_ty: &'cx Ty<'cx>,
     ) -> &'cx Ty<'cx> {
-        let parent = match self.p.node(n) {
-            ast::Node::ObjectBindingElem(_) => {
-                let parent = self.parent(n).unwrap();
-                debug_assert!(self.p.node(parent).is_object_pat());
-                self.parent(parent).unwrap()
-            }
-            ast::Node::ObjectPropAssignment(_) | ast::Node::ObjectShorthandMember(_) => {
-                let parent = self.parent(n).unwrap();
-                debug_assert!(self.p.node(parent).is_object_lit());
-                self.parent(parent).unwrap()
-            }
-            _ => unreachable!(),
-        };
-        match self.p.node(parent) {
-            ast::Node::VarDecl(parent)
-                if let Some(init) = parent.init
-                    && let Some(flow) = self.get_flow_node_of_node(init.id()) =>
-            {
-                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
-            }
-            ast::Node::AssignExpr(parent)
-                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) =>
-            {
-                self.get_flow_ty_of_reference(n, declared_ty, None, None, Some(flow))
-            }
-            ast::Node::PropAccessExpr(_) => {
-                // TODO:
-                declared_ty
-            }
-            ast::Node::ArrayLit(_) => {
-                // TODO:
-                declared_ty
+        debug_assert!(self.get_flow_node_of_node(n.id).is_some());
+        let parent = self.parent(n.id).unwrap();
+        debug_assert!(self.p.node(parent).is_object_pat());
+        let parent_parent = self.parent(parent).unwrap();
+        match self.p.node(parent_parent) {
+            ast::Node::VarDecl(parent_parent_node) => {
+                if let Some(init) = parent_parent_node.init
+                    && let Some(flow) = self.get_flow_node_of_node(init.id())
+                {
+                    debug_assert_eq!(
+                        self.get_flow_node_of_node(n.id),
+                        Some(flow),
+                        "node: {:#?}",
+                        n.span
+                    );
+                    self.get_flow_ty_of_reference(n.id, declared_ty, None, None, Some(flow))
+                } else {
+                    declared_ty
+                }
             }
             ast::Node::ObjectBindingElem(_) => {
-                // TODO:
-                declared_ty
+                self.get_flow_ty_of_reference(n.id, declared_ty, None, None, None)
             }
             ast::Node::ArrayBinding(_) => {
-                // TODO:
+                // TODO: flow for array binding
                 declared_ty
             }
-            _ => declared_ty,
+            ast::Node::ParamDecl(_) => declared_ty,
+            parent_parent_node => {
+                todo!("more case. n: {n:#?}, parent_parent: {parent_parent_node:#?}",)
+            }
         }
     }
 

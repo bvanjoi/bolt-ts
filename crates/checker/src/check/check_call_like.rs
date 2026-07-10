@@ -490,8 +490,7 @@ impl<'cx> TyChecker<'cx> {
         };
         if let Some(i) = first_base.kind.as_intersection() {
             let mixin_flags = self.find_mixins(i.tys);
-            let mut index = 0;
-            for intersection_member in i.tys {
+            for (index, intersection_member) in i.tys.iter().enumerate() {
                 if !mixin_flags[index]
                     && intersection_member
                         .get_object_flags()
@@ -504,7 +503,6 @@ impl<'cx> TyChecker<'cx> {
                         return true;
                     }
                 }
-                index += 1;
             }
             return false;
         }

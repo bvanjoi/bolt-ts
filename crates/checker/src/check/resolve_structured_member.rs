@@ -569,10 +569,9 @@ impl<'cx> TyChecker<'cx> {
                         .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                         .collect::<Vec<_>>();
                     index_infos.extend(instantiated_index_infos);
-                } else if {
-                    let key_ty = self.any_base_type_index_info().key_ty;
-                    self.find_index_info(&index_infos, key_ty).is_none()
-                } {
+                } else if let key_ty = self.any_base_type_index_info().key_ty
+                    && self.find_index_info(&index_infos, key_ty).is_none()
+                {
                     index_infos.push(self.any_base_type_index_info());
                 }
             }

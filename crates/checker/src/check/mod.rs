@@ -9,12 +9,7 @@
     clippy::only_used_in_recursion,
     clippy::nonminimal_bool,
     clippy::unnecessary_get_then_check,
-    clippy::needless_update,
-    clippy::needless_late_init,
-    clippy::explicit_counter_loop,
-    clippy::drop_non_drop,
-    clippy::borrow_deref_ref,
-    clippy::blocks_in_conditions
+    clippy::borrow_deref_ref
 )]
 
 mod assign;
@@ -2934,7 +2929,7 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                let ty = self.get_flow_type_of_object_destructuring(n.id, element_ty);
+                let ty = self.get_flow_type_of_destructing_for_property_assignment(n, element_ty);
                 self.check_destructing_assignment::<RIGHT_IS_THIS>(n.init.id(), ty, None);
             }
             ast::ObjectMemberKind::Shorthand(n) => {
@@ -2965,12 +2960,58 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                let ty = self.get_flow_type_of_object_destructuring(n.id, element_ty);
+                let ty = self.get_flow_type_of_destructing_for_shorthand_assignment(n, element_ty);
                 self.check_destructing_assignment::<RIGHT_IS_THIS>(n.id, ty, None);
             }
             _ => {
                 // TODO:
             }
+        }
+    }
+
+    fn get_flow_type_of_destructing_for_property_assignment(
+        &mut self,
+        n: &'cx ast::ObjectPropAssignment<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let parent = self.parent(n.id).unwrap();
+        debug_assert!(self.p.node(parent).is_object_lit());
+        let parent_parent = self.parent(parent).unwrap();
+        match self.p.node(parent_parent) {
+            ast::Node::AssignExpr(parent) => {
+                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) {
+                    debug_assert_eq!(
+                        self.get_flow_node_of_node(n.name.id()),
+                        Some(flow),
+                        "node: {n:#?}",
+                    );
+                    self.get_flow_ty_of_reference(n.id, declared_ty, None, None, Some(flow))
+                } else {
+                    declared_ty
+                }
+            }
+            _ => todo!("more case"),
+        }
+    }
+
+    fn get_flow_type_of_destructing_for_shorthand_assignment(
+        &mut self,
+        n: &'cx ast::ObjectShorthandMember<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let parent = self.parent(n.id).unwrap();
+        debug_assert!(self.p.node(parent).is_object_lit());
+        let parent_parent = self.parent(parent).unwrap();
+        match self.p.node(parent_parent) {
+            ast::Node::AssignExpr(parent) => {
+                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) {
+                    debug_assert_eq!(self.get_flow_node_of_node(n.name.id), Some(flow));
+                    self.get_flow_ty_of_reference(n.id, declared_ty, None, None, Some(flow))
+                } else {
+                    declared_ty
+                }
+            }
+            _ => todo!("more case"),
         }
     }
 
@@ -4622,7 +4663,6 @@ impl<'cx> TyChecker<'cx> {
         };
 
         bolt_ts_ast_visitor::visit_block_stmt(&mut visitor, body);
-        drop(visitor);
         (yield_tys, next_tys)
     }
 
@@ -5532,14 +5572,20 @@ impl<'cx> TyChecker<'cx> {
                             debug_assert!(self.p.node(parent).is_object_pat());
                             let parent_parent = self.parent(parent).unwrap();
                             match self.p.node(parent_parent) {
-                                ast::Node::VarDecl(parent_parent_node)
-                                    if let Some(init) = parent_parent_node.init =>
-                                {
+                                ast::Node::VarDecl(parent_parent_node) => {
+                                    let Some(init) = parent_parent_node.init else {
+                                        unreachable!()
+                                    };
                                     self.is_matching_reference(
                                         init.id(),
                                         target_access_expr.unwrap(),
                                     )
                                 }
+                                ast::Node::ObjectBindingElem(parent_parent_node) => self
+                                    .is_matching_reference(
+                                        parent_parent_node.id,
+                                        target_access_expr.unwrap(),
+                                    ),
                                 _ => todo!(),
                             }
                         };
