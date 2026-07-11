@@ -250,10 +250,6 @@ pub struct SyntheticExpression<'cx> {
 }
 
 impl<'cx> SyntheticExpression<'cx> {
-    pub fn span(&self) -> bolt_ts_span::Span {
-        self.span
-    }
-
     pub fn ty(&self) -> &'cx ty::Ty<'cx> {
         self.ty
     }

@@ -148,8 +148,7 @@ impl<'cx> TyChecker<'cx> {
         let cap = props.len() - offset;
         let mut prop_tys = Vec::with_capacity(cap);
         let mut components = Vec::with_capacity(cap);
-        for i in offset..props.len() {
-            let p = props[i];
+        for &p in props.iter().skip(offset) {
             if (key_ty == self.string_ty && !self.is_symbol_with_symbol_name(p))
                 || (key_ty == self.number_ty && self.is_symbol_with_numeric_name(p))
                 || (key_ty == self.es_symbol_ty && self.is_symbol_with_symbol_name(p))
@@ -306,12 +305,15 @@ impl<'cx> TyChecker<'cx> {
             if info.key_ty == self.string_ty {
                 string_index_info = Some(info)
             } else if self.is_applicable_index_ty(key_ty, info.key_ty) {
-                if applicable_info.is_none() {
-                    applicable_info = Some(info)
-                } else if let Some(applicable_infos) = applicable_infos.as_mut() {
-                    applicable_infos.push(info)
-                } else {
-                    applicable_infos = Some(vec![applicable_info.unwrap(), info])
+                match applicable_info {
+                    Some(applicable_info) => {
+                        if let Some(applicable_infos) = applicable_infos.as_mut() {
+                            applicable_infos.push(info);
+                        } else {
+                            applicable_infos = Some(vec![applicable_info, info]);
+                        }
+                    }
+                    None => applicable_info = Some(info),
                 }
             }
         }

@@ -109,7 +109,7 @@ pub fn ensure_trailing_directory_separator(mut path: Vec<u8>) -> Vec<u8> {
     }
 }
 
-const WILDCARD_CHAR_CODES: [u8; 2] = [b'*', b'?'];
+const WILDCARD_CHAR_CODES: &[u8] = b"*?";
 
 pub fn get_base_path<'a>(path: &'a std::path::Path, include: &'a str) -> Cow<'a, std::path::Path> {
     debug_assert!(path.is_normalized());

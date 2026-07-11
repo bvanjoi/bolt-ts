@@ -867,10 +867,12 @@ impl<'cx> super::TyChecker<'cx> {
             .set_late_symbol(symbol);
         let s = self.get_mut_transient_symbols().get_mut(symbol);
         s.flags |= symbol_flags;
-        if s.decls.is_none() {
+        if let Some(decls) = s.decls.as_mut() {
+            if !decl_is_replace_by_method {
+                decls.push(decl);
+            }
+        } else {
             s.decls = Some([decl].into());
-        } else if !decl_is_replace_by_method {
-            s.decls.as_mut().unwrap().push(decl);
         }
 
         if symbol_flags.intersects(SymbolFlags::VALUE) {

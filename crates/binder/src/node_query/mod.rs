@@ -481,11 +481,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     return None;
                 }
             }
-            if let Some(parent) = self.parent(id) {
-                id = parent
-            } else {
-                return None;
-            }
+            id = self.parent(id)?;
         }
     }
 

@@ -2820,39 +2820,6 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, origin)
     }
 
-    fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let m = ty.kind.expect_object_mapped();
-        let ty_var = self.get_ty_param_from_mapped_ty(m);
-        fn is_distributive<'cx>(ty: &'cx ty::Ty<'cx>, ty_var: &'cx ty::Ty<'cx>) -> bool {
-            if ty.flags.intersects(
-                TypeFlags::ANY_OR_UNKNOWN
-                    .union(TypeFlags::PRIMITIVE)
-                    .union(TypeFlags::NEVER)
-                    .union(TypeFlags::TYPE_PARAMETER)
-                    .union(TypeFlags::OBJECT)
-                    .union(TypeFlags::NON_PRIMITIVE),
-            ) {
-                true
-            } else if let Some(cond) = ty.kind.as_cond_ty() {
-                cond.root.is_distributive && cond.check_ty == ty_var
-            } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
-                tys.iter().all(|t| is_distributive(t, ty_var))
-            } else if ty.flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                todo!()
-            } else if let Some(i) = ty.kind.as_indexed_access() {
-                is_distributive(i.object_ty, ty_var) && is_distributive(i.index_ty, ty_var)
-            } else if let Some(s) = ty.kind.as_substitution_ty() {
-                is_distributive(s.base_ty, ty_var) && is_distributive(s.constraint, ty_var)
-            } else if ty.flags.intersects(TypeFlags::STRING_MAPPING) {
-                todo!()
-            } else {
-                false
-            }
-        }
-        let ty = self.get_name_ty_from_mapped_ty(m).unwrap_or(ty_var);
-        is_distributive(ty, ty_var)
-    }
-
     pub(super) fn should_defer_index_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,

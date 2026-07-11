@@ -36,11 +36,11 @@ impl<'cx> TyChecker<'cx> {
             return false;
         }
         let decl = decls[0];
-        let decl = self.p.node(decl);
+        let n = self.p.node(decl);
         use ast::Node::*;
-        match decl {
+        match n {
             PropSignature(_) | ObjectPropAssignment(_) | ClassPropElem(_) => {
-                decl.is_this_less_var_like_decl()
+                n.is_this_less_var_like_decl()
             }
             MethodSignature(_)
             | ObjectMethodMember(_)
@@ -48,7 +48,7 @@ impl<'cx> TyChecker<'cx> {
             | CtorSigDecl(_)
             | ClassCtor(_)
             | GetterDecl(_)
-            | SetterDecl(_) => self.is_this_less_fn_like_decl(decls[0]),
+            | SetterDecl(_) => self.is_this_less_fn_like_decl(decl),
             _ => false,
         }
     }

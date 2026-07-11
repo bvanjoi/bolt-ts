@@ -2135,9 +2135,7 @@ impl<'cx> TyChecker<'cx> {
         } else if let Some(source_tuple) = source.as_tuple() {
             let mut element_tys = vec![];
             for element_ty in self.get_element_tys(source) {
-                let Some(t) = self.infer_reverse_mapped_ty(element_ty, target, constraint) else {
-                    return None;
-                };
+                let t = self.infer_reverse_mapped_ty(element_ty, target, constraint)?;
                 element_tys.push(t);
             }
             let target_mapped_ty = target.kind.as_object_mapped().unwrap();
@@ -2314,7 +2312,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn create_evolving_array_ty(&mut self, element_ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
-        debug_assert!(self.evolving_array_tys.get(&element_ty.id).is_none());
+        debug_assert!(!self.evolving_array_tys.contains_key(&element_ty.id));
         let ty = self.alloc(ty::EvolvingArrayTy { element_ty });
         self.create_object_ty(
             ty::ObjectTyKind::EvolvingArray(ty),

@@ -1,0 +1,35 @@
+  × 'data1' is possibly 'undefined'.
+    ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:44:9]
+ 44 │ data1
+    · ─────
+    ╰────
+
+  × 'data2' is possibly 'undefined'.
+    ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:46:9]
+ 46 │ data2
+    · ─────
+    ╰────
+
+  × 'bar2' is possibly 'undefined'.
+    ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:72:9]
+ 72 │ bar2
+    · ────
+    ╰────
+
+  × 'bar3' is possibly 'undefined'.
+    ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:74:9]
+ 74 │ bar3
+    · ────
+    ╰────
+
+  × Type 'number | string' does not satisfy the expected type 'string'.
+    ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:95:9]
+ 95 │ data
+    · ────
+    ╰────
+
+  × Type 'number | string' does not satisfy the expected type 'string'.
+     ╭─[../../tests/compiler/controlFlowAliasedDiscriminants/index.ts:108:9]
+ 108 │ dataAlias
+     · ─────────
+     ╰────

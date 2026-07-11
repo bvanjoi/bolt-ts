@@ -359,9 +359,7 @@ impl<'cx> TyChecker<'cx> {
                 return Some(self.get_type_of_symbol(symbol));
             }
 
-            let Some(decl) = s_value_decl else {
-                return None;
-            };
+            let decl = s_value_decl?;
             if self.is_declaration_with_explicit_ty_annotation(decl) {
                 return Some(self.get_type_of_symbol(symbol));
             } else if self.p.node(decl).is_var_decl()

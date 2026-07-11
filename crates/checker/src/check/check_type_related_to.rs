@@ -1514,16 +1514,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && source_flags.contains(TypeFlags::TYPE_PARAMETER)
             {
                 let mut constraint = self.c.get_constraint_of_ty_param(source);
-                loop {
-                    let Some(c) = constraint else {
-                        break;
-                    };
-                    if !self
+                while let Some(c) = constraint
+                    && self
                         .c
                         .some_type(c, |_, t| t.flags.contains(TypeFlags::TYPE_PARAMETER))
-                    {
-                        break;
-                    }
+                {
                     result = self.is_related_to(
                         c,
                         target,

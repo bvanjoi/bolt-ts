@@ -581,7 +581,7 @@ impl<'cx> TyChecker<'cx> {
             Super(n) => self.check_super_expr(n),
             As(n) => self.check_assertion(n.id, n.expr, n.ty, check_mode),
             TyAssertion(n) => self.check_assertion(n.id, n.expr, n.ty, check_mode),
-            Satisfies(n) => self.check_expression(n.expr, check_mode),
+            Satisfies(n) => self.check_satisfies_expression(n),
             NonNull(n) => self.check_non_null_assertion(n),
             Template(n) => self.check_template_expr(n),
             ExprWithTyArgs(n) => self.check_expression_with_ty_arguments(n),
@@ -612,6 +612,39 @@ impl<'cx> TyChecker<'cx> {
         let ty = self.instantiate_ty_with_single_generic_call_sig(expr.id(), ty, check_mode);
         self.current_node = saved_current_node;
         ty
+    }
+
+    fn check_satisfies_expression(&mut self, n: &'cx ast::SatisfiesExpr<'cx>) -> &'cx ty::Ty<'cx> {
+        self.check_ty(n.ty);
+        self.check_satisfies_expression_worker(n.expr, n.ty, None)
+    }
+
+    fn check_satisfies_expression_worker(
+        &mut self,
+        expr: &'cx ast::Expr<'cx>,
+        target: &'cx ast::Ty<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        let expr_ty = self.check_expression(expr, check_mode);
+        let target_ty = self.get_ty_from_type_node(target);
+        if self.is_error(target_ty) {
+            return target_ty;
+        }
+
+        if !self.check_type_assignable_to_and_optionally_elaborate(
+            expr_ty,
+            target_ty,
+            None,
+            Some(expr.id()),
+        ) {
+            let error = errors::TypeXDoesNotSatisfyTheExpectedTypeY {
+                span: expr.span(),
+                x: self.print_ty(expr_ty, None).to_string(),
+                y: self.print_ty(target_ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+        }
+        expr_ty
     }
 
     fn check_typeof_expression(&mut self, node: &'cx ast::TypeofExpr<'cx>) -> &'cx ty::Ty<'cx> {
@@ -760,13 +793,9 @@ impl<'cx> TyChecker<'cx> {
         let _is_async_functionn = false;
 
         if !is_call_expr {
-            loop {
-                let Some(c) = container else {
-                    break;
-                };
-                if !self.p.node(c).is_arrow_fn_expr() {
-                    break;
-                };
+            while let Some(c) = container
+                && self.p.node(c).is_arrow_fn_expr()
+            {
                 container = self.node_query(c.module()).get_super_container(c, true);
             }
         }
@@ -1521,9 +1550,9 @@ impl<'cx> TyChecker<'cx> {
         cond_ty: &'cx ty::Ty<'cx>,
         body: Option<ast::NodeID>,
     ) {
-        // if !self.config.compiler_options().strict_null_checks() {
-        //     return;
-        // }
+        if !self.config.compiler_options().strict_null_checks() {
+            return;
+        }
 
         fn both_helper<'cx>(
             this: &mut TyChecker<'cx>,
@@ -1533,19 +1562,14 @@ impl<'cx> TyChecker<'cx> {
         ) {
             cond_expr = ast::Expr::skip_parens(cond_expr);
             helper(this, cond_expr, cond_ty, body);
-            loop {
-                let ast::ExprKind::Bin(bin) = cond_expr.kind else {
-                    break;
-                };
-                if matches!(
+            while let ast::ExprKind::Bin(bin) = cond_expr.kind
+                && matches!(
                     bin.op.kind,
                     ast::BinOpKind::LogicalOr | ast::BinOpKind::Nullish
-                ) {
-                    cond_expr = ast::Expr::skip_parens(bin.left);
-                    helper(this, cond_expr, cond_ty, body);
-                } else {
-                    break;
-                }
+                )
+            {
+                cond_expr = ast::Expr::skip_parens(bin.left);
+                helper(this, cond_expr, cond_ty, body);
             }
         }
 

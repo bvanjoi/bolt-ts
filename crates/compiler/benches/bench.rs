@@ -14,7 +14,7 @@ fn clone_bench_repo() -> std::path::PathBuf {
         .arg(&repo_path)
         .status()
         .expect("Failed to clone bench repo");
-    println!("temp bench dir: {:?}", &repo_path);
+    println!("temp bench dir: {:?}", repo_path);
     assert!(repo_path.join(PROJECT_BENCH_CASE_DIR_NAME).is_dir());
     repo_path
 }

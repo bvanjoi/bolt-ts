@@ -647,15 +647,11 @@ impl<'cx> TyChecker<'cx> {
             let awaited_ty = self.get_awaited_ty_no_alias(promised_ty);
             self.awaited_ty_stack.pop();
 
-            match awaited_ty {
-                Some(ty) => {
-                    if let Some(id) = id {
-                        self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
-                    }
-                    return Some(ty);
-                }
-                None => return None,
+            let awaited_ty = awaited_ty?;
+            if let Some(id) = id {
+                self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(awaited_ty);
             }
+            return Some(awaited_ty);
         }
 
         if self.is_thenable_ty(ty) {

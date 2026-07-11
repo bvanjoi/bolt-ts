@@ -1138,7 +1138,7 @@ impl<'cx> TyChecker<'cx> {
                 .members()
                 .and_then(|m| m.0.get(&SymbolName::Constructor))
             {
-                ctor_sigs_of_class.extend(&*self.get_sigs_of_symbol(*symbol))
+                ctor_sigs_of_class.extend(self.get_sigs_of_symbol(*symbol))
             }
 
             if symbol_flags.contains(SymbolFlags::FUNCTION) {
@@ -1224,18 +1224,18 @@ impl<'cx> TyChecker<'cx> {
             if list_index > 0 {
                 return None;
             }
-            for i in 1..sigs_list.len() {
-                self.find_matching_sig::<false, false, false>(sigs_list[i], sig)?;
+            for sigs in sigs_list.iter().skip(1) {
+                self.find_matching_sig::<false, false, false>(sigs, sig)?;
             }
             return Some(self.alloc([sig]));
         }
         let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
-        for i in 0..sigs_list.len() {
+        for (i, sigs) in sigs_list.iter().enumerate() {
             let matched = if i == list_index {
                 sig
             } else {
-                self.find_matching_sig::<false, false, true>(sigs_list[i], sig)
-                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))?
+                self.find_matching_sig::<false, false, true>(sigs, sig)
+                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs, sig))?
             };
             match &mut result {
                 Some(result) => result.push(matched),

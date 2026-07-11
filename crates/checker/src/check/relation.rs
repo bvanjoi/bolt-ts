@@ -965,9 +965,7 @@ impl<'cx> TyChecker<'cx> {
                 let mut common_declarations: Option<FxIndexSet<ast::NodeID>> = None;
                 for &symbol in symbols {
                     let s = this.symbol(symbol);
-                    let Some(decls) = s.decls.as_ref() else {
-                        return None;
-                    };
+                    let decls = s.decls.as_ref()?;
                     if common_declarations.is_none() {
                         common_declarations = Some(decls.iter().copied().collect());
                     }

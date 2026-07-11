@@ -109,12 +109,8 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
             let alias_symbol = self.get_alias_symbol_for_ty_node(node.id());
-            let mut new_alias_symbol = alias_symbol.and_then(|alias_symbol| {
-                if self.is_local_ty_alias(symbol) || !self.is_local_ty_alias(alias_symbol) {
-                    Some(alias_symbol)
-                } else {
-                    None
-                }
+            let mut new_alias_symbol = alias_symbol.filter(|&alias_symbol| {
+                self.is_local_ty_alias(symbol) || !self.is_local_ty_alias(alias_symbol)
             });
             let mut alias_ty_args = None;
             if new_alias_symbol.is_some() {

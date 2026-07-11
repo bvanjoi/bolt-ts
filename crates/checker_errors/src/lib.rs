@@ -1979,3 +1979,12 @@ pub struct ImportNameCannotBeX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{x}' does not satisfy the expected type '{y}'.")]
+pub struct TypeXDoesNotSatisfyTheExpectedTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

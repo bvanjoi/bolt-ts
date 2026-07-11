@@ -265,13 +265,11 @@ impl<'cx> TyChecker<'cx> {
                     .is_some()
                 });
             }
-            let Some(iteration_ret_ty) = self.get_iteration_ty_of_generator_fn_return_ty(
+            let iteration_ret_ty = self.get_iteration_ty_of_generator_fn_return_ty(
                 IterationTypeKind::Return,
                 contextual_return_ty,
                 is_async_generator,
-            ) else {
-                return None;
-            };
+            )?;
             contextual_return_ty = iteration_ret_ty;
         }
         if fn_flags.contains(FnFlags::ASYNC) {
@@ -911,9 +909,7 @@ impl<'cx> TyChecker<'cx> {
                                 return None;
                             }
                             let s = self.binder.symbol(self.final_res(n.id));
-                            let Some(members) = s.members.as_ref() else {
-                                return None;
-                            };
+                            let members = s.members.as_ref()?;
                             let name = s.name;
                             if !members.0.contains_key(&name)
                                 && self.is_discriminant_prop(contextual_ty, name)

@@ -1,15 +1,8 @@
 #![allow(
     dead_code,
     clippy::if_same_then_else,
-    clippy::needless_range_loop,
-    clippy::question_mark,
-    clippy::while_let_loop,
-    clippy::unnecessary_unwrap,
-    clippy::ptr_arg,
     clippy::only_used_in_recursion,
-    clippy::nonminimal_bool,
-    clippy::unnecessary_get_then_check,
-    clippy::borrow_deref_ref
+    clippy::needless_range_loop
 )]
 
 mod assign;
@@ -1657,15 +1650,11 @@ impl<'cx> TyChecker<'cx> {
                     let error_node = local_check_declaration
                         .map(|d| d.id)
                         .or(local_index_declaration.map(|d| d.id))
-                        .or(interface_declaration.and_then(|d| {
-                            if !self.get_base_tys(ty).iter().any(|base| {
+                        .or(interface_declaration.filter(|_| {
+                            !self.get_base_tys(ty).iter().any(|base| {
                                 self.get_index_info_of_ty(base, check_info.key_ty).is_some()
                                     && self.get_index_info_of_ty(base, info.key_ty).is_some()
-                            }) {
-                                Some(d)
-                            } else {
-                                None
-                            }
+                            })
                         }));
                     if let Some(error_node) = error_node
                         && !self.is_type_assignable_to(check_info.val_ty, info.val_ty)
@@ -5737,29 +5726,34 @@ impl<'cx> TyChecker<'cx> {
     fn is_type_subset_of(&mut self, source: &'cx ty::Ty<'cx>, target: &'cx ty::Ty<'cx>) -> bool {
         source == target
             || source.flags.contains(TypeFlags::NEVER)
-            || target
-                .kind
-                .as_union()
-                .is_some_and(|target| self.is_ty_subset_of_union(source, target))
+            || target.kind.as_union().is_some_and(|target_union| {
+                self.is_ty_subset_of_union(source, target, target_union)
+            })
     }
 
     fn is_ty_subset_of_union(
         &mut self,
         source: &'cx ty::Ty<'cx>,
-        target: &'cx ty::UnionTy<'cx>,
+        target: &'cx ty::Ty<'cx>,
+        target_union: &'cx ty::UnionTy<'cx>,
     ) -> bool {
+        debug_assert!(std::ptr::eq(target.kind.expect_union(), target_union));
         if let Some(source) = source.kind.as_union() {
             for s in source.tys {
-                if !target.tys.contains(s) {
+                if !target_union.tys.contains(s) {
                     return false;
                 }
             }
             return true;
         }
-        // if (source.flags & TypeFlags.EnumLike && getBaseTypeOfEnumLikeType(source as LiteralType) === target) {
-        //     return true;
-        // }
-        target.tys.contains(&source)
+
+        if source.flags.contains(TypeFlags::ENUM_LIKE)
+            && self.get_base_ty_of_enum_like_ty_worker(source) == target
+        {
+            return true;
+        }
+
+        target_union.tys.contains(&source)
     }
 
     fn get_constituent_ty_for_key_ty(
@@ -7117,9 +7111,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return None;
                 }
-                let Some(decls) = s.decls.as_ref() else {
-                    return None;
-                };
+                let decls = s.decls.as_ref()?;
                 let exported_declarations_count = decls
                     .iter()
                     .filter(|decl| {
@@ -8149,7 +8141,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         start: usize,
         end: usize,
-        witnesses: &Vec<Option<bolt_ts_atom::Atom>>,
+        witnesses: &[Option<bolt_ts_atom::Atom>],
     ) -> TypeFacts {
         let mut facts = TypeFacts::empty();
         for i in 0..witnesses.len() {
@@ -8191,9 +8183,9 @@ impl<'cx> TyChecker<'cx> {
                 .is_some_and(|u| u.tys[0] == self.missing_ty)
     }
 
-    fn remove_from_each(&mut self, tys: &mut Vec<&'cx ty::Ty<'cx>>, flags: TypeFlags) {
-        for i in 0..tys.len() {
-            tys[i] = self.filter_type(tys[i], |_, t| !t.flags.intersects(flags))
+    fn remove_from_each(&mut self, tys: &mut [&'cx ty::Ty<'cx>], flags: TypeFlags) {
+        for ty in tys {
+            *ty = self.filter_type(ty, |_, t| !t.flags.intersects(flags));
         }
     }
 
@@ -8804,10 +8796,10 @@ impl<'cx> TyChecker<'cx> {
                 let root_declaration_id = nq.get_root_decl(p);
                 let root_declaration = self.p.node(root_declaration_id);
                 if let Some(p) = root_declaration.as_param_decl() {
-                    self.is_some_symbol_assigned(&p.name.kind)
+                    !self.is_some_symbol_assigned(&p.name.kind)
                 } else if nq.is_catch_clause_var_declaration(root_declaration_id) {
                     let n = root_declaration.expect_var_decl();
-                    self.is_some_symbol_assigned(&n.name.kind)
+                    !self.is_some_symbol_assigned(&n.name.kind)
                 } else if let Some(n) = root_declaration.as_var_decl() {
                     nq.is_var_const_like(n.id)
                 } else {
