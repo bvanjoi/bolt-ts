@@ -114,3 +114,12 @@ pub struct ParameterCannotHaveQuestionMarkAndInitializer {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("'{x}' is an unused renaming of '{y}'. Did you intend to use it as a type annotation?")]
+pub struct XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}

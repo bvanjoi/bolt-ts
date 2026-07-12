@@ -1,6 +1,7 @@
 use super::RawTarget;
 use super::options::Module;
 use super::options::{NormalizedModuleResolution, OutDir, Target};
+use super::raw::JSX;
 use super::raw::Lib;
 use super::{RawModule, RawModuleResolution};
 
@@ -78,7 +79,8 @@ normalized_option!(
     (module, Module),
     (module_resolution, NormalizedModuleResolution),
     (custom_conditions, Vec<String>),
-    (lib, Option<Vec<Lib>>)
+    (lib, Option<Vec<Lib>>),
+    (jsx, Option<JSX>)
 );
 
 normalized_option!(

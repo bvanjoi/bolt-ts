@@ -8,6 +8,7 @@ pub use self::normalized::{CompilerOptionFlags, NormalizedCompilerOptions, Norma
 pub use self::options::NormalizedModuleResolution;
 pub use self::options::OutDir;
 pub use self::options::{Module, Target};
+pub use self::raw::JSX;
 pub use self::raw::{RawCompilerOptions, RawTsConfig};
 pub use self::raw::{RawModule, RawModuleResolution, RawTarget};
 

@@ -1,0 +1,11 @@
+  × Parameter 'arg' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualSignatureInArrayElementLibEs5/index.ts:15:4]
+ 15 │ arg
+    · ───
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/contextualSignatureInArrayElementLibEs5/index.ts:23:11]
+ 23 │ a
+    · ─
+    ╰────

@@ -1,0 +1,77 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:10]
+ 5 │ }
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:10]
+ 5 │ }
+   · ─
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:27]
+ 5 │ =
+   · ─
+   ╰────
+
+  × Expected ')'.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:27]
+ 5 │ =
+   · ─
+   ╰────
+
+  × The left-hand side of an assignment expression must be a variable or a
+  │ property access.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:16]
+ 5 │ ( y = z ===
+   · ───────────
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:39]
+ 5 │ )
+   · ─
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:17:25]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:41]
+ 5 │ {
+   · ─
+   ╰────
+
+  × Cannot find name ''.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:10]
+ 5 │ }
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:12]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'y'.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:18]
+ 5 │ y
+   · ─
+   ╰────
+
+  × Cannot find name 'z'.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:22]
+ 5 │ z
+   · ─
+   ╰────
+
+  × Type 'string' is not assignable to type 'boolean'.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:16]
+ 5 │ ( y = z ===
+   · ───────────
+   ╰────

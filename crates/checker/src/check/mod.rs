@@ -2979,7 +2979,10 @@ impl<'cx> TyChecker<'cx> {
                     declared_ty
                 }
             }
-            _ => todo!("more case"),
+            ast::Node::ObjectPropAssignment(_) => {
+                self.get_flow_ty_of_reference(n.id, declared_ty, None, None, None)
+            }
+            _ => todo!("more case, n: {:#?}", n),
         }
     }
 
@@ -5631,6 +5634,12 @@ impl<'cx> TyChecker<'cx> {
                         return true;
                     }
                 }
+                false
+            }
+            ast::Node::ObjectPropAssignment(_) => {
+                // ({ x: y } = z)
+                //    ~~~~
+                // TODO:
                 false
             }
             _ => false,

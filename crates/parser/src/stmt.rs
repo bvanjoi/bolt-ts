@@ -599,23 +599,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Interface => ast::StmtKind::Interface(self.parse_interface_decl(mods)),
             Enum => ast::StmtKind::Enum(self.parse_enum_decl(mods)?),
-            Import => {
-                if let Some(mods) = mods
-                    && mods.flags.contains(ast::ModifierFlags::AMBIENT)
-                {
-                    let m = mods
-                        .list
-                        .iter()
-                        .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                        .unwrap();
-                    let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                        span: m.span(),
-                        modifier: m.kind(),
-                    };
-                    self.push_error(Box::new(error));
-                }
-                self.parse_import_decl(mods)
-            }
+            Import => self.parse_import_declaration(mods),
             Export => {
                 self.has_export_decl = true;
                 let start = self.token.start();
@@ -752,11 +736,31 @@ impl<'cx> ParserState<'cx, '_> {
         )
     }
 
-    fn parse_import_decl(
+    fn parse_import_declaration(
         &mut self,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
+        if let Some(mods) = modifiers
+            && mods.flags.contains(ast::ModifierFlags::AMBIENT)
+        {
+            let m = mods
+                .list
+                .iter()
+                .find(|m| m.kind() == ast::ModifierKind::Ambient)
+                .unwrap();
+            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                span: m.span(),
+                modifier: m.kind(),
+            };
+            self.push_error(Box::new(error));
+        }
+        self.check_module_element_context(|this| {
+            let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
+                span: this.token.span,
+            };
+            this.push_error(Box::new(error));
+        });
         let start = self.token.start();
         self.next_token(); // consume `import`
         let after_import_pos = self.token.start();
@@ -791,17 +795,19 @@ impl<'cx> ParserState<'cx, '_> {
                 .copied();
             // TODO: is_type_only
             let decl = self.parse_import_equals_declaration(start, export_modifier, name, false);
-            return ast::StmtKind::ImportEquals(decl);
+            ast::StmtKind::ImportEquals(decl)
+        } else {
+            let clause =
+                self.try_parse_import_clause(name, after_import_pos as usize, is_type_only);
+            let module = self.parse_module_spec();
+
+            self.parse_semi();
+
+            let span = self.new_span(start);
+            let decl = self.create_import_declaration(span, clause, module);
+
+            ast::StmtKind::Import(decl)
         }
-
-        let clause = self.try_parse_import_clause(name, after_import_pos as usize, is_type_only);
-        let module = self.parse_module_spec();
-
-        self.parse_semi();
-
-        let span = self.new_span(start);
-        let decl = self.create_import_declaration(span, clause, module);
-        ast::StmtKind::Import(decl)
     }
 
     fn try_parse_import_clause(

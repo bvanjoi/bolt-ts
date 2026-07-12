@@ -1,11 +1,12 @@
 use bolt_ts_ast::keyword::is_reserved_type_name;
-use bolt_ts_ast::{self as ast, keyword, pprint_ident};
+use bolt_ts_ast::{self as ast, keyword, pprint_ident, print_prop_name};
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_wf_errors as errors;
+use rustc_hash::FxHashSet;
 
 pub fn well_formed_check_parallel(
     p: &ParsedMap,
@@ -13,21 +14,21 @@ pub fn well_formed_check_parallel(
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &[bolt_ts_binder::ResolveResult],
-) -> Vec<bolt_ts_errors::Diag> {
+) -> Vec<WellFormedCheckResult> {
     use rayon::prelude::*;
 
     modules
         .into_par_iter()
-        .flat_map(|m| {
-            let diags = well_formed_check(
+        .map(|m| {
+            let result = well_formed_check(
                 p,
                 atoms,
                 m.id(),
                 compiler_options,
                 &resolve_results[m.id().as_usize()],
             );
-            debug_assert!(!m.is_default_lib() || diags.is_empty());
-            diags
+            debug_assert!(!m.is_default_lib() || result.diags.is_empty());
+            result
         })
         .collect::<Vec<_>>()
 }
@@ -38,27 +39,40 @@ fn well_formed_check(
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &bolt_ts_binder::ResolveResult,
-) -> Vec<bolt_ts_errors::Diag> {
+) -> WellFormedCheckResult {
     let mut s = CheckState {
         p,
         atoms,
         compiler_options,
-        diags: vec![],
         resolve_results,
         module_id,
+
+        diags: vec![],
+        potential_unused_renamed_binding_elements_in_types: FxHashSet::default(),
     };
     let program = p.root(module_id);
     bolt_ts_ast_visitor::visit_program(&mut s, program);
-    s.diags
+    WellFormedCheckResult {
+        diags: s.diags,
+        potential_unused_renamed_binding_elements_in_types: s
+            .potential_unused_renamed_binding_elements_in_types,
+    }
+}
+
+pub struct WellFormedCheckResult {
+    pub diags: Vec<bolt_ts_errors::Diag>,
+    pub potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
 }
 
 struct CheckState<'cx> {
     p: &'cx ParsedMap<'cx>,
     atoms: &'cx AtomIntern,
-    diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
     module_id: ModuleID,
     resolve_results: &'cx bolt_ts_binder::ResolveResult,
+
+    diags: Vec<bolt_ts_errors::Diag>,
+    potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
 }
 
 impl<'cx> CheckState<'cx> {
@@ -353,5 +367,35 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
                 self.push_error(Box::new(error));
             }
         }
+        bolt_ts_ast_visitor::visit_param_decl(self, node)
+    }
+
+    fn visit_object_binding_elem(
+        &mut self,
+        node: &'cx bolt_ts_ast::ObjectBindingElem<'cx>,
+    ) -> Self::Result {
+        if let ast::ObjectBindingName::Prop {
+            prop_name, name, ..
+        } = node.name
+            && let ast::BindingKind::Ident(name) = name.kind
+            && self.node_query().is_part_of_param_decl(node.id)
+            && let Some(containing_fn) = self.node_query().get_containing_fn(node.id)
+            && self.p.node(containing_fn).fn_body().is_none()
+        {
+            let prev = self
+                .potential_unused_renamed_binding_elements_in_types
+                .insert(node.id);
+            debug_assert!(prev);
+            let error = Box::new(
+                errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+                    span: name.span,
+                    x: pprint_ident(name, self.atoms),
+                    y: print_prop_name(&prop_name.kind, self.atoms),
+                },
+            );
+            self.push_error(error);
+        }
+
+        bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
     }
 }

@@ -456,11 +456,14 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Delete => self.parse_delete_expr(),
             Await => {
+                // is_await_expression
                 if self.in_await_context()
                     || self.lookahead(
                         Lookahead::next_token_is_ident_or_keyword_or_literal_on_same_line,
                     )
                 {
+                    // parse_await_expression
+                    debug_assert!(self.token.kind == TokenKind::Await);
                     let start = self.token.start();
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
@@ -470,7 +473,7 @@ impl<'cx> ParserState<'cx, '_> {
                     });
                     if !self.parse_context.contains(ParseContext::ASYNC) {
                         if self.parse_context.contains(ParseContext::TOP_LEVEL) {
-                            todo!()
+                            // TODO: handle under different module config
                         } else {
                             let hi = start + "await".len() as u32;
                             let span = bolt_ts_span::Span::new(start, hi, self.module_id);

@@ -1,0 +1,53 @@
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:12:1]
+ 12 │ export
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:15:1]
+ 15 │ export
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:1]
+ 18 │ export
+    · ──────
+    ╰────
+
+  × Cannot find name 'namespace'.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:5:1]
+ 5 │ namespace
+   · ─────────
+   ╰────
+
+  × Cannot find name 'interface'.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:7:1]
+ 7 │ interface
+   · ─────────
+   ╰────
+
+  × Cannot find name 'type'.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:9:1]
+ 9 │ type
+   · ────
+   ╰────
+
+  × Cannot find name 'namespace'.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:12:8]
+ 12 │ namespace
+    · ─────────
+    ╰────
+
+  × Cannot find name 'interface'.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:15:8]
+ 15 │ interface
+    · ─────────
+    ╰────
+
+  × Cannot find name 'type'.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:8]
+ 18 │ type
+    · ────
+    ╰────

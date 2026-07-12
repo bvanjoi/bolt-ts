@@ -1518,8 +1518,43 @@ impl<'cx> TyChecker<'cx> {
             BinExpr(node) => {
                 self.narrow_type_by_binary_expression(ty, declared_ty, refer, node, assume_true)
             }
+            AssignExpr(node) => {
+                self.narrow_ty_by_assignment_expr(ty, declared_ty, refer, node, assume_true)
+            }
             PrefixUnaryExpr(node) if node.op == ast::PrefixUnaryOp::Excl => {
                 self.narrow_ty(ty, declared_ty, refer, node.expr.id(), !assume_true)
+            }
+            ParenExpr(ast::ParenExpr { expr, .. })
+            | NonNullExpr(ast::NonNullExpr { expr, .. })
+            | SatisfiesExpr(ast::SatisfiesExpr { expr, .. }) => {
+                self.narrow_ty(ty, declared_ty, refer, expr.id(), assume_true)
+            }
+            _ => ty,
+        }
+    }
+
+    fn narrow_ty_by_assignment_expr(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+        refer: ast::NodeID,
+        assign_expr: &'cx ast::AssignExpr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        match assign_expr.op {
+            ast::AssignOp::Eq
+            | ast::AssignOp::LogicalOrEq
+            | ast::AssignOp::LogicalAndEq
+            | ast::AssignOp::NullishEq => {
+                let ty =
+                    self.narrow_ty(ty, declared_ty, refer, assign_expr.right.id(), assume_true);
+                self.narrow_ty_by_truthiness(
+                    ty,
+                    refer,
+                    assign_expr.left.id(),
+                    assume_true,
+                    declared_ty,
+                )
             }
             _ => ty,
         }
@@ -2139,7 +2174,14 @@ impl<'cx> TyChecker<'cx> {
                 false,
             )
             .unwrap();
-        // TODO: don't narrow any
+        if (self.is_type_any(ty)
+            && (instance_ty == self.global_object_ty() || instance_ty == self.global_fn_ty()))
+            || (!assume_true
+                && !(instance_ty.flags.contains(TypeFlags::OBJECT)
+                    && !self.is_empty_anonymous_object_ty(instance_ty)))
+        {
+            return ty;
+        }
         self.get_narrowed_ty(ty, instance_ty, assume_true, true)
     }
 

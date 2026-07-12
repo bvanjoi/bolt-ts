@@ -844,3 +844,17 @@ pub struct AnExportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An import declaration can only be used at the top level of a namespace or module.")]
+pub struct AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A 'declare' modifier cannot be used in an already ambient context.")]
+pub struct ADeclareModifierCannotBeUsedInAnAlreadyAmbientContext {
+    #[label(primary)]
+    pub span: Span,
+}

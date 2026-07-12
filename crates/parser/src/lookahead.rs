@@ -299,7 +299,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
                 }
             }
         } else {
-            assert_eq!(first, Less);
+            debug_assert_eq!(first, Less);
             if !self.p.is_ident() && self.p.token.kind != Const {
                 Tristate::False
             } else if self.p.variant == LanguageVariant::Jsx {
@@ -309,7 +309,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
                     match this.p.token.kind {
                         Extends => {
                             this.p.next_token();
-                            matches!(this.p.token.kind, Eq | Great | Slash)
+                            !matches!(this.p.token.kind, Eq | Great | Slash)
                         }
                         Comma | Eq => true,
                         _ => false,

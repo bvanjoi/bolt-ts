@@ -315,15 +315,13 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let const_modifier = self.parse_const_modifier();
         let name = self.parse_binding_ident();
-        let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
-            if self.is_start_of_ty(false) || !self.is_start_of_expr() {
-                Some(self.parse_ty()?)
-            } else {
-                todo!("token: {:#?}", self.token.kind)
-            }
-        } else {
-            None
-        };
+        let mut constraint = None;
+
+        if self.parse_optional(TokenKind::Extends).is_some()
+            && (self.is_start_of_ty(false) || !self.is_start_of_expr())
+        {
+            constraint = Some(self.parse_ty()?)
+        }
         let default = if self.parse_optional(TokenKind::Eq).is_some() {
             Some(self.parse_ty()?)
         } else {
@@ -444,6 +442,7 @@ impl<'cx> ParserState<'cx, '_> {
             };
             this.push_error(Box::new(error));
         };
+
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let _has_leading_modifier = false;
@@ -496,8 +495,17 @@ impl<'cx> ParserState<'cx, '_> {
                         push_already_seen_error(self, m);
                     }
                 }
-                ast::ModifierKind::Ambient if flags.contains(ast::ModifierFlags::AMBIENT) => {
-                    push_already_seen_error(self, m);
+                ast::ModifierKind::Ambient => {
+                    if flags.contains(ast::ModifierFlags::AMBIENT) {
+                        push_already_seen_error(self, m);
+                    } else if self.parse_context.contains(ParseContext::MODULE_BLOCK)
+                        && self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                    {
+                        let error = errors::ADeclareModifierCannotBeUsedInAnAlreadyAmbientContext {
+                            span: m.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
                 _ => {}
             }

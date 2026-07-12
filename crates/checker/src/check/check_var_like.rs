@@ -115,7 +115,9 @@ impl<'cx> TyChecker<'cx> {
             }
             StringLit { raw, .. } => self.check_non_pat_var_like_decl(raw.id, id, decl),
             NumLit(num) => self.check_non_pat_var_like_decl(num.id, id, decl),
-            Computed(_) => {}
+            Computed(_) => {
+                // TODO:
+            }
             ArrayPat(_) | ObjectPat(_) => {
                 match name {
                     ArrayPat(n) => {

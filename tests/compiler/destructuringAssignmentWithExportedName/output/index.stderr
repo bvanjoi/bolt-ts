@@ -1,0 +1,23 @@
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/destructuringAssignmentWithExportedName/index.ts:13:5]
+ 13 │ null as any
+    · ───────────
+    ╰────
+
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/destructuringAssignmentWithExportedName/index.ts:17:10]
+ 17 │ null as any
+    · ───────────
+    ╰────
+
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/destructuringAssignmentWithExportedName/index.ts:21:10]
+ 21 │ null as any
+    · ───────────
+    ╰────
+
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/destructuringAssignmentWithExportedName/index.ts:25:10]
+ 25 │ null as any
+    · ───────────
+    ╰────

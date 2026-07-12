@@ -1733,8 +1733,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
                     ir::JsxAttrName::Ident(n) => self.emit_ident(n),
                     ir::JsxAttrName::Ns(ns) => self.emit_jsx_ns_name(ns),
                 };
-                self.emitter.print().p_eq();
                 if let Some(v) = n.init() {
+                    self.emitter.print().p_eq();
                     self.emit_jsx_attr_value(v);
                 }
             }

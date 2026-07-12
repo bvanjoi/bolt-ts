@@ -1,0 +1,13 @@
+  × 'name' is an unused renaming of 'p'. Did you intend to use it as a type
+  │ annotation?
+   ╭─[../../tests/compiler/paramterDestrcuturingDeclaration/index.ts:8:10]
+ 8 │ name
+   · ────
+   ╰────
+
+  × 'boolean' is an unused renaming of 'p'. Did you intend to use it as a type
+  │ annotation?
+    ╭─[../../tests/compiler/paramterDestrcuturingDeclaration/index.ts:10:14]
+ 10 │ boolean
+    · ───────
+    ╰────
