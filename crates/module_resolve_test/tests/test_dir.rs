@@ -1,9 +1,6 @@
-mod utils;
-
+use bolt_ts_module_resolve_test::should_eq;
+use bolt_ts_module_resolve_test::should_not_found;
 use compile_test::build_temp_files;
-
-use self::utils::should_eq;
-use self::utils::should_not_found;
 
 #[test]
 fn test_dir_for_ignore_index() {

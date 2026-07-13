@@ -1,0 +1,92 @@
+  × Object literal may only specify known properties, and 'a1' does not exist
+  │ in type '{ tag: "T"; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:15:30]
+ 15 │ a1
+    · ──
+    ╰────
+
+  × Object literal may only specify known properties, and 'd20' does not exist
+  │ in type '{ tag: "A"; a1: string; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:16:21]
+ 16 │ d20
+    · ───
+    ╰────
+
+  × Type '{ tag: "D"; }' is not assignable to type 'ADT'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:17:1]
+ 17 │ wrong
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ tag: "A"; x: string; } | { tag: "A"; y: number; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:38:28]
+ 38 │ extra
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'extra' does not
+  │ exist in type '{ tag: "A"; x: string; } | { tag: "A"; y: number; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:39:26]
+ 39 │ extra
+    · ─────
+    ╰────
+
+  × Type '{ tag: "A"; }' is not assignable to type 'Ambiguous'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:42:1]
+ 42 │ amb
+    · ───
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type '{ tag: "A"; x: string; } | { tag: "A"; y: number; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:43:19]
+ 43 │ z
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'second' does not
+  │ exist in type '{ a: 1; b: 1; first: string; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:52:35]
+ 52 │ second
+    · ──────
+    ╰────
+
+  × Object literal may only specify known properties, and 'third' does not
+  │ exist in type '{ a: 1; b: 1; first: string; }'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:53:35]
+ 53 │ third
+    · ─────
+    ╰────
+
+  × Object literal may only specify known properties, and 'b' does not exist
+  │ in type 'AN'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:69:9]
+ 69 │ b
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 'href' does not
+  │ exist in type 'Button'.
+    ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:91:5]
+ 91 │ href
+    · ────
+    ╰────
+
+  × Type 'string' is not assignable to type 'IValue'.
+     ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:112:5]
+ 112 │ foo
+     · ───
+     ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:118:67]
+ 118 │ a
+     · ─
+     ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/excessPropertyCheckWithUnions/index.ts:120:63]
+ 120 │ c
+     · ─
+     ╰────

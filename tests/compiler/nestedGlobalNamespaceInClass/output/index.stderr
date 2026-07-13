@@ -1,0 +1,5 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/nestedGlobalNamespaceInClass/index.ts:6:5]
+ 6 │ global
+   · ──────
+   ╰────

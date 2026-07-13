@@ -1218,6 +1218,15 @@ pub struct ImportEqualsDecl<'cx> {
     pub module_reference: ModuleReferenceKind<'cx>,
 }
 
+impl<'cx> ImportEqualsDecl<'cx> {
+    pub fn get_external_module_name(&self) -> Option<&'cx StringLit> {
+        match self.module_reference {
+            ModuleReferenceKind::ExternalModuleReference(e) => Some(e.module_spec()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ExternalModuleReference<'cx> {
     pub(super) id: NodeID,

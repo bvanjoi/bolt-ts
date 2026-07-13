@@ -123,3 +123,10 @@ pub struct XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[error("Import declarations in a namespace cannot reference a module.")]
+pub struct ImportDeclarationsInANamespaceCannotReferenceAModule {
+    #[label(primary)]
+    pub span: Span,
+}

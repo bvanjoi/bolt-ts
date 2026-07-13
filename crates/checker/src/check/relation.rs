@@ -735,7 +735,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_prop_of_union_or_intersection_ty<
+    pub(super) fn get_prop_of_union_or_intersection_ty<
         const SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT: bool,
     >(
         &mut self,

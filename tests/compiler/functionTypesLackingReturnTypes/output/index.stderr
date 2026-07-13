@@ -1,0 +1,17 @@
+  × Expected '=>'.
+   ╭─[../../tests/compiler/functionTypesLackingReturnTypes/index.ts:7:17]
+ 7 │ )
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/functionTypesLackingReturnTypes/index.ts:7:17]
+ 7 │ )
+   · ─
+   ╰────
+
+  × Cannot find name 'param'.
+    ╭─[../../tests/compiler/functionTypesLackingReturnTypes/index.ts:13:9]
+ 13 │ param
+    · ─────
+    ╰────

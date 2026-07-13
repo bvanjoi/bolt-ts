@@ -1,0 +1,40 @@
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:11:8]
+ 11 │ b
+    · ─
+    ╰────
+
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:21:7]
+ 21 │ b
+    · ─
+    ╰────
+
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:26:7]
+ 26 │ c
+    · ─
+    ╰────
+
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:36:8]
+ 36 │ c
+    · ─
+    ╰────
+
+  × Argument of type 'undefined | number' is not assignable to parameter of
+  │ type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:50:10]
+ 50 │ bar
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/optionalParameterInDestructuringWithInitializer/index.ts:57:24]
+ 57 │ bar
+    · ───
+    ╰────

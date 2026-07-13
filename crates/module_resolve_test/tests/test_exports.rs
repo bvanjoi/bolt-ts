@@ -1,8 +1,5 @@
-mod utils;
-
+use bolt_ts_module_resolve_test::Project;
 use compile_test::build_temp_files;
-
-use self::utils::Project;
 
 fn deprecated_module_resolution_node10_with_exports_field() -> Project {
     let dir = build_temp_files(serde_json::json!({

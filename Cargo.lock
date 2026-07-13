@@ -434,11 +434,25 @@ dependencies = [
  "bolt_ts_path",
  "bolt_ts_semver",
  "bolt_ts_utils",
- "compile-test",
  "dashmap 6.1.0",
  "nohash-hasher",
  "rustc-hash",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "bolt_ts_module_resolve_test"
+version = "0.1.0"
+dependencies = [
+ "bolt_ts_atom",
+ "bolt_ts_config",
+ "bolt_ts_fs",
+ "bolt_ts_middle",
+ "bolt_ts_module_resolve",
+ "bolt_ts_utils",
+ "compile-test",
+ "expect-test",
  "serde_json",
 ]
 

@@ -265,6 +265,26 @@ impl<'cx> CheckState<'cx> {
             self.push_error(Box::new(error));
         }
     }
+
+    fn check_external_import_equals_declaration(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
+        let Some(module_name) = node.get_external_module_name() else {
+            return;
+        };
+        let parent = self.parent(node.id).unwrap();
+        let parent_node = self.p.node(parent);
+        let is_ambient_external_module = parent_node.is_module_block() && {
+            let parent_parent = self.parent(parent).unwrap();
+            self.p.node(parent_parent).is_ambient_module()
+        };
+        if !parent_node.is_program() && !is_ambient_external_module {
+            let error = Box::new(
+                errors::ImportDeclarationsInANamespaceCannotReferenceAModule {
+                    span: module_name.span,
+                },
+            );
+            self.push_error(error);
+        }
+    }
 }
 
 impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
@@ -369,7 +389,6 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         }
         bolt_ts_ast_visitor::visit_param_decl(self, node)
     }
-
     fn visit_object_binding_elem(
         &mut self,
         node: &'cx bolt_ts_ast::ObjectBindingElem<'cx>,
@@ -397,5 +416,12 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         }
 
         bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
+    }
+    fn visit_import_equals_decl(
+        &mut self,
+        node: &'cx bolt_ts_ast::ImportEqualsDecl<'cx>,
+    ) -> Self::Result {
+        self.check_external_import_equals_declaration(node);
+        bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
     }
 }

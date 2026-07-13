@@ -7,17 +7,20 @@ use bolt_ts_module_resolve::{ResolveError, Resolver};
 
 use compile_test::TempDir;
 
-#[cfg(test)]
 fn build_fs(atoms: &mut bolt_ts_atom::AtomIntern) -> bolt_ts_fs::LocalFS {
     bolt_ts_fs::LocalFS::new(atoms)
 }
 
-#[cfg(test)]
+pub struct ResolveResult {
+    pub result: Result<String, ResolveError>,
+    pub counter: bolt_ts_fs::Counter,
+}
+
 fn build_and_resolve(
     file: &std::path::Path,
     target: &str,
     options: &bolt_ts_config::NormalizedCompilerOptions,
-) -> Result<String, ResolveError> {
+) -> ResolveResult {
     use bolt_ts_module_resolve::{ContainingFile, get_resolution_mode_for_usage_location};
 
     let file_ext = Extension::extension_of_file_name(file.as_os_str().as_encoded_bytes());
@@ -47,32 +50,53 @@ fn build_and_resolve(
         &atoms,
         &fs,
         resolution_mode,
-    )?;
-    let atoms = Arc::try_unwrap(atoms).unwrap();
-    let atoms = atoms.into_inner().unwrap();
-    Ok(atoms.get(ret.into()).to_string())
+    );
+    #[cfg(debug_assertions)]
+    let counter = fs.lock().unwrap().steal_counter();
+    #[cfg(not(debug_assertions))]
+    let counter = unreachable!();
+    match ret {
+        Ok(ret) => {
+            let atoms = Arc::try_unwrap(atoms).unwrap();
+            let atoms = atoms.into_inner().unwrap();
+            let result = atoms.get(ret.into()).to_string();
+            ResolveResult {
+                result: Ok(result),
+                counter,
+            }
+        }
+        Err(error) => ResolveResult {
+            result: Err(error),
+            counter,
+        },
+    }
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
 #[track_caller]
 fn should_eq_worker(
     from: &std::path::Path,
     target: &str,
     expected: std::path::PathBuf,
     options: &bolt_ts_config::NormalizedCompilerOptions,
-) {
+) -> bolt_ts_fs::Counter {
     use bolt_ts_utils::path::NormalizePath;
-
-    let ret = build_and_resolve(from, target, options).unwrap();
-    assert!(std::path::PathBuf::from(&ret).is_normalized());
-    let expected = expected.normalize();
-    assert_eq!(ret, expected.to_string_lossy());
+    let result = build_and_resolve(from, target, options);
+    match result.result {
+        Ok(ret) => {
+            assert!(std::path::PathBuf::from(&ret).is_normalized());
+            let expected = expected.normalize();
+            assert_eq!(ret, expected.to_string_lossy());
+            result.counter
+        }
+        Err(_) => unreachable!(),
+    }
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub fn should_eq(from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
+pub fn should_eq(
+    from: &std::path::Path,
+    target: &str,
+    expected: std::path::PathBuf,
+) -> bolt_ts_fs::Counter {
     let options = serde_json::json!({
         "compilerOptions": {
             "moduleResolution": "node16"
@@ -80,11 +104,19 @@ pub fn should_eq(from: &std::path::Path, target: &str, expected: std::path::Path
     });
     let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
     let options = options.normalize();
-    should_eq_worker(from, target, expected, &options);
+    should_eq_worker(from, target, expected, &options)
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
+pub fn should_eq_with_counter(
+    from: &std::path::Path,
+    target: &str,
+    expected: std::path::PathBuf,
+    expected_counter: expect_test::Expect,
+) {
+    let counter = should_eq(from, target, expected);
+    expected_counter.assert_debug_eq(&counter);
+}
+
 pub fn should_not_found(from: &std::path::Path, target: &str) {
     let options = serde_json::json!({
         "compilerOptions": {
@@ -94,31 +126,30 @@ pub fn should_not_found(from: &std::path::Path, target: &str) {
     let options = serde_json::from_value::<bolt_ts_config::RawCompilerOptions>(options).unwrap();
     let options = options.normalize();
     let res = build_and_resolve(from, target, &options);
-    assert!(matches!(res, Err(ResolveError::NotFound(_))))
+    match res.result {
+        Ok(ret) => {
+            panic!("Expected NotFound, but got {:?}", ret);
+        }
+        Err(err) => {
+            assert!(matches!(err, ResolveError::NotFound(_)));
+        }
+    }
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
 pub struct Project {
     tsconfig: bolt_ts_config::NormalizedTsConfig,
     dir: TempDir,
 }
 
 impl Project {
-    #[cfg(test)]
-    #[allow(dead_code)]
     pub fn new(tsconfig: bolt_ts_config::NormalizedTsConfig, dir: TempDir) -> Self {
         Self { tsconfig, dir }
     }
 
-    #[cfg(test)]
-    #[allow(dead_code)]
     pub fn dir_path(&self) -> &std::path::Path {
         self.dir.path()
     }
 
-    #[cfg(test)]
-    #[allow(dead_code)]
     #[track_caller]
     pub fn should_eq(&self, from: &std::path::Path, target: &str, expected: std::path::PathBuf) {
         let options = self.tsconfig.compiler_options();

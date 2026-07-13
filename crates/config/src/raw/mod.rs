@@ -75,6 +75,7 @@ with_option!(
     (module_resolution, RawModuleResolution),
     (lib, Vec<Lib>),
     (jsx, JSX),
+    (check_js, bool),
 );
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -104,6 +105,9 @@ impl RawCompilerOptions {
         let strict = self.strict.unwrap_or_default();
         if strict {
             flags.insert(super::CompilerOptionFlags::STRICT);
+        }
+        if self.check_js.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::CHECK_JS);
         }
         let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
         if get_strict_option_value(self.strict_null_checks) {

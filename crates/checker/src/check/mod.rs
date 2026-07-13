@@ -3339,7 +3339,7 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
         let nq = self.node_query(decl.module());
-        if nq.is_in_type_query(used_id) {
+        if nq.is_in_type_query(used_id) || nq.is_in_ambient_or_type_node(used_id) {
             return true;
         }
 
@@ -4865,7 +4865,7 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or_default()
     }
 
-    fn is_known_prop(
+    fn is_known_property(
         &mut self,
         target: &'cx ty::Ty<'cx>,
         name: SymbolName,
@@ -4884,14 +4884,14 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ty::TyKind::Substitution(n) => {
-                return self.is_known_prop(n.base_ty, name, is_comparing_jsx_attributes);
+                return self.is_known_property(n.base_ty, name, is_comparing_jsx_attributes);
             }
             ty::TyKind::Union(ty::UnionTy { tys, .. })
             | ty::TyKind::Intersection(ty::IntersectionTy { tys, .. })
                 if Self::is_excess_property_check_target(target) =>
             {
                 for t in *tys {
-                    if self.is_known_prop(t, name, is_comparing_jsx_attributes) {
+                    if self.is_known_property(t, name, is_comparing_jsx_attributes) {
                         return true;
                     }
                 }
@@ -4919,7 +4919,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> bool {
         for prop in self.get_props_of_ty(source) {
             let name = self.symbol(*prop).name;
-            if self.is_known_prop(target, name, is_comparing_jsx_attributes) {
+            if self.is_known_property(target, name, is_comparing_jsx_attributes) {
                 return true;
             }
         }

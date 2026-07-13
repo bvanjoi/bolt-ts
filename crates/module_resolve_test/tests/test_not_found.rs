@@ -1,7 +1,5 @@
-mod utils;
-
+use bolt_ts_module_resolve_test::should_not_found;
 use compile_test::build_temp_files;
-use utils::should_not_found;
 
 #[test]
 fn test_resolve_with_not_found() {

@@ -8,6 +8,59 @@ use super::PathId;
 use super::errors::FsResult;
 use super::tree::FSTree;
 
+#[derive(Default, Clone)]
+pub struct Counter {
+    metadata: usize,
+    read_dir: usize,
+    canonicalize: usize,
+    symlink_metadata: usize,
+    read_file_with_encoding: usize,
+}
+
+impl std::fmt::Debug for Counter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut output = vec![];
+        if self.metadata != 0 {
+            output.push(format!("metadata: {}", self.metadata));
+        }
+        if self.read_dir != 0 {
+            output.push(format!("read_dir: {}", self.read_dir));
+        }
+        if self.canonicalize != 0 {
+            output.push(format!("canonicalize: {}", self.canonicalize));
+        }
+        if self.symlink_metadata != 0 {
+            output.push(format!("symlink_metadata: {}", self.symlink_metadata));
+        }
+        if self.read_file_with_encoding != 0 {
+            output.push(format!(
+                "read_file_with_encoding: {}",
+                self.read_file_with_encoding
+            ));
+        }
+        let str = output.join(",\n");
+        f.write_str(&str)
+    }
+}
+
+impl Counter {
+    fn inc_metadata(&mut self) {
+        self.metadata += 1;
+    }
+    fn inc_symlink_metadata(&mut self) {
+        self.symlink_metadata += 1;
+    }
+    fn inc_read_file_with_encoding(&mut self) {
+        self.read_file_with_encoding += 1;
+    }
+    fn inc_canonicalize(&mut self) {
+        self.canonicalize += 1;
+    }
+    fn inc_read_dir(&mut self) {
+        self.read_dir += 1;
+    }
+}
+
 #[derive(Default)]
 pub struct LocalFS {
     tree: FSTree,
@@ -15,6 +68,8 @@ pub struct LocalFS {
     dir_exists_cache: FxHashMap<Atom, bool>,
     metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
     symlink_metadata_cache: FxHashMap<Atom, Result<std::fs::Metadata, ()>>,
+    #[cfg(debug_assertions)]
+    counter: Counter,
 }
 
 impl std::fmt::Debug for LocalFS {
@@ -32,7 +87,14 @@ impl LocalFS {
             dir_exists_cache: fx_hashmap_with_capacity(256),
             metadata_cache: fx_hashmap_with_capacity(256),
             symlink_metadata_cache: fx_hashmap_with_capacity(256),
+            #[cfg(debug_assertions)]
+            counter: Counter::default(),
         }
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn steal_counter(&mut self) -> Counter {
+        std::mem::take(&mut self.counter)
     }
 
     fn metadata(
@@ -51,6 +113,8 @@ impl LocalFS {
         if let Some(metadata) = self.metadata_cache.get(&atom).cloned() {
             return metadata;
         }
+        #[cfg(debug_assertions)]
+        self.counter.inc_metadata();
         let metadata = std::fs::metadata(p).map_err(|_| ());
         self.metadata_cache.insert(atom, metadata.clone());
         metadata
@@ -72,6 +136,8 @@ impl LocalFS {
         if let Some(metadata) = self.symlink_metadata_cache.get(&atom).cloned() {
             return metadata;
         }
+        #[cfg(debug_assertions)]
+        self.counter.inc_symlink_metadata();
         let metadata = std::fs::symlink_metadata(p).map_err(|_| ());
         self.symlink_metadata_cache.insert(atom, metadata.clone());
         metadata
@@ -92,6 +158,8 @@ impl CachedFileSystem for LocalFS {
             Ok(atom)
         } else {
             let path = path.normalize();
+            #[cfg(debug_assertions)]
+            self.counter.inc_read_file_with_encoding();
             match read_file_with_encoding(path.as_path()) {
                 Ok(content) => {
                     let content = atoms.atom(&content);
@@ -137,6 +205,8 @@ impl CachedFileSystem for LocalFS {
         if !is_symlink {
             return false;
         }
+        #[cfg(debug_assertions)]
+        self.counter.inc_canonicalize();
         let to = std::fs::canonicalize(from).unwrap();
         let res = self.tree.add_symlink_file(atoms, from, &to);
         debug_assert!(res.is_ok());
@@ -150,6 +220,8 @@ impl CachedFileSystem for LocalFS {
     ) -> FsResult<crate::PathId> {
         debug_assert!(p.is_normalized());
         // TODO: optimize
+        #[cfg(debug_assertions)]
+        self.counter.inc_canonicalize();
         let Ok(p) = std::fs::canonicalize(p) else {
             unreachable!()
         };
@@ -163,6 +235,8 @@ impl CachedFileSystem for LocalFS {
     ) -> FsResult<impl Iterator<Item = std::path::PathBuf>> {
         debug_assert!(p.is_dir());
         self.tree.add_dir(atoms, p).map(|_| ())?;
+        #[cfg(debug_assertions)]
+        self.counter.inc_read_dir();
         let read_dir = std::fs::read_dir(p).unwrap();
         Ok(read_dir.map(|entry| entry.unwrap().path()))
     }

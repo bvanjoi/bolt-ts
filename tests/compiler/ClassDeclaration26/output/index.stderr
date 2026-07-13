@@ -1,0 +1,41 @@
+  × A class member cannot have the 'const' keyword.
+   ╭─[../../tests/compiler/ClassDeclaration26/index.ts:7:12]
+ 7 │ const
+   · ─────
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/ClassDeclaration26/index.ts:7:18]
+ 7 │ var
+   · ───
+   ╰────
+
+  × 'export' modifier cannot appear on class elements of this kind.
+   ╭─[../../tests/compiler/ClassDeclaration26/index.ts:7:22]
+ 7 │ export
+   · ──────
+   ╰────
+
+  × Expected '}'.
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:12:5]
+ 12 │ var
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:12:20]
+ 12 │ (
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:12:21]
+ 12 │ )
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:16:1]
+ 16 │ }
+    · ─
+    ╰────

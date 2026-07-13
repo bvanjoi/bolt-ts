@@ -1,8 +1,5 @@
-mod utils;
-
+use bolt_ts_module_resolve_test::{should_eq, should_eq_with_counter};
 use compile_test::build_temp_files;
-
-use self::utils::should_eq;
 
 #[test]
 fn test_auto_ts_extension() {
@@ -16,8 +13,22 @@ fn test_auto_ts_extension() {
 
     let dir = dir.path();
     let from = dir.join("./index.ts");
-    should_eq(&from, "./a", dir.join("./a.ts"));
-    should_eq(&from, "./folder/test", dir.join("./folder/test.ts"));
+    should_eq_with_counter(
+        &from,
+        "./a",
+        dir.join("./a.ts"),
+        expect_test::expect![[r#"
+            metadata: 2
+        "#]],
+    );
+    should_eq_with_counter(
+        &from,
+        "./folder/test",
+        dir.join("./folder/test.ts"),
+        expect_test::expect![[r#"
+            metadata: 2
+        "#]],
+    );
 }
 
 #[test]

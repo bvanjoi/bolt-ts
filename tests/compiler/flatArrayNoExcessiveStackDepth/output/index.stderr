@@ -1,0 +1,6 @@
+  × Type 'Arr | cond' is not assignable to type '{ done: Arr; recur: cond; }
+  │ [cond]'.
+    ╭─[../../tests/compiler/flatArrayNoExcessiveStackDepth/index.ts:26:5]
+ 26 │ y
+    · ─
+    ╰────

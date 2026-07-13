@@ -1,7 +1,5 @@
-mod utils;
-
+use bolt_ts_module_resolve_test::should_eq;
 use compile_test::build_temp_files;
-use utils::should_eq;
 
 #[test]
 fn test_symlinks() {
