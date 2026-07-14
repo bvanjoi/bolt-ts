@@ -1,0 +1,37 @@
+  × Expected '=>'.
+    ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:18:28]
+ 18 │ .
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:18:28]
+ 18 │ .
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:18:28]
+ 18 │ .
+    · ─
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:18:29]
+ 18 │ props
+    · ─────
+    ╰────
+
+  × Property '"date"' does not exist on type '(inspectedElement: any) =>
+  │ number'.
+   ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:8:3]
+ 8 │ date
+   · ────
+   ╰────
+
+  × Property '"date2"' does not exist on type '(inspectedElement: any) =>
+  │ error'.
+    ╭─[../../tests/compiler/destructuringControlFlowNoCrash/index.ts:16:3]
+ 16 │ date2
+    · ─────
+    ╰────

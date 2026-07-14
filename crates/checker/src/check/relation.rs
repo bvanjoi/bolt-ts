@@ -690,7 +690,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let fn_ty = if ty == self.any_fn_ty() {
-                Some(self.global_array_ty())
+                Some(self.global_fn_ty())
             } else if self
                 .get_ty_links(ty.id)
                 .get_structured_members()

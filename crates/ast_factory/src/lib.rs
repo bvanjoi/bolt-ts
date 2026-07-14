@@ -307,7 +307,7 @@ pub trait ASTFactory<'cx> {
         span: Span,
         tag: &'cx ast::Expr<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
-        tpl: &'cx ast::Expr<'cx>,
+        tpl: ast::TemplateExpressionKind<'cx>,
     ) -> &'cx ast::TaggedTemplateExpr<'cx> {
         let id = self.next_node_id();
         let tagged_template = self.alloc(ast::TaggedTemplateExpr {

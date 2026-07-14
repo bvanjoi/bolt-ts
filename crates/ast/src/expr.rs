@@ -306,6 +306,11 @@ impl<'cx> Expr<'cx> {
             }
         }
     }
+
+    pub fn has_default_value(&self) -> bool {
+        // TODO:
+        false
+    }
 }
 
 pub const SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS: u8 = 1 << 0;
@@ -1189,7 +1194,29 @@ pub struct TaggedTemplateExpr<'cx> {
     pub span: Span,
     pub tag: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
-    pub tpl: &'cx Expr<'cx>,
+    pub tpl: TemplateExpressionKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TemplateExpressionKind<'cx> {
+    NoSubstitutionTemplateLit(&'cx NoSubstitutionTemplateLit),
+    TemplateExpr(&'cx TemplateExpr<'cx>),
+}
+
+impl TemplateExpressionKind<'_> {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::NoSubstitutionTemplateLit(n) => n.span,
+            Self::TemplateExpr(n) => n.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self {
+            Self::NoSubstitutionTemplateLit(n) => n.id,
+            Self::TemplateExpr(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

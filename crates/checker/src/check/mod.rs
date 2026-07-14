@@ -2858,7 +2858,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ObjectLit(n) => {
                 self.check_object_literal_assignment::<RIGHT_IS_THIS>(n, source_ty)
             }
-            ast::Node::ArrayLit(n) => self.check_array_literal_assignment(n, source_ty),
+            ast::Node::ArrayLit(n) => self.check_array_literal_assignment(n, source_ty, check_mode),
             _ => {
                 // TODO: check_reference_assignment
                 source_ty
@@ -2918,7 +2918,10 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                let ty = self.get_flow_type_of_destructing_for_property_assignment(n, element_ty);
+                let ty = self
+                    .get_flow_type_of_destructing_for_property_assignment_or_shorthand_assignment(
+                        n.id, element_ty,
+                    );
                 self.check_destructing_assignment::<RIGHT_IS_THIS>(n.init.id(), ty, None);
             }
             ast::ObjectMemberKind::Shorthand(n) => {
@@ -2949,7 +2952,10 @@ impl<'cx> TyChecker<'cx> {
                     None,
                     None,
                 );
-                let ty = self.get_flow_type_of_destructing_for_shorthand_assignment(n, element_ty);
+                let ty = self
+                    .get_flow_type_of_destructing_for_property_assignment_or_shorthand_assignment(
+                        n.id, element_ty,
+                    );
                 self.check_destructing_assignment::<RIGHT_IS_THIS>(n.id, ty, None);
             }
             _ => {
@@ -2958,52 +2964,49 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_flow_type_of_destructing_for_property_assignment(
+    fn get_flow_type_of_destructing_for_property_assignment_or_shorthand_assignment(
         &mut self,
-        n: &'cx ast::ObjectPropAssignment<'cx>,
+        id: ast::NodeID,
         declared_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        let parent = self.parent(n.id).unwrap();
+        debug_assert!({
+            let n = self.p.node(id);
+            n.is_object_prop_assignment() || n.is_object_shorthand_member()
+        });
+        let parent = self.parent(id).unwrap();
         debug_assert!(self.p.node(parent).is_object_lit());
         let parent_parent = self.parent(parent).unwrap();
         match self.p.node(parent_parent) {
-            ast::Node::AssignExpr(parent) => {
-                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) {
+            ast::Node::AssignExpr(parent_parent) => {
+                if let Some(flow) = self.get_flow_node_of_node(parent_parent.right.id()) {
                     debug_assert_eq!(
-                        self.get_flow_node_of_node(n.name.id()),
+                        {
+                            let n = self.p.node(id);
+                            let name_id = match n {
+                                ast::Node::ObjectPropAssignment(n) => n.name.id(),
+                                ast::Node::ObjectShorthandMember(n) => n.name.id,
+                                _ => unreachable!(),
+                            };
+                            self.get_flow_node_of_node(name_id)
+                        },
                         Some(flow),
-                        "node: {n:#?}",
+                        "parent_parent: {parent_parent:#?}",
                     );
-                    self.get_flow_ty_of_reference(n.id, declared_ty, None, None, Some(flow))
+                    self.get_flow_ty_of_reference(id, declared_ty, None, None, Some(flow))
                 } else {
                     declared_ty
                 }
             }
             ast::Node::ObjectPropAssignment(_) => {
-                self.get_flow_ty_of_reference(n.id, declared_ty, None, None, None)
+                self.get_flow_ty_of_reference(id, declared_ty, None, None, None)
             }
-            _ => todo!("more case, n: {:#?}", n),
-        }
-    }
-
-    fn get_flow_type_of_destructing_for_shorthand_assignment(
-        &mut self,
-        n: &'cx ast::ObjectShorthandMember<'cx>,
-        declared_ty: &'cx ty::Ty<'cx>,
-    ) -> &'cx ty::Ty<'cx> {
-        let parent = self.parent(n.id).unwrap();
-        debug_assert!(self.p.node(parent).is_object_lit());
-        let parent_parent = self.parent(parent).unwrap();
-        match self.p.node(parent_parent) {
-            ast::Node::AssignExpr(parent) => {
-                if let Some(flow) = self.get_flow_node_of_node(parent.right.id()) {
-                    debug_assert_eq!(self.get_flow_node_of_node(n.name.id), Some(flow));
-                    self.get_flow_ty_of_reference(n.id, declared_ty, None, None, Some(flow))
-                } else {
-                    declared_ty
-                }
+            ast::Node::ArrayLit(_) => {
+                // TODO:
+                declared_ty
             }
-            _ => todo!("more case"),
+            parent_parent_node => {
+                todo!("more case, parent_parent: {parent_parent_node:#?}")
+            }
         }
     }
 
@@ -3011,6 +3014,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         array: &'cx ast::ArrayLit<'cx>,
         source_ty: &'cx ty::Ty<'cx>,
+        check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         let possibly_out_of_bounds_ty = self.check_iterated_ty_or_element_ty(
             IterationUse::DESTRUCTURING.union(IterationUse::POSSIBLY_OUT_OF_BOUNDS),
@@ -3021,7 +3025,9 @@ impl<'cx> TyChecker<'cx> {
         for (index, _elemm) in array.elems.iter().enumerate() {
             let ty = possibly_out_of_bounds_ty;
             // TODO: spared
-            self.check_array_lit_destructuring_elem_assignment(array, source_ty, index, ty)
+            self.check_array_lit_destructuring_elem_assignment(
+                array, source_ty, index, ty, check_mode,
+            );
         }
         source_ty
     }
@@ -3030,28 +3036,50 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         array: &'cx ast::ArrayLit<'cx>,
         source_ty: &'cx ty::Ty<'cx>,
-        index: usize,
-        _tyy: &'cx ty::Ty<'cx>,
-    ) {
-        let elem = &array.elems[index];
+        element_index: usize,
+        element_ty: &'cx ty::Ty<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let elem = &array.elems[element_index];
         if !matches!(elem.kind, ast::ExprKind::Omit(_))
             && !matches!(elem.kind, ast::ExprKind::SpreadElement(_))
         {
-            let index_ty = self.get_number_literal_type::<false>((index as f64).into(), None);
+            let index_ty =
+                self.get_number_literal_type::<false>((element_index as f64).into(), None);
             if self.is_array_like_ty(source_ty) {
                 // TODO: `has_default_value`
-                let access_flags = AccessFlags::EXPRESSION_POSITION;
-                let _element_tyy = self.get_indexed_access_type_or_undefined(
-                    source_ty,
-                    index_ty,
-                    Some(access_flags),
-                    Some(elem.id()),
-                    None,
-                    None,
-                );
-                // TODO: assigned_ty
+                let access_flags = AccessFlags::EXPRESSION_POSITION
+                    | if elem.has_default_value() {
+                        AccessFlags::ALLOWING_MISSING
+                    } else {
+                        AccessFlags::empty()
+                    };
+                let element_ty = self
+                    .get_indexed_access_type_or_undefined(
+                        source_ty,
+                        index_ty,
+                        Some(access_flags),
+                        Some(elem.id()),
+                        None,
+                        None,
+                    )
+                    .unwrap_or(self.error_ty);
+                let assigned_ty = if elem.has_default_value() {
+                    self.get_ty_with_facts(element_ty, TypeFacts::NE_UNDEFINED)
+                } else {
+                    element_ty
+                };
+                // TODO: get_flow_type_of_destructing
+                let ty = assigned_ty;
+                return Some(self.check_destructing_assignment::<false>(elem.id(), ty, check_mode));
             }
+            return Some(self.check_destructing_assignment::<false>(
+                elem.id(),
+                element_ty,
+                check_mode,
+            ));
         }
+        None
     }
 
     fn check_object_prop_assignment(

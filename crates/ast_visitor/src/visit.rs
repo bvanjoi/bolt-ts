@@ -1413,7 +1413,12 @@ pub fn visit_tagged_template_expr<'cx, V: Visitor<'cx>>(
 ) -> V::Result {
     visit_return!(v.visit_expr(n.tag));
     visit_return!(visit_type_arguments(v, n.ty_args));
-    v.visit_expr(n.tpl)
+    match n.tpl {
+        ast::TemplateExpressionKind::NoSubstitutionTemplateLit(n) => {
+            v.visit_no_substitution_template_lit(n)
+        }
+        ast::TemplateExpressionKind::TemplateExpr(n) => v.visit_template_expr(n),
+    }
 }
 
 pub fn visit_delete_expr<'cx, V: Visitor<'cx>>(

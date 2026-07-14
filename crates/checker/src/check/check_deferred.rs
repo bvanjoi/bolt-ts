@@ -81,9 +81,12 @@ impl<'cx> TyChecker<'cx> {
             VoidExpr(n) => {
                 self.check_expression(n.expr, None);
             }
-            TaggedTemplateExpr(n) => {
-                self.resolve_untyped_call(n);
-            }
+            TaggedTemplateExpr(n) => match n.tpl {
+                ast::TemplateExpressionKind::NoSubstitutionTemplateLit(_) => {}
+                ast::TemplateExpressionKind::TemplateExpr(n) => {
+                    self.check_template_expr(n);
+                }
+            },
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

@@ -782,7 +782,12 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 if let Some(ty_args) = n.ty_args {
                     self.resolve_tys(ty_args.list);
                 }
-                self.resolve_expr(n.tpl);
+                match n.tpl {
+                    ast::TemplateExpressionKind::NoSubstitutionTemplateLit(_) => {}
+                    ast::TemplateExpressionKind::TemplateExpr(n) => {
+                        self.resolve_template_expr(n);
+                    }
+                }
             }
             This(_)
             | BoolLit(_)

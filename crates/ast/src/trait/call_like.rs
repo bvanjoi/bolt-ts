@@ -55,8 +55,7 @@ impl<'cx> CallLike<'cx> for crate::TaggedTemplateExpr<'cx> {
         self.ty_args
     }
     fn args(&self) -> crate::Exprs<'cx> {
-        let addr = std::ptr::addr_of!(self.tpl);
-        unsafe { std::slice::from_raw_parts(addr, 1) }
+        todo!("remove CallLike trait");
     }
     fn span(&self) -> Span {
         self.span

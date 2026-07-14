@@ -19,7 +19,7 @@ use super::{InferenceContextId, TyChecker};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
-use bolt_ts_ast::r#trait::{self, CallLike};
+use bolt_ts_ast::r#trait;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_checker_errors::ExpectedArgsCount;
 use bolt_ts_span::Span;
@@ -28,17 +28,29 @@ use bolt_ts_utils::fx_indexmap_with_capacity;
 use bolt_ts_utils::no_hashset_with_capacity;
 
 pub(super) trait CallLikeExpr<'cx>: r#trait::CallLike<'cx> {
-    fn resolve_sig(&self, checker: &mut TyChecker<'cx>, check_mode: CheckMode) -> &'cx Sig<'cx>;
-    fn as_super_call(&self) -> Option<&'cx ast::SuperExpr>;
-    fn as_call_expr(&self) -> Option<&ast::CallExpr<'cx>>;
+    fn resolve_sig(&'cx self, checker: &mut TyChecker<'cx>, check_mode: CheckMode)
+    -> &'cx Sig<'cx>;
+    fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
+        None
+    }
+    fn as_call_expr(&self) -> Option<&ast::CallExpr<'cx>> {
+        None
+    }
+    fn as_tagged_template_expr(&self) -> Option<&ast::TaggedTemplateExpr<'cx>> {
+        None
+    }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
-    fn resolve_sig(&self, checker: &mut TyChecker<'cx>, check_mode: CheckMode) -> &'cx Sig<'cx> {
+    fn resolve_sig(
+        &'cx self,
+        checker: &mut TyChecker<'cx>,
+        check_mode: CheckMode,
+    ) -> &'cx Sig<'cx> {
         checker.resolve_call_expression(self, check_mode)
     }
     fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
-        match self.callee().kind {
+        match self.expr.kind {
             ast::ExprKind::Super(super_expr) => Some(super_expr),
             _ => None,
         }
@@ -49,23 +61,35 @@ impl<'cx> CallLikeExpr<'cx> for ast::CallExpr<'cx> {
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::NewExpr<'cx> {
-    fn resolve_sig(&self, checker: &mut TyChecker<'cx>, check_mode: CheckMode) -> &'cx Sig<'cx> {
+    fn resolve_sig(
+        &'cx self,
+        checker: &mut TyChecker<'cx>,
+        check_mode: CheckMode,
+    ) -> &'cx Sig<'cx> {
         checker.resolve_new_expr(self, check_mode)
-    }
-    fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
-        None
-    }
-    fn as_call_expr(&self) -> Option<&'cx bolt_ts_ast::CallExpr<'cx>> {
-        None
     }
 }
 
 impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
-    fn resolve_sig(&self, checker: &mut TyChecker<'cx>, check_mode: CheckMode) -> &'cx Sig<'cx> {
+    fn resolve_sig(
+        &'cx self,
+        checker: &mut TyChecker<'cx>,
+        check_mode: CheckMode,
+    ) -> &'cx Sig<'cx> {
+        let resolve_error_call =
+            |checker: &mut TyChecker<'cx>, n: &'cx ast::TaggedTemplateExpr<'cx>| {
+                match n.tpl {
+                    ast::TemplateExpressionKind::NoSubstitutionTemplateLit(_) => {}
+                    ast::TemplateExpressionKind::TemplateExpr(n) => {
+                        checker.check_template_expr(n);
+                    }
+                }
+                checker.unknown_sig()
+            };
         let tag_ty = checker.check_expression(self.tag, None);
         let apparent_ty = checker.get_apparent_ty(tag_ty);
         if checker.is_error(apparent_ty) {
-            return checker.resolve_error_call(self);
+            return resolve_error_call(checker, self);
         }
         let call_sigs = checker.get_signatures_of_type(apparent_ty, ty::SigKind::Call);
 
@@ -78,21 +102,15 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
                     span: self.tag.span()
                 };
                 checker.push_error(Box::new(error));
-                return checker.resolve_error_call(self);
+                return resolve_error_call(checker, self);
             }
-            return checker.resolve_error_call(self);
+            return resolve_error_call(checker, self);
         }
         // TODO: use resolve_call
         checker.resolve_call_expression(self, check_mode)
     }
-    fn as_super_call(&self) -> Option<&'cx ast::SuperExpr> {
-        match self.tag.kind {
-            ast::ExprKind::Super(super_expr) => Some(super_expr),
-            _ => None,
-        }
-    }
-    fn as_call_expr(&self) -> Option<&'cx ast::CallExpr<'cx>> {
-        None
+    fn as_tagged_template_expr(&self) -> Option<&bolt_ts_ast::TaggedTemplateExpr<'cx>> {
+        Some(self)
     }
 }
 
@@ -1033,16 +1051,11 @@ impl<'cx> TyChecker<'cx> {
             let arg = args.index(i);
             let parameter_type = self.get_ty_at_pos(sig, i);
             match arg.as_ref() {
-                EffectiveCallArgument::Expression(n) => {
-                    if matches!(n.kind, ast::ExprKind::Omit(_)) {
-                        continue;
-                    }
-                    let argument_type = if self.p.node(expr.id()).is_tagged_template_expr() {
-                        // TODO: wrap by `check_expr_with_contextual_ty`
-                        self.get_global_template_strings_array_ty()
-                    } else {
-                        self.check_expr_with_contextual_ty(n, parameter_type, None, check_mode)
-                    };
+                EffectiveCallArgument::Expression(n)
+                    if !matches!(n.kind, ast::ExprKind::Omit(_)) =>
+                {
+                    let argument_type =
+                        self.check_expr_with_contextual_ty(n, parameter_type, None, check_mode);
                     let error_node = report_error.then(|| n.id());
                     let regular_arg_ty = if check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                         self.get_regular_ty_of_object_literal(argument_type)
@@ -1094,6 +1107,7 @@ impl<'cx> TyChecker<'cx> {
                     //     return true;
                     // }
                 }
+                _ => {}
             }
         }
 

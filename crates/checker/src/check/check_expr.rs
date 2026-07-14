@@ -23,7 +23,6 @@ use super::eval::EvalResult;
 use super::flow::flow_loop_ctx_len;
 use super::get_syntactic_semantics::PredicateSemantics;
 use super::node_check_flags::NodeCheckFlags;
-use super::relation;
 use super::ty;
 use super::ty::AccessFlags;
 use super::ty::CheckFlags;
@@ -188,7 +187,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> &'cx ty::Ty<'cx> {
         let l = self.check_expression(node.left, check_mode);
         let r = self.check_expression(node.right, check_mode);
-        self.check_bin_like_expr(node, node.op, node.left, l, node.right, r, check_mode)
+        self.check_bin_like_expr(node, l, r, check_mode)
     }
 
     fn check_nullish_coalesce_op_left(&mut self, node: &'cx ast::BinExpr) {
@@ -334,18 +333,17 @@ impl<'cx> TyChecker<'cx> {
         .unwrap()
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn check_bin_like_expr(
         &mut self,
         node: &'cx ast::BinExpr,
-        op: ast::BinOp,
-        left: &'cx ast::Expr<'cx>,
         left_ty: &'cx ty::Ty<'cx>,
-        right: &'cx ast::Expr<'cx>,
         right_ty: &'cx ty::Ty<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
         use bolt_ts_ast::BinOpKind::*;
+        let ast::BinExpr {
+            left, right, op, ..
+        } = node;
         match op.kind {
             Add => self.check_binary_like_expr_for_add(
                 left,
@@ -444,7 +442,7 @@ impl<'cx> TyChecker<'cx> {
                         left_ty,
                         right_ty,
                         node.span,
-                        op,
+                        *op,
                         |this, left, right| {
                             this.is_type_equality_comparable_to(left, right)
                                 || this.is_type_equality_comparable_to(right, left)
@@ -463,7 +461,7 @@ impl<'cx> TyChecker<'cx> {
                         left_ty,
                         right_ty,
                         op.span,
-                        op,
+                        *op,
                         |this, l, r| {
                             if this.is_type_any(l) || this.is_type_any(r) {
                                 true
@@ -471,21 +469,11 @@ impl<'cx> TyChecker<'cx> {
                                 let left_assignable_to_number =
                                     this.is_type_assignable_to(l, this.number_or_bigint_ty());
                                 let right_assignable_to_number =
-                                    this.is_type_assignable_to(l, this.number_or_bigint_ty());
+                                    this.is_type_assignable_to(r, this.number_or_bigint_ty());
                                 left_assignable_to_number && right_assignable_to_number
                                     || !left_assignable_to_number
                                         && !right_assignable_to_number
-                                        && {
-                                            this.is_type_related_to(
-                                                l,
-                                                r,
-                                                relation::RelationKind::Comparable,
-                                            ) || this.is_type_related_to(
-                                                r,
-                                                l,
-                                                relation::RelationKind::Comparable,
-                                            )
-                                        }
+                                        && this.are_types_comparable(l, r)
                             }
                         },
                     );
@@ -1101,7 +1089,10 @@ impl<'cx> TyChecker<'cx> {
             }
     }
 
-    fn check_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn check_template_expr(
+        &mut self,
+        node: &'cx ast::TemplateExpr<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
         let mut texts = Vec::with_capacity(8);
         texts.push(node.head.text);
         let mut tys = Vec::with_capacity(8);

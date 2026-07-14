@@ -1055,6 +1055,16 @@ impl<'cx> ParserState<'cx, '_> {
     fn prase_template_expr<const IS_TAGGED_TEMPLATE: bool>(
         &mut self,
     ) -> PResult<&'cx ast::Expr<'cx>> {
+        let n = self.parse_template_expression_worker::<IS_TAGGED_TEMPLATE>()?;
+        let expr = self.alloc(ast::Expr {
+            kind: ast::ExprKind::Template(n),
+        });
+        Ok(expr)
+    }
+
+    fn parse_template_expression_worker<const IS_TAGGED_TEMPLATE: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::TemplateExpr<'cx>> {
         let start = self.token.start();
         let head = self.parse_template_head::<IS_TAGGED_TEMPLATE>()?;
         let spans = self.parse_template_spans(|this| {
@@ -1062,10 +1072,7 @@ impl<'cx> ParserState<'cx, '_> {
                 .map(|n| (n, !n.is_tail))
         })?;
         let n = self.create_template_expression(self.new_span(start), head, spans);
-        let expr = self.alloc(ast::Expr {
-            kind: ast::ExprKind::Template(n),
-        });
-        Ok(expr)
+        Ok(n)
     }
 
     pub(super) fn parse_template_head<const IS_TAGGED_TEMPLATE: bool>(
@@ -1304,11 +1311,10 @@ impl<'cx> ParserState<'cx, '_> {
         let tpl = if self.token.kind == TokenKind::NoSubstitutionTemplate {
             self.re_scan_template_token::<true>();
             let lit = self.parse_no_substitution_template_lit();
-            self.alloc(ast::Expr {
-                kind: ast::ExprKind::NoSubstitutionTemplateLit(lit),
-            })
+            ast::TemplateExpressionKind::NoSubstitutionTemplateLit(lit)
         } else {
-            self.prase_template_expr::<true>()?
+            let expr = self.parse_template_expression_worker::<true>()?;
+            ast::TemplateExpressionKind::TemplateExpr(expr)
         };
         if question_dot.is_some()
             || self

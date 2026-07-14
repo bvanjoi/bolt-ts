@@ -918,4 +918,75 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         self.emitter.print().p_semi();
     }
+
+    fn visit_cond_ty(&mut self, node: &'cx bolt_ts_ast::CondTy<'cx>) -> Self::Result {
+        self.visit_ty(node.check_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("extends");
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.extends_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_question();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.true_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.false_ty);
+    }
+
+    fn visit_infer_ty(&mut self, node: &'cx bolt_ts_ast::InferTy<'cx>) -> Self::Result {
+        self.emitter.print().p("infer");
+        self.emitter.print().p_whitespace();
+        self.visit_ident(node.ty_param.name);
+        if let Some(constraint) = node.ty_param.constraint {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p("extends");
+            self.emitter.print().p_whitespace();
+            self.visit_ty(constraint);
+        }
+        if let Some(default) = node.ty_param.default {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(default);
+        }
+    }
+
+    fn visit_template_lit_ty(
+        &mut self,
+        node: &'cx bolt_ts_ast::TemplateLitTy<'cx>,
+    ) -> Self::Result {
+        visit_template_head_ty(self, node.head);
+        for span in node.spans {
+            self.visit_template_span_ty(span)
+        }
+    }
+
+    fn visit_template_span_ty(
+        &mut self,
+        node: &'cx bolt_ts_ast::TemplateSpanTy<'cx>,
+    ) -> Self::Result {
+        self.visit_ty(node.ty);
+        self.emitter.emit_atom(self.resolver.atoms(), node.text);
+        if node.is_tail {
+            self.emitter.print().p_r_brace();
+            self.emitter.print().p_backtick();
+        } else {
+            self.emitter.print().p_r_brace();
+            self.emitter.print().p_dollar();
+            self.emitter.print().p_l_brace();
+        }
+    }
+
+    fn visit_rest_ty(&mut self, node: &'cx bolt_ts_ast::RestTy<'cx>) -> Self::Result {
+        self.emitter.print().p_dot_dot_dot();
+        self.visit_ty(node.ty);
+    }
+}
+
+fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &bolt_ts_ast::TemplateHead) {
+    v.emitter.print().p_backtick();
+    v.emitter.emit_atom(v.resolver.atoms(), node.text);
+    v.emitter.print().p("${");
 }

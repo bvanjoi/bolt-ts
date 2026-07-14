@@ -131,9 +131,20 @@ impl<'cx> TyChecker<'cx> {
         //     return self.empty_array();
         // }
         match node {
-            ast::Node::TaggedTemplateExpr(_) => {
-                // TODO:
-                EffectiveCallArguments::Borrowed(expr.args())
+            ast::Node::TaggedTemplateExpr(n) => {
+                let mut args = vec![EffectiveCallArgument::Synthetic(SyntheticExpression {
+                    span: n.tag.span(),
+                    parent: n.tpl.id(),
+                    is_spread: false,
+                    tuple_name_source: None,
+                    ty: self.get_global_template_strings_array_ty(),
+                })];
+                if let ast::TemplateExpressionKind::TemplateExpr(template) = n.tpl {
+                    for span in template.spans {
+                        args.push(EffectiveCallArgument::Expression(span.expr));
+                    }
+                }
+                EffectiveCallArguments::Owned(args)
             }
             _ => {
                 let args = expr.args();

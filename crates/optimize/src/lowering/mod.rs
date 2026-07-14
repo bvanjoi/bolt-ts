@@ -967,7 +967,16 @@ impl<'checker, 'cx> LoweringCtx<'checker, 'cx> {
             ExprKind::Template(n) => ir::Expr::Template(self.lower_template_expr(n)),
             ExprKind::TaggedTemplate(n) => {
                 let tag = self.lower_expr(n.tag);
-                let tpl = self.lower_expr(n.tpl);
+                let tpl = match n.tpl {
+                    ast::TemplateExpressionKind::NoSubstitutionTemplateLit(n) => {
+                        let n = self.nodes.alloc_string_lit(n.span, n.val, true);
+                        ir::Expr::StringLit(n)
+                    }
+                    ast::TemplateExpressionKind::TemplateExpr(n) => {
+                        let n = self.lower_template_expr(n);
+                        ir::Expr::Template(n)
+                    }
+                };
                 ir::Expr::TaggedTemplate(self.nodes.alloc_tagged_template_expr(n.span, tag, tpl))
             }
             ExprKind::TyAssertion(n) => {
