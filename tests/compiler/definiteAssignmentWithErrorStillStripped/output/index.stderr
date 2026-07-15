@@ -1,0 +1,20 @@
+  × Declarations with definite assignment assertions must also have type
+  │ annotations.
+   ╭─[../../tests/compiler/definiteAssignmentWithErrorStillStripped/index.ts:8:6]
+ 8 │ !
+   · ─
+   ╰────
+
+  × Declarations with definite assignment assertions must also have type
+  │ annotations.
+    ╭─[../../tests/compiler/definiteAssignmentWithErrorStillStripped/index.ts:10:14]
+ 10 │ !
+    · ─
+    ╰────
+
+  × Declarations with initializers cannot also have definite assignment
+  │ assertions.
+    ╭─[../../tests/compiler/definiteAssignmentWithErrorStillStripped/index.ts:12:7]
+ 12 │ !
+    · ─
+    ╰────

@@ -858,3 +858,24 @@ pub struct ADeclareModifierCannotBeUsedInAnAlreadyAmbientContext {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Declarations with initializers cannot also have definite assignment assertions.")]
+pub struct DeclarationsWithInitializersCannotAlsoHaveDefiniteAssignmentAssertions {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Declarations with definite assignment assertions must also have type annotations.")]
+pub struct DeclarationsWithDefiniteAssignmentAssertionsMustAlsoHaveTypeAnnotations {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A definite assignment assertion '!' is not permitted in this context.")]
+pub struct ADefiniteAssignmentAssertionIsNotPermittedInThisContext {
+    #[label(primary)]
+    pub span: Span,
+}

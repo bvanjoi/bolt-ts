@@ -271,6 +271,65 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         Ok(None)
     }
 
+    fn parse_class_property(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        question_token: Option<ast::Token>,
+    ) -> PResult<&'cx ast::ClassElem<'cx>> {
+        // prop
+        if let ast::PropNameKind::StringLit { raw, .. } = name.kind
+            && raw.val == keyword::KW_CONSTRUCTOR
+        {
+            let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
+            self.push_error(Box::new(error));
+        }
+        self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
+            let excl = if question_token.is_none() && !this.has_preceding_line_break() {
+                this.parse_optional(TokenKind::Excl)
+            } else {
+                None
+            };
+            let ty = this.parse_ty_anno()?;
+            let init = this.parse_init()?;
+            if let Some(excl) = excl {
+                if init.is_some() {
+                    let error = errors::DeclarationsWithInitializersCannotAlsoHaveDefiniteAssignmentAssertions {
+                        span:excl.span
+                    };
+                    this.push_error(Box::new(error));
+                } else if ty.is_none() {
+                    let error = errors::DeclarationsWithDefiniteAssignmentAssertionsMustAlsoHaveTypeAnnotations {
+                        span: excl.span,
+                    };
+                    this.push_error(Box::new(error));
+                } else if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
+                    || this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                {
+                    let error = errors::ADefiniteAssignmentAssertionIsNotPermittedInThisContext {
+                        span: excl.span,
+                    };
+                    this.push_error(Box::new(error));
+                }
+            }
+            let span = this.new_span(start);
+            let prop = this.create_class_property_element(
+                span,
+                modifiers,
+                name,
+                ty,
+                init,
+                excl,
+                question_token.map(|t| t.span),
+            );
+            this.parse_semi_after_prop_name(name.span());
+            Ok(this.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Prop(prop),
+            }))
+        })
+    }
+
     fn parse_class_prop_or_method(
         &mut self,
         start: u32,
@@ -305,36 +364,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             debug_assert!(asterisk.is_none());
-            // prop
-            if let ast::PropNameKind::StringLit { raw, .. } = name.kind
-                && raw.val == keyword::KW_CONSTRUCTOR
-            {
-                let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
-                self.push_error(Box::new(error));
-            }
-            self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
-                let excl = if question_token.is_none() && !this.has_preceding_line_break() {
-                    this.parse_optional(TokenKind::Excl)
-                } else {
-                    None
-                };
-                let ty = this.parse_ty_anno()?;
-                let init = this.parse_init()?;
-                let span = this.new_span(start);
-                let prop = this.create_class_property_element(
-                    span,
-                    modifiers,
-                    name,
-                    ty,
-                    init,
-                    excl,
-                    question_token.map(|t| t.span),
-                );
-                this.parse_semi_after_prop_name(name.span());
-                Ok(this.alloc(ast::ClassElem {
-                    kind: ast::ClassElemKind::Prop(prop),
-                }))
-            })?
+            self.parse_class_property(start, modifiers, name, question_token)?
         };
         Ok(ele)
     }
