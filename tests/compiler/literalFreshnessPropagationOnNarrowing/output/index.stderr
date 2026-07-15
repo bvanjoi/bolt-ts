@@ -4,8 +4,8 @@
     · ──
     ╰────
 
-  × Type 'string[]' is not assignable to type '(XY)[]'.
-    ╭─[../../tests/compiler/literalFreshnessPropagationOnNarrowing/index.ts:69:5]
- 69 │ arr
-    · ───
+  × Type 'string' is not assignable to type 'XY'.
+    ╭─[../../tests/compiler/literalFreshnessPropagationOnNarrowing/index.ts:69:12]
+ 69 │ ...['y']
+    · ────────
     ╰────

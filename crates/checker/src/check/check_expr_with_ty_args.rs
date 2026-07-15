@@ -79,7 +79,7 @@ impl<'cx> TyChecker<'cx> {
             }
         } else {
             // exprWithTyArgs node
-            self.check_expression(node.expr().unwrap(), None)
+            self.check_expression::<false>(node.expr().unwrap(), None)
         };
         self.get_instantiation_expr_ty(expr_ty, node)
     }

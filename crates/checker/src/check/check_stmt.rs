@@ -19,7 +19,7 @@ impl<'cx> TyChecker<'cx> {
         match stmt.kind {
             Var(node) => self.check_var_stmt(node),
             Expr(node) => {
-                self.check_expression(node.expr, None);
+                self.check_expression::<false>(node.expr, None);
             }
             Fn(node) => self.check_fn_decl(node),
             If(node) => self.check_if_stmt(node),
@@ -74,12 +74,12 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
-        let expr_ty = self.check_expression(node.expr, None);
+        let expr_ty = self.check_expression::<false>(node.expr, None);
 
         for clause in node.case_block.clauses {
             match clause {
                 Case(n) => {
-                    let case_ty = self.check_expression(n.expr, None);
+                    let case_ty = self.check_expression::<false>(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
                         self.check_type_comparable_to(
                             case_ty,
@@ -157,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {
         if let Some(init) = member.init {
-            self.check_expression(init, None);
+            self.check_expression::<false>(init, None);
         }
     }
 
@@ -347,7 +347,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
-            let ty = self.check_expression(node.expr, None);
+            let ty = self.check_expression::<false>(node.expr, None);
             self.get_non_nullable_ty(ty)
         };
         match node.init {
@@ -356,7 +356,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_var_decl_list(declarations);
             }
             ast::ForInitKind::Expr(init) => {
-                let left_ty = self.check_expression(init, None);
+                let left_ty = self.check_expression::<false>(init, None);
                 let valid_ty = self.get_index_ty_or_string(right_ty);
 
                 if !self.is_type_assignable_to(valid_ty, left_ty) {
@@ -391,7 +391,7 @@ impl<'cx> TyChecker<'cx> {
             match init {
                 ast::ForInitKind::Var(list) => self.check_var_decl_list(list),
                 ast::ForInitKind::Expr(expr) => {
-                    self.check_expression(expr, None);
+                    self.check_expression::<false>(expr, None);
                 }
             }
         }
@@ -400,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(incr) = node.incr {
-            self.check_expression(incr, None);
+            self.check_expression::<false>(incr, None);
         }
 
         self.check_stmt(node.body);
@@ -873,9 +873,9 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ret_expr) = ret_expr {
             let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
             if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
-                let expr_ty = self.check_expression(n.when_true, None);
+                let expr_ty = self.check_expression::<false>(n.when_true, None);
                 self.check_return_expression::<true>(container, ret_ty, Some(n.when_true), expr_ty);
-                let expr_ty = self.check_expression(n.when_false, None);
+                let expr_ty = self.check_expression::<false>(n.when_false, None);
                 self.check_return_expression::<true>(
                     container,
                     ret_ty,

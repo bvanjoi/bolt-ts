@@ -1,0 +1,8 @@
+  × Duplicate identifier 'M'.
+    ╭─[../../tests/compiler/moduleSharesNameWithImportDeclarationInsideIt5/index.ts:15:12]
+ 14 │ M = Z.I;
+    · ┬
+    · ╰── Previous definition here
+ 15 │     import M
+    ·            ─
+    ╰────

@@ -1028,7 +1028,7 @@ impl<'cx> TyChecker<'cx> {
                     EffectiveCallArgument::Expression(n)
                         if let ast::ExprKind::SpreadElement(n) = n.kind =>
                     {
-                        self.check_expression(n.expr, None)
+                        self.check_expression::<false>(n.expr, None)
                     }
                     EffectiveCallArgument::Synthetic(n) => n.ty(),
                     _ => unreachable!(),

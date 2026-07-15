@@ -229,7 +229,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty;
         }
-        let base_ctor_ty = self.check_expression(extends.expr_with_ty_args.expr, None);
+        let base_ctor_ty = self.check_expression::<false>(extends.expr_with_ty_args.expr, None);
         const FLAGS: TypeFlags = TypeFlags::OBJECT.union(TypeFlags::INTERSECTION);
         if base_ctor_ty.flags.intersects(FLAGS) {
             self.resolve_structured_type_members(base_ctor_ty);

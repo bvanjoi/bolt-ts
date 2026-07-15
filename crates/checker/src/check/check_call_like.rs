@@ -86,7 +86,7 @@ impl<'cx> CallLikeExpr<'cx> for ast::TaggedTemplateExpr<'cx> {
                 }
                 checker.unknown_sig()
             };
-        let tag_ty = checker.check_expression(self.tag, None);
+        let tag_ty = checker.check_expression::<false>(self.tag, None);
         let apparent_ty = checker.get_apparent_ty(tag_ty);
         if checker.is_error(apparent_ty) {
             return resolve_error_call(checker, self);
@@ -603,7 +603,7 @@ impl<'cx> TyChecker<'cx> {
         expr: &impl CallLikeExpr<'cx>,
         check_mode: CheckMode,
     ) -> &'cx Sig<'cx> {
-        let mut expr_ty = self.check_expression(expr.callee(), Some(check_mode));
+        let mut expr_ty = self.check_expression::<false>(expr.callee(), Some(check_mode));
         if expr_ty == self.silent_never_ty {
             todo!()
         }
@@ -696,7 +696,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn resolve_untyped_call(&mut self, node: &impl CallLikeExpr<'cx>) -> &'cx Sig<'cx> {
         for arg in node.args() {
-            self.check_expression(arg, None);
+            self.check_expression::<false>(arg, None);
         }
         self.any_sig()
     }
@@ -715,7 +715,7 @@ impl<'cx> TyChecker<'cx> {
             let super_ty = self.check_super_expr(callee);
             if self.is_type_any(super_ty) {
                 for arg in expr.args() {
-                    self.check_expression(arg, None);
+                    self.check_expression::<false>(arg, None);
                 }
                 return self.any_sig();
             } else if !self.is_error(super_ty) {
@@ -744,7 +744,7 @@ impl<'cx> TyChecker<'cx> {
 
         let call_chain_flags;
         let callee = expr.callee();
-        let mut func_ty = self.check_expression(callee, None);
+        let mut func_ty = self.check_expression::<false>(callee, None);
         if self.p.is_call_chain(expr.id()) {
             let non_optional_ty = self.get_optional_expression_ty(func_ty, callee);
             call_chain_flags = if non_optional_ty == func_ty {
@@ -989,7 +989,7 @@ impl<'cx> TyChecker<'cx> {
             return self.void_ty;
         };
 
-        let this_argument_ty = self.check_expression(this_argument_node, None);
+        let this_argument_ty = self.check_expression::<false>(this_argument_node, None);
         let id = this_argument_node.id();
         let span = this_argument_node.span();
         let nq = self.node_query(span.module());

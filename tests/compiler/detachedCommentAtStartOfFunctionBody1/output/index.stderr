@@ -1,0 +1,5 @@
+  × Property 'name' does not exist on type 'TestFile<TestFile>'.
+    ╭─[../../tests/compiler/detachedCommentAtStartOfFunctionBody1/index.ts:10:37]
+ 10 │ name
+    · ────
+    ╰────

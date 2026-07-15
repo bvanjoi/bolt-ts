@@ -444,7 +444,7 @@ impl<'cx> TyChecker<'cx> {
         match body {
             Block(block) => self.check_block(block),
             Expr(expr) => {
-                let expr_ty = self.check_expression(expr, None);
+                let expr_ty = self.check_expression::<false>(expr, None);
                 if let Some(return_or_promised_ty) = ret_ty.and_then(|t| {
                     let fn_flags = self.p.node(func.id()).fn_flags();
                     self.unwrap_ret_ty(t, fn_flags)

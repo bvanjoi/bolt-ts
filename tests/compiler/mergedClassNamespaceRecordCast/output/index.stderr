@@ -1,0 +1,21 @@
+  × Property 'unrelated' does not exist on type 'C2'.
+    ╭─[../../tests/compiler/mergedClassNamespaceRecordCast/index.ts:17:10]
+ 17 │ unrelated
+    · ─────────
+    ╰────
+
+  × Conversion of type 'C1' to type 'Record<string, unknown>' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/mergedClassNamespaceRecordCast/index.ts:7:1]
+ 7 │ new C1() as Record<string, unknown>
+   · ───────────────────────────────────
+   ╰────
+
+  × Conversion of type 'C2' to type 'Record<string, unknown>' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/mergedClassNamespaceRecordCast/index.ts:13:1]
+ 13 │ new C2() as Record<string, unknown>
+    · ───────────────────────────────────
+    ╰────

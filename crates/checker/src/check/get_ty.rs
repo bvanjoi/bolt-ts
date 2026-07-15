@@ -118,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
         // }
     }
 
-    fn report_circularity_error(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    pub(super) fn report_circularity_error(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let s = self.binder.symbol(symbol);
         if let Some(value_declaration) = s.value_decl {
             let n = self.p.node(value_declaration);
@@ -2755,7 +2755,7 @@ impl<'cx> TyChecker<'cx> {
             return cache;
         }
         let saved_flow_invocation_count = self.flow_invocation_count;
-        let ty = self.check_expression(expr, Some(CheckMode::TYPE_ONLY));
+        let ty = self.check_expression::<false>(expr, Some(CheckMode::TYPE_ONLY));
         if saved_flow_invocation_count != self.flow_invocation_count {
             match &mut self.flow_ty_cache {
                 Some(n) => {

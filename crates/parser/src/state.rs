@@ -1,4 +1,4 @@
-use bolt_ts_ast::{self as ast, NodeFlags, NodeID, keyword};
+use bolt_ts_ast::{self as ast, NodeFlags, NodeID, is_strict_mode_reserved_atom, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
@@ -567,15 +567,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             return;
         }
 
-        let Some(token) = ast::atom_to_token(ident.name) else {
-            return;
-        };
-
-        if token.is_strict_mode_reserved_word() {
+        if is_strict_mode_reserved_atom(ident.name) {
             //  strict mode identifier message
             let error = errors::IdentifierExpectedXIsAReservedWordInStrictMode {
                 span: ident.span,
-                identifier: token.as_str().to_string(),
+                identifier: self.atoms.lock().unwrap().get(ident.name).to_string(),
             };
             self.push_error(Box::new(error));
         }

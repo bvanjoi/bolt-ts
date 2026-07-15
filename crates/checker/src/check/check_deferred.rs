@@ -79,7 +79,7 @@ impl<'cx> TyChecker<'cx> {
                 self.resolve_untyped_call(n);
             }
             VoidExpr(n) => {
-                self.check_expression(n.expr, None);
+                self.check_expression::<false>(n.expr, None);
             }
             TaggedTemplateExpr(n) => match n.tpl {
                 ast::TemplateExpressionKind::NoSubstitutionTemplateLit(_) => {}

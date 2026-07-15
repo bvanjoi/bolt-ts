@@ -1,0 +1,5 @@
+  × Namespace 'M' has no exported member 'B'.
+    ╭─[../../tests/compiler/moduleClassArrayCodeGenTest/index.ts:12:11]
+ 12 │ B
+    · ─
+    ╰────

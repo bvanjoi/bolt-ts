@@ -394,8 +394,8 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_readonly_array(&self, checker: &TyChecker<'cx>) -> bool {
         self.kind.as_object_reference().is_some_and(|ty| {
-            let t = checker.global_readonly_array_ty();
-            ty.target == t || self == t
+            let global_readonly_array_ty = checker.global_readonly_array_ty();
+            ty.target == global_readonly_array_ty || self == global_readonly_array_ty
         })
     }
 

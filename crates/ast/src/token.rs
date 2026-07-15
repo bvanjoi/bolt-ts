@@ -1,6 +1,8 @@
 use bolt_ts_atom::Atom;
 use bolt_ts_span::Span;
 
+use super::keyword;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Token {
     pub kind: TokenKind,
@@ -780,4 +782,16 @@ bitflags::bitflags! {
         const NUMERIC_LITERAL_FLAGS         = Self::CONTAINS_SEPARATOR.bits() | Self::PRECEDING_LINE_BREAK.bits();
         const IS_INVALID                    = Self::OCTAL.bits() | Self::CONTAINS_LEADING_ZERO.bits() | Self::CONTAINS_INVALID_SEPARATOR.bits() | Self::CONTAINS_INVALID_ESCAPE.bits();
     }
+}
+
+pub fn is_strict_mode_reserved_atom(id: Atom) -> bool {
+    id == keyword::KW_IMPLEMENTS
+        || id == keyword::KW_INTERFACE
+        || id == keyword::KW_LET
+        || id == keyword::KW_PACKAGE
+        || id == keyword::KW_PRIVATE
+        || id == keyword::KW_PROTECTED
+        || id == keyword::KW_PUBLIC
+        || id == keyword::KW_STATIC
+        || id == keyword::KW_YIELD
 }

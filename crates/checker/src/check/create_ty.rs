@@ -200,8 +200,8 @@ impl<'cx> TyChecker<'cx> {
 
         for (i, ty) in element_types.iter().enumerate() {
             let flag = target.element_flags[i];
-            if flag.intersects(ElementFlags::VARIADIC) {
-                if ty.flags.intersects(TypeFlags::ANY) {
+            if flag.contains(ElementFlags::VARIADIC) {
+                if ty.flags.contains(TypeFlags::ANY) {
                     let declaration = target
                         .labeled_element_declarations
                         .and_then(|n| n.get(i))
@@ -2233,7 +2233,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn create_ty_from_generic_global_ty(
+    pub(super) fn create_ty_from_generic_global_ty(
         &mut self,
         generic_global_ty: &'cx ty::Ty<'cx>,
         type_arguments: ty::Tys<'cx>,

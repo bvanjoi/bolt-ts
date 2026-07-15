@@ -315,7 +315,7 @@ impl<'cx> TyChecker<'cx> {
         if nq.has_dynamic_name(id)
             && let Some(name) = nq.get_name_of_declaration(id)
             && let ast::DeclarationName::Computed(name) = name
-            && let expr_ty = self.check_expression(name.expr, None)
+            && let expr_ty = self.check_expression::<false>(name.expr, None)
             && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
             && let Some(prop_ty) = self.get_ty_of_property_of_contextual_ty(ty, prop_name, None)
@@ -634,6 +634,23 @@ impl<'cx> TyChecker<'cx> {
                         let idx = Self::get_ty_reference_arity(t) - offset;
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
+                    let index = match first_spread_index {
+                        Some(first_spread_index) => {
+                            usize::min(tup.fixed_length, first_spread_index)
+                        }
+                        None => tup.fixed_length,
+                    };
+                    let end_skip_count = match (length, last_spread_index) {
+                        (Some(length), Some(last_spread_index)) => {
+                            usize::min(fixed_end_length, length - last_spread_index)
+                        }
+                        _ => fixed_end_length,
+                    };
+                    return this.get_element_ty_of_slice_of_tuple_ty::<false, true>(
+                        t,
+                        index,
+                        end_skip_count,
+                    );
                 }
                 if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
                     && let Some(t) = this.get_ty_of_property_of_contextual_ty(
@@ -644,7 +661,6 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return Some(t);
                 }
-                // TODO: this.get_iterated_ty_or_element_ty()
                 this.get_iterated_ty_or_element_ty(
                     IterationUse::ELEMENT,
                     t,

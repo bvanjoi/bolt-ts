@@ -92,21 +92,25 @@ impl CompilerOptions {
                 for (field, options, index) in candidate.iter() {
                     let option = &options[*index];
                     let mut json = base.clone();
+                    const LEFT_SEPARATOR: &str = "(";
+                    const RIGHT_SEPARATOR: &str = ")";
                     let json_value = match option {
                         CompilerOption::Null => {
-                            hit.push_str(&format!("({field}=null)"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}=null{RIGHT_SEPARATOR}"));
                             serde_json::Value::Null
                         }
                         CompilerOption::Bool(b) => {
-                            hit.push_str(&format!("({field}={b})"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}={b}{RIGHT_SEPARATOR}"));
                             serde_json::Value::Bool(*b)
                         }
                         CompilerOption::String(s) => {
-                            hit.push_str(&format!("({field}={s})"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}={s}{RIGHT_SEPARATOR}"));
                             serde_json::Value::String(s.clone())
                         }
                         CompilerOption::StringArray(arr) => {
-                            hit.push_str(&format!("({field}={arr:?})"));
+                            hit.push_str(&format!(
+                                "{LEFT_SEPARATOR}{field}={arr:?}{RIGHT_SEPARATOR}"
+                            ));
                             serde_json::Value::Array(
                                 arr.iter()
                                     .map(|s| serde_json::Value::String(s.clone()))

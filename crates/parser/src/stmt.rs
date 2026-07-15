@@ -449,6 +449,7 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
         let name = self.parse_ident_name();
+        self.check_contextual_ident(name);
         let block = self.parse_nested_module_block();
         let span = self.new_span(start);
         let module = match block {
@@ -482,6 +483,7 @@ impl<'cx> ParserState<'cx, '_> {
         if self.parse_optional(TokenKind::Dot).is_some() {
             let start = self.pos as u32;
             let name = self.parse_ident_name();
+            self.check_contextual_ident(name);
             let block = self.parse_nested_module_block();
             let span = self.new_span(start);
             let module = self.create_nested_module_declaration::<true>(

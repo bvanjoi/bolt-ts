@@ -967,7 +967,6 @@ impl<'cx> TyChecker<'cx> {
             (global_callable_fn_ty,         if this.config.compiler_options().strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_CALLABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
             (global_newable_fn_ty,          if this.config.compiler_options().strict_bind_call_apply() { this.get_global_type::<0, true>(SymbolName::Atom(keyword::IDENT_NEWABLE_FUNCTION_CLASS)) } else { global_fn_ty }),
             (any_array_ty,                  this.create_array_ty_worker::<false>(this.any_ty)),
-            (any_readonly_array_ty,         this.any_array_ty()),
             (typeof_ty,                 {
                                             let tys = TYPEOF_NE_FACTS.iter().map(|(key, _)| this.get_string_literal_type_from_string(*key)).collect::<Vec<_>>();
                                             this.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None)
@@ -996,7 +995,8 @@ impl<'cx> TyChecker<'cx> {
             (any_base_type_index_info,      this.alloc(ty::IndexInfo { symbol: Symbol::ERR, key_ty: string_ty, val_ty: any_ty, is_readonly: false, declaration: None })),
             (empty_string_ty,               this.get_string_literal_type::<false>(keyword::IDENT_EMPTY, None)),
             (zero_ty,                       this.get_number_literal_type::<false>(0.0.into(), None)),
-            (zero_bigint_ty,                this.get_bigint_literal_type(false, keyword::IDENT_EMPTY))
+            (zero_bigint_ty,                this.get_bigint_literal_type(false, keyword::IDENT_EMPTY)),
+            (any_readonly_array_ty,         this.create_ty_from_generic_global_ty(global_readonly_array_ty, this.alloc([this.any_ty])))
         });
 
         let silent_never_sig_links = SigLinks::default().with_resolved_ret_ty(silent_never_ty);
@@ -2787,7 +2787,7 @@ impl<'cx> TyChecker<'cx> {
         n: &'cx ast::PropAccessExpr<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let left_ty = self.check_expression(n.expr, None);
+        let left_ty = self.check_expression::<false>(n.expr, None);
         let non_optional_ty = self.get_optional_expression_ty(left_ty, n.expr);
         let expr_id = n.expr.id();
         let non_null_ty = self.check_non_null_type(non_optional_ty, expr_id);
@@ -2832,13 +2832,13 @@ impl<'cx> TyChecker<'cx> {
         if let ast::Node::ObjectShorthandMember(m) = n {
             if let Some(init) = m.object_assignment_initializer {
                 if self.config.compiler_options().strict_null_checks()
-                    && let init_ty = self.check_expression(init, None)
+                    && let init_ty = self.check_expression::<false>(init, None)
                     && !self.has_type_facts(init_ty, TypeFacts::IS_UNDEFINED)
                 {
                     source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
                 }
                 let left_ty = self.check_ident(m.name, check_mode);
-                let right_ty = self.check_expression(init, check_mode);
+                let right_ty = self.check_expression::<false>(init, check_mode);
                 self.check_binary_like_expr_for_equal(left_ty, right_ty, m.name.id, init.id());
             }
             // TODO: check_reference_assignment
@@ -3090,7 +3090,7 @@ impl<'cx> TyChecker<'cx> {
         if let ast::PropNameKind::Computed(n) = member.name.kind {
             self.check_computed_property_name(n);
         }
-        self.check_expression_for_mutable_location(member.init, check_mode)
+        self.check_expression_for_mutable_location::<false>(member.init, check_mode)
     }
 
     fn check_object_method_member(
@@ -3154,7 +3154,7 @@ impl<'cx> TyChecker<'cx> {
         let mut has_omitted_expr = false;
         for elem in lit.elems.iter() {
             if let ast::ExprKind::SpreadElement(e) = elem.kind {
-                let spread_ty = self.check_expression(e.expr, check_mode);
+                let spread_ty = self.check_expression::<FORCE_TUPLE>(e.expr, check_mode);
                 if self.is_array_like_ty(spread_ty) {
                     element_types.push(spread_ty);
                     element_flags.push(ElementFlags::VARIADIC);
@@ -3174,7 +3174,7 @@ impl<'cx> TyChecker<'cx> {
                 element_types.push(self.undefined_or_missing_ty);
                 element_flags.push(ElementFlags::OPTIONAL);
             } else {
-                let ty = self.check_expression_for_mutable_location(elem, check_mode);
+                let ty = self.check_expression_for_mutable_location::<false>(elem, check_mode);
                 element_types.push(self.add_optionality::<true>(ty, has_omitted_expr));
                 let flags = if has_omitted_expr {
                     ElementFlags::OPTIONAL
@@ -4142,16 +4142,16 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ParameterInitializerContainsUndefined(
             decl.id,
         )) {
-            todo!();
-            // return true;
+            self.report_circularity_error(self.final_res(decl.id));
+            return true;
         }
 
         let ty = self.check_declaration_initializer(decl, CheckMode::empty(), None);
         let contains_undefined = self.has_type_facts(ty, TypeFacts::IS_UNDEFINED);
 
         if self.pop_ty_resolution().has_cycle() {
-            todo!();
-            // return true;
+            self.report_circularity_error(self.final_res(decl.id));
+            return true;
         }
 
         self.get_mut_node_links(decl.id)
@@ -4160,7 +4160,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_non_null_expr(&mut self, expr: &'cx ast::Expr<'cx>) -> &'cx ty::Ty<'cx> {
-        let ty = self.check_expression(expr, None);
+        let ty = self.check_expression::<false>(expr, None);
         self.check_non_null_type(ty, expr.id())
     }
 
@@ -4169,7 +4169,7 @@ impl<'cx> TyChecker<'cx> {
         if flags.contains(ast::NodeFlags::OPTIONAL_CHAIN) {
             todo!("check non null chain")
         } else {
-            let ty = self.check_expression(n.expr, None);
+            let ty = self.check_expression::<false>(n.expr, None);
             self.get_non_nullable_ty(ty)
         }
     }
@@ -4595,7 +4595,7 @@ impl<'cx> TyChecker<'cx> {
                         check_mode & CheckMode::SKIP_GENERIC_FUNCTIONS.complement()
                     });
 
-                    self.checker.check_expression(expr, check_mode)
+                    self.checker.check_expression::<false>(expr, check_mode)
                 } else {
                     self.checker.undefined_widening_ty
                 };
@@ -5207,7 +5207,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         };
         self.push_type_context::<false>(id, Some(self.any_ty));
-        let ty = self.check_expression(expr, Some(CheckMode::SKIP_GENERIC_FUNCTIONS));
+        let ty = self.check_expression::<false>(expr, Some(CheckMode::SKIP_GENERIC_FUNCTIONS));
         self.pop_type_context();
         self.get_mut_node_links(id).set_context_free_ty(ty);
         ty
@@ -6980,7 +6980,7 @@ impl<'cx> TyChecker<'cx> {
                     .contains(ast::NodeFlags::OPTIONAL_CHAIN)
                 {
                     // get_return_type_of_single_non_generic_signature_of_call_chain
-                    let func_ty = self.check_expression(n.expr, None);
+                    let func_ty = self.check_expression::<false>(n.expr, None);
                     match self.get_return_type_of_single_non_generic_call_signature(func_ty) {
                         Some(return_ty) => {
                             let non_optional_ty = self.get_optional_expression_ty(func_ty, n.expr);
@@ -8519,7 +8519,8 @@ impl<'cx> TyChecker<'cx> {
         source_prop_ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         self.push_type_context::<false>(next.id(), Some(source_prop_ty));
-        let result = self.check_expression_for_mutable_location(next, Some(CheckMode::CONTEXTUAL));
+        let result =
+            self.check_expression_for_mutable_location::<false>(next, Some(CheckMode::CONTEXTUAL));
         self.pop_type_context();
         result
     }

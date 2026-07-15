@@ -584,7 +584,7 @@ impl<'cx> TyChecker<'cx> {
         if is_variable_declaration {
             match parent {
                 ast::Node::ForInStmt(stmt) => {
-                    let expr_ty = self.check_expression(stmt.expr, Some(check_mode));
+                    let expr_ty = self.check_expression::<false>(stmt.expr, Some(check_mode));
                     let expr_ty = self.get_non_nullable_ty_if_needed(expr_ty);
                     let index_ty = self.get_index_ty(expr_ty, ty::IndexFlags::empty());
                     const FLAGS: TypeFlags = TypeFlags::TYPE_PARAMETER.union(TypeFlags::INDEX);

@@ -157,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
                         let arg = args[i];
                         let spread_ty = if let ast::ExprKind::SpreadElement(n) = &arg.kind {
                             Some(if flow_loop_ctx_len(self) != 0 {
-                                self.check_expression(n.expr, None)
+                                self.check_expression::<false>(n.expr, None)
                             } else {
                                 self.check_expression_cached(n.expr, None)
                             })

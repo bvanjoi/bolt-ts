@@ -1,0 +1,25 @@
+  × Element implicitly has an 'any' type because index expression is not of
+  │ type 'number'.
+    ╭─[../../tests/compiler/noImplicitAnyIndexing/index.ts:17:26]
+ 17 │ MyEmusEnum["monehh"]
+    · ────────────────────
+    ╰────
+
+  × Property '"hi"' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyIndexing/index.ts:25:9]
+ 25 │ {}["hi"]
+    · ────────
+    ╰────
+
+  × Property '10' does not exist on type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyIndexing/index.ts:29:9]
+ 29 │ {}[10]
+    · ──────
+    ╰────
+
+  × Element implicitly has an 'any' type because expression of type 'any'
+  │ can't be used to index type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyIndexing/index.ts:38:10]
+ 38 │ emptyObj[hi]
+    · ────────────
+    ╰────
