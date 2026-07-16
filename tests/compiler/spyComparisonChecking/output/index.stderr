@@ -1,0 +1,5 @@
+  × Property 'returnValue' does not exist on type 'Function'.
+    ╭─[../../tests/compiler/spyComparisonChecking/index.ts:23:32]
+ 23 │ returnValue
+    · ───────────
+    ╰────

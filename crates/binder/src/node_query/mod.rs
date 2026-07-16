@@ -636,7 +636,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         if !matches!(node, PropAccessExpr(_) | EleAccessExpr(_)) {
             return false;
         }
-        let n = self.walk_up_paren_expressions(n);
+        let parent = self.parent(n).unwrap();
+        let n = self.walk_up_paren_expressions(parent);
         self.node(n).is_delete_expr()
     }
 

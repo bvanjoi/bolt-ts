@@ -90,6 +90,7 @@ links!(
     UnionTyLinks,
     (key_prop_name, SymbolName),
     (resolved_reduced_ty, &'cx super::Ty<'cx>),
+    (array_fallback_sigs, super::Sigs<'cx>),
 );
 
 links!(

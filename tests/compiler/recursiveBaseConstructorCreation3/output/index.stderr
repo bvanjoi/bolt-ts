@@ -1,0 +1,11 @@
+  × Generic type 'abc<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/recursiveBaseConstructorCreation3/index.ts:10:27]
+ 10 │ abc
+    · ───
+    ╰────
+
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/recursiveBaseConstructorCreation3/index.ts:14:15]
+ 14 │ xyz
+    · ───
+    ╰────

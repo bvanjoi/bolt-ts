@@ -2351,6 +2351,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
+        let ty = first_ty;
         // get anonymous partial ty
         let props = self.get_props_of_ty(ty);
         let mut members = fx_indexmap_with_capacity(props.len());

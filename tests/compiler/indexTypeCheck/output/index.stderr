@@ -1,0 +1,74 @@
+  × An index signature must have a type annotation.
+   ╭─[../../tests/compiler/indexTypeCheck/index.ts:7:12]
+ 7 │ ;
+   · ─
+   ╰────
+
+  × An index signature must have a type annotation.
+   ╭─[../../tests/compiler/indexTypeCheck/index.ts:9:12]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × An index signature cannot have a trailing comma.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:11]
+ 42 │ ,
+    · ─
+    ╰────
+
+  × Expected ']'.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:13]
+ 42 │ s
+    · ─
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:13]
+ 42 │ s
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:21]
+ 42 │ ]
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:22]
+ 42 │ ;
+    · ─
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:51:12]
+ 51 │ ;
+    · ─
+    ╰────
+
+  × 'number' index type 'number' is not assignable to 'string' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:24:2]
+ 24 │ [n:number]: number;
+    · ───────────────────
+    ╰────
+
+  × 'number' index type 'Orange' is not assignable to 'string' index type
+  │ 'Yellow'.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:30:2]
+ 30 │ [n:number]: Orange;
+    · ───────────────────
+    ╰────
+
+  × 'number' index type 'number' is not assignable to 'string' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:36:2]
+ 36 │ [n:number]: number;
+    · ───────────────────
+    ╰────
+
+  × Type 'Blue' cannot be used as an index type.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:67:8]
+ 67 │ blue
+    · ────
+    ╰────

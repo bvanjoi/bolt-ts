@@ -338,7 +338,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn get_explicit_ty_of_symbol(&mut self, symbol: SymbolID) -> Option<&'cx ty::Ty<'cx>> {
-        let symbol = self.resolve_symbol(symbol, false);
+        let symbol = self.resolve_symbol::<false>(symbol);
         let s = self.symbol(symbol);
         let s_value_decl = s.value_decl;
         if s.flags.intersects(

@@ -1,0 +1,6 @@
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/missingReturnStatement1/index.ts:6:12]
+ 6 │ number
+   · ──────
+   ╰────

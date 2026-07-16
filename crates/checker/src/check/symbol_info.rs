@@ -180,19 +180,19 @@ impl<'cx> super::TyChecker<'cx> {
             ImportEqualsDecl(n) => {
                 Some(self.get_target_of_import_equals_decl::<DONT_RESOLVE_ALIAS>(n))
             }
-            ImportNamedSpec(_) => get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS),
+            ImportNamedSpec(_) => get_target_of_import_named_spec::<DONT_RESOLVE_ALIAS>(self, node),
             ImportShorthandSpec(_) => {
-                get_target_of_import_named_spec(self, node, DONT_RESOLVE_ALIAS)
+                get_target_of_import_named_spec::<DONT_RESOLVE_ALIAS>(self, node)
             }
             ExportShorthandSpec(_) => {
                 debug_assert!(self.p.node(self.parent(node).unwrap()).is_specs_export());
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
+                get_target_of_export_spec::<DONT_RESOLVE_ALIAS>(self, node, EXPORT_SPEC_MEANING)
             }
             ExportNamedSpec(_) => {
-                get_target_of_export_spec(self, node, EXPORT_SPEC_MEANING, DONT_RESOLVE_ALIAS)
+                get_target_of_export_spec::<DONT_RESOLVE_ALIAS>(self, node, EXPORT_SPEC_MEANING)
             }
             NsImport(n) => get_target_of_ns_import(self, n, DONT_RESOLVE_ALIAS),
-            ImportClause(n) => get_target_of_import_clause(self, n, DONT_RESOLVE_ALIAS),
+            ImportClause(n) => get_target_of_import_clause::<DONT_RESOLVE_ALIAS>(self, n),
             ExportAssign(n) => get_target_of_export_assignment(self, n, DONT_RESOLVE_ALIAS),
             _ => todo!(),
         }
@@ -245,16 +245,29 @@ impl<'cx> super::TyChecker<'cx> {
         }
     }
 
-    pub(super) fn resolve_symbol(
+    pub(super) fn resolve_symbol<const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         symbol: SymbolID,
-        dont_resolve_alias: bool,
     ) -> SymbolID {
-        if !dont_resolve_alias && self.is_non_local_alias(symbol, None) {
+        if !DONT_RESOLVE_ALIAS && self.is_non_local_alias(symbol, None) {
             self.resolve_alias(symbol)
         } else {
             symbol
         }
+    }
+
+    pub(super) fn get_symbol_if_same_reference(
+        &mut self,
+        s1: SymbolID,
+        s2: SymbolID,
+    ) -> Option<SymbolID> {
+        let s1 = self.get_merged_symbol(s1);
+        let s1 = self.resolve_symbol::<false>(s1);
+        let s1 = self.get_merged_symbol(s1);
+        let s2 = self.get_merged_symbol(s2);
+        let s2 = self.resolve_symbol::<false>(s2);
+        let s2 = self.get_merged_symbol(s2);
+        if s1 == s2 { Some(s1) } else { None }
     }
 
     pub(super) fn get_exports_of_symbol(&mut self, symbol: SymbolID) -> &'cx SymbolTable {
@@ -287,11 +300,10 @@ impl<'cx> super::TyChecker<'cx> {
         exports
     }
 
-    pub(super) fn get_export_of_module(
+    pub(super) fn get_export_of_module<const DONT_RESOLVE_ALIAS: bool>(
         &mut self,
         symbol: SymbolID,
         name: SymbolName,
-        dont_resolve_alias: bool,
     ) -> Option<SymbolID> {
         let s = binder_symbol(self, symbol);
         if s.flags.intersects(SymbolFlags::MODULE) {
@@ -299,7 +311,7 @@ impl<'cx> super::TyChecker<'cx> {
 
             // TODO: mark symbol of alias declaration if type only
             export_symbol
-                .map(|export_symbol| self.resolve_symbol(export_symbol, dont_resolve_alias))
+                .map(|export_symbol| self.resolve_symbol::<DONT_RESOLVE_ALIAS>(export_symbol))
         } else {
             None
         }
@@ -329,8 +341,8 @@ impl<'cx> super::TyChecker<'cx> {
                     Some(target_symbol) => {
                         if let Some(lookup_table) = lookup_table.as_mut()
                             && let Some(export_node) = export_node
-                            && this.resolve_symbol(target_symbol, false)
-                                != this.resolve_symbol(source_symbol, false)
+                            && this.resolve_symbol::<false>(target_symbol)
+                                != this.resolve_symbol::<false>(source_symbol)
                         {
                             let collision_tracker = lookup_table.0.get_mut(&id).unwrap();
                             collision_tracker.exports_with_duplicated.push(export_node);
@@ -1035,10 +1047,9 @@ fn get_target_of_ns_import<'cx>(
     this.resolve_external_module_name(import_decl.module.id, import_decl.module.val)
 }
 
-fn get_target_of_import_named_spec(
+fn get_target_of_import_named_spec<const DONT_RECUR_RESOLVE: bool>(
     this: &mut TyChecker<'_>,
     node: ast::NodeID,
-    dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
     let n = this.p.node(node);
     let root = if matches!(
@@ -1052,14 +1063,13 @@ fn get_target_of_import_named_spec(
         this.parent(p_id).unwrap()
     };
 
-    get_external_module_member(this, root, node, dont_recur_resolve)
+    get_external_module_member::<DONT_RECUR_RESOLVE>(this, root, node)
 }
 
-fn get_external_module_member(
+fn get_external_module_member<const DONT_RECUR_RESOLVE: bool>(
     this: &mut TyChecker<'_>,
     node: ast::NodeID,
     spec: ast::NodeID,
-    dont_recur_resolve: bool,
 ) -> Option<SymbolID> {
     let module_spec = match this.p.node(node) {
         ast::Node::ImportDecl(n) => n.module,
@@ -1085,7 +1095,7 @@ fn get_external_module_member(
         };
         let symbol_name = SymbolName::Atom(name);
         let symbol_from_module =
-            this.get_export_of_module(target_symbol, symbol_name, dont_recur_resolve);
+            this.get_export_of_module::<DONT_RECUR_RESOLVE>(target_symbol, symbol_name);
         if symbol_from_module.is_none() {
             error_no_module_member_symbol(this, module_symbol.unwrap(), module_spec.val, spec);
         }
@@ -1211,11 +1221,10 @@ fn report_non_exported_member(
     }
 }
 
-fn get_target_of_export_spec(
+fn get_target_of_export_spec<const DONT_RESOLVE_ALIAS: bool>(
     this: &mut TyChecker<'_>,
     node: ast::NodeID,
     _meaningg: SymbolFlags,
-    dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let n = this.p.node(node);
     let spec_name = n.import_export_spec_name().unwrap();
@@ -1226,7 +1235,7 @@ fn get_target_of_export_spec(
         let module_symbol =
             spec.and_then(|spec| this.resolve_external_module_name(spec.id, spec.val));
         if let Some(module_symbol) = module_symbol {
-            return get_target_of_module_default(this, module_symbol, node, dont_resolve_alias);
+            return get_target_of_module_default::<DONT_RESOLVE_ALIAS>(this, module_symbol, node);
         }
     }
 
@@ -1235,7 +1244,7 @@ fn get_target_of_export_spec(
             let p_id = this.parent(node).unwrap();
             let p = this.p.node(p_id).expect_specs_export();
             if p.module.is_some() {
-                get_external_module_member(this, p_id, node, dont_resolve_alias)
+                get_external_module_member::<DONT_RESOLVE_ALIAS>(this, p_id, node)
             } else {
                 this.binder.bind_results[n.id.module().as_usize()]
                     .final_res
@@ -1312,35 +1321,32 @@ fn get_target_of_alias_like_expr<'cx>(
     // TODO: resolved_symbol
 }
 
-fn get_target_of_import_clause<'cx>(
+fn get_target_of_import_clause<'cx, const DONT_RECUR_ALIAS: bool>(
     this: &mut TyChecker<'cx>,
     node: &'cx ast::ImportClause<'cx>,
-    dont_recur_alias: bool,
 ) -> Option<SymbolID> {
     let parent = this.parent(node.id).unwrap();
     let parent = this.p.node(parent).expect_import_decl();
     let module_symbol = resolve_external_module_name(&this.mg, parent.module.id, &this.p);
     module_symbol.and_then(|module_symbol| {
-        get_target_of_module_default(this, module_symbol, node.id, dont_recur_alias)
+        get_target_of_module_default::<DONT_RECUR_ALIAS>(this, module_symbol, node.id)
     })
 }
 
-fn get_target_of_module_default(
+fn get_target_of_module_default<const DONT_RESOLVE_ALIAS: bool>(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     node: ast::NodeID,
-    dont_resolve_alias: bool,
 ) -> Option<SymbolID> {
     let ms = binder_symbol(this, module_symbol);
     let export_default_symbol = if ms.is_shorthand_ambient_module(&this.p) {
         Some(module_symbol)
     } else {
-        resolve_export_by_name(
+        resolve_export_by_name::<DONT_RESOLVE_ALIAS>(
             this,
             module_symbol,
             SymbolName::ExportDefault,
             node,
-            dont_resolve_alias,
         )
     };
     if export_default_symbol.is_none() {
@@ -1354,12 +1360,11 @@ fn get_target_of_module_default(
     export_default_symbol
 }
 
-fn resolve_export_by_name(
+fn resolve_export_by_name<const DONT_RESOLVE_ALIAS: bool>(
     this: &mut TyChecker<'_>,
     module_symbol: SymbolID,
     name: SymbolName,
-    _nodee: bolt_ts_ast::NodeID,
-    dont_resolve_alias: bool,
+    _node: bolt_ts_ast::NodeID,
 ) -> Option<SymbolID> {
     let ms = binder_symbol(this, module_symbol);
     // TODO: export=
@@ -1368,7 +1373,7 @@ fn resolve_export_by_name(
         .and_then(|exports| exports.0.get(&name).copied());
 
     // TODO: mark_symbol_of_alias_decl_if_ty_only
-    export_symbol.map(|export_symbol| this.resolve_symbol(export_symbol, dont_resolve_alias))
+    export_symbol.map(|export_symbol| this.resolve_symbol::<DONT_RESOLVE_ALIAS>(export_symbol))
 }
 
 impl<'cx> TyChecker<'cx> {
