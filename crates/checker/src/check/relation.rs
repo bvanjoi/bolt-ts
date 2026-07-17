@@ -820,8 +820,8 @@ impl<'cx> TyChecker<'cx> {
         };
         let mut merged_instantiations = false;
 
-        for current in tys {
-            let ty = self.get_apparent_ty(current);
+        for ty in tys {
+            let ty = self.get_apparent_ty(ty);
             if self.is_error(ty) || ty.flags.contains(TypeFlags::NEVER) {
                 continue;
             }

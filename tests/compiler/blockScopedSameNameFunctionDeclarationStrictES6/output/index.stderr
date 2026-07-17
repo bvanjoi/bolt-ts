@@ -1,0 +1,23 @@
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationStrictES6/index.ts:10:9]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationStrictES6/index.ts:16:9]
+ 16 │ foo
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationStrictES6/index.ts:20:5]
+ 20 │ foo
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/blockScopedSameNameFunctionDeclarationStrictES6/index.ts:24:1]
+ 24 │ foo
+    · ───
+    ╰────

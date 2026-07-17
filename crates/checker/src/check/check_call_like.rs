@@ -1396,19 +1396,19 @@ impl<'cx> TyChecker<'cx> {
     fn resolve_call(
         &mut self,
         n: &impl CallLikeExpr<'cx>,
-        candidates: Sigs<'cx>,
+        sigs: Sigs<'cx>,
         candidates_out_array: Option<Sigs<'cx>>,
         check_mode: CheckMode,
         call_chain_flags: SigFlags,
     ) -> &'cx Sig<'cx> {
-        debug_assert!(!candidates.is_empty());
+        debug_assert!(!sigs.is_empty());
 
         let report_error = !self.is_inference_partially_blocked && candidates_out_array.is_none();
 
         let mut min_required_params = usize::MAX;
         let mut max_required_params = usize::MIN;
 
-        let mut candidates_for_argument_error = no_hashset_with_capacity(candidates.len());
+        let mut candidates_for_argument_error = no_hashset_with_capacity(sigs.len());
         let mut candidate_for_argument_arity_error = None;
         let mut candidate_for_type_argument_error = None;
 
@@ -1421,9 +1421,19 @@ impl<'cx> TyChecker<'cx> {
         }
 
         // TODO: cache
-        let mut result = Vec::with_capacity(candidates.len());
-        self.reorder_candidates(candidates, &mut result, call_chain_flags);
+        let mut result = Vec::with_capacity(sigs.len());
+        self.reorder_candidates(sigs, &mut result, call_chain_flags);
         let candidates = result;
+        // TODO: is_jsx_open_frament
+        if candidates.is_empty() {
+            if report_error {
+                let error = errors::CallTargetDoesNotContainAnySignatures {
+                    span: n.callee().span(),
+                };
+                self.push_error(Box::new(error));
+            }
+            return self.resolve_error_call(n);
+        }
 
         let effective_call_arguments = self.get_effective_call_arguments(n);
 

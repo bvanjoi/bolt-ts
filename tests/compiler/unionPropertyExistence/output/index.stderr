@@ -1,0 +1,47 @@
+  × Property 'nope' does not exist on type '"foo" | "bar"'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:31:3]
+ 31 │ nope
+    · ────
+    ╰────
+
+  × Property 'onlyInB' does not exist on type 'B | "foo"'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:33:6]
+ 33 │ onlyInB
+    · ───────
+    ╰────
+
+  × Property 'length' does not exist on type 'B | "foo"'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:36:6]
+ 36 │ length
+    · ──────
+    ╰────
+
+  × Property 'onlyInB' does not exist on type 'AB'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:39:4]
+ 39 │ onlyInB
+    · ───────
+    ╰────
+
+  × Property 'notInC' does not exist on type 'ABC'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:43:5]
+ 43 │ notInC
+    · ──────
+    ╰────
+
+  × Property 'notInB' does not exist on type 'AB'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:45:4]
+ 45 │ notInB
+    · ──────
+    ╰────
+
+  × Property 'notInB' does not exist on type 'ABC'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:47:5]
+ 47 │ notInB
+    · ──────
+    ╰────
+
+  × Property 'inNone' does not exist on type 'ABC'.
+    ╭─[../../tests/compiler/unionPropertyExistence/index.ts:51:5]
+ 51 │ inNone
+    · ──────
+    ╰────

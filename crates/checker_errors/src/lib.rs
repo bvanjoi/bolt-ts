@@ -1988,3 +1988,10 @@ pub struct TypeXDoesNotSatisfyTheExpectedTypeY {
     pub x: String,
     pub y: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Call target does not contain any signatures.")]
+pub struct CallTargetDoesNotContainAnySignatures {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -129,7 +129,7 @@ impl<'cx> Ty<'cx> {
                 }
                 refer
                     .ty_args
-                    .is_none_or(|ty_args| !ty_args.list.iter().all(|ty| ty.is_this_less()))
+                    .is_none_or(|ty_args| ty_args.list.iter().all(|ty| ty.is_this_less()))
             }
             _ => false,
         }
