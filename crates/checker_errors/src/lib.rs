@@ -1995,3 +1995,10 @@ pub struct CallTargetDoesNotContainAnySignatures {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Left side of comma operator is unused and has no side effects.")]
+pub struct LeftSideOfCommaOperatorIsUnusedAndHasNoSideEffects {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -5,3 +5,4 @@
 var x;
 (1, x)=0;
 //~^ ERROR: The left-hand side of an assignment expression must be a variable or a property access.
+//~| ERROR: Left side of comma operator is unused and has no side effects.

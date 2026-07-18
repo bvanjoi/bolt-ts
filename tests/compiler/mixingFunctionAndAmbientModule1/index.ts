@@ -1,0 +1,46 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/mixingFunctionAndAmbientModule1.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+
+namespace A {
+    declare namespace My {
+        export var x: number;
+    }
+    function My(s: string) { }
+}
+
+namespace B {
+    declare namespace My {
+        export var x: number;
+    }
+    function My(s: boolean);
+    function My(s: any) { }
+}
+
+namespace C {
+    declare namespace My {
+        export var x: number;
+    }
+    declare function My(s: boolean);
+}
+
+namespace D {
+    declare namespace My {
+        export var x: number;
+    }
+    declare function My(s: boolean);
+    declare function My(s: any);
+}
+
+
+namespace E {
+    declare namespace My {
+        export var x: number;
+    }
+    declare function My(s: boolean);
+    declare namespace My {
+        export var y: number;
+    }
+    declare function My(s: any);
+}

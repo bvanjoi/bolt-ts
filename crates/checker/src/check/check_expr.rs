@@ -5,6 +5,7 @@ use bolt_ts_binder::AssignmentKind;
 use bolt_ts_binder::FlowFlags;
 use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
+use bolt_ts_config::AllowUnreachableCode;
 use bolt_ts_config::Target;
 use bolt_ts_span::Span;
 use bolt_ts_ty::TypeFacts;
@@ -486,7 +487,20 @@ impl<'cx> TyChecker<'cx> {
             In => self.check_in_expr(left, left_ty, right, right_ty),
             Satisfies => todo!(),
 
-            Comma => right_ty,
+            Comma => {
+                if !matches!(
+                    self.config.compiler_options().allow_unreachable_code(),
+                    AllowUnreachableCode::Allow
+                ) && self.is_sideeffect_free(node.left)
+                    && !self.is_indirect_call(node)
+                {
+                    let error = errors::LeftSideOfCommaOperatorIsUnusedAndHasNoSideEffects {
+                        span: node.left.span(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                right_ty
+            }
             BitXor => self.number_ty,
             Exp => self.number_ty,
             Nullish => {
@@ -506,6 +520,69 @@ impl<'cx> TyChecker<'cx> {
                     left_ty
                 }
             }
+        }
+    }
+
+    fn is_indirect_call(&self, n: &'cx ast::BinExpr<'cx>) -> bool {
+        let parent = self.parent(n.id).unwrap();
+        let ast::Node::ParenExpr(_) = self.p.node(parent) else {
+            return false;
+        };
+        let ast::ExprKind::NumLit(l) = n.left.kind else {
+            return false;
+        };
+        if l.val != 0. {
+            return false;
+        }
+        let Some(parent_parent) = self.parent(parent) else {
+            return false;
+        };
+        match self.p.node(parent_parent) {
+            ast::Node::CallExpr(parent_parent_node) if parent_parent_node.expr.id() == parent => {}
+            ast::Node::TaggedTemplateExpr(_) => {}
+            _ => return false,
+        }
+        match n.right.kind {
+            ast::ExprKind::Ident(ident) if ident.name == keyword::IDENT_EVAL => true,
+            ast::ExprKind::EleAccess(_) | ast::ExprKind::PropAccess(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_sideeffect_free(&self, expr: &ast::Expr) -> bool {
+        match expr.kind {
+            ast::ExprKind::Paren(n) => self.is_sideeffect_free(n.expr),
+            ast::ExprKind::Ident(_)
+            | ast::ExprKind::StringLit(_)
+            | ast::ExprKind::RegExpLit(_)
+            | ast::ExprKind::TaggedTemplate(_)
+            | ast::ExprKind::Template(_)
+            | ast::ExprKind::NoSubstitutionTemplateLit(_)
+            | ast::ExprKind::NumLit(_)
+            | ast::ExprKind::BigIntLit(_)
+            | ast::ExprKind::BoolLit(_)
+            | ast::ExprKind::NullLit(_)
+            | ast::ExprKind::Fn(_)
+            | ast::ExprKind::Class(_)
+            | ast::ExprKind::ObjectLit(_)
+            | ast::ExprKind::Typeof(_)
+            | ast::ExprKind::NonNull(_)
+            | ast::ExprKind::JsxSelfClosingElem(_)
+            | ast::ExprKind::JsxElem(_) => true,
+            ast::ExprKind::Cond(n) => {
+                self.is_sideeffect_free(n.when_true) && self.is_sideeffect_free(n.when_false)
+            }
+            ast::ExprKind::Bin(n) => {
+                self.is_sideeffect_free(n.left) && self.is_sideeffect_free(n.right)
+            }
+            ast::ExprKind::PrefixUnary(n) => matches!(
+                n.op,
+                ast::PrefixUnaryOp::Excl
+                    | ast::PrefixUnaryOp::Plus
+                    | ast::PrefixUnaryOp::Minus
+                    | ast::PrefixUnaryOp::Tilde
+            ),
+            _ => false,
         }
     }
 

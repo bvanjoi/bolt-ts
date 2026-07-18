@@ -4,3 +4,9 @@
  6 │ (1, x)
    · ──────
    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/assignmentToParenthesizedExpression1/index.ts:6:2]
+ 6 │ 1
+   · ─
+   ╰────
