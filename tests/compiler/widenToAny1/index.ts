@@ -2,6 +2,7 @@
 
 function foo1<T>(f1: { x: T; y: T }): T {
   return undefined;
+  //~^ ERROR: Type 'undefined' is not assignable to type 'T'.
 }
 var z1: number = foo1({ x: undefined, y: "def" });  // Best common type is any
-//~^ ERROR: Type 'string' is not assignable to type 'number'.
+//~^ ERROR: Type 'undefined | string' is not assignable to type 'number'.

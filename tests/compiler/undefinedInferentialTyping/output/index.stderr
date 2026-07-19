@@ -1,5 +1,11 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/undefinedInferentialTyping/index.ts:4:12]
+ 4 │ null
+   · ────
+   ╰────
+
   × Type 'number' is not assignable to type 'string'.
-   ╭─[../../tests/compiler/undefinedInferentialTyping/index.ts:8:5]
- 8 │ a1
+   ╭─[../../tests/compiler/undefinedInferentialTyping/index.ts:9:5]
+ 9 │ a1
    · ──
    ╰────

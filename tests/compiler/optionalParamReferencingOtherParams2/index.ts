@@ -3,6 +3,7 @@
 var a = 1;
 function strange(x = a, y = b) { 
 //~^ ERROR: Parameter 'y' cannot reference identifier 'b' declared after it.
+//~| ERROR: Variable 'b' is used before being assigned.
     var b = "";
     return y;
 }

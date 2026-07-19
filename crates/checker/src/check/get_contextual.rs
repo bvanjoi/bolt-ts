@@ -96,7 +96,14 @@ impl<'cx> TyChecker<'cx> {
                     last,
                 )
             }
-            // TODO: type assertion
+            TyAssertionExpr(parent) => {
+                debug_assert!(parent.id == parent_id);
+                if parent.ty.is_const_ty_refer() {
+                    self.get_contextual_ty(parent.id, flags)
+                } else {
+                    Some(self.get_ty_from_type_node(parent.ty))
+                }
+            }
             AsExpr(parent) => {
                 debug_assert!(parent.id == parent_id);
                 if parent.ty.is_const_ty_refer() {

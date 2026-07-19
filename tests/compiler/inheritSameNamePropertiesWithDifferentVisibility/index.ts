@@ -2,10 +2,12 @@
 
 class C {
     public x: number;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 class C2 {
     private x: number;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 interface A extends C, C2 { // error

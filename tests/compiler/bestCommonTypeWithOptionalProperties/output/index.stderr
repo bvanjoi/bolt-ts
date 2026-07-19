@@ -1,0 +1,107 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:12:11]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:12:14]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:12:17]
+ 12 │ z
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:16:11]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:16:14]
+ 16 │ z
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:16:17]
+ 16 │ y
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:20:11]
+ 20 │ y
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:20:14]
+ 20 │ x
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:20:17]
+ 20 │ z
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:24:11]
+ 24 │ y
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:24:14]
+ 24 │ z
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:24:17]
+ 24 │ x
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:28:11]
+ 28 │ z
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:28:14]
+ 28 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:28:17]
+ 28 │ y
+    · ─
+    ╰────
+
+  × Variable 'z' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:32:11]
+ 32 │ z
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:32:14]
+ 32 │ y
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/bestCommonTypeWithOptionalProperties/index.ts:32:17]
+ 32 │ x
+    · ─
+    ╰────

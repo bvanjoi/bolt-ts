@@ -3,6 +3,6 @@
 var Person:new () => {name: string;} = function () {return {name:"joe"};};
 //~^ ERROR: Type '() => { name: string; }' is not assignable to type 'new () => { name: string; }'
 
-var Person2:{new() : {name:string;};};
+declare var Person2:{new() : {name:string;};};
 
 Person = Person2;

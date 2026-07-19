@@ -2,3 +2,5 @@
 
 function f(...x, y) { }
 //~^ ERROR: A rest parameter must be last in a parameter list.
+//~| ERROR: Rest parameter 'x' implicitly has an 'any[]' type.
+//~| ERROR: Parameter 'y' implicitly has an 'any' type.

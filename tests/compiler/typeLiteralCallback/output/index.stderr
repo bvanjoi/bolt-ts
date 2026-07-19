@@ -1,0 +1,17 @@
+  × Variable 'foo' is used before being assigned.
+    ╭─[../../tests/compiler/typeLiteralCallback/index.ts:10:1]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/typeLiteralCallback/index.ts:19:1]
+ 19 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/typeLiteralCallback/index.ts:21:1]
+ 21 │ test
+    · ────
+    ╰────

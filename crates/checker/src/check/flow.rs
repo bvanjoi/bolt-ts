@@ -1788,8 +1788,7 @@ impl<'cx> TyChecker<'cx> {
             LogicalAnd => {
                 if assume_true {
                     let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), true);
-
-                    (self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true)) as _
+                    self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), true)
                 } else {
                     let a = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
                     let b = self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false);
@@ -1817,8 +1816,7 @@ impl<'cx> TyChecker<'cx> {
                     )
                 } else {
                     let ty = self.narrow_ty(ty, declared_ty, refer, binary_expr.left.id(), false);
-
-                    (self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false)) as _
+                    self.narrow_ty(ty, declared_ty, refer, binary_expr.right.id(), false)
                 }
             }
             _ => ty,

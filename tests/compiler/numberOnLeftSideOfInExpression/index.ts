@@ -5,3 +5,4 @@
 var left: number;
 var right: any;
 left in right;
+//~^ ERROR: Variable 'left' is used before being assigned.

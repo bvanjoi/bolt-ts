@@ -23,13 +23,32 @@
    ╰────
 
   × Identifier expected. 'package' is a reserved word in strict mode.
-    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:12:6]
- 12 │ package
+    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:15:6]
+ 15 │ package
     · ───────
     ╰────
 
   × Identifier expected. 'private' is a reserved word in strict mode.
-    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:20:12]
- 20 │ private
+    ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:23:12]
+ 23 │ private
     · ───────
     ╰────
+
+  × Parameter 'package' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:8:9]
+ 8 │ package
+   · ───────
+   ╰────
+
+  × Parameter 'protected' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:8:17]
+ 8 │  protected
+   · ──────────
+   ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/strictModeReservedWord2/index.ts:8:5]
+ 8 │ foo(package, protected)
+   · ───────────────────────
+   ╰────

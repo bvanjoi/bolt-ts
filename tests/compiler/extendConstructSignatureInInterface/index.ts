@@ -8,6 +8,7 @@ interface C {
 
 var CStatic: C;
 class E extends CStatic {
+//~^ ERROR: Variable 'CStatic' is used before being assigned.
 }
 
 var e: E = new E(1);

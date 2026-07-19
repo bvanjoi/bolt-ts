@@ -4,6 +4,7 @@ interface Foo<T> {
   x: T;
 }
 function foo(a) {
+//~^ ERROR: Parameter 'a' implicitly has an 'any' type.
   return null;
 }
 foo((arg: Foo) => { return arg.x; });

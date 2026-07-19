@@ -1,5 +1,12 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/parameterReferencesOtherParameter1/index.ts:4:10]
+ 4 │ name
+   · ────
+   ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/parameterReferencesOtherParameter1/index.ts:14:29]
- 14 │ foo
+    ╭─[../../tests/compiler/parameterReferencesOtherParameter1/index.ts:15:29]
+ 15 │ foo
     · ───
     ╰────

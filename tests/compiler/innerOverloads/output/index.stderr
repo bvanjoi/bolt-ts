@@ -1,0 +1,13 @@
+  × 'inner', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+   ╭─[../../tests/compiler/innerOverloads/index.ts:4:3]
+ 4 │ function inner(x:number);
+   · ─────────────────────────
+   ╰────
+
+  × 'inner', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+   ╭─[../../tests/compiler/innerOverloads/index.ts:6:3]
+ 6 │ function inner(x:string);
+   · ─────────────────────────
+   ╰────

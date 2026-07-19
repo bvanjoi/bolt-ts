@@ -1,0 +1,17 @@
+  × Variable 't' is used before being assigned.
+   ╭─[../../tests/compiler/typeParameterAsElementType/index.ts:5:14]
+ 5 │ t
+   · ─
+   ╰────
+
+  × Variable 't' is used before being assigned.
+   ╭─[../../tests/compiler/typeParameterAsElementType/index.ts:8:31]
+ 8 │ t
+   · ─
+   ╰────
+
+  × Variable 't' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterAsElementType/index.ts:10:31]
+ 10 │ t
+    · ─
+    ╰────

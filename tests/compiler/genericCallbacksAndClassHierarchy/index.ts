@@ -6,6 +6,7 @@ module M {
   }
   export class C1<T> {
       public value: I<T>;
+      //~^ ERROR: Property 'value' has no initializer and is not definitely assigned in the constructor.
   }
   export class A<T> {
       public dummy: any;

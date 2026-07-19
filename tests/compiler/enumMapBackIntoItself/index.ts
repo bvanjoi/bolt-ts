@@ -12,6 +12,7 @@ test + ''
 
 var mySize1: TShirtSize = TShirtSize.Large;
 var test1: string = TShirtSize[mySize2]
+//~^ ERROR: Variable 'mySize2' is used before being assigned.
 
 var mySize2: TShirtSize = TShirtSize.Large;
 var test2: number = TShirtSize[mySize2]

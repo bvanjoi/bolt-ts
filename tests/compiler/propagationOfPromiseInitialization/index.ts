@@ -6,6 +6,7 @@ interface IPromise<T> {
 
 var foo: IPromise<number>;
 foo.then((x) => {
+//~^ ERROR: Variable 'foo' is used before being assigned.
   let y: string = x;
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   return "asdf";

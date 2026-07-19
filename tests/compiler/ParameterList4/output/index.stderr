@@ -5,31 +5,88 @@
    ╰────
 
   × A parameter property is only allowed in a constructor implementation.
-   ╭─[../../tests/compiler/ParameterList4/index.ts:8:5]
- 8 │ public
+   ╭─[../../tests/compiler/ParameterList4/index.ts:9:5]
+ 9 │ public
    · ──────
    ╰────
 
   × A parameter property is only allowed in a constructor implementation.
-    ╭─[../../tests/compiler/ParameterList4/index.ts:10:8]
- 10 │ public
+    ╭─[../../tests/compiler/ParameterList4/index.ts:13:8]
+ 13 │ public
     · ──────
     ╰────
 
   × A parameter property is only allowed in a constructor implementation.
-    ╭─[../../tests/compiler/ParameterList4/index.ts:12:4]
- 12 │ public
-    · ──────
-    ╰────
-
-  × A parameter property is only allowed in a constructor implementation.
-    ╭─[../../tests/compiler/ParameterList4/index.ts:17:5]
+    ╭─[../../tests/compiler/ParameterList4/index.ts:17:4]
  17 │ public
     · ──────
     ╰────
 
   × A parameter property is only allowed in a constructor implementation.
-    ╭─[../../tests/compiler/ParameterList4/index.ts:21:18]
- 21 │ public
+    ╭─[../../tests/compiler/ParameterList4/index.ts:24:5]
+ 24 │ public
     · ──────
+    ╰────
+
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:29:18]
+ 29 │ public
+    · ──────
+    ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/ParameterList4/index.ts:3:12]
+ 3 │ public A
+   · ────────
+   ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/ParameterList4/index.ts:9:5]
+ 9 │ public A
+   · ────────
+   ╰────
+
+  × 'f', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/ParameterList4/index.ts:9:3]
+ 9 │ f(public A)
+   · ───────────
+   ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:13:8]
+ 13 │ public A
+    · ────────
+    ╰────
+
+  × Construct signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:13:3]
+ 13 │ new (public A)
+    · ──────────────
+    ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:17:4]
+ 17 │ public A
+    · ────────
+    ╰────
+
+  × Call signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:17:3]
+ 17 │ (public A);
+    · ───────────
+    ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:24:5]
+ 24 │ public a
+    · ────────
+    ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/ParameterList4/index.ts:29:18]
+ 29 │ public A
+    · ────────
     ╰────

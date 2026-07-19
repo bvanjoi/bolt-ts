@@ -21,6 +21,7 @@ interface I3 {
 
 class C1 {
     a: number;
+    //~^ ERROR: Property 'a' has no initializer and is not definitely assigned in the constructor.
     b: typeof a; // Should yield error (a is not a value)
     //~^ ERROR: Cannot find name 'a'.
 }
@@ -30,6 +31,7 @@ class C2 {
     c: typeof d; // Should yield error (d is not a value)
     //~^ ERROR: Cannot find name 'd'.
     d: string;
+    //~^ ERROR: Property 'd' has no initializer and is not definitely assigned in the constructor.
 }
 
 class C3 {
@@ -45,6 +47,7 @@ interface ValidInterface {
 
 class ValidClass implements ValidInterface {
     x: string;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 var vcInstance = new ValidClass();

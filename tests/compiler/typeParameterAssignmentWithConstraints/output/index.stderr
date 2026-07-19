@@ -1,0 +1,5 @@
+  × Variable 'b' is used before being assigned.
+   ╭─[../../tests/compiler/typeParameterAssignmentWithConstraints/index.ts:6:7]
+ 6 │ b
+   · ─
+   ╰────

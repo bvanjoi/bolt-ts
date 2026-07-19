@@ -1,11 +1,29 @@
+  × Type 'undefined' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/functionReturn/index.ts:9:25]
+ 9 │ return;
+   · ───────
+   ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/functionReturn/index.ts:13:5]
+ 13 │ return;
+    · ───────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/functionReturn/index.ts:18:12]
+ 18 │ undefined
+    · ─────────
+    ╰────
+
   × Type 'number' is not assignable to type '1'.
-    ╭─[../../tests/compiler/functionReturn/index.ts:29:7]
- 29 │ v0
+    ╭─[../../tests/compiler/functionReturn/index.ts:32:7]
+ 32 │ v0
     · ──
     ╰────
 
   × Type 'string' is not assignable to type '1 | 2'.
-    ╭─[../../tests/compiler/functionReturn/index.ts:42:7]
- 42 │ v3
+    ╭─[../../tests/compiler/functionReturn/index.ts:45:7]
+ 45 │ v3
     · ──
     ╰────

@@ -1,11 +1,17 @@
+  × Parameter 'arg1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/setterWithReturn/index.ts:4:17]
+ 4 │ arg1
+   · ────
+   ╰────
+
   × Setters cannot return a value.
-   ╭─[../../tests/compiler/setterWithReturn/index.ts:6:11]
- 6 │ return arg1;
+   ╭─[../../tests/compiler/setterWithReturn/index.ts:7:11]
+ 7 │ return arg1;
    · ────────────
    ╰────
 
   × Setters cannot return a value.
-   ╭─[../../tests/compiler/setterWithReturn/index.ts:9:11]
- 9 │ return 0;
-   · ─────────
-   ╰────
+    ╭─[../../tests/compiler/setterWithReturn/index.ts:10:11]
+ 10 │ return 0;
+    · ─────────
+    ╰────

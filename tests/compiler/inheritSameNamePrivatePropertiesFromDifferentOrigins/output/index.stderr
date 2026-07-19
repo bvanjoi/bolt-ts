@@ -1,5 +1,19 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/inheritSameNamePrivatePropertiesFromDifferentOrigins/index.ts:4:13]
+ 4 │ x
+   · ─
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/inheritSameNamePrivatePropertiesFromDifferentOrigins/index.ts:9:13]
+ 9 │ x
+   · ─
+   ╰────
+
   × Interface 'A' cannot simultaneously extend types 'C' and 'C2'.
-    ╭─[../../tests/compiler/inheritSameNamePrivatePropertiesFromDifferentOrigins/index.ts:11:11]
- 11 │ A
+    ╭─[../../tests/compiler/inheritSameNamePrivatePropertiesFromDifferentOrigins/index.ts:13:11]
+ 13 │ A
     · ─
     ╰────

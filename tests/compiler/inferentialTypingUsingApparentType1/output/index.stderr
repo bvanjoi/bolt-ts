@@ -1,11 +1,17 @@
+  × Type 'undefined' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/inferentialTypingUsingApparentType1/index.ts:4:10]
+ 4 │ undefined
+   · ─────────
+   ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/inferentialTypingUsingApparentType1/index.ts:19:5]
- 19 │ b1
+    ╭─[../../tests/compiler/inferentialTypingUsingApparentType1/index.ts:20:5]
+ 20 │ b1
     · ──
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-   ╭─[../../tests/compiler/inferentialTypingUsingApparentType1/index.ts:9:7]
- 9 │ y
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/inferentialTypingUsingApparentType1/index.ts:10:7]
+ 10 │ y
+    · ─
+    ╰────

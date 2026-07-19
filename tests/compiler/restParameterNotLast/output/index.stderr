@@ -5,3 +5,15 @@
  3 │ ...x
    · ────
    ╰────
+
+  × Rest parameter 'x' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/restParameterNotLast/index.ts:3:12]
+ 3 │ ...x
+   · ────
+   ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/restParameterNotLast/index.ts:3:17]
+ 3 │  y
+   · ──
+   ╰────

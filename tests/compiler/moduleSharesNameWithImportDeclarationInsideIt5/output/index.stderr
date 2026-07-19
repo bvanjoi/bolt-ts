@@ -6,3 +6,9 @@
  15 │     import M
     ·            ─
     ╰────
+
+  × Cannot find name 'M'.
+    ╭─[../../tests/compiler/moduleSharesNameWithImportDeclarationInsideIt5/index.ts:20:5]
+ 20 │ M
+    · ─
+    ╰────

@@ -10,6 +10,12 @@ interface Bar extends Foo {
 
 var a: Bar;
 var kitty = a(1);
+//~^ ERROR: Variable 'a' is used before being assigned.
+//~| ERROR: Variable 'a' is used before being assigned.
 var foo = a('');
+//~^ ERROR: Variable 'a' is used before being assigned.
+//~| ERROR: Variable 'a' is used before being assigned.
 var bar = a(false);
 //~^ ERROR: No overload matches this call.
+//~| ERROR: Variable 'a' is used before being assigned.
+//~| ERROR: Variable 'a' is used before being assigned.

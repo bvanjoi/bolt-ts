@@ -10,3 +10,4 @@ var v1: I1<boolean>;
  
 var v2: I1<number> = v1;
 //~^ ERROR: Type 'I1<boolean>' is not assignable to type 'I1<number>'.
+//~| ERROR: Variable 'v1' is used before being assigned.

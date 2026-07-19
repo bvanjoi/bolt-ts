@@ -4,4 +4,5 @@ class C {
     constructor(...public rest: string[]) {}
     //~^ ERROR: Expected ','.
     //~| ERROR: Identifier expected. 'public' is a reserved word in strict mode.
+    //~| ERROR: Rest parameter 'public' implicitly has an 'any[]' type.
 }

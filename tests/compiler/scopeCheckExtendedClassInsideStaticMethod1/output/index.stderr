@@ -1,0 +1,17 @@
+  × Cannot find name 'v'.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsideStaticMethod1/index.ts:9:7]
+ 9 │ v
+   · ─
+   ╰────
+
+  × Cannot find name 's'.
+    ╭─[../../tests/compiler/scopeCheckExtendedClassInsideStaticMethod1/index.ts:13:7]
+ 13 │ s
+    · ─
+    ╰────
+
+  × Property 'p' does not exist on type 'typeof D'.
+    ╭─[../../tests/compiler/scopeCheckExtendedClassInsideStaticMethod1/index.ts:11:12]
+ 11 │ p
+    · ─
+    ╰────

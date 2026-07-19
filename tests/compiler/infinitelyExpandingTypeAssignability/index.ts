@@ -10,3 +10,4 @@ interface C<T> extends A<C<C<C<T>>>> { }
 
 var x : B<string>
 var y : C<string> = x
+//~^ ERROR: Variable 'x' is used before being assigned.

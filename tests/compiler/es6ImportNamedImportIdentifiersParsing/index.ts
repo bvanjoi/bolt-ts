@@ -12,6 +12,7 @@ import { yield as default } from "somemodule"; // error to use default as bindin
 import { default as yield } from "somemodule"; // no error 
 //~^ ERROR: Cannot find module 'somemodule' or its corresponding type declarations.
 //~| ERROR: Duplicate identifier 'yield'.
+//~| ERROR: Identifier expected. 'yield' is a reserved word in strict mode.
 import { default as default } from "somemodule"; // default as is ok, error of default binding name
 //~^ ERROR: Cannot find module 'somemodule' or its corresponding type declarations.
 //~| ERROR: Duplicate identifier 'default'.

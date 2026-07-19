@@ -17,7 +17,14 @@
     ╰────
 
   × Parameter 'b' cannot reference itself.
-    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:16:29]
- 16 │ b
+    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:17:29]
+ 17 │ b
     · ─
+    ╰────
+
+  × 'y' implicitly has type 'any' because it does not have a type annotation
+  │ and is referenced directly or indirectly in its own initializer.
+    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:12:23]
+ 12 │  y = y
+    · ──────
     ╰────

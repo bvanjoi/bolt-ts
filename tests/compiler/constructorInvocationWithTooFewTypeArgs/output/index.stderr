@@ -1,11 +1,25 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:5:3]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:8:3]
+ 8 │ y
+   · ─
+   ╰────
+
   × Expected 2 type arguments, but got 1.
-    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:11:14]
- 11 │ <number>
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:13:14]
+ 13 │ <number>
     · ────────
     ╰────
 
   × Expected 2 type arguments, but got 3.
-    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:14:14]
- 14 │ <number, number, number>
+    ╭─[../../tests/compiler/constructorInvocationWithTooFewTypeArgs/index.ts:16:14]
+ 16 │ <number, number, number>
     · ────────────────────────
     ╰────

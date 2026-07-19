@@ -6,5 +6,7 @@ interface B<T> {
 }
 var x: B<boolean>;
 x(true); // was error
+//~^ ERROR: Variable 'x' is used before being assigned.
 let b: B<string> = x.f();
 //~^ ERROR: Type 'B<number>' is not assignable to type 'B<string>'.
+//~| ERROR: Variable 'x' is used before being assigned.

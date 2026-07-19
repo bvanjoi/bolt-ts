@@ -1,0 +1,38 @@
+  × Cannot find name 'A'.
+   ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:6:8]
+ 6 │ A
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a type.
+   ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:5:11]
+ 5 │ A
+   · ─
+   ╰────
+
+  × Cannot find name 'B'.
+    ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:11:8]
+ 11 │ B
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a type.
+   ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:8:11]
+ 8 │ B
+   · ─
+   ╰────
+
+  × Cannot find name 'C'.
+    ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:19:8]
+ 19 │ C
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a type.
+    ╭─[../../tests/compiler/moduleWithNoValuesAsType/index.ts:13:11]
+ 13 │ C
+    · ─
+    ╰────

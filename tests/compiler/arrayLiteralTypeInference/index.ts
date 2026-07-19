@@ -2,14 +2,17 @@
 
 class Action {
   id: number;
+  //~^ ERROR: Property 'id' has no initializer and is not definitely assigned in the constructor.
 }
 
 class ActionA extends Action {
   value: string;
+  //~^ ERROR: Property 'value' has no initializer and is not definitely assigned in the constructor.
 }
 
 class ActionB extends Action {
   trueNess: boolean;
+  //~^ ERROR: Property 'trueNess' has no initializer and is not definitely assigned in the constructor.
 }
 
 var x1: Action[] = [

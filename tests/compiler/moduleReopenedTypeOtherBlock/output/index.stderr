@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'M.I'.
+   ╭─[../../tests/compiler/moduleReopenedTypeOtherBlock/index.ts:8:39]
+ 8 │ null
+   · ────
+   ╰────

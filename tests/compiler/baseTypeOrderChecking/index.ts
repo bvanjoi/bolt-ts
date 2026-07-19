@@ -25,6 +25,7 @@ class Class3<T>
 {
 
                public memberVariable: Class2;
+               //~^ ERROR: Property 'memberVariable' has no initializer and is not definitely assigned in the constructor.
 
 }
 

@@ -1464,7 +1464,10 @@ impl<'cx> TyChecker<'cx> {
             let global_this_ty = self.get_type_of_symbol(self.global_this_symbol);
             match ty {
                 Some(ty) if ty == global_this_ty && captured_by_arrow_fn => {
-                    todo!("error")
+                    let error = errors::TheContainingArrowFunctionCapturesTheGlobalValueOfThis {
+                        span: expr_span,
+                    };
+                    self.push_error(Box::new(error));
                 }
                 None => {
                     let mut error =
@@ -2494,7 +2497,11 @@ impl<'cx> TyChecker<'cx> {
             )
         {
             let right = self.check_expression::<false>(assign.right, check_mode);
-            return self.check_destructing_assignment::<false>(assign.left.id(), right, check_mode);
+            return self.check_destructing_assignment_for_expression::<false>(
+                assign.left,
+                right,
+                check_mode,
+            );
         };
         let l = self.check_expression::<false>(assign.left, check_mode);
         let r = self.check_expression::<false>(assign.right, check_mode);
@@ -2640,7 +2647,7 @@ impl<'cx> TyChecker<'cx> {
                 let ty = self.check_non_null_type(operand_ty, expr.expr.id());
                 let ok = self.check_arithmetic_op_ty(ty, false, |_| {});
                 if ok {
-                    self.check_reference_expr(
+                    self.check_reference_expression(
                         expr.expr,
                         |this| {
                             let error =
@@ -2693,7 +2700,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_reference_expr(
+    pub(super) fn check_reference_expression(
         &mut self,
         op: &'cx ast::Expr<'cx>,
         push_invalid_reference_error: impl FnOnce(&mut Self),
@@ -2748,7 +2755,7 @@ impl<'cx> TyChecker<'cx> {
             this.push_error(Box::new(error));
         });
         if ok {
-            self.check_reference_expr(expr.expr, |this| {
+            self.check_reference_expression(expr.expr, |this| {
                 let error =
                     errors::TheOperandOfAnIncrementOrDecrementOperatorMustBeAVariableOrAPropertyAccess {
                         span: expr.span,

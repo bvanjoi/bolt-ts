@@ -1,5 +1,5 @@
   × Type 'B' does not satisfy the constraint 'A'.
-    ╭─[../../tests/compiler/constraints0/index.ts:16:11]
+    ╭─[../../tests/compiler/constraints0/index.ts:16:19]
  16 │ B
     · ─
     ╰────

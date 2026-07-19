@@ -1,0 +1,5 @@
+  × Rest parameter 'rest' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/restParameterNoTypeAnnotation/index.ts:3:14]
+ 3 │ ...rest
+   · ───────
+   ╰────

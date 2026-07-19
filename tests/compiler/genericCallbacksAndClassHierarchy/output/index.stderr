@@ -1,0 +1,6 @@
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericCallbacksAndClassHierarchy/index.ts:8:14]
+ 8 │ value
+   · ─────
+   ╰────

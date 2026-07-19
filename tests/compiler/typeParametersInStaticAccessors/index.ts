@@ -3,6 +3,7 @@
 class foo<T> {
   static get Foo(): () => T { return null; }
   //~^ ERROR: Static members cannot reference class type parameters.
+  //~| ERROR: Type 'null' is not assignable to type '() => error'.
   static set Bar(v: { v: T }) { }
   //~^ ERROR: Static members cannot reference class type parameters.
 } 

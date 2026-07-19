@@ -1,0 +1,5 @@
+  × Variable 'obj' is used before being assigned.
+   ╭─[../../tests/compiler/arrayBufferIsViewNarrowsType/index.ts:4:24]
+ 4 │ obj
+   · ───
+   ╰────

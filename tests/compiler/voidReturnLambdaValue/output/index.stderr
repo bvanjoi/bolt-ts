@@ -1,0 +1,29 @@
+  × Parameter 'arg1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/voidReturnLambdaValue/index.ts:3:14]
+ 3 │ arg1
+   · ────
+   ╰────
+
+  × Parameter 'arg2' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/voidReturnLambdaValue/index.ts:3:19]
+ 3 │  arg2
+   · ─────
+   ╰────
+
+  × Parameter 'v1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/voidReturnLambdaValue/index.ts:3:36]
+ 3 │ v1
+   · ──
+   ╰────
+
+  × Parameter 'v2' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/voidReturnLambdaValue/index.ts:3:39]
+ 3 │ v2
+   · ──
+   ╰────
+
+  × Parameter 'v3' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/voidReturnLambdaValue/index.ts:3:42]
+ 3 │ v3
+   · ──
+   ╰────

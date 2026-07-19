@@ -3,4 +3,5 @@
 function foo() {
     super(value => String(value));
     //~^ ERROR: Super calls are not permitted outside constructors or in nested functions inside constructors.
+    //~| ERROR: Parameter 'value' implicitly has an 'any' type.
 }

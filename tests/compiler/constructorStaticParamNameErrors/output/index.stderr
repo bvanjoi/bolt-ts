@@ -1,5 +1,5 @@
   × Identifier expected. 'static' is a reserved word in strict mode.
-   ╭─[../../tests/compiler/constructorStaticParamNameErrors/index.ts:6:18]
- 6 │ static
+   ╭─[../../tests/compiler/constructorStaticParamNameErrors/index.ts:9:18]
+ 9 │ static
    · ──────
    ╰────

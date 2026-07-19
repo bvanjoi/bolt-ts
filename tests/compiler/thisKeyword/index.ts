@@ -3,4 +3,5 @@
 namespace foo {
     this.bar = 4;
     //~^ ERROR: 'this' cannot be referenced in a module or namespace body.
+    //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
 }

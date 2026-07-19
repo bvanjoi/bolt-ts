@@ -1,6 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/convertKeywords.ts`, Apache-2.0 License
 
-//@compiler-options: module=commonjs
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+//@compiler-options: module=esnext
 
 var nake;
 function doCompile<P0, P1, P2>(fileset: P0, moduleType: P1) {

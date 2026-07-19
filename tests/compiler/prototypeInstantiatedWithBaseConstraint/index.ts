@@ -4,6 +4,7 @@
 
 class C<T> {
   x: T;
+  //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 C.prototype.x.boo; // No error, prototype is instantiated to any

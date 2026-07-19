@@ -37,7 +37,8 @@ function foo4(bar: "a"): number {
     foo3(bar);
 }
 
-function foo5(bar: "a" | "b"): number { //~ERROR: Not all code paths return a value.
+function foo5(bar: "a" | "b"): number {
+//~^ ERROR: Function lacks ending return statement and return type does not include 'undefined'.
     switch(bar) {
         case "a":
             return 1;

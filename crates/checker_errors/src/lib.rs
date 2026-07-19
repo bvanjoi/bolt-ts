@@ -689,6 +689,13 @@ pub struct AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModule
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Ambient modules cannot be nested in other modules or namespaces.")]
+pub struct AmbientModulesCannotBeNestedInOtherModulesOrNamespaces {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Property '{prop}' is private and only accessible within class '{class}'.")]
 pub struct PropertyIsPrivateAndOnlyAccessibleWithinClass {
     #[label(primary)]
@@ -1999,6 +2006,13 @@ pub struct CallTargetDoesNotContainAnySignatures {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Left side of comma operator is unused and has no side effects.")]
 pub struct LeftSideOfCommaOperatorIsUnusedAndHasNoSideEffects {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The containing arrow function captures the global value of 'this'.")]
+pub struct TheContainingArrowFunctionCapturesTheGlobalValueOfThis {
     #[label(primary)]
     pub span: Span,
 }

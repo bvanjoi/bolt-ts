@@ -14,6 +14,7 @@ interface B extends A {
 var b:B;
 // Should not error
 b('foo').charAt(0);
+//~^ ERROR: Variable 'b' is used before being assigned.
 
 interface A {
     (x: 'A1'): string;
@@ -47,11 +48,20 @@ interface C extends C1, C2 {
 var c: C;
 // none of these lines should error
 var x1: string[] = c('B2');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x2: number = c('B1');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x3: boolean = c('A2');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x4: string = c('A1');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x5: void = c('A0');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x6: number[] = c('C1');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x7: boolean[] = c('C2');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x8: string = c('C');
+//~^ ERROR: Variable 'c' is used before being assigned.
 var x9: void = c('generic');
+//~^ ERROR: Variable 'c' is used before being assigned.

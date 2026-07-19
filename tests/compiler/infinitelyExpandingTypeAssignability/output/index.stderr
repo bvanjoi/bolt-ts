@@ -1,0 +1,5 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypeAssignability/index.ts:12:21]
+ 12 │ x
+    · ─
+    ╰────

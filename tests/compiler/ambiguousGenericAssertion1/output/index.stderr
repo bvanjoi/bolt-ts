@@ -1,35 +1,35 @@
   × Expression expected.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:10]
- 6 │ <<
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:10]
+ 9 │ <<
    · ──
    ╰────
 
   × Expected ')'.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:16]
- 6 │ :
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:16]
+ 9 │ :
    · ─
    ╰────
 
   × Expected ','.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:16]
- 6 │ :
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:16]
+ 9 │ :
    · ─
    ╰────
 
   × Expected ','.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:19]
- 6 │ )
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:19]
+ 9 │ )
    · ─
    ╰────
 
   × Declaration or statement expected.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:21]
- 6 │ =>
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:21]
+ 9 │ =>
    · ──
    ╰────
 
   × Cannot find name 'x'.
-   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:6:15]
- 6 │ x
+   ╭─[../../tests/compiler/ambiguousGenericAssertion1/index.ts:9:15]
+ 9 │ x
    · ─
    ╰────

@@ -1,11 +1,36 @@
+  × 'wrapper', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:3:9]
+ 3 │ function wrapper(x: any);
+   · ─────────────────────────
+   ╰────
+
+  × The containing arrow function captures the global value of 'this'.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:6:6]
+ 6 │ this
+   · ────
+   ╰────
+
   × Tuple type '[any]' of length '1' has no element at index '1'.
-   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:5:17]
- 5 │ this.test1
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:6:17]
+ 6 │ this.test1
    · ──────────
    ╰────
 
+  × The containing arrow function captures the global value of 'this'.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:6:17]
+ 6 │ this
+   · ────
+   ╰────
+
   × Tuple type '[any]' of length '1' has no element at index '2'.
-   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:5:29]
- 5 │ this.test2
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:6:29]
+ 6 │ this.test2
    · ──────────
+   ╰────
+
+  × The containing arrow function captures the global value of 'this'.
+   ╭─[../../tests/compiler/emitCapturingThisInTupleDestructuring1/index.ts:6:29]
+ 6 │ this
+   · ────
    ╰────

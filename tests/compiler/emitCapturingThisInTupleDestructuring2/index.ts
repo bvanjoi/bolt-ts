@@ -4,6 +4,7 @@ var array1: [number, number] = [1, 2];
 
 class B {
     test: number;
+    //~^ ERROR: Property 'test' has no initializer and is not definitely assigned in the constructor.
     test1: any;
     test2: any;
     method() {

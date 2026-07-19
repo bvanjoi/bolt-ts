@@ -1,6 +1,5 @@
-  × Argument of type '{ a: T; }' is not assignable to parameter of type
-  │ 'Pick<S & State<T>, "a">'.
-    ╭─[../../tests/compiler/indexedAccessRelation/index.ts:18:23]
- 18 │ { a: a }
-    · ────────
+  × Type 'T' is not assignable to type 'undefined | S & State<T>["a"]'.
+    ╭─[../../tests/compiler/indexedAccessRelation/index.ts:18:25]
+ 18 │ a
+    · ─
     ╰────

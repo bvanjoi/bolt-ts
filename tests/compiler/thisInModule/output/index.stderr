@@ -3,3 +3,10 @@
  5 │ this
    · ────
    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/thisInModule/index.ts:5:3]
+ 5 │ this
+   · ────
+   ╰────

@@ -3,8 +3,10 @@
 class D<T, U> {
 
   x: T
+  //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 
   y: U
+  //~^ ERROR: Property 'y' has no initializer and is not definitely assigned in the constructor.
 
 }
 

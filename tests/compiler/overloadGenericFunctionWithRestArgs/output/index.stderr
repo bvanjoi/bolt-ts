@@ -1,5 +1,19 @@
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/overloadGenericFunctionWithRestArgs/index.ts:4:11]
+ 4 │ id
+   · ──
+   ╰────
+
+  × Property 'GetEnumerator' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/overloadGenericFunctionWithRestArgs/index.ts:8:3]
+ 8 │ GetEnumerator
+   · ─────────────
+   ╰────
+
   × Type 'B<string>' is not assignable to type 'B<number>'.
-    ╭─[../../tests/compiler/overloadGenericFunctionWithRestArgs/index.ts:14:5]
- 14 │ b0
+    ╭─[../../tests/compiler/overloadGenericFunctionWithRestArgs/index.ts:16:5]
+ 16 │ b0
     · ──
     ╰────

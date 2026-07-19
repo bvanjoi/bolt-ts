@@ -8,6 +8,7 @@ function foo<T>() {
       y2: typeof z
   };
   return y;
+  //~^ ERROR: Variable 'y' is used before being assigned.
 }
 
 
@@ -17,6 +18,7 @@ function bar<T>() {
       y2: typeof z;
   }
   return y;
+  //~^ ERROR: Variable 'y' is used before being assigned.
 }
 
 var a = foo<number>();

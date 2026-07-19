@@ -16,6 +16,6 @@ class Comp<T extends Foo, S> extends Component<S & State<T>>
 {
     foo(a: T) {
         this.setState({ a: a });
-        //~^ ERROR: Argument of type '{ a: T; }' is not assignable to parameter of type 'Pick<S & State<T>, "a">'.
+        //~^ ERROR: Type 'T' is not assignable to type 'undefined | S & State<T>["a"]'.
     }
 }

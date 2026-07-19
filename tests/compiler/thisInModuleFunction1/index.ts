@@ -3,6 +3,7 @@
 module bar {
   export function bar() {
    return this;
+   //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
   } 
 } 
 var z = bar.bar();

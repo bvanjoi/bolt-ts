@@ -2,6 +2,7 @@
 
 class ServiceBase<T> {
   field: T;
+  //~^ ERROR: Property 'field' has no initializer and is not definitely assigned in the constructor.
 }
 class Service extends ServiceBase<typeof Service.Base> {
 }

@@ -1,0 +1,47 @@
+  × Identifier expected. 'package' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:6:13]
+ 6 │ package
+   · ───────
+   ╰────
+
+  × Identifier expected. 'private' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:9:16]
+ 9 │ private
+   · ───────
+   ╰────
+
+  × Identifier expected. 'public' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:12:8]
+ 12 │ public
+    · ──────
+    ╰────
+
+  × Identifier expected. 'protected' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:17:8]
+ 17 │ protected
+    · ─────────
+    ╰────
+
+  × Cannot find module './1' or its corresponding type declarations.
+   ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:6:26]
+ 6 │ "./1"
+   · ─────
+   ╰────
+
+  × Cannot find module './1' or its corresponding type declarations.
+   ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:9:30]
+ 9 │ "./1"
+   · ─────
+   ╰────
+
+  × Cannot find module './1' or its corresponding type declarations.
+    ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:12:20]
+ 12 │ "./1"
+    · ─────
+    ╰────
+
+  × Cannot find module './1' or its corresponding type declarations.
+    ╭─[../../tests/compiler/strictModeWordInImportDeclaration/index.ts:19:28]
+ 19 │ './1'
+    · ─────
+    ╰────

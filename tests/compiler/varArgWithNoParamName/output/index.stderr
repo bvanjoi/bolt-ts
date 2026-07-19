@@ -3,3 +3,9 @@
  3 │ )
    · ─
    ╰────
+
+  × Rest parameter '' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/varArgWithNoParamName/index.ts:3:13]
+ 3 │ ...
+   · ───
+   ╰────

@@ -1,3 +1,9 @@
+  × Identifier expected. 'yield' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:12:21]
+ 12 │ yield
+    · ─────
+    ╰────
+
   × Cannot find module 'somemodule' or its corresponding type declarations.
    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:5:23]
  5 │ "somemodule"
@@ -23,8 +29,8 @@
     ╰────
 
   × Cannot find module 'somemodule' or its corresponding type declarations.
-    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:15:36]
- 15 │ "somemodule"
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:16:36]
+ 16 │ "somemodule"
     · ────────────
     ╰────
 
@@ -55,7 +61,7 @@
    · ───┬───
    ·    ╰── Previous definition here
    ╰────
-    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:15:21]
- 15 │ default
+    ╭─[../../tests/compiler/es6ImportNamedImportIdentifiersParsing/index.ts:16:21]
+ 16 │ default
     · ───────
     ╰────

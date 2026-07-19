@@ -1,6 +1,20 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/instanceSubtypeCheck2/index.ts:4:5]
+ 4 │ x
+   · ─
+   ╰────
+
   × Property 'x' in type 'C2<T, C2>' is not assignable to the same property in
   │ base type 'C1<T, C2>'.
-   ╭─[../../tests/compiler/instanceSubtypeCheck2/index.ts:8:5]
- 8 │ x
+   ╭─[../../tests/compiler/instanceSubtypeCheck2/index.ts:9:5]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/instanceSubtypeCheck2/index.ts:9:5]
+ 9 │ x
    · ─
    ╰────

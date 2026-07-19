@@ -102,7 +102,7 @@ impl RawCompilerOptions {
         if self.declaration.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::DECLARATION);
         }
-        let strict = self.strict.unwrap_or_default();
+        let strict = self.strict.unwrap_or(true);
         if strict {
             flags.insert(super::CompilerOptionFlags::STRICT);
         }

@@ -1,6 +1,6 @@
 function foo(a:string, b?:string, ...c:number[]){}
 foo('foo', 1); 
-//~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'string'.
+//~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'undefined | string'.
 foo('foo'); 
 foo('foo', 'bar'); 
 foo();

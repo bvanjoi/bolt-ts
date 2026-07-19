@@ -4,8 +4,20 @@
    · ─
    ╰────
 
+  × Variable 'z' is used before being assigned.
+   ╭─[../../tests/compiler/typeParametersShouldNotBeEqual/index.ts:8:7]
+ 8 │ z
+   · ─
+   ╰────
+
   × Type 'Object' is not assignable to type 'T'.
    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual/index.ts:8:3]
  8 │ x
    · ─
    ╰────
+
+  × Type 'T' is not assignable to type 'Object'.
+    ╭─[../../tests/compiler/typeParametersShouldNotBeEqual/index.ts:11:3]
+ 11 │ z
+    · ─
+    ╰────

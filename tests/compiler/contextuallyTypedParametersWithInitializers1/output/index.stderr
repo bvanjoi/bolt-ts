@@ -1,0 +1,11 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextuallyTypedParametersWithInitializers1/index.ts:30:24]
+ 30 │ x?
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextuallyTypedParametersWithInitializers1/index.ts:47:5]
+ 47 │ x?
+    · ──
+    ╰────

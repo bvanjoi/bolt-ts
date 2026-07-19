@@ -1,95 +1,95 @@
   × Block-scoped variable 'a' used before its declaration.
-   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:4:12]
- 4 │ a
+   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:7:12]
+ 7 │ a
    · ─
    ╰────
 
 Advice: 
   ☞ Block-scoped variable 'a' is defined here
-   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:4:11]
- 4 │ [a]: a
+   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:7:11]
+ 7 │ [a]: a
    · ──────
    ╰────
 
   × Block-scoped variable 'a' used before its declaration.
-   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:4:12]
- 4 │ a
+   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:7:12]
+ 7 │ a
    · ─
    ╰────
 
 Advice: 
   ☞ Block-scoped variable 'a' is defined here
-   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:4:11]
- 4 │ [a]: a
+   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:7:11]
+ 7 │ [a]: a
    · ──────
    ╰────
 
   × Type 'any' cannot be used as an index type.
-   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:4:11]
- 4 │ [a]
+   ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:7:11]
+ 7 │ [a]
    · ───
    ╰────
 
   × Block-scoped variable 'a' used before its declaration.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:10:12]
- 10 │ a
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:13:12]
+ 13 │ a
     · ─
     ╰────
 
 Advice: 
   ☞ Block-scoped variable 'a' is defined here
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:10:11]
- 10 │ [a]: a
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:13:11]
+ 13 │ [a]: a
     · ──────
     ╰────
 
   × Block-scoped variable 'a' used before its declaration.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:10:12]
- 10 │ a
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:13:12]
+ 13 │ a
     · ─
     ╰────
 
 Advice: 
   ☞ Block-scoped variable 'a' is defined here
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:10:11]
- 10 │ [a]: a
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:13:11]
+ 13 │ [a]: a
     · ──────
     ╰────
 
   × Type 'any' cannot be used as an index type.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:10:11]
- 10 │ [a]
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:13:11]
+ 13 │ [a]
     · ───
     ╰────
 
   × Block-scoped variable 'b' used before its declaration.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:16:7]
- 16 │ b
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:19:7]
+ 19 │ b
     · ─
     ╰────
 
 Advice: 
   ☞ Block-scoped variable 'b' is defined here
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:16:6]
- 16 │ [b]: b
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:19:6]
+ 19 │ [b]: b
     · ──────
     ╰────
 
   × Block-scoped variable 'b' used before its declaration.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:16:7]
- 16 │ b
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:19:7]
+ 19 │ b
     · ─
     ╰────
 
 Advice: 
   ☞ Block-scoped variable 'b' is defined here
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:16:6]
- 16 │ [b]: b
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:19:6]
+ 19 │ [b]: b
     · ──────
     ╰────
 
   × Type 'any' cannot be used as an index type.
-    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:16:6]
- 16 │ [b]
+    ╭─[../../tests/compiler/blockScopedBindingUsedBeforeDef/index.ts:19:6]
+ 19 │ [b]
     · ───
     ╰────

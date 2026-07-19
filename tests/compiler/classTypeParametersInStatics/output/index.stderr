@@ -1,17 +1,43 @@
   × Static members cannot reference class type parameters.
-    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:14:40]
- 14 │ T
-    · ─
-    ╰────
-
-  × Static members cannot reference class type parameters.
-    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:16:29]
+    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:16:40]
  16 │ T
     · ─
     ╰────
 
   × Static members cannot reference class type parameters.
-    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:16:43]
- 16 │ T
+    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:18:29]
+ 18 │ T
     · ─
     ╰────
+
+  × Static members cannot reference class type parameters.
+    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:18:43]
+ 18 │ T
+    · ─
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:27:52]
+ 27 │ null
+    · ────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'U'.
+    ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:35:52]
+ 35 │ null
+    · ────
+    ╰────
+
+  × Property 'next' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:7:16]
+ 7 │ next
+   · ────
+   ╰────
+
+  × Property 'prev' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classTypeParametersInStatics/index.ts:9:16]
+ 9 │ prev
+   · ────
+   ╰────

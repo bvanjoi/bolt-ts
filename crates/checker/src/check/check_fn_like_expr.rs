@@ -452,6 +452,7 @@ impl<'cx> TyChecker<'cx> {
                     self.check_return_expression::<false>(
                         func.id(),
                         return_or_promised_ty,
+                        expr.id(),
                         Some(expr),
                         expr_ty,
                     );

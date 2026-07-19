@@ -1,0 +1,6 @@
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/nonGenericClassExtendingGenericClassWithAny/index.ts:4:3]
+ 4 │ t
+   · ─
+   ╰────

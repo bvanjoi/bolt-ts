@@ -1,4 +1,7 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/anyIdenticalToItself.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/anyIdenticalToItself.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 
 function foo(x: any);
 //~^ ERROR: This overload signature is not compatible with its implementation

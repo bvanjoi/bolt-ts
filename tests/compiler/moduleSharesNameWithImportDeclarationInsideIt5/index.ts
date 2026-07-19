@@ -18,4 +18,5 @@ namespace A.M {
     export function bar() {
     }
     M.bar(); // Should call Z.M.bar
+    //~^ ERROR: Cannot find name 'M'.
 }

@@ -22,7 +22,6 @@ class B extends A {
 const a = null;
 class A0 extends a {
     constructor() {}
-    //~^ ERROR: Constructors for derived classes must contain a 'super' call.
 }
 
 class A1 extends null {

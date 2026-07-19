@@ -2,5 +2,6 @@
 
 class X<A> {
 	prop: X< <Tany>() => Tany >;
+	//~^ ERROR: Property 'prop' has no initializer and is not definitely assigned in the constructor.
 }
 var a: X<boolean>;

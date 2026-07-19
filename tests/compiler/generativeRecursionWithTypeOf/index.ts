@@ -3,6 +3,7 @@
 class C<T> {
     static foo(x: number) { }
     type: T;
+    //~^ ERROR: Property 'type' has no initializer and is not definitely assigned in the constructor.
 }
 
 namespace M {

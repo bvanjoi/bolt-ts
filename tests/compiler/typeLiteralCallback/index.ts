@@ -8,6 +8,7 @@ interface Foo<T> {
 var foo: Foo<string>
 
 foo.reject('')
+//~^ ERROR: Variable 'foo' is used before being assigned.
 
 interface bar<T> {
   fail(func: (arg: T) => void ): void ;
@@ -16,4 +17,6 @@ interface bar<T> {
 var test: bar<string>;
 
 test.fail(arg => foo.reject(arg));
+//~^ ERROR: Variable 'test' is used before being assigned.
 test.fail2(arg => foo.reject(arg));  // Should be OK.  Was: Error: Supplied parameters do not match any signature of call target
+//~^ ERROR: Variable 'test' is used before being assigned.

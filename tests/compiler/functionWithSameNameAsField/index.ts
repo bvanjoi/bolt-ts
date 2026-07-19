@@ -2,6 +2,7 @@
 
 class TestProgressBar {
     public total: number;
+    //~^ ERROR: Property 'total' has no initializer and is not definitely assigned in the constructor.
     public total(total: number) {
     //~^ ERROR: Duplicate identifier 'total'.
         this.total = total;

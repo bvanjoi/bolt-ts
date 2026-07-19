@@ -2,3 +2,4 @@
 
 const a
 //~^ ERROR: Declarations must be initialized.
+//~| ERROR: Variable 'a' implicitly has an 'any' type.

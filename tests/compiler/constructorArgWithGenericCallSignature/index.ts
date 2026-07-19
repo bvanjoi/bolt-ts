@@ -12,7 +12,9 @@ export function F(func: MyFunc) { }
 }
 var func: Test.MyFunc;
 Test.F(func); // OK
+//~^ ERROR: Variable 'func' is used before being assigned.
 var test = new Test.MyClass(func); // Should be OK
+//~^ ERROR: Variable 'func' is used before being assigned.
 
 
 class B<T> {

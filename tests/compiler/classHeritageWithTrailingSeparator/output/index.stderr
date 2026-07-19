@@ -1,3 +1,10 @@
   × Syntax Error: Unexpected token ','
-   ╭─[../../tests/compiler/classHeritageWithTrailingSeparator/index.ts:2:18]
+   ╭─[../../tests/compiler/classHeritageWithTrailingSeparator/index.ts:3:18]
+   ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classHeritageWithTrailingSeparator/index.ts:1:11]
+ 1 │ foo
+   · ───
    ╰────

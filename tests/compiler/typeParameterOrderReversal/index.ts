@@ -8,6 +8,7 @@ interface X<T> {
 function uFirst<U extends X<T>, T>(x: U) { }
 function tFirst<T, U extends X<T>>(x: U) { }
 var z: X<number> = null;
+//~^ ERROR: Type 'null' is not assignable to type 'X<number>'.
 
 // Both of these should be allowed
 uFirst(z);

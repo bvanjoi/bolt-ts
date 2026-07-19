@@ -1,0 +1,13 @@
+  × 'bar', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/functionOverloads7/index.ts:4:3]
+ 4 │ private bar();
+   · ──────────────
+   ╰────
+
+  × 'bar', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/functionOverloads7/index.ts:6:3]
+ 6 │ private bar(foo: string);
+   · ─────────────────────────
+   ╰────

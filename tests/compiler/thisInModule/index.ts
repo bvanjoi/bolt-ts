@@ -4,4 +4,5 @@ module myMod {
   var x;
   this.x = 5;
   //~^ ERROR: 'this' cannot be referenced in a module or namespace body.
+  //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
 }

@@ -7,7 +7,7 @@ declare function log(s: string): void;
 declare function get(): number;
 
 function main1() : number {
-  //~^ ERROR: Not all code paths return a value.
+//~^ ERROR: Function lacks ending return statement and return type does not include 'undefined'.
     try {
         return get();
     }

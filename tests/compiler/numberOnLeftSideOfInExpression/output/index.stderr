@@ -1,0 +1,5 @@
+  × Variable 'left' is used before being assigned.
+   ╭─[../../tests/compiler/numberOnLeftSideOfInExpression/index.ts:7:1]
+ 7 │ left
+   · ────
+   ╰────

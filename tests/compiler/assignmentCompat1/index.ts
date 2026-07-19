@@ -1,8 +1,8 @@
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/assignmentCompat1.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/assignmentCompat1.ts`, Apache-2.0 License
 
 var x = { one: 1 };
-var y: { [index: string]: any };
-var z: { [index: number]: any };
+declare var y: { [index: string]: any };
+declare var z: { [index: number]: any };
 x = y;  // Error
 //~^ ERROR: Property 'one' is missing.
 y = x;  // Ok because index signature type is any

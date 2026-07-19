@@ -2,6 +2,7 @@
 
 class Base {
     constructor(...arg) {
+    //~^ ERROR: Rest parameter 'arg' implicitly has an 'any[]' type.
     }
 }
 class Super extends Base {

@@ -1,5 +1,23 @@
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases3/index.ts:19:9]
+ 19 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases3/index.ts:22:9]
+ 22 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases3/index.ts:25:1]
+ 25 │ c
+    · ─
+    ╰────
+
   × Property 'tar' does not exist on type 'IC<number>'.
-    ╭─[../../tests/compiler/genericTypeWithMultipleBases3/index.ts:23:3]
- 23 │ tar
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases3/index.ts:25:3]
+ 25 │ tar
     · ───
     ╰────

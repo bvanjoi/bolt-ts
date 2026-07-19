@@ -709,7 +709,8 @@ impl<'cx> ParserState<'cx, '_> {
         name: &'cx ast::Ident,
         is_type_only: bool,
     ) -> &'cx ast::ImportEqualsDecl<'cx> {
-        self.expect(TokenKind::Eq);
+        debug_assert!(self.token.kind == TokenKind::Eq);
+        self.next_token(); // consume `Eq`
         // parse module reference
         let module_reference = if self.token.kind == TokenKind::Ident
             && self.ident_token() == keyword::IDENT_REQUIRE
@@ -785,8 +786,12 @@ impl<'cx> ParserState<'cx, '_> {
             }
         }
 
+        if let Some(name) = name {
+            self.check_contextual_ident(name);
+        }
+
         if let Some(name) = name
-            && !matches!(self.token.kind, TokenKind::Comma | TokenKind::From)
+            && matches!(self.token.kind, TokenKind::Eq)
         {
             let export_modifier = modifiers
                 .and_then(|m| {
@@ -845,7 +850,7 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        (self.create_import_clause(self.new_span(start as u32), is_type_only, name, kind)) as _
+        self.create_import_clause(self.new_span(start as u32), is_type_only, name, kind)
     }
 
     fn parse_ns_import(&mut self) -> &'cx ast::NsImport<'cx> {
@@ -855,8 +860,9 @@ impl<'cx> ParserState<'cx, '_> {
         self.next_token(); // consume `*`
         self.expect(TokenKind::As);
         let name = self.create_ident(true, None);
+        self.check_contextual_ident(name);
 
-        (self.create_namespace_import(self.new_span(start), name)) as _
+        self.create_namespace_import(self.new_span(start), name)
     }
 
     fn parse_module_spec(&mut self) -> &'cx ast::StringLit {

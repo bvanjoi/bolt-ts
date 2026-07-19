@@ -7,6 +7,7 @@ var x:number[];
 
 
 var y = x; 
+//~^ ERROR: Variable 'x' is used before being assigned.
 
 function map<U>() {
     var ys: U[] = [];

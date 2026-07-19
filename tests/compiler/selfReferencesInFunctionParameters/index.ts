@@ -11,6 +11,7 @@ function bar(x0 = "", x: number = x) {
 class C {
     constructor(x = 1, y = y) {
         //~^ ERROR: Parameter 'y' cannot reference itself.
+    //~| ERROR: 'y' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
     }
      
     bar(a = "", b: string = b.toString()) {

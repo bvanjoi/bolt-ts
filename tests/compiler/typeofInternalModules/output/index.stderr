@@ -1,0 +1,29 @@
+  × Cannot find name 'Outer'.
+    ╭─[../../tests/compiler/typeofInternalModules/index.ts:21:9]
+ 21 │ Outer
+    · ─────
+    ╰────
+
+  × Cannot find name 'importUninst'.
+    ╭─[../../tests/compiler/typeofInternalModules/index.ts:18:16]
+ 18 │ importUninst
+    · ────────────
+    ╰────
+
+  × Property 'C' is missing.
+    ╭─[../../tests/compiler/typeofInternalModules/index.ts:24:1]
+ 24 │ x5
+    · ──
+    ╰────
+
+  × Cannot find name 'importUninst'.
+    ╭─[../../tests/compiler/typeofInternalModules/index.ts:27:16]
+ 27 │ importUninst
+    · ────────────
+    ╰────
+
+  × Property 'instantiated' is missing.
+    ╭─[../../tests/compiler/typeofInternalModules/index.ts:30:1]
+ 30 │ x7
+    · ──
+    ╰────

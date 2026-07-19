@@ -18,7 +18,7 @@ declare var _: Underscore.Static;
 // No error, Call signatures of types '<T>(value: T) => T' and 'Underscore.Iterator<{}, boolean>' are compatible when instantiated with any.
 // Ideally, we would not have a generic signature here, because it should be instantiated with {} during inferential typing
 _.all([true, 1, null, 'yes'], _.identity);
-//~^ ERROR: Argument of type '(value: T) => T' is not assignable to parameter of type 'Underscore.Iterator<false | true | number | string, boolean>'.
+//~^ ERROR: Argument of type '(value: T) => T' is not assignable to parameter of type 'undefined | Underscore.Iterator<null | false | true | number | string, boolean>'.
  
 // Ok, because fixing makes us infer boolean for T
 _.all([true], _.identity);

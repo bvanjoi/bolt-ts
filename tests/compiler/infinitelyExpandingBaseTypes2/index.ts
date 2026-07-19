@@ -12,3 +12,4 @@ interface B<T>
  
 var a: A<string>
 var b: B<string> = a
+//~^ ERROR: Variable 'a' is used before being assigned.

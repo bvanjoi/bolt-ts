@@ -2,9 +2,11 @@
 
 class X {
     private m: number;
+    //~^ ERROR: Property 'm' has no initializer and is not definitely assigned in the constructor.
 }
 class Y {
     private m: string;
+    //~^ ERROR: Property 'm' has no initializer and is not definitely assigned in the constructor.
 }
 
 interface Z extends X, Y { }

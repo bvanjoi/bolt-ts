@@ -1,6 +1,12 @@
+  × Rest parameter 'arg' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/checkSuperCallBeforeThisAccessing5/index.ts:3:27]
+ 3 │ ...arg
+   · ──────
+   ╰────
+
   × 'super' must be called before accessing 'this' in the constructor of a
   │ derived class.
-   ╭─[../../tests/compiler/checkSuperCallBeforeThisAccessing5/index.ts:7:15]
- 7 │ this
+   ╭─[../../tests/compiler/checkSuperCallBeforeThisAccessing5/index.ts:8:15]
+ 8 │ this
    · ────
    ╰────

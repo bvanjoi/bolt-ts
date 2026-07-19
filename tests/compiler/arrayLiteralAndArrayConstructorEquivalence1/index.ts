@@ -2,9 +2,9 @@
 
 var myCars=new Array(); 
 var myCars3 = new Array({});
-var myCars4: Array; // error
+declare var myCars4: Array; // error
 //~^ ERROR: Generic type 'Array<T>' requires 1 type argument.
-var myCars5: Array<any>[];
+declare var myCars5: Array<any>[];
  
 myCars = myCars3;
 myCars = myCars4;

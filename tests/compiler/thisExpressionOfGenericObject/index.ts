@@ -2,6 +2,7 @@
 
 class MyClass1<T> {
   private obj: MyClass1<string>;
+  //~^ ERROR: Property 'obj' has no initializer and is not definitely assigned in the constructor.
   constructor() {
       () => this;
   }

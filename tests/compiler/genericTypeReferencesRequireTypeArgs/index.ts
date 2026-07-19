@@ -2,6 +2,7 @@
 
 class C<T> {
   foo(): T { return null }
+  //~^ ERROR: Type 'null' is not assignable to type 'T'.
 }
 interface I<T> {
   bar(): T;

@@ -1,0 +1,6 @@
+  × Property '##a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classIndexer5/index.ts:9:5]
+ 9 │ #a
+   · ──
+   ╰────

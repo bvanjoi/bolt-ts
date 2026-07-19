@@ -1,3 +1,9 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/genericConstraintSatisfaction1/index.ts:8:1]
+ 8 │ x
+   · ─
+   ╰────
+
   × Type 'number' is not assignable to type 'string'.
    ╭─[../../tests/compiler/genericConstraintSatisfaction1/index.ts:8:6]
  8 │ s

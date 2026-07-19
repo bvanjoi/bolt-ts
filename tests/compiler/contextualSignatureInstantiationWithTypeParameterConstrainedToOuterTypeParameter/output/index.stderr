@@ -1,5 +1,35 @@
+  × Type 'null' is not assignable to type 'U'.
+   ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:4:47]
+ 4 │ null
+   · ────
+   ╰────
+
+  × Variable 'h' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:9:9]
+ 9 │ h
+   · ─
+   ╰────
+
+  × Variable 'h' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:9:9]
+ 9 │ h
+   · ─
+   ╰────
+
+  × Variable 'h' is used before being assigned.
+    ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:12:17]
+ 12 │ h
+    · ─
+    ╰────
+
+  × Variable 'h' is used before being assigned.
+    ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:14:17]
+ 14 │ h
+    · ─
+    ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:10:5]
- 10 │ z
+    ╭─[../../tests/compiler/contextualSignatureInstantiationWithTypeParameterConstrainedToOuterTypeParameter/index.ts:14:5]
+ 14 │ z
     · ─
     ╰────

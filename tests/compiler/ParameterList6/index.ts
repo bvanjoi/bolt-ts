@@ -5,5 +5,6 @@
 class C {
   constructor(C: (public A) => any) {
     //~^ ERROR: A parameter property is only allowed in a constructor implementation.
+  //~| ERROR: Parameter 'A' implicitly has an 'any' type.
   }
 }

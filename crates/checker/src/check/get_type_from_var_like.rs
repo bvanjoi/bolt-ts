@@ -74,6 +74,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::Node::ObjectBindingElem(n) => {
                     self.get_ty_for_var_like_decl::<false>(n, check_mode)
                 }
+                ast::Node::ArrayBinding(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
                 _ => {
                     // TODO:
                     None
@@ -94,6 +95,7 @@ impl<'cx> TyChecker<'cx> {
                 ast::Node::ObjectBindingElem(n) => {
                     self.get_ty_for_var_like_decl::<false>(n, check_mode)
                 }
+                ast::Node::ArrayBinding(n) => self.get_ty_for_var_like_decl::<false>(n, check_mode),
                 _ => {
                     // TODO:
                     None

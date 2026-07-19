@@ -18,3 +18,4 @@ var o1: OwnerList<number>;
 var o2: OwnerList2<number>;
 
 o1 = o2; // should not error
+//~^ ERROR: Variable 'o2' is used before being assigned.

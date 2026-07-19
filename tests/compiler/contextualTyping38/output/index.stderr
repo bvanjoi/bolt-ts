@@ -1,0 +1,5 @@
+  × Parameter 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/contextualTyping38/index.ts:3:38]
+ 3 │ a
+   · ─
+   ╰────

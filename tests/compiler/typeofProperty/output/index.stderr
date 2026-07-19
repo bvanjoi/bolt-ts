@@ -17,31 +17,52 @@
     ╰────
 
   × Cannot find name 'a'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:24:15]
- 24 │ a
+    ╭─[../../tests/compiler/typeofProperty/index.ts:25:15]
+ 25 │ a
     · ─
     ╰────
 
   × Cannot find name 'd'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:30:15]
- 30 │ d
+    ╭─[../../tests/compiler/typeofProperty/index.ts:31:15]
+ 31 │ d
     · ─
     ╰────
 
   × Cannot find name 'e'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:36:15]
- 36 │ e
+    ╭─[../../tests/compiler/typeofProperty/index.ts:38:15]
+ 38 │ e
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:23:5]
+ 23 │ a
+    · ─
+    ╰────
+
+  × Property 'd' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:33:5]
+ 33 │ d
+    · ─
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/typeofProperty/index.ts:49:5]
+ 49 │ x
     · ─
     ╰────
 
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:55:5]
- 55 │ x3
+    ╭─[../../tests/compiler/typeofProperty/index.ts:58:5]
+ 58 │ x3
     · ──
     ╰────
 
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/typeofProperty/index.ts:57:5]
- 57 │ x4
+    ╭─[../../tests/compiler/typeofProperty/index.ts:60:5]
+ 60 │ x4
     · ──
     ╰────

@@ -9,6 +9,7 @@ interface Query<T> {
 function from<T>(arg: boolean): Query<T>; // was Error: Overload signature is not compatible with function definition.
 function from<T>(arg: any): Query<T> {
   return undefined;
+  //~^ ERROR: Type 'undefined' is not assignable to type 'Query<T>'.
 }
 
 let ff: Query<string[]> = from<string>(false).foo("")

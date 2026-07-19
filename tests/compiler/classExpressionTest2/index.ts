@@ -6,6 +6,8 @@ function M() {
             var t: T;
             var x: X;
             return { t, x };
+            //~^ ERROR: Variable 't' is used before being assigned.
+            //~| ERROR: Variable 'x' is used before being assigned.
         }
     }
 

@@ -1,0 +1,5 @@
+  × Parameter 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/arrowFunctionWithObjectLiteralBody2/index.ts:3:9]
+ 3 │ a
+   · ─
+   ╰────

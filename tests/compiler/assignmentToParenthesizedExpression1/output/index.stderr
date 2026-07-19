@@ -10,3 +10,9 @@
  6 │ 1
    · ─
    ╰────
+
+  × Type 'number' is not assignable to type 'undefined'.
+   ╭─[../../tests/compiler/assignmentToParenthesizedExpression1/index.ts:6:1]
+ 6 │ (1, x)
+   · ──────
+   ╰────

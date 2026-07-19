@@ -4,5 +4,6 @@
 
 class C {
     get x(): <T>(a: T) => T { return null; }
+    //~^ ERROR: Type 'null' is not assignable to type '(a: T) => T'.
     set x(p: <U>(a: U) => U) {}
 }

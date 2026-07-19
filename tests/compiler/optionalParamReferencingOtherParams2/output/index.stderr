@@ -3,3 +3,9 @@
  4 │ b
    · ─
    ╰────
+
+  × Variable 'b' is used before being assigned.
+   ╭─[../../tests/compiler/optionalParamReferencingOtherParams2/index.ts:4:29]
+ 4 │ b
+   · ─
+   ╰────

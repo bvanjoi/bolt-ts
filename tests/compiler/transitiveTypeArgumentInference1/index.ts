@@ -5,6 +5,7 @@ interface I1<T, U> {
 }
 
 var i: I1<boolean, string> = null;
+//~^ ERROR: Type 'null' is not assignable to type 'I1<boolean, string>'.
 
 class C<T> {
 	constructor(p: I1<boolean, T>) {

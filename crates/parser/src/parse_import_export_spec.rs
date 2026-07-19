@@ -45,6 +45,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             check_ident_start,
             check_ident_end,
         );
+        state.check_contextual_ident(ident);
         let kind = ast::ModuleExportNameKind::Ident(ident);
         state.alloc(ast::ModuleExportName { kind })
     }

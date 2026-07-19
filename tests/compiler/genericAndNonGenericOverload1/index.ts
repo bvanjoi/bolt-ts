@@ -7,3 +7,4 @@ interface callable2<T> {
 var c2: callable2<number>;
 var a: number = c2<string>(1);
 //~^ ERROR: Type 'string' is not assignable to type 'number'.
+//~| ERROR: Variable 'c2' is used before being assigned.

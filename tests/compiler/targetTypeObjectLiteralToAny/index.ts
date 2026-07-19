@@ -5,6 +5,7 @@ function suggest(){
 	var result:any;	
 					
 	TypeScriptKeywords.forEach(function(keyword) {						
+	//~^ ERROR: Variable 'TypeScriptKeywords' is used before being assigned.
 		result.push({text:keyword, type:"keyword"}); // this should not cause a crash - push should be typed to any
 	});			
 }

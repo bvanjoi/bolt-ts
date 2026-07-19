@@ -6,6 +6,6 @@ declare var f: (s: string, n?: number) => void;
 declare var g: (s: string, b?: boolean) => void;
 
 f = g;
-//~^ ERROR: Type '(s: string, b: boolean) => void' is not assignable to type '(s: string, n: number) => void'.
+//~^ ERROR: Type '(s: string, b: undefined | false | true) => void' is not assignable to type '(s: string, n: undefined | number) => void'.
 g = f;
-//~^ ERROR: Type '(s: string, n: number) => void' is not assignable to type '(s: string, b: boolean) => void'.
+//~^ ERROR: Type '(s: string, n: undefined | number) => void' is not assignable to type '(s: string, b: undefined | false | true) => void'.

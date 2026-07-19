@@ -23,3 +23,10 @@ Advice:
  17 │ TextBase
     · ────────
     ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classSideInheritance2/index.ts:18:14]
+ 18 │ foo
+    · ───
+    ╰────

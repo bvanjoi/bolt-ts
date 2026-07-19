@@ -1,0 +1,17 @@
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveIdenticalOverloadResolution/index.ts:11:5]
+ 11 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveIdenticalOverloadResolution/index.ts:14:7]
+ 14 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveIdenticalOverloadResolution/index.ts:17:10]
+ 17 │ i
+    · ─
+    ╰────

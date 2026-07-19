@@ -14,7 +14,7 @@ function makeArrayGOpt<T>(item1?: T, item2?: T, item3?: T) {
     return [item1, item2, item3];
 }
 var a2Ga = makeArrayGOpt(1, ""); 
-//~^ ERROR: Argument of type 'string' is not assignable to parameter of type 'number'.
+//~^ ERROR: Argument of type 'string' is not assignable to parameter of type 'undefined | number'.
 var a2Gb = makeArrayG<any>(1, "");
 var a2Gc = makeArrayG<any[]>(1, ""); // error
 //~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'any[]'.

@@ -6,7 +6,13 @@
 
 Advice: 
   ☞ Block-scoped variable 'o2' is defined here
-    ╭─[../../tests/compiler/typeofUsedBeforeBlockScoped/index.ts:12:5]
- 12 │ o2: typeof o
+    ╭─[../../tests/compiler/typeofUsedBeforeBlockScoped/index.ts:13:5]
+ 13 │ o2: typeof o
     · ────────────
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/typeofUsedBeforeBlockScoped/index.ts:10:8]
+ 10 │ o2
+    · ──
     ╰────

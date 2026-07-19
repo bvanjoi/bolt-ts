@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'A.B'.
+   ╭─[../../tests/compiler/interMixingModulesInterfaces0/index.ts:7:20]
+ 7 │ null
+   · ────
+   ╰────

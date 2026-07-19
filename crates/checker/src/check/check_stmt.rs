@@ -486,27 +486,6 @@ impl<'cx> TyChecker<'cx> {
 
         let in_ambient_context = self.p.node_flags(id).contains(NodeFlags::AMBIENT);
 
-        if is_ambient_external_module {
-            let p = self.parent(id).unwrap();
-            if self.p.get(p.module()).is_global_source_file(p) {
-                if is_global_augmentation {
-                    let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
-                        span: module_name.span()
-                    };
-                    self.push_error(Box::new(error));
-                } else if let ast::ModuleName::StringLit(lit) = module_name {
-                    let module_name = self.atoms.get(lit.val);
-                    if bolt_ts_path::is_external_module_relative(module_name) {
-                        let error =
-                            errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
-                                span: lit.span,
-                            };
-                        self.push_error(Box::new(error));
-                    }
-                }
-            }
-        }
-
         self.check_exports_on_merged_decls(id);
 
         let symbol = self.get_symbol_of_declaration(id);
@@ -523,6 +502,43 @@ impl<'cx> TyChecker<'cx> {
                             span: module_name.span(),
                         };
             self.push_error(Box::new(error));
+        }
+
+        if is_ambient_external_module {
+            let nq = self.node_query(id.module());
+            if nq.is_external_module_augmentation(id) {
+                // TODO:
+            } else if self
+                .p
+                .get(id.module())
+                .is_global_source_file(self.parent(id).unwrap())
+            {
+                if is_global_augmentation {
+                    let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
+                        span: module_name.span()
+                    };
+                    self.push_error(Box::new(error));
+                } else if let ast::ModuleName::StringLit(lit) = module_name {
+                    let module_name = self.atoms.get(lit.val);
+                    if bolt_ts_path::is_external_module_relative(module_name) {
+                        let error =
+                            errors::AmbientModuleDeclarationCannotSpecifyRelativeModuleName {
+                                span: lit.span,
+                            };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            } else if is_global_augmentation {
+                let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
+                        span: module_name.span()
+                    };
+                self.push_error(Box::new(error));
+            } else {
+                let error = errors::AmbientModulesCannotBeNestedInOtherModulesOrNamespaces {
+                    span: module_name.span(),
+                };
+                self.push_error(Box::new(error));
+            }
         }
     }
 
@@ -850,6 +866,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_return_expression::<false>(
                     container,
                     unwrapped_ret_ty,
+                    node.id,
                     node.expr,
                     expr_ty,
                 );
@@ -867,6 +884,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         container: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
         ret_expr: Option<&'cx ast::Expr<'cx>>,
         expr_ty: &'cx ty::Ty<'cx>,
     ) {
@@ -874,11 +892,18 @@ impl<'cx> TyChecker<'cx> {
             let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
             if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
                 let expr_ty = self.check_expression::<false>(n.when_true, None);
-                self.check_return_expression::<true>(container, ret_ty, Some(n.when_true), expr_ty);
+                self.check_return_expression::<true>(
+                    container,
+                    ret_ty,
+                    n.when_true.id(),
+                    Some(n.when_true),
+                    expr_ty,
+                );
                 let expr_ty = self.check_expression::<false>(n.when_false, None);
                 self.check_return_expression::<true>(
                     container,
                     ret_ty,
+                    n.when_false.id(),
                     Some(n.when_false),
                     expr_ty,
                 );
@@ -895,7 +920,11 @@ impl<'cx> TyChecker<'cx> {
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {
-            let error_node = ret_expr.map(|expr| expr.id());
+            let error_node = match self.p.node(node) {
+                _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
+                ast::Node::RetStmt(n) => Some(n.id),
+                _ => unreachable!(),
+            };
             self.check_type_assignable_to_and_optionally_elaborate(
                 unwrapped_expr_ty,
                 ret_ty,

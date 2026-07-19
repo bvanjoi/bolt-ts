@@ -2822,48 +2822,63 @@ impl<'cx> TyChecker<'cx> {
             .then(|| self.expect_ty_links(ty.id).expect_param_ty_mapper())
     }
 
-    fn check_destructing_assignment<const RIGHT_IS_THIS: bool>(
+    fn check_destructing_assignment_for_shorthand<const RIGHT_IS_THIS: bool>(
         &mut self,
-        node: ast::NodeID,
+        n: &'cx ast::ObjectShorthandMember<'cx>,
         mut source_ty: &'cx ty::Ty<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let mut n = self.p.node(node);
-        if let ast::Node::ObjectShorthandMember(m) = n {
-            if let Some(init) = m.object_assignment_initializer {
-                if self.config.compiler_options().strict_null_checks()
-                    && let init_ty = self.check_expression::<false>(init, None)
-                    && !self.has_type_facts(init_ty, TypeFacts::IS_UNDEFINED)
-                {
-                    source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
-                }
-                let left_ty = self.check_ident(m.name, check_mode);
-                let right_ty = self.check_expression::<false>(init, check_mode);
-                self.check_binary_like_expr_for_equal(left_ty, right_ty, m.name.id, init.id());
+        if let Some(init) = n.object_assignment_initializer {
+            if self.config.compiler_options().strict_null_checks()
+                && let init_ty = self.check_expression::<false>(init, None)
+                && !self.has_type_facts(init_ty, TypeFacts::IS_UNDEFINED)
+            {
+                source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
             }
-            // TODO: check_reference_assignment
-            return source_ty;
+            let left_ty = self.check_ident(n.name, check_mode);
+            let right_ty = self.check_expression::<false>(init, check_mode);
+            self.check_binary_like_expr_for_equal(left_ty, right_ty, n.name.id, init.id());
         }
-        match n {
-            ast::Node::AssignExpr(expr) if expr.op == ast::AssignOp::Eq => {
+        // TODO: self.check_reference_assignment(node, source_ty, check_mode);
+        source_ty
+    }
+
+    fn check_destructing_assignment_for_expression<const RIGHT_IS_THIS: bool>(
+        &mut self,
+        mut n: &'cx ast::Expr<'cx>,
+        mut source_ty: &'cx ty::Ty<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        match n.kind {
+            ast::ExprKind::Assign(expr) if expr.op == ast::AssignOp::Eq => {
                 self.check_assignment_expression(expr, check_mode);
-                n = self.p.node(expr.left.id());
+                n = expr.left;
                 if self.config.compiler_options().strict_null_checks() {
                     source_ty = self.get_ty_with_facts(source_ty, TypeFacts::NE_UNDEFINED);
                 }
             }
             _ => {}
         };
-        match n {
-            ast::Node::ObjectLit(n) => {
+        match n.kind {
+            ast::ExprKind::ObjectLit(n) => {
                 self.check_object_literal_assignment::<RIGHT_IS_THIS>(n, source_ty)
             }
-            ast::Node::ArrayLit(n) => self.check_array_literal_assignment(n, source_ty, check_mode),
-            _ => {
-                // TODO: check_reference_assignment
-                source_ty
+            ast::ExprKind::ArrayLit(n) => {
+                self.check_array_literal_assignment(n, source_ty, check_mode)
             }
+            _ => self.check_reference_assignment(n, source_ty, check_mode),
         }
+    }
+
+    fn check_reference_assignment(
+        &mut self,
+        target: &'cx ast::Expr<'cx>,
+        source_ty: &'cx ty::Ty<'cx>,
+        check_mode: Option<CheckMode>,
+    ) -> &'cx ty::Ty<'cx> {
+        let _target_ty = self.check_expression::<false>(target, check_mode);
+        // TODO: self.check_reference_expression(node, |_| todo!(), |_| todo!())
+        source_ty
     }
 
     fn check_object_literal_assignment<const RIGHT_IS_THIS: bool>(
@@ -2922,7 +2937,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_flow_type_of_destructing_for_property_assignment_or_shorthand_assignment(
                         n.id, element_ty,
                     );
-                self.check_destructing_assignment::<RIGHT_IS_THIS>(n.init.id(), ty, None);
+                self.check_destructing_assignment_for_expression::<RIGHT_IS_THIS>(n.init, ty, None);
             }
             ast::ObjectMemberKind::Shorthand(n) => {
                 let expr_ty = self.get_string_literal_type_from_string(n.name.name);
@@ -2956,7 +2971,7 @@ impl<'cx> TyChecker<'cx> {
                     .get_flow_type_of_destructing_for_property_assignment_or_shorthand_assignment(
                         n.id, element_ty,
                     );
-                self.check_destructing_assignment::<RIGHT_IS_THIS>(n.id, ty, None);
+                self.check_destructing_assignment_for_shorthand::<RIGHT_IS_THIS>(n, ty, None);
             }
             _ => {
                 // TODO:
@@ -3071,12 +3086,12 @@ impl<'cx> TyChecker<'cx> {
                 };
                 // TODO: get_flow_type_of_destructing
                 let ty = assigned_ty;
-                return Some(self.check_destructing_assignment::<false>(elem.id(), ty, check_mode));
+                return Some(
+                    self.check_destructing_assignment_for_expression::<false>(elem, ty, check_mode),
+                );
             }
-            return Some(self.check_destructing_assignment::<false>(
-                elem.id(),
-                element_ty,
-                check_mode,
+            return Some(self.check_destructing_assignment_for_expression::<false>(
+                elem, element_ty, check_mode,
             ));
         }
         None
@@ -3829,6 +3844,32 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
+    fn get_resolved_symbol(&mut self, ident: &'cx ast::Ident) -> SymbolID {
+        if let Some(symbol) = self.get_node_links(ident.id).get_resolved_symbol() {
+            return symbol;
+        }
+        let id = self.resolve_symbol_by_ident(ident);
+        let s = self.symbol(id);
+        let id = if s.flags.contains(SymbolFlags::ALIAS) {
+            let target_flags = self.get_symbol_flags::<false>(id);
+            const MEANING: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::EXPORT_VALUE);
+            if target_flags.intersects(MEANING) {
+                id
+            } else {
+                let error = errors::CannotFindName {
+                    span: ident.span,
+                    name: self.atoms.get(ident.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+                Symbol::ERR
+            }
+        } else {
+            id
+        };
+        self.get_mut_node_links(ident.id).set_resolved_symbol(id);
+        id
+    }
+
     fn check_ident(
         &mut self,
         ident: &'cx ast::Ident,
@@ -3840,7 +3881,7 @@ impl<'cx> TyChecker<'cx> {
             _ => (),
         }
 
-        let symbol = self.resolve_symbol_by_ident(ident);
+        let symbol = self.get_resolved_symbol(ident);
 
         if symbol == Symbol::ERR {
             return self.error_ty;

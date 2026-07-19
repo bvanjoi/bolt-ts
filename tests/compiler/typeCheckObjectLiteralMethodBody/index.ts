@@ -4,4 +4,3 @@
 //@compiler-options: noImplicitAny
 
 var foo = { bar() { return undefined } };
-//~^ ERROR: 'bar', which lacks return-type annotation, implicitly has an 'any' return type.

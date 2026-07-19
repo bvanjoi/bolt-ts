@@ -1,0 +1,11 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/cyclicTypeInstantiation/index.ts:8:10]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/cyclicTypeInstantiation/index.ts:17:10]
+ 17 │ x
+    · ─
+    ╰────

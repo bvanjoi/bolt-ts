@@ -1,5 +1,11 @@
-  × Generic type 'Foo<T>' requires 1 type argument.
-   ╭─[../../tests/compiler/genericLambaArgWithoutTypeArguments/index.ts:9:11]
- 9 │ Foo
-   · ───
+  × Parameter 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/genericLambaArgWithoutTypeArguments/index.ts:6:14]
+ 6 │ a
+   · ─
    ╰────
+
+  × Generic type 'Foo<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericLambaArgWithoutTypeArguments/index.ts:10:11]
+ 10 │ Foo
+    · ───
+    ╰────

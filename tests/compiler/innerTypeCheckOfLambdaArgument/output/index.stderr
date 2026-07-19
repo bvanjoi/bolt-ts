@@ -1,5 +1,11 @@
+  × Parameter 'n' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/innerTypeCheckOfLambdaArgument/index.ts:2:35]
+ 2 │ n
+   · ─
+   ╰────
+
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/innerTypeCheckOfLambdaArgument/index.ts:11:7]
- 11 │ k
+    ╭─[../../tests/compiler/innerTypeCheckOfLambdaArgument/index.ts:12:7]
+ 12 │ k
     · ─
     ╰────

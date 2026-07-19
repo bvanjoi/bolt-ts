@@ -5,7 +5,7 @@
    · ───
    ╰────
 
-  × Type 'false' is not assignable to type 'string'.
+  × Type 'false' is not assignable to type 'undefined | string'.
    ╭─[../../tests/compiler/assignmentCompatFunctionsWithOptionalArgs/index.ts:9:17]
  9 │ name
    · ────

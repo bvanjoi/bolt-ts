@@ -1,0 +1,6 @@
+  × Property 'fa' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/newArrays/index.ts:6:10]
+ 6 │ fa
+   · ──
+   ╰────

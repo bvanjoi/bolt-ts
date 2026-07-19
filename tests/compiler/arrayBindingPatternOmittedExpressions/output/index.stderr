@@ -1,0 +1,5 @@
+  × Variable 'results' is used before being assigned.
+    ╭─[../../tests/compiler/arrayBindingPatternOmittedExpressions/index.ts:10:22]
+ 10 │ results
+    · ───────
+    ╰────

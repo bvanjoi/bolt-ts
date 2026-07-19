@@ -1,5 +1,5 @@
   × Identifier expected.
-   ╭─[../../tests/compiler/restArgMissingName/index.ts:3:18]
- 3 │ )
+   ╭─[../../tests/compiler/restArgMissingName/index.ts:6:18]
+ 6 │ )
    · ─
    ╰────

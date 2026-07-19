@@ -18,5 +18,7 @@ var foo2: {
 
 let a: string = foo2('bar')
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
+//~| ERROR: Variable 'foo2' is used before being assigned.
 let b: string = foo2('foo')
 //~^ ERROR: Type 'boolean' is not assignable to type 'string'.
+//~| ERROR: Variable 'foo2' is used before being assigned.

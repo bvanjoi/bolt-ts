@@ -1,0 +1,6 @@
+  × Type '(width: number) => { ry: null; }[]' is not assignable to type
+  │ 'undefined | ((width: number) => NamedTransform[])'.
+    ╭─[../../tests/compiler/contextualTypeArrayReturnType/index.ts:16:5]
+ 16 │ initialLeftPageTransforms
+    · ─────────────────────────
+    ╰────

@@ -1,0 +1,5 @@
+  × Variable 'b' is used before being assigned.
+   ╭─[../../tests/compiler/genericContextualTypingSpecialization/index.ts:6:1]
+ 6 │ b
+   · ─
+   ╰────

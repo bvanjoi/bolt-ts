@@ -1,10 +1,10 @@
 class Cell {}
 class Ship {
-  isSunk;
+  isSunk = false;
 }
 class Board {
-  ships;
-  cells;
+  ships = [];
+  cells = [];
   allShipsSunk() {
     return this.ships.every(function (val) {
       return val.isSunk;

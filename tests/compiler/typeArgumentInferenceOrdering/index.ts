@@ -2,6 +2,7 @@
 
 class C {
   y: I;
+  //~^ ERROR: Property 'y' has no initializer and is not definitely assigned in the constructor.
 }
 
 interface I {
@@ -13,6 +14,7 @@ interface Goo {
 }
 
 function foo<T>(f: { y: T }): T { return null }
+//~^ ERROR: Type 'null' is not assignable to type 'T'.
 var x = foo(new C()).x; // was Error that property x does not exist on type {}
 let goo = x();
 let p: number = goo.p;

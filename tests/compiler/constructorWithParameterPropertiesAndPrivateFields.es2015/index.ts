@@ -30,3 +30,11 @@ class B {
     console.log(this.exposedField);
   }
 }
+
+
+class C {
+  a: string;
+  constructor(arg: { key: string }) {
+    ({ key: this.a } = arg);
+  }
+}

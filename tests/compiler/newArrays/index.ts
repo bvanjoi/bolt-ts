@@ -4,6 +4,7 @@ module M {
 	class Foo {}
 	class Gar {
 		public fa: Foo[];
+		//~^ ERROR: Property 'fa' has no initializer and is not definitely assigned in the constructor.
 		public x = 10;
 		public y = 10;
 

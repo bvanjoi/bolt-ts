@@ -7,7 +7,7 @@ function foo([x]: { a:number | string }[]): string | number {
         return x.a;
     }
     
-    return undefined;
+    return undefined; //~ ERROR: Type 'undefined' is not assignable to type 'number | string'.
 }
 
 var x = foo([{a: "str"}]);

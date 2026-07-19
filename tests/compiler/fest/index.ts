@@ -198,7 +198,9 @@ type ArrayValues<T extends readonly unknown[]> = T[number];
   const c2: AnyStringValues = 123;
   //~^ ERROR: Type 'number' is not assignable to type 'string'.
   const c3: AnyStringValues = undefined; // Depends on `strictNullChecks`
+  //~^ ERROR: Type 'undefined' is not assignable to type 'string'.
   const c4: AnyStringValues = null;      // Depends on `strictNullChecks`
+  //~^ ERROR: Type 'null' is not assignable to type 'string'.
 }
 
 // ========== Arrayable ==========
@@ -330,7 +332,7 @@ type ConditionalPick<Base, Condition> = Pick<Base, ConditionalKeys<Base, Conditi
   const exampleConditionalPickWithUndefined: ConditionalPick<Example, string | undefined> = {a: '42'};
   const a0: ConditionalPick<Example, string | undefined> = {a: '42', c: '42'};
   const a1: ConditionalPick<Example, string | undefined> = {a: '42', b: '42'};
-  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick<Example, string>'.
+  //~^ ERROR: Object literal may only specify known properties, and 'b' does not exist in type 'ConditionalPick<Example, undefined | string>'.
 }
 
 // ========== ConditionalSimplify ==========
@@ -596,6 +598,7 @@ type HasMultipleCallSignatures<T extends (...arguments_: any[]) => unknown> =
 	
 	const a0: true = {} as HasMultipleCallSignatures<Overloaded>;
 	const a1: false = {} as HasMultipleCallSignatures<Overloaded2>; // dependent on `strictNullChecks` and `strictFunctionTypes`
+	//~^ ERROR: Type 'boolean' is not assignable to type 'false'.
 	const a2: false = {} as HasMultipleCallSignatures<Namespace>;
 }
 		
@@ -1022,7 +1025,9 @@ type Includes<Value extends readonly any[], Item> =
   const a6: true = objectIncludesPass;
 
   const nullIncludesUndefined: Includes<[null], undefined> = true; // dependent `strict`
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
   const a7: true = nullIncludesUndefined;
+  //~^ ERROR: Type 'boolean' is not assignable to type 'true'.
 
   const nullIncludesNullPass: Includes<[null], null> = true;
   const a8: true = nullIncludesNullPass;
@@ -1223,6 +1228,7 @@ type IsNull<T> = [T] extends [null] ? true : false;
   const a1: IsNull<any> = true;
   const a2: IsNull<never> = true;
   const a3: IsNull<undefined> = true; // Depends on `strictNullChecks`
+  //~^ ERROR: Type 'boolean' is not assignable to type 'false'.
   const a4: IsNull<unknown> = false;
   const a5: IsNull<void> = false;
   const a6: IsNull<{}> = false;
@@ -2748,7 +2754,9 @@ type UnknownArray = readonly unknown[];
   const a3: UnknownArray = ['foo'];
 
   const b0: UnknownArray = null;      // depend on `strictNullChecks`
+  //~^ ERROR: Type 'null' is not assignable to type 'UnknownArray'.
   const b1: UnknownArray = undefined; // depend on `strictNullChecks`
+  //~^ ERROR: Type 'undefined' is not assignable to type 'UnknownArray'.
   const b2: UnknownArray = {};
   //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]'
   const b3: UnknownArray = {0: 1};
@@ -2779,10 +2787,11 @@ type UnknownRecord = Record<PropertyKey, unknown>;
   const a3: UnknownRecord = foo = {bar: {baz: 'hello'}};
 
   foo = [];
-  //~^ ERROR: Type 'undefined[]' is not assignable to type 'UnknownRecord'.
+  //~^ ERROR: Type 'never[]' is not assignable to type 'UnknownRecord'.
   foo = 42;
   //~^ ERROR: Type 'number' is not assignable to type 'UnknownRecord'.
   foo = null; // Depends on `strictNullChecks`
+  //~^ ERROR: Type 'null' is not assignable to type 'UnknownRecord'.
 
   const b0: unknown = foo['bar'];
 }

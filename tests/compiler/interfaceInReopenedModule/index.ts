@@ -8,5 +8,6 @@ module m {
     interface f {}
     export class n { 
         private n: f;
+        //~^ ERROR: Property 'n' has no initializer and is not definitely assigned in the constructor.
     }
 }

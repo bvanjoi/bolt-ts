@@ -1,5 +1,17 @@
-  × Type 'B<number>' is not assignable to type 'B<string>'.
-   ╭─[../../tests/compiler/genericWithCallSignatureReturningSpecialization/index.ts:9:5]
- 9 │ b
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/genericWithCallSignatureReturningSpecialization/index.ts:8:1]
+ 8 │ x
    · ─
    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericWithCallSignatureReturningSpecialization/index.ts:10:20]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Type 'B<number>' is not assignable to type 'B<string>'.
+    ╭─[../../tests/compiler/genericWithCallSignatureReturningSpecialization/index.ts:10:5]
+ 10 │ b
+    · ─
+    ╰────

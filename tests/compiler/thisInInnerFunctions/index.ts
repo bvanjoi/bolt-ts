@@ -5,7 +5,9 @@ class Foo {
   bar() {
       function inner() {
           this.y = "hi"; // 'this' should be not type to 'Foo' either
+          //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
           var f = () => this.y;  // 'this' should be not type to 'Foo' either
+          //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       }
   }
 }
@@ -13,6 +15,9 @@ class Foo {
 function test() {
   var x = () => {
       (() => this)();
+      //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
+      //~| ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       this;
+      //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
   };
 }

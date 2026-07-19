@@ -7,4 +7,5 @@ function foo<T>() {
     let obj!: Errors<T>
     let x!: keyof T;
     obj[x] = undefined;
+    //~^ ERROR: Type 'undefined' is not assignable to type 'Errors<T>[keyof T]'.
 }

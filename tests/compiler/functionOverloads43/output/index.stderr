@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'number | string'.
+    ╭─[../../tests/compiler/functionOverloads43/index.ts:10:12]
+ 10 │ undefined
+    · ─────────
+    ╰────

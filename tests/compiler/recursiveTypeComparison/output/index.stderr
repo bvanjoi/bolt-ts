@@ -1,0 +1,5 @@
+  × Variable 'p' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeComparison/index.ts:14:31]
+ 14 │ p
+    · ─
+    ╰────

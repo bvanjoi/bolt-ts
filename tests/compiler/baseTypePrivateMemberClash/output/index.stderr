@@ -1,5 +1,19 @@
+  × Property 'm' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/baseTypePrivateMemberClash/index.ts:4:13]
+ 4 │ m
+   · ─
+   ╰────
+
+  × Property 'm' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/baseTypePrivateMemberClash/index.ts:8:13]
+ 8 │ m
+   · ─
+   ╰────
+
   × Interface 'Z' cannot simultaneously extend types 'X' and 'Y'.
-    ╭─[../../tests/compiler/baseTypePrivateMemberClash/index.ts:10:11]
- 10 │ Z
+    ╭─[../../tests/compiler/baseTypePrivateMemberClash/index.ts:12:11]
+ 12 │ Z
     · ─
     ╰────

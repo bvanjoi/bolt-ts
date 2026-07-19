@@ -11,5 +11,6 @@ var bar: (a: number) => number = function (b) {
 var bar2: (a: number) => number = function (b) {
   let a: string = a;
   //~^ ERROR: Block-scoped variable 'a' used before its declaration.
+  //~| ERROR: Variable 'a' is used before being assigned.
   return b
 }

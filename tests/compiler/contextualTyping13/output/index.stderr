@@ -16,3 +16,9 @@ Advice:
  12 │ a: string = a
     · ─────────────
     ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/contextualTyping13/index.ts:12:19]
+ 12 │ a
+    · ─
+    ╰────

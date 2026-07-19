@@ -21,4 +21,6 @@ var q2: QueryEnumerator<number>;
 var q3: Query<number>;
 
 q1 = q2; // should error
+//~^ ERROR: Variable 'q2' is used before being assigned.
 q1 = q3; // should not error
+//~^ ERROR: Variable 'q3' is used before being assigned.

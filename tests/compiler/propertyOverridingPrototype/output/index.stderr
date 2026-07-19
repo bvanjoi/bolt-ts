@@ -1,0 +1,6 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/propertyOverridingPrototype/index.ts:9:5]
+ 9 │ foo
+   · ───
+   ╰────

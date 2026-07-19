@@ -1,0 +1,11 @@
+  × No overload matches this call.
+   ╭─[../../tests/compiler/arrayConcatMap/index.ts:3:9]
+ 3 │ [].concat([{ a: 1 }], [{ a: 2 }])
+   · ─────────────────────────────────
+   ╰────
+
+  × Property 'a' does not exist on type 'T'.
+   ╭─[../../tests/compiler/arrayConcatMap/index.ts:4:23]
+ 4 │ a
+   · ─
+   ╰────

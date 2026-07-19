@@ -4,3 +4,9 @@
  4 │ super
    · ─────
    ╰────
+
+  × Parameter 'value' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/superCallFromFunction1/index.ts:4:11]
+ 4 │ value
+   · ─────
+   ╰────

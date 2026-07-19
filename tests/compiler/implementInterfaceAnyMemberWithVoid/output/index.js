@@ -1,3 +1,0 @@
-class Bug {
-  foo(value) {}
-}

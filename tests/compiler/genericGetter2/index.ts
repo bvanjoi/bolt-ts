@@ -4,6 +4,7 @@ class A<T> { }
 
 class C<T> {
     data: A<T>;
+    //~^ ERROR: Property 'data' has no initializer and is not definitely assigned in the constructor.
     get x(): A { //~ ERROR: Generic type 'A<T>' requires 1 type argument.
         return this.data;
     }

@@ -1,0 +1,6 @@
+  × 'a' implicitly has type 'any' because it does not have a type annotation
+  │ and is referenced directly or indirectly in its own initializer.
+   ╭─[../../tests/compiler/recursiveObjectLiteral/index.ts:3:5]
+ 3 │ a = { f: a }
+   · ────────────
+   ╰────

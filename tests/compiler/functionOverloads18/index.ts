@@ -2,4 +2,5 @@
 
 function foo(bar:{a:number;});
 //~^ ERROR: This overload signature is not compatible with its implementation signature.
+//~| ERROR: 'foo', which lacks return-type annotation, implicitly has an 'any' return type.
 function foo(bar:{a:string;}) { return {a:""} }

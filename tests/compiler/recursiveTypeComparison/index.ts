@@ -12,3 +12,4 @@ interface Property<T> extends Observable<T> { }
 
 var p: Observable<{}>;
 var stuck: Property<number> = p;
+//~^ ERROR: Variable 'p' is used before being assigned.

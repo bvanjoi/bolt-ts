@@ -1,8 +1,8 @@
   × Cannot find name 'A'.
-   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:9:25]
- 9 │ A
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:10:25]
+ 10 │ A
+    · ─
+    ╰────
 
 Advice: 
   ☞ 'A' only refers to a type, but is being used as a value here.
@@ -11,7 +11,13 @@ Advice:
    · ┬
    · ╰── 'A' is defined here.
    ╰────
-   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:9:25]
- 9 │ A
-   · ─
+    ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:10:25]
+ 10 │ A
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'new () => Object'.
+   ╭─[../../tests/compiler/classExtendsInterfaceInExpression/index.ts:6:10]
+ 6 │ null
+   · ────
    ╰────

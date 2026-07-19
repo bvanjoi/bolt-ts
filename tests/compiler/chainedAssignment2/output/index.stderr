@@ -1,0 +1,29 @@
+  × Type 'null' is not assignable to type 'RegExp'.
+   ╭─[../../tests/compiler/chainedAssignment2/index.ts:9:17]
+ 9 │ e
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'Date'.
+   ╭─[../../tests/compiler/chainedAssignment2/index.ts:9:13]
+ 9 │ d
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'boolean'.
+   ╭─[../../tests/compiler/chainedAssignment2/index.ts:9:9]
+ 9 │ c
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/chainedAssignment2/index.ts:9:5]
+ 9 │ b
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/chainedAssignment2/index.ts:9:1]
+ 9 │ a
+   · ─
+   ╰────

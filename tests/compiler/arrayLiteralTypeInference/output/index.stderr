@@ -1,27 +1,48 @@
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:4:3]
+ 4 │ id
+   · ──
+   ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:9:3]
+ 9 │ value
+   · ─────
+   ╰────
+
+  × Property 'trueNess' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:14:3]
+ 14 │ trueNess
+    · ────────
+    ╰────
+
   × Object literal may only specify known properties, and 'trueness' does not
   │ exist in type 'Action'.
-    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:16:12]
- 16 │ trueness
+    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:19:12]
+ 19 │ trueness
     · ────────
     ╰────
 
   × Object literal may only specify known properties, and 'name' does not
   │ exist in type 'Action'.
-    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:18:12]
- 18 │ name
+    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:21:12]
+ 21 │ name
     · ────
     ╰────
 
   × Object literal may only specify known properties, and 'trueness' does not
   │ exist in type '{ id: number; }'.
-    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:35:16]
- 35 │ trueness
+    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:38:16]
+ 38 │ trueness
     · ────────
     ╰────
 
   × Object literal may only specify known properties, and 'name' does not
   │ exist in type '{ id: number; }'.
-    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:37:16]
- 37 │ name
+    ╭─[../../tests/compiler/arrayLiteralTypeInference/index.ts:40:16]
+ 40 │ name
     · ────
     ╰────

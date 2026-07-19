@@ -1,0 +1,11 @@
+  × Variable 'q2' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes4/index.ts:23:6]
+ 23 │ q2
+    · ──
+    ╰────
+
+  × Variable 'q3' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes4/index.ts:25:6]
+ 25 │ q3
+    · ──
+    ╰────

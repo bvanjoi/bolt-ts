@@ -10,8 +10,10 @@ module A {
   module B {
       export function createB(): B {
           return null;
+          //~^ ERROR: Type 'null' is not assignable to type 'A.B'.
       }
   }
 }
 
 var x: A.B = null;
+//~^ ERROR: Type 'null' is not assignable to type 'A.B'.
