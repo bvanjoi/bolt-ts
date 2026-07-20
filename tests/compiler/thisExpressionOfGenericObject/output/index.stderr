@@ -1,0 +1,6 @@
+  × Property 'obj' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/thisExpressionOfGenericObject/index.ts:4:11]
+ 4 │ obj
+   · ───
+   ╰────

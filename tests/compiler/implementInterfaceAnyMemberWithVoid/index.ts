@@ -2,6 +2,7 @@
 
 interface I {
   foo(value: number);
+  //~^ ERROR: 'foo', which lacks return-type annotation, implicitly has an 'any' return type.
 }
 
 class Bug implements I {

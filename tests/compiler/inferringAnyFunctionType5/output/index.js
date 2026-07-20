@@ -1,5 +1,5 @@
 function f(p) {
-  return p
+  return p;
 }
 var v = f({
   q: (x) => (x)  

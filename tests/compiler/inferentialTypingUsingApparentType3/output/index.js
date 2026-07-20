@@ -1,11 +1,11 @@
 class CharField {
   clean(input) {
-    return 'Yup'
+    return 'Yup';
   }
 }
 class NumberField {
   clean(input) {
-    return 123
+    return 123;
   }
 }
 class ObjectField {

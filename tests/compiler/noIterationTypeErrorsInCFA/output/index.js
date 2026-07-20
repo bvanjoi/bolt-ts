@@ -6,5 +6,5 @@ export function doRemove(dds) {
   for ( var n of dds) {
     n.d();
   }
-  return dds
+  return dds;
 }

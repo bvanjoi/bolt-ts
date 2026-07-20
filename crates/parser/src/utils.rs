@@ -113,14 +113,7 @@ impl<'cx> ParserState<'cx, '_> {
         });
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
-        let id = self.next_node_id();
-        let stmt = self.alloc(ast::BlockStmt {
-            id,
-            span: self.new_span(start),
-            stmts,
-        });
-        self.nodes.insert(id, ast::Node::BlockStmt(stmt));
-        stmt
+        self.create_block_statement(self.new_span(start), stmts)
     }
 
     pub(super) fn parse_ty_params(&mut self) -> Option<ast::TyParams<'cx>> {
@@ -322,15 +315,13 @@ impl<'cx> ParserState<'cx, '_> {
         let start = self.token.start();
         let const_modifier = self.parse_const_modifier();
         let name = self.parse_binding_ident();
-        let constraint = if self.parse_optional(TokenKind::Extends).is_some() {
-            if self.is_start_of_ty(false) || !self.is_start_of_expr() {
-                Some(self.parse_ty()?)
-            } else {
-                todo!("token: {:#?}", self.token.kind)
-            }
-        } else {
-            None
-        };
+        let mut constraint = None;
+
+        if self.parse_optional(TokenKind::Extends).is_some()
+            && (self.is_start_of_ty(false) || !self.is_start_of_expr())
+        {
+            constraint = Some(self.parse_ty()?)
+        }
         let default = if self.parse_optional(TokenKind::Eq).is_some() {
             Some(self.parse_ty()?)
         } else {
@@ -394,9 +385,9 @@ impl<'cx> ParserState<'cx, '_> {
             let span = self.new_span(start);
             let kind = self.create_computed_prop_name(span, expr);
 
-            (self.alloc(ast::PropName {
+            self.alloc(ast::PropName {
                 kind: ast::PropNameKind::Computed(kind),
-            })) as _
+            })
         } else if self.token.kind == TokenKind::PrivateIdent {
             let ident = self.parse_private_ident();
             let kind = ast::PropNameKind::PrivateIdent(ident);
@@ -451,19 +442,17 @@ impl<'cx> ParserState<'cx, '_> {
             };
             this.push_error(Box::new(error));
         };
+
         let start = self.token.start();
         let mut list = Vec::with_capacity(4);
         let _has_leading_modifier = false;
         let _has_trailing_decorator = false;
         let mut flags = ast::ModifierFlags::empty();
-        loop {
-            let Some(m) = self
-                .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
-                    flags.contains(ast::ModifierFlags::STATIC),
-                )
-            else {
-                break;
-            };
+        while let Some(m) = self
+            .parse_modifier::<STOP_ON_START_OF_CLASS_STATIC_BLOCK, PERMIT_CONST_AS_MODIFIER>(
+                flags.contains(ast::ModifierFlags::STATIC),
+            )
+        {
             let modifier_kind = m.kind();
             let modifier_flag = modifier_kind.into_flag();
 
@@ -509,6 +498,13 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ModifierKind::Ambient => {
                     if flags.contains(ast::ModifierFlags::AMBIENT) {
                         push_already_seen_error(self, m);
+                    } else if self.parse_context.contains(ParseContext::MODULE_BLOCK)
+                        && self.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                    {
+                        let error = errors::ADeclareModifierCannotBeUsedInAnAlreadyAmbientContext {
+                            span: m.span(),
+                        };
+                        self.push_error(Box::new(error));
                     }
                 }
                 _ => {}
@@ -522,7 +518,11 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             let span = self.new_span(start);
             let modifiers = self.alloc(list);
-            Some(self.create_modifiers(span, modifiers, flags))
+            Some(self.alloc(ast::Modifiers {
+                span,
+                flags,
+                list: modifiers,
+            }))
         }
     }
 
@@ -684,7 +684,10 @@ impl<'cx> ParserState<'cx, '_> {
         } else {
             self.create_ident(true, None)
         };
-        self.create_binding(ast::BindingKind::Ident(ident))
+        self.alloc(ast::Binding {
+            span: ident.span,
+            kind: ast::BindingKind::Ident(ident),
+        })
     }
 
     pub(super) fn parse_parameter<const ALLOW_AMBIGUITY_NAME: bool>(
@@ -724,9 +727,9 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
-        if !ALLOW_AMBIGUITY_NAME
-            && !(self.token.kind.is_binding_ident()
-                || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
+        if !(ALLOW_AMBIGUITY_NAME
+            || self.token.kind.is_binding_ident()
+            || matches!(self.token.kind, TokenKind::LBracket | TokenKind::LBrace))
         {
             return Err(());
         }
@@ -863,7 +866,8 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_string_lit(&mut self) -> &'cx ast::StringLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
-        self.nodes.insert(lit.id, ast::Node::StringLit(lit));
+        self.insert_node(lit.id, ast::Node::StringLit(lit));
+        self.insert_node_flags(lit.id, ast::NodeFlags::empty());
         self.next_token();
         lit
     }
@@ -873,8 +877,8 @@ impl<'cx> ParserState<'cx, '_> {
     ) -> &'cx ast::NoSubstitutionTemplateLit {
         let val = self.string_token();
         let lit = self.create_lit(val, self.token.span);
-        self.nodes
-            .insert(lit.id, ast::Node::NoSubstitutionTemplateLit(lit));
+        self.insert_node(lit.id, ast::Node::NoSubstitutionTemplateLit(lit));
+        self.insert_node_flags(lit.id, ast::NodeFlags::empty());
         self.next_token();
         lit
     }
@@ -883,22 +887,15 @@ impl<'cx> ParserState<'cx, '_> {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
-    fn create_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
+    fn parse_missing_ty(&mut self) -> &'cx ast::Ty<'cx> {
         let start = self.token.start();
         let ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
         let name = self.alloc(ast::EntityName {
             kind: ast::EntityNameKind::Ident(ident),
         });
-        let id = self.next_node_id();
-        let ty = self.alloc(ast::ReferTy {
-            id,
-            span: self.new_span(start),
-            name,
-            ty_args: None,
-        });
-        self.nodes.insert(id, ast::Node::ReferTy(ty));
+        let refer = self.create_reference_type(self.new_span(start), name, None);
         self.alloc(ast::Ty {
-            kind: ast::TyKind::Refer(ty),
+            kind: ast::TyKind::Refer(refer),
         })
     }
 
@@ -964,12 +961,12 @@ impl<'cx> ParserState<'cx, '_> {
         let (name, name_ty) = if let Some(param) = params.first() {
             (
                 param.name,
-                param.ty.unwrap_or_else(|| self.create_missing_ty()),
+                param.ty.unwrap_or_else(|| self.parse_missing_ty()),
             )
         } else {
             let missing_ident = self.create_ident_by_atom(keyword::IDENT_EMPTY, self.token.span);
             let name = self.parse_binding_with_ident(Some(missing_ident));
-            (name, self.create_missing_ty())
+            (name, self.parse_missing_ty())
         };
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
@@ -978,12 +975,12 @@ impl<'cx> ParserState<'cx, '_> {
                 let span = Span::new(lo, lo + 1, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
-                self.create_missing_ty()
+                self.parse_missing_ty()
             }
         };
         self.parse_ty_member_semi();
         let span = self.new_span(start);
-        let sig = self.create_index_sig_decl(span, modifiers, name, name_ty, ty);
+        let sig = self.create_index_signature_declaration(span, modifiers, name, name_ty, ty);
         Ok(sig)
     }
 
@@ -1027,7 +1024,7 @@ impl<'cx> ParserState<'cx, '_> {
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
-        Ok(self.create_getter_decl(span, modifiers, name, ty, body))
+        Ok(self.create_getter_declaration(span, modifiers, name, ty, body))
     }
 
     pub(super) fn parse_setter_accessor_decl(
@@ -1073,7 +1070,7 @@ impl<'cx> ParserState<'cx, '_> {
         let mut body = self.parse_fn_block_or_semi(flags);
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
-        Ok(self.create_setter_decl(span, modifiers, name, params, body))
+        Ok(self.create_setter_declaration(span, modifiers, name, params, body))
     }
 
     pub(super) fn is_heritage_clause_extends_or_implements_keyword(&mut self) -> bool {
@@ -1113,7 +1110,7 @@ pub fn parse_pseudo_bigint<'a>(s: &'a str) -> std::borrow::Cow<'a, str> {
     let digits = s.trim_start_matches('0');
     let digits = if digits.is_empty() { "0" } else { digits };
 
-    let base = match log2_base {
+    let _base = match log2_base {
         1 => 2,
         3 => 8,
         4 => 16,

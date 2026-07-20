@@ -17,7 +17,7 @@ class GetSetMonster {
     }
   attack(target) {}
   get isAlive() {
-    return this._health > 0
+    return this._health > 0;
   }
   set health(value) {
     if (value < 0) {
@@ -50,7 +50,7 @@ class SplatMonster {
   roar(name, ...args) {}
 }
 function foo() {
-  return true
+  return true;
 }
 class PrototypeMonster {
   age = 1;
@@ -75,7 +75,7 @@ class Statics {
   static foo = 1;
   static bar;
   static baz() {
-    return ''
+    return '';
   }
 }
 var stat = new Statics();

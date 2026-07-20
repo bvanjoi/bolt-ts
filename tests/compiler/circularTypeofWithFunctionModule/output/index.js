@@ -1,6 +1,6 @@
 class Foo {}
 function maker(value) {
-  return maker.Bar
+  return maker.Bar;
 }
 
 (function (maker) {

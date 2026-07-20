@@ -34,6 +34,7 @@ type T17 = Awaited<BadPromise1>; // error
 
 // https://github.com/microsoft/TypeScript/issues/46934
 type T18 = Awaited<{ then(cb: (value: number, other: { }) => void)}>; // number
+//~^ ERROR: 'then', which lacks return-type annotation, implicitly has an 'any' return type.
 
 // https://github.com/microsoft/TypeScript/issues/33562
 type MaybePromise<T> = T | Promise<T> | PromiseLike<T>

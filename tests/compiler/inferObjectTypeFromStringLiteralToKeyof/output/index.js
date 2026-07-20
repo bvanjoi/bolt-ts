@@ -5,6 +5,6 @@ var y = inference2({
   b: 2,
   c: 3,
   d(n) {
-    return n
+    return n;
   }  
 }, two);

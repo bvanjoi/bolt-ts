@@ -7,7 +7,7 @@ function flatMapChildren(node, cb) {
     }
     
   });
-  return result
+  return result;
 }
 function flatMapChildren2(node, cb) {
   var result = [];
@@ -18,5 +18,5 @@ function flatMapChildren2(node, cb) {
     }
     
   });
-  return result
+  return result;
 }

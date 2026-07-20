@@ -1,5 +1,5 @@
 var foo = {
   bar() {
-    return undefined
+    return undefined;
   }  
 };

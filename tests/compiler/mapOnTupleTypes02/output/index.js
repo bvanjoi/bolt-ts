@@ -1,3 +1,3 @@
 export function increment(point) {
-  return point.map((d) => (d + 1))
+  return point.map((d) => (d + 1));
 }

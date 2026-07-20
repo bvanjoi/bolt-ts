@@ -90,11 +90,13 @@ links!(
     UnionTyLinks,
     (key_prop_name, SymbolName),
     (resolved_reduced_ty, &'cx super::Ty<'cx>),
+    (array_fallback_sigs, super::Sigs<'cx>),
 );
 
 links!(
     IntersectionTyLinks,
     (resolved_apparent_ty, &'cx super::Ty<'cx>),
+    (unique_literal_filled_instantiation, &'cx super::Ty<'cx>),
 );
 
 links!(

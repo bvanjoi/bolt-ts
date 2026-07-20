@@ -1,7 +1,7 @@
 var x;
 x = {
   get foo() {
-    return (n) => (n)
+    return (n) => (n);
   },
   set foo(x) {}  
 };

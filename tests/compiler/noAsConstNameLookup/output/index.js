@@ -5,12 +5,12 @@ export class FeatureRunner {
           flags: {},
       settings: {}      
     };
-    return objectWhichShouldBeConst
+    return objectWhichShouldBeConst;
   }
   run() {
     var result = {};
     this.cleaners.forEach((c) => (c(this)));
-    return result
+    return result;
   }
 }
 export class C {

@@ -4,4 +4,5 @@ var v = {
   a   //~ ERROR: Cannot find name 'a'.
 ;
 //~^ ERROR: Expected ','.
+//~| ERROR: Property assignment expected.
 //~| ERROR: '}' expected.

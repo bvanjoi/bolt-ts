@@ -1,5 +1,23 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/emptyIndexer/index.ts:14:9]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/emptyIndexer/index.ts:14:9]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/emptyIndexer/index.ts:17:18]
+ 17 │ x
+    · ─
+    ╰────
+
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/emptyIndexer/index.ts:15:5]
- 15 │ n0
+    ╭─[../../tests/compiler/emptyIndexer/index.ts:17:5]
+ 17 │ n0
     · ──
     ╰────

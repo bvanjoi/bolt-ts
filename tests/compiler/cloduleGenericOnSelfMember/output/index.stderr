@@ -1,5 +1,12 @@
+  × Property 'field' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/cloduleGenericOnSelfMember/index.ts:6:3]
+ 6 │ field
+   · ─────
+   ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/cloduleGenericOnSelfMember/index.ts:16:7]
- 16 │ b
+    ╭─[../../tests/compiler/cloduleGenericOnSelfMember/index.ts:19:7]
+ 19 │ b
     · ─
     ╰────

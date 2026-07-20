@@ -1,5 +1,11 @@
   × Setters cannot return a value.
-   ╭─[../../tests/compiler/returnValueInSetter/index.ts:5:9]
- 5 │ return null;
+   ╭─[../../tests/compiler/returnValueInSetter/index.ts:6:9]
+ 6 │ return null;
    · ────────────
+   ╰────
+
+  × Parameter 'value' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/returnValueInSetter/index.ts:4:11]
+ 4 │ value
+   · ─────
    ╰────

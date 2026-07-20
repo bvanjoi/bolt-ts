@@ -1,0 +1,8 @@
+  × Duplicate identifier 'foo'.
+   ╭─[../../tests/compiler/exportInterfaceClassAndValue/index.ts:7:22]
+ 6 │ foo = 1
+   · ─┬─
+   ·  ╰── Previous definition here
+ 7 │ export declare class foo
+   ·                      ───
+   ╰────

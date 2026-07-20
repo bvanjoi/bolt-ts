@@ -1,0 +1,17 @@
+  × The operand of a 'delete' operator cannot be a read-only property.
+    ╭─[../../tests/compiler/deleteReadonly/index.ts:13:8]
+ 13 │ a.b
+    · ───
+    ╰────
+
+  × Index signature in type 'B' only permits reading.
+    ╭─[../../tests/compiler/deleteReadonly/index.ts:24:8]
+ 24 │ b['test']
+    · ─────────
+    ╰────
+
+  × Index signature in type 'B' only permits reading.
+    ╭─[../../tests/compiler/deleteReadonly/index.ts:27:12]
+ 27 │ b['test']
+    · ─────────
+    ╰────

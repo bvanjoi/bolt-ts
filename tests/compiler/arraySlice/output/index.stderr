@@ -1,0 +1,11 @@
+  × Variable 'arr' is used before being assigned.
+   ╭─[../../tests/compiler/arraySlice/index.ts:6:1]
+ 6 │ arr
+   · ───
+   ╰────
+
+  × Variable 'arr' is used before being assigned.
+   ╭─[../../tests/compiler/arraySlice/index.ts:8:30]
+ 8 │ arr
+   · ───
+   ╰────

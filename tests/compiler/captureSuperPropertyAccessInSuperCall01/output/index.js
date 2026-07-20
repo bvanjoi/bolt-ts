@@ -1,7 +1,7 @@
 class A {
   constructor(f) {}
   blah() {
-    return ''
+    return '';
   }
 }
 class B extends A {

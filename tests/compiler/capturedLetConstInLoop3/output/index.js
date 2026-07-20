@@ -2,7 +2,7 @@ function foo0(x) {
   for ( var x of []) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -12,7 +12,7 @@ function foo0_1(x) {
   for ( var x in []) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -22,7 +22,7 @@ function foo1(x) {
   for ( var x = 0; x < 1; ++x) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -33,7 +33,7 @@ function foo2(x) {
     var x = 1;
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -44,7 +44,7 @@ function foo3(x) {
     var x;
     var v;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   } while (1 === 1)
@@ -55,7 +55,7 @@ function foo4(x) {
     var v = y;
     var x = 1;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -65,7 +65,7 @@ function foo5(x) {
   for ( var x = 0, y = 1; x < 1; ++x) {
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }
@@ -76,7 +76,7 @@ function foo6(x) {
     var x, y;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }
@@ -87,7 +87,7 @@ function foo7(x) {
     var x, y;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   } while (1 === 1)
@@ -98,7 +98,7 @@ function foo8(x) {
     var x = 1;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }
@@ -108,7 +108,7 @@ function foo0_c(x) {
   for ( var x of []) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -118,7 +118,7 @@ function foo0_1_c(x) {
   for ( var x in []) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -128,7 +128,7 @@ function foo1_c(x) {
   for ( var x = 0; x < 1; ) {
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -139,7 +139,7 @@ function foo2_c(x) {
     var x = 1;
     var v = x;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -150,7 +150,7 @@ function foo3_c(x) {
     var x = 1;
     var v;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   } while (1 === 1)
@@ -161,7 +161,7 @@ function foo4_c(x) {
     var v = y;
     var x = 1;
     (function () {
-      return x + v
+      return x + v;
     });
     (() => (x + v));
   }
@@ -171,7 +171,7 @@ function foo5_c(x) {
   for ( var x = 0, y = 1; x < 1; ) {
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }
@@ -182,7 +182,7 @@ function foo6_c(x) {
     var x = 1, y = 1;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }
@@ -193,7 +193,7 @@ function foo7_c(x) {
     var x = 1, y = 1;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   } while (1 === 1)
@@ -204,7 +204,7 @@ function foo8_c(x) {
     var x = 1;
     var v = x;
     (function () {
-      return x + y + v
+      return x + y + v;
     });
     (() => (x + y + v));
   }

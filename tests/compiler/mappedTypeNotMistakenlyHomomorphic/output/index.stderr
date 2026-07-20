@@ -1,0 +1,11 @@
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/mappedTypeNotMistakenlyHomomorphic/index.ts:37:1]
+ 37 │ a
+    · ─
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/mappedTypeNotMistakenlyHomomorphic/index.ts:39:1]
+ 39 │ b
+    · ─
+    ╰────

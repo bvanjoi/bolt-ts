@@ -19,6 +19,7 @@ members = [
   "crates/middle",
   "crates/module_graph",
   "crates/module_resolve",
+  "crates/module_resolve_test",
   "crates/napi",
   "crates/optimize",
   "crates/parser",

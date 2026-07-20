@@ -2,5 +2,6 @@
 
 class A<T extends Object>{
       list: T ;
+      //~^ ERROR: Property 'list' has no initializer and is not definitely assigned in the constructor.
 }
 var a = new A();

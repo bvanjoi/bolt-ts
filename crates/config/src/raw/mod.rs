@@ -42,39 +42,55 @@ macro_rules! with_option {
 with_option!(
     RawCompilerOptions,
     (out_dir, String),
-    (no_emit, bool),
     (declaration, bool),
+    (custom_conditions, Vec<String>),
     (strict, bool),
     (strict_null_checks, bool),
     (strict_function_types, bool),
     (strict_bind_call_apply, bool),
+    (strict_property_initialization, bool),
+    (no_emit, bool),
     (no_implicit_any, bool),
     (no_implicit_this, bool),
     (no_implicit_returns, bool),
     (no_unchecked_indexed_access, bool),
     (no_strict_generic_checks, bool),
     (no_fallthrough_cases_in_switch, bool),
+    (no_error_truncation, bool),
+    (no_unused_locals, bool),
+    (no_unused_parameters, bool),
     (always_strict, bool),
-    (exact_optional_property_types, bool),
     (allow_unused_labels, bool),
     (allow_unreachable_code, bool),
+    (es_module_interop, bool),
+    (exact_optional_property_types, bool),
     (preserve_symlinks, bool),
     (use_define_for_class_fields, bool),
     (use_unknown_in_catch_variables, bool),
-    (strict_property_initialization, bool),
-    (no_unused_locals, bool),
-    (no_unused_parameters, bool),
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
-    (no_error_truncation, bool),
-    (es_module_interop, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
     (lib, Vec<Lib>),
-    (custom_conditions, Vec<String>)
+    (jsx, JSX),
+    (check_js, bool),
 );
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum JSX {
+    #[serde(alias = "react")]
+    React,
+    #[serde(alias = "react-jsx")]
+    ReactJSX,
+    #[serde(alias = "react-jsxdev")]
+    ReactJSXDev,
+    #[serde(alias = "react-native")]
+    ReactNative,
+    #[serde(alias = "preserve")]
+    Preserve,
+}
 
 impl RawCompilerOptions {
     pub fn normalize(self) -> super::NormalizedCompilerOptions {
@@ -86,9 +102,12 @@ impl RawCompilerOptions {
         if self.declaration.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::DECLARATION);
         }
-        let strict = self.strict.unwrap_or_default();
+        let strict = self.strict.unwrap_or(true);
         if strict {
             flags.insert(super::CompilerOptionFlags::STRICT);
+        }
+        if self.check_js.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::CHECK_JS);
         }
         let get_strict_option_value = |v: Option<bool>| v.unwrap_or(strict);
         if get_strict_option_value(self.strict_null_checks) {
@@ -189,6 +208,7 @@ impl RawCompilerOptions {
             module_resolution,
             custom_conditions,
             lib: self.lib,
+            jsx: self.jsx,
         }
     }
 }
@@ -331,7 +351,7 @@ pub enum Lib {
     #[serde(alias = "esnext")]
     ESNext,
     #[serde(alias = "dom")]
-    DOM,
+    Dom,
     #[serde(alias = "webworker")]
     WebWorker,
     #[serde(alias = "scripthost")]

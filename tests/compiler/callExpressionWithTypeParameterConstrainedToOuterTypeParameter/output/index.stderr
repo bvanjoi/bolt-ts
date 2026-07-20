@@ -1,5 +1,35 @@
-  × Argument of type 'number' is not assignable to parameter of type 'string'.
-   ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:9:11]
- 9 │ 42
-   · ──
+  × Variable 'i' is used before being assigned.
+   ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:7:9]
+ 7 │ i
+   · ─
    ╰────
+
+  × Variable 'i' is used before being assigned.
+   ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:7:9]
+ 7 │ i
+   · ─
+   ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:10:18]
+ 10 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:12:9]
+ 12 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:12:9]
+ 12 │ i
+    · ─
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/callExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:12:11]
+ 12 │ 42
+    · ──
+    ╰────

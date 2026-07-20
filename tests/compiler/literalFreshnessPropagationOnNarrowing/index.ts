@@ -67,5 +67,5 @@ function f5() {
     // Desired: OK
     // Error in all extant branches
     arr = [...['y']];
-    //~^ ERROR: Type 'string[]' is not assignable to type '(XY)[]'.
+    //~^ ERROR: Type 'string' is not assignable to type 'XY'.
 }

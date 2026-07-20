@@ -10,19 +10,19 @@ var Foo = {};
 (function (Foo) {
 
   function ___call() {
-    return 5
+    return 5;
   }
   Foo.___call = ___call;
   
 })(Foo);
 function Bar() {
-  return 'no'
+  return 'no';
 }
 
 (function (Bar) {
 
   function __call(x) {
-    return 5
+    return 5;
   }
   Bar.__call = __call;
   

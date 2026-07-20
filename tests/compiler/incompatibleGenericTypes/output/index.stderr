@@ -1,3 +1,9 @@
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/incompatibleGenericTypes/index.ts:11:22]
+ 11 │ v1
+    · ──
+    ╰────
+
   × Type 'I1<boolean>' is not assignable to type 'I1<number>'.
     ╭─[../../tests/compiler/incompatibleGenericTypes/index.ts:11:5]
  11 │ v2

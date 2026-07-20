@@ -1,0 +1,5 @@
+  × Generic type 'A.B<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericCloduleInModule2/index.ts:18:8]
+ 18 │ A.B
+    · ───
+    ╰────

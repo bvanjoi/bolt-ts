@@ -12,11 +12,13 @@ sequence(
     function foo() {
         callback(()=>{
             this();
+            //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
         });
     },
     function baz() {
         callback(()=>{
             this();
+            //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
         });
     }
 );

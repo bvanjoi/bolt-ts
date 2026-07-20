@@ -5,7 +5,7 @@ class B {
 }
 class C extends B {
   get prop() {
-    return 'foo'
+    return 'foo';
   }
   set prop(v) {}
   raw = 'edge';

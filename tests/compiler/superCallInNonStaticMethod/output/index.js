@@ -16,11 +16,11 @@ class Other extends Doing {
         super.instanceMethod();
       },
       b: super.instanceMethod()      
-    }
+    };
   }
   get accessor() {
     super.instanceMethod();
-    return 0
+    return 0;
   }
   set accessor(value) {
     super.instanceMethod();

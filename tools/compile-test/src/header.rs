@@ -449,9 +449,20 @@ fn test_config_update_compiler_options() {
         ])
     );
     config.update_compiler_options("compiler-options: a10=[foo,bar]");
+    assert_eq!(config.compiler_options.len(), 9);
     let a10 = &config.compiler_options["a10"];
     assert_eq!(
         a10,
         &CompilerOption::StringArray(vec!["foo".to_string(), "bar".to_string()])
+    );
+    config.update_compiler_options("compiler-options: a11=true, false");
+    assert_eq!(config.compiler_options.len(), 10);
+    let a11 = &config.compiler_options["a11"];
+    assert_eq!(
+        a11,
+        &CompilerOption::Multiple(vec![
+            CompilerOption::Bool(true),
+            CompilerOption::Bool(false),
+        ])
     );
 }

@@ -1,0 +1,71 @@
+  × Parameter 'x' cannot reference itself.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:38]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Parameter 'x' cannot reference itself.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:46]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'someCondition'.
+    ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:17:27]
+ 17 │ someCondition
+    · ─────────────
+    ╰────
+
+  × Parameter 'x' cannot reference itself.
+    ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:17:54]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Parameter cannot have question mark and initializer.
+    ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:17:14]
+ 17 │ x
+    · ─
+    ╰────
+
+  × 'x' is referenced directly or indirectly in its own type annotation.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:14]
+ 7 │ x: number | undefined = x > 0 ? x : 0
+   · ─────────────────────────────────────
+   ╰────
+
+  × 'x' is possibly 'undefined'.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:38]
+ 7 │ x
+   · ─
+   ╰────
+
+  × 'x' is referenced directly or indirectly in its own type annotation.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:14]
+ 7 │ x: number | undefined = x > 0 ? x : 0
+   · ─────────────────────────────────────
+   ╰────
+
+  × 'x' is referenced directly or indirectly in its own type annotation.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:14]
+ 7 │ x: number | undefined = x > 0 ? x : 0
+   · ─────────────────────────────────────
+   ╰────
+
+  × 'x' is possibly 'undefined'.
+   ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:7:38]
+ 7 │ x
+   · ─
+   ╰────
+
+  × 'x' is referenced directly or indirectly in its own type annotation.
+    ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:17:14]
+ 17 │ x?: string = someCondition ? 'value1' : x
+    · ─────────────────────────────────────────
+    ╰────
+
+  × 'x' is referenced directly or indirectly in its own type annotation.
+    ╭─[../../tests/compiler/circularOptionalityRemoval/index.ts:17:14]
+ 17 │ x?: string = someCondition ? 'value1' : x
+    · ─────────────────────────────────────────
+    ╰────

@@ -1,17 +1,17 @@
   × Expected 1 arguments, but got 2.
-   ╭─[../../tests/compiler/functionCall7/index.ts:7:10]
- 7 │ myC
-   · ───
-   ╰────
+    ╭─[../../tests/compiler/functionCall7/index.ts:10:10]
+ 10 │ myC
+    · ───
+    ╰────
 
   × Argument of type 'number' is not assignable to parameter of type 'm1.c1'.
-   ╭─[../../tests/compiler/functionCall7/index.ts:9:5]
- 9 │ 4
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/functionCall7/index.ts:12:5]
+ 12 │ 4
+    · ─
+    ╰────
 
   × Expected 1 arguments, but got 0.
-    ╭─[../../tests/compiler/functionCall7/index.ts:11:1]
- 11 │ foo
+    ╭─[../../tests/compiler/functionCall7/index.ts:14:1]
+ 14 │ foo
     · ───
     ╰────

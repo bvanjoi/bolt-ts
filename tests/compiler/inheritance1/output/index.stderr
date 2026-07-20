@@ -1,0 +1,71 @@
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:19:7]
+ 19 │ ImageBase
+    · ─────────
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:24:7]
+ 24 │ Locations
+    · ─────────
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:38:1]
+ 38 │ b
+    · ─
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:45:1]
+ 45 │ t
+    · ─
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:49:1]
+ 49 │ sc
+    · ──
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:56:1]
+ 56 │ sc
+    · ──
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:63:1]
+ 63 │ sc
+    · ──
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:65:1]
+ 65 │ c
+    · ─
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:68:1]
+ 68 │ l
+    · ─
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:72:1]
+ 72 │ sc
+    · ──
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:74:1]
+ 74 │ c
+    · ─
+    ╰────
+
+  × Property 'select' is missing.
+    ╭─[../../tests/compiler/inheritance1/index.ts:77:1]
+ 77 │ l1
+    · ──
+    ╰────

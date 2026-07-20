@@ -1,0 +1,47 @@
+  × Expected '>'.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:6]
+ 8 │ -
+   · ─
+   ╰────
+
+  × Type parameter list cannot be empty.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:5]
+ 8 │ <
+   · ─
+   ╰────
+
+  × Expected '('.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:6]
+ 8 │ -
+   · ─
+   ╰────
+
+  × Property or signature expected.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:6]
+ 8 │ -
+   · ─
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:6]
+ 8 │ -
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:8:6]
+ 8 │ -
+   · ─
+   ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:15:1]
+ 15 │ }
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/dontShowCompilerGeneratedMembers/index.ts:15:1]
+ 15 │ }
+    · ─
+    ╰────

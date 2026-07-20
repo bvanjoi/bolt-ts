@@ -7,3 +7,4 @@ interface I<S> {
 var x: I<{s: string}>
 x.f({s: 1})
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
+//~| ERROR: Variable 'x' is used before being assigned.

@@ -1,0 +1,23 @@
+  × Namespace 'M' has no exported member 'num'.
+    ╭─[../../tests/compiler/moduleVisibilityTest4/index.ts:13:11]
+ 13 │ num
+    · ───
+    ╰────
+
+  × Namespace 'M' has no exported member 'bar'.
+    ╭─[../../tests/compiler/moduleVisibilityTest4/index.ts:16:11]
+ 16 │ bar
+    · ───
+    ╰────
+
+  × Namespace 'N' has no exported member 'num'.
+    ╭─[../../tests/compiler/moduleVisibilityTest4/index.ts:19:11]
+ 19 │ num
+    · ───
+    ╰────
+
+  × Namespace 'N' has no exported member 'bar'.
+    ╭─[../../tests/compiler/moduleVisibilityTest4/index.ts:22:11]
+ 22 │ bar
+    · ───
+    ╰────

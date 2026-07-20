@@ -2,6 +2,7 @@
 
 function foo<T extends { m(p: string): number }>(x: T): T {
   return undefined;
+  //~^ ERROR: Type 'undefined' is not assignable to type 'T'.
 }
 
 foo({ m(x) { return x.length } });

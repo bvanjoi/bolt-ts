@@ -2,7 +2,9 @@
 
 function outer() {
   function inner(x:number); // should work
+  //~^ ERROR: 'inner', which lacks return-type annotation, implicitly has an 'any' return type.
   function inner(x:string);
+  //~^ ERROR: 'inner', which lacks return-type annotation, implicitly has an 'any' return type.
   function inner(a:any) { return a; }
 
   return inner(0);

@@ -1,7 +1,7 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/destructuringTypeGuardFlow.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/destructuringTempOccursAfterPrologue.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
-//@compiler-options: strictNullChecks
+//@compiler-options: strictNullChecks=true
 
 type foo = {
   bar: number | null;

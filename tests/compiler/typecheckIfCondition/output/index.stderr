@@ -1,0 +1,11 @@
+  × Cannot find name 'module'.
+   ╭─[../../tests/compiler/typecheckIfCondition/index.ts:8:10]
+ 8 │ module
+   · ──────
+   ╰────
+
+  × Cannot find name 'module'.
+   ╭─[../../tests/compiler/typecheckIfCondition/index.ts:8:26]
+ 8 │ module
+   · ──────
+   ╰────

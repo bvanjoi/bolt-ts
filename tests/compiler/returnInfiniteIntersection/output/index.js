@@ -1,5 +1,5 @@
 function recursive() {
   var x = (subkey) => (recursive());
-  return x
+  return x;
 }
 var result = recursive()(1);

@@ -1,5 +1,5 @@
   × Type '() => void' is not a constructor function type.
-   ╭─[../../tests/compiler/extendNonClassSymbol2/index.ts:7:17]
- 7 │ Foo
-   · ───
-   ╰────
+    ╭─[../../tests/compiler/extendNonClassSymbol2/index.ts:10:17]
+ 10 │ Foo
+    · ───
+    ╰────

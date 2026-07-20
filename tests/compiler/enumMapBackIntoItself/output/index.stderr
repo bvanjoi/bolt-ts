@@ -1,11 +1,17 @@
+  × Variable 'mySize2' is used before being assigned.
+    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:14:32]
+ 14 │ mySize2
+    · ───────
+    ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:17:5]
- 17 │ test2
+    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:18:5]
+ 18 │ test2
     · ─────
     ╰────
 
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:22:5]
- 22 │ test3
+    ╭─[../../tests/compiler/enumMapBackIntoItself/index.ts:23:5]
+ 23 │ test3
     · ─────
     ╰────

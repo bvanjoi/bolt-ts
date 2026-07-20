@@ -1,11 +1,11 @@
 use super::define_job::Job;
-use super::define_job::RunOn;
+use super::define_job::RunsOn;
 use super::define_step::Step;
 use super::define_task::On;
 use super::define_task::OnBuilder;
 use super::define_task::Task;
 use super::use_checkout_repo_step::checkout_repository_step;
-use super::use_run_cargo_test_step::run_cargo_test_step;
+use super::use_run_cargo_step::run_cargo_command_steps;
 use super::use_run_codspeed::codspeed_benchmark_steps;
 use super::use_run_pnpm_command::run_biome_format_and_lint_command_step;
 use super::use_run_pnpm_command::run_pnpm_build_command_step;
@@ -22,17 +22,18 @@ impl Job for CargoTestJob {
     fn job_id(&self) -> &str {
         "cargo-test"
     }
-    fn runs_on(&self) -> Vec<RunOn> {
-        vec![RunOn::UbuntuLatest]
+    fn runs_on(&self) -> Vec<RunsOn> {
+        vec![RunsOn::UbuntuLatest]
     }
     fn steps(&self) -> Vec<Step> {
-        vec![
+        let mut steps = vec![
             checkout_repository_step(),
             setup_rust_step(false, false),
             setup_node_step("24"),
-            run_cargo_test_step(),
-            run_wasm_pack_build_and_test_step(),
-        ]
+        ];
+        steps.extend(run_cargo_command_steps());
+        steps.push(run_wasm_pack_build_and_test_step());
+        steps
     }
 }
 
@@ -42,8 +43,8 @@ impl Job for JavaScriptCheckAndTestJob {
     fn job_id(&self) -> &str {
         "javascript-check-and-test"
     }
-    fn runs_on(&self) -> Vec<RunOn> {
-        vec![RunOn::UbuntuLatest]
+    fn runs_on(&self) -> Vec<RunsOn> {
+        vec![RunsOn::UbuntuLatest]
     }
     fn steps(&self) -> Vec<Step> {
         vec![
@@ -64,8 +65,8 @@ impl Job for CodSpeedBenchmarkJob {
     fn job_id(&self) -> &str {
         "codspeed-benchmark"
     }
-    fn runs_on(&self) -> Vec<RunOn> {
-        vec![RunOn::UbuntuLatest]
+    fn runs_on(&self) -> Vec<RunsOn> {
+        vec![RunsOn::UbuntuLatest]
     }
     fn steps(&self) -> Vec<Step> {
         let mut steps = vec![

@@ -4,3 +4,17 @@
  11 │ x
     · ─
     ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/implementsIncorrectlyNoAssertion/index.ts:11:3]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/implementsIncorrectlyNoAssertion/index.ts:14:3]
+ 14 │ y
+    · ─
+    ╰────

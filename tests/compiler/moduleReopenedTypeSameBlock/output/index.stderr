@@ -1,5 +1,11 @@
+  × Type 'null' is not assignable to type 'M.I'.
+   ╭─[../../tests/compiler/moduleReopenedTypeSameBlock/index.ts:6:39]
+ 6 │ null
+   · ────
+   ╰────
+
   × Type 'string' is not assignable to type 'number'.
-   ╭─[../../tests/compiler/moduleReopenedTypeSameBlock/index.ts:7:41]
- 7 │ n
+   ╭─[../../tests/compiler/moduleReopenedTypeSameBlock/index.ts:8:41]
+ 8 │ n
    · ─
    ╰────

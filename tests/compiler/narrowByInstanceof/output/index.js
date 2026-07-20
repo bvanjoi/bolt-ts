@@ -26,7 +26,7 @@ function bar(target, Promise) {
 }
 class PersonMixin extends Function {
   check(o) {
-    return typeof o === 'object' && o !== null && o instanceof Person
+    return typeof o === 'object' && o !== null && o instanceof Person;
   }
 }
 var cls = new PersonMixin();

@@ -1,0 +1,7 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'IPromise<string, number>', but here has type
+  │ 'Promise<string, boolean>'.
+    ╭─[../../tests/compiler/promiseIdentityWithConstraints/index.ts:14:5]
+ 14 │ x
+    · ─
+    ╰────

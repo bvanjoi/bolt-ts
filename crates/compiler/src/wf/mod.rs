@@ -1,12 +1,12 @@
 use bolt_ts_ast::keyword::is_reserved_type_name;
-use bolt_ts_ast::{self as ast, keyword, pprint_ident};
-use bolt_ts_ast_visitor::ControlFlow;
+use bolt_ts_ast::{self as ast, keyword, pprint_ident, print_prop_name};
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
 use bolt_ts_wf_errors as errors;
+use rustc_hash::FxHashSet;
 
 pub fn well_formed_check_parallel(
     p: &ParsedMap,
@@ -14,21 +14,21 @@ pub fn well_formed_check_parallel(
     modules: &[bolt_ts_span::Module],
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &[bolt_ts_binder::ResolveResult],
-) -> Vec<bolt_ts_errors::Diag> {
+) -> Vec<WellFormedCheckResult> {
     use rayon::prelude::*;
 
     modules
         .into_par_iter()
-        .flat_map(|m| {
-            let diags = well_formed_check(
+        .map(|m| {
+            let result = well_formed_check(
                 p,
                 atoms,
                 m.id(),
                 compiler_options,
                 &resolve_results[m.id().as_usize()],
             );
-            debug_assert!(!m.is_default_lib() || diags.is_empty());
-            diags
+            debug_assert!(!m.is_default_lib() || result.diags.is_empty());
+            result
         })
         .collect::<Vec<_>>()
 }
@@ -39,27 +39,40 @@ fn well_formed_check(
     module_id: ModuleID,
     compiler_options: &NormalizedCompilerOptions,
     resolve_results: &bolt_ts_binder::ResolveResult,
-) -> Vec<bolt_ts_errors::Diag> {
+) -> WellFormedCheckResult {
     let mut s = CheckState {
         p,
         atoms,
         compiler_options,
-        diags: vec![],
         resolve_results,
         module_id,
+
+        diags: vec![],
+        potential_unused_renamed_binding_elements_in_types: FxHashSet::default(),
     };
     let program = p.root(module_id);
     bolt_ts_ast_visitor::visit_program(&mut s, program);
-    s.diags
+    WellFormedCheckResult {
+        diags: s.diags,
+        potential_unused_renamed_binding_elements_in_types: s
+            .potential_unused_renamed_binding_elements_in_types,
+    }
+}
+
+pub struct WellFormedCheckResult {
+    pub diags: Vec<bolt_ts_errors::Diag>,
+    pub potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
 }
 
 struct CheckState<'cx> {
     p: &'cx ParsedMap<'cx>,
     atoms: &'cx AtomIntern,
-    diags: Vec<bolt_ts_errors::Diag>,
     compiler_options: &'cx NormalizedCompilerOptions,
     module_id: ModuleID,
     resolve_results: &'cx bolt_ts_binder::ResolveResult,
+
+    diags: Vec<bolt_ts_errors::Diag>,
+    potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
 }
 
 impl<'cx> CheckState<'cx> {
@@ -172,19 +185,7 @@ impl<'cx> CheckState<'cx> {
         name: &'cx ast::Ident,
         push_error: impl FnOnce(&mut Self),
     ) {
-        if matches!(
-            name.name,
-            keyword::IDENT_ANY
-                | keyword::IDENT_UNKNOWN
-                | keyword::IDENT_NEVER
-                | keyword::IDENT_NUMBER
-                | keyword::IDENT_BIGINT
-                | keyword::IDENT_STRING
-                | keyword::IDENT_SYMBOL
-                | keyword::KW_VOID
-                | keyword::IDENT_OBJECT
-                | keyword::KW_UNDEFINED
-        ) {
+        if keyword::is_reserved_type_name(name.name) {
             push_error(self);
         }
     }
@@ -262,6 +263,26 @@ impl<'cx> CheckState<'cx> {
                 span: init.span(),
             };
             self.push_error(Box::new(error));
+        }
+    }
+
+    fn check_external_import_equals_declaration(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
+        let Some(module_name) = node.get_external_module_name() else {
+            return;
+        };
+        let parent = self.parent(node.id).unwrap();
+        let parent_node = self.p.node(parent);
+        let is_ambient_external_module = parent_node.is_module_block() && {
+            let parent_parent = self.parent(parent).unwrap();
+            self.p.node(parent_parent).is_ambient_module()
+        };
+        if !parent_node.is_program() && !is_ambient_external_module {
+            let error = Box::new(
+                errors::ImportDeclarationsInANamespaceCannotReferenceAModule {
+                    span: module_name.span,
+                },
+            );
+            self.push_error(error);
         }
     }
 }
@@ -343,7 +364,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_setter_decl(self, node)
     }
-    fn visit_class_ctor(&mut self, node: &'cx bolt_ts_ast::ClassCtor<'cx>) {
+    fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) {
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_ctor(self, node)
     }
@@ -366,5 +387,64 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
                 self.push_error(Box::new(error));
             }
         }
+        bolt_ts_ast_visitor::visit_param_decl(self, node)
+    }
+    fn visit_object_binding_elem(
+        &mut self,
+        node: &'cx ast::ObjectBindingElem<'cx>,
+    ) -> Self::Result {
+        let is_under_parameter_in_missing_body_fn = || {
+            if self.node_query().is_part_of_param_decl(node.id)
+                && let Some(containing_fn) = self.node_query().get_containing_fn(node.id)
+                && self.p.node(containing_fn).fn_body().is_none()
+            {
+                true
+            } else {
+                false
+            }
+        };
+
+        match node.name {
+            ast::ObjectBindingName::Prop { prop_name, name }
+                if is_under_parameter_in_missing_body_fn() =>
+            {
+                if let ast::BindingKind::Ident(name) = name.kind {
+                    let prev = self
+                        .potential_unused_renamed_binding_elements_in_types
+                        .insert(node.id);
+                    debug_assert!(prev);
+                    let error = Box::new(
+                        errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+                            span: name.span,
+                            x: pprint_ident(name, self.atoms),
+                            y: print_prop_name(&prop_name.kind, self.atoms),
+                        },
+                    );
+                    self.push_error(error);
+                }
+
+                if node.init.is_some() {
+                    let error = errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+                    span: prop_name.span(),
+                };
+                    self.push_error(Box::new(error));
+                }
+            }
+            ast::ObjectBindingName::Shorthand(name)
+                if is_under_parameter_in_missing_body_fn() && node.init.is_some() =>
+            {
+                let error = errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+                    span: name.span,
+                };
+                self.push_error(Box::new(error));
+            }
+            _ => {}
+        }
+
+        bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
+    }
+    fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
+        self.check_external_import_equals_declaration(node);
+        bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
     }
 }

@@ -1,0 +1,29 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/inferenceShouldFailOnEvolvingArrays/index.ts:12:11]
+ 12 │ 42
+    · ──
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/inferenceShouldFailOnEvolvingArrays/index.ts:15:15]
+ 15 │ 42
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/inferenceShouldFailOnEvolvingArrays/index.ts:22:17]
+ 22 │ 42
+    · ──
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/inferenceShouldFailOnEvolvingArrays/index.ts:25:19]
+ 25 │ 42
+    · ──
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/inferenceShouldFailOnEvolvingArrays/index.ts:27:22]
+ 27 │ 42
+    · ──
+    ╰────

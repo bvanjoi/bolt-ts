@@ -28,7 +28,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             .add_antecedent(post_if_label, self.current_flow.unwrap());
 
         self.current_flow = Some(self.finish_flow_label(else_label));
-        n.else_then.map(|else_then| self.bind(else_then.id()));
+        if let Some(else_then) = n.else_then {
+            self.bind(else_then.id())
+        }
         self.flow_nodes
             .add_antecedent(post_if_label, self.current_flow.unwrap());
 
@@ -154,7 +156,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let block_container = self.block_scope_container.unwrap();
         let c = self.p.node(block_container);
         match c {
-            ast::Node::ModuleDecl(_) => {
+            ast::Node::NestedModuleDecl(_) | ast::Node::BlockModuleDecl(_) => {
                 self.declare_module_member(name, node, includes, exclude_flags)
             }
             ast::Node::Program(_) if self.p.is_external_or_commonjs_module() => {
@@ -286,10 +288,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             false_target,
         );
         let should_add_antecedent = node.is_none_or(|node| {
-            !node.kind.is_logical_assignment()
-                && !node.kind.is_logical_expr()
-                && !(self.node_query().is_optional_chain(node.id())
-                    && self.node_query().is_outermost_optional_chain(node.id()))
+            !(node.kind.is_logical_assignment() || node.kind.is_logical_expr() || {
+                let nq = self.node_query();
+                let node_id = node.id();
+                nq.is_optional_chain(node_id) && nq.is_outermost_optional_chain(node_id)
+            })
         });
         if should_add_antecedent {
             let t = self.create_flow_condition(
@@ -382,7 +385,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let c = self.p.node(container);
         use ast::Node::*;
         match c {
-            ModuleDecl(_) => {
+            NestedModuleDecl(_) | BlockModuleDecl(_) => {
                 self.declare_module_member(name, current, symbol_flags, symbol_excludes)
             }
             Program(_) => {
@@ -706,7 +709,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             BlockStmt(ast::BlockStmt { stmts, .. })
             | ModuleBlock(ast::ModuleBlock { stmts, .. }) => {
-                self.bind_stmts_under(node, *stmts);
+                self.bind_stmts_under(node, stmts);
             }
             ObjectBindingElem(n) => {
                 self.bind_object_binding_elem_flow(n);
@@ -774,11 +777,23 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_class_elem(elem);
                 }
             }
-            ModuleDecl(n) => {
-                use ast::ModuleName::*;
+            NestedModuleDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
+                self.bind(n.name.id);
+                match n.block {
+                    ast::NestedModuleBlock::Nested(n) => self.bind(n.id),
+                    ast::NestedModuleBlock::Block(n) => self.bind(n.id),
+                }
+            }
+            BlockModuleDecl(n) => {
+                if let Some(mods) = n.modifiers {
+                    self.bind_modifiers(mods);
+                }
                 match n.name {
-                    Ident(n) => self.bind(n.id),
-                    StringLit(n) => self.bind(n.id),
+                    ast::ModuleName::Ident(n) => self.bind(n.id),
+                    ast::ModuleName::StringLit(n) => self.bind(n.id),
                 }
                 if let Some(block) = n.block {
                     self.bind(block.id);
@@ -1033,14 +1048,13 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind_assignment_target_flow(n.left);
                     if n.op == ast::AssignOp::Eq
                         && let ast::ExprKind::EleAccess(left) = n.left.kind
+                        && self.is_narrowable_operand(left.expr)
                     {
-                        if self.is_narrowable_operand(left.expr) {
-                            let f = self.create_flow_array_mutation(
-                                self.current_flow.unwrap(),
-                                FlowArrayMutationNode::AssignmentExpression(n),
-                            );
-                            self.current_flow = Some(f);
-                        }
+                        let f = self.create_flow_array_mutation(
+                            self.current_flow.unwrap(),
+                            FlowArrayMutationNode::AssignmentExpression(n),
+                        );
+                        self.current_flow = Some(f);
                     }
                 }
             }

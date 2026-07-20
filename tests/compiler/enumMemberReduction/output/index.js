@@ -20,20 +20,20 @@ var MyStringEnumWithEmpty = {};
   MyStringEnumWithEmpty[MyStringEnumWithEmpty['C'] = 'c'] = 'C'
 })(MyStringEnumWithEmpty);
 export function fn(optionalEnum) {
-  return optionalEnum ?? MyEnum.A
+  return optionalEnum ?? MyEnum.A;
 }
 export function fn2(optionalEnum) {
-  return optionalEnum || MyEnum.B
+  return optionalEnum || MyEnum.B;
 }
 export function fn3(optionalEnum) {
-  return optionalEnum ?? MyEnum.A
+  return optionalEnum ?? MyEnum.A;
 }
 export function fn4(optionalEnum) {
-  return optionalEnum || MyEnum.B
+  return optionalEnum || MyEnum.B;
 }
 export function fn5(optionalEnum) {
-  return optionalEnum || MyStringEnum.B
+  return optionalEnum || MyStringEnum.B;
 }
 export function fn6(optionalEnum) {
-  return optionalEnum || MyStringEnumWithEmpty.B
+  return optionalEnum || MyStringEnumWithEmpty.B;
 }

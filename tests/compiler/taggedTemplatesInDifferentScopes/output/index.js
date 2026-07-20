@@ -1,5 +1,5 @@
 export function tag(parts, ...values) {
-  return parts[0]
+  return parts[0];
 }
 function foo() {
   tag`foo`;

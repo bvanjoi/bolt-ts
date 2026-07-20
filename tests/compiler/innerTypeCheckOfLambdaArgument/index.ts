@@ -1,5 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/innerTypeCheckOfLambdaArgument.ts`, Apache-2.0 License
 function takesCallback(callback: (n) =>any) {
+//~^ ERROR: Parameter 'n' implicitly has an 'any' type.
 
 }
  

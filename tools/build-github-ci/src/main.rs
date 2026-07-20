@@ -5,7 +5,7 @@ mod define_task;
 
 mod use_checkout_repo_step;
 mod use_ci_task;
-mod use_run_cargo_test_step;
+mod use_run_cargo_step;
 mod use_run_codspeed;
 mod use_run_pnpm_command;
 mod use_run_wasm_pack_step;

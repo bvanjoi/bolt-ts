@@ -1,0 +1,49 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:16:36]
+ 16 │ bFoo
+    · ────
+    ╰────
+
+  × Type 'number' is not assignable to type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:20:11]
+ 20 │ x1
+    · ──
+    ╰────
+
+  × Type 'string' is not assignable to type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:22:11]
+ 22 │ x2
+    · ──
+    ╰────
+
+  × Type 'number[]' is not assignable to type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:24:11]
+ 24 │ x3
+    · ──
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:26:11]
+ 26 │ x4
+    · ──
+    ╰────
+
+  × Object literal may only specify known properties, and 'a' does not exist
+  │ in type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:28:34]
+ 28 │ a
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'MappedModel<T>'.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:30:11]
+ 30 │ x6
+    · ──
+    ╰────
+
+  × An interface can only extend an object type or intersection of object
+  │ types with statically known members.
+    ╭─[../../tests/compiler/genericMappedTypeAsClause/index.ts:37:60]
+ 37 │ RemapRecord<K, V>
+    · ─────────────────
+    ╰────

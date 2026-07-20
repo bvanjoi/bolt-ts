@@ -6,5 +6,5 @@ export function consoleTestResultHandler(testResult) {
     if (a) {} else {}
     
   }
-  return true
+  return true;
 }

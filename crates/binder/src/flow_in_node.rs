@@ -40,6 +40,25 @@ impl FlowInNodes {
         }
     }
 
+    pub fn insert_return_flow_node(
+        &mut self,
+        node: bolt_ts_ast::NodeID,
+        return_flow_node: Option<FlowID>,
+    ) {
+        let n = &mut self.data[node.index_as_usize()];
+        match n {
+            FlowInNode::Noop => {
+                self.data[node.index_as_usize()] = FlowInNode::FnLike(FnLikeFlowInNode {
+                    end_flow_node: None,
+                    return_flow_node,
+                });
+            }
+            FlowInNode::FnLike(fn_like) => {
+                fn_like.return_flow_node = return_flow_node;
+            }
+        }
+    }
+
     pub fn get(&self, node: bolt_ts_ast::NodeID) -> FlowInNode {
         let index = node.index_as_usize();
         debug_assert!(index < self.data.len());

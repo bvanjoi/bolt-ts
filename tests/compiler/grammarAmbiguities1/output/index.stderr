@@ -1,47 +1,59 @@
+  × Parameter 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:5:12]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:7:18]
+ 7 │ x
+   · ─
+   ╰────
+
   × Expected 1 arguments, but got 2.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:10:10]
- 10 │ B > 7
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:10]
+ 12 │ B > 7
     · ─────
     ╰────
 
   × Expected 1 arguments, but got 2.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:14:10]
- 14 │ B > +(7)
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:10]
+ 16 │ B > +(7)
     · ────────
     ╰────
 
   × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:20:3]
- 20 │ <
-    · ─
-    ╰────
-
-  × Operator '>' cannot be applied to types 'typeof B' and 'number'.
     ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:22:3]
- 22 │ >
-    · ─
-    ╰────
-
-  × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:10:5]
- 10 │ <
+ 22 │ <
     · ─
     ╰────
 
   × Operator '>' cannot be applied to types 'typeof B' and 'number'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:10:12]
- 10 │ >
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:24:3]
+ 24 │ >
     · ─
     ╰────
 
   × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:14:5]
- 14 │ <
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:5]
+ 12 │ <
     · ─
     ╰────
 
   × Operator '>' cannot be applied to types 'typeof B' and 'number'.
-    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:14:12]
- 14 │ >
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:12]
+ 12 │ >
+    · ─
+    ╰────
+
+  × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:5]
+ 16 │ <
+    · ─
+    ╰────
+
+  × Operator '>' cannot be applied to types 'typeof B' and 'number'.
+    ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:12]
+ 16 │ >
     · ─
     ╰────

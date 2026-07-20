@@ -1,0 +1,29 @@
+  × Identifier expected. 'public' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWordInModuleDeclaration/index.ts:6:11]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × Identifier expected. 'private' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/strictModeReservedWordInModuleDeclaration/index.ts:8:11]
+ 8 │ private
+   · ───────
+   ╰────
+
+  × Identifier expected. 'public' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeReservedWordInModuleDeclaration/index.ts:10:11]
+ 10 │ public
+    · ──────
+    ╰────
+
+  × Identifier expected. 'private' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeReservedWordInModuleDeclaration/index.ts:13:11]
+ 13 │ private
+    · ───────
+    ╰────
+
+  × Identifier expected. 'public' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/strictModeReservedWordInModuleDeclaration/index.ts:13:19]
+ 13 │ public
+    · ──────
+    ╰────

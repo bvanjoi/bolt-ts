@@ -7,4 +7,5 @@ namespace C {
 
 var x = class C {
     prop: C.type;
+    //~^ ERROR: Property 'prop' has no initializer and is not definitely assigned in the constructor.
 }

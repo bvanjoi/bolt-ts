@@ -63,6 +63,12 @@ pub struct TestConfig {
 pub struct CompilerOptions(std::collections::HashMap<String, CompilerOption>);
 
 impl CompilerOptions {
+    #[allow(dead_code)]
+    pub(super) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[allow(dead_code)]
     pub(super) fn len(&self) -> usize {
         self.0.len()
     }
@@ -86,21 +92,25 @@ impl CompilerOptions {
                 for (field, options, index) in candidate.iter() {
                     let option = &options[*index];
                     let mut json = base.clone();
+                    const LEFT_SEPARATOR: &str = "(";
+                    const RIGHT_SEPARATOR: &str = ")";
                     let json_value = match option {
                         CompilerOption::Null => {
-                            hit.push_str(&format!("({field}=null)"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}=null{RIGHT_SEPARATOR}"));
                             serde_json::Value::Null
                         }
                         CompilerOption::Bool(b) => {
-                            hit.push_str(&format!("({field}={b})"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}={b}{RIGHT_SEPARATOR}"));
                             serde_json::Value::Bool(*b)
                         }
                         CompilerOption::String(s) => {
-                            hit.push_str(&format!("({field}={s})"));
+                            hit.push_str(&format!("{LEFT_SEPARATOR}{field}={s}{RIGHT_SEPARATOR}"));
                             serde_json::Value::String(s.clone())
                         }
                         CompilerOption::StringArray(arr) => {
-                            hit.push_str(&format!("({field}={arr:?})"));
+                            hit.push_str(&format!(
+                                "{LEFT_SEPARATOR}{field}={arr:?}{RIGHT_SEPARATOR}"
+                            ));
                             serde_json::Value::Array(
                                 arr.iter()
                                     .map(|s| serde_json::Value::String(s.clone()))
@@ -176,19 +186,16 @@ pub enum CompilerOption {
 
 #[test]
 fn test_to_serde_json0() {
-    let options = CompilerOptions(std::collections::HashMap::from_iter(
-        [
-            ("option1".to_string(), CompilerOption::Bool(true)),
-            (
-                "option2".to_string(),
-                CompilerOption::Multiple(vec![
-                    CompilerOption::String("value1".to_string()),
-                    CompilerOption::String("value2".to_string()),
-                ]),
-            ),
-        ]
-        .into_iter(),
-    ));
+    let options = CompilerOptions(std::collections::HashMap::from_iter([
+        ("option1".to_string(), CompilerOption::Bool(true)),
+        (
+            "option2".to_string(),
+            CompilerOption::Multiple(vec![
+                CompilerOption::String("value1".to_string()),
+                CompilerOption::String("value2".to_string()),
+            ]),
+        ),
+    ]));
     let json = options.to_serde_json();
     assert!(json.len() == 2);
     assert_eq!(json[0].1, Some("(option2=value1)".to_string()));

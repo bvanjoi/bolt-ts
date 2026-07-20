@@ -1,0 +1,6 @@
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+   ╭─[../../tests/compiler/noImplicitReturnsWithProtectedBlocks3/index.ts:9:20]
+ 9 │ number
+   · ──────
+   ╰────

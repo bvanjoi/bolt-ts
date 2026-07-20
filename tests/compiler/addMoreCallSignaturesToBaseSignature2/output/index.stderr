@@ -1,5 +1,41 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:12:13]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:12:13]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:18:11]
+ 18 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:18:11]
+ 18 │ a
+    · ─
+    ╰────
+
   × No overload matches this call.
-    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:14:11]
- 14 │ a(false)
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature2/index.ts:18:11]
+ 18 │ a(false)
     · ────────
     ╰────

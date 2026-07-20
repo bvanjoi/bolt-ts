@@ -2,30 +2,30 @@
 
 async function A() {
   var a = await p;
-  return a
+  return a;
 }
 async function B() {
   var a = await p;
-  return 1
+  return 1;
 }
 async function C() {
   try {
     var a = await p;
-    return 1
+    return 1;
   } catch (e) {
-    return 'error'
+    return 'error';
   }
 }
 async function D() {
   try {
     var a = await p;
-    return 1
+    return 1;
   } catch (e) {}
 }
 async function E() {
   try {
     var a = await p;
-    return 1
+    return 1;
   } catch (e) {
     throw Error()
   }
@@ -33,23 +33,23 @@ async function E() {
 async function F() {
   try {
     var a = await p;
-    return 1
+    return 1;
   } catch (e) {
-    return Promise.reject(Error())
+    return Promise.reject(Error());
   }
 }
 async function G() {
   try {
     var a = await p;
-    return a
+    return a;
   } catch (e) {
-    return 
+    return ;
   }
 }
 async function H() {
   try {
     var a = await p;
-    return a
+    return a;
   } catch (e) {
     throw Error()
   }
@@ -57,9 +57,9 @@ async function H() {
 async function I() {
   try {
     var a = await p;
-    return a
+    return a;
   } catch (e) {
-    return Promise.reject(Error())
+    return Promise.reject(Error());
   }
 }
 var p00 = p.catch();

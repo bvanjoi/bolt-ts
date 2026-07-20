@@ -1,6 +1,6 @@
 export function getBarA(bar) {
-  return bar.a
+  return bar.a;
 }
 export function getBazA(baz) {
-  return baz.a
+  return baz.a;
 }

@@ -1,0 +1,34 @@
+  × Expected '{'.
+   ╭─[../../tests/compiler/dottedModuleName/index.ts:8:29]
+ 8 │ =>
+   · ──
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/dottedModuleName/index.ts:8:29]
+ 8 │ =>
+   · ──
+   ╰────
+
+  × A namespace declaration is only allowed at the top level of a namespace or
+  │ module.
+    ╭─[../../tests/compiler/dottedModuleName/index.ts:11:19]
+ 11 │ X
+    · ─
+    ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/dottedModuleName/index.ts:29:25]
+   ╰────
+
+  × Cannot find name 'v'.
+    ╭─[../../tests/compiler/dottedModuleName/index.ts:13:22]
+ 13 │ v
+    · ─
+    ╰────
+
+  × Cannot find name 'f'.
+    ╭─[../../tests/compiler/dottedModuleName/index.ts:24:19]
+ 24 │ f
+    · ─
+    ╰────

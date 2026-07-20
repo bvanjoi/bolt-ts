@@ -183,3 +183,19 @@ impl<'cx> ty::TyMap<'cx> for ReportUnmeasurableMapper {
         ty
     }
 }
+
+#[derive(Debug)]
+pub(super) struct UniqueLiteralMapper;
+impl<'cx> ty::TyMap<'cx> for UniqueLiteralMapper {
+    fn get_mapped_ty(
+        &self,
+        ty: &'cx ty::Ty<'cx>,
+        checker: &mut TyChecker<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        if ty.kind.is_param() {
+            checker.unique_literal_ty
+        } else {
+            ty
+        }
+    }
+}

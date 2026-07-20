@@ -1,0 +1,23 @@
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints/index.ts:21:5]
+ 21 │ [n: number]: A;
+    · ───────────────
+    ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints/index.ts:30:5]
+ 30 │ [n: number]: A;
+    · ───────────────
+    ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints/index.ts:39:5]
+ 39 │ [s: string]: B;
+    · ───────────────
+    ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints/index.ts:48:5]
+ 48 │ [n: number]: A;
+    · ───────────────
+    ╰────

@@ -2,6 +2,7 @@
 
 function f<T>(arr: T[], elemnt: T): T {
     return null;
+    //~^ ERROR: Type 'null' is not assignable to type 'T'.
 }
 
 var a = f([], 3); // should be number

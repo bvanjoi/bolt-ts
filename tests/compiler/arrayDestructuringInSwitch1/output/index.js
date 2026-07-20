@@ -4,12 +4,12 @@ export function evaluate(expression) {
     switch (operator) {
       case 'and':
         {
-          return operands.every((child) => (evaluate(child)))
+          return operands.every((child) => (evaluate(child)));
         }
       
       case 'not':
         {
-          return !evaluate(operands[0])
+          return !evaluate(operands[0]);
         }
       
       default:
@@ -19,7 +19,7 @@ export function evaluate(expression) {
       
     }
   } else {
-    return expression === 'true'
+    return expression === 'true';
   }
   
 }

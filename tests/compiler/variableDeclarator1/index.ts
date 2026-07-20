@@ -11,9 +11,12 @@ function f() {
 }
 
 b0 += 1;
+//~^ ERROR: Variable 'b0' is used before being assigned.
 b1 += b2;
 //~^ ERROR: Block-scoped variable 'b1' used before its declaration.
 //~| ERROR: Block-scoped variable 'b2' used before its declaration.
+//~| ERROR: Variable 'b1' is used before being assigned.
+//~| ERROR: Variable 'b2' is used before being assigned.
 var b0 = 42;
 let b1 = 42;
 const b2 = 42;

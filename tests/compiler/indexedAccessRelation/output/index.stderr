@@ -1,0 +1,5 @@
+  × Type 'T' is not assignable to type 'undefined | S & State<T>["a"]'.
+    ╭─[../../tests/compiler/indexedAccessRelation/index.ts:18:25]
+ 18 │ a
+    · ─
+    ╰────

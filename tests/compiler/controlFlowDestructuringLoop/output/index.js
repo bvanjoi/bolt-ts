@@ -1,5 +1,5 @@
 function isNumVal(x) {
-  return typeof x.val === 'number'
+  return typeof x.val === 'number';
 }
 function foo(things) {
   for ( var thing of things) {

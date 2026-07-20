@@ -1,0 +1,18 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedGenericCallSignature/index.ts:28:9]
+ 28 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedGenericCallSignature/index.ts:28:9]
+ 28 │ x
+    · ─
+    ╰────
+
+  × Argument of type 'undefined' is not assignable to parameter of type
+  │ 'Date[]'.
+    ╭─[../../tests/compiler/inheritedGenericCallSignature/index.ts:28:11]
+ 28 │ undefined
+    · ─────────
+    ╰────

@@ -7,5 +7,5 @@ function foo<T, U>(f: (v: T) => U) {
   //~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'T'.
   var r3 = f<any>(null);
   //~^ ERROR: Expected 0 type arguments, but got 1.
-  var r4 = f(null);
+  var r4 = f(null); //~ ERROR: Argument of type 'null' is not assignable to parameter of type 'T'.
 }

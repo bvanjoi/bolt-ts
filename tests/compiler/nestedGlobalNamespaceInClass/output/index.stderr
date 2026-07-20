@@ -1,0 +1,17 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/nestedGlobalNamespaceInClass/index.ts:6:5]
+ 6 │ global
+   · ──────
+   ╰────
+
+  × Variable 'global' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/nestedGlobalNamespaceInClass/index.ts:6:5]
+ 6 │ global
+   · ──────
+   ╰────
+
+  × Variable 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/nestedGlobalNamespaceInClass/index.ts:6:12]
+ 6 │ x
+   · ─
+   ╰────

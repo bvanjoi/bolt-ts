@@ -9,3 +9,9 @@ module X {
 
 var x: X.Y.Z;
 var x2: X.Y;
+
+declare namespace Tools {
+    type Pos<I extends any[]> = true;
+}
+
+type GapOf = Tools.Pos<[1,2,3]> extends true ? never : never;

@@ -4,6 +4,6 @@ class X {
     var ret;
     return ret.always(() => {
       this.y = 0;
-    }).promise()
+    }).promise();
   }
 }

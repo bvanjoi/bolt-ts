@@ -1,0 +1,13 @@
+  × Property 'property' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/infinitelyExpandingTypesNonGenericBase/index.ts:4:3]
+ 4 │ property
+   · ────────
+   ╰────
+
+  × Property 'options' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/infinitelyExpandingTypesNonGenericBase/index.ts:12:3]
+ 12 │ options
+    · ───────
+    ╰────

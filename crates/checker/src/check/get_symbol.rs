@@ -110,7 +110,7 @@ impl TyChecker<'_> {
         }
         // TODO: is_literal_computed_property_declaration_name
         let n = self.p.node(id);
-        if let Ident(n) = n {
+        if let Ident(_nn) = n {
             // TODO: other
         }
         match n {

@@ -229,7 +229,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty;
         }
-        let base_ctor_ty = self.check_expression(extends.expr_with_ty_args.expr, None);
+        let base_ctor_ty = self.check_expression::<false>(extends.expr_with_ty_args.expr, None);
         const FLAGS: TypeFlags = TypeFlags::OBJECT.union(TypeFlags::INTERSECTION);
         if base_ctor_ty.flags.intersects(FLAGS) {
             self.resolve_structured_type_members(base_ctor_ty);
@@ -545,7 +545,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         member: &'cx ast::EnumMember<'cx>,
         auto_value: Option<f64>,
-        previous: Option<&ast::EnumMember>,
+        _previouss: Option<&ast::EnumMember>,
     ) -> EnumMemberValue {
         if let Some(init) = member.init {
             return self.compute_constant_enum_member_value(member, init);
@@ -572,7 +572,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_enum_literal_ty(
         &mut self,
         value: EnumMemberValue,
-        symbol: SymbolID,
+        _symboll: SymbolID,
         member_symbol: SymbolID,
     ) -> &'cx ty::Ty<'cx> {
         // TODO: enum_literal_cache

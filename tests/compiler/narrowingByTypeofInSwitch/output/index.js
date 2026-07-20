@@ -1,68 +1,68 @@
 function assertNever(x) {
-  return x
+  return x;
 }
 function assertNumber(x) {
-  return x
+  return x;
 }
 function assertBoolean(x) {
-  return x
+  return x;
 }
 function assertString(x) {
-  return x
+  return x;
 }
 function assertSymbol(x) {
-  return x
+  return x;
 }
 function assertFunction(x) {
-  return x
+  return x;
 }
 function assertObject(x) {
-  return x
+  return x;
 }
 function assertObjectOrNull(x) {
-  return x
+  return x;
 }
 function assertUndefined(x) {
-  return x
+  return x;
 }
 function assertAll(x) {
-  return x
+  return x;
 }
 function assertStringOrNumber(x) {
-  return x
+  return x;
 }
 function assertBooleanOrObject(x) {
-  return x
+  return x;
 }
 function testUnion(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     case 'object':
       assertObject(x);
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
   }
   assertNever(x);
@@ -71,31 +71,31 @@ function testExtendsUnion(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertAll(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     case 'object':
       assertAll(x);
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
   }
   assertAll(x);
@@ -104,59 +104,59 @@ function testAny(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     case 'object':
       assertObject(x);
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
   }
   assertAll(x);
 }
 function a1(x) {
-  return x
+  return x;
 }
 function testUnionExplicitDefault(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     default:
       a1(x);
-      return 
+      return ;
     
   }
 }
@@ -164,44 +164,44 @@ function testUnionImplicitDefault(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
   }
-  return a1(x)
+  return a1(x);
 }
 function testExtendsExplicitDefault(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertAll(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     default:
       assertAll(x);
-      return 
+      return ;
     
   }
 }
@@ -209,122 +209,122 @@ function testExtendsImplicitDefault(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertAll(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
   }
-  return assertAll(x)
+  return assertAll(x);
 }
 function exhaustiveChecks(x) {
   switch (typeof x) {
     case 'number':
-      return x.toString(2)
+      return x.toString(2);
     
     case 'string':
-      return x
+      return x;
     
     case 'function':
-      return x(42)
+      return x(42);
     
     case 'object':
-      return x.x
+      return x.x;
     
   }
 }
 function exhaustiveChecksGenerics(x) {
   switch (typeof x) {
     case 'number':
-      return x.toString(2)
+      return x.toString(2);
     
     case 'string':
-      return x
+      return x;
     
     case 'function':
-      return (x)(42)
+      return (x)(42);
     
     case 'object':
-      return (x).x
+      return (x).x;
     
   }
 }
 function multipleGeneric(xy) {
   switch (typeof xy) {
     case 'function':
-      return [xy, xy(42)]
+      return [xy, xy(42)];
     
     case 'object':
-      return [xy, xy.y]
+      return [xy, xy.y];
     
     default:
-      return assertNever(xy)
+      return assertNever(xy);
     
   }
 }
 function multipleGenericFuse(xy) {
   switch (typeof xy) {
     case 'function':
-      return [xy, 1]
+      return [xy, 1];
     
     case 'object':
-      return [xy, 'two']
+      return [xy, 'two'];
     
     case 'number':
-      return [xy]
+      return [xy];
     
   }
 }
 function multipleGenericExhaustive(xy) {
   switch (typeof xy) {
     case 'object':
-      return [xy, xy.y]
+      return [xy, xy.y];
     
     case 'function':
-      return [xy, xy(42)]
+      return [xy, xy(42)];
     
   }
 }
 function switchOrdering(x) {
   switch (typeof x) {
     case 'string':
-      return assertString(x)
+      return assertString(x);
     
     case 'number':
-      return assertNumber(x)
+      return assertNumber(x);
     
     case 'boolean':
-      return assertBoolean(x)
+      return assertBoolean(x);
     
     case 'number':
-      return assertNever(x)
+      return assertNever(x);
     
   }
 }
 function switchOrderingWithDefault(x) {
   function local(y) {
-    return x
+    return x;
   }
   switch (typeof x) {
     case 'string':
     case 'number':
     default:
-      return local(x)
+      return local(x);
     
     case 'string':
-      return assertNever(x)
+      return assertNever(x);
     
     case 'number':
-      return assertNever(x)
+      return assertNever(x);
     
   }
 }
@@ -351,31 +351,31 @@ function unknownNarrowing(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     case 'object':
       assertObjectOrNull(x);
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
   }
 }
@@ -385,17 +385,17 @@ function keyofNarrowing(k) {
     case 'number':
       assertNumber(k);
       assertKeyofS(k);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(k);
       assertKeyofS(k);
-      return 
+      return ;
     
     case 'string':
       assertString(k);
       assertKeyofS(k);
-      return 
+      return ;
     
   }
 }
@@ -403,39 +403,39 @@ function narrowingNarrows(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertFunction(x);
-      return 
+      return ;
     
     case 'symbol':
       assertSymbol(x);
-      return 
+      return ;
     
     case 'object':
       var _ = x;
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
     case 'number':
       assertNever(x);
-      return 
+      return ;
     
     default:
       var _y = x;
-      return 
+      return ;
     
   }
 }
@@ -443,39 +443,39 @@ function narrowingNarrows2(x) {
   switch (typeof x) {
     case 'number':
       assertNumber(x);
-      return 
+      return ;
     
     case 'boolean':
       assertBoolean(x);
-      return 
+      return ;
     
     case 'function':
       assertNever(x);
-      return 
+      return ;
     
     case 'symbol':
       assertNever(x);
-      return 
+      return ;
     
     case 'object':
       var _ = assertNever(x);
-      return 
+      return ;
     
     case 'string':
       assertString(x);
-      return 
+      return ;
     
     case 'undefined':
       assertUndefined(x);
-      return 
+      return ;
     
     case 'number':
       assertNever(x);
-      return 
+      return ;
     
     default:
       var _y = assertNever(x);
-      return 
+      return ;
     
   }
 }
@@ -483,31 +483,31 @@ function testUnionWithTempalte(x) {
   switch (typeof x) {
     case `number`:
       assertNumber(x);
-      return 
+      return ;
     
     case `boolean`:
       assertBoolean(x);
-      return 
+      return ;
     
     case `function`:
       assertFunction(x);
-      return 
+      return ;
     
     case `symbol`:
       assertSymbol(x);
-      return 
+      return ;
     
     case `object`:
       assertObject(x);
-      return 
+      return ;
     
     case `string`:
       assertString(x);
-      return 
+      return ;
     
     case `undefined`:
       assertUndefined(x);
-      return 
+      return ;
     
   }
   assertNever(x);
@@ -537,30 +537,30 @@ function keyofNarrowingWithTemplate(k) {
     case `number`:
       assertNumber(k);
       assertKeyofS(k);
-      return 
+      return ;
     
     case `symbol`:
       assertSymbol(k);
       assertKeyofS(k);
-      return 
+      return ;
     
     case `string`:
       assertString(k);
       assertKeyofS(k);
-      return 
+      return ;
     
   }
 }
 function multipleGenericFuseWithBoth(xy) {
   switch (typeof xy) {
     case `function`:
-      return [xy, 1]
+      return [xy, 1];
     
     case 'object':
-      return [xy, 'two']
+      return [xy, 'two'];
     
     case `number`:
-      return [xy]
+      return [xy];
     
   }
 }

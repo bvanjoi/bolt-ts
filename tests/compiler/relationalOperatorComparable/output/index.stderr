@@ -1,0 +1,41 @@
+  × Operator '<' cannot be applied to types 'number' and 'boolean'.
+   ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:9:23]
+ 9 │ <
+   · ─
+   ╰────
+
+  × Operator '<=' cannot be applied to types 'number' and 'boolean'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:11:23]
+ 11 │ <=
+    · ──
+    ╰────
+
+  × Operator '>=' cannot be applied to types 'number' and 'boolean'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:13:23]
+ 13 │ >=
+    · ──
+    ╰────
+
+  × Operator '>' cannot be applied to types 'number' and 'boolean'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:15:23]
+ 15 │ >
+    · ─
+    ╰────
+
+  × Operator '<' cannot be applied to types 'boolean' and 'number'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:17:19]
+ 17 │ <
+    · ─
+    ╰────
+
+  × Operator '<' cannot be applied to types 'boolean' and 'number'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:19:20]
+ 19 │ <
+    · ─
+    ╰────
+
+  × Operator '<' cannot be applied to types 'string' and 'number'.
+    ╭─[../../tests/compiler/relationalOperatorComparable/index.ts:21:20]
+ 21 │ <
+    · ─
+    ╰────

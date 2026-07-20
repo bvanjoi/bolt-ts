@@ -1,5 +1,5 @@
 function test(x) {
-  return x
+  return x;
 }
 var state = true;
 if (state) {

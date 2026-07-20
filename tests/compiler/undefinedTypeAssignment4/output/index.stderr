@@ -6,14 +6,21 @@
   help: Reserved type names are not permitted.
 
   × Interface name cannot be 'undefined'.
-   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:6:11]
- 6 │ undefined
+   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:7:11]
+ 7 │ undefined
    · ─────────
    ╰────
   help: Reserved type names are not permitted.
 
   × Declaration name conflicts with built-in global identifier 'undefined'.
-   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:9:11]
- 9 │ undefined
-   · ─────────
+    ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:10:11]
+ 10 │ undefined
+    · ─────────
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/undefinedTypeAssignment4/index.ts:4:2]
+ 4 │ foo
+   · ───
    ╰────

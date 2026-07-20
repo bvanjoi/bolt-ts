@@ -1,0 +1,37 @@
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/cloduleWithDuplicateMember1/index.ts:7:16]
+ 7 │ x
+   · ┬
+   · ╰── Previous definition here
+   ╰────
+    ╭─[../../tests/compiler/cloduleWithDuplicateMember1/index.ts:14:16]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Duplicate identifier 'foo'.
+    ╭─[../../tests/compiler/cloduleWithDuplicateMember1/index.ts:18:21]
+ 10 │ foo() { }
+    · ─┬─
+    ·  ╰── Previous definition here
+ 11 │ }
+ 12 │ 
+ 13 │ namespace C {
+ 14 │     export var x = 1;
+ 15 │       //~^ ERROR: Duplicate identifier 'x'.
+ 16 │ }
+ 17 │ namespace C {
+ 18 │     export function foo
+    ·                     ───
+    ╰────
+
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/cloduleWithDuplicateMember1/index.ts:7:16]
+ 7 │ x
+   · ┬
+   · ╰── Previous definition here
+   ╰────
+    ╭─[../../tests/compiler/cloduleWithDuplicateMember1/index.ts:20:21]
+ 20 │ x
+    · ─
+    ╰────

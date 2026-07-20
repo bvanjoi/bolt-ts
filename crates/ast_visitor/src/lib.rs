@@ -11,9 +11,7 @@ pub trait VisitorResult {
 }
 
 impl VisitorResult for () {
-    fn output() -> Self {
-        ()
-    }
+    fn output() -> Self {}
 
     fn branch(&self) -> ControlFlow {
         ControlFlow::Continue
@@ -92,7 +90,8 @@ make_visitor!(
     (visit_arrow_fn_expr, ast::ArrowFnExpr<'cx>),
     (visit_bin_expr, ast::BinExpr<'cx>),
     (visit_type_alias_decl, ast::TypeAliasDecl<'cx>),
-    (visit_module_decl, ast::ModuleDecl<'cx>),
+    (visit_block_module_decl, ast::BlockModuleDecl<'cx>),
+    (visit_nested_module_decl, ast::NestedModuleDecl<'cx>),
     (visit_string_lit, ast::StringLit),
     (visit_while_stmt, ast::WhileStmt<'cx>),
     (visit_if_stmt, ast::IfStmt<'cx>),

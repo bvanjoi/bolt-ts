@@ -3,9 +3,9 @@ function f() {
   if (x !== null) {
     return {
           bar() {
-        return x.length
+        return x.length;
       }      
-    }
+    };
   }
   
 }
@@ -14,9 +14,9 @@ function f2() {
   if (x !== null) {
     return class {
       bar() {
-        return x.length
+        return x.length;
       }
-    }
+    };
   }
   
 }

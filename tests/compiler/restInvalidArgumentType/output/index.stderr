@@ -1,0 +1,83 @@
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:34:10]
+ 34 │ ...r4
+    · ─────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:36:10]
+ 36 │ ...r5
+    · ─────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:43:10]
+ 43 │ ...r9
+    · ─────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:47:10]
+ 47 │ ...r11
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:50:10]
+ 50 │ ...r12
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:52:10]
+ 52 │ ...r13
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:55:10]
+ 55 │ ...r14
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:57:10]
+ 57 │ ...r15
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:62:10]
+ 62 │ ...r17
+    · ──────
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:64:10]
+ 64 │ ...r18
+    · ──────
+    ╰────
+
+  × Variable 'e' is used before being assigned.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:20]
+ 67 │ e
+    · ─
+    ╰────
+
+  × Variable 'e' is used before being assigned.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:20]
+ 67 │ e
+    · ─
+    ╰────
+
+  × Rest types may only be created from object types.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:10]
+ 67 │ ...r19
+    · ──────
+    ╰────
+
+  × Variable 'e' is used before being assigned.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:20]
+ 67 │ e
+    · ─
+    ╰────

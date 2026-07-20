@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/genericConstraint1/index.ts:7:16]
+ 7 │ null
+   · ────
+   ╰────
+
+  × Type 'string' does not satisfy the constraint 'number'.
+    ╭─[../../tests/compiler/genericConstraint1/index.ts:13:8]
+ 13 │ string
+    · ──────
+    ╰────

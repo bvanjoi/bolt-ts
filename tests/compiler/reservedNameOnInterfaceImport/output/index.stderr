@@ -1,0 +1,5 @@
+  × Import name cannot be 'string'.
+   ╭─[../../tests/compiler/reservedNameOnInterfaceImport/index.ts:9:12]
+ 9 │ string
+   · ──────
+   ╰────

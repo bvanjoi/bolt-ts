@@ -5,7 +5,7 @@ function test() {
     continue testLoop;
   } while (function () {
     var x = 1;
-    return false
+    return false;
   }())
-  return foo
+  return foo;
 }

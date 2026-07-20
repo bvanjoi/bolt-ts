@@ -4,7 +4,7 @@ var flowtypes = (b) => {
   return {
       combined,
     literal    
-  }
+  };
 };
 var {combined, literal} = flowtypes({
   b: 'b-value'  

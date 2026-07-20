@@ -1,5 +1,19 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classExtendsClauseClassNotReferringConstructor/index.ts:3:11]
+ 3 │ a
+   · ─
+   ╰────
+
   × Type 'number' is not a constructor function type.
-   ╭─[../../tests/compiler/classExtendsClauseClassNotReferringConstructor/index.ts:6:21]
- 6 │ A
+   ╭─[../../tests/compiler/classExtendsClauseClassNotReferringConstructor/index.ts:7:21]
+ 7 │ A
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classExtendsClauseClassNotReferringConstructor/index.ts:7:25]
+ 7 │ b
    · ─
    ╰────

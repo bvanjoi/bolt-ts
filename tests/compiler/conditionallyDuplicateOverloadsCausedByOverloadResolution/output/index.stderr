@@ -1,0 +1,11 @@
+  × Variable 'bar' is used before being assigned.
+    ╭─[../../tests/compiler/conditionallyDuplicateOverloadsCausedByOverloadResolution/index.ts:24:12]
+ 24 │ bar
+    · ───
+    ╰────
+
+  × Variable 'bar' is used before being assigned.
+    ╭─[../../tests/compiler/conditionallyDuplicateOverloadsCausedByOverloadResolution/index.ts:24:12]
+ 24 │ bar
+    · ───
+    ╰────

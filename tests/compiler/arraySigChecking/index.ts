@@ -18,7 +18,7 @@ declare module M {
 interface myInt {
   voidFn(): void;
 }
-var myVar: myInt;
+declare var myVar: myInt;
 var strArray: string[] = [myVar.voidFn()];
 //~^ ERROR: Type 'void' is not assignable to type 'string'.
 

@@ -1,0 +1,17 @@
+  × Property 'toBAZ' does not exist on type 'number'.
+    ╭─[../../tests/compiler/primitiveMembers/index.ts:10:3]
+ 10 │ toBAZ
+    · ─────
+    ╰────
+
+  × Type 'Number' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/primitiveMembers/index.ts:17:1]
+ 17 │ n
+    · ─
+    ╰────
+
+  × This kind of expression is always truthy.
+    ╭─[../../tests/compiler/primitiveMembers/index.ts:28:10]
+ 28 │ 5
+    · ─
+    ╰────

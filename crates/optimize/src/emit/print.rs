@@ -17,6 +17,10 @@ impl PPrint {
     pub fn p(&mut self, content: &str) {
         self.content += content
     }
+    /// `\``
+    pub fn p_backtick(&mut self) {
+        self.p("`");
+    }
     /// `*`
     pub fn p_asterisk(&mut self) {
         self.p("*");
@@ -80,6 +84,10 @@ impl PPrint {
     /// `.`
     pub fn p_dot(&mut self) {
         self.p(".");
+    }
+    /// `$`
+    pub fn p_dollar(&mut self) {
+        self.p("$");
     }
     /// `...`
     pub fn p_dot_dot_dot(&mut self) {

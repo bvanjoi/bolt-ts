@@ -1,35 +1,35 @@
   × Cannot find name 'UNKNOWN'.
-   ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:3:19]
- 3 │ UNKNOWN
-   · ───────
-   ╰────
-
-  × Cannot find name 'UNKNOWN'.
-   ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:6:26]
+   ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:6:19]
  6 │ UNKNOWN
    · ───────
    ╰────
 
   × Cannot find name 'UNKNOWN'.
-   ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:9:21]
+   ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:9:26]
  9 │ UNKNOWN
    · ───────
    ╰────
 
   × Cannot find name 'UNKNOWN'.
-    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:12:24]
+    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:12:21]
  12 │ UNKNOWN
     · ───────
     ╰────
 
   × Cannot find name 'UNKNOWN'.
-    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:16:22]
- 16 │ UNKNOWN
+    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:15:24]
+ 15 │ UNKNOWN
     · ───────
     ╰────
 
   × Cannot find name 'UNKNOWN'.
-    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:20:13]
- 20 │ UNKNOWN
+    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:19:22]
+ 19 │ UNKNOWN
+    · ───────
+    ╰────
+
+  × Cannot find name 'UNKNOWN'.
+    ╭─[../../tests/compiler/typeCheckTypeArgument/index.ts:23:13]
+ 23 │ UNKNOWN
     · ───────
     ╰────

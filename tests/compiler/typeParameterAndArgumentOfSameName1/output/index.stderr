@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'A'.
+   ╭─[../../tests/compiler/typeParameterAndArgumentOfSameName1/index.ts:5:10]
+ 5 │ null
+   · ────
+   ╰────

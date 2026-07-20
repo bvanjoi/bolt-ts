@@ -1,5 +1,29 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:12:13]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:12:13]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:15:11]
+ 15 │ a
+    · ─
+    ╰────
+
   × Argument of type 'number' is not assignable to parameter of type 'string'.
-    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:13:13]
- 13 │ 42
+    ╭─[../../tests/compiler/addMoreCallSignaturesToBaseSignature/index.ts:15:13]
+ 15 │ 42
     · ──
     ╰────

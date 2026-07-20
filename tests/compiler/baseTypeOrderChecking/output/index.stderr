@@ -1,0 +1,6 @@
+  × Property 'memberVariable' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/baseTypeOrderChecking/index.ts:27:23]
+ 27 │ memberVariable
+    · ──────────────
+    ╰────

@@ -6,6 +6,7 @@ function foo<T>() {
       b: typeof x;
   };
   return x;
+  //~^ ERROR: Variable 'x' is used before being assigned.
 }
 
 function bar<T>() {
@@ -14,6 +15,7 @@ function bar<T>() {
       b: typeof x;
   };
   return x;
+  //~^ ERROR: Variable 'x' is used before being assigned.
 }
 
 var a = foo<string>();

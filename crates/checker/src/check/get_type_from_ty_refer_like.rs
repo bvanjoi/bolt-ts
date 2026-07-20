@@ -33,12 +33,12 @@ fn print_entity_name(name: &ast::EntityName, atoms: &bolt_ts_atom::AtomIntern) -
 }
 
 impl<'cx> TyChecker<'cx> {
-    pub(super) fn resolve_ty_refer_name(
+    pub(super) fn resolve_ty_refer_name<const IGNORE_ERROR: bool>(
         &mut self,
         name: &'cx ast::EntityName<'cx>,
         meaning: SymbolFlags,
     ) -> SymbolID {
-        self.resolve_entity_name::<false, false>(name, meaning)
+        self.resolve_entity_name::<IGNORE_ERROR, false>(name, meaning)
     }
 
     pub(super) fn ty_args_from_ty_refer_node(
@@ -109,18 +109,15 @@ impl<'cx> TyChecker<'cx> {
                 return self.error_ty;
             }
             let alias_symbol = self.get_alias_symbol_for_ty_node(node.id());
-            let mut new_alias_symbol = alias_symbol.and_then(|alias_symbol| {
-                if self.is_local_ty_alias(symbol) || !self.is_local_ty_alias(alias_symbol) {
-                    Some(alias_symbol)
-                } else {
-                    None
-                }
+            let mut new_alias_symbol = alias_symbol.filter(|&alias_symbol| {
+                self.is_local_ty_alias(symbol) || !self.is_local_ty_alias(alias_symbol)
             });
             let mut alias_ty_args = None;
             if new_alias_symbol.is_some() {
                 alias_ty_args = self.get_ty_args_for_alias_symbol(new_alias_symbol)
             } else if self.p.node(node.id()).is_ty_refer_ty() {
-                let alias_symbol = self.resolve_ty_refer_name(node.name(), SymbolFlags::ALIAS);
+                let alias_symbol =
+                    self.resolve_ty_refer_name::<true>(node.name(), SymbolFlags::ALIAS);
                 if alias_symbol != Symbol::ERR
                     && let resolved = self.resolve_alias(alias_symbol)
                     && self
@@ -139,9 +136,9 @@ impl<'cx> TyChecker<'cx> {
             let ty_args = self
                 .ty_args_from_ty_refer_node(node.ty_args())
                 .unwrap_or_default();
-            let ret =
-                self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args);
-            ret
+
+            (self.get_type_alias_instantiation(symbol, ty_args, new_alias_symbol, alias_ty_args))
+                as _
         } else if self.check_no_ty_args(node.span(), node.ty_args(), Some(node.name()), None) {
             ty
         } else {
@@ -302,7 +299,7 @@ impl<'cx> TyChecker<'cx> {
                 _ => {}
             }
         }
-        let symbol = self.resolve_ty_refer_name(name, SymbolFlags::TYPE);
+        let symbol = self.resolve_ty_refer_name::<false>(name, SymbolFlags::TYPE);
         self.get_mut_node_links(id).set_resolved_symbol(symbol);
         let ty = self.get_ty_refer_type(node, symbol);
         self.get_mut_node_links(id).set_resolved_ty(ty);

@@ -2,3 +2,4 @@
 
 function t1(...) {}
 //~^ ERROR: Identifier expected.
+//~| ERROR: Rest parameter '' implicitly has an 'any[]' type.

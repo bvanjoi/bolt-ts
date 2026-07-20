@@ -10,10 +10,10 @@ var z;
 var z;
 function getValueAsString(value) {
   if (value.kind === 'int') {
-    return '' + value.num
+    return '' + value.num;
   }
   
-  return value.str
+  return value.str;
 }
 var enums = {};
 (function (enums) {
@@ -54,5 +54,5 @@ var enums = {};
 function foo(so) {
   var val = so;
   var isGenre = val.genreId;
-  return isGenre
+  return isGenre;
 }

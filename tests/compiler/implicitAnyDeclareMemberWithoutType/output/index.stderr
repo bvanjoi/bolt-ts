@@ -1,0 +1,50 @@
+  × Variable 'member1' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:7:5]
+ 7 │ member1
+   · ───────
+   ╰────
+
+  × Parameter 'c1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:10:17]
+ 10 │ c1
+    · ──
+    ╰────
+
+  × Parameter 'c3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:10:32]
+ 10 │  c3
+    · ───
+    ╰────
+
+  × 'constructor', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:10:5]
+ 10 │ constructor(c1, c2: string, c3)
+    · ───────────────────────────────
+    ╰────
+
+  × Parameter 'f1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:14:17]
+ 14 │ f1
+    · ──
+    ╰────
+
+  × Parameter 'f2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:14:20]
+ 14 │  f2
+    · ───
+    ╰────
+
+  × 'funcOfIFace', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:14:5]
+ 14 │ funcOfIFace(f1, f2, f3: number)
+    · ───────────────────────────────
+    ╰────
+
+  × Construct signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:18:5]
+ 18 │ new ();
+    · ───────
+    ╰────

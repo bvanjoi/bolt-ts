@@ -10,5 +10,7 @@ type Wrapper = Foo & Bar;
 class Baz implements Wrapper {
   x: number;
   //~^ ERROR: Property 'x' in type 'Baz<Baz>' is not assignable to the same property in base type 'Foo<Baz> & Bar<Baz>'.
+  //~| ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
   y: string;
+  //~^ ERROR: Property 'y' has no initializer and is not definitely assigned in the constructor.
 }

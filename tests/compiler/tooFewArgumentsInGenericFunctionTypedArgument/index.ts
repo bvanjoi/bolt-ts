@@ -12,11 +12,26 @@ interface Combinators {
 var c2: Collection<number, string>;
 var _: Combinators;
 var r1a = _.map(c2, (x) => { return x.toFixed() }); 
+//~^ ERROR: Variable '_' is used before being assigned.
+//~| ERROR: Variable '_' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
 var rf1 = (x: number) => { return x.toFixed() };
 var r1b = _.map(c2, rf1); 
+//~^ ERROR: Variable '_' is used before being assigned.
+//~| ERROR: Variable '_' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
 
 
 var r1c: Collection<number, boolean> = _.map(c2, (x,y) => {
+//~^ ERROR: Variable '_' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
+//~| ERROR: Variable 'c2' is used before being assigned.
   let x0: boolean = x;
   //~^ ERROR: Type 'number' is not assignable to type 'boolean'.
   let y0: boolean = y;

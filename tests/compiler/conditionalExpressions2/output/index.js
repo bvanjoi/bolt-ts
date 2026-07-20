@@ -14,9 +14,9 @@ function i() {
   if (true) {
     return {
           x: 5      
-    }
+    };
   } else {
-    return null
+    return null;
   }
   
 }

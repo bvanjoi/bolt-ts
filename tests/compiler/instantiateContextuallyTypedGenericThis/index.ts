@@ -12,5 +12,10 @@ interface JQuery {
 let $: JQuery;
 let lines: string[];
 $.each(lines, function(dit) {
+//~^ ERROR: Variable '$' is used before being assigned.
+//~| ERROR: Variable 'lines' is used before being assigned.
+//~| ERROR: Variable 'lines' is used before being assigned.
+//~| ERROR: Variable 'lines' is used before being assigned.
+//~| ERROR: Variable 'lines' is used before being assigned.
   return dit.charAt(0) + this.charAt(1);
 });

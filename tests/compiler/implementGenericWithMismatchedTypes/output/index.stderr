@@ -1,0 +1,25 @@
+  × Property 'foo' in type 'C<T, C>' is not assignable to the same property in
+  │ base type 'IFoo<T, C>'.
+    ╭─[../../tests/compiler/implementGenericWithMismatchedTypes/index.ts:10:5]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/implementGenericWithMismatchedTypes/index.ts:12:16]
+ 12 │ null
+    · ────
+    ╰────
+
+  × Property 'foo' in type 'C2<T, C2>' is not assignable to the same property
+  │ in base type 'IFoo2<T, C2>'.
+    ╭─[../../tests/compiler/implementGenericWithMismatchedTypes/index.ts:21:5]
+ 21 │ foo
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/implementGenericWithMismatchedTypes/index.ts:23:16]
+ 23 │ null
+    · ────
+    ╰────

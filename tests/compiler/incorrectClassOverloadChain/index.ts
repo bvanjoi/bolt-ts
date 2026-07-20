@@ -4,7 +4,7 @@
 //@compiler-options: strict=false
 
 class C {
-    foo(): string;  //~ERROR: Function implementation is missing or not immediately following the declaration.
-    foo(x): number;
+    foo(): string;
+    foo(x): number; //~ERROR: Function implementation is missing or not immediately following the declaration.
     x = 1;
 }

@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'X.Y.Z'.
+   ╭─[../../tests/compiler/moduleAndInterfaceSharingName3/index.ts:9:5]
+ 9 │ z
+   · ─
+   ╰────

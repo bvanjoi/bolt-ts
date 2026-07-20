@@ -1,0 +1,25 @@
+  × Type '{ a: null; b: string; }' is not assignable to type '{ a: undefined |
+  │ number; b: string; }'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties/index.ts:10:1]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Type '{ a: null; } & { b: string; }' is not assignable to type '{ a:
+  │ undefined | number; b: string; }'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties/index.ts:12:1]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Type 'From' is not assignable to type 'To'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties/index.ts:26:5]
+ 26 │ x
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'undefined | number'.
+    ╭─[../../tests/compiler/intersectionsAndOptionalProperties/index.ts:28:5]
+ 28 │ x.field
+    · ───────
+    ╰────

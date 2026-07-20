@@ -10,6 +10,6 @@ class CoachMarkAnchorDecorator {
         }
         
       };
-    }
+    };
   }
 }

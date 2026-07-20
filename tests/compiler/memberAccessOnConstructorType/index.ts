@@ -4,3 +4,4 @@
 
 var f: new () => void;
 f.arguments == 0;
+//~^ ERROR: Variable 'f' is used before being assigned.

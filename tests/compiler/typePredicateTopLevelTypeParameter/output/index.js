@@ -1,10 +1,10 @@
 function getPermissions(user) {
-  if (user === 'Jack') return 'admin'
+  if (user === 'Jack') return 'admin';
   
-  return undefined
+  return undefined;
 }
 var admins = ['Mike', 'Joe'].map((e) => (getPermissions(e)));
 function isDefined(a) {
-  return a !== undefined
+  return a !== undefined;
 }
 var foundAdmins = admins.filter(isDefined);

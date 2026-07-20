@@ -2,6 +2,7 @@
 
 class C234 {
   public set p1(arg1) {
+  //~^ ERROR: Parameter 'arg1' implicitly has an 'any' type.
       if (true) {
           return arg1; //~ERROR: Setters cannot return a value.
       }

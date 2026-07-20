@@ -1,13 +1,13 @@
 class MyBase {
   m1(a) {
-    return a
+    return a;
   }
   p1() {}
   m2 = function () {};
   d1 = 42;
   d2 = 42;
   get value() {
-    return 0
+    return 0;
   }
   set value(v) {}
 }
@@ -21,7 +21,7 @@ class MyDerived extends MyBase {
     var l1 = super['d1'];
     var l1 = super['d2'];
     super['m1'] = function (a) {
-      return ''
+      return '';
     };
     super['value'] = 0;
     var z = super['value'];

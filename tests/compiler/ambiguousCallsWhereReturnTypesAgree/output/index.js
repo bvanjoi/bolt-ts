@@ -6,9 +6,9 @@ class TestClass {
 }
 class TestClass2 {
   bar(x) {
-    return 0
+    return 0;
   }
   foo(x) {
-    return this.bar(x)
+    return this.bar(x);
   }
 }

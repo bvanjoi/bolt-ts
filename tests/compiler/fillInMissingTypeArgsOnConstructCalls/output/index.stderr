@@ -1,0 +1,6 @@
+  × Property 'list' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/fillInMissingTypeArgsOnConstructCalls/index.ts:4:7]
+ 4 │ list
+   · ────
+   ╰────

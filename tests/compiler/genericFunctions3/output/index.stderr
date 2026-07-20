@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'Query<T>'.
+    ╭─[../../tests/compiler/genericFunctions3/index.ts:11:10]
+ 11 │ undefined
+    · ─────────
+    ╰────

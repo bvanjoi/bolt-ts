@@ -1,5 +1,6 @@
-use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID, keyword};
+use bolt_ts_ast::{self as ast, NodeFlags, NodeID, is_strict_mode_reserved_atom, keyword};
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
+use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
@@ -7,9 +8,8 @@ use bolt_ts_utils::path::NormalizePath;
 
 use std::sync::{Arc, Mutex};
 
-use crate::parsing_ctx::ParseContext;
-
 use super::PResult;
+use super::parsing_ctx::ParseContext;
 use super::parsing_ctx::ParsingContext;
 use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
@@ -48,7 +48,7 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) line_map: Vec<u32>,
     pub(super) is_declaration: bool,
     pub(super) filepath: Atom,
-    pub(super) in_ambient_module: bool,
+    pub(super) _in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
     pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
@@ -58,6 +58,7 @@ pub(super) struct ParserState<'cx, 'p> {
 }
 
 impl<'cx, 'p> ParserState<'cx, 'p> {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
@@ -104,7 +105,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             line: 0,
             filepath: atom,
             is_declaration,
-            in_ambient_module: false,
+            _in_ambient_module: false,
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap::default(),
             has_no_default_lib: false,
@@ -282,11 +283,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     pub(super) fn create_ident_by_atom(&mut self, name: Atom, span: Span) -> &'cx ast::Ident {
-        let id = self.next_node_id();
-        let ident = self.alloc(ast::Ident { id, name, span });
-        self.nodes.insert(id, Node::Ident(ident));
-        self.node_flags_map.insert(id, self.node_context_flags);
-        ident
+        self.create_identifier(name, span)
     }
 
     pub(super) fn create_ident(
@@ -364,7 +361,10 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn create_lit_ty(&mut self, kind: ast::LitTyKind, span: Span) -> &'cx ast::LitTy {
         let id = self.next_node_id();
-        self.alloc(ast::LitTy { id, kind, span })
+        let lit = self.alloc(ast::LitTy { id, kind, span });
+        self.insert_node(id, ast::Node::LitTy(lit));
+        self.insert_node_flags(id, ast::NodeFlags::empty());
+        lit
     }
 
     pub(super) fn parse(&mut self) -> &'cx ast::Program<'cx> {
@@ -381,11 +381,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
             Ok(stmt)
         });
-        let id = self.next_node_id();
-        let program = ast::Program::new(id, self.new_span(start as u32), stmts);
-        let program = self.alloc(program);
-        self.nodes.insert(id, Node::Program(program));
-        program
+
+        (self.create_program(self.new_span(start as u32), stmts)) as _
     }
 
     pub(super) fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {
@@ -570,15 +567,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             return;
         }
 
-        let Some(token) = ast::atom_to_token(ident.name) else {
-            return;
-        };
-
-        if token.is_strict_mode_reserved_word() {
+        if is_strict_mode_reserved_atom(ident.name) {
             //  strict mode identifier message
             let error = errors::IdentifierExpectedXIsAReservedWordInStrictMode {
                 span: ident.span,
-                identifier: token.as_str().to_string(),
+                identifier: self.atoms.lock().unwrap().get(ident.name).to_string(),
             };
             self.push_error(Box::new(error));
         }

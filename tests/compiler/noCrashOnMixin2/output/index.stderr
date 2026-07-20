@@ -1,0 +1,25 @@
+  × A rest parameter cannot be optional.
+    ╭─[../../tests/compiler/noCrashOnMixin2/index.ts:17:40]
+ 17 │ ?
+    · ─
+    ╰────
+
+  × A rest parameter must be of an array type.
+    ╭─[../../tests/compiler/noCrashOnMixin2/index.ts:17:33]
+ 17 │ ...args?: any[]
+    · ───────────────
+    ╰────
+
+  × A mixin class must have a constructor with a single rest parameter of type
+  │ 'any[]'.
+    ╭─[../../tests/compiler/noCrashOnMixin2/index.ts:22:12]
+ 22 │ class
+    · ─────
+    ╰────
+
+  × Constructor of class 'Abstract' is protected and only accessible within
+  │ the class declaration.
+    ╭─[../../tests/compiler/noCrashOnMixin2/index.ts:32:13]
+ 32 │ Concrete
+    · ────────
+    ╰────

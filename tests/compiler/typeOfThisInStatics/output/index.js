@@ -8,6 +8,6 @@ class C {
     var r = this;
     var r0 = this;
     var r1 = this;
-    return 1
+    return 1;
   }
 }

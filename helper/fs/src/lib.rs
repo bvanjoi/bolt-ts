@@ -7,6 +7,7 @@ mod tree;
 pub use self::errors::{FsError, FsResult};
 pub use self::memory::MemoryFS;
 pub use self::path::PathId;
+pub use self::real::Counter;
 pub use self::real::LocalFS;
 pub use self::real::read_file_with_encoding;
 

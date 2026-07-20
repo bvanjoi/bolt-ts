@@ -6,11 +6,11 @@ class B extends A {
   foo() {
     return () => {
       super.x;
-    }
+    };
   }
   bar() {
     return () => {
       super['x'];
-    }
+    };
   }
 }

@@ -8,7 +8,7 @@ impl SymbolName {
             SymbolName::EleNum(val) => val.val().to_string(),
             SymbolName::InstantiationExpression => "__InstantiationExpression".to_string(),
             SymbolName::Container => "__Container".to_string(),
-            SymbolName::ClassExpr => "__ClassExpr".to_string(),
+            SymbolName::ClassExpr => "(Anonymous class)".to_string(),
             SymbolName::Array => "__Array".to_string(),
             SymbolName::Object => "__Object".to_string(),
             SymbolName::Fn => "__Fn".to_string(),
@@ -23,7 +23,7 @@ impl SymbolName {
             SymbolName::ExportEquals => "export =".to_string(),
             SymbolName::ExportDefault => "__ExportDefault".to_string(),
             SymbolName::Computed => "<computed>".to_string(),
-            SymbolName::ParamIndex(_) => "__ParamIndex".to_string(),
+            SymbolName::ParamIndex(n) => format!("__ParamIndex{}", n),
             SymbolName::ESSymbol { escaped_name, .. } => format!("{}#", atoms.get(escaped_name)),
         }
     }

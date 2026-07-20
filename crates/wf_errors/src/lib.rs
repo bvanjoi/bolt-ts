@@ -5,7 +5,6 @@ use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_span::Span;
 
-use thiserror;
 use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -102,16 +101,32 @@ pub struct InitializersAreNotAllowedInAmbientContexts {
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A parameter initializer is only allowed in a function or constructor implementation.")]
 pub struct AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Parameter cannot have question mark and initializer.")]
 pub struct ParameterCannotHaveQuestionMarkAndInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{x}' is an unused renaming of '{y}'. Did you intend to use it as a type annotation?")]
+pub struct XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub x: String,
+    pub y: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Import declarations in a namespace cannot reference a module.")]
+pub struct ImportDeclarationsInANamespaceCannotReferenceAModule {
     #[label(primary)]
     pub span: Span,
 }

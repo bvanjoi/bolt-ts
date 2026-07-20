@@ -4,9 +4,9 @@
 
 function Foo():Foo; // error
 //~^ ERROR: Function with bodies can only merge with classes that are ambient.
-//~| ERROR: Function implementation is missing or not immediately following the declaration.
 function Foo(s:string):Foo; // error
 //~^ ERROR: Function with bodies can only merge with classes that are ambient.
+//~| ERROR: Function implementation is missing or not immediately following the declaration.
 class Foo { // error
 //~^ ERROR: Class declaration cannot implement overload list for 'Foo'.
     bar1() { /*WScript.Echo("bar1");*/ }

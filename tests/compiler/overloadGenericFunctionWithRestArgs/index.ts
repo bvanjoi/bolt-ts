@@ -2,9 +2,11 @@
 
 class B<V>{
   private id: V;
+  //~^ ERROR: Property 'id' has no initializer and is not definitely assigned in the constructor.
 }
 class A<U>{
   GetEnumerator: () => B<U>;
+  //~^ ERROR: Property 'GetEnumerator' has no initializer and is not definitely assigned in the constructor.
 }
 function Choice<T>(...v_args: T[]): A<T>;
 function Choice<T>(...v_args: T[]): A<T> {

@@ -31,7 +31,7 @@ fn match_files(
         let base_dir = bolt_ts_path::get_base_path(path, item);
         let include = path.join(item).normalize();
         let include = glob::Pattern::new(include.to_str().unwrap()).unwrap();
-        matched.extend(bolt_ts_fs::glob(fs, &base_dir, &include, &&exclude, atoms));
+        matched.extend(bolt_ts_fs::glob(fs, &base_dir, &include, &exclude, atoms));
     }
     matched
 }
@@ -70,7 +70,7 @@ fn assert_included_files(input_map: serde_json::Value, include_glob: &str, expec
         let mut atoms = bolt_ts_atom::AtomIntern::prefill(&[]);
         let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
         let f = match_files(
-            &dir.path(),
+            dir.path(),
             None,
             Some(&[include_glob.to_string()]),
             &mut fs,

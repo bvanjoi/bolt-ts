@@ -2,6 +2,7 @@
 
 class Bug {
   private name: string;
+  //~^ ERROR: Property 'name' has no initializer and is not definitely assigned in the constructor.
 
   private static func: Function[] = [
    (that: Bug, name: string) => {
@@ -18,18 +19,22 @@ class Bug {
 class A {
   prop1 = function() {
       this;
+      //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
   };
 
   prop2 = function() {
       function inner() {
           this;
+          //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       }
       () => this;
+      //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
   };
 
   prop3 = () => {
       function inner() {
           this;
+          //~^ ERROR: 'this' implicitly has type 'any' because it does not have a type annotation.
       }
   };
 

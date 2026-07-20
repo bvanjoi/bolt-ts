@@ -1,0 +1,23 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/objectLiteralIndexers/index.ts:17:51]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/objectLiteralIndexers/index.ts:17:57]
+ 17 │ b
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/objectLiteralIndexers/index.ts:20:11]
+ 20 │ b
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/objectLiteralIndexers/index.ts:22:17]
+ 22 │ b
+    · ─
+    ╰────

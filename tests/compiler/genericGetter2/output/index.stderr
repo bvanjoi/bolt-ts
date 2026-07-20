@@ -1,5 +1,12 @@
   × Generic type 'A<T>' requires 1 type argument.
-   ╭─[../../tests/compiler/genericGetter2/index.ts:7:14]
- 7 │ A
+   ╭─[../../tests/compiler/genericGetter2/index.ts:8:14]
+ 8 │ A
    · ─
+   ╰────
+
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericGetter2/index.ts:6:5]
+ 6 │ data
+   · ────
    ╰────

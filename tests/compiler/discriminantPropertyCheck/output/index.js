@@ -79,13 +79,13 @@ export function foo(obj) {
     case '+':
       {
         onlyPlus(obj.key);
-        return 
+        return ;
       }
     
   }
 }
 function onlyPlus(arg) {
-  return arg
+  return arg;
 }
 var BarEnum = {};
 (function (BarEnum) {

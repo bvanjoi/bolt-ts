@@ -3,7 +3,9 @@
 class A { foo() { } }
 class B { bar() { }}
 function f(x) { return x; }
+//~^ ERROR: Parameter 'x' implicitly has an 'any' type.
 function g<T, U>(x) { return f(x); }
+//~^ ERROR: Parameter 'x' implicitly has an 'any' type.
 g<A, B>(7)
 
 f(g<A, B>(7));

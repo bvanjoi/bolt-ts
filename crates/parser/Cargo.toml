@@ -27,8 +27,6 @@ bolt_ts_module_resolve = { path = "../module_resolve" }
 bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
 thin-vec = { workspace = true }
-stacker = "0.1"
-include_dir = "0.7.3"
 paste = { workspace = true }
 serde_json = { workspace = true }
 indexmap = { workspace = true }

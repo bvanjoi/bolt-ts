@@ -9,5 +9,6 @@ class C {
 type W = typeof o.n;
 typeof o2;
 //~^ ERROR: Block-scoped variable 'o2' used before its declaration.
+//~| ERROR: Variable 'o2' is used before being assigned.
 let o2: typeof o;
 let o = { n: 12 };

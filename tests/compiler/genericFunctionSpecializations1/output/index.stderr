@@ -1,11 +1,11 @@
   × Argument of type 'number' is not assignable to parameter of type 'string'.
-   ╭─[../../tests/compiler/genericFunctionSpecializations1/index.ts:8:6]
- 8 │ 1
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/genericFunctionSpecializations1/index.ts:11:6]
+ 11 │ 1
+    · ─
+    ╰────
 
   × Argument of type 'number' is not assignable to parameter of type 'string'.
-    ╭─[../../tests/compiler/genericFunctionSpecializations1/index.ts:10:14]
- 10 │ 1
+    ╭─[../../tests/compiler/genericFunctionSpecializations1/index.ts:13:14]
+ 13 │ 1
     · ─
     ╰────

@@ -10,6 +10,7 @@ namespace A {
     export namespace B {
         export function createB(): B {
             return null;
+            //~^ ERROR: Type 'null' is not assignable to type 'A.B'.
         }
     }
 }

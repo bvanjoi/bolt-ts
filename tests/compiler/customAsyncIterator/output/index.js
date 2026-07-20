@@ -8,6 +8,6 @@ class ConstantIterator {
     return {
           value: this.constant,
       done: false      
-    }
+    };
   }
 }

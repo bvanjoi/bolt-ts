@@ -2,6 +2,7 @@
 
 class undefined { //~ERROR: Class name cannot be 'undefined'.
 	foo: string;
+	//~^ ERROR: Property 'foo' has no initializer and is not definitely assigned in the constructor.
 }
 interface undefined { //~ ERROR: Interface name cannot be 'undefined'.
 	member: number;

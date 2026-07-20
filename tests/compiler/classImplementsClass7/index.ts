@@ -2,6 +2,7 @@
 
 class A {
     private x: number;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 class B implements A {}

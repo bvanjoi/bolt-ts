@@ -1,11 +1,11 @@
   × Property 'foo' is missing.
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:7]
- 20 │ D
+    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:23:7]
+ 23 │ D
     · ─
     ╰────
 
   × Property 'bar' is missing.
-    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:20:7]
- 20 │ D
+    ╭─[../../tests/compiler/classWithMultipleBaseClasses/index.ts:23:7]
+ 23 │ D
     · ─
     ╰────

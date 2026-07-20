@@ -1,0 +1,12 @@
+  × Cannot find name 'ItemSet'.
+    ╭─[../../tests/compiler/lambdaArgCrash/index.ts:32:25]
+ 32 │ ItemSet
+    · ───────
+    ╰────
+
+  × Argument of type '(items: error) => void' is not assignable to parameter
+  │ of type '() => any'.
+    ╭─[../../tests/compiler/lambdaArgCrash/index.ts:34:14]
+ 34 │ listener
+    · ────────
+    ╰────

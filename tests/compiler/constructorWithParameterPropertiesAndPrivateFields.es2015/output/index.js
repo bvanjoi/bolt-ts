@@ -25,3 +25,9 @@ class B {
     console.log(this.exposedField);
   }
 }
+class C {
+  a;
+  constructor(arg) {({
+          key: this.a      
+    } = arg);}
+}

@@ -1,0 +1,17 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/parseCommaSeparatedNewlineNew/index.ts:5:4]
+ 5 │ )
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/parseCommaSeparatedNewlineNew/index.ts:4:2]
+ 4 │ a
+   · ─
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/parseCommaSeparatedNewlineNew/index.ts:4:2]
+ 4 │ a
+   · ─
+   ╰────

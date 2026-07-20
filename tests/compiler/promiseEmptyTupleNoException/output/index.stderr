@@ -1,0 +1,5 @@
+  × Type 'any[]' is not assignable to type '[]'.
+   ╭─[../../tests/compiler/promiseEmptyTupleNoException/index.ts:8:10]
+ 8 │ emails
+   · ──────
+   ╰────

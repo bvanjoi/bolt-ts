@@ -4,6 +4,7 @@ module M { export class C1 { } }
 module M {
     export interface I { n: number; }
     export class C2 { f(): I { return null; } }
+    //~^ ERROR: Type 'null' is not assignable to type 'M.I'.
     export class C3 { f(): I { return { n: '42' } } }
     //~^ ERROR: Type 'string' is not assignable to type 'number'.
 }

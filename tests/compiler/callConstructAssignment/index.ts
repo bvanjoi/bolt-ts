@@ -1,8 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.3/tests/cases/compiler/callConstructAssignment.ts`, Apache-2.0 License
 
-var foo:{ ( ):void; }
+declare var foo:{ ( ):void; }
 
-var bar:{ new ( ):any; }
+declare var bar:{ new ( ):any; }
 
 foo = bar; // error
 //~^ ERROR: Type 'new () => any' is not assignable to type '() => void'.

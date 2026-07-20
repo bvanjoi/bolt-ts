@@ -4,7 +4,9 @@
 
 var arr: string[] | number[];
 arr.splice(1, 1);
+//~^ ERROR: Variable 'arr' is used before being assigned.
 let b: string[] | number[] = arr.splice(1, 1);
+//~^ ERROR: Variable 'arr' is used before being assigned.
 
 {
   let b: string[] = [];

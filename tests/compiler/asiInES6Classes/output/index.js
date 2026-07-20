@@ -3,6 +3,6 @@ class Foo {
       done: false    
   };
   bar() {
-    return 3
+    return 3;
   }
 }

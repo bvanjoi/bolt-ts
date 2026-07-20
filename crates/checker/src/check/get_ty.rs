@@ -105,7 +105,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_of_prototype_property(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    fn get_ty_of_prototype_property(&mut self, _symboll: SymbolID) -> &'cx ty::Ty<'cx> {
         self.any_ty
         // let parent = self.symbol(symbol).parent.unwrap();
         // let class_ty = self.get_declared_ty_of_symbol(parent);
@@ -118,7 +118,7 @@ impl<'cx> TyChecker<'cx> {
         // }
     }
 
-    fn report_circularity_error(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+    pub(super) fn report_circularity_error(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
         let s = self.binder.symbol(symbol);
         if let Some(value_declaration) = s.value_decl {
             let n = self.p.node(value_declaration);
@@ -133,7 +133,7 @@ impl<'cx> TyChecker<'cx> {
                 && (!n.is_param_decl() || n.initializer().is_some())
             {
                 let error = errors::XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferencedDirectlyOrIndirectlyInItsOwnInitializer {
-                    span: n.span(),
+                    span: n.name().map_or(n.span(), |name| name.span()),
                     name: n.name().unwrap().to_string(&self.atoms),
                 };
                 self.push_error(Box::new(error));
@@ -317,14 +317,48 @@ impl<'cx> TyChecker<'cx> {
                 .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
         };
 
-        let ty = if let Some(ty) = ty {
+        let mut ty = if let Some(ty) = ty {
             ty
         } else {
             // TODO: throw error
             self.any_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            todo!("cycle")
+            if let Some(getter) = getter
+                && self.p.get_annotated_accessor_ty_node(getter).is_some()
+            {
+                let error = errors::XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+                    span: self.p.node(getter).span(),
+                    name: self.p.node(getter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(setter) = setter
+                && self.p.get_annotated_accessor_ty_node(setter).is_some()
+            {
+                let error = errors::XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+                    span: self.p.node(setter).span(),
+                    name: self.p.node(setter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+            // TODO: accessor
+            // else if (getAnnotatedAccessorTypeNode(accessor)) {
+            //     error(
+            //         setter,
+            //         Diagnostics._0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+            //         symbolToString(symbol),
+            //     );
+            // }
+            else if let Some(getter) = getter
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let error = errors::XImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
+                    span: self.p.node(getter).span(),
+                    name: self.p.node(getter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+            ty = self.any_ty;
         }
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
@@ -743,7 +777,7 @@ impl<'cx> TyChecker<'cx> {
         let n = self.p.node(node);
         if let Some(n) = n.as_var_decl() {
             matches!(n.name.kind, ast::BindingKind::Ident(_))
-                && self.node_query(node.module()).is_var_const(node)
+                && self.node_query(node.module()).is_var_const_like(node)
                 && self.p.node(self.parent(node).unwrap()).is_var_stmt()
         } else if n.is_class_prop_elem() || n.is_object_prop_assignment() {
             n.has_effective_readonly_modifier() && n.has_static_modifier()
@@ -853,13 +887,15 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
-        let p = self.error_ty;
-        self.get_mut_node_links(node.id).set_resolved_ty(p);
 
         let ty = self.check_expression_with_ty_arguments(node);
         let ty = self.get_widened_ty(ty);
         let ty = self.get_regular_ty_of_literal_ty(ty);
-        self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 
@@ -1016,7 +1052,7 @@ impl<'cx> TyChecker<'cx> {
                             && ctor_parent == s.parent.and_then(|p| self.symbol(p).value_decl))
                         || (is_assignment_declaration
                             && s.parent
-                                .map_or(false, |p| self.symbol(p).value_decl == Some(ctor)));
+                                .is_some_and(|p| self.symbol(p).value_decl == Some(ctor)));
                     return !is_writeable_symbol;
                 }
             }
@@ -1073,8 +1109,8 @@ impl<'cx> TyChecker<'cx> {
             }
             if let Some(prop) = self.get_prop_of_ty::<false, false>(object_ty, prop_name) {
                 if access_flags.contains(AccessFlags::REPORT_DEPRECATED)
-                    && let Some(access_node) = access_node
-                    && let Some(decls) = self.symbol(prop).decls.as_ref()
+                    && let Some(_access_nodee) = access_node
+                    && let Some(_declss) = self.symbol(prop).decls.as_ref()
                 {
                     // TODO: deprecated
                 }
@@ -1564,7 +1600,7 @@ impl<'cx> TyChecker<'cx> {
             potential_alias,
             alias_ty_arguments,
         );
-        if let Some(_) = self.get_node_links(node.id).get_resolved_ty() {
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
             // TODO: delay bug
             self.get_mut_node_links(node.id).override_resolved_ty(ty);
             return ty;
@@ -2077,7 +2113,11 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_args,
         });
         let ty = self.get_cond_ty::<false>(root, None, alias_symbol, alias_ty_args);
-        self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 
@@ -2187,7 +2227,7 @@ impl<'cx> TyChecker<'cx> {
         let readonly = self
             .parent(node.id)
             .is_some_and(|parent| self.p.node(parent).is_readonly_ty_op());
-        let target = if Self::get_array_element_from_tuple_type_node(&node).is_some() {
+        let target = if Self::get_array_element_from_tuple_type_node(node).is_some() {
             if readonly {
                 self.global_readonly_array_ty()
             } else {
@@ -2200,7 +2240,7 @@ impl<'cx> TyChecker<'cx> {
                 .map(|ty| Self::get_tuple_element_flags(ty))
                 .collect();
             let element_flags = self.alloc(element_flags);
-            self.get_tuple_target_ty(element_flags, readonly)
+            self.get_tuple_target_ty(element_flags, readonly, None)
         };
 
         let ty = if target == self.empty_generic_ty() {
@@ -2335,7 +2375,7 @@ impl<'cx> TyChecker<'cx> {
     fn should_report_errors_from_widening_with_contextual_sig(
         &mut self,
         decl: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
+        _tyy: &'cx ty::Ty<'cx>,
         widening_kind: WideningKind,
     ) -> bool {
         let Some(sig) = self.get_contextual_sig_for_fn_like_decl(decl) else {
@@ -2485,9 +2525,14 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
-            ast::Node::ObjectMethodMember(_)
+            ast::Node::FnDecl(_)
+            | ast::Node::ObjectMethodMember(_)
             | ast::Node::ClassMethodElem(_)
-            | ast::Node::MethodSignature(_) => {
+            | ast::Node::MethodSignature(_)
+            | ast::Node::GetterDecl(_)
+            | ast::Node::SetterDecl(_)
+            | ast::Node::FnExpr(_)
+            | ast::Node::ArrowFnExpr(_) => {
                 let ty_as_string = self.print_ty(ty, None).to_string();
                 let decl_name = self.p.node(decl).name();
                 if no_implicit_any && decl_name.is_none() {
@@ -2513,7 +2558,24 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
-            _ => {}
+            ast::Node::MappedTy(_) => {
+                if no_implicit_any {
+                    todo!()
+                }
+            }
+            _ => {
+                let decl_name = self.p.node(decl).name();
+                if no_implicit_any {
+                    let error = errors::VariableXImplicitlyHasAnYType {
+                        span: self.p.node(decl).span(),
+                        variable: decl_name.unwrap().to_string(&self.atoms),
+                        ty: self.print_ty(ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    // todo!()
+                }
+            }
         }
     }
 
@@ -2631,13 +2693,13 @@ impl<'cx> TyChecker<'cx> {
 
         if ret_ty.is_some() || yield_ty.is_some() || next_ty.is_some() {
             if let Some(yield_ty) = yield_ty {
-                self.report_errors_from_widening(id, yield_ty, Some(WideningKind::FunctionReturn));
+                self.report_errors_from_widening(id, yield_ty, Some(WideningKind::GeneratorYield));
             }
             if let Some(ret_ty) = ret_ty {
                 self.report_errors_from_widening(id, ret_ty, Some(WideningKind::FunctionReturn));
             }
             if let Some(next_ty) = next_ty {
-                self.report_errors_from_widening(id, next_ty, Some(WideningKind::FunctionReturn));
+                self.report_errors_from_widening(id, next_ty, Some(WideningKind::GeneratorNext));
             }
             if ret_ty.is_some_and(|ret_ty| ret_ty.is_unit())
                 || yield_ty.is_some_and(|yield_ty| yield_ty.is_unit())
@@ -2724,13 +2786,12 @@ impl<'cx> TyChecker<'cx> {
         let flags = self.get_node_links(id).flags();
         if flags.contains(super::NodeCheckFlags::TYPE_CHECKED)
             && let Some(flow_ty_cache) = &self.flow_ty_cache
+            && let Some(cache) = flow_ty_cache.get(&id)
         {
-            if let Some(cache) = flow_ty_cache.get(&id) {
-                return cache;
-            }
+            return cache;
         }
         let saved_flow_invocation_count = self.flow_invocation_count;
-        let ty = self.check_expression(expr, Some(CheckMode::TYPE_ONLY));
+        let ty = self.check_expression::<false>(expr, Some(CheckMode::TYPE_ONLY));
         if saved_flow_invocation_count != self.flow_invocation_count {
             match &mut self.flow_ty_cache {
                 Some(n) => {
@@ -2795,39 +2856,6 @@ impl<'cx> TyChecker<'cx> {
         self.get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, origin)
     }
 
-    fn has_distributive_name_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
-        let m = ty.kind.expect_object_mapped();
-        let ty_var = self.get_ty_param_from_mapped_ty(m);
-        fn is_distributive<'cx>(ty: &'cx ty::Ty<'cx>, ty_var: &'cx ty::Ty<'cx>) -> bool {
-            if ty.flags.intersects(
-                TypeFlags::ANY_OR_UNKNOWN
-                    .union(TypeFlags::PRIMITIVE)
-                    .union(TypeFlags::NEVER)
-                    .union(TypeFlags::TYPE_PARAMETER)
-                    .union(TypeFlags::OBJECT)
-                    .union(TypeFlags::NON_PRIMITIVE),
-            ) {
-                true
-            } else if let Some(cond) = ty.kind.as_cond_ty() {
-                cond.root.is_distributive && cond.check_ty == ty_var
-            } else if let Some(tys) = ty.kind.tys_of_union_or_intersection() {
-                tys.iter().all(|t| is_distributive(t, ty_var))
-            } else if ty.flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
-                todo!()
-            } else if let Some(i) = ty.kind.as_indexed_access() {
-                is_distributive(i.object_ty, ty_var) && is_distributive(i.index_ty, ty_var)
-            } else if let Some(s) = ty.kind.as_substitution_ty() {
-                is_distributive(s.base_ty, ty_var) && is_distributive(s.constraint, ty_var)
-            } else if ty.flags.intersects(TypeFlags::STRING_MAPPING) {
-                todo!()
-            } else {
-                false
-            }
-        }
-        let ty = self.get_name_ty_from_mapped_ty(m).unwrap_or(ty_var);
-        is_distributive(ty, ty_var)
-    }
-
     pub(super) fn should_defer_index_ty(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
@@ -2836,11 +2864,14 @@ impl<'cx> TyChecker<'cx> {
         ty.flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || ty.kind.is_generic_tuple_type()
             || (self.is_generic_mapped_ty(ty)
-                && (!self.has_distributive_name_ty(ty)
-                    || self.get_mapped_ty_name_ty_kind(ty) == ty::MappedTyNameTyKind::Remapping))
-            || ((index_flags.contains(IndexFlags::NO_REDUCIBLE_CHECK))
-                && ty.kind.is_union()
-                && self.is_generic_reducible_ty(ty))
+                && self
+                    .get_name_ty_from_mapped_ty(ty.kind.expect_object_mapped())
+                    .is_some())
+            || (!index_flags.contains(IndexFlags::NO_REDUCIBLE_CHECK)
+                && ty
+                    .kind
+                    .as_union()
+                    .is_some_and(|u| self.is_generic_reducible_ty_for_union(u)))
             || ty.maybe_type_of_kind(TypeFlags::INSTANTIABLE)
                 && ty
                     .kind
@@ -2979,7 +3010,7 @@ impl<'cx> TyChecker<'cx> {
             match r.target.symbol() {
                 Some(symbol) => {
                     let error = errors::TypeArgumentsForXCircularlyReferenceThemselves {
-                        span: span,
+                        span,
                         name: self.symbol(symbol).name.to_string(&self.atoms),
                     };
                     self.push_error(Box::new(error));

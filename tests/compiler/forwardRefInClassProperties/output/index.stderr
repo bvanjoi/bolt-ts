@@ -18,7 +18,13 @@
 
 Advice: 
   ☞ Block-scoped variable 'b' is defined here
-    ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:17:13]
- 17 │ b = 3
+    ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:18:13]
+ 18 │ b = 3
     · ─────
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/forwardRefInClassProperties/index.ts:15:17]
+ 15 │ b
+    · ─
     ╰────

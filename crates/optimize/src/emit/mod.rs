@@ -42,6 +42,12 @@ pub struct Emitter {
     content: PPrint,
 }
 
+impl Default for Emitter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Emitter {
     pub fn new() -> Self {
         Self {
@@ -758,10 +764,7 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let block = ns.block();
 
         // var name
-        fn sub_names_of_binding<'cx>(
-            this: &JSEmitter,
-            binding: ir::Binding,
-        ) -> Vec<bolt_ts_atom::Atom> {
+        fn sub_names_of_binding(this: &JSEmitter, binding: ir::Binding) -> Vec<bolt_ts_atom::Atom> {
             match binding {
                 ir::Binding::Ident(n) => vec![this.nodes.get_ident(&n).name()],
                 ir::Binding::ObjectPat(n) => this
@@ -1093,7 +1096,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
             Fn(id) => self.emit_fn_decl(id),
             If(id) => self.emit_if_stmt(id),
             Block(id) => self.emit_block_stmt(id),
-            Ret(id) => self.emit_ret_stmt(id),
+            Ret(id) => {
+                self.emit_ret_stmt(id);
+                self.emitter.print().p_semi();
+            }
             Class(id) => self.emit_class_decl(id),
             Throw(id) => self.emit_throw_stmt(id),
             Module(id) => self.emit_module_decl(id),
@@ -1727,8 +1733,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
                     ir::JsxAttrName::Ident(n) => self.emit_ident(n),
                     ir::JsxAttrName::Ns(ns) => self.emit_jsx_ns_name(ns),
                 };
-                self.emitter.print().p_eq();
                 if let Some(v) = n.init() {
+                    self.emitter.print().p_eq();
                     self.emit_jsx_attr_value(v);
                 }
             }

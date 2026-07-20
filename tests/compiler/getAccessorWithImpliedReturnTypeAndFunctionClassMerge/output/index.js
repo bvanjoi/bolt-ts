@@ -5,7 +5,7 @@ var MyModule = {};
   class MyClass {
     get myGetter() {
       var obj = {};
-      return obj
+      return obj;
     }
   }
   MyModule.MyClass = MyClass;

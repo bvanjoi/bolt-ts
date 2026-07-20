@@ -3,6 +3,7 @@
 interface A {}
 let x = class B implements A {
     prop: number;
+    //~^ ERROR: Property 'prop' has no initializer and is not definitely assigned in the constructor.
     onStart(): void {
     }
     func = () => {

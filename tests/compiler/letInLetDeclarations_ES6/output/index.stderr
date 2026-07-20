@@ -1,0 +1,25 @@
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+   ╭─[../../tests/compiler/letInLetDeclarations_ES6/index.ts:6:13]
+ 6 │ let
+   · ───
+   ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+   ╭─[../../tests/compiler/letInLetDeclarations_ES6/index.ts:6:13]
+ 6 │ let
+   · ───
+   ╰────
+
+  × 'let' is not allowed to be used as a name in 'let' or 'const'
+  │ declarations.
+    ╭─[../../tests/compiler/letInLetDeclarations_ES6/index.ts:10:17]
+ 10 │ let
+    · ───
+    ╰────
+
+  × Identifier expected. 'let' is a reserved word in strict mode.
+    ╭─[../../tests/compiler/letInLetDeclarations_ES6/index.ts:10:17]
+ 10 │ let
+    · ───
+    ╰────

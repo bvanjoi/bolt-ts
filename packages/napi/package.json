@@ -17,7 +17,6 @@
 		}
 	},
 	"scripts": {
-		"postinstall": "npm run build",
 		"build": "npm run build:node && npm run build:wasm",
 		"build:node": "napi build --platform --release --manifest-path ../../crates/napi/Cargo.toml --output-dir ./dist",
 		"build:debug:node": "napi build --platform --manifest-path ../../crates/napi/Cargo.toml --output-dir ./dist",

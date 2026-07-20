@@ -1,0 +1,29 @@
+  × Expected ','.
+   ╭─[../../tests/compiler/errorRecoveryInClassDeclaration/index.ts:8:20]
+ 8 │ blaz
+   · ────
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/errorRecoveryInClassDeclaration/index.ts:8:27]
+ 8 │ {
+   · ─
+   ╰────
+
+  × Cannot find name 'foo'.
+   ╭─[../../tests/compiler/errorRecoveryInClassDeclaration/index.ts:7:17]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Cannot find name 'public'.
+   ╭─[../../tests/compiler/errorRecoveryInClassDeclaration/index.ts:8:13]
+ 8 │ public
+   · ──────
+   ╰────
+
+  × Cannot find name 'blaz'.
+   ╭─[../../tests/compiler/errorRecoveryInClassDeclaration/index.ts:8:20]
+ 8 │ blaz
+   · ────
+   ╰────

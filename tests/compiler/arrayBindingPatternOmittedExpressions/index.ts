@@ -8,6 +8,7 @@ var results: string[];
 
 {
     let [, b, , a] = results;
+    //~^ ERROR: Variable 'results' is used before being assigned.
     let x = {
         a,
         b

@@ -129,7 +129,7 @@ impl<'cx> Ty<'cx> {
                 }
                 refer
                     .ty_args
-                    .is_none_or(|ty_args| !ty_args.list.iter().all(|ty| ty.is_this_less()))
+                    .is_none_or(|ty_args| ty_args.list.iter().all(|ty| ty.is_this_less()))
             }
             _ => false,
         }
@@ -471,10 +471,8 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::Ident(ident) => atoms.get(ident.name).to_string(),
             PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
             PropNameKind::NumLit(num) => num.val.to_string(),
-            PropNameKind::Computed(_n) => todo!(),
-            PropNameKind::PrivateIdent(ident) => {
-                format!("#{}", atoms.get(ident.name))
-            }
+            PropNameKind::Computed(_n) => "computed".to_string(),
+            PropNameKind::PrivateIdent(ident) => atoms.get(ident.name).to_string(),
             PropNameKind::BigIntLit(_lit) => todo!(),
         }
     }

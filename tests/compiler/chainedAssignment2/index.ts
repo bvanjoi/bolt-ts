@@ -7,4 +7,9 @@ var d: Date;
 var e: RegExp;
 
 a = b = c = d = e = null;
+//~^ ERROR: Type 'null' is not assignable to type 'RegExp'.
+//~| ERROR: Type 'null' is not assignable to type 'Date'.
+//~| ERROR: Type 'null' is not assignable to type 'boolean'.
+//~| ERROR: Type 'null' is not assignable to type 'number'.
+//~| ERROR: Type 'null' is not assignable to type 'string'.
 

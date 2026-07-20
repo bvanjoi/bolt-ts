@@ -387,7 +387,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let base_ty_node = base_ty_node.unwrap();
             let ty_args = base_ty_node.expr_with_ty_args.ty_args;
-            let ctors = self.get_instantiated_constructors_for_ty_args(
+            let ctors = self.get_instantiated_constructors_for_type_arguments(
                 base_ctor_ty,
                 ty_args,
                 base_ty_node.id,
@@ -565,14 +565,13 @@ impl<'cx> TyChecker<'cx> {
                 if instantiated_base_ty != self.any_ty {
                     let instantiated_index_infos = self
                         .get_index_infos_of_ty(instantiated_base_ty)
-                        .into_iter()
+                        .iter()
                         .filter(|info| self.find_index_info(&index_infos, info.key_ty).is_none())
                         .collect::<Vec<_>>();
                     index_infos.extend(instantiated_index_infos);
-                } else if {
-                    let key_ty = self.any_base_type_index_info().key_ty;
-                    self.find_index_info(&index_infos, key_ty).is_none()
-                } {
+                } else if let key_ty = self.any_base_type_index_info().key_ty
+                    && self.find_index_info(&index_infos, key_ty).is_none()
+                {
                     index_infos.push(self.any_base_type_index_info());
                 }
             }
@@ -913,7 +912,7 @@ impl<'cx> TyChecker<'cx> {
         let targets = {
             let a = self.get_number_literal_type_from_number(0.);
             let tys = self.alloc([replacement]);
-            let b = self.create_tuple_ty(tys, None, false);
+            let b = self.create_tuple_ty(tys, None, false, None);
             self.alloc([a, b])
         };
         let mapper = self.create_ty_mapper(sources, targets);
@@ -951,7 +950,7 @@ impl<'cx> TyChecker<'cx> {
         let limited_constraint = self.get_limited_constraint(r);
 
         for prop in props {
-            if let Some(limited_constraint) = limited_constraint {
+            if let Some(_limited_constraintt) = limited_constraint {
                 todo!()
             };
             let prop = *prop;
@@ -1071,16 +1070,23 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
-        // TODO: remove this clone.
-        let mut members = self.get_exports_of_symbol(symbol_id).0.clone();
+        let members = self.get_exports_of_symbol(symbol_id);
         let index_infos: ty::IndexInfos<'cx>;
         if symbol_id == self.global_this_symbol {
             // TODO:
         }
 
-        let placeholder = self.structure_members_placeholder;
+        let placeholder = self.alloc(ty::StructuredMembers {
+            members: &members.0,
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
+            index_infos: self.empty_array(),
+            props: self.empty_array(),
+        });
         self.get_mut_ty_links(ty.id)
             .set_structured_members(placeholder);
+        // TODO: remove this clone.
+        let mut members = members.0.clone();
 
         let mut call_sigs: ty::Sigs<'cx> = self.empty_array();
         let mut ctor_sigs: ty::Sigs<'cx> = self.empty_array();
@@ -1139,7 +1145,7 @@ impl<'cx> TyChecker<'cx> {
                 .members()
                 .and_then(|m| m.0.get(&SymbolName::Constructor))
             {
-                ctor_sigs_of_class.extend(self.get_sigs_of_symbol(*symbol).into_iter())
+                ctor_sigs_of_class.extend(self.get_sigs_of_symbol(*symbol))
             }
 
             if symbol_flags.contains(SymbolFlags::FUNCTION) {
@@ -1225,27 +1231,18 @@ impl<'cx> TyChecker<'cx> {
             if list_index > 0 {
                 return None;
             }
-            for i in 1..sigs_list.len() {
-                if self
-                    .find_matching_sig::<false, false, false>(sigs_list[i], sig)
-                    .is_none()
-                {
-                    return None;
-                }
+            for sigs in sigs_list.iter().skip(1) {
+                self.find_matching_sig::<false, false, false>(sigs, sig)?;
             }
             return Some(self.alloc([sig]));
         }
         let mut result: Option<Vec<&'cx ty::Sig<'cx>>> = None;
-        for i in 0..sigs_list.len() {
+        for (i, sigs) in sigs_list.iter().enumerate() {
             let matched = if i == list_index {
                 sig
-            } else if let Some(sig) = self
-                .find_matching_sig::<false, false, true>(sigs_list[i], sig)
-                .or_else(|| self.find_matching_sig::<true, false, true>(sigs_list[i], sig))
-            {
-                sig
             } else {
-                return None;
+                self.find_matching_sig::<false, false, true>(sigs, sig)
+                    .or_else(|| self.find_matching_sig::<true, false, true>(sigs, sig))?
             };
             match &mut result {
                 Some(result) => result.push(matched),
@@ -1271,7 +1268,7 @@ impl<'cx> TyChecker<'cx> {
             }
             for sig in sigs_list[i] {
                 if result.as_ref().is_none_or(|result| {
-                    self.find_matching_sig::<false, false, true>(&result, sig)
+                    self.find_matching_sig::<false, false, true>(result, sig)
                         .is_none()
                 }) && let Some(union_sigs) = self.find_matching_sigs(sigs_list, sig, i)
                 {
@@ -1359,17 +1356,15 @@ impl<'cx> TyChecker<'cx> {
                             )
                         }) {
                         None
-                    } else if let Some(results) = results.as_ref() {
-                        Some(
+                    } else {
+                        results.as_ref().map(|results| {
                             results
                                 .iter()
                                 .map(|s| self.combine_sigs_of_union_members(s, sig))
-                                .collect::<Vec<_>>(),
-                        )
-                    } else {
-                        None
+                                .collect::<Vec<_>>()
+                        })
                     };
-                    if results.is_some() {
+                    if results.is_none() {
                         break;
                     }
                 }
@@ -1574,7 +1569,7 @@ impl<'cx> TyChecker<'cx> {
             ret: None,
             node_id: left.node_id,
             target: None,
-            mapper: mapper,
+            mapper,
             class_decl: left.class_decl,
             composite_sigs,
             composite_kind: Some(TypeFlags::UNION),

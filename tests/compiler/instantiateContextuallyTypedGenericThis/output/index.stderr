@@ -1,0 +1,29 @@
+  × Variable '$' is used before being assigned.
+    ╭─[../../tests/compiler/instantiateContextuallyTypedGenericThis/index.ts:14:1]
+ 14 │ $
+    · ─
+    ╰────
+
+  × Variable 'lines' is used before being assigned.
+    ╭─[../../tests/compiler/instantiateContextuallyTypedGenericThis/index.ts:14:8]
+ 14 │ lines
+    · ─────
+    ╰────
+
+  × Variable 'lines' is used before being assigned.
+    ╭─[../../tests/compiler/instantiateContextuallyTypedGenericThis/index.ts:14:8]
+ 14 │ lines
+    · ─────
+    ╰────
+
+  × Variable 'lines' is used before being assigned.
+    ╭─[../../tests/compiler/instantiateContextuallyTypedGenericThis/index.ts:14:8]
+ 14 │ lines
+    · ─────
+    ╰────
+
+  × Variable 'lines' is used before being assigned.
+    ╭─[../../tests/compiler/instantiateContextuallyTypedGenericThis/index.ts:14:8]
+ 14 │ lines
+    · ─────
+    ╰────

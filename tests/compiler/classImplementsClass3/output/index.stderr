@@ -1,0 +1,5 @@
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/classImplementsClass3/index.ts:15:5]
+ 15 │ c2
+    · ──
+    ╰────

@@ -1,5 +1,5 @@
 function g(x) {
-  return x
+  return x;
 }
 function f(x) {
   var y = g(x);

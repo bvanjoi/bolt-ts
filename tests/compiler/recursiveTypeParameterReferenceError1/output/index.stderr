@@ -1,5 +1,48 @@
+  × Variable 'f' is used before being assigned.
+   ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:8:9]
+ 8 │ f
+   · ─
+   ╰────
+
+  × Variable 'f' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:10:26]
+ 10 │ f
+    · ─
+    ╰────
+
+  × Variable 'f' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:12:27]
+ 12 │ f
+    · ─
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:16:5]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Variable 'f2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:23:10]
+ 23 │ f2
+    · ──
+    ╰────
+
+  × Variable 'f2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:25:30]
+ 25 │ f2
+    · ──
+    ╰────
+
+  × Variable 'f2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:27:30]
+ 27 │ f2
+    · ──
+    ╰────
+
   × Type 'C2<{ x: number; }>' is not assignable to type 'C2<{ x: string; }>'.
-    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:21:5]
- 21 │ r21
+    ╭─[../../tests/compiler/recursiveTypeParameterReferenceError1/index.ts:27:5]
+ 27 │ r21
     · ───
     ╰────

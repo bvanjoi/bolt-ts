@@ -41,7 +41,7 @@ var M = {};
   class f {
     get Z() {
       var M = 10;
-      return x
+      return x;
     }
   }
   
@@ -51,7 +51,7 @@ var M = {};
 
   class e {
     get M() {
-      return x
+      return x;
     }
   }
   

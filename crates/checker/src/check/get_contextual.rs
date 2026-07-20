@@ -96,7 +96,14 @@ impl<'cx> TyChecker<'cx> {
                     last,
                 )
             }
-            // TODO: type assertion
+            TyAssertionExpr(parent) => {
+                debug_assert!(parent.id == parent_id);
+                if parent.ty.is_const_ty_refer() {
+                    self.get_contextual_ty(parent.id, flags)
+                } else {
+                    Some(self.get_ty_from_type_node(parent.ty))
+                }
+            }
             AsExpr(parent) => {
                 debug_assert!(parent.id == parent_id);
                 if parent.ty.is_const_ty_refer() {
@@ -265,13 +272,11 @@ impl<'cx> TyChecker<'cx> {
                     .is_some()
                 });
             }
-            let Some(iteration_ret_ty) = self.get_iteration_ty_of_generator_fn_return_ty(
+            let iteration_ret_ty = self.get_iteration_ty_of_generator_fn_return_ty(
                 IterationTypeKind::Return,
                 contextual_return_ty,
                 is_async_generator,
-            ) else {
-                return None;
-            };
+            )?;
             contextual_return_ty = iteration_ret_ty;
         }
         if fn_flags.contains(FnFlags::ASYNC) {
@@ -280,16 +285,16 @@ impl<'cx> TyChecker<'cx> {
                 |this, t| this.get_awaited_ty_no_alias(t),
                 false,
             )
-            .and_then(|contextual_await_ty| {
+            .map(|contextual_await_ty| {
                 let ty = self.create_promise_like_ty(contextual_await_ty);
-                Some(self.get_union_ty::<false>(
+                self.get_union_ty::<false>(
                     &[contextual_await_ty, ty],
                     ty::UnionReduction::Lit,
                     None,
                     None,
                     None,
                     None,
-                ))
+                )
             })
         } else {
             Some(contextual_return_ty)
@@ -317,7 +322,7 @@ impl<'cx> TyChecker<'cx> {
         if nq.has_dynamic_name(id)
             && let Some(name) = nq.get_name_of_declaration(id)
             && let ast::DeclarationName::Computed(name) = name
-            && let expr_ty = self.check_expression(name.expr, None)
+            && let expr_ty = self.check_expression::<false>(name.expr, None)
             && expr_ty.usable_as_prop_name()
             && let prop_name = self.get_prop_name_from_ty(expr_ty)
             && let Some(prop_ty) = self.get_ty_of_property_of_contextual_ty(ty, prop_name, None)
@@ -416,7 +421,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_contextual_ty_for_assign(
         &mut self,
         parent: &'cx ast::AssignExpr<'cx>,
-        flags: Option<ContextFlags>,
+        _flagss: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let kind = self
             .node_query(parent.id.module())
@@ -433,7 +438,7 @@ impl<'cx> TyChecker<'cx> {
                     {
                         return match ty {
                             Some(ty) => {
-                                let ty = self.get_ty_from_type_node(*ty);
+                                let ty = self.get_ty_from_type_node(ty);
                                 let mapper = self.get_symbol_links(lhs_symbol).get_ty_mapper();
                                 Some(self.instantiate_ty(ty, mapper))
                             }
@@ -558,12 +563,12 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         parent: &'cx ast::ArrayBinding<'cx>,
         node: ast::NodeID,
-        context_flags: Option<ContextFlags>,
+        _context_flagss: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
-            let name = parent.name;
+            let _namee = parent.name;
             let parent_parent_id = self.parent(parent.id).unwrap();
             debug_assert!(self.p.node(parent_parent_id).is_array_pat());
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
@@ -636,6 +641,23 @@ impl<'cx> TyChecker<'cx> {
                         let idx = Self::get_ty_reference_arity(t) - offset;
                         return this.get_ty_arguments(t).get(idx).copied();
                     }
+                    let index = match first_spread_index {
+                        Some(first_spread_index) => {
+                            usize::min(tup.fixed_length, first_spread_index)
+                        }
+                        None => tup.fixed_length,
+                    };
+                    let end_skip_count = match (length, last_spread_index) {
+                        (Some(length), Some(last_spread_index)) => {
+                            usize::min(fixed_end_length, length - last_spread_index)
+                        }
+                        _ => fixed_end_length,
+                    };
+                    return this.get_element_ty_of_slice_of_tuple_ty::<false, true>(
+                        t,
+                        index,
+                        end_skip_count,
+                    );
                 }
                 if first_spread_index.is_none_or(|first_spread_index| index < first_spread_index)
                     && let Some(t) = this.get_ty_of_property_of_contextual_ty(
@@ -646,7 +668,6 @@ impl<'cx> TyChecker<'cx> {
                 {
                     return Some(t);
                 }
-                // TODO: this.get_iterated_ty_or_element_ty()
                 this.get_iterated_ty_or_element_ty(
                     IterationUse::ELEMENT,
                     t,
@@ -877,7 +898,7 @@ impl<'cx> TyChecker<'cx> {
                 let discriminators = n
                     .members
                     .iter()
-                    .map(|item| DiscriminatingItem::Node(*item))
+                    .map(|item| DiscriminatingItem::Node(item))
                     .chain(
                         self.get_props_of_ty(contextual_ty)
                             .iter()
@@ -911,9 +932,7 @@ impl<'cx> TyChecker<'cx> {
                                 return None;
                             }
                             let s = self.binder.symbol(self.final_res(n.id));
-                            let Some(members) = s.members.as_ref() else {
-                                return None;
-                            };
+                            let members = s.members.as_ref()?;
                             let name = s.name;
                             if !members.0.contains_key(&name)
                                 && self.is_discriminant_prop(contextual_ty, name)
@@ -986,16 +1005,16 @@ impl<'cx> TyChecker<'cx> {
         for (get_discriminating_ty, property_name) in discriminators {
             let mut matched = false;
             for i in 0..tys.len() {
-                if include[i] != Ternary::FALSE {
-                    if let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name) {
-                        let discriminating_ty = get_discriminating_ty(self);
-                        if self.some_type(discriminating_ty, |this, t| {
-                            related(this, t, target_ty) != Ternary::FALSE
-                        }) {
-                            matched = true;
-                        } else {
-                            include[i] = Ternary::MAYBE;
-                        }
+                if include[i] != Ternary::FALSE
+                    && let Some(target_ty) = self.get_ty_of_prop_of_ty(tys[i], *property_name)
+                {
+                    let discriminating_ty = get_discriminating_ty(self);
+                    if self.some_type(discriminating_ty, |this, t| {
+                        related(this, t, target_ty) != Ternary::FALSE
+                    }) {
+                        matched = true;
+                    } else {
+                        include[i] = Ternary::MAYBE;
                     }
                 }
             }
@@ -1009,7 +1028,7 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
-        let filtered = if include.iter().any(|&t| t == Ternary::FALSE) {
+        let filtered = if include.contains(&Ternary::FALSE) {
             let filtered_tys: Vec<_> = tys
                 .iter()
                 .enumerate()
@@ -1141,6 +1160,79 @@ impl<'cx> TyChecker<'cx> {
         true
     }
 
+    fn get_tuple_element_label_from_binding_element(
+        &mut self,
+        name: &'cx ast::Binding<'cx>,
+        dotdotdot: bool,
+        index: u32,
+        element_flags: ty::ElementFlags,
+    ) -> SymbolName {
+        match name.kind {
+            ast::BindingKind::Ident(n) => {
+                let name = n.name;
+                return match dotdotdot {
+                    true => {
+                        if element_flags.intersects(ty::ElementFlags::VARIABLE) {
+                            SymbolName::Atom(name)
+                        } else {
+                            let name = self.atoms.get(name);
+                            let name = format!("{name}_{index}");
+                            let name = self.atoms.atom(&name);
+                            SymbolName::Atom(name)
+                        }
+                    }
+                    false => {
+                        if element_flags.intersects(ty::ElementFlags::FIXED) {
+                            SymbolName::Atom(name)
+                        } else {
+                            let name = self.atoms.get(name);
+                            let name = format!("{name}_n");
+                            let name = self.atoms.atom(&name);
+                            SymbolName::Atom(name)
+                        }
+                    }
+                };
+            }
+            ast::BindingKind::ArrayPat(n) if dotdotdot => {
+                let elements = n.elems;
+                let last_element = elements.last().and_then(|e| match e.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => None,
+                    ast::ArrayBindingElemKind::Binding(n) => Some(n),
+                });
+                let element_count = elements.len()
+                    - if last_element.is_some_and(|e| e.dotdotdot.is_some()) {
+                        1
+                    } else {
+                        0
+                    };
+                if index < element_count as u32 {
+                    let element = elements[index as usize];
+                    if let ast::ArrayBindingElemKind::Binding(n) = element.kind {
+                        return self.get_tuple_element_label_from_binding_element(
+                            n.name,
+                            n.dotdotdot.is_some(),
+                            index,
+                            element_flags,
+                        );
+                    }
+                } else if let Some(last_element) = last_element
+                    && last_element.dotdotdot.is_some()
+                {
+                    return self.get_tuple_element_label_from_binding_element(
+                        last_element.name,
+                        last_element.dotdotdot.is_some(),
+                        index - element_count as u32,
+                        element_flags,
+                    );
+                }
+            }
+            _ => {}
+        }
+        let name = format!("arg_{index}");
+        let name = self.atoms.atom(&name);
+        SymbolName::Atom(name)
+    }
+
     pub(super) fn get_parameter_name_at_position(
         &mut self,
         sig: &'cx ty::Sig<'cx>,
@@ -1151,16 +1243,64 @@ impl<'cx> TyChecker<'cx> {
         if pos < param_count {
             return self.symbol(sig.params[pos]).name;
         }
-        let rest_param = sig.params.get(param_count).copied().unwrap_or(Symbol::ERR);
-        let rest_ty = override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(rest_param));
+        let rest_param = sig.params.get(param_count).copied();
+        let fallback_rest_param = rest_param.unwrap_or(Symbol::ERR);
+        let rest_ty =
+            override_rest_ty.unwrap_or_else(|| self.get_type_of_symbol(fallback_rest_param));
         if let Some(tuple_ty) = rest_ty.as_tuple() {
             let index = pos - param_count;
-            todo!()
-            // const associatedName = tupleType.labeledElementDeclarations?.[index];
-            // const elementFlags = tupleType.elementFlags[index];
-            // return getTupleElementLabel(associatedName, index, elementFlags, restParameter);
+            let associated_name = tuple_ty
+                .labeled_element_declarations
+                .and_then(|n| n.get(index))
+                .and_then(|n| *n);
+            let element_flags = tuple_ty.element_flags.get(index);
+            // get_tuple_element_label;
+            match associated_name {
+                Some(name) => match name {
+                    ty::TupleLabeledElementDeclaration::NamedTupleMember(n) => {
+                        SymbolName::Atom(n.name.name)
+                    }
+                    ty::TupleLabeledElementDeclaration::ParameterDeclaration(n) => {
+                        match n.name.kind {
+                            ast::BindingKind::Ident(n) => SymbolName::Atom(n.name),
+                            _ => unreachable!(),
+                        }
+                    }
+                },
+                None => match rest_param {
+                    Some(rest_param) => {
+                        let s = self.symbol(rest_param);
+                        let rest_parameter = s
+                            .value_decl
+                            .and_then(|decl| self.p.node(decl).as_param_decl());
+                        match rest_parameter {
+                            Some(rest_parameter) => self
+                                .get_tuple_element_label_from_binding_element(
+                                    rest_parameter.name,
+                                    rest_parameter.dotdotdot.is_some(),
+                                    index as u32,
+                                    element_flags.copied().unwrap_or(ty::ElementFlags::FIXED),
+                                ),
+                            None => {
+                                // TODO: optimize
+                                let name = self.symbol(rest_param).name;
+                                let name = self.atoms.get(name.expect_atom());
+                                let name = format!("{name}_{index}");
+                                let name = self.atoms.atom(&name);
+                                SymbolName::Atom(name)
+                            }
+                        }
+                    }
+                    None => {
+                        // TODO: optimize
+                        let name = format!("arg_{index}");
+                        let name = self.atoms.atom(&name);
+                        SymbolName::Atom(name)
+                    }
+                },
+            }
         } else {
-            self.symbol(rest_param).name
+            self.symbol(fallback_rest_param).name
         }
     }
 
@@ -1449,17 +1589,18 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             if !sigs.is_empty() {
-                if sigs.len() == 1 {
-                    return Some(sigs[0]);
+                Some(if sigs.len() == 1 {
+                    sigs[0]
                 } else {
                     let sigs = self.alloc(sigs);
-                    self.create_union_sig(sigs[0], sigs);
-                }
+                    self.create_union_sig(sigs[0], sigs)
+                })
+            } else {
+                None
             }
         } else {
-            return self.get_contextual_call_sig(ty, id);
+            self.get_contextual_call_sig(ty, id)
         }
-        None
     }
 
     pub(super) fn is_context_sensitive_fn_or_object_literal_method(&self, id: ast::NodeID) -> bool {

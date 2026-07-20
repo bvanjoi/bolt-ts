@@ -19,7 +19,7 @@ impl<'cx> TyChecker<'cx> {
         match stmt.kind {
             Var(node) => self.check_var_stmt(node),
             Expr(node) => {
-                self.check_expression(node.expr, None);
+                self.check_expression::<false>(node.expr, None);
             }
             Fn(node) => self.check_fn_decl(node),
             If(node) => self.check_if_stmt(node),
@@ -27,7 +27,22 @@ impl<'cx> TyChecker<'cx> {
             Ret(node) => self.check_return_statement(node),
             Class(node) => self.check_class_decl(node),
             Interface(node) => self.check_interface_declaration(node),
-            Module(node) => self.check_module_decl(node),
+            NestedModule(n) => self.check_module_declaration_worker(
+                n.id,
+                n.span,
+                &ast::ModuleName::Ident(n.name),
+                Some(n.block.module_block()),
+                false,
+                false,
+            ),
+            BlockModule(n) => self.check_module_declaration_worker(
+                n.id,
+                n.span,
+                &n.name,
+                n.block,
+                n.is_global_argument,
+                n.is_ambient(),
+            ),
             TypeAlias(node) => self.check_type_alias_decl(node),
             For(node) => self.check_for_stmt(node),
             ForIn(node) => self.check_for_in_stmt(node),
@@ -59,12 +74,12 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) {
         use ast::CaseOrDefaultClause::*;
-        let expr_ty = self.check_expression(node.expr, None);
+        let expr_ty = self.check_expression::<false>(node.expr, None);
 
         for clause in node.case_block.clauses {
             match clause {
                 Case(n) => {
-                    let case_ty = self.check_expression(n.expr, None);
+                    let case_ty = self.check_expression::<false>(n.expr, None);
                     if !self.is_type_equality_comparable_to(expr_ty, case_ty) {
                         self.check_type_comparable_to(
                             case_ty,
@@ -142,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_enum_member(&mut self, member: &'cx ast::EnumMember<'cx>) {
         if let Some(init) = member.init {
-            self.check_expression(init, None);
+            self.check_expression::<false>(init, None);
         }
     }
 
@@ -166,7 +181,10 @@ impl<'cx> TyChecker<'cx> {
                     && parent_node.is_module_block()
                     && node.module_spec().is_none()
                     && self.p.node_flags(node.id).contains(ast::NodeFlags::AMBIENT);
-                if !in_ambient_external_module && !in_ambient_ns_decl && !parent_node.is_program() {
+                if !in_ambient_external_module
+                    && !in_ambient_ns_decl
+                    && parent_node.is_module_block()
+                {
                     // TODO: could this check moved into wf check?
                     let error =
                         errors::ExportDeclarationsAreNotPermittedInANamespace { span: node.span };
@@ -227,15 +245,47 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
-        let Some(module_name) = self.p.node(node).get_external_module_name() else {
+        let Some(_module_namee) = self.p.node(node).get_external_module_name() else {
             return false;
         };
         // TODO: more checks
         true
     }
 
+    fn check_type_name_is_reserved(
+        &mut self,
+        name: &'cx ast::Ident,
+        push_error: impl FnOnce(&mut Self),
+    ) {
+        if keyword::is_reserved_type_name(name.name) {
+            push_error(self);
+        }
+    }
+
     fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
         self.check_import_binding(node.id);
+        if !matches!(
+            node.module_reference,
+            ast::ModuleReferenceKind::ExternalModuleReference(_)
+        ) {
+            let symbol = self.get_symbol_of_declaration(node.id);
+            let target = self.resolve_alias(symbol);
+            if target != Symbol::ERR {
+                let target_flags = self.get_symbol_flags::<false>(target);
+                if target_flags.intersects(SymbolFlags::VALUE) {
+                    // TODO :
+                }
+                if target_flags.intersects(SymbolFlags::TYPE) {
+                    self.check_type_name_is_reserved(node.name, |this| {
+                        let error = errors::ImportNameCannotBeX {
+                            span: node.name.span,
+                            name: this.atoms.get(node.name.name).to_string(),
+                        };
+                        this.push_error(Box::new(error));
+                    });
+                }
+            }
+        }
     }
 
     fn check_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) {
@@ -297,7 +347,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) {
         let right_ty = {
-            let ty = self.check_expression(node.expr, None);
+            let ty = self.check_expression::<false>(node.expr, None);
             self.get_non_nullable_ty(ty)
         };
         match node.init {
@@ -306,7 +356,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_var_decl_list(declarations);
             }
             ast::ForInitKind::Expr(init) => {
-                let left_ty = self.check_expression(init, None);
+                let left_ty = self.check_expression::<false>(init, None);
                 let valid_ty = self.get_index_ty_or_string(right_ty);
 
                 if !self.is_type_assignable_to(valid_ty, left_ty) {
@@ -341,7 +391,7 @@ impl<'cx> TyChecker<'cx> {
             match init {
                 ast::ForInitKind::Var(list) => self.check_var_decl_list(list),
                 ast::ForInitKind::Expr(expr) => {
-                    self.check_expression(expr, None);
+                    self.check_expression::<false>(expr, None);
                 }
             }
         }
@@ -350,7 +400,7 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if let Some(incr) = node.incr {
-            self.check_expression(incr, None);
+            self.check_expression::<false>(incr, None);
         }
 
         self.check_stmt(node.body);
@@ -393,9 +443,12 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_instantiate_module(&self, node: &'cx ast::ModuleDecl<'cx>) -> bool {
-        let nq = self.node_query(node.id.module());
-        let state = nq.get_module_instance_state(node, |n, _| self.parent(n));
+    fn is_instantiate_module(&self, module_block: Option<&'cx ast::ModuleBlock<'cx>>) -> bool {
+        let Some(module_block) = module_block else {
+            return true;
+        };
+        let nq = self.node_query(module_block.id.module());
+        let state = nq.get_module_instance_state(Some(module_block), |n, _| self.parent(n));
         state == ModuleInstanceState::Instantiated
     }
 
@@ -416,26 +469,56 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    fn check_module_decl(&mut self, ns: &'cx ast::ModuleDecl<'cx>) {
-        if let Some(block) = ns.block {
+    fn check_module_declaration_worker(
+        &mut self,
+        id: ast::NodeID,
+        span: bolt_ts_span::Span,
+        module_name: &ast::ModuleName<'cx>,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
+        is_global_augmentation: bool,
+        is_ambient_external_module: bool,
+    ) {
+        if let Some(block) = module_block {
             for item in block.stmts {
                 self.check_stmt(item);
             }
         }
 
-        let in_ambient_context = self.p.node_flags(ns.id).contains(NodeFlags::AMBIENT);
+        let in_ambient_context = self.p.node_flags(id).contains(NodeFlags::AMBIENT);
 
-        let is_global_augmentation = ns.is_global_scope_argument();
-        let is_ambient_external_module = ns.is_ambient();
+        self.check_exports_on_merged_decls(id);
+
+        let symbol = self.get_symbol_of_declaration(id);
+        let s = self.symbol(symbol);
+        if s.flags.intersects(SymbolFlags::VALUE_MODULE)
+            && !in_ambient_context
+            && self.is_instantiate_module(module_block)
+            && s.decls.as_ref().is_some_and(|decls| decls.len() > 1)
+            && let Some(first_none_ambient_class_or_fn) =
+                self.get_first_non_ambient_class_or_fn_decl(s)
+            && span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo()
+        {
+            let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
+                            span: module_name.span(),
+                        };
+            self.push_error(Box::new(error));
+        }
+
         if is_ambient_external_module {
-            let p = self.parent(ns.id).unwrap();
-            if self.p.get(p.module()).is_global_source_file(p) {
+            let nq = self.node_query(id.module());
+            if nq.is_external_module_augmentation(id) {
+                // TODO:
+            } else if self
+                .p
+                .get(id.module())
+                .is_global_source_file(self.parent(id).unwrap())
+            {
                 if is_global_augmentation {
                     let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
-                        span: ns.name.span()
+                        span: module_name.span()
                     };
                     self.push_error(Box::new(error));
-                } else if let ast::ModuleName::StringLit(lit) = ns.name {
+                } else if let ast::ModuleName::StringLit(lit) = module_name {
                     let module_name = self.atoms.get(lit.val);
                     if bolt_ts_path::is_external_module_relative(module_name) {
                         let error =
@@ -445,28 +528,16 @@ impl<'cx> TyChecker<'cx> {
                         self.push_error(Box::new(error));
                     }
                 }
-            }
-        }
-
-        self.check_exports_on_merged_decls(ns.id);
-
-        let symbol = self.get_symbol_of_declaration(ns.id);
-        let s = self.symbol(symbol);
-        if s.flags.intersects(SymbolFlags::VALUE_MODULE)
-            && !in_ambient_context
-            && self.is_instantiate_module(ns)
-        {
-            if s.decls.as_ref().is_some_and(|decls| decls.len() > 1) {
-                if let Some(first_none_ambient_class_or_fn) =
-                    self.get_first_non_ambient_class_or_fn_decl(s)
-                {
-                    if ns.span.lo() < self.p.node(first_none_ambient_class_or_fn).span().lo() {
-                        let error = errors::ANamespaceDeclarationCannotBeLocatedPriorToAClassOrFunctionWithWhichItIsMerged {
-                            span: ns.name.span(),
-                        };
-                        self.push_error(Box::new(error));
-                    }
-                }
+            } else if is_global_augmentation {
+                let error = errors::AugmentationsForTheGlobalScopeCanOnlyBeDirectlyNestedInExternalModulesOrAmbientModuleDeclarations {
+                        span: module_name.span()
+                    };
+                self.push_error(Box::new(error));
+            } else {
+                let error = errors::AmbientModulesCannotBeNestedInOtherModulesOrNamespaces {
+                    span: module_name.span(),
+                };
+                self.push_error(Box::new(error));
             }
         }
     }
@@ -592,15 +663,11 @@ impl<'cx> TyChecker<'cx> {
             let awaited_ty = self.get_awaited_ty_no_alias(promised_ty);
             self.awaited_ty_stack.pop();
 
-            match awaited_ty {
-                Some(ty) => {
-                    if let Some(id) = id {
-                        self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
-                    }
-                    return Some(ty);
-                }
-                None => return None,
+            let awaited_ty = awaited_ty?;
+            if let Some(id) = id {
+                self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(awaited_ty);
             }
+            return Some(awaited_ty);
         }
 
         if self.is_thenable_ty(ty) {
@@ -610,7 +677,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(id) = id {
             self.promise_or_awaitable_links_arena[id].set_awaited_ty_of_ty(ty);
         }
-        return Some(ty);
+        Some(ty)
     }
 
     pub(super) fn is_reference_to_ty(
@@ -694,7 +761,7 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         if candidates.is_empty() {
-            let Some(this_ty_for_error) = this_ty_for_error else {
+            let Some(_this_ty_for_errorr) = this_ty_for_error else {
                 unreachable!()
             };
             // TODO: error
@@ -799,6 +866,7 @@ impl<'cx> TyChecker<'cx> {
                 self.check_return_expression::<false>(
                     container,
                     unwrapped_ret_ty,
+                    node.id,
                     node.expr,
                     expr_ty,
                 );
@@ -816,18 +884,26 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         container: ast::NodeID,
         ret_ty: &'cx ty::Ty<'cx>,
+        node: ast::NodeID,
         ret_expr: Option<&'cx ast::Expr<'cx>>,
         expr_ty: &'cx ty::Ty<'cx>,
     ) {
         if let Some(ret_expr) = ret_expr {
             let unwrapped_ret_expr = ast::Expr::skip_parens(ret_expr);
             if let ast::ExprKind::Cond(n) = unwrapped_ret_expr.kind {
-                let expr_ty = self.check_expression(n.when_true, None);
-                self.check_return_expression::<true>(container, ret_ty, Some(n.when_true), expr_ty);
-                let expr_ty = self.check_expression(n.when_false, None);
+                let expr_ty = self.check_expression::<false>(n.when_true, None);
                 self.check_return_expression::<true>(
                     container,
                     ret_ty,
+                    n.when_true.id(),
+                    Some(n.when_true),
+                    expr_ty,
+                );
+                let expr_ty = self.check_expression::<false>(n.when_false, None);
+                self.check_return_expression::<true>(
+                    container,
+                    ret_ty,
+                    n.when_false.id(),
                     Some(n.when_false),
                     expr_ty,
                 );
@@ -836,7 +912,7 @@ impl<'cx> TyChecker<'cx> {
         }
         let fn_flags = self.p.node(container).fn_flags();
         let unwrapped_expr_ty = if fn_flags.contains(ast::FnFlags::ASYNC) {
-            self.check_awaited_ty(expr_ty, false, container, |this| {})
+            self.check_awaited_ty(expr_ty, false, container, |_thiss| {})
         } else {
             expr_ty
         };
@@ -844,7 +920,11 @@ impl<'cx> TyChecker<'cx> {
         if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
             || !self.could_contain_ty_var(ret_ty)
         {
-            let error_node = ret_expr.map(|expr| expr.id());
+            let error_node = match self.p.node(node) {
+                _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
+                ast::Node::RetStmt(n) => Some(n.id),
+                _ => unreachable!(),
+            };
             self.check_type_assignable_to_and_optionally_elaborate(
                 unwrapped_expr_ty,
                 ret_ty,
@@ -863,10 +943,11 @@ impl<'cx> TyChecker<'cx> {
         self.check_ty(n.ty);
     }
 
+    pub(super) fn check_setter_decl(&mut self, n: &'cx ast::SetterDecl<'cx>) {
+        self.check_accessor_decl(n);
+    }
+
     pub(super) fn check_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) {
-        if let ast::PropNameKind::Computed(name) = n.name.kind {
-            self.check_computed_property_name(name);
-        }
         let flags = self.node_query(n.id.module()).node_flags(n.id);
         if !flags.intersects(NodeFlags::AMBIENT)
             && n.body.is_some()
@@ -883,6 +964,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_accessor_decl(&mut self, n: &impl ast::r#trait::AccessorLike<'cx>) {
+        if let ast::PropNameKind::Computed(name) = n.name().kind {
+            self.check_computed_property_name(name);
+        }
         if let Some(body) = n.body() {
             self.check_block(body);
         }

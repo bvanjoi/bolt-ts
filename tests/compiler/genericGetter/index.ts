@@ -2,6 +2,7 @@
 
 class C<T> {
     data: T;
+    //~^ ERROR: Property 'data' has no initializer and is not definitely assigned in the constructor.
     get x(): T {
         return this.data;
     }

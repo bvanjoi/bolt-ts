@@ -1,0 +1,6 @@
+  × Argument of type '["x", "y", "a"]' is not assignable to parameter of type
+  │ '[string, string, string, "a" | "b"]'.
+    ╭─[../../tests/compiler/spreadsAndContextualTupleTypes/index.ts:49:5]
+ 49 │ [...t2, 'a']
+    · ────────────
+    ╰────

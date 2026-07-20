@@ -10,7 +10,8 @@
    · ─
    ╰────
 
-  × Argument of type 'number' is not assignable to parameter of type 'string'.
+  × Argument of type 'number' is not assignable to parameter of type
+  │ 'undefined | string'.
    ╭─[../../tests/compiler/functionCall12/index.ts:9:15]
  9 │ 3
    · ─

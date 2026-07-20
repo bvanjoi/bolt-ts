@@ -145,7 +145,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     let t = self.c.print_ty(ty, self.enclosing_declaration);
                     s.push_str(&format!("({t})",))
                 } else {
-                    s.push_str(&self.c.print_ty(ty, self.enclosing_declaration))
+                    s.push_str(self.c.print_ty(ty, self.enclosing_declaration))
                 }
                 s
             }),
@@ -154,7 +154,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     return "dummy_parameter".to_string();
                 };
                 let name = self.c.symbol(symbol).name;
-                self.c.atoms.get(name.expect_atom()).to_string()
+                name.to_string(&self.c.atoms)
             }
             ty::TyKind::IndexedAccess(n) => {
                 let object = self
@@ -213,9 +213,9 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     .map(|ty| self.c.print_ty(ty, self.enclosing_declaration).to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
-                return Some(format!("{}<{}>", name, args));
+                Some(format!("{}<{}>", name, args))
             } else {
-                return Some(name);
+                Some(name)
             }
         } else {
             None
@@ -337,7 +337,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                         ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
                         ast::PropNameKind::BigIntLit(_) => todo!(),
                     }
-                    res.push_str(&": ");
+                    res.push_str(": ");
                     res.push_str(&self.print_binding(name));
                 }
             }
@@ -372,7 +372,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 res.push(' ');
             }
         }
-        res.push_str("]");
+        res.push(']');
         res
     }
 
@@ -569,7 +569,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             let s = self.c.symbol(*symbol);
             let name = s.name.to_string(&self.c.atoms);
             if !res.is_empty() {
-                res.push_str(".");
+                res.push('.');
             }
             res.push_str(&name);
         }

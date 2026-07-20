@@ -1,0 +1,5 @@
+  × Property 'toFixed' does not exist on type 'string'.
+   ╭─[../../tests/compiler/initializedDestructuringAssignmentTypes/index.ts:7:3]
+ 7 │ toFixed
+   · ───────
+   ╰────

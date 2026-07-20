@@ -146,23 +146,23 @@ impl<'cx> Expr<'cx> {
         }
     }
 
-    fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
-        match self.kind {
-            ExprKind::Paren(_) => {
-                // TODO: js
-                (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
-            }
-            ExprKind::TyAssertion(_) | ExprKind::As(_) => {
-                (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
-            }
-            ExprKind::Satisfies(_) => {
-                (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
-            }
-            ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
-            // TODO: partially_emitted_expression
-            _ => false,
-        }
-    }
+    // fn is_outer_expr<const FLAGS: u8>(&self) -> bool {
+    //     match self.kind {
+    //         ExprKind::Paren(_) => {
+    //             // TODO: js
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS) != 0
+    //         }
+    //         ExprKind::TyAssertion(_) | ExprKind::As(_) => {
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS) != 0
+    //         }
+    //         ExprKind::Satisfies(_) => {
+    //             (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS) != 0
+    //         }
+    //         ExprKind::NonNull(_) => (FLAGS & SKIP_OUTER_EXPRESSION_NON_NULL_ASSERTIONS_FLAGS) != 0,
+    //         // TODO: partially_emitted_expression
+    //         _ => false,
+    //     }
+    // }
 
     pub fn skip_outer_expr<const FLAGS: u8>(mut expr: &'cx Expr<'cx>) -> &'cx Expr<'cx> {
         loop {
@@ -305,6 +305,11 @@ impl<'cx> Expr<'cx> {
                 _ => false,
             }
         }
+    }
+
+    pub fn has_default_value(&self) -> bool {
+        // TODO:
+        false
     }
 }
 
@@ -762,10 +767,10 @@ pub enum AssignOp {
     NullishEq,
 }
 
-impl Into<TokenKind> for AssignOp {
-    fn into(self) -> TokenKind {
+impl From<AssignOp> for TokenKind {
+    fn from(val: AssignOp) -> Self {
         use AssignOp::*;
-        match self {
+        match val {
             Eq => TokenKind::Eq,
             AddEq => TokenKind::PlusEq,
             SubEq => TokenKind::MinusEq,
@@ -1029,9 +1034,9 @@ impl std::fmt::Display for BinOpKind {
     }
 }
 
-impl Into<TokenKind> for BinOpKind {
-    fn into(self) -> TokenKind {
-        match self {
+impl From<BinOpKind> for TokenKind {
+    fn from(val: BinOpKind) -> Self {
+        match val {
             BinOpKind::Add => TokenKind::Plus,
             BinOpKind::Sub => TokenKind::Minus,
             BinOpKind::Mul => TokenKind::Asterisk,
@@ -1189,7 +1194,29 @@ pub struct TaggedTemplateExpr<'cx> {
     pub span: Span,
     pub tag: &'cx Expr<'cx>,
     pub ty_args: Option<&'cx self::Tys<'cx>>,
-    pub tpl: &'cx Expr<'cx>,
+    pub tpl: TemplateExpressionKind<'cx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum TemplateExpressionKind<'cx> {
+    NoSubstitutionTemplateLit(&'cx NoSubstitutionTemplateLit),
+    TemplateExpr(&'cx TemplateExpr<'cx>),
+}
+
+impl TemplateExpressionKind<'_> {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::NoSubstitutionTemplateLit(n) => n.span,
+            Self::TemplateExpr(n) => n.span,
+        }
+    }
+
+    pub fn id(&self) -> NodeID {
+        match self {
+            Self::NoSubstitutionTemplateLit(n) => n.id,
+            Self::TemplateExpr(n) => n.id,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1216,6 +1243,15 @@ pub struct ImportEqualsDecl<'cx> {
     pub name: &'cx Ident,
     pub is_type_only: bool,
     pub module_reference: ModuleReferenceKind<'cx>,
+}
+
+impl<'cx> ImportEqualsDecl<'cx> {
+    pub fn get_external_module_name(&self) -> Option<&'cx StringLit> {
+        match self.module_reference {
+            ModuleReferenceKind::ExternalModuleReference(e) => Some(e.module_spec()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

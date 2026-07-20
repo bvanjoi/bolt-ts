@@ -367,10 +367,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn property_related_to(
         &mut self,
-        source: &'cx Ty<'cx>,
-        target: &'cx Ty<'cx>,
+        _sourcee: &'cx Ty<'cx>,
+        _targett: &'cx Ty<'cx>,
         source_prop: SymbolID,
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
@@ -946,7 +947,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         for (i, source_ty) in source_tys.iter().enumerate() {
             if let Some(target_union) = undefined_stripped_target.kind.as_union()
                 && source_tys.len() >= target_union.tys.len()
-                && source_tys.len() % target_union.tys.len() == 0
+                && source_tys.len().is_multiple_of(target_union.tys.len())
             {
                 let related = self.is_related_to(
                     source_ty,
@@ -1054,7 +1055,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         target_tys: ty::Tys<'cx>,
-        report_error: bool,
+        _report_errorr: bool,
         intersection_state: IntersectionState,
     ) -> Ternary {
         if let Some(unions) = target.kind.as_union() {
@@ -1513,16 +1514,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 && source_flags.contains(TypeFlags::TYPE_PARAMETER)
             {
                 let mut constraint = self.c.get_constraint_of_ty_param(source);
-                loop {
-                    let Some(c) = constraint else {
-                        break;
-                    };
-                    if !self
+                while let Some(c) = constraint
+                    && self
                         .c
                         .some_type(c, |_, t| t.flags.contains(TypeFlags::TYPE_PARAMETER))
-                    {
-                        break;
-                    }
+                {
                     result = self.is_related_to(
                         c,
                         target,
@@ -2610,8 +2606,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         source: &'cx Ty<'cx>,
         target: &'cx Ty<'cx>,
         kind: SigKind,
-        relation: RelationKind,
-        error_node: Option<ast::NodeID>,
+        _relationn: RelationKind,
+        _error_nodee: Option<ast::NodeID>,
     ) -> Ternary {
         let source_sigs = self.c.get_signatures_of_type(source, kind);
         let target_sigs = self.c.get_signatures_of_type(target, kind);
@@ -2751,14 +2747,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             .node_query(source_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 source_node_id,
-                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
             );
         let target_accessibility = self
             .c
             .node_query(target_node_id.module())
             .get_selected_syntactic_modifier_flags(
                 target_node_id,
-                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER.into(),
+                ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
             );
         if target_accessibility == ast::ModifierKind::Private.into_flag() {
             return true;
@@ -2857,7 +2853,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         } else {
             'outer: for t in target_sigs {
                 let saved = self.c.diags.len();
-                let mut should_elaborate_errors = report_error;
+                let mut _should_elaborate_errors = report_error;
                 for s in source_sigs {
                     let related = self.sig_related_to(s, t, true, report_error, intersection_state);
                     if related != Ternary::FALSE {
@@ -2865,9 +2861,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         self.c.diags.truncate(saved);
                         continue 'outer;
                     }
-                    should_elaborate_errors = false;
+                    _should_elaborate_errors = false;
                 }
-                // if should_elaborate_errors {
+                // if _should_elaborate_errors {
                 //     let error = Box::new(errors::TypeXProvidesNoMatchForTheSignatureY {
                 //         span: source,
                 //         ty: source.to_string(self),
@@ -3291,6 +3287,41 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         self.c.parent(p) == Some(c)
     }
 
+    fn get_ty_of_property_in_tys(
+        &mut self,
+        tys: &[&'cx Ty<'cx>],
+        name: SymbolName,
+    ) -> &'cx Ty<'cx> {
+        let tys = self
+            .c
+            .reduced_left(
+                tys,
+                |this, mut prop_tys, ty, _| {
+                    let ty = this.get_apparent_ty(ty);
+                    let prop = if ty.flags.intersects(ty::TypeFlags::UNION_OR_INTERSECTION) {
+                        this.get_prop_of_union_or_intersection_ty::<false>(ty, name)
+                    } else {
+                        this.get_prop_of_object_ty(ty, name)
+                    };
+                    let prop_ty = prop
+                        .map(|prop| this.get_type_of_symbol(prop))
+                        .unwrap_or_else(|| {
+                            this.get_applicable_index_info_for_name(ty, name)
+                                .map_or(this.undefined_ty, |index_info| index_info.val_ty)
+                        });
+                    prop_tys.push(prop_ty);
+                    prop_tys
+                },
+                |_, _| unreachable!(),
+                Some(vec![]),
+                None,
+                None,
+            )
+            .unwrap_or(vec![]);
+        self.c
+            .get_union_ty::<false>(&tys, ty::UnionReduction::Lit, None, None, None, None)
+    }
+
     fn has_excess_properties(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -3318,6 +3349,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         }
 
         let mut reduced_target = target_ty;
+        let mut check_tys = None;
 
         if target_ty.flags.contains(TypeFlags::UNION) {
             let relation = self.relation;
@@ -3332,6 +3364,11 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     self.c
                         .filter_primitives_if_contains_non_primitive(target_ty)
                 });
+            check_tys = Some(if let Some(u) = reduced_target.kind.as_union() {
+                std::borrow::Cow::Borrowed(u.tys)
+            } else {
+                std::borrow::Cow::Owned(vec![reduced_target])
+            })
         }
 
         for prop in self.c.get_props_of_ty(source) {
@@ -3339,7 +3376,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 let name = self.c.symbol(*prop).name;
                 if !self
                     .c
-                    .is_known_prop(reduced_target, name, is_comparing_jsx_attributes)
+                    .is_known_property(reduced_target, name, is_comparing_jsx_attributes)
                 {
                     if report_error && let Some(name) = name.as_atom() {
                         let error_target = self.c.filter_type(reduced_target, |_, t| {
@@ -3361,6 +3398,22 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         };
                         self.c.push_error(Box::new(error));
                     }
+                    return true;
+                }
+                if let Some(check_tys) = &check_tys
+                    && let source = self.c.get_type_of_symbol(*prop)
+                    && let target = self.get_ty_of_property_in_tys(check_tys.as_ref(), name)
+                    && self
+                        .is_related_to(
+                            source,
+                            target,
+                            RecursionFlags::BOTH,
+                            report_error,
+                            IntersectionState::empty(),
+                        )
+                        .is_empty()
+                {
+                    // if report_error {}
                     return true;
                 }
             }

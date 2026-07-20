@@ -1,11 +1,11 @@
   × Identifier expected. 'static' is a reserved word in strict mode.
-   ╭─[../../tests/compiler/constructorStaticParamName/index.ts:4:18]
- 4 │ static
+   ╭─[../../tests/compiler/constructorStaticParamName/index.ts:7:18]
+ 7 │ static
    · ──────
    ╰────
 
   × Keywords cannot contain escape characters.
-   ╭─[../../tests/compiler/constructorStaticParamName/index.ts:9:11]
- 9 │ st\u0061tic
-   · ───────────
-   ╰────
+    ╭─[../../tests/compiler/constructorStaticParamName/index.ts:12:11]
+ 12 │ st\u0061tic
+    · ───────────
+    ╰────

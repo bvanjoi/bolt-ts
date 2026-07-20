@@ -1,7 +1,7 @@
 var x = {
   doStuff: (callback) => (() => {
     var _this = 2;
-    return callback(this)
+    return callback(this);
   })  
 };
 alert(x.doStuff((x) => (alert(x))));

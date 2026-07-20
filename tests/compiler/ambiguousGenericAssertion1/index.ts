@@ -1,4 +1,7 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.2/tests/cases/compiler/ambiguousGenericAssertion1.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/ambiguousGenericAssertion1.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 
 function f<T>(x: T): T { return null; }
 var r = <T>(x: T) => x;

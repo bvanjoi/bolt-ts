@@ -8,6 +8,9 @@ interface implements {
     foo(package, protected);
     //~^ ERROR: Identifier expected. 'package' is a reserved word in strict mode.
     //~| ERROR: Identifier expected. 'protected' is a reserved word in strict mode.
+    //~| ERROR: Parameter 'package' implicitly has an 'any' type.
+    //~| ERROR: Parameter 'protected' implicitly has an 'any' type.
+    //~| ERROR: 'foo', which lacks return-type annotation, implicitly has an 'any' return type.
 }
 enum package { }
 //~^ ERROR: Identifier expected. 'package' is a reserved word in strict mode.

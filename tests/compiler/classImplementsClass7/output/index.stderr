@@ -1,5 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classImplementsClass7/index.ts:4:13]
+ 4 │ x
+   · ─
+   ╰────
+
   × Property 'x' is missing.
-   ╭─[../../tests/compiler/classImplementsClass7/index.ts:7:7]
- 7 │ B
+   ╭─[../../tests/compiler/classImplementsClass7/index.ts:8:7]
+ 8 │ B
    · ─
    ╰────

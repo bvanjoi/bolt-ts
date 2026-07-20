@@ -7,10 +7,10 @@ class B {
   constructor() {this.length = 2;}
 }
 function getTypedArray(flag) {
-  return flag ? new A() : new B()
+  return flag ? new A() : new B();
 }
 function getTypedArrayConstructor(flag) {
-  return flag ? A : B
+  return flag ? A : B;
 }
 var a = getTypedArray(true);
 var b = getTypedArrayConstructor(false);

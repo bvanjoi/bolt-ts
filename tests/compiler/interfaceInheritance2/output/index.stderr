@@ -1,11 +1,29 @@
-  × Expected 0 arguments, but got 1.
-    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:10:1]
- 10 │ v1
+  × Variable 'v1' is used before being assigned.
+   ╭─[../../tests/compiler/interfaceInheritance2/index.ts:8:1]
+ 8 │ v1
+   · ──
+   ╰────
+
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:11:1]
+ 11 │ v1
     · ──
     ╰────
 
   × Expected 0 arguments, but got 1.
-    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:12:1]
- 12 │ v1
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:11:1]
+ 11 │ v1
+    · ──
+    ╰────
+
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:14:1]
+ 14 │ v1
+    · ──
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+    ╭─[../../tests/compiler/interfaceInheritance2/index.ts:14:1]
+ 14 │ v1
     · ──
     ╰────

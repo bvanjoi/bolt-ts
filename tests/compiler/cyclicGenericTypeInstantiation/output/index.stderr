@@ -1,0 +1,11 @@
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/cyclicGenericTypeInstantiation/index.ts:10:10]
+ 10 │ y
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/cyclicGenericTypeInstantiation/index.ts:20:10]
+ 20 │ y
+    · ─
+    ╰────

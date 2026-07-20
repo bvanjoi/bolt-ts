@@ -1,0 +1,23 @@
+  × Parameter 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/inheritedFunctionAssignmentCompatibility/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Parameter 'b' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/inheritedFunctionAssignmentCompatibility/index.ts:7:7]
+ 7 │  b
+   · ──
+   ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/inheritedFunctionAssignmentCompatibility/index.ts:10:14]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Parameter 'b' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/inheritedFunctionAssignmentCompatibility/index.ts:10:16]
+ 10 │  b
+    · ──
+    ╰────

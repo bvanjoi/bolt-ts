@@ -1,0 +1,11 @@
+  × Variable 't' is used before being assigned.
+   ╭─[../../tests/compiler/classExpressionTest2/index.ts:8:22]
+ 8 │ t
+   · ─
+   ╰────
+
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/classExpressionTest2/index.ts:8:25]
+ 8 │ x
+   · ─
+   ╰────

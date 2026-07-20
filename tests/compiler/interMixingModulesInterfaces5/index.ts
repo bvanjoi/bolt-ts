@@ -10,6 +10,7 @@ module A {
   export module B {
       export function createB(): number {
           return null;
+          //~^ ERROR: Type 'null' is not assignable to type 'number'.
       }
   }
 }

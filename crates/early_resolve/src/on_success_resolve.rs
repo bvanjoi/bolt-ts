@@ -4,10 +4,9 @@ use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
-use crate::get_symbol;
-
 use super::Resolver;
 use super::errors;
+use super::get_symbol;
 
 impl<'cx> Resolver<'cx, '_, '_> {
     fn check_param_refer_itself(

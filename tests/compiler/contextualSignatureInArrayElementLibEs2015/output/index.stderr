@@ -1,0 +1,5 @@
+  × Parameter 'arg' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/contextualSignatureInArrayElementLibEs2015/index.ts:15:4]
+ 15 │ arg
+    · ───
+    ╰────

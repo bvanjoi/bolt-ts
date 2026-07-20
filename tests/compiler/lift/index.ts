@@ -4,6 +4,7 @@ class B {
   constructor(public y:number) {
   }
   public ll:number;  // to be shadowed
+  //~^ ERROR: Property 'll' has no initializer and is not definitely assigned in the constructor.
 }
 
 class C extends B {

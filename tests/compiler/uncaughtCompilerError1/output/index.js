@@ -5,16 +5,16 @@ function f() {
       return {
               appendText: '""',
         advanceCount: 1        
-      }
+      };
     } else if (tokens[index + 1].type !== 'attribute.value.html' && tokens[index + 1].type !== '') {
       return {
               appendText: '""',
         advanceCount: 1        
-      }
+      };
     }
     
     
-    return null
+    return null;
   }
   
 }

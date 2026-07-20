@@ -9,3 +9,9 @@
  4 │ rest
    · ────
    ╰────
+
+  × Rest parameter 'public' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/restParamModifier/index.ts:4:17]
+ 4 │ ...public
+   · ─────────
+   ╰────

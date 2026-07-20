@@ -1,0 +1,5 @@
+  × Variable 'CStatic' is used before being assigned.
+    ╭─[../../tests/compiler/extendConstructSignatureInInterface/index.ts:10:17]
+ 10 │ CStatic
+    · ───────
+    ╰────

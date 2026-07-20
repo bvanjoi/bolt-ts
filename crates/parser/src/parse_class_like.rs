@@ -54,6 +54,7 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
 
 pub(super) trait ClassLike<'cx, 'p> {
     type Node;
+    #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
         state: &mut ParserState<'cx, 'p>,
@@ -81,21 +82,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        let id = state.next_node_id();
-        let decl = state.alloc(ast::ClassDecl {
-            id,
-            span,
-            modifiers,
-            name,
-            ty_params,
-            extends,
-            implements,
-            elems,
-        });
-        state.set_external_module_indicator_if_has_export_mod(modifiers, id);
-        state.node_flags_map.insert(id, state.node_context_flags);
-        state.nodes.insert(decl.id, ast::Node::ClassDecl(decl));
-        decl
+        state.create_class_declaration(span, modifiers, name, ty_params, extends, implements, elems)
     }
 }
 
@@ -106,27 +93,14 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
         self,
         state: &mut ParserState<'cx, 'p>,
         span: Span,
-        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        _modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
         ty_params: Option<ast::TyParams<'cx>>,
         extends: Option<&'cx ast::ClassExtendsClause<'cx>>,
         implements: Option<&'cx ast::ClassImplementsClause<'cx>>,
         elems: &'cx ast::ClassElems<'cx>,
     ) -> Self::Node {
-        assert!(modifiers.is_none());
-        let id = state.next_node_id();
-        let expr = state.alloc(ast::ClassExpr {
-            id,
-            span,
-            name,
-            ty_params,
-            extends,
-            implements,
-            elems,
-        });
-        state.node_flags_map.insert(id, state.node_context_flags);
-        state.nodes.insert(expr.id, ast::Node::ClassExpr(expr));
-        expr
+        state.create_class_expression(span, name, ty_params, extends, implements, elems)
     }
 }
 
@@ -238,9 +212,8 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     } else {
                         let ty_arguments = self.try_parse_ty_args();
                         let span = self.new_span(start_pos);
-                        let expr =
-                            self.create_expression_with_type_arguments(span, expr, ty_arguments);
-                        expr
+
+                        self.create_expression_with_type_arguments(span, expr, ty_arguments)
                     };
                     if is_first {
                         e = Some(expr);
@@ -292,16 +265,69 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 };
                 self.push_error(Box::new(error));
             }
-            let id = self.next_node_id();
-            let clause = self.alloc(ast::ClassExtendsClause {
-                id,
-                span: self.new_span(start),
-                expr_with_ty_args: expr,
-            });
-            self.nodes.insert(id, ast::Node::ClassExtendsClause(clause));
+            let clause = self.create_class_extends_clause(self.new_span(start), expr);
             return Ok(Some(clause));
         }
         Ok(None)
+    }
+
+    fn parse_class_property(
+        &mut self,
+        start: u32,
+        modifiers: Option<&'cx ast::Modifiers<'cx>>,
+        name: &'cx ast::PropName<'cx>,
+        question_token: Option<ast::Token>,
+    ) -> PResult<&'cx ast::ClassElem<'cx>> {
+        // prop
+        if let ast::PropNameKind::StringLit { raw, .. } = name.kind
+            && raw.val == keyword::KW_CONSTRUCTOR
+        {
+            let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
+            self.push_error(Box::new(error));
+        }
+        self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
+            let excl = if question_token.is_none() && !this.has_preceding_line_break() {
+                this.parse_optional(TokenKind::Excl)
+            } else {
+                None
+            };
+            let ty = this.parse_ty_anno()?;
+            let init = this.parse_init()?;
+            if let Some(excl) = excl {
+                if init.is_some() {
+                    let error = errors::DeclarationsWithInitializersCannotAlsoHaveDefiniteAssignmentAssertions {
+                        span:excl.span
+                    };
+                    this.push_error(Box::new(error));
+                } else if ty.is_none() {
+                    let error = errors::DeclarationsWithDefiniteAssignmentAssertionsMustAlsoHaveTypeAnnotations {
+                        span: excl.span,
+                    };
+                    this.push_error(Box::new(error));
+                } else if modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
+                    || this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
+                {
+                    let error = errors::ADefiniteAssignmentAssertionIsNotPermittedInThisContext {
+                        span: excl.span,
+                    };
+                    this.push_error(Box::new(error));
+                }
+            }
+            let span = this.new_span(start);
+            let prop = this.create_class_property_element(
+                span,
+                modifiers,
+                name,
+                ty,
+                init,
+                excl,
+                question_token.map(|t| t.span),
+            );
+            this.parse_semi_after_prop_name(name.span());
+            Ok(this.alloc(ast::ClassElem {
+                kind: ast::ClassElemKind::Prop(prop),
+            }))
+        })
     }
 
     fn parse_class_prop_or_method(
@@ -330,7 +356,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
             let span = self.new_span(start);
-            let method = self.create_class_method_elem(
+            let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
             );
             self.alloc(ast::ClassElem {
@@ -338,36 +364,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             })
         } else {
             debug_assert!(asterisk.is_none());
-            // prop
-            if let ast::PropNameKind::StringLit { raw, .. } = name.kind
-                && raw.val == keyword::KW_CONSTRUCTOR
-            {
-                let error = errors::ClassesMayNotHaveAFieldNamedConstructor { span: name.span() };
-                self.push_error(Box::new(error));
-            }
-            self.do_inside_of_parse_context(ParseContext::CLASS_FIELD_DEFINITION, |this| {
-                let excl = if question_token.is_none() && !this.has_preceding_line_break() {
-                    this.parse_optional(TokenKind::Excl)
-                } else {
-                    None
-                };
-                let ty = this.parse_ty_anno()?;
-                let init = this.parse_init()?;
-                let span = this.new_span(start);
-                let prop = this.create_class_prop_elem(
-                    span,
-                    modifiers,
-                    name,
-                    ty,
-                    init,
-                    excl,
-                    question_token.map(|t| t.span),
-                );
-                this.parse_semi_after_prop_name(name.span());
-                Ok(this.alloc(ast::ClassElem {
-                    kind: ast::ClassElemKind::Prop(prop),
-                }))
-            })?
+            self.parse_class_property(start, modifiers, name, question_token)?
         };
         Ok(ele)
     }
@@ -400,7 +397,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         self.try_parse(|this| {
             let name_span = this.p().token.span;
             if this.p().parse_ctor_name() {
-                if let Some(_) = this.p().parse_ty_params() {
+                if this.p().parse_ty_params().is_some() {
                     let span = bolt_ts_span::Span::new(
                         name_span.hi(),
                         this.p().pos as u32,
@@ -442,7 +439,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 let span = this.p().new_span(start);
                 let ctor = this
                     .p()
-                    .create_class_ctor(span, mods, name_span, params, ret, body);
+                    .create_class_constructor(span, mods, name_span, params, ret, body);
                 let ele = this.p().alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Ctor(ctor),
                 });
@@ -461,7 +458,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             TokenKind::Semi => {
                 self.next_token();
                 let span = self.new_span(start);
-                let elem = self.create_semi_class_elem(span);
+                let elem = self.create_class_semi_element(span);
                 return Ok(self.alloc(ast::ClassElem {
                     kind: ast::ClassElemKind::Semi(elem),
                 }));
@@ -480,7 +477,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let modifiers = self.parse_modifiers::<false, true>(true);
         let under_type_context = |this: &Self| {
             this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
-                || modifiers.map_or(false, |ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+                || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
         };
         if let Some(ms) = modifiers {
             for m in ms.list {
@@ -555,7 +552,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let body =
             self.do_inside_of_parse_context(ParseContext::CLASS_STATIC_BLOCK, Self::parse_block);
         let span = self.new_span(start as u32);
-        let block = self.create_class_static_block_decl(span, body);
+        let block = self.create_class_static_block_declaration(span, body);
         Ok(self.alloc(ast::ClassElem {
             kind: ast::ClassElemKind::StaticBlockDecl(block),
         }))

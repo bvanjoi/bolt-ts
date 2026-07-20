@@ -4,7 +4,6 @@ use bolt_ts_errors::miette;
 use bolt_ts_errors::miette::Diagnostic;
 use bolt_ts_span::Span;
 
-use thiserror;
 use thiserror::Error;
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
@@ -147,14 +146,14 @@ pub struct ShorthandPropertyNeedAnInitializer {
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Static members cannot reference class type parameters.")]
 pub struct StaticMembersCannotReferenceClassTypeParameters {
     #[label(primary)]
     pub span: Span,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Parameter '{parameter}' cannot reference identifier '{identifier}' declared after it.")]
 pub struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
     #[label(primary)]
@@ -163,7 +162,7 @@ pub struct ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
     pub identifier: String,
 }
 
-#[derive(Error, Diagnostic, Debug, DiagnosticExt, Default)]
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error(
     "Initializer of instance member variable '{x}' cannot reference identifier '{y}' declared in the constructor."
 )]

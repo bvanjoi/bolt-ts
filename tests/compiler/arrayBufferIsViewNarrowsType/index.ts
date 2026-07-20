@@ -2,6 +2,7 @@
 
 var obj: Object;
 if (ArrayBuffer.isView(obj)) {
+//~^ ERROR: Variable 'obj' is used before being assigned.
     // isView should be a guard that narrows type to ArrayBufferView.
     var ab: ArrayBufferView = obj;
 }

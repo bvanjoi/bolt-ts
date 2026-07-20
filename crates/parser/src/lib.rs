@@ -1,4 +1,5 @@
 use bolt_ts_parser_errors as errors;
+mod check;
 mod expr;
 mod jsx;
 mod lookahead;
@@ -10,6 +11,7 @@ mod parse_import_export_spec;
 mod parse_modifiers;
 mod parsed_map;
 mod parsing_ctx;
+#[allow(dead_code)]
 mod pragmas;
 mod scan;
 mod scan_pragma;
@@ -88,7 +90,7 @@ pub struct ParseResult<'cx> {
     pub module_augmentations: Vec<ast::NodeID>,
     pub ambient_modules: Vec<Atom>,
     lib_reference_directives: Vec<FileReference>,
-    pragmas: PragmaMap,
+    _pragmas: PragmaMap,
 }
 
 pub enum ImportKind {
@@ -286,7 +288,7 @@ pub fn parse<'cx, 'p>(
         module_augmentations: c.module_augmentations,
         ambient_modules: c.ambient_modules,
         lib_reference_directives: s.lib_reference_directives,
-        pragmas: s.pragmas,
+        _pragmas: s.pragmas,
     }
 }
 
@@ -337,7 +339,7 @@ impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
             ast::StmtKind::Import(n) => Some(n.module),
             ast::StmtKind::Export(n) => n.module_spec(),
             // TODO: import equal
-            ast::StmtKind::Module(n) => {
+            ast::StmtKind::BlockModule(n) => {
                 if n.is_ambient()
                     && (self.in_ambient_module
                         || n.modifiers

@@ -1,16 +1,16 @@
 function A() {
-  return ''
+  return '';
 }
 function B() {
   var someLocal = {};
-  return someLocal
+  return someLocal;
 }
 class C {
   A() {
-    return ''
+    return '';
   }
   B() {
     var someLocal = {};
-    return someLocal
+    return someLocal;
   }
 }

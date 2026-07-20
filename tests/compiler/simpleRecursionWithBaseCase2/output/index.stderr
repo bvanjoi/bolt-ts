@@ -1,0 +1,5 @@
+  × Type 'Promise<string>' is not assignable to type 'Promise<number>'.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase2/index.ts:17:5]
+ 17 │ a
+    · ─
+    ╰────

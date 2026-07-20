@@ -5,8 +5,8 @@
    ╰────
 
   × Function with bodies can only merge with classes that are ambient.
-   ╭─[../../tests/compiler/callOverloads5/index.ts:9:10]
- 9 │ Foo
+   ╭─[../../tests/compiler/callOverloads5/index.ts:8:10]
+ 8 │ Foo
    · ───
    ╰────
 
@@ -18,7 +18,7 @@
 
   × Function implementation is missing or not immediately following the
   │ declaration.
-   ╭─[../../tests/compiler/callOverloads5/index.ts:6:10]
- 6 │ Foo
+   ╭─[../../tests/compiler/callOverloads5/index.ts:8:10]
+ 8 │ Foo
    · ───
    ╰────

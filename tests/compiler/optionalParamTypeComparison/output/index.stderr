@@ -1,12 +1,12 @@
-  × Type '(s: string, b: boolean) => void' is not assignable to type '(s:
-  │ string, n: number) => void'.
+  × Type '(s: string, b: undefined | false | true) => void' is not assignable
+  │ to type '(s: string, n: undefined | number) => void'.
    ╭─[../../tests/compiler/optionalParamTypeComparison/index.ts:8:1]
  8 │ f
    · ─
    ╰────
 
-  × Type '(s: string, n: number) => void' is not assignable to type '(s:
-  │ string, b: boolean) => void'.
+  × Type '(s: string, n: undefined | number) => void' is not assignable to
+  │ type '(s: string, b: undefined | false | true) => void'.
     ╭─[../../tests/compiler/optionalParamTypeComparison/index.ts:10:1]
  10 │ g
     · ─

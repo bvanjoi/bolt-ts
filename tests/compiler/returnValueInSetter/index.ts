@@ -2,6 +2,7 @@
 
 class f {
     set x(value) {
+    //~^ ERROR: Parameter 'value' implicitly has an 'any' type.
         return null; // Should be an error
         //~^ ERROR: Setters cannot return a value.
     }

@@ -1,0 +1,17 @@
+  × Cannot find name 'index'.
+   ╭─[../../tests/compiler/propertyAssignment/index.ts:9:22]
+ 9 │ index
+   · ─────
+   ╰────
+
+  × Type '{ x: number; }' is not assignable to type 'new () => any'.
+    ╭─[../../tests/compiler/propertyAssignment/index.ts:18:1]
+ 18 │ foo1
+    · ────
+    ╰────
+
+  × Type '{ x: number; }' is not assignable to type '() => void'.
+    ╭─[../../tests/compiler/propertyAssignment/index.ts:21:1]
+ 21 │ foo3
+    · ────
+    ╰────

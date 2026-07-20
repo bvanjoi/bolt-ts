@@ -3,15 +3,15 @@ function getSecurity(level) {
     case 0:
     case 1:
     case 2:
-      return 'Hi'
+      return 'Hi';
     
     case 3:
     case 4:
-      return 'hello'
+      return 'hello';
     
     case 5:
     default:
-      return 'world'
+      return 'world';
     
   }
 }

@@ -1,0 +1,5 @@
+  × Import declarations in a namespace cannot reference a module.
+   ╭─[../../tests/compiler/importDeclarationInModuleDeclaration1/index.ts:6:25]
+ 6 │ "use_glo_M1_public"
+   · ───────────────────
+   ╰────

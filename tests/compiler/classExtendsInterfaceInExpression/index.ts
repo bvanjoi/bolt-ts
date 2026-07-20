@@ -4,6 +4,7 @@ interface A {}
 
 function factory(a: any): {new(): Object} {
   return null;
+  //~^ ERROR: Type 'null' is not assignable to type 'new () => Object'.
 }
 
 class C extends factory(A) {}

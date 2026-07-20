@@ -1,0 +1,48 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:7:11]
+ 7 │ this
+   · ────
+   ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+   ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:7:11]
+ 7 │ this
+   · ────
+   ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:9:25]
+ 9 │ this
+   · ────
+   ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+   ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:9:25]
+ 9 │ this
+   · ────
+   ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:17:14]
+ 17 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:20:7]
+ 20 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/thisInInnerFunctions/index.ts:17:14]
+ 17 │ this
+    · ────
+    ╰────

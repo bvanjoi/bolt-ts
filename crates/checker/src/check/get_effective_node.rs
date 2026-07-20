@@ -131,9 +131,20 @@ impl<'cx> TyChecker<'cx> {
         //     return self.empty_array();
         // }
         match node {
-            ast::Node::TaggedTemplateExpr(_) => {
-                // TODO:
-                EffectiveCallArguments::Borrowed(expr.args())
+            ast::Node::TaggedTemplateExpr(n) => {
+                let mut args = vec![EffectiveCallArgument::Synthetic(SyntheticExpression {
+                    span: n.tag.span(),
+                    parent: n.tpl.id(),
+                    is_spread: false,
+                    tuple_name_source: None,
+                    ty: self.get_global_template_strings_array_ty(),
+                })];
+                if let ast::TemplateExpressionKind::TemplateExpr(template) = n.tpl {
+                    for span in template.spans {
+                        args.push(EffectiveCallArgument::Expression(span.expr));
+                    }
+                }
+                EffectiveCallArguments::Owned(args)
             }
             _ => {
                 let args = expr.args();
@@ -146,7 +157,7 @@ impl<'cx> TyChecker<'cx> {
                         let arg = args[i];
                         let spread_ty = if let ast::ExprKind::SpreadElement(n) = &arg.kind {
                             Some(if flow_loop_ctx_len(self) != 0 {
-                                self.check_expression(n.expr, None)
+                                self.check_expression::<false>(n.expr, None)
                             } else {
                                 self.check_expression_cached(n.expr, None)
                             })
@@ -169,7 +180,10 @@ impl<'cx> TyChecker<'cx> {
                                         } else {
                                             ty
                                         },
-                                        tuple_name_source: None, // TODO: t.labeled_element_declarations
+                                        tuple_name_source: t
+                                            .labeled_element_declarations
+                                            .and_then(|n| n.get(j))
+                                            .and_then(|n| *n),
                                     },
                                 ));
                             }
@@ -206,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
                 && !modifier_flags.contains(ast::ModifierFlags::AMBIENT)
                 && !(parent_node.is_module_block()
                     && self.parent(p).is_some_and(|pp| {
-                        self.p.node(pp).is_module_decl()
+                        self.p.node(pp).is_module_declaration()
                             && self
                                 .p
                                 .node_flags(pp)
@@ -243,14 +257,10 @@ pub struct SyntheticExpression<'cx> {
     parent: ast::NodeID,
     is_spread: bool,
     ty: &'cx ty::Ty<'cx>,
-    tuple_name_source: Option<ast::NodeID>,
+    tuple_name_source: Option<ty::TupleLabeledElementDeclaration<'cx>>,
 }
 
 impl<'cx> SyntheticExpression<'cx> {
-    pub fn span(&self) -> bolt_ts_span::Span {
-        self.span
-    }
-
     pub fn ty(&self) -> &'cx ty::Ty<'cx> {
         self.ty
     }
@@ -261,6 +271,10 @@ impl<'cx> SyntheticExpression<'cx> {
 
     pub fn is_spread(&self) -> bool {
         self.is_spread
+    }
+
+    pub fn tuple_name_source(&self) -> Option<ty::TupleLabeledElementDeclaration<'cx>> {
+        self.tuple_name_source
     }
 }
 

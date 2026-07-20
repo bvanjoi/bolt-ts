@@ -2,7 +2,7 @@
 
   × The right value of the `in` operator must be an 'object', but got
   │ 'number'.
-   ╭─[../../tests/compiler/inOperator/index.ts:9:15]
- 9 │ 0
-   · ─
-   ╰────
+    ╭─[../../tests/compiler/inOperator/index.ts:12:15]
+ 12 │ 0
+    · ─
+    ╰────

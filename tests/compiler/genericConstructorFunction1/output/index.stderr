@@ -1,0 +1,13 @@
+  × Value of type 'new (arg: T) => Date' is not callable.
+   ╭─[../../tests/compiler/genericConstructorFunction1/index.ts:8:5]
+ 8 │ v2
+   · ──
+   ╰────
+  help: Did you mean to include 'new'?
+
+  × Value of type 'I1<T>' is not callable.
+    ╭─[../../tests/compiler/genericConstructorFunction1/index.ts:18:13]
+ 18 │ v2
+    · ──
+    ╰────
+  help: Did you mean to include 'new'?

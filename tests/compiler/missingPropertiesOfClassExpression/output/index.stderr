@@ -1,0 +1,6 @@
+  × Property 'y' does not exist on type '(Anonymous class)<(Anonymous
+  │ class)>'.
+   ╭─[../../tests/compiler/missingPropertiesOfClassExpression/index.ts:5:52]
+ 5 │ y
+   · ─
+   ╰────

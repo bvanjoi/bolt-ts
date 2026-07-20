@@ -2,6 +2,7 @@
 
 class Model {
   public name: string;
+  //~^ ERROR: Property 'name' has no initializer and is not definitely assigned in the constructor.
 }
 
 class UI {

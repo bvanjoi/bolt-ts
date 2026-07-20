@@ -92,40 +92,6 @@ impl<'cx> TyChecker<'cx> {
         u.flags.contains(TypeFlags::NEVER)
     }
 
-    pub(super) fn distribute_object_over_object_ty<const WRITING: bool>(
-        &mut self,
-        object_ty: &'cx ty::Ty<'cx>,
-        index_ty: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
-        // (T | U)[K] -> T[K] | U[K] (reading)
-        // (T | U)[K] -> T[K] & U[K] (writing)
-        // (T & U)[K] -> T[K] & U[K]
-        if let Some(tys) = object_ty.kind.tys_of_union_or_intersection()
-            && !self.should_defer_index_ty(object_ty, IndexFlags::empty())
-        {
-            let tys = tys
-                .iter()
-                .map(|t| {
-                    let a = self.get_indexed_access_ty(t, index_ty, None, None, None, None);
-                    self.get_simplified_ty::<WRITING>(a)
-                })
-                .collect::<Vec<_>>();
-            return if WRITING || object_ty.flags.intersects(TypeFlags::INTERSECTION) {
-                Some(self.get_intersection_ty(&tys, IntersectionFlags::None, None, None))
-            } else {
-                Some(self.get_union_ty::<false>(
-                    &tys,
-                    ty::UnionReduction::Lit,
-                    None,
-                    None,
-                    None,
-                    None,
-                ))
-            };
-        }
-        None
-    }
-
     pub(super) fn distribute_index_over_object_ty<const WRITING: bool>(
         &mut self,
         object_ty: &'cx ty::Ty<'cx>,

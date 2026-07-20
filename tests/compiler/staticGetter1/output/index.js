@@ -1,5 +1,5 @@
 class C {
   static get x() {
-    return this
+    return this;
   }
 }

@@ -45,9 +45,9 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             check_ident_start,
             check_ident_end,
         );
-        state.alloc(ast::ModuleExportName {
-            kind: ast::ModuleExportNameKind::Ident(ident),
-        })
+        state.check_contextual_ident(ident);
+        let kind = ast::ModuleExportNameKind::Ident(ident);
+        state.alloc(ast::ModuleExportName { kind })
     }
     fn finish_spec(
         &self,
@@ -60,20 +60,13 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ImportNamedSpec {
-                id,
-                span,
-                prop_name,
-                name: ident,
-            });
-            state.nodes.insert(id, ast::Node::ImportNamedSpec(spec));
+            let spec = state.create_import_named_specifier(span, prop_name, ident);
             ast::ImportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let node = state.create_import_shorthand_spec(span, ident);
+            let node = state.create_import_shorthand_specifier(span, ident);
             ast::ImportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ImportSpec { kind })
@@ -104,20 +97,13 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec {
         let kind = if let Some(prop_name) = prop_name {
-            let id = state.next_node_id();
-            let spec = state.alloc(ast::ExportNamedSpec {
-                id,
-                span,
-                prop_name,
-                name,
-            });
-            state.nodes.insert(id, ast::Node::ExportNamedSpec(spec));
+            let spec = state.create_export_named_specifier(span, prop_name, name);
             ast::ExportSpecKind::Named(spec)
         } else {
             let ast::ModuleExportNameKind::Ident(ident) = name.kind else {
                 unreachable!()
             };
-            let node = state.create_export_shorthand_spec(span, ident);
+            let node = state.create_export_shorthand_specifier(span, ident);
             ast::ExportSpecKind::Shorthand(node)
         };
         state.alloc(ast::ExportSpec { kind })
@@ -158,7 +144,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         let mut check_ident_is_keyword = self.token.kind.is_keyword() && !self.is_ident();
         let mut check_ident_start = self.token.start();
         let mut check_ident_end = self.token.end();
-        let mut is_type_only = false;
+        let mut _is_type_only = false;
         let mut can_parse_as_keyword: bool = true;
         let mut prop_name = None;
         let mut name = self.parse_module_export_name(|this| this.create_ident(true, None));
@@ -175,7 +161,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     can_parse_as_keyword = false;
                     if self.token.kind.can_parse_module_export_name() {
                         // `{type as as ident}` or `{type as as "stringLit"}`
-                        is_type_only = true;
+                        _is_type_only = true;
                         prop_name = Some(self.alloc(ast::ModuleExportName {
                             kind: ast::ModuleExportNameKind::Ident(first_as),
                         }));
@@ -204,14 +190,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     );
                 } else {
                     // `{type as }`
-                    is_type_only = true;
+                    _is_type_only = true;
                     name = self.alloc(ast::ModuleExportName {
                         kind: ast::ModuleExportNameKind::Ident(first_as),
                     });
                 }
             } else if self.token.kind.can_parse_module_export_name() {
                 // `{type ident ... }` or `{type "stringLit" ...}`
-                is_type_only = true;
+                _is_type_only = true;
                 name = kind.parse_name(
                     self,
                     &mut check_ident_is_keyword,

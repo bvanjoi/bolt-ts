@@ -1,5 +1,18 @@
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/typeArgumentInferenceOrdering/index.ts:4:3]
+ 4 │ y
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/typeArgumentInferenceOrdering/index.ts:16:42]
+ 16 │ null
+    · ────
+    ╰────
+
   × Type 'string' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/typeArgumentInferenceOrdering/index.ts:18:5]
- 18 │ p
+    ╭─[../../tests/compiler/typeArgumentInferenceOrdering/index.ts:20:5]
+ 20 │ p
     · ─
     ╰────

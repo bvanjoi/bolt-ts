@@ -1,0 +1,24 @@
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyForMethodParameters/index.ts:11:16]
+ 11 │ a
+    · ─
+    ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/noImplicitAnyForMethodParameters/index.ts:11:5]
+ 11 │ public foo(a);
+    · ──────────────
+    ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyForMethodParameters/index.ts:17:17]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyForMethodParameters/index.ts:21:16]
+ 21 │ a
+    · ─
+    ╰────

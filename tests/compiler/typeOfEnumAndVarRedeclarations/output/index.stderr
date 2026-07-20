@@ -1,0 +1,27 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type '{ a: E.a; b: E.b; }', but here has type '{ [x: number]:
+  │ string }'.
+    ╭─[../../tests/compiler/typeOfEnumAndVarRedeclarations/index.ts:12:5]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/typeOfEnumAndVarRedeclarations/index.ts:15:40]
+ 15 │ readonly [x: number]: string;
+    · ─────────────────────────────
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/typeOfEnumAndVarRedeclarations/index.ts:15:70]
+ 15 │ readonly [x: number]: string
+    · ────────────────────────────
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type '{ a: E.a; b: E.b; }', but here has type '{ [x: number]:
+  │ string }'.
+    ╭─[../../tests/compiler/typeOfEnumAndVarRedeclarations/index.ts:15:5]
+ 15 │ y
+    · ─
+    ╰────

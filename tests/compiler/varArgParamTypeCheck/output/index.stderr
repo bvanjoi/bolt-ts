@@ -1,0 +1,13 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/varArgParamTypeCheck/index.ts:14:13]
+ 14 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/varArgParamTypeCheck/index.ts:20:13]
+ 20 │ this
+    · ────
+    ╰────

@@ -1,4 +1,4 @@
 async () => {
-  if (window) return 
+  if (window) return ;
   
 };

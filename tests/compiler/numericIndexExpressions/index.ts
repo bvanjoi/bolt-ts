@@ -8,13 +8,13 @@ interface Strings1 {
 }
  
  
-var x: Numbers1;
+declare var x: Numbers1;
 x[1] = 4; // error
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
 x['1'] = 4; // error
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
 
-var y: Strings1;
+declare var y: Strings1;
 y['1'] = 4; // should be error
 //~^ ERROR: Type 'number' is not assignable to type 'string'.
 y[1] = 4; // should be error

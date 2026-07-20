@@ -1,0 +1,11 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/ParameterList6/index.ts:6:19]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × Parameter 'A' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/ParameterList6/index.ts:6:19]
+ 6 │ public A
+   · ────────
+   ╰────

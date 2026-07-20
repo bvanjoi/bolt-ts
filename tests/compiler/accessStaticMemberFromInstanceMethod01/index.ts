@@ -2,6 +2,7 @@
 
 class C {
   foo: string;
+  //~^ ERROR: Property 'foo' has no initializer and is not definitely assigned in the constructor.
 
   static bar() {
       let k = foo;

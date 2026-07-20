@@ -7,5 +7,6 @@ class Base {
 
 class Derived extends Base {
     foo: () => { };
+    //~^ ERROR: Property 'foo' has no initializer and is not definitely assigned in the constructor.
 }
 

@@ -14,6 +14,7 @@ interface Transform3D {
 
 var style: IBookStyle = {
     initialLeftPageTransforms: (width: number) => {
+    //~^ ERROR: Type '(width: number) => { ry: null; }[]' is not assignable to type 'undefined | ((width: number) => NamedTransform[])'.
         return [
             {'ry': null }
         ];

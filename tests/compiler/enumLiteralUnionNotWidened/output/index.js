@@ -16,11 +16,11 @@ class List {
   items = [];
 }
 function asList(arg) {
-  return new List()
+  return new List();
 }
 function fn1(x) {
-  return asList(x)
+  return asList(x);
 }
 function fn2(x) {
-  return asList(x)
+  return asList(x);
 }

@@ -1,3 +1,3 @@
 function bar(x) {
-  return bar(x)
+  return bar(x);
 }

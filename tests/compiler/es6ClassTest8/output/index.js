@@ -1,24 +1,24 @@
 function f1(x) {
-  return x
+  return x;
 }
 class C {
   constructor() {var bar = (function () {
-      return bar
+      return bar;
     });
     var b = f1(f1(bar));}
 }
 class Vector {
   static norm(v) {
-    return null
+    return null;
   }
   static minus(v1, v2) {
-    return null
+    return null;
   }
   static times(v1, v2) {
-    return null
+    return null;
   }
   static cross(v1, v2) {
-    return null
+    return null;
   }
   constructor(x, y, z) {
     this.x = x
@@ -27,7 +27,7 @@ class Vector {
     
     this.z = z}
   static dot(v1, v2) {
-    return null
+    return null;
   }
 }
 class Camera {

@@ -1,0 +1,6 @@
+  × Property 'type' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/generativeRecursionWithTypeOf/index.ts:5:5]
+ 5 │ type
+   · ────
+   ╰────

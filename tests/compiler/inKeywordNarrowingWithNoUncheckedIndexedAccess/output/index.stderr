@@ -1,0 +1,41 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:12:9]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Type 'undefined | string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:14:9]
+ 14 │ b
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:21:13]
+ 21 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:31:13]
+ 31 │ a
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:36:13]
+ 36 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:46:13]
+ 46 │ a
+    · ─
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/inKeywordNarrowingWithNoUncheckedIndexedAccess/index.ts:51:13]
+ 51 │ a
+    · ─
+    ╰────

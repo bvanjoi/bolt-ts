@@ -6,4 +6,5 @@ module M {
 }
 module M {
     export class C2 { f(): I { return null; } }
+    //~^ ERROR: Type 'null' is not assignable to type 'M.I'.
 }

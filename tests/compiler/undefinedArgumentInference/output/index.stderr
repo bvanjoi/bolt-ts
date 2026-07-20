@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/undefinedArgumentInference/index.ts:5:10]
+ 5 │ undefined
+   · ─────────
+   ╰────

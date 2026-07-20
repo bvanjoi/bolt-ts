@@ -63,11 +63,20 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_class_ctor(&mut self, ctor: &'cx ast::ClassCtor<'cx>) {
-        self.check_fn_like_decl(ctor);
-
-        if ctor.body.is_none() {
-            return;
+        self.check_sig_decl(ctor.id);
+        let symbol = self.get_symbol_of_declaration(ctor.id);
+        let first_fn_decl = self
+            .symbol(symbol)
+            .decls
+            .as_ref()
+            .and_then(|decls| decls.iter().find(|&&d| self.p.node(d).is_class_ctor()));
+        if first_fn_decl.is_some_and(|&decl| decl == ctor.id) {
+            self.check_fn_like_symbol(symbol);
         }
+        let Some(constructor_body) = ctor.body else {
+            return;
+        };
+        self.check_block(constructor_body);
 
         let containing_class_decl = self.parent(ctor.id).unwrap();
         let extends = match self.p.node(containing_class_decl) {
@@ -75,7 +84,7 @@ impl<'cx> TyChecker<'cx> {
             ast::Node::ClassDecl(c) => c.extends,
             _ => unreachable!(),
         };
-        if let Some(extends) = extends {
+        if let Some(_extendss) = extends {
             let extends_null = self.class_decl_extends_null(containing_class_decl);
             if let Some(first_super_call) = self.find_first_super_call_in_ctor_body(ctor) {
                 if extends_null {
@@ -86,23 +95,70 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
 
-                let super_call_should_be_root_level = !self.emit_standard_class_fields && {
-                    let class = self.parent(ctor.id).unwrap();
-                    let elements = match self.p.node(class) {
-                        ast::Node::ClassExpr(n) => n.elems,
-                        ast::Node::ClassDecl(n) => n.elems,
-                        _ => unreachable!(),
-                    };
-                    // TODO: is_instance_property_with_initializer_or_private_identifier_property
-                    false
-                } || ctor.params.iter().any(|p| {
-                    p.modifiers.is_some_and(|ms| {
-                        ms.flags
-                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
-                    })
-                });
+                let super_call_should_be_root_level = !self.emit_standard_class_fields
+                    && ({
+                        let class = self.parent(ctor.id).unwrap();
+                        let elements = match self.p.node(class) {
+                            ast::Node::ClassExpr(n) => n.elems,
+                            ast::Node::ClassDecl(n) => n.elems,
+                            _ => unreachable!(),
+                        };
+                        elements.list.iter().any(|element| {
+                            // is_instance_property_with_initializer_or_private_identifier_property
+                            if element.is_private_identifier_class_element_declaration() {
+                                return true;
+                            }
+                            let ast::ClassElemKind::Prop(n) = element.kind else {
+                                return false;
+                            };
+                            if n.modifiers
+                                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::STATIC))
+                            {
+                                return false;
+                            };
+                            n.init.is_some()
+                        })
+                    } || ctor.params.iter().any(|p| {
+                        p.modifiers.is_some_and(|ms| {
+                            ms.flags
+                                .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+                        })
+                    }));
                 if super_call_should_be_root_level {
-                    // TODO:
+                    // super_call_is_root_level_in_constructor
+                    let super_call_parent = self.parent(first_super_call.id).unwrap();
+                    let super_call_parent = self
+                        .node_query(super_call_parent.module())
+                        .walk_up_paren_expressions(super_call_parent);
+                    let super_call_is_root_level_in_constructor =
+                        if let ast::Node::ExprStmt(_) = self.p.node(super_call_parent) {
+                            self.parent(super_call_parent).unwrap() == constructor_body.id
+                        } else {
+                            false
+                        };
+                    if !super_call_is_root_level_in_constructor {
+                        // TODO:
+                    } else {
+                        let mut super_call_statement = None;
+                        for stmt in constructor_body.stmts {
+                            const FLAGS: u8 = ast::SKIP_OUTER_EXPRESSION_ALL_FLAGS;
+                            if let ast::StmtKind::Expr(n) = stmt.kind
+                                && let Some(n) =
+                                    ast::Expr::skip_outer_expr::<FLAGS>(n.expr).as_super_call()
+                            {
+                                super_call_statement = Some(n);
+                                break;
+                            } else if self.node_immediately_references_super_or_this(stmt.id()) {
+                                break;
+                            }
+                        }
+                        if super_call_statement.is_none() {
+                            let error = errors::ASuperCallMustBeTheFirstStatementInTheConstructorToReferToSuperOrThisWhenADerivedClassContainsInitializedPropertiesParameterPropertiesOrPrivateIdentifiers {
+                              span: ctor.name_span,
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
                 }
             } else if !extends_null {
                 let error = errors::ConstructorsForDerivedClassesMustContainASuperCall {
@@ -111,6 +167,60 @@ impl<'cx> TyChecker<'cx> {
                 self.push_error(Box::new(error));
             }
         }
+    }
+
+    fn node_immediately_references_super_or_this(&self, n: ast::NodeID) -> bool {
+        struct Visitor<'a, 'cx> {
+            c: &'a TyChecker<'cx>,
+            ret: bool,
+        }
+
+        impl<'a, 'cx> bolt_ts_ast_visitor::Visitor<'cx> for Visitor<'a, 'cx> {
+            type Result = bolt_ts_ast_visitor::ControlFlow;
+
+            noop_visit_type_node!();
+
+            fn visit_this_expr(&mut self, _: &ast::ThisExpr) -> Self::Result {
+                self.ret = true;
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_super_expr(&mut self, _: &ast::SuperExpr) -> Self::Result {
+                self.ret = true;
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_arrow_fn_expr(&mut self, _: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_fn_decl(&mut self, _: &'cx ast::FnDecl<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_fn_expr(&mut self, _: &'cx ast::FnExpr<'cx>) -> Self::Result {
+                bolt_ts_ast_visitor::ControlFlow::Break
+            }
+
+            fn visit_block_stmt(&mut self, n: &'cx ast::BlockStmt<'cx>) -> Self::Result {
+                let p = self.c.parent(n.id).unwrap();
+                match self.c.p.node(p) {
+                    ast::Node::ClassCtor(_)
+                    | ast::Node::ClassMethodElem(_)
+                    | ast::Node::GetterDecl(_)
+                    | ast::Node::SetterDecl(_) => return bolt_ts_ast_visitor::ControlFlow::Break,
+                    _ => {}
+                }
+                bolt_ts_ast_visitor::ControlFlow::Continue
+            }
+        }
+        let mut v = Visitor {
+            c: self,
+            ret: false,
+        };
+        let n = self.p.node(n);
+        bolt_ts_ast_visitor::visit_node(&mut v, &n);
+        v.ret
     }
 
     fn check_class_method_element(&mut self, method: &'cx ast::ClassMethodElem<'cx>) {
@@ -262,7 +372,7 @@ impl<'cx> TyChecker<'cx> {
 
         for elem in class.elems().list {
             if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
-                for param in ctor.params {
+                for _paramm in ctor.params {
                     // TODO:
                 }
             } else if let Some(name) = elem.kind.name()
@@ -379,12 +489,71 @@ impl<'cx> TyChecker<'cx> {
                     );
                 };
 
+                if base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                    if !self.is_mixin_constructor_ty(static_ty) {
+                        let span = class.span();
+                        let fallback_span = bolt_ts_span::Span::new(
+                            span.lo(),
+                            span.lo() + "class".len() as u32,
+                            span.module(),
+                        );
+                        let error = errors::AMixinClassMustHaveAConstructorWithASingleRestParameterOfTypeAny {
+                            span: class.name().map_or(fallback_span, |name| name.span),
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        let constructor_signatures =
+                            self.get_signatures_of_type(base_ctor_ty, ty::SigKind::Constructor);
+                        if constructor_signatures
+                            .iter()
+                            .any(|sig| sig.flags.contains(ty::SigFlags::ABSTRACT))
+                            && !class
+                                .modifiers()
+                                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
+                        {
+                            let span = class.span();
+                            let fallback_span = bolt_ts_span::Span::new(
+                                span.lo(),
+                                span.lo() + "class".len() as u32,
+                                span.module(),
+                            );
+                            let error = errors::AMixinClassThatExtendsFromATypeVariableContainingAnAbstractConstructSignatureMustAlsoBeDeclaredAbstract {
+                                span: class.name().map_or(fallback_span, |name| name.span),
+                            };
+                            self.push_error(Box::new(error));
+                        }
+                    }
+                }
+
+                if !static_base_ty.symbol().is_some_and(|symbol| {
+                    self.binder
+                        .symbol(symbol)
+                        .flags
+                        .contains(SymbolFlags::CLASS)
+                }) && !base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
+                    && let constructors = self.get_instantiated_constructors_for_type_arguments(
+                        static_base_ty,
+                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.id,
+                    )
+                    && constructors.iter().any(|sig| {
+                        // TODO: exclude js constructors
+                        let ret_ty = self.get_return_type_of_signature(sig);
+                        !self.is_type_identical_to(ret_ty, base_ty)
+                    })
+                {
+                    let error = errors::BaseConstructorsMustAllHaveTheSameReturnType {
+                        span: base_ty_node.expr_with_ty_args.span,
+                    };
+                    self.push_error(Box::new(error));
+                }
+
                 // ====== check_kinds_of_property_member_overrides ======
                 let base_properties = self.get_props_of_ty(base_ty);
                 struct MemberInfo<'cx> {
                     missed_props: Vec<SymbolID>,
-                    base_ty: &'cx ty::Ty<'cx>,
-                    ty: &'cx ty::Ty<'cx>,
+                    _base_ty: &'cx ty::Ty<'cx>,
+                    _ty: &'cx ty::Ty<'cx>,
                 }
                 let mut not_implemented_info = fx_hashmap_with_capacity(0);
                 'base_prop_check: for base_prop in base_properties {
@@ -428,8 +597,8 @@ impl<'cx> TyChecker<'cx> {
                                 derived_class_decl,
                                 MemberInfo {
                                     missed_props: vec![*base_prop],
-                                    base_ty,
-                                    ty,
+                                    _base_ty: base_ty,
+                                    _ty: ty,
                                 },
                             );
                         }
@@ -526,7 +695,7 @@ impl<'cx> TyChecker<'cx> {
                                 unreachable!()
                             };
                             let error = errors::ClassDefinesInstanceMemberAccessorButExtendedClassDefinesItAsInstanceMemberFunction {
-                                span: span,
+                                span,
                                 class_name: self.print_ty(base_ty, None).to_string(),
                                 property_name: base_s_name.to_string(&self.atoms),
                                 extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
@@ -539,7 +708,7 @@ impl<'cx> TyChecker<'cx> {
                                 unreachable!()
                             };
                             let error = errors::ClassDefinesInstanceMemberProperButExtendedClassDefinesItAsInstanceMemberFunction {
-                                span: span,
+                                span,
                                 class_name: self.print_ty(base_ty, None).to_string(),
                                 property_name: base_s_name.to_string(&self.atoms),
                                 extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
@@ -550,25 +719,25 @@ impl<'cx> TyChecker<'cx> {
                 }
 
                 for (error_node, member_info) in not_implemented_info {
-                    if member_info.missed_props.len() == 1 {
-                        if let Some(error_node) = error_node {
-                            let decl = self.p.node(error_node);
-                            if decl.is_class_expr() {
-                                let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
+                    if member_info.missed_props.len() == 1
+                        && let Some(error_node) = error_node
+                    {
+                        let decl = self.p.node(error_node);
+                        if decl.is_class_expr() {
+                            let error = errors::NonAbstractClassExpressionDoesNotImplementInheritedAbstractMember0FromClass1 {
                                     span: class.span(),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     class: self.print_ty(base_ty, None).to_string(),
                                 };
-                                self.push_error(Box::new(error));
-                            } else {
-                                let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
+                            self.push_error(Box::new(error));
+                        } else {
+                            let error = errors::NonAbstractClass0DoesNotImplementInheritedAbstractMember1FromClass2 {
                                     span: class.span(),
                                     non_abstract_class: self.p.node(class_id).name().unwrap().to_string(&self.atoms),
                                     member:  self.symbol(member_info.missed_props[0]).name.to_string(&self.atoms),
                                     abstract_class: self.print_ty(base_ty, None).to_string(),
                                 };
-                                self.push_error(Box::new(error));
-                            }
+                            self.push_error(Box::new(error));
                         }
                     }
                 }
@@ -626,18 +795,16 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        for ele in class.elems().list {
+        for element in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
-            match ele.kind {
+            match element.kind {
                 Prop(n) => self.check_class_prop_ele(n),
                 Method(n) => self.check_class_method_element(n),
                 Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}
                 Getter(n) => self.check_getter_decl(n),
                 Setter(n) => self.check_accessor_decl(n),
-                StaticBlockDecl(n) => {
-                    self.check_block(n.body);
-                }
+                StaticBlockDecl(n) => self.check_block(n.body),
                 Semi(_) => {}
             }
         }
@@ -677,16 +844,15 @@ impl<'cx> TyChecker<'cx> {
                         let prop_ty = self.get_type_of_symbol(symbol);
                         if !(prop_ty.flags.intersects(TypeFlags::ANY_OR_UNKNOWN)
                             || prop_ty.contains_undefined_ty())
-                        {
-                            if ctor.is_none_or(|ctor| {
+                            && ctor.is_none_or(|ctor| {
                                 !self.is_property_initialized_in_constructor(prop.id, ctor)
-                            }) {
-                                let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
+                            })
+                        {
+                            let error = errors::PropertyXHasNoInitializerAndIsNotDefinitelyAssignedInTheConstructor {
                                     span: prop_name.span(),
                                     property: prop_name.kind.to_string(&self.atoms),
                                 };
-                                self.push_error(Box::new(error));
-                            }
+                            self.push_error(Box::new(error));
                         }
                     }
                 }

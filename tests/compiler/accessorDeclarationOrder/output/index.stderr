@@ -1,0 +1,13 @@
+  × Property '#name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:6:5]
+ 6 │ #name
+   · ─────
+   ╰────
+
+  × Property '#name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/accessorDeclarationOrder/index.ts:19:5]
+ 19 │ #name
+    · ─────
+    ╰────

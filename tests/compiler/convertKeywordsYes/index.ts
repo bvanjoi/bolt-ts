@@ -1,5 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/convertKeywordsYes.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
+
 // reserved ES5 future in strict mode
 
 var constructor = 0;

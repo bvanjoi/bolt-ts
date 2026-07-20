@@ -2,6 +2,7 @@
 
 class Functionality<V> {
   property: Options<V>;
+  //~^ ERROR: Property 'property' has no initializer and is not definitely assigned in the constructor.
 }
 
 class Base {
@@ -9,6 +10,7 @@ class Base {
 
 class A<T> extends Base {
   options: Options<Functionality<T>[]>;
+  //~^ ERROR: Property 'options' has no initializer and is not definitely assigned in the constructor.
 }
 
 interface OptionsBase<T> {

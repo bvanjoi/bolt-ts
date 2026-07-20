@@ -5,6 +5,6 @@ var Foo = class {
     this.bar++;
   };
   m() {
-    return this.bar
+    return this.bar;
   }
 };

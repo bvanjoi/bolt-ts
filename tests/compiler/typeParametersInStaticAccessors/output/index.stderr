@@ -5,7 +5,13 @@
    ╰────
 
   × Static members cannot reference class type parameters.
-   ╭─[../../tests/compiler/typeParametersInStaticAccessors/index.ts:6:26]
- 6 │ T
+   ╭─[../../tests/compiler/typeParametersInStaticAccessors/index.ts:7:26]
+ 7 │ T
    · ─
+   ╰────
+
+  × Type 'null' is not assignable to type '() => error'.
+   ╭─[../../tests/compiler/typeParametersInStaticAccessors/index.ts:4:38]
+ 4 │ null
+   · ────
    ╰────

@@ -1,4 +1,8 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/objectLiteralFreshnessWithSpread.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/objectLiteralFreshnessWithSpread.ts`, Apache-2.0 License
+
+
+//@compiler-options: target=es2015
+//@compiler-options: strict=false
 
 let x = { b: 1, extra: 2 }
 let xx: { a, b }  = { a: 1, ...x, z: 3 } // error for 'z', no error for 'extra'

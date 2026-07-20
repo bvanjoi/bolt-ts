@@ -1,5 +1,5 @@
   × Generic type 'Array<T>' requires 1 type argument.
-   ╭─[../../tests/compiler/arrayLiteralAndArrayConstructorEquivalence1/index.ts:5:14]
+   ╭─[../../tests/compiler/arrayLiteralAndArrayConstructorEquivalence1/index.ts:5:22]
  5 │ Array
    · ─────
    ╰────

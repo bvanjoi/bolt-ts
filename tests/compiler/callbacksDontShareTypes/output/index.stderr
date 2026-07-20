@@ -1,0 +1,101 @@
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:11]
+ 20 │ _
+    · ─
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:11]
+ 20 │ _
+    · ─
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:17]
+ 20 │ c2
+    · ──
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:17]
+ 20 │ c2
+    · ──
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:17]
+ 20 │ c2
+    · ──
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:20:17]
+ 20 │ c2
+    · ──
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:27:11]
+ 27 │ _
+    · ─
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:27:11]
+ 27 │ _
+    · ─
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:27:17]
+ 27 │ c2
+    · ──
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:27:17]
+ 27 │ c2
+    · ──
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:32:11]
+ 32 │ _
+    · ─
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:32:11]
+ 32 │ _
+    · ─
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:32:33]
+ 32 │ c2
+    · ──
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:32:33]
+ 32 │ c2
+    · ──
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:37:11]
+ 37 │ _
+    · ─
+    ╰────
+
+  × Variable '_' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:37:11]
+ 37 │ _
+    · ─
+    ╰────
+
+  × Variable 'c2' is used before being assigned.
+    ╭─[../../tests/compiler/callbacksDontShareTypes/index.ts:37:33]
+ 37 │ c2
+    · ──
+    ╰────

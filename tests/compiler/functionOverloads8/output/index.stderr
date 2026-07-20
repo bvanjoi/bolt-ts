@@ -1,0 +1,13 @@
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/functionOverloads8/index.ts:3:1]
+ 3 │ function foo();
+   · ───────────────
+   ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/functionOverloads8/index.ts:5:1]
+ 5 │ function foo(foo:string);
+   · ─────────────────────────
+   ╰────

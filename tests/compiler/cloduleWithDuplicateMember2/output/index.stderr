@@ -1,0 +1,10 @@
+  × Duplicate identifier 'x'.
+    ╭─[../../tests/compiler/cloduleWithDuplicateMember2/index.ts:15:21]
+ 12 │ x = 1;
+    · ┬
+    · ╰── Previous definition here
+ 13 │ }
+ 14 │ namespace C {
+ 15 │     export function x
+    ·                     ─
+    ╰────

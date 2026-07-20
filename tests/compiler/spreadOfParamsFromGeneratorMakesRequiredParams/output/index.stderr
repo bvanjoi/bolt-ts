@@ -1,0 +1,5 @@
+  × Expected 2 arguments, but got 1.
+    ╭─[../../tests/compiler/spreadOfParamsFromGeneratorMakesRequiredParams/index.ts:10:1]
+ 10 │ call(function* (a: 'a') { })
+    · ────────────────────────────
+    ╰────

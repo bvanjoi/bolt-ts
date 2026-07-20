@@ -7,4 +7,5 @@ namespace X {
     export interface Y { }
 }
 var z: X.Y.Z = null;
+//~^ ERROR: Type 'null' is not assignable to type 'X.Y.Z'.
 var z2: X.Y;

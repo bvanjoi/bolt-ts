@@ -16,6 +16,7 @@ class SubText extends TextBase {
 
 class TextBase implements IText {
       public foo: number;
+      //~^ ERROR: Property 'foo' has no initializer and is not definitely assigned in the constructor.
       public subText(span: TextSpan): IText {
 
           return new SubText(this, span);

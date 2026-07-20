@@ -6,6 +6,6 @@ function needsToNarrowTheType(thing) {
   }
   
   function hasAFoo(value) {
-    return 'foo' in value
+    return 'foo' in value;
   }
 }

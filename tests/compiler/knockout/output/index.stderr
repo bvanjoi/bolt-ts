@@ -1,0 +1,5 @@
+  × Property 'd' does not exist on type 'ko.Observable<string>'.
+    ╭─[../../tests/compiler/knockout/index.ts:25:20]
+ 25 │ d
+    · ─
+    ╰────

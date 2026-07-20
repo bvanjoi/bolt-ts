@@ -1,6 +1,7 @@
 use super::RawTarget;
 use super::options::Module;
 use super::options::{NormalizedModuleResolution, OutDir, Target};
+use super::raw::JSX;
 use super::raw::Lib;
 use super::{RawModule, RawModuleResolution};
 
@@ -44,13 +45,14 @@ bitflags::bitflags! {
         const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 18;
         const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 19;
 
-        const DECLARATION                               = 1 << 20;
-        const ALWAYS_STRICT                             = 1 << 21;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 22;
-        const PRESERVE_SYMLINKS                         = 1 << 23;
+        const ALWAYS_STRICT                             = 1 << 20;
+        const DECLARATION                               = 1 << 21;
+        const PRESERVE_SYMLINKS                         = 1 << 22;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 23;
         const ES_MODULE_INTEROP                         = 1 << 24;
         const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 25;
         const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 26;
+        const CHECK_JS                                  = 1 << 27;
     }
 }
 
@@ -78,7 +80,8 @@ normalized_option!(
     (module, Module),
     (module_resolution, NormalizedModuleResolution),
     (custom_conditions, Vec<String>),
-    (lib, Option<Vec<Lib>>)
+    (lib, Option<Vec<Lib>>),
+    (jsx, Option<JSX>)
 );
 
 normalized_option!(

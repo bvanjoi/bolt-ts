@@ -2,7 +2,7 @@ function testNonNullInference(numbers) {
   var last;
   for ( var n of numbers) {
     if (n % 2) {
-      return n
+      return n;
     }
     
     last = n;
@@ -15,7 +15,7 @@ function testNonNullInferenceWithArrays(numbers) {
   var arr = [];
   for ( var n of numbers) {
     if (n % 2) {
-      return [n]
+      return [n];
     }
     
     arr.push(n);

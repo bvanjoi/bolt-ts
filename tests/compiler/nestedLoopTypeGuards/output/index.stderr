@@ -1,0 +1,17 @@
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/nestedLoopTypeGuards/index.ts:7:16]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/nestedLoopTypeGuards/index.ts:12:24]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/nestedLoopTypeGuards/index.ts:25:16]
+ 25 │ a
+    · ─
+    ╰────

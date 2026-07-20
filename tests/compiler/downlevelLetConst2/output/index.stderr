@@ -3,3 +3,9 @@
  3 │ a
    · ─
    ╰────
+
+  × Variable 'a' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/downlevelLetConst2/index.ts:3:7]
+ 3 │ a
+   · ─
+   ╰────

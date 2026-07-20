@@ -1,12 +1,12 @@
 use bolt_ts_ast::{self as ast};
-use bolt_ts_ast_visitor::{ControlFlow, Visitor, visit_module_name};
+use bolt_ts_ast_visitor::{Visitor, visit_module_name};
 use bolt_ts_checker::{check::TyChecker, emit_resolver::EmitResolver};
 use bolt_ts_optimize::Emitter;
 use bolt_ts_span::ModuleID;
 // use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 pub fn emit_declarations<'cx, 'a>(
-    entries: &Vec<ModuleID>,
+    entries: &[ModuleID],
     checker: &'a mut TyChecker<'cx>,
 ) -> Vec<(ModuleID, String)> {
     // let p = &checker.p;
@@ -16,7 +16,7 @@ pub fn emit_declarations<'cx, 'a>(
     // TODO: parallel
     entries
         // .into_par_iter()
-        .into_iter()
+        .iter()
         .filter_map(|&item| {
             let is_default_lib = checker.module_arena.get_module(item).is_default_lib();
             if is_default_lib {
@@ -121,7 +121,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 n.list,
                 |this, item| {
-                    this.visit_ty(*item);
+                    this.visit_ty(item);
                 },
                 |this, _| {
                     this.emitter.print().p_comma();
@@ -155,7 +155,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
     }
 
-    fn visit_module_decl(&mut self, node: &'cx ast::ModuleDecl<'cx>) -> Self::Result {
+    fn visit_block_module_decl(&mut self, node: &'cx ast::BlockModuleDecl<'cx>) -> Self::Result {
         self.emit_declare_if_needed();
         self.emitter.print().p("namespace");
         self.emitter.print().p_whitespace();
@@ -179,6 +179,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.flags = saved_flags;
         }
         self.emitter.print().p_r_brace();
+    }
+
+    fn visit_nested_module_decl(
+        &mut self,
+        _node: &'cx bolt_ts_ast::NestedModuleDecl<'cx>,
+    ) -> Self::Result {
+        todo!()
     }
 
     fn visit_ty_param(&mut self, node: &'cx ast::TyParam<'cx>) -> Self::Result {
@@ -206,8 +213,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         Method(n) => this.visit_method_signature(n),
                         CallSig(n) => this.visit_call_sig_decl(n),
                         CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
+                        Setter(n) => this.visit_setter_decl(n),
+                        Getter(n) => this.visit_getter_decl(n),
                     }
                 },
                 |this, _| {
@@ -265,11 +272,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     fn visit_call_expr(&mut self, _: &'cx ast::CallExpr<'cx>) -> Self::Result {}
 
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) -> Self::Result {
-        if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::STATIC) {
-                self.emitter.print().p("static");
-                self.emitter.print().p_whitespace();
-            }
+        if let Some(ms) = node.modifiers
+            && ms.flags.contains(ast::ModifierFlags::STATIC)
+        {
+            self.emitter.print().p("static");
+            self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         self.emit_type_parameters(node.ty_params);
@@ -375,7 +382,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 implements.list,
                 |this, item| {
-                    this.visit_refer_ty(*item);
+                    this.visit_refer_ty(item);
                 },
                 |this, _| {
                     this.emitter.print().p_comma();
@@ -415,11 +422,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) -> Self::Result {
-        if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::STATIC) {
-                self.emitter.print().p("static");
-                self.emitter.print().p_whitespace();
-            }
+        if let Some(ms) = node.modifiers
+            && ms.flags.contains(ast::ModifierFlags::STATIC)
+        {
+            self.emitter.print().p("static");
+            self.emitter.print().p_whitespace();
         }
         self.visit_prop_name(node.name);
         if node.question.is_some() {
@@ -490,8 +497,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         IndexSig(_n) => todo!(),
                         Prop(n) => this.visit_prop_signature(n),
                         Method(n) => this.visit_method_signature(n),
-                        CallSig(_n) => todo!(),
-                        CtorSig(_n) => todo!(),
+                        CallSig(n) => this.visit_call_sig_decl(n),
+                        CtorSig(n) => this.visit_ctor_sig_decl(n),
                         Setter(_n) => todo!(),
                         Getter(_n) => todo!(),
                     }
@@ -569,6 +576,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
         self.visit_binding(node.name);
+        if node.question.is_some() {
+            self.emitter.print().p_question();
+        }
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
         if let Some(ty) = node.ty {
@@ -576,6 +586,19 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         } else {
             self.emitter.print().p("any");
         }
+    }
+
+    fn visit_object_pat(&mut self, n: &'cx bolt_ts_ast::ObjectPat<'cx>) -> Self::Result {
+        self.emitter.print().p_l_brace();
+        self.emit_list(
+            n.elems,
+            |this, item| this.visit_object_binding_elem(item),
+            |this, _| {
+                this.emitter.print().p_comma();
+                this.emitter.print().p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_brace();
     }
 
     fn visit_method_signature(&mut self, node: &'cx ast::MethodSignature<'cx>) -> Self::Result {
@@ -604,7 +627,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         use ast::PropNameKind::*;
         match &node.kind {
             Ident(n) => self.visit_ident(n),
-            StringLit { raw, .. } => self.visit_string_lit(*raw),
+            StringLit { raw, .. } => self.visit_string_lit(raw),
             BigIntLit { .. } => todo!(),
             NumLit(_n) => todo!(),
             Computed(n) => {
@@ -875,7 +898,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         &mut self,
         node: &'cx bolt_ts_ast::ImportEqualsDecl<'cx>,
     ) -> Self::Result {
-        if let Some(_) = node.export_modifier {
+        if node.export_modifier.is_some() {
             self.emitter.print().p("export");
             self.emitter.print().p_whitespace();
         }
@@ -895,4 +918,75 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         self.emitter.print().p_semi();
     }
+
+    fn visit_cond_ty(&mut self, node: &'cx bolt_ts_ast::CondTy<'cx>) -> Self::Result {
+        self.visit_ty(node.check_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("extends");
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.extends_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_question();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.true_ty);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_colon();
+        self.emitter.print().p_whitespace();
+        self.visit_ty(node.false_ty);
+    }
+
+    fn visit_infer_ty(&mut self, node: &'cx bolt_ts_ast::InferTy<'cx>) -> Self::Result {
+        self.emitter.print().p("infer");
+        self.emitter.print().p_whitespace();
+        self.visit_ident(node.ty_param.name);
+        if let Some(constraint) = node.ty_param.constraint {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p("extends");
+            self.emitter.print().p_whitespace();
+            self.visit_ty(constraint);
+        }
+        if let Some(default) = node.ty_param.default {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_ty(default);
+        }
+    }
+
+    fn visit_template_lit_ty(
+        &mut self,
+        node: &'cx bolt_ts_ast::TemplateLitTy<'cx>,
+    ) -> Self::Result {
+        visit_template_head_ty(self, node.head);
+        for span in node.spans {
+            self.visit_template_span_ty(span)
+        }
+    }
+
+    fn visit_template_span_ty(
+        &mut self,
+        node: &'cx bolt_ts_ast::TemplateSpanTy<'cx>,
+    ) -> Self::Result {
+        self.visit_ty(node.ty);
+        self.emitter.emit_atom(self.resolver.atoms(), node.text);
+        if node.is_tail {
+            self.emitter.print().p_r_brace();
+            self.emitter.print().p_backtick();
+        } else {
+            self.emitter.print().p_r_brace();
+            self.emitter.print().p_dollar();
+            self.emitter.print().p_l_brace();
+        }
+    }
+
+    fn visit_rest_ty(&mut self, node: &'cx bolt_ts_ast::RestTy<'cx>) -> Self::Result {
+        self.emitter.print().p_dot_dot_dot();
+        self.visit_ty(node.ty);
+    }
+}
+
+fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &bolt_ts_ast::TemplateHead) {
+    v.emitter.print().p_backtick();
+    v.emitter.emit_atom(v.resolver.atoms(), node.text);
+    v.emitter.print().p("${");
 }

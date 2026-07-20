@@ -1,6 +1,6 @@
 function R1() {
   R1();
-  return 
+  return ;
 }
 function R2() {
   R2();

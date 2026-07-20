@@ -14,3 +14,4 @@ type TreeNodeMiddleman = {
 
 var nodes: TreeNodeMiddleman[];
 nodes.map(n => n.name);
+//~^ ERROR: Variable 'nodes' is used before being assigned.

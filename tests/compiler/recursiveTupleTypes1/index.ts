@@ -11,4 +11,5 @@ interface Tree2 {
 let tree1: Tree1;
 let tree2: Tree2;
 tree1 = tree2;
+//~^ ERROR: Variable 'tree2' is used before being assigned.
 tree2 = tree1;

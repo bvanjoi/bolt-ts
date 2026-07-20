@@ -36,6 +36,7 @@ pub use self::mapper::{CompositeTyMapper, MergedTyMapper};
 pub use self::num_lit::NumberLitTy;
 pub use self::object_ty::EvolvingArrayTy;
 pub use self::object_ty::SingleSigTy;
+pub use self::object_ty::TupleLabeledElementDeclaration;
 pub use self::object_ty::{AnonymousTy, InterfaceTy, ObjectTyKind, ReverseMappedTy};
 pub use self::object_ty::{DeclaredMembers, ReferenceTy, StructuredMembers};
 pub use self::object_ty::{IndexInfo, IndexInfos, ObjectTy, TupleTy};
@@ -393,8 +394,8 @@ impl<'cx> Ty<'cx> {
 
     pub fn is_readonly_array(&self, checker: &TyChecker<'cx>) -> bool {
         self.kind.as_object_reference().is_some_and(|ty| {
-            let t = checker.global_readonly_array_ty();
-            ty.target == t || self == t
+            let global_readonly_array_ty = checker.global_readonly_array_ty();
+            ty.target == global_readonly_array_ty || self == global_readonly_array_ty
         })
     }
 

@@ -1,0 +1,13 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericInheritedDefaultConstructors/index.ts:10:14]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericInheritedDefaultConstructors/index.ts:12:27]
+ 12 │ b
+    · ─
+    ╰────

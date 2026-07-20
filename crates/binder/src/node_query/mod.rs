@@ -152,15 +152,26 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_module_instance_state(
         &self,
-        m: &'cx ast::ModuleDecl<'cx>,
+        module_block: Option<&'cx ast::ModuleBlock<'cx>>,
         parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
-        self.get_module_instance_state_worker(m, None, parent_of)
+        let Some(module_block) = module_block else {
+            return ModuleInstanceState::Instantiated;
+        };
+        self.get_module_instance_state_inner(module_block, None, parent_of)
     }
 
-    fn get_module_instance_state_worker(
+    pub fn get_module_instance_state_worker(
         &self,
-        m: &'cx ast::ModuleDecl<'cx>,
+        module_block: &'cx ast::ModuleBlock<'cx>,
+        parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
+    ) -> ModuleInstanceState {
+        self.get_module_instance_state_inner(module_block, None, parent_of)
+    }
+
+    fn get_module_instance_state_inner(
+        &self,
+        module_block: &'cx ast::ModuleBlock<'cx>,
         visited: Option<&mut nohash_hasher::IntMap<u32, Option<ModuleInstanceState>>>,
         parent_of: impl FnOnce(ast::NodeID, usize) -> Option<ast::NodeID> + Copy,
     ) -> ModuleInstanceState {
@@ -302,9 +313,17 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     }
                     state
                 }
-                ModuleDecl(ns) => {
-                    this.get_module_instance_state_worker(ns, Some(visited), parent_of)
-                }
+                NestedModuleDecl(ns) => this.get_module_instance_state_inner(
+                    ns.block.module_block(),
+                    Some(visited),
+                    parent_of,
+                ),
+                BlockModuleDecl(ns) => match ns.block {
+                    Some(block) => {
+                        this.get_module_instance_state_inner(block, Some(visited), parent_of)
+                    }
+                    None => ModuleInstanceState::Instantiated,
+                },
                 Ident(_)
                     if this
                         .node_flags(node)
@@ -316,15 +335,11 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         }
 
-        if let Some(block) = m.block {
-            if let Some(visited) = visited {
-                cache(self, block.id, visited, parent_of)
-            } else {
-                let mut default_map = nohash_hasher::IntMap::default();
-                cache(self, block.id, &mut default_map, parent_of)
-            }
+        if let Some(visited) = visited {
+            cache(self, module_block.id, visited, parent_of)
         } else {
-            ModuleInstanceState::Instantiated
+            let mut default_map = nohash_hasher::IntMap::default();
+            cache(self, module_block.id, &mut default_map, parent_of)
         }
     }
 
@@ -391,6 +406,10 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node(n).is_var_decl() && self.node(self.parent(n).unwrap()).is_catch_clause()
     }
 
+    pub fn is_catch_clause_var_declaration(&self, id: ast::NodeID) -> bool {
+        self.node(id).is_var_decl() && self.node(self.parent(id).unwrap()).is_catch_clause()
+    }
+
     pub fn get_root_decl(&self, mut id: ast::NodeID) -> ast::NodeID {
         let mut n = self.node(id);
         loop {
@@ -416,15 +435,23 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         self.node(root).is_param_decl()
     }
 
-    pub fn is_module_augmentation_external(&self, ns: &ast::ModuleDecl<'_>) -> bool {
-        let p = self.parent(ns.id).unwrap();
+    pub fn is_module_augmentation_external(&self, n: ast::NodeID) -> bool {
+        debug_assert!(matches!(
+            self.node(n),
+            ast::Node::NestedModuleDecl(_) | ast::Node::BlockModuleDecl(_)
+        ));
+        let p = self.parent(n).unwrap();
         match self.node(p) {
             ast::Node::Program(_) => self.parse_result.external_module_indicator.is_some(),
             ast::Node::ModuleBlock(n) => {
-                let p_id = self.parent(n.id).unwrap();
-                let p = self.node(p_id).expect_module_decl();
-                p.is_ambient()
-                    && self.node(self.parent(p_id).unwrap()).is_program()
+                let p = self.parent(n.id).unwrap();
+                let is_ambient = match self.node(p) {
+                    ast::Node::NestedModuleDecl(_) => false,
+                    ast::Node::BlockModuleDecl(n) => n.is_ambient(),
+                    _ => unreachable!(),
+                };
+                is_ambient
+                    && self.node(self.parent(p).unwrap()).is_program()
                     && self.parse_result.external_module_indicator.is_none()
             }
             _ => false,
@@ -433,8 +460,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn is_external_module_augmentation(&self, id: ast::NodeID) -> bool {
         let n = self.node(id);
-        n.as_module_decl()
-            .is_some_and(|ns| ns.is_ambient() && self.is_module_augmentation_external(ns))
+        match n {
+            ast::Node::BlockModuleDecl(n) => {
+                n.is_ambient() && self.is_module_augmentation_external(n.id)
+            }
+            _ => false,
+        }
     }
 
     pub fn find_ancestor(
@@ -450,11 +481,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                     return None;
                 }
             }
-            if let Some(parent) = self.parent(id) {
-                id = parent
-            } else {
-                return None;
-            }
+            id = self.parent(id)?;
         }
     }
 
@@ -525,7 +552,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 match node {
                     FnDecl(_)
                     | FnExpr(_)
-                    | ModuleDecl(_)
+                    | NestedModuleDecl(_)
+                    | BlockModuleDecl(_)
                     | ClassPropElem(_)
                     | ClassMethodElem(_)
                     | MethodSignature(_)
@@ -608,7 +636,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         if !matches!(node, PropAccessExpr(_) | EleAccessExpr(_)) {
             return false;
         }
-        let n = self.walk_up_paren_expressions(n);
+        let parent = self.parent(n).unwrap();
+        let n = self.walk_up_paren_expressions(parent);
         self.node(n).is_delete_expr()
     }
 
@@ -636,6 +665,18 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 // TODO: for_in and for_of
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
+                    id = self.parent(p).unwrap();
+                }
+                ObjectShorthandMember(n) => {
+                    if n.name.id != id {
+                        return None;
+                    }
+                    id = self.parent(p).unwrap();
+                }
+                ObjectPropAssignment(n) => {
+                    if n.name.id() == id {
+                        return None;
+                    }
                     id = self.parent(p).unwrap();
                 }
                 _ => return None,
@@ -720,7 +761,8 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 ExportShorthandSpec(n) => n.name.id == id,
                 GetterDecl(n) => n.name.id() == id,
                 SetterDecl(n) => n.name.id() == id,
-                ModuleDecl(n) => n.name.id() == id,
+                NestedModuleDecl(n) => n.name.id == id,
+                BlockModuleDecl(n) => n.name.id() == id,
                 ArrayBinding(n) => n.name.id() == id,
                 _ => false,
             }
@@ -733,10 +775,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             return false;
         }
 
-        loop {
-            let Some(p_id) = self.parent(id) else {
-                break;
-            };
+        while let Some(p_id) = self.parent(id) {
             let p = self.node(p_id);
             if let Some(qualified) = p.as_qualified_name()
                 && qualified.left.id() == id
@@ -812,15 +851,12 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     ) -> (Option<&'cx ast::ParenTy<'cx>>, ast::NodeID) {
         let mut node = n;
         let mut child = None;
-        loop {
-            let Some(n) = self.node(node).as_paren_ty() else {
-                break;
-            };
+        while let Some(n) = self.node(node).as_paren_ty() {
             child = Some(n);
-            let Some(n) = self.parent(node) else {
+            let Some(parent) = self.parent(node) else {
                 break;
             };
-            node = n;
+            node = parent;
         }
         (child, node)
     }
@@ -866,9 +902,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn get_containing_fn(&self, id: ast::NodeID) -> Option<ast::NodeID> {
         let parent = self.parent(id)?;
-        self.find_ancestor(parent, |node| {
-            self.node(node).is_fn_decl_like().then_some(true)
-        })
+        self.find_ancestor(parent, |node| self.node(node).is_fn_like().then_some(true))
     }
 
     pub fn get_declaration_container(&self, id: ast::NodeID) -> ast::NodeID {
@@ -1384,7 +1418,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
-    pub fn is_var_const(&self, node: ast::NodeID) -> bool {
+    pub fn is_var_const_like(&self, node: ast::NodeID) -> bool {
         let block_scope_kind = self
             .get_combined_node_flags(node)
             .intersection(ast::NodeFlags::BLOCK_SCOPED);
@@ -1576,6 +1610,41 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 bolt_ts_ast::ForInitKind::Expr(expr) => expr.id() == node,
             },
             _ => false,
+        }
+    }
+
+    pub fn find_constructor_declaration(
+        &self,
+        class_decl: ast::NodeID,
+    ) -> Option<&'cx ast::ClassCtor<'cx>> {
+        let elements = match self.node(class_decl) {
+            ast::Node::ClassDecl(n) => n.elems,
+            ast::Node::ClassExpr(n) => n.elems,
+            _ => return None,
+        };
+        elements.list.iter().find_map(|elem| {
+            if let ast::ClassElemKind::Ctor(c) = elem.kind
+                && c.body.is_some()
+            {
+                Some(c)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn subsequent_node(&self, node: ast::NodeID) -> Option<ast::NodeID> {
+        let parent = self.parent(node)?;
+        match self.node(parent) {
+            ast::Node::Program(n) => n
+                .stmts()
+                .iter()
+                .position(|stmt| stmt.id() == node)
+                .and_then(|i| n.stmts().get(i + 1).map(|stmt| stmt.id())),
+            _ => {
+                // TODO: more case
+                None
+            }
         }
     }
 }

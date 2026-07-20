@@ -1,0 +1,5 @@
+  × Variable 'f' is used before being assigned.
+   ╭─[../../tests/compiler/memberAccessOnConstructorType/index.ts:6:1]
+ 6 │ f
+   · ─
+   ╰────

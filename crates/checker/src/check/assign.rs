@@ -206,7 +206,7 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let element_flags = self.alloc(element_flags);
-        let result = self.create_tuple_ty(element_types, Some(element_flags), false);
+        let result = self.create_tuple_ty(element_types, Some(element_flags), false, None);
         if INCLUDE_PATTERN_IN_TY {
             let (target, resolved_ty_args) = if let Some(t) = result.kind.as_object_tuple() {
                 (result, Some(t.resolved_ty_args))
@@ -328,7 +328,7 @@ impl<'cx> TyChecker<'cx> {
         parent_ty: &'cx ty::Ty<'cx>,
     ) {
         for elem in pat.elems {
-            let ty = self.get_object_binding_element_ty_from_parent_ty(*elem, pat, parent_ty);
+            let ty = self.get_object_binding_element_ty_from_parent_ty(elem, pat, parent_ty);
             match elem.name {
                 ast::ObjectBindingName::Shorthand(_) => {
                     let symbol = self.get_symbol_of_declaration(elem.id);

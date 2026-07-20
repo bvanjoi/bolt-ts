@@ -1,0 +1,23 @@
+  × Property 'x' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructuringAssignment_private/index.ts:10:10]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Property 'o' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructuringAssignment_private/index.ts:12:4]
+ 12 │ o: [{ a: x }]
+    · ─────────────
+    ╰────
+
+  × Property 'x' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructuringAssignment_private/index.ts:15:10]
+ 15 │ [nameX]: x
+    · ──────────
+    ╰────
+
+  × Property 'o' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructuringAssignment_private/index.ts:19:4]
+ 19 │ [nameO]: [{ a: x }]
+    · ───────────────────
+    ╰────

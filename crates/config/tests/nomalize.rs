@@ -9,7 +9,7 @@ fn normalize(input: &str) -> NormalizedTsConfig {
 fn test_default_compiler_options() {
     let c = normalize("{}");
     let co = c.compiler_options();
-    assert!(!co.strict());
+    assert!(co.strict());
     assert!(co.always_strict());
     assert!(!co.preserve_symlinks());
 }

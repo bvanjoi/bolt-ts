@@ -14,6 +14,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '24'
+    - name: Run cargo fmt check
+      run: cargo fmt -- --check
+    - name: Run cargo clippy check
+      run: cargo clippy --all-targets --all-features -- --deny warnings
     - name: Run cargo test
       run: cargo test -q
     - name: Run wasm-pack build and test

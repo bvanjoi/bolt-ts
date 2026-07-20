@@ -17,8 +17,11 @@ interface IC<T> extends IA<T>, IB<T> { }
 var c: IC<number>;
 
 var x = c.foo;
+//~^ ERROR: Variable 'c' is used before being assigned.
 
 var y = c.bar;
+//~^ ERROR: Variable 'c' is used before being assigned.
 
 c.tar;
 //~^ ERROR: Property 'tar' does not exist on type 'IC<number>'.
+//~| ERROR: Variable 'c' is used before being assigned.

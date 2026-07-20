@@ -1,0 +1,5 @@
+  × 'value' is possibly 'null'.
+    ╭─[../../tests/compiler/inferenceUnionOfObjectsMappedContextualType/index.ts:25:27]
+ 25 │ value
+    · ─────
+    ╰────

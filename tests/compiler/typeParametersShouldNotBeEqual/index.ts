@@ -7,5 +7,7 @@ function ff<T, U>(x: T, y: U) {
   //~^ ERROR: Type 'U' is not assignable to type 'T'.
   x = z;  // Error
   //~^ ERROR: Type 'Object' is not assignable to type 'T'.
+  //~| ERROR: Variable 'z' is used before being assigned.
   z = x;  // Ok
+  //~^ ERROR: Type 'T' is not assignable to type 'Object'.
 }

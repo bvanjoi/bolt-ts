@@ -3,14 +3,14 @@ class a {
     return {
           doStuff: (callback) => (() => {
         var _this = 2;
-        return callback(this)
+        return callback(this);
       })      
-    }
+    };
   }
   method2() {
     var _this = 2;
     return {
           doStuff: (callback) => (() => (callback(this)))      
-    }
+    };
   }
 }

@@ -1,0 +1,13 @@
+  × Object literal may only specify known properties, and 'INVALID_PROP_NAME'
+  │ does not exist in type 'ITestProps'.
+    ╭─[../../tests/compiler/deepExcessPropertyCheckingWhenTargetIsIntersection/index.ts:25:33]
+ 25 │ INVALID_PROP_NAME
+    · ─────────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'INVALID_PROP_NAME'
+  │ does not exist in type 'ITestProps'.
+    ╭─[../../tests/compiler/deepExcessPropertyCheckingWhenTargetIsIntersection/index.ts:32:34]
+ 32 │ INVALID_PROP_NAME
+    · ─────────────────
+    ╰────

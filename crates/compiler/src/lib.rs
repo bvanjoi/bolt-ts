@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod cli;
 mod compiler_result;
 mod diag;
@@ -213,6 +215,7 @@ pub fn eval_from_memory_path<'cx>(
     eval_from_memory_path_worker(cwd, default_lib_dir, parser_arena, type_arena, fs, atoms)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     root: PathBuf,
     tsconfig: NormalizedTsConfig,
@@ -400,16 +403,21 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
 
     let mut binder = Binder::new(states);
 
+    let mut well_formed_check_results = well_formed_check_parallel(
+        &p,
+        &atoms,
+        module_arena.modules(),
+        tsconfig.compiler_options(),
+        &binder.bind_results,
+    );
     let diags: Vec<_> = diags
         .into_iter()
         .chain(binder.steal_errors())
-        .chain(well_formed_check_parallel(
-            &p,
-            &atoms,
-            module_arena.modules(),
-            tsconfig.compiler_options(),
-            &binder.bind_results,
-        ))
+        .chain(
+            well_formed_check_results
+                .iter_mut()
+                .flat_map(|r| r.diags.drain(..)),
+        )
         .collect();
 
     // ==== type check ====

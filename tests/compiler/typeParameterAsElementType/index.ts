@@ -3,7 +3,10 @@
 function fee<T>() {
   var t: T;
   var arr = [t, ""];
+  //~^ ERROR: Variable 't' is used before being assigned.
 
   var arr2: (string | T)[] = [t, ""];
+  //~^ ERROR: Variable 't' is used before being assigned.
   var arr3: (T | string)[] = [t, ""];
+  //~^ ERROR: Variable 't' is used before being assigned.
 }

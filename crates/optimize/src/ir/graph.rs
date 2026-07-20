@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bolt_ts_arena::la_arena;
 
 use crate::ir;

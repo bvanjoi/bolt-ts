@@ -9,3 +9,4 @@ type TreeNode = {
 
 var nodes: TreeNode[];
 nodes.map(n => n.name);
+//~^ ERROR: Variable 'nodes' is used before being assigned.

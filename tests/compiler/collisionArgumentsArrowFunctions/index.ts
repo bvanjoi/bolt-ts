@@ -1,5 +1,7 @@
 // From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/collisionArgumentsArrowFunctions.ts`, Apache-2.0 License
 
+//@compiler-options: strict=false
+
 var f1 = (i: number, ...arguments) => { //arguments is error
 //~^ ERROR: Duplicate identifier 'arguments'. Compiler uses 'arguments' to initialize rest parameters.
   //~| ERROR: Invalid use of 'arguments' in strict mode.

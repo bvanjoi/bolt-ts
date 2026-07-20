@@ -5,7 +5,7 @@ test({
   data() {
     return {
           bar: true      
-    }
+    };
   },
   watch: {
       foo(newVal, oldVal) {

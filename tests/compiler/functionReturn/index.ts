@@ -7,13 +7,16 @@ function f1() {
 }
 function f2(): any { }
 function f3(): string { return; }
+//~^ ERROR: Type 'undefined' is not assignable to type 'string'.
 function f4(): string {
     return '';
     return;
+//~^ ERROR: Type 'undefined' is not assignable to type 'string'.
 }
 function f5(): string {
     return '';
     return undefined;
+//~^ ERROR: Type 'undefined' is not assignable to type 'string'.
 }
 
 function f6(value: number) {

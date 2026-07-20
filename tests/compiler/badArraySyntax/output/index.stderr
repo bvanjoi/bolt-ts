@@ -1,35 +1,35 @@
   × An element access expression should take an argument.
-   ╭─[../../tests/compiler/badArraySyntax/index.ts:8:16]
- 8 │ ]
-   · ─
-   ╰────
-
-  × An element access expression should take an argument.
-    ╭─[../../tests/compiler/badArraySyntax/index.ts:10:16]
- 10 │ ]
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:11:16]
+ 11 │ ]
     · ─
     ╰────
 
   × An element access expression should take an argument.
-    ╭─[../../tests/compiler/badArraySyntax/index.ts:12:21]
- 12 │ ]
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:13:16]
+ 13 │ ]
     · ─
     ╰────
 
   × An element access expression should take an argument.
-    ╭─[../../tests/compiler/badArraySyntax/index.ts:14:21]
- 14 │ ]
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:15:21]
+ 15 │ ]
     · ─
     ╰────
 
   × An element access expression should take an argument.
-    ╭─[../../tests/compiler/badArraySyntax/index.ts:16:36]
- 16 │ ]
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:17:21]
+ 17 │ ]
     · ─
     ╰────
 
   × An element access expression should take an argument.
-    ╭─[../../tests/compiler/badArraySyntax/index.ts:16:43]
- 16 │ ]
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:19:36]
+ 19 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/badArraySyntax/index.ts:19:43]
+ 19 │ ]
     · ─
     ╰────

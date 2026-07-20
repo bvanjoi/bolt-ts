@@ -1,11 +1,49 @@
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/chainedAssignment3/index.ts:4:3]
+ 4 │ id
+   · ──
+   ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/chainedAssignment3/index.ts:9:3]
+ 9 │ value
+   · ─────
+   ╰────
+
+  × Type 'null' is not assignable to type 'B'.
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:15:5]
+ 15 │ b
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'A'.
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:15:1]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:21:8]
+ 21 │ b.value
+    · ───────
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:21:1]
+ 21 │ a.id
+    · ────
+    ╰────
+
   × Property 'value' is missing.
-    ╭─[../../tests/compiler/chainedAssignment3/index.ts:20:1]
- 20 │ b
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:26:1]
+ 26 │ b
     · ─
     ╰────
 
   × Property 'value' is missing.
-    ╭─[../../tests/compiler/chainedAssignment3/index.ts:22:5]
- 22 │ b
+    ╭─[../../tests/compiler/chainedAssignment3/index.ts:28:5]
+ 28 │ b
     · ─
     ╰────

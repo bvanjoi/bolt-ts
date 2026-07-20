@@ -12,5 +12,5 @@ interface Parsers {
 declare var parsers: Parsers;
 var c: ParserFunc = parsers.raw; // ok!
 var d: ParserFunc = parsers.readline; // not ok
-//~^ ERROR: Type '(delimiter: string) => ParserFunc' is not assignable to type 'ParserFunc'.
+//~^ ERROR: Type '(delimiter: undefined | string) => ParserFunc' is not assignable to type 'ParserFunc'.
 var e: ParserFunc = parsers.readline(); // ok

@@ -3,7 +3,9 @@
 class ConcreteA {}
 class ConcreteB {}
 abstract class AbstractA { a: string; }
+//~^ ERROR: Property 'a' has no initializer and is not definitely assigned in the constructor.
 abstract class AbstractB { b: string; }
+//~^ ERROR: Property 'b' has no initializer and is not definitely assigned in the constructor.
 
 type Abstracts = typeof AbstractA | typeof AbstractB;
 type Concretes = typeof ConcreteA | typeof ConcreteB;

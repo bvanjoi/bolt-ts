@@ -24,14 +24,20 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn check_fn_like_decl(&mut self, decl: &impl r#trait::FnDeclLike<'cx>) {
         let id = decl.id();
-        let fn_decl = self.p.node(id);
+        debug_assert!(!matches!(self.p.node(id), ClassCtor(_)));
         let symbol = self.get_symbol_of_declaration(id);
-        let first_fn_decl = self.symbol(symbol).decls.as_ref().and_then(|decls| {
+        let local_symbol = self.get_local_symbol_of_decl(id).unwrap_or(symbol);
+        let first_fn_decl = self.symbol(local_symbol).decls.as_ref().and_then(|decls| {
+            let fn_decl = self.p.node(id);
             decls
                 .iter()
                 .find(|&&d| self.p.node(d).is_same_kind(&fn_decl))
         });
         if first_fn_decl.is_some_and(|&decl| decl == id) {
+            self.check_fn_like_symbol(local_symbol);
+        }
+
+        if local_symbol != symbol && self.symbol(symbol).parent.is_some() {
             self.check_fn_like_symbol(symbol);
         }
 
@@ -48,19 +54,19 @@ impl<'cx> TyChecker<'cx> {
             self.check_all_code_paths_in_non_void_fn_ret_or_throw(decl, return_ty);
         }
 
-        if self.get_effective_ret_type_node(id).is_none() {
-            if body.is_none() && !self.is_private_within_ambient(id) {
-                self.report_implicit_any(id, self.any_ty, None);
-            }
+        if self.get_effective_ret_type_node(id).is_none()
+            && body.is_none()
+            && !self.is_private_within_ambient(id)
+        {
+            self.report_implicit_any(id, self.any_ty, None);
         }
     }
 
-    fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
+    pub(super) fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
         let n = self.p.node(id);
-        n.has_effective_modifier(ast::ModifierFlags::PRIVATE) || {
-            self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
-                && Self::is_private_identifier_class_element_declaration(&n)
-        }
+        (n.has_effective_modifier(ast::ModifierFlags::PRIVATE)
+            || Self::is_private_identifier_class_element_declaration(&n))
+            && self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
     }
 
     pub(super) fn is_private_identifier_class_element_declaration(n: &ast::Node<'cx>) -> bool {
@@ -122,7 +128,7 @@ impl<'cx> TyChecker<'cx> {
             && ty.flags.contains(TypeFlags::NEVER)
         {
             todo!()
-        } else if let Some(ty) = ty
+        } else if let Some(_tyy) = ty
             && !has_explicit_return
         {
             let error =

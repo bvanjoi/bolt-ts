@@ -1,0 +1,5 @@
+  × Property assignment expected.
+   ╭─[../../tests/compiler/parseErrorDoubleCommaInCall/index.ts:6:10]
+ 6 │ ,
+   · ─
+   ╰────

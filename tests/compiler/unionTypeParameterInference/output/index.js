@@ -1,3 +1,3 @@
 function unlift(value) {
-  return lift(value).prop
+  return lift(value).prop;
 }

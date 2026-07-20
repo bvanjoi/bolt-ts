@@ -1,4 +1,4 @@
 function f6(x) {
-  return null
+  return null;
 }
 f6((x) => (f6((y) => (x = y))));

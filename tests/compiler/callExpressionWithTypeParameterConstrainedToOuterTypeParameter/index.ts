@@ -5,6 +5,11 @@ interface I<T> {
 }
 var i: I<string>;
 var y = i(""); // y should be string
+//~^ ERROR: Variable 'i' is used before being assigned.
+//~| ERROR: Variable 'i' is used before being assigned.
 var y0: string = i("");
+//~^ ERROR: Variable 'i' is used before being assigned.
 var z = i(42);
 //~^ ERROR: Argument of type 'number' is not assignable to parameter of type 'string'.
+//~| ERROR: Variable 'i' is used before being assigned.
+//~| ERROR: Variable 'i' is used before being assigned.

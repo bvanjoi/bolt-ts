@@ -1,5 +1,11 @@
+  × Type 'null' is not assignable to type 'X.Y.Z'.
+   ╭─[../../tests/compiler/moduleAndInterfaceSharingName2/index.ts:9:5]
+ 9 │ z
+   · ─
+   ╰────
+
   × Type 'Y' is not generic.
-    ╭─[../../tests/compiler/moduleAndInterfaceSharingName2/index.ts:10:9]
- 10 │ X.Y<string>
+    ╭─[../../tests/compiler/moduleAndInterfaceSharingName2/index.ts:11:9]
+ 11 │ X.Y<string>
     · ───────────
     ╰────

@@ -1,0 +1,42 @@
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+   ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:5:15]
+ 5 │ first
+   · ─────
+   ╰────
+
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+   ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:8:9]
+ 8 │ a: number = 1
+   · ─────────────
+   ╰────
+
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+    ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:10:11]
+ 10 │ a : string = ""
+    · ───────────────
+    ╰────
+
+  × 'second' is an unused renaming of 'first'. Did you intend to use it as a
+  │ type annotation?
+    ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:14:22]
+ 14 │ second
+    · ──────
+    ╰────
+
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+    ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:14:15]
+ 14 │ first
+    · ─────
+    ╰────
+
+  × Conversion of type 'undefined' to type '(a: string) => any' may be a
+  │ mistake because neither type sufficiently overlaps with the other. If this
+  │ was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/defaultValueInFunctionTypes/index.ts:10:9]
+ 10 │ <(a : string = "") => any>(undefined)
+    · ─────────────────────────────────────
+    ╰────

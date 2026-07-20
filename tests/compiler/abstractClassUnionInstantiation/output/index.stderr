@@ -1,6 +1,20 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:5:28]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:7:28]
+ 7 │ b
+   · ─
+   ╰────
+
   × Cannot create an instance of an abstract class.
-    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:16:5]
- 16 │ cls1
+    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:18:5]
+ 18 │ cls1
     · ────
     ╰────
 
@@ -12,8 +26,8 @@ Warning:
    ╰────
 
   × Cannot create an instance of an abstract class.
-    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:18:5]
- 18 │ cls2
+    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:20:5]
+ 20 │ cls2
     · ────
     ╰────
 
@@ -21,19 +35,6 @@ Warning:
   ⚠ Class 'AbstractA' has `abstract` modifier.
    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:5:16]
  5 │ AbstractA
-   · ─────────
-   ╰────
-
-  × Cannot create an instance of an abstract class.
-    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:22:50]
- 22 │ cls
-    · ───
-    ╰────
-
-Warning: 
-  ⚠ Class 'ConcreteA' has `abstract` modifier.
-   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:3:7]
- 3 │ ConcreteA
    · ─────────
    ╰────
 
@@ -51,8 +52,21 @@ Warning:
    ╰────
 
   × Cannot create an instance of an abstract class.
-    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:27:39]
- 27 │ cls
+    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:26:50]
+ 26 │ cls
+    · ───
+    ╰────
+
+Warning: 
+  ⚠ Class 'ConcreteA' has `abstract` modifier.
+   ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:3:7]
+ 3 │ ConcreteA
+   · ─────────
+   ╰────
+
+  × Cannot create an instance of an abstract class.
+    ╭─[../../tests/compiler/abstractClassUnionInstantiation/index.ts:29:39]
+ 29 │ cls
     · ───
     ╰────
 

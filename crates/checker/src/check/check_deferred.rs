@@ -44,7 +44,7 @@ impl<'cx> TyChecker<'cx> {
         {
             self.check_type_comparable_to(expr_ty, target_ty, Some(node_id), Some(|this: &mut Self| {
                 let error = errors::ConversionOfType0ToType1MayBeAMistakeBecauseNeitherTypeSufficientlyOverlapsWithTheOtherIfThisWasIntentionalConvertTheExpressionToUnknownFirst {
-                    span: span,
+                    span,
                     source_ty: this.print_ty(widened_ty, None).to_string(),
                     target_ty: this.print_ty(target_ty, None).to_string(),
                 };
@@ -79,11 +79,16 @@ impl<'cx> TyChecker<'cx> {
                 self.resolve_untyped_call(n);
             }
             VoidExpr(n) => {
-                self.check_expression(n.expr, None);
+                self.check_expression::<false>(n.expr, None);
             }
-            TaggedTemplateExpr(n) => {
-                self.resolve_untyped_call(n);
-            }
+            TaggedTemplateExpr(n) => match n.tpl {
+                ast::TemplateExpressionKind::NoSubstitutionTemplateLit(_) => {}
+                ast::TemplateExpressionKind::TemplateExpr(n) => {
+                    self.check_template_expr(n);
+                }
+            },
+            GetterDecl(n) => self.check_getter_decl(n),
+            SetterDecl(n) => self.check_setter_decl(n),
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

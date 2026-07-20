@@ -8,10 +8,9 @@ impl<'cx> TyChecker<'cx> {
         kind: TypeFlags,
     ) -> bool {
         if let Some(s) = source.kind.as_union() {
-            return s
-                .tys
+            s.tys
                 .iter()
-                .all(|sub_ty| self.all_types_assignable_to_kind::<STRICT>(sub_ty, kind));
+                .all(|sub_ty| self.all_types_assignable_to_kind::<STRICT>(sub_ty, kind))
         } else {
             self.is_type_assignable_to_kind::<STRICT>(source, kind)
         }

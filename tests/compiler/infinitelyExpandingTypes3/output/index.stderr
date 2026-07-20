@@ -1,0 +1,5 @@
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes3/index.ts:20:6]
+ 20 │ o2
+    · ──
+    ╰────

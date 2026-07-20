@@ -1,0 +1,5 @@
+  × Variable 'nodes' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgumentInferenceWithRecursivelyReferencedTypeAliasToTypeLiteral02/index.ts:16:1]
+ 16 │ nodes
+    · ─────
+    ╰────

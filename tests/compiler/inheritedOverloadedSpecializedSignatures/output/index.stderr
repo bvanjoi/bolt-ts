@@ -1,0 +1,59 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:16:1]
+ 16 │ b
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:50:20]
+ 50 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:52:18]
+ 52 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:54:19]
+ 54 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:56:18]
+ 56 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:58:16]
+ 58 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:60:20]
+ 60 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:62:21]
+ 62 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:64:18]
+ 64 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/inheritedOverloadedSpecializedSignatures/index.ts:66:16]
+ 66 │ c
+    · ─
+    ╰────

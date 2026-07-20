@@ -8,7 +8,10 @@ module M {
   var i:I;
 
   f(i);
+  //~^ ERROR: Variable 'i' is used before being assigned.
   f(f(i));
+  //~^ ERROR: Variable 'i' is used before being assigned.
   f((f(f(i))));
+  //~^ ERROR: Variable 'i' is used before being assigned.
 }
 

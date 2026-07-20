@@ -1,0 +1,19 @@
+  × Variable 'sideLength' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/staticVisibility2/index.ts:7:5]
+ 7 │ static sideLength
+   · ─────────────────
+   ╰────
+
+  × Property 'sideLength' does not exist on type 'Square<Square>'.
+    ╭─[../../tests/compiler/staticVisibility2/index.ts:10:14]
+ 10 │ sideLength
+    · ──────────
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'Square<Square>.sideLength'
+  │ instead?
+    ╭─[../../tests/compiler/staticVisibility2/index.ts:10:14]
+ 10 │ sideLength
+    · ──────────
+    ╰────

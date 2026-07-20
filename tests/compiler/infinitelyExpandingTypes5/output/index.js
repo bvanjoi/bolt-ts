@@ -1,3 +1,3 @@
 function from(arg) {
-  return undefined
+  return undefined;
 }

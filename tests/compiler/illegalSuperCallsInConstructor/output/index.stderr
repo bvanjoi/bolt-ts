@@ -1,0 +1,47 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:6:5]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:11:5]
+ 11 │ constructor
+    · ───────────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:13:24]
+ 13 │ super
+    · ─────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:15:26]
+ 15 │ super
+    · ─────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:17:32]
+ 17 │ super
+    · ─────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:21:17]
+ 21 │ super
+    · ─────
+    ╰────
+
+  × Super calls are not permitted outside constructors or in nested functions
+  │ inside constructors.
+    ╭─[../../tests/compiler/illegalSuperCallsInConstructor/index.ts:26:17]
+ 26 │ super
+    · ─────
+    ╰────

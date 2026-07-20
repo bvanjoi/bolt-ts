@@ -1,5 +1,5 @@
 function fn() {
-  return fn.n
+  return fn.n;
 }
 
 (function (fn) {

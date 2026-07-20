@@ -1,0 +1,11 @@
+  × Type '"hdpvd"' is not assignable to type '"hddvd" | "bluray"'.
+    ╭─[../../tests/compiler/errorsForCallAndAssignmentAreSimilar/index.ts:15:11]
+ 15 │ kind
+    · ────
+    ╰────
+
+  × Type '"hdpvd"' is not assignable to type '"hddvd" | "bluray"'.
+    ╭─[../../tests/compiler/errorsForCallAndAssignmentAreSimilar/index.ts:21:11]
+ 21 │ kind
+    · ────
+    ╰────

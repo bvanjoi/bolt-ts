@@ -1,11 +1,29 @@
   × Cannot find name 'v'.
-   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:6:7]
- 6 │ v
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:9:7]
+ 9 │ v
    · ─
    ╰────
 
   × Cannot find name 's'.
-   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:9:7]
- 9 │ s
-   · ─
+    ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:12:7]
+ 12 │ s
+    · ─
+    ╰────
+
+  × Variable 'v' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:11]
+ 3 │ private v
+   · ─────────
+   ╰────
+
+  × Variable 'p' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:22]
+ 3 │ public p
+   · ────────
+   ╰────
+
+  × Variable 's' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:32]
+ 3 │ static s
+   · ────────
    ╰────

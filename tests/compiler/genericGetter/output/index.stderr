@@ -1,5 +1,12 @@
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericGetter/index.ts:4:5]
+ 4 │ data
+   · ────
+   ╰────
+
   × Type 'number' is not assignable to type 'string'.
-    ╭─[../../tests/compiler/genericGetter/index.ts:11:5]
- 11 │ r
+    ╭─[../../tests/compiler/genericGetter/index.ts:12:5]
+ 12 │ r
     · ─
     ╰────

@@ -209,13 +209,13 @@ impl<'cx> TyChecker<'cx> {
             .unwrap();
         let mut siblings = vec![];
         for ty in self.get_siblings_of_context(parent) {
-            if ty.is_object_literal() {
-                if let Some(property) = self.get_prop_of_object_ty(ty, name) {
-                    let ty = self.get_type_of_symbol(property);
-                    self.for_each_ty(ty, |_, t| {
-                        siblings.push(t);
-                    });
-                }
+            if ty.is_object_literal()
+                && let Some(property) = self.get_prop_of_object_ty(ty, name)
+            {
+                let ty = self.get_type_of_symbol(property);
+                self.for_each_ty(ty, |_, t| {
+                    siblings.push(t);
+                });
             }
         }
         let siblings = self.alloc(siblings);

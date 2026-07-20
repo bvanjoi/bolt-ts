@@ -79,7 +79,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_ty_for_duplicate_index_sigs_worker(&mut self, index_symbol: SymbolID) {
+    pub(super) fn check_ty_for_duplicate_index_sigs_worker(&mut self, index_symbol: SymbolID) {
         let s = self.symbol(index_symbol);
         let Some(decls) = s.decls.as_ref() else {
             return;
@@ -126,6 +126,12 @@ impl<'cx> TyChecker<'cx> {
             ast::ObjectTyMemberKind::Method(n) => {
                 // check_method_declaration
                 self.check_fn_like_decl(n);
+            }
+            ast::ObjectTyMemberKind::CtorSig(n) => {
+                self.check_sig_decl(n.id);
+            }
+            ast::ObjectTyMemberKind::CallSig(n) => {
+                self.check_sig_decl(n.id);
             }
             _ => {
                 // TODO:

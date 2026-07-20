@@ -3,11 +3,11 @@ function clonePet(pet, fullCopy) {
       name: pet.name,
     kind: pet.kind,
     ...(fullCopy && pet)    
-  }
+  };
 }
 function billOwner(pet) {
   return {
       ...(pet.owner && pet),
     paid: false    
-  }
+  };
 }

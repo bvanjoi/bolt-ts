@@ -1,0 +1,5 @@
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/circularBaseConstraint/index.ts:18:8]
+ 18 │ a
+    · ─
+    ╰────

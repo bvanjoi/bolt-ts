@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'Errors<T>[keyof T]'.
+   ╭─[../../tests/compiler/undefinedAssignableToGenericMappedIntersection/index.ts:9:5]
+ 9 │ obj[x]
+   · ──────
+   ╰────

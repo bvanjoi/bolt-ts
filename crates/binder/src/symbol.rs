@@ -304,7 +304,7 @@ impl Symbol {
     pub fn is_shorthand_ambient_module(&self, p: &ParsedMap) -> bool {
         self.value_decl.is_some_and(|value_decl| {
             p.node(value_decl)
-                .as_module_decl()
+                .as_block_module_decl()
                 .is_some_and(|ns| ns.block.is_none())
         })
     }
@@ -411,6 +411,10 @@ impl Symbols {
         let idx = id.index_as_usize();
         debug_assert!(idx < self.data.len());
         unsafe { self.data.get_unchecked_mut(idx) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
     }
 
     pub fn len(&self) -> u32 {

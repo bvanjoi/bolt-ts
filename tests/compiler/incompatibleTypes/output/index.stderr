@@ -1,0 +1,80 @@
+  × Property 'p1' in type 'C1<C1>' is not assignable to the same property in
+  │ base type 'IFoo1'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:11:12]
+ 11 │ p1
+    · ──
+    ╰────
+
+  × Property 'p1' in type 'C2<C2>' is not assignable to the same property in
+  │ base type 'IFoo2'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:22:12]
+ 22 │ p1
+    · ──
+    ╰────
+
+  × Property 'p1' in type 'C3<C3>' is not assignable to the same property in
+  │ base type 'IFoo3'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:33:12]
+ 33 │ p1
+    · ──
+    ╰────
+
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:42:12]
+ 42 │ p1
+    · ──
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:42:12]
+ 42 │ p1
+    · ──
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:52:1]
+ 47 │ if1(i: IFoo1): void;
+    · ─┬─
+    ·  ╰── Unmatched call.
+ 48 │ function if1(i: IFoo2): void;
+    ·          ─┬─
+    ·           ╰── Unmatched call.
+ 49 │ function if1(a: any) { }
+ 50 │ var c1: C1;
+ 51 │ var c2: C2;
+ 52 │ if1(c1)
+    · ───────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:59:1]
+ 55 │ of1(n: { a: { a: string; }; b: string; }): number;
+    · ─┬─
+    ·  ╰── Unmatched call.
+ 56 │ function of1(s: { c: { b: string; }; d: string; }): string;
+    ·          ─┬─
+    ·           ╰── Unmatched call.
+ 57 │ function of1(a: any) { return null; }
+ 58 │ 
+ 59 │ of1({ e: 0, f: 0 })
+    · ───────────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'e' does not exist
+  │ in type '{ a: { a: string; }; b: string; }'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:77:47]
+ 77 │ e
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type '() => string'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:84:5]
+ 84 │ i1c1
+    · ────
+    ╰────
+
+  × Type '(a: any) => number' is not assignable to type '() => any'.
+    ╭─[../../tests/compiler/incompatibleTypes/index.ts:87:5]
+ 87 │ fp1
+    · ───
+    ╰────

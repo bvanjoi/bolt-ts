@@ -109,13 +109,8 @@ impl<'cx> Sig<'cx> {
         &self,
         checker: &mut TyChecker<'cx>,
     ) -> Option<&'cx super::Ty<'cx>> {
-        self.get_effective_rest_ty(checker).and_then(|ty| {
-            if !ty.kind.is_array(checker) && !ty.flags.contains(TypeFlags::ANY) {
-                Some(ty)
-            } else {
-                None
-            }
-        })
+        self.get_effective_rest_ty(checker)
+            .filter(|ty| !ty.kind.is_array(checker) && !ty.flags.contains(TypeFlags::ANY))
     }
 
     pub fn get_param_count(&self, checker: &mut TyChecker<'cx>) -> usize {

@@ -2,9 +2,11 @@
 
 class C1<T> {
     x: C2<T>;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }
 
 class C2<T> extends C1<T> {
     x: string
     //~^ ERROR: Property 'x' in type 'C2<T, C2>' is not assignable to the same property in base type 'C1<T, C2>'
+    //~| ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
 }

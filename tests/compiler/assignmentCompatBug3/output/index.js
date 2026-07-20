@@ -1,19 +1,19 @@
 function makePoint(x, y) {
   return {
       get x() {
-      return x
+      return x;
     },
     get y() {
-      return y
+      return y;
     },
     dist: function () {
-      return Math.sqrt(x * x + y * y)
+      return Math.sqrt(x * x + y * y);
     }    
-  }
+  };
 }
 class C {
   get x() {
-    return 0
+    return 0;
   }
 }
 function foo(test) {}

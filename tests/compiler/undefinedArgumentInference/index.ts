@@ -3,6 +3,7 @@
 function foo1<T>(f1: { x: T; y: T }): T {
 
   return undefined;
+  //~^ ERROR: Type 'undefined' is not assignable to type 'T'.
 
 }
 

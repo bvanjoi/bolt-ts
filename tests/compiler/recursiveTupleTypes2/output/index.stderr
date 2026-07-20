@@ -1,0 +1,5 @@
+  × Variable 'tree2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveTupleTypes2/index.ts:13:9]
+ 13 │ tree2
+    · ─────
+    ╰────

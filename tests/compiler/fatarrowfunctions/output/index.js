@@ -1,5 +1,5 @@
 function foo(x) {
-  return x()
+  return x();
 }
 foo((x, y, z) => (x + y + z));
 foo((x, y, z) => (x + y + z));
@@ -20,9 +20,9 @@ var z = (x) => (x * x);
 var w = () => (3);
 function ternaryTest(isWhile) {
   var f = isWhile ? function (n) {
-    return n > 0
+    return n > 0;
   } : function (n) {
-    return n === 0
+    return n === 0;
   };
 }
 var messenger = {

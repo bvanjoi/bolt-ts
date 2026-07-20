@@ -1,0 +1,62 @@
+  × Property 'p51' does not exist on type '{ p1: number; } & { p2: number; }'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain3/index.ts:65:4]
+ 65 │ p51
+    · ───
+    ╰────
+
+  × Property 'p4' does not exist on type 'Omit<{ p1: number; } & { p2:
+  │ number; }, "p2"> & { p2: number; p3: number; }'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain3/index.ts:71:4]
+ 71 │ p4
+    · ──
+    ╰────
+
+  × Property 'p38' does not exist on type
+  │ 'Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omi
+  │ t<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<{ 
+  │ p1: number; } & { p2: number; }, "p2"> & { p2: number; p3: number; },
+  │ "p3"> & { p3: number; p4: number; }, "p4"> & { p4: number; p5: number; },
+  │ "p5"> & { p5: number; p6: number; }, "p6"> & { p6: number; p7: number; },
+  │ "p7"> & { p7: number; p8: number; }, "p8"> & { p8: number; p9: number; },
+  │ "p9"> & { p9: number; p10: number; }, "p10"> & { p10: number; p11:
+  │ number; }, "p11"> & { p11: number; p12: number; }, "p12"> & { p12: number;
+  │ p13: number; }, "p13"> & { p13: number; p14: number; }, "p14"> & { p14:
+  │ number; p15: number; }, "p15"> & { p15: number; p16: number; }, "p16"> &
+  │ { p16: number; p17: number; }, "p17"> & { p17: number; p18: number; },
+  │ "p18"> & { p18: number; p19: number; }, "p19"> & { p19: number; p20:
+  │ number; }, "p20"> & { p20: number; p21: number; }, "p21"> & { p21: number;
+  │ p22: number; }, "p22"> & { p22: number; p23: number; }, "p23"> & { p23:
+  │ number; p24: number; }, "p24"> & { p24: number; p25: number; }, "p25"> &
+  │ { p25: number; p26: number; }, "p26"> & { p26: number; p27: number; },
+  │ "p27"> & { p27: number; p28: number; }, "p28"> & { p28: number; p29:
+  │ number; }, "p29"> & { p29: number; p30: number; }, "p30"> & { p30: number;
+  │ p31: number; }'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain3/index.ts:80:5]
+ 80 │ p38
+    · ───
+    ╰────
+
+  × Property 'p51' does not exist on type
+  │ 'Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omi
+  │ t<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<Omit<{ 
+  │ p1: number; } & { p2: number; }, "p2"> & { p2: number; p3: number; },
+  │ "p3"> & { p3: number; p4: number; }, "p4"> & { p4: number; p5: number; },
+  │ "p5"> & { p5: number; p6: number; }, "p6"> & { p6: number; p7: number; },
+  │ "p7"> & { p7: number; p8: number; }, "p8"> & { p8: number; p9: number; },
+  │ "p9"> & { p9: number; p10: number; }, "p10"> & { p10: number; p11:
+  │ number; }, "p11"> & { p11: number; p12: number; }, "p12"> & { p12: number;
+  │ p13: number; }, "p13"> & { p13: number; p14: number; }, "p14"> & { p14:
+  │ number; p15: number; }, "p15"> & { p15: number; p16: number; }, "p16"> &
+  │ { p16: number; p17: number; }, "p17"> & { p17: number; p18: number; },
+  │ "p18"> & { p18: number; p19: number; }, "p19"> & { p19: number; p20:
+  │ number; }, "p20"> & { p20: number; p21: number; }, "p21"> & { p21: number;
+  │ p22: number; }, "p22"> & { p22: number; p23: number; }, "p23"> & { p23:
+  │ number; p24: number; }, "p24"> & { p24: number; p25: number; }, "p25"> &
+  │ { p25: number; p26: number; }, "p26"> & { p26: number; p27: number; },
+  │ "p27"> & { p27: number; p28: number; }, "p28"> & { p28: number; p29:
+  │ number; }, "p29"> & { p29: number; p30: number; }, "p30"> & { p30: number;
+  │ p31: number; }'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain3/index.ts:82:5]
+ 82 │ p51
+    · ───
+    ╰────

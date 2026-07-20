@@ -1,5 +1,5 @@
 function test(arg) {
-  return arg
+  return arg;
 }
 var res1 = test({
   foo: true,

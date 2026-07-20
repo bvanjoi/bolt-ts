@@ -1,0 +1,50 @@
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+   ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:7:5]
+ 7 │ e1111
+   · ─────
+   ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:12:10]
+ 12 │ e2
+    · ──
+    ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:16:5]
+ 16 │ e3
+    · ──
+    ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:21:7]
+ 21 │ e4
+    · ──
+    ╰────
+
+  × Duplicate identifier 'One'.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:30:12]
+ 29 │ One } // error
+    · ─┬─
+    ·  ╰── Previous definition here
+ 30 │ enum e5a { One
+    ·            ───
+    ╰────
+
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:26:11]
+ 26 │ Two
+    · ───
+    ╰────
+
+  × In an enum with multiple declarations, only one declaration can omit an
+  │ initializer for its first enum element.
+    ╭─[../../tests/compiler/augmentedTypesEnum/index.ts:30:12]
+ 30 │ One
+    · ───
+    ╰────

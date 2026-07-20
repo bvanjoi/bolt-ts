@@ -1,0 +1,15 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type 'IPromise<string, number>', but here has type
+  │ 'Promise<string, boolean>'.
+    ╭─[../../tests/compiler/promiseIdentityWithAny2/index.ts:14:5]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'y'
+  │ must be of type 'IPromise2<string, number>', but here has type
+  │ 'Promise2<string, boolean>'.
+    ╭─[../../tests/compiler/promiseIdentityWithAny2/index.ts:26:5]
+ 26 │ y
+    · ─
+    ╰────

@@ -3,6 +3,6 @@ class None {
     throw null
   }
   flatten() {
-    return new None()
+    return new None();
   }
 }

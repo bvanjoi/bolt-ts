@@ -1,5 +1,0 @@
-
-
-function foo(bar) {
-  return ""
-}

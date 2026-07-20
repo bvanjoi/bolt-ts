@@ -1,6 +1,42 @@
+  × Variable 'intersection' is used before being assigned.
+   ╭─[../../tests/compiler/spreadIntersection/index.ts:6:15]
+ 6 │ intersection
+   · ────────────
+   ╰────
+
+  × Variable 'intersection' is used before being assigned.
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:10:15]
+ 10 │ intersection
+    · ────────────
+    ╰────
+
+  × Variable 'intersection' is used before being assigned.
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:13:40]
+ 13 │ intersection
+    · ────────────
+    ╰────
+
   × Type '{ a: number; b: string; }' is not assignable to type '{ a: number;
   │ b: number; }'.
-    ╭─[../../tests/compiler/spreadIntersection/index.ts:11:5]
- 11 │ o3
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:13:5]
+ 13 │ o3
     · ──
+    ╰────
+
+  × Variable 'intersection' is used before being assigned.
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:17:29]
+ 17 │ intersection
+    · ────────────
+    ╰────
+
+  × Variable 'intersection' is used before being assigned.
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:19:29]
+ 19 │ intersection
+    · ────────────
+    ╰────
+
+  × Variable 'intersection' is used before being assigned.
+    ╭─[../../tests/compiler/spreadIntersection/index.ts:21:39]
+ 21 │ intersection
+    · ────────────
     ╰────

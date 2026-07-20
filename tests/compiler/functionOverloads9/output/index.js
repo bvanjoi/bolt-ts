@@ -1,5 +1,5 @@
 function foo(foo) {
-  return ''
+  return '';
 }
 ;
 var x = foo('foo');

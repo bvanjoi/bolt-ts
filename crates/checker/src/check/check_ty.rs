@@ -33,18 +33,18 @@ impl<'cx> TyChecker<'cx> {
             Mapped(n) => self.check_mapped_ty(n),
             Array(n) => self.check_array_ty(n),
             Ctor(n) => self.check_sig_decl(n.id),
-            Lit(n) => (),
-            NamedTuple(n) => (),
-            Rest(n) => (),
-            Union(n) => (),
-            Intersection(n) => (),
+            Lit(_nn) => (),
+            NamedTuple(_nn) => (),
+            Rest(_nn) => (),
+            Union(_nn) => (),
+            Intersection(_nn) => (),
             Typeof(n) => self.check_type_query(n),
-            Paren(n) => (),
-            Infer(n) => (),
-            Intrinsic(n) => (),
-            Nullable(n) => (),
-            TemplateLit(n) => (),
-            This(n) => (),
+            Paren(_nn) => (),
+            Infer(_nn) => (),
+            Intrinsic(_nn) => (),
+            Nullable(_nn) => (),
+            TemplateLit(_nn) => (),
+            This(_nn) => (),
             Import(_) => (),
         };
         self.current_node = saved_current_node;
@@ -78,7 +78,7 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
         let sig = self.get_sig_from_decl(parent);
-        let Some(ty_predicate) = self.get_ty_predicate_of_sig(sig) else {
+        let Some(_ty_predicatee) = self.get_ty_predicate_of_sig(sig) else {
             return;
         };
         if let Some(ty) = n.ty {
@@ -150,14 +150,17 @@ impl<'cx> TyChecker<'cx> {
                 Method(n) => self.check_method_sig(n),
                 CallSig(_) => (),
                 CtorSig(_) => (),
-                Setter(_) => (),
+                Setter(n) => self.check_setter_decl(n),
                 Getter(n) => self.check_getter_decl(n),
             }
         }
 
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
         self.check_index_constraints::<false>(ty, ty.symbol().unwrap());
-        // TODO: duplicate index signatures check
+        let symbol = self.final_res(n.id);
+        if let Some(index_symbol) = self.get_index_symbol(symbol) {
+            self.check_ty_for_duplicate_index_sigs_worker(index_symbol);
+        }
     }
 
     fn check_method_sig(&mut self, n: &'cx ast::MethodSignature<'cx>) {

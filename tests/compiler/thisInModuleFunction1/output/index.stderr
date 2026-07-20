@@ -1,0 +1,6 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/thisInModuleFunction1/index.ts:5:11]
+ 5 │ this
+   · ────
+   ╰────

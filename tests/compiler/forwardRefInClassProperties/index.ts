@@ -14,6 +14,7 @@ class Test
     {
         let a = b; // Property 'b' is used before its initialization.
         //~^ ERROR: Block-scoped variable 'b' used before its declaration.
+        //~| ERROR: Variable 'b' is used before being assigned.
         let b = 3;
     }
 }

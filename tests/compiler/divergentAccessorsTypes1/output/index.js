@@ -1,13 +1,13 @@
 class Test1 {
   get foo() {
-    return ''
+    return '';
   }
   set foo(s) {
     var a = s;
     var b = s;
   }
   get bar() {
-    return ''
+    return '';
   }
   set bar(s) {}
 }

@@ -1,9 +1,9 @@
 (async () => {
   function foo(p) {
-    return []
+    return [];
   }
   function bar(p) {
-    return []
+    return [];
   }
   var a1 = [];
   while (true) {

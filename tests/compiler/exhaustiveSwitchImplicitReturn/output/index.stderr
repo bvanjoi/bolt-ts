@@ -1,4 +1,5 @@
-  × Not all code paths return a value.
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
     ╭─[../../tests/compiler/exhaustiveSwitchImplicitReturn/index.ts:40:32]
  40 │ number
     · ──────

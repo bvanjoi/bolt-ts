@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/interMixingModulesInterfaces4/index.ts:7:18]
+ 7 │ null
+   · ────
+   ╰────
