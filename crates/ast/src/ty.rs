@@ -472,9 +472,7 @@ impl<'cx> PropNameKind<'cx> {
             PropNameKind::StringLit { raw, .. } => atoms.get(raw.val).to_string(),
             PropNameKind::NumLit(num) => num.val.to_string(),
             PropNameKind::Computed(_n) => "computed".to_string(),
-            PropNameKind::PrivateIdent(ident) => {
-                format!("#{}", atoms.get(ident.name))
-            }
+            PropNameKind::PrivateIdent(ident) => atoms.get(ident.name).to_string(),
             PropNameKind::BigIntLit(_lit) => todo!(),
         }
     }

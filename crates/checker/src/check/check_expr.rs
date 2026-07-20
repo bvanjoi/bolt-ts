@@ -2210,16 +2210,15 @@ impl<'cx> TyChecker<'cx> {
                         spread = self.error_ty;
                     }
                 }
-                _ => {
-                    debug_assert!(matches!(member.kind, Setter(_) | Getter(_)));
-                    // TODO: deferred check
+                Setter(ast::SetterDecl { id, .. }) | Getter(ast::GetterDecl { id, .. }) => {
+                    self.check_node_deferred(*id);
 
                     let name = match member.kind {
                         Setter(n) => bolt_ts_binder::prop_name(n.name),
                         Getter(n) => bolt_ts_binder::prop_name(n.name),
                         _ => unreachable!(),
                     };
-                    let member_symbol = self.get_symbol_of_declaration(member.id());
+                    let member_symbol = self.get_symbol_of_declaration(*id);
                     push_properties_table(
                         self,
                         computed_named_ty,

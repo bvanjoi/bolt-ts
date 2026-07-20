@@ -24,7 +24,7 @@
 
   × 'y' implicitly has type 'any' because it does not have a type annotation
   │ and is referenced directly or indirectly in its own initializer.
-    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:12:23]
- 12 │  y = y
-    · ──────
+    ╭─[../../tests/compiler/selfReferencesInFunctionParameters/index.ts:12:24]
+ 12 │ y
+    · ─
     ╰────

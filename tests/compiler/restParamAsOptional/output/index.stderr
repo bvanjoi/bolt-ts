@@ -1,0 +1,11 @@
+  × A rest parameter cannot be optional.
+   ╭─[../../tests/compiler/restParamAsOptional/index.ts:6:16]
+ 6 │ ?
+   · ─
+   ╰────
+
+  × A rest parameter cannot have an initializer.
+   ╭─[../../tests/compiler/restParamAsOptional/index.ts:8:20]
+ 8 │ []
+   · ──
+   ╰────

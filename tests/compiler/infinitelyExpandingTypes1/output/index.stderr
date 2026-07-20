@@ -1,0 +1,42 @@
+  × Variable 'l' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:21:1]
+ 21 │ l
+    · ─
+    ╰────
+
+  × Variable 'm' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:21:6]
+ 21 │ m
+    · ─
+    ╰────
+
+  × Variable 'l' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:27:1]
+ 27 │ l
+    · ─
+    ╰────
+
+  × Variable 'l2' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:27:6]
+ 27 │ l2
+    · ──
+    ╰────
+
+  × This comparison appears to be unintentional because the types
+  │ 'List<number>' and 'List<string>' have no overlap.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:27:1]
+ 27 │ l == l2
+    · ───────
+    ╰────
+
+  × Variable 'l' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:32:1]
+ 32 │ l
+    · ─
+    ╰────
+
+  × Variable 'l' is used before being assigned.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes1/index.ts:32:6]
+ 32 │ l
+    · ─
+    ╰────

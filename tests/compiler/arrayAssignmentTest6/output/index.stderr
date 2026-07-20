@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'ILineTokens'.
+    ╭─[../../tests/compiler/arrayAssignmentTest6/index.ts:20:20]
+ 20 │ null
+    · ────
+    ╰────

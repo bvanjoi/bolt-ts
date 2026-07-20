@@ -7,6 +7,6 @@ class Foo {
     [key: string]: number;
 
     #a: boolean;
-    //~^ ERROR: Property '##a' has no initializer and is not definitely assigned in the constructor.
+    //~^ ERROR: Property '#a' has no initializer and is not definitely assigned in the constructor.
     #b = false;
 }

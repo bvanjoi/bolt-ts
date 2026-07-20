@@ -1,0 +1,13 @@
+  × Property '_fooPrivate' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/doubleMixinConditionalTypeBaseClassWorks/index.ts:7:81]
+ 7 │ _fooPrivate
+   · ───────────
+   ╰────
+
+  × Property '_fooPrivate' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/doubleMixinConditionalTypeBaseClassWorks/index.ts:7:81]
+ 7 │ _fooPrivate
+   · ───────────
+   ╰────

@@ -133,7 +133,7 @@ impl<'cx> TyChecker<'cx> {
                 && (!n.is_param_decl() || n.initializer().is_some())
             {
                 let error = errors::XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferencedDirectlyOrIndirectlyInItsOwnInitializer {
-                    span: n.span(),
+                    span: n.name().map_or(n.span(), |name| name.span()),
                     name: n.name().unwrap().to_string(&self.atoms),
                 };
                 self.push_error(Box::new(error));
@@ -317,14 +317,48 @@ impl<'cx> TyChecker<'cx> {
                 .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
         };
 
-        let ty = if let Some(ty) = ty {
+        let mut ty = if let Some(ty) = ty {
             ty
         } else {
             // TODO: throw error
             self.any_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            todo!("cycle")
+            if let Some(getter) = getter
+                && self.p.get_annotated_accessor_ty_node(getter).is_some()
+            {
+                let error = errors::XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+                    span: self.p.node(getter).span(),
+                    name: self.p.node(getter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(setter) = setter
+                && self.p.get_annotated_accessor_ty_node(setter).is_some()
+            {
+                let error = errors::XIsReferencedDirectlyOrIndirectlyInItsOwnTypeAnnotation {
+                    span: self.p.node(setter).span(),
+                    name: self.p.node(setter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+            // TODO: accessor
+            // else if (getAnnotatedAccessorTypeNode(accessor)) {
+            //     error(
+            //         setter,
+            //         Diagnostics._0_is_referenced_directly_or_indirectly_in_its_own_type_annotation,
+            //         symbolToString(symbol),
+            //     );
+            // }
+            else if let Some(getter) = getter
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let error = errors::XImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
+                    span: self.p.node(getter).span(),
+                    name: self.p.node(getter).name().unwrap().to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+            ty = self.any_ty;
         }
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty
@@ -853,13 +887,15 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_node_links(node.id).get_resolved_ty() {
             return ty;
         }
-        let p = self.error_ty;
-        self.get_mut_node_links(node.id).set_resolved_ty(p);
 
         let ty = self.check_expression_with_ty_arguments(node);
         let ty = self.get_widened_ty(ty);
         let ty = self.get_regular_ty_of_literal_ty(ty);
-        self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        if self.get_node_links(node.id).get_resolved_ty().is_some() {
+            self.get_mut_node_links(node.id).override_resolved_ty(ty);
+        } else {
+            self.get_mut_node_links(node.id).set_resolved_ty(ty);
+        }
         ty
     }
 

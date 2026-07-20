@@ -364,7 +364,7 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_setter_decl(self, node)
     }
-    fn visit_class_ctor(&mut self, node: &'cx bolt_ts_ast::ClassCtor<'cx>) {
+    fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) {
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_ctor(self, node)
     }
@@ -391,36 +391,59 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
     }
     fn visit_object_binding_elem(
         &mut self,
-        node: &'cx bolt_ts_ast::ObjectBindingElem<'cx>,
+        node: &'cx ast::ObjectBindingElem<'cx>,
     ) -> Self::Result {
-        if let ast::ObjectBindingName::Prop {
-            prop_name, name, ..
-        } = node.name
-            && let ast::BindingKind::Ident(name) = name.kind
-            && self.node_query().is_part_of_param_decl(node.id)
-            && let Some(containing_fn) = self.node_query().get_containing_fn(node.id)
-            && self.p.node(containing_fn).fn_body().is_none()
-        {
-            let prev = self
-                .potential_unused_renamed_binding_elements_in_types
-                .insert(node.id);
-            debug_assert!(prev);
-            let error = Box::new(
-                errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+        let is_under_parameter_in_missing_body_fn = || {
+            if self.node_query().is_part_of_param_decl(node.id)
+                && let Some(containing_fn) = self.node_query().get_containing_fn(node.id)
+                && self.p.node(containing_fn).fn_body().is_none()
+            {
+                true
+            } else {
+                false
+            }
+        };
+
+        match node.name {
+            ast::ObjectBindingName::Prop { prop_name, name }
+                if is_under_parameter_in_missing_body_fn() =>
+            {
+                if let ast::BindingKind::Ident(name) = name.kind {
+                    let prev = self
+                        .potential_unused_renamed_binding_elements_in_types
+                        .insert(node.id);
+                    debug_assert!(prev);
+                    let error = Box::new(
+                        errors::XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
+                            span: name.span,
+                            x: pprint_ident(name, self.atoms),
+                            y: print_prop_name(&prop_name.kind, self.atoms),
+                        },
+                    );
+                    self.push_error(error);
+                }
+
+                if node.init.is_some() {
+                    let error = errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
+                    span: prop_name.span(),
+                };
+                    self.push_error(Box::new(error));
+                }
+            }
+            ast::ObjectBindingName::Shorthand(name)
+                if is_under_parameter_in_missing_body_fn() && node.init.is_some() =>
+            {
+                let error = errors::AParameterInitializerIsOnlyAllowedInAFunctionOrConstructorImplementation {
                     span: name.span,
-                    x: pprint_ident(name, self.atoms),
-                    y: print_prop_name(&prop_name.kind, self.atoms),
-                },
-            );
-            self.push_error(error);
+                };
+                self.push_error(Box::new(error));
+            }
+            _ => {}
         }
 
         bolt_ts_ast_visitor::visit_object_binding_elem(self, node)
     }
-    fn visit_import_equals_decl(
-        &mut self,
-        node: &'cx bolt_ts_ast::ImportEqualsDecl<'cx>,
-    ) -> Self::Result {
+    fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
         self.check_external_import_equals_declaration(node);
         bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
     }

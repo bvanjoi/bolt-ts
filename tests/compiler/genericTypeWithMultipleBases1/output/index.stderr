@@ -1,0 +1,17 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases1/index.ts:20:1]
+ 20 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases1/index.ts:22:1]
+ 22 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericTypeWithMultipleBases1/index.ts:24:1]
+ 24 │ x
+    · ─
+    ╰────

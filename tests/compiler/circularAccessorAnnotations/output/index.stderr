@@ -1,0 +1,23 @@
+  × 'foo' is referenced directly or indirectly in its own type annotation.
+   ╭─[../../tests/compiler/circularAccessorAnnotations/index.ts:8:5]
+ 8 │ get foo(): typeof c1.foo;
+   · ─────────────────────────
+   ╰────
+
+  × 'foo' is referenced directly or indirectly in its own type annotation.
+    ╭─[../../tests/compiler/circularAccessorAnnotations/index.ts:13:5]
+ 13 │ set foo(value: typeof c2.foo);
+    · ──────────────────────────────
+    ╰────
+
+  × 'foo' is referenced directly or indirectly in its own type annotation.
+    ╭─[../../tests/compiler/circularAccessorAnnotations/index.ts:23:5]
+ 23 │ get foo(): T1["foo"];
+    · ─────────────────────
+    ╰────
+
+  × 'foo' is referenced directly or indirectly in its own type annotation.
+    ╭─[../../tests/compiler/circularAccessorAnnotations/index.ts:28:5]
+ 28 │ set foo(value: T2["foo"]);
+    · ──────────────────────────
+    ╰────

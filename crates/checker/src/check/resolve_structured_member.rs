@@ -1070,16 +1070,23 @@ impl<'cx> TyChecker<'cx> {
             return;
         }
 
-        // TODO: remove this clone.
-        let mut members = self.get_exports_of_symbol(symbol_id).0.clone();
+        let members = self.get_exports_of_symbol(symbol_id);
         let index_infos: ty::IndexInfos<'cx>;
         if symbol_id == self.global_this_symbol {
             // TODO:
         }
 
-        let placeholder = self.structure_members_placeholder;
+        let placeholder = self.alloc(ty::StructuredMembers {
+            members: &members.0,
+            call_sigs: self.empty_array(),
+            ctor_sigs: self.empty_array(),
+            index_infos: self.empty_array(),
+            props: self.empty_array(),
+        });
         self.get_mut_ty_links(ty.id)
             .set_structured_members(placeholder);
+        // TODO: remove this clone.
+        let mut members = members.0.clone();
 
         let mut call_sigs: ty::Sigs<'cx> = self.empty_array();
         let mut ctor_sigs: ty::Sigs<'cx> = self.empty_array();

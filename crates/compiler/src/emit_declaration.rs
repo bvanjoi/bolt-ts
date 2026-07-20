@@ -213,8 +213,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
                         Method(n) => this.visit_method_signature(n),
                         CallSig(n) => this.visit_call_sig_decl(n),
                         CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
+                        Setter(n) => this.visit_setter_decl(n),
+                        Getter(n) => this.visit_getter_decl(n),
                     }
                 },
                 |this, _| {

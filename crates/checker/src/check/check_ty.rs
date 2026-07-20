@@ -150,7 +150,7 @@ impl<'cx> TyChecker<'cx> {
                 Method(n) => self.check_method_sig(n),
                 CallSig(_) => (),
                 CtorSig(_) => (),
-                Setter(_) => (),
+                Setter(n) => self.check_setter_decl(n),
                 Getter(n) => self.check_getter_decl(n),
             }
         }

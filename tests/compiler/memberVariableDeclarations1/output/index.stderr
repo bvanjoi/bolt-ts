@@ -1,0 +1,45 @@
+  × Type 'null' is not assignable to type 'Employee'.
+    ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:11:12]
+ 11 │ manager
+    · ───────
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:6:12]
+ 6 │ name
+   · ────
+   ╰────
+
+  × Property 'address' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:8:12]
+ 8 │ address
+   · ───────
+   ╰────
+
+  × Type 'null' is not assignable to type 'Employee'.
+    ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:26:9]
+ 26 │ this.manager
+    · ────────────
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:17:12]
+ 17 │ name
+    · ────
+    ╰────
+
+  × Property 'address' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:19:12]
+ 19 │ address
+    · ───────
+    ╰────
+
+  × Variable 'e2' is used before being assigned.
+    ╭─[../../tests/compiler/memberVariableDeclarations1/index.ts:34:6]
+ 34 │ e2
+    · ──
+    ╰────

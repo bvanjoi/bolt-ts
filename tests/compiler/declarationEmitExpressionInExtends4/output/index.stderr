@@ -1,0 +1,17 @@
+  × Cannot find name 'SomeUndefinedFunction'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends4/index.ts:15:18]
+ 15 │ SomeUndefinedFunction
+    · ─────────────────────
+    ╰────
+
+  × Cannot find name 'SomeUndefinedFunction'.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends4/index.ts:20:18]
+ 20 │ SomeUndefinedFunction
+    · ─────────────────────
+    ╰────
+
+  × Type 'D' is not generic.
+    ╭─[../../tests/compiler/declarationEmitExpressionInExtends4/index.ts:10:17]
+ 10 │ getSomething()<number, string>
+    · ──────────────────────────────
+    ╰────

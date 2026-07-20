@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'List<T>'.
+   ╭─[../../tests/compiler/genericConstraintDeclaration/index.ts:7:50]
+ 7 │ null
+   · ────
+   ╰────

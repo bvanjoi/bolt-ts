@@ -7,3 +7,4 @@ var v = { foo() { }; a: b; get baz() { }; }
 //~| ERROR: Expected ','.
 //~| ERROR: Expected ','.
 //~| ERROR: Expected ','.
+//~| ERROR: A 'get' accessor must return a value.

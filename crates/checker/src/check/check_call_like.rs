@@ -306,7 +306,8 @@ impl<'cx> TyChecker<'cx> {
                     };
                     self.push_error(Box::new(error));
                 } else if self.config.compiler_options().no_implicit_any() {
-                    match self.p.node(node_id).name() {
+                    let n = self.p.node(node_id);
+                    match n.name() {
                         Some(name) => {
                             let error = errors::XImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
                                 span: name.span(),
@@ -316,7 +317,7 @@ impl<'cx> TyChecker<'cx> {
                         }
                         None => {
                             let error = errors::FunctionImplicitlyHasReturnTypeAnyBecauseItDoesNotHaveAReturnTypeAnnotationAndIsReferencedDirectlyOrIndirectlyInOneOfItsReturnExpressions {
-                                span: self.p.node(node_id).span(),
+                                span: n.span(),
                             };
                             self.push_error(Box::new(error));
                         }

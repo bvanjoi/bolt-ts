@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type '(x: "hi", items: string[]) => any'.
+    ╭─[../../tests/compiler/crashInsourcePropertyIsRelatableToTargetProperty/index.ts:11:12]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Type '(x: "hi", items: string[]) => any' is not assignable to type 'D'.
+    ╭─[../../tests/compiler/crashInsourcePropertyIsRelatableToTargetProperty/index.ts:14:5]
+ 14 │ a
+    · ─
+    ╰────

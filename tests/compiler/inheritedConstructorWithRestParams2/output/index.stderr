@@ -1,0 +1,17 @@
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/inheritedConstructorWithRestParams2/index.ts:36:13]
+ 36 │ 3
+    · ─
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/inheritedConstructorWithRestParams2/index.ts:38:1]
+ 38 │ new Derived("", 3, "", 3)
+    · ─────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/inheritedConstructorWithRestParams2/index.ts:40:1]
+ 40 │ new Derived("", 3, "", "")
+    · ──────────────────────────
+    ╰────

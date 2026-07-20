@@ -2,3 +2,4 @@
 
 var v = { public get foo() { } }
 //~^ ERROR: Modifier cannot be used here.
+//~| ERROR: A 'get' accessor must return a value.

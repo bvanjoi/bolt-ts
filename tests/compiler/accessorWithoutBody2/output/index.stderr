@@ -1,5 +1,5 @@
   × Expected '{'.
-   ╭─[../../tests/compiler/accessorWithoutBody2/index.ts:4:22]
- 4 │ }
+   ╭─[../../tests/compiler/accessorWithoutBody2/index.ts:6:22]
+ 6 │ }
    · ─
    ╰────

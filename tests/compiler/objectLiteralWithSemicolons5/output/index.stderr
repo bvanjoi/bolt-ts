@@ -21,3 +21,9 @@
  5 │ b
    · ─
    ╰────
+
+  × A 'get' accessor must return a value.
+   ╭─[../../tests/compiler/objectLiteralWithSemicolons5/index.ts:5:32]
+ 5 │ baz
+   · ───
+   ╰────

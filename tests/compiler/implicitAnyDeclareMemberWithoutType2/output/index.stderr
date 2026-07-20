@@ -1,0 +1,30 @@
+  × Parameter 'c1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType2/index.ts:12:17]
+ 12 │ c1
+    · ──
+    ╰────
+
+  × Parameter 'c2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType2/index.ts:12:20]
+ 12 │  c2
+    · ───
+    ╰────
+
+  × Parameter 'f1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType2/index.ts:15:13]
+ 15 │ f1
+    · ──
+    ╰────
+
+  × Parameter 'f2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType2/index.ts:15:16]
+ 15 │  f2
+    · ───
+    ╰────
+
+  × Property 'x1' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType2/index.ts:9:12]
+ 9 │ x1
+   · ──
+   ╰────

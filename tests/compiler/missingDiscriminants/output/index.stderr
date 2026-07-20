@@ -1,0 +1,13 @@
+  × Object literal may only specify known properties, and 'subkind' does not
+  │ exist in type '{ kind: "b"; }'.
+    ╭─[../../tests/compiler/missingDiscriminants/index.ts:23:23]
+ 23 │ subkind
+    · ───────
+    ╰────
+
+  × Object literal may only specify known properties, and 'subkind' does not
+  │ exist in type '{ kind: "b"; }'.
+    ╭─[../../tests/compiler/missingDiscriminants/index.ts:25:34]
+ 25 │ subkind
+    · ───────
+    ╰────

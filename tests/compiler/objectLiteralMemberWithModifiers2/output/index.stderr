@@ -3,3 +3,9 @@
  3 │ public
    · ──────
    ╰────
+
+  × A 'get' accessor must return a value.
+   ╭─[../../tests/compiler/objectLiteralMemberWithModifiers2/index.ts:3:22]
+ 3 │ foo
+   · ───
+   ╰────

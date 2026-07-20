@@ -87,6 +87,8 @@ impl<'cx> TyChecker<'cx> {
                     self.check_template_expr(n);
                 }
             },
+            GetterDecl(n) => self.check_getter_decl(n),
+            SetterDecl(n) => self.check_setter_decl(n),
             _ => unreachable!("{:#?}", self.p.node(node)),
         }
 

@@ -943,10 +943,11 @@ impl<'cx> TyChecker<'cx> {
         self.check_ty(n.ty);
     }
 
+    pub(super) fn check_setter_decl(&mut self, n: &'cx ast::SetterDecl<'cx>) {
+        self.check_accessor_decl(n);
+    }
+
     pub(super) fn check_getter_decl(&mut self, n: &'cx ast::GetterDecl<'cx>) {
-        if let ast::PropNameKind::Computed(name) = n.name.kind {
-            self.check_computed_property_name(name);
-        }
         let flags = self.node_query(n.id.module()).node_flags(n.id);
         if !flags.intersects(NodeFlags::AMBIENT)
             && n.body.is_some()
@@ -963,6 +964,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn check_accessor_decl(&mut self, n: &impl ast::r#trait::AccessorLike<'cx>) {
+        if let ast::PropNameKind::Computed(name) = n.name().kind {
+            self.check_computed_property_name(name);
+        }
         if let Some(body) = n.body() {
             self.check_block(body);
         }
