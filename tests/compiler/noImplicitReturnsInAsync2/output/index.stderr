@@ -1,0 +1,11 @@
+  × Not all code paths return a value.
+   ╭─[../../tests/compiler/noImplicitReturnsInAsync2/index.ts:8:16]
+ 8 │ test3
+   · ─────
+   ╰────
+
+  × Not all code paths return a value.
+    ╭─[../../tests/compiler/noImplicitReturnsInAsync2/index.ts:31:48]
+ 31 │ Promise<number>
+    · ───────────────
+    ╰────

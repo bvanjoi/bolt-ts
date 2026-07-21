@@ -1,0 +1,97 @@
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+   ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:9:3]
+ 9 │ for a
+   · ─────
+   ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:11:10]
+ 11 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:16:3]
+ 16 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:18:10]
+ 18 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:23:3]
+ 23 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:25:3]
+ 25 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:30:3]
+ 30 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:32:10]
+ 32 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:37:3]
+ 37 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:39:9]
+ 39 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:45:5]
+ 45 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:47:5]
+ 47 │ await
+    · ─────
+    ╰────
+
+  × 'for await' loops are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:51:3]
+ 51 │ for a
+    · ─────
+    ╰────
+
+  × 'await' expressions are only allowed within async functions and at the top
+  │ levels of modules.
+    ╭─[../../tests/compiler/awaitInNonAsyncFunction/index.ts:53:5]
+ 53 │ await
+    · ─────
+    ╰────

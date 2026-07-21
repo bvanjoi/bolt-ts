@@ -2478,7 +2478,7 @@ impl<'cx> TyChecker<'cx> {
             && let n = self.p.node(node)
             && !n
                 .expr_of_access_expr()
-                .is_some_and(|n| n.kind.is_access_expr())
+                .is_some_and(|expr| expr.kind.is_access_expr())
             && !self.is_block_scoped_name_declared_before_use(value_decl, right.id, right.span)
             && !((value_decl_node.is_class_method_elem()
                 || value_decl_node.is_object_method_member())
@@ -2488,7 +2488,7 @@ impl<'cx> TyChecker<'cx> {
                     .contains(ast::ModifierFlags::STATIC))
             && !is_prop_declared_in_ancestor_class(self)
         {
-            let error = errors::Property0IsUsedBeforeItsInitialization {
+            let error = errors::PropertyXIsUsedBeforeItsInitialization {
                 span: right.span,
                 name: self.atoms.get(right.name).to_string(),
             };
@@ -3386,13 +3386,21 @@ impl<'cx> TyChecker<'cx> {
             return true;
         }
 
-        let decl_span = self.p.node(decl).span();
+        let decl_node = self.p.node(decl);
+        let decl_span = decl_node.span();
         let decl_pos = decl_span.lo();
         let decl_container = nq.get_enclosing_blockscope_container(decl);
 
-        if decl_pos < used_span.lo() {
-            let n = self.p.node(decl);
-            return match n {
+        if decl_pos < used_span.lo()
+            && !(decl_node
+                .as_class_prop_elem()
+                .is_some_and(|d| d.init().is_none() && d.excl.is_none())
+                && self
+                    .p
+                    .node(self.parent(used_id).unwrap())
+                    .is_this_property())
+        {
+            return match decl_node {
                 VarDecl(decl) => !self
                     .node_query(decl.id.module())
                     .is_immediately_used_in_init_or_block_scoped_var(decl, used_id, decl_container),
@@ -3401,15 +3409,22 @@ impl<'cx> TyChecker<'cx> {
                         self.p.node(id).is_object_binding_elem().then_some(true)
                     }) {
                         Some(error_binding_element) => {
-                            n.span().lo() < self.p.node(error_binding_element).span().lo() || {
-                                nq.find_ancestor(error_binding_element, |n| {
-                                    matches!(self.p.node(n), ObjectBindingElem(_) | ArrayBinding(_))
+                            decl_node.span().lo() < self.p.node(error_binding_element).span().lo()
+                                || {
+                                    nq.find_ancestor(error_binding_element, |n| {
+                                        matches!(
+                                            self.p.node(n),
+                                            ObjectBindingElem(_) | ArrayBinding(_)
+                                        )
                                         .then_some(true)
-                                }) != nq.find_ancestor(decl, |n| {
-                                    matches!(self.p.node(n), ObjectBindingElem(_) | ArrayBinding(_))
+                                    }) != nq.find_ancestor(decl, |n| {
+                                        matches!(
+                                            self.p.node(n),
+                                            ObjectBindingElem(_) | ArrayBinding(_)
+                                        )
                                         .then_some(true)
-                                })
-                            }
+                                    })
+                                }
                         }
                         None => {
                             let decl = nq
@@ -3426,15 +3441,22 @@ impl<'cx> TyChecker<'cx> {
                         self.p.node(id).is_array_binding().then_some(true)
                     }) {
                         Some(error_binding_element) => {
-                            n.span().lo() < self.p.node(error_binding_element).span().lo() || {
-                                nq.find_ancestor(error_binding_element, |n| {
-                                    matches!(self.p.node(n), ObjectBindingElem(_) | ArrayBinding(_))
+                            decl_node.span().lo() < self.p.node(error_binding_element).span().lo()
+                                || {
+                                    nq.find_ancestor(error_binding_element, |n| {
+                                        matches!(
+                                            self.p.node(n),
+                                            ObjectBindingElem(_) | ArrayBinding(_)
+                                        )
                                         .then_some(true)
-                                }) != nq.find_ancestor(decl, |n| {
-                                    matches!(self.p.node(n), ObjectBindingElem(_) | ArrayBinding(_))
+                                    }) != nq.find_ancestor(decl, |n| {
+                                        matches!(
+                                            self.p.node(n),
+                                            ObjectBindingElem(_) | ArrayBinding(_)
+                                        )
                                         .then_some(true)
-                                })
-                            }
+                                    })
+                                }
                         }
                         None => {
                             let decl = nq

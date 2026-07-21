@@ -1,0 +1,17 @@
+  × Variable 'regExpExecArrayValue' is used before being assigned.
+   ╭─[../../tests/compiler/library_RegExpExecArraySlice/index.ts:7:1]
+ 7 │ regExpExecArrayValue
+   · ────────────────────
+   ╰────
+
+  × Variable 'regExpExecArrayValue' is used before being assigned.
+   ╭─[../../tests/compiler/library_RegExpExecArraySlice/index.ts:9:1]
+ 9 │ regExpExecArrayValue
+   · ────────────────────
+   ╰────
+
+  × Variable 'regExpExecArrayValue' is used before being assigned.
+    ╭─[../../tests/compiler/library_RegExpExecArraySlice/index.ts:11:1]
+ 11 │ regExpExecArrayValue
+    · ────────────────────
+    ╰────

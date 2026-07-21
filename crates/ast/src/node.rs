@@ -1145,6 +1145,16 @@ impl<'cx> Node<'cx> {
         // TODO: SyntaxKind.MetaProperty:
         // TODO: SyntaxKind.ImportKeyword:
     }
+
+    pub fn is_this_property(&self) -> bool {
+        match self {
+            self::Node::EleAccessExpr(super::EleAccessExpr { expr, .. })
+            | self::Node::PropAccessExpr(super::PropAccessExpr { expr, .. }) => {
+                matches!(expr.kind, self::ExprKind::This(_))
+            }
+            _ => false,
+        }
+    }
 }
 
 macro_rules! as_node {

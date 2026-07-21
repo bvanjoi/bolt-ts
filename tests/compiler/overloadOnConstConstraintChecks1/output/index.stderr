@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'Base'.
+    ╭─[../../tests/compiler/overloadOnConstConstraintChecks1/index.ts:24:16]
+ 24 │ null
+    · ────
+    ╰────

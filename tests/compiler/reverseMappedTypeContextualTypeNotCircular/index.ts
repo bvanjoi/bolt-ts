@@ -1,0 +1,16 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/reverseMappedTypeContextualTypeNotCircular.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+
+type Selector<S, R> = (state: S) => R;
+
+declare function createStructuredSelector<S, T>(
+  selectors: {[K in keyof T]: Selector<S, T[K]>},
+): Selector<S, T>;
+
+const editable = () => ({});
+
+const mapStateToProps = createStructuredSelector({
+  editable: (state: any, props: any) => editable(), // expect "Type '(state: any, props: any) => {}' is not assignable to type 'Selector<unknown, {}>'", _not_ a circularity error
+  //~^ ERROR: Type '(state: any, props: any) => { }' is not assignable to type 'Selector<unknown, { }>'.
+});

@@ -537,6 +537,15 @@ pub struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOf
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'for await' loops are only allowed within async functions and at the top levels of modules."
+)]
+pub struct ForAwaitLoopsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Interface declaration cannot have 'implements' clause.")]
 pub struct InterfaceDeclarationCannotHaveImplementsClause {
     #[label(primary)]

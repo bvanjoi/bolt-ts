@@ -1,0 +1,11 @@
+  × Property 'a' is used before its initialization.
+    ╭─[../../tests/compiler/initializerWithThisPropertyAccess/index.ts:10:14]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Property 'bar' is used before its initialization.
+    ╭─[../../tests/compiler/initializerWithThisPropertyAccess/index.ts:32:29]
+ 32 │ bar
+    · ───
+    ╰────

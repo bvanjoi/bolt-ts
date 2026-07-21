@@ -1,0 +1,5 @@
+  × Class 'C' incorrectly implements interface 'I'.
+   ╭─[../../tests/compiler/implementPublicPropertyAsPrivate/index.ts:8:20]
+ 8 │ I
+   · ─
+   ╰────

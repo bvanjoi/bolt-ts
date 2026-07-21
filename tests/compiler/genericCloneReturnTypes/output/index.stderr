@@ -1,0 +1,30 @@
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericCloneReturnTypes/index.ts:8:12]
+ 8 │ t
+   · ─
+   ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/genericCloneReturnTypes/index.ts:27:10]
+ 27 │ b
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/genericCloneReturnTypes/index.ts:27:10]
+ 27 │ b
+    · ─
+    ╰────
+
+  × Variable 'b3' is used before being assigned.
+    ╭─[../../tests/compiler/genericCloneReturnTypes/index.ts:32:5]
+ 32 │ b3
+    · ──
+    ╰────
+
+  × Type 'Bar<string>' is not assignable to type 'Bar<number>'.
+    ╭─[../../tests/compiler/genericCloneReturnTypes/index.ts:32:1]
+ 32 │ b
+    · ─
+    ╰────

@@ -1,0 +1,5 @@
+  × Variable 'g' is used before being assigned.
+    ╭─[../../tests/compiler/nestedInfinitelyExpandedRecursiveTypes/index.ts:14:5]
+ 14 │ g
+    · ─
+    ╰────

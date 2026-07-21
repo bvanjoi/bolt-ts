@@ -905,7 +905,7 @@ pub struct TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Property '{name}' is used before its initialization.")]
-pub struct Property0IsUsedBeforeItsInitialization {
+pub struct PropertyXIsUsedBeforeItsInitialization {
     #[label(primary)]
     pub span: Span,
     pub name: String,

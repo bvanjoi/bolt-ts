@@ -289,7 +289,18 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
+        let has_await_token = await_token.is_some();
+        if (has_await_token && self.expect(Of)) || self.parse_optional(Of).is_some() {
+            if has_await_token && !self.parse_context.contains(ParseContext::ASYNC) {
+                if self.parse_context.contains(ParseContext::TOP_LEVEL) {
+                    // TODO: handle under different module config
+                } else {
+                    let hi = start + "await".len() as u32;
+                    let span = bolt_ts_span::Span::new(start, hi, self.module_id);
+                    let error = errors::ForAwaitLoopsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules { span };
+                    self.push_error(Box::new(error));
+                }
+            }
             let init = init.unwrap();
             let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher::<true>())?;
             self.expect(RParen);

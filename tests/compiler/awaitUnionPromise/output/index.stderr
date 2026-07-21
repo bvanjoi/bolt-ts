@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'IAsyncEnumerator<number>'.
+    ╭─[../../tests/compiler/awaitUnionPromise/index.ts:17:11]
+ 17 │ x
+    · ─
+    ╰────
