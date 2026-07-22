@@ -1,0 +1,18 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/parameterPropertyInConstructor2/index.ts:7:17]
+ 7 │ public
+   · ──────
+   ╰────
+
+  × Duplicate identifier 'names'.
+    ╭─[../../tests/compiler/parameterPropertyInConstructor2/index.ts:10:24]
+ 10 │ names
+    · ─────
+    ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+   ╭─[../../tests/compiler/parameterPropertyInConstructor2/index.ts:7:5]
+ 7 │ constructor
+   · ───────────
+   ╰────

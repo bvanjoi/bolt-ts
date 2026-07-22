@@ -1,0 +1,12 @@
+  × Property 'toBase' is missing.
+    ╭─[../../tests/compiler/fixingTypeParametersRepeatedly2/index.ts:16:27]
+ 16 │ d => d.toBase()
+    · ───────────────
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable
+  │ 'result' must be of type 'Derived', but here has type 'Base'.
+    ╭─[../../tests/compiler/fixingTypeParametersRepeatedly2/index.ts:23:5]
+ 23 │ result
+    · ──────
+    ╰────

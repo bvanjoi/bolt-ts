@@ -1,0 +1,5 @@
+  × Type 'ReturnType' is not assignable to type 'A'.
+    ╭─[../../tests/compiler/genericConditionalConstrainedToUnknownNotAssignableToConcreteObject/index.ts:17:5]
+ 17 │ x
+    · ─
+    ╰────

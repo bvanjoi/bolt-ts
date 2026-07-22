@@ -1635,12 +1635,25 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
 
     pub fn subsequent_node(&self, node: ast::NodeID) -> Option<ast::NodeID> {
         let parent = self.parent(node)?;
-        match self.node(parent) {
-            ast::Node::Program(n) => n
-                .stmts()
+        let subsequent_node_in_stmts = |stmts: &[&'cx ast::Stmt<'cx>]| {
+            stmts
                 .iter()
                 .position(|stmt| stmt.id() == node)
-                .and_then(|i| n.stmts().get(i + 1).map(|stmt| stmt.id())),
+                .and_then(|i| stmts.get(i + 1).map(|stmt| stmt.id()))
+        };
+        let subsequent_node_in_module_block =
+            |n: &'cx ast::ModuleBlock<'cx>| subsequent_node_in_stmts(n.stmts);
+
+        match self.node(parent) {
+            ast::Node::Program(n) => subsequent_node_in_stmts(n.stmts()),
+            ast::Node::BlockStmt(n) => subsequent_node_in_stmts(n.stmts),
+            ast::Node::ModuleBlock(n) => subsequent_node_in_module_block(n),
+            ast::Node::ClassDecl(n) => n
+                .elems
+                .list
+                .iter()
+                .position(|item| item.id() == node)
+                .and_then(|i| n.elems.list.get(i + 1).map(|element| element.id())),
             _ => {
                 // TODO: more case
                 None

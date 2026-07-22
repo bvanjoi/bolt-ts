@@ -2016,3 +2016,11 @@ pub struct TheContainingArrowFunctionCapturesTheGlobalValueOfThis {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Function implementation name must be '{name}'.")]
+pub struct FunctionImplementationNameMustBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

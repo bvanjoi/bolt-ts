@@ -1,0 +1,5 @@
+  × Cannot find name 'StateValue'.
+    ╭─[../../tests/compiler/recursiveTypeComparison2/index.ts:15:80]
+ 15 │ StateValue
+    · ──────────
+    ╰────

@@ -5,6 +5,6 @@
 
 class C {
     0();
-    //~^ ERROR: Function implementation is missing or not immediately following the declaration.
     1() { }
+    //~^ ERROR: Function implementation name must be '0'.
 }

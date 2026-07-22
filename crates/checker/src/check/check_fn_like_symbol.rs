@@ -31,11 +31,15 @@ impl<'cx> TyChecker<'cx> {
         let is_ctor = s.flags.contains(SymbolFlags::CONSTRUCTOR);
 
         let mut last_seen_non_ambient_decl = None;
+        let mut previous_declaration = None;
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implement = false;
         let mut has_non_ambient_class = false;
         let mut fn_decls = vec![];
 
+        let mut report_previous_declarations = vec![];
+
+        // TODO: move this check into wf.
         for decl in decls {
             let node = self.p.node(*decl);
             let in_ambient_context = self.p.node_flags(*decl).contains(ast::NodeFlags::AMBIENT);
@@ -44,6 +48,9 @@ impl<'cx> TyChecker<'cx> {
                     let p = self.p.node(parent);
                     p.is_interface_decl() || p.is_object_lit_ty()
                 });
+            if in_ambient_context_or_interface {
+                previous_declaration = None;
+            }
 
             if node.is_class_like() && !in_ambient_context {
                 has_non_ambient_class = true;
@@ -63,23 +70,43 @@ impl<'cx> TyChecker<'cx> {
                 let has_question = node.has_question();
                 some_have_question_token |= has_question;
                 all_have_question_token &= has_question;
-                if let Some(body) = node.fn_body() {
-                    debug_assert!(matches!(body, ArrowFnExprBody::Block(_)));
-                    if body_declaration.is_none() {
-                        body_declaration = Some(*decl);
-                    } else if is_ctor {
+
+                let body = node.fn_body();
+                if body.is_some() && body_declaration.is_some() {
+                    if is_ctor {
                         multiple_constructor_implement = true;
                     } else {
                         duplicate_function_declaration = true;
+                    }
+                } else if let Some(previous_declaration) = previous_declaration
+                    && self.parent(previous_declaration) == self.parent(*decl)
+                    && self
+                        .node_query(previous_declaration.module())
+                        .subsequent_node(previous_declaration)
+                        != Some(*decl)
+                {
+                    report_previous_declarations.push(previous_declaration);
+                }
+
+                if let Some(body) = body {
+                    debug_assert!(matches!(body, ArrowFnExprBody::Block(_)));
+                    if body_declaration.is_none() {
+                        body_declaration = Some(*decl);
                     }
                 } else {
                     has_overloads = true;
                 }
 
+                previous_declaration = Some(*decl);
+
                 if !in_ambient_context_or_interface {
                     last_seen_non_ambient_decl = Some(*decl);
                 }
             }
+        }
+        for previous_node in report_previous_declarations {
+            let previous_node = self.p.node(previous_node);
+            self.report_implementation_expected_error(&previous_node, false);
         }
 
         if multiple_constructor_implement {
@@ -193,6 +220,7 @@ impl<'cx> TyChecker<'cx> {
         node: &ast::Node<'cx>,
         is_constructor: bool,
     ) {
+        debug_assert!(node.is_fn_decl_like());
         let subsequent_node = self
             .node_query(node.id().module())
             .subsequent_node(node.id());
@@ -202,23 +230,33 @@ impl<'cx> TyChecker<'cx> {
             && subsequent_node.is_same_kind(node)
             && let Some(name) = node.name()
             && let Some(subsequent_name) = subsequent_node.name()
-            && match (name, subsequent_name) {
+        {
+            if match (name, subsequent_name) {
                 (ast::DeclarationName::Ident(n), ast::DeclarationName::Ident(m)) => {
                     n.name == m.name
                 }
                 _ => false,
+            } {
+                let report_error = matches!(
+                    node,
+                    ast::Node::ClassMethodElem(_)
+                        | ast::Node::ObjectMethodMember(_)
+                        | ast::Node::MethodSignature(_)
+                ) && node.is_static() != subsequent_node.is_static();
+                if report_error {
+                    todo!()
+                }
+
+                return;
             }
-        {
-            let report_error = matches!(
-                node,
-                ast::Node::ClassMethodElem(_)
-                    | ast::Node::ObjectMethodMember(_)
-                    | ast::Node::MethodSignature(_)
-            ) && node.is_static() != subsequent_node.is_static();
-            if report_error {
-                todo!()
+            if subsequent_node.fn_body().is_some() {
+                let error = errors::FunctionImplementationNameMustBeX {
+                    span: subsequent_name.span(),
+                    name: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+                return;
             }
-            return;
         }
         // TODO: name
         if is_constructor {

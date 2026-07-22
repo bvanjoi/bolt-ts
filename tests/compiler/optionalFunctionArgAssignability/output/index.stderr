@@ -1,0 +1,20 @@
+  × Type '(onFulFill: undefined | ((value: number) => U), onReject: undefined
+  │ | ((reason: any) => U)) => Promise<U>' is not assignable to type
+  │ '(onFulfill: undefined | ((value: string) => U), onReject: undefined |
+  │ ((reason: any) => U)) => Promise<U>'.
+    ╭─[../../tests/compiler/optionalFunctionArgAssignability/index.ts:13:1]
+ 13 │ a
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'Promise<U>'.
+   ╭─[../../tests/compiler/optionalFunctionArgAssignability/index.ts:9:112]
+ 9 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'Promise<U>'.
+    ╭─[../../tests/compiler/optionalFunctionArgAssignability/index.ts:11:112]
+ 11 │ null
+    · ────
+    ╰────

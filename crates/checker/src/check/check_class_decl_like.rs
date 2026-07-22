@@ -334,7 +334,7 @@ impl<'cx> TyChecker<'cx> {
 
         let add_name = |this: &mut Self,
                         names: &mut nohash_hasher::IntMap<Atom, DeclarationMeaning>,
-                        prop_name: &ast::PropName,
+                        prop_name_span: bolt_ts_span::Span,
                         prop_name_atom: Atom,
                         meaning: DeclarationMeaning| {
             match names.get(&prop_name_atom) {
@@ -355,7 +355,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(DeclarationMeaning::PRIVATE_STATIC.complement())
                         {
                             let error = errors::DuplicateIdentifier {
-                                span: prop_name.span(),
+                                span: prop_name_span,
                                 ident: this.atoms.get(prop_name_atom).to_string(),
                             };
                             this.push_error(Box::new(error));
@@ -372,14 +372,26 @@ impl<'cx> TyChecker<'cx> {
 
         for elem in class.elems().list {
             if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
-                for _paramm in ctor.params {
-                    // TODO:
+                for param in ctor.params {
+                    if param.modifiers.is_some_and(|ms| {
+                        ms.flags
+                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+                    }) && let ast::BindingKind::Ident(ident) = &param.name.kind
+                    {
+                        add_name(
+                            self,
+                            &mut instance_names,
+                            ident.span,
+                            ident.name,
+                            DeclarationMeaning::PROPERTY_ASSIGNMENT,
+                        );
+                    }
                 }
             } else if let Some(name) = elem.kind.name()
                 && let Some(member_name) = name.kind.get_name(&mut self.atoms)
             {
                 let is_static = elem.kind.is_static();
-                let is_private = false; // TODO:
+                let is_private = matches!(name.kind, ast::PropNameKind::PrivateIdent(_));
                 let names = if is_private {
                     &mut private_names
                 } else if is_static {
@@ -387,6 +399,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     &mut instance_names
                 };
+
                 let meaning = match elem.kind {
                     ast::ClassElemKind::Getter(_) => DeclarationMeaning::GET_ACCESSOR,
                     ast::ClassElemKind::Setter(_) => DeclarationMeaning::SET_ACCESSOR,
@@ -394,7 +407,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::ClassElemKind::Method(_) => DeclarationMeaning::METHOD,
                     _ => unreachable!(),
                 };
-                add_name(self, names, name, member_name, meaning)
+                add_name(self, names, name.span(), member_name, meaning)
             }
         }
     }
