@@ -109,7 +109,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol;
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol();
         if symbol == Symbol::ERR {
             None
         } else {
@@ -143,7 +143,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol();
         if symbol != Symbol::ERR {
             let node = self.symbol(symbol).decls.as_ref().unwrap()[0];
             let n = self.p.node(node);
@@ -165,7 +165,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
     ) -> errors::CannotFindName {
         if let Some(e) = self.check_using_namespace_as_type(ident) {
             error.errors.push(e);
-        } else if res.base_class_expression_cannot_reference_class_type_parameters {
+        } else if res.base_class_expression_cannot_reference_class_type_parameters() {
             let e =
                 errors::BaseClassExpressionsCannotReferenceClassTypeParameters { span: ident.span };
             error.errors.push(errors::CannotFindNameHelperKind::BaseClassExpressionsCannotReferenceClassTypeParameters(e));
@@ -178,7 +178,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
     ) -> Option<errors::CannotFindNameHelperKind> {
-        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol;
+        let symbol = resolve_symbol_by_ident(self, ident, SymbolFlags::NAMESPACE_MODULE).symbol();
         if symbol == Symbol::ERR {
             None
         } else {
@@ -232,7 +232,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
             return None;
         }
 
-        let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol;
+        let res = resolve_symbol_by_ident(self, ident, SymbolFlags::TYPE).symbol();
         if res != Symbol::ERR {
             let error = errors::CannotFindNameHelperKind::OnlyReferToATypeButIsBeingUsedAsValueHere(
                 errors::OnlyReferToATypeButIsBeingUsedAsValueHere {

@@ -2024,3 +2024,11 @@ pub struct FunctionImplementationNameMustBeX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Module '{module_name}' is hidden by a local declaration with the same name.")]
+pub struct ModuleXIsHiddenByALocalDeclarationWithTheSameName {
+    #[label(primary)]
+    pub span: Span,
+    pub module_name: String,
+}

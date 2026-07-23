@@ -104,6 +104,13 @@ impl Binder {
     pub fn locals(&self, id: ast::NodeID) -> Option<&SymbolTable> {
         self.get(id.module()).locals.get(&id)
     }
+
+    pub fn local_symbol(&self, id: ast::NodeID) -> Option<SymbolID> {
+        self.get(id.module())
+            .local_symbols
+            .get(&id.index_as_u32())
+            .copied()
+    }
 }
 
 struct BinderState<'cx, 'atoms, 'parser> {

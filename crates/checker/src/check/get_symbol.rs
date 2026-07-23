@@ -19,8 +19,7 @@ impl TyChecker<'_> {
         let module = id.module();
         debug_assert!(module != bolt_ts_span::ModuleID::TRANSIENT);
         debug_assert!(module.as_usize() < self.binder.bind_results.len());
-        let result = unsafe { self.binder.bind_results.get_unchecked(module.as_usize()) };
-        result.local_symbols.get(&id.index_as_u32()).copied()
+        self.binder.local_symbol(id)
     }
 
     #[inline]

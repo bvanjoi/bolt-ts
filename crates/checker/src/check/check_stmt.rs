@@ -48,9 +48,7 @@ impl<'cx> TyChecker<'cx> {
             ForIn(node) => self.check_for_in_stmt(node),
             ForOf(node) => self.check_for_of_stmt(node),
             Import(node) => self.check_import_decl(node),
-            ImportEquals(node) => {
-                self.check_import_equals_decl(node);
-            }
+            ImportEquals(node) => self.check_import_equals_decl(node),
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
             ExportAssign(_) => {}
@@ -245,7 +243,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
-        let Some(_module_namee) = self.p.node(node).get_external_module_name() else {
+        let Some(_module_name) = self.p.node(node).get_external_module_name() else {
             return false;
         };
         // TODO: more checks
@@ -263,7 +261,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) {
+        // TODO: if (isInternalModuleImportEqualsDeclaration(node) || checkExternalImportOrExportDeclaration(node)) {
         self.check_import_binding(node.id);
+        // TODO: mark_reference
         if !matches!(
             node.module_reference,
             ast::ModuleReferenceKind::ExternalModuleReference(_)
@@ -273,7 +273,31 @@ impl<'cx> TyChecker<'cx> {
             if target != Symbol::ERR {
                 let target_flags = self.get_symbol_flags::<false>(target);
                 if target_flags.intersects(SymbolFlags::VALUE) {
-                    // TODO :
+                    // Target is a value symbol, check that it is not hidden by a local declaration with the same name
+                    let module_name = match node.module_reference {
+                        ast::ModuleReferenceKind::EntityName(n) => n.get_first_identifier(),
+                        ast::ModuleReferenceKind::ExternalModuleReference(_) => todo!(),
+                    };
+                    const MEANING: SymbolFlags = SymbolFlags::VALUE.union(SymbolFlags::NAMESPACE);
+                    let resolved = bolt_ts_early_resolve::resolve_symbol_by_identifier::resolve_symbol_by_ident(self, module_name, MEANING).symbol();
+                    let resolved = if self.symbol(resolved).flags.contains(SymbolFlags::ALIAS)
+                        && self.get_symbol_flags::<false>(resolved).intersects(MEANING)
+                    {
+                        self.resolve_alias(resolved)
+                    } else {
+                        resolved
+                    };
+                    if !self
+                        .symbol(resolved)
+                        .flags
+                        .intersects(SymbolFlags::NAMESPACE)
+                    {
+                        let error = errors::ModuleXIsHiddenByALocalDeclarationWithTheSameName {
+                            span: module_name.span,
+                            module_name: self.atoms.get(module_name.name).to_string(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
                 if target_flags.intersects(SymbolFlags::TYPE) {
                     self.check_type_name_is_reserved(node.name, |this| {
@@ -1016,5 +1040,75 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
         }
+    }
+}
+
+impl<'cx: 'a, 'a> bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver<'cx, 'a>
+    for TyChecker<'cx>
+{
+    fn node(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_ast::Node<'cx> {
+        self.p.node(id)
+    }
+
+    fn find_ancestor(
+        &self,
+        id: bolt_ts_ast::NodeID,
+        f: impl Fn(bolt_ts_ast::NodeID) -> Option<bool>,
+    ) -> Option<bolt_ts_ast::NodeID> {
+        self.node_query(id.module()).find_ancestor(id, f)
+    }
+
+    fn get_immediately_invoked_fn_expr(
+        &self,
+        id: bolt_ts_ast::NodeID,
+    ) -> Option<&'cx bolt_ts_ast::CallExpr<'cx>> {
+        self.node_query(id.module())
+            .get_immediately_invoked_fn_expr(id)
+    }
+
+    fn parent(&self, id: bolt_ts_ast::NodeID) -> Option<bolt_ts_ast::NodeID> {
+        self.parent(id)
+    }
+
+    fn node_flags(&self, id: bolt_ts_ast::NodeID) -> NodeFlags {
+        self.p.node_flags(id)
+    }
+
+    fn locals(&self, id: bolt_ts_ast::NodeID) -> Option<&bolt_ts_binder::SymbolTable> {
+        self.binder.locals(id)
+    }
+
+    fn get_merged_symbol(&self, symbol: bolt_ts_binder::SymbolID) -> bolt_ts_binder::SymbolID {
+        self.get_merged_symbol(symbol)
+    }
+
+    fn symbol_of_decl(&self, id: bolt_ts_ast::NodeID) -> bolt_ts_binder::SymbolID {
+        debug_assert!(self.p.node(id).is_declaration());
+        debug_assert!(id.module() != bolt_ts_span::ModuleID::TRANSIENT);
+        self.final_res(id)
+    }
+
+    fn symbol(&self, symbol: bolt_ts_binder::SymbolID) -> &Symbol {
+        self.symbol(symbol)
+    }
+
+    fn local_symbol(&self, id: bolt_ts_ast::NodeID) -> Option<bolt_ts_binder::SymbolID> {
+        self.binder.local_symbol(id)
+    }
+
+    fn is_external_or_commonjs_module(&self, id: bolt_ts_ast::NodeID) -> bool {
+        self.p.get(id.module()).is_external_or_commonjs_module()
+    }
+
+    fn is_global_source_file(&self, id: bolt_ts_ast::NodeID) -> bool {
+        self.p.get(id.module()).is_global_source_file(id)
+    }
+
+    fn options(&self) -> &bolt_ts_config::NormalizedCompilerOptions {
+        self.config.compiler_options()
+    }
+
+    fn globals(&self) -> &bolt_ts_binder::SymbolTable {
+        &self.global_symbols
     }
 }

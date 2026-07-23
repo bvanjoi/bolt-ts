@@ -1,0 +1,91 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:5:5]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:7:5]
+ 7 │ b
+   · ─
+   ╰────
+
+  × Property 'c' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:9:5]
+ 9 │ c
+   · ─
+   ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:15:5]
+ 15 │ n
+    · ─
+    ╰────
+
+  × All declarations of 'Foo' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:13:7]
+ 13 │ Foo
+    · ───
+    ╰────
+
+  × All declarations of 'Foo' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:18:11]
+ 18 │ Foo
+    · ───
+    ╰────
+
+  × All declarations of 'Qux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:22:11]
+ 22 │ Qux
+    · ───
+    ╰────
+
+  × All declarations of 'Qux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:26:7]
+ 26 │ Qux
+    · ───
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:28:5]
+ 28 │ n
+    · ─
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:33:5]
+ 33 │ n
+    · ─
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:43:5]
+ 43 │ n
+    · ─
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:49:5]
+ 49 │ n
+    · ─
+    ╰────
+
+  × All declarations of 'Quux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:47:7]
+ 47 │ Quux
+    · ────
+    ╰────
+
+  × All declarations of 'Quux' must have identical type parameters.
+    ╭─[../../tests/compiler/nonIdenticalTypeConstraints/index.ts:52:11]
+ 52 │ Quux
+    · ────
+    ╰────

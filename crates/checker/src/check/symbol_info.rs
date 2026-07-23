@@ -203,7 +203,7 @@ impl<'cx> super::TyChecker<'cx> {
         n: &'cx ast::ImportEqualsDecl<'cx>,
     ) -> SymbolID {
         match n.module_reference {
-            ast::ModuleReferenceKind::ExternalModuleReference(_nn) => {
+            ast::ModuleReferenceKind::ExternalModuleReference(_) => {
                 // TODO:
                 Symbol::ERR
             }
@@ -219,6 +219,7 @@ impl<'cx> super::TyChecker<'cx> {
         entity: &'cx ast::EntityName<'cx>,
     ) -> SymbolID {
         let mut entity_id = entity.id();
+        // TODO: maybe we can delete this?
         if let ast::EntityNameKind::Ident(n) = entity.kind
             && self
                 .node_query(n.id.module())
@@ -228,11 +229,12 @@ impl<'cx> super::TyChecker<'cx> {
         }
 
         let entity_node = self.p.node(entity_id);
-        if let ast::Node::Ident(n) = entity_node
-            && let Some(parent_id) = self.parent(entity_id)
+        if let ast::Node::Ident(n) = entity_node {
+            self.resolve_ident::<false, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
+        } else if let Some(parent_id) = self.parent(entity_id)
             && self.p.node(parent_id).is_qualified_name()
         {
-            self.resolve_ident::<false, DONT_RESOLVE_ALIAS>(n, SymbolFlags::NAMESPACE)
+            self.resolve_entity_name::<false, DONT_RESOLVE_ALIAS>(entity, SymbolFlags::NAMESPACE)
         } else {
             debug_assert!(
                 self.parent(entity_id)

@@ -1,0 +1,5 @@
+  × This expression is not callable.
+    ╭─[../../tests/compiler/constructorOverloads4/index.ts:14:1]
+ 14 │ (new M.Function("return 5"))
+    · ────────────────────────────
+    ╰────
