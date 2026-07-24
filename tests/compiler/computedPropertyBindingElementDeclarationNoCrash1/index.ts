@@ -17,9 +17,9 @@ export class Test {
   test = (e: any) => {
     for (const [key, value] of Object.entries(e)) {
       this.setState({
-        [key]: value,
         //~^ ERROR: Property 'a' is missing.
         //~| ERROR: Property 'b' is missing.
+        [key]: value,
       });
     }
   };

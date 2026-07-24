@@ -2414,13 +2414,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE && report_error {
             if source.key_ty == target.key_ty {
-                let decl = self.c.symbol(source.symbol).opt_decl().unwrap();
-                let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
-                let error = errors::IndexSignaturesAreIncompatible {
-                    span,
-                    ty: self.c.print_ty(target.val_ty, None).to_string(),
-                };
-                self.c.push_error(Box::new(error));
+                if let Some(decl) = self.c.symbol(source.symbol).opt_decl() {
+                    let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
+                    let error = errors::IndexSignaturesAreIncompatible {
+                        span,
+                        ty: self.c.print_ty(target.val_ty, None).to_string(),
+                    };
+                    self.c.push_error(Box::new(error));
+                }
             } else {
                 todo!()
             }

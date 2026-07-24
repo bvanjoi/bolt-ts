@@ -1,0 +1,19 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classExtendsClauseClassMergedWithModuleNotReferingConstructor/index.ts:6:5]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Type 'number' is not a constructor function type.
+    ╭─[../../tests/compiler/classExtendsClauseClassMergedWithModuleNotReferingConstructor/index.ts:15:21]
+ 15 │ A
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classExtendsClauseClassMergedWithModuleNotReferingConstructor/index.ts:17:9]
+ 17 │ b
+    · ─
+    ╰────

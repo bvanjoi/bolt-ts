@@ -575,6 +575,9 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
+        if node.dotdotdot.is_some() {
+            self.emitter.print().p("...");
+        }
         self.visit_binding(node.name);
         if node.question.is_some() {
             self.emitter.print().p_question();

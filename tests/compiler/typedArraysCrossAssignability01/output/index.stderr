@@ -1,0 +1,447 @@
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:17:5]
+ 17 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:19:5]
+ 19 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:21:5]
+ 21 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:23:5]
+ 23 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:25:5]
+ 25 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:27:5]
+ 27 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:29:5]
+ 29 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Int8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:31:5]
+ 31 │ arr_Int8Array
+    · ─────────────
+    ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:34:5]
+ 34 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:37:5]
+ 37 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:39:5]
+ 39 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:41:5]
+ 41 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:43:5]
+ 43 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:45:5]
+ 45 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:47:5]
+ 47 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Uint8Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:49:5]
+ 49 │ arr_Uint8Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:52:5]
+ 52 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:54:5]
+ 54 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:57:5]
+ 57 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:59:5]
+ 59 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:61:5]
+ 61 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:63:5]
+ 63 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:65:5]
+ 65 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Int16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:67:5]
+ 67 │ arr_Int16Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:70:5]
+ 70 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:72:5]
+ 72 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:74:5]
+ 74 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:77:5]
+ 77 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:79:5]
+ 79 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:81:5]
+ 81 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:83:5]
+ 83 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Uint16Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:85:5]
+ 85 │ arr_Uint16Array
+    · ───────────────
+    ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:88:5]
+ 88 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:90:5]
+ 90 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:92:5]
+ 92 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:94:5]
+ 94 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:97:5]
+ 97 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+    ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:99:5]
+ 99 │ arr_Int32Array
+    · ──────────────
+    ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:101:5]
+ 101 │ arr_Int32Array
+     · ──────────────
+     ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Int32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:103:5]
+ 103 │ arr_Int32Array
+     · ──────────────
+     ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:106:5]
+ 106 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:108:5]
+ 108 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:110:5]
+ 110 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:112:5]
+ 112 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:114:5]
+ 114 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:116:5]
+ 116 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:119:5]
+ 119 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Float32Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:121:5]
+ 121 │ arr_Float32Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:124:5]
+ 124 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:126:5]
+ 126 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:128:5]
+ 128 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:130:5]
+ 130 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:132:5]
+ 132 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:134:5]
+ 134 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:136:5]
+ 136 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Uint8ClampedArray<ArrayBuffer>' is not assignable to type
+  │ 'Float64Array<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:139:5]
+ 139 │ arr_Float64Array
+     · ────────────────
+     ╰────
+
+  × Type 'Int8Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:142:5]
+ 142 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Uint8Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:144:5]
+ 144 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Int16Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:146:5]
+ 146 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Uint16Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:148:5]
+ 148 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Int32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:150:5]
+ 150 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Uint32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:152:5]
+ 152 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Float32Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:154:5]
+ 154 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────
+
+  × Type 'Float64Array<ArrayBuffer>' is not assignable to type
+  │ 'Uint8ClampedArray<ArrayBuffer>'.
+     ╭─[../../tests/compiler/typedArraysCrossAssignability01/index.ts:156:5]
+ 156 │ arr_Uint8ClampedArray
+     · ─────────────────────
+     ╰────

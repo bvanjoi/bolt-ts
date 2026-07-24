@@ -67,27 +67,35 @@ fn get_is_deferred_context<'cx: 'a, 'a>(
             if f.name.is_some_and(|name| last_location_is_fn_name(name.id)) {
                 return false;
             }
+            if f.asterisk.is_some() || f.async_modifier.is_some() {
+                return true;
+            }
             resolver.get_immediately_invoked_fn_expr(location).is_none()
         }
-        ast::Node::ArrowFnExpr(_) => {
+        ast::Node::ArrowFnExpr(f) => {
+            if f.async_modifier.is_some() {
+                return true;
+            }
             // TODO: name
             resolver.get_immediately_invoked_fn_expr(location).is_none()
         }
-        _ => {
-            // TODO: is_type_query_node
-            if (l.is_fn_decl_like()
-                || ((l.is_class_prop_elem() || l.is_object_prop_assignment()) && !l.is_static()))
-                && (last_location.is_none_or(|last_location| {
-                    resolver
-                        .node(location)
-                        .ident_name()
-                        .is_some_and(|name| name.id != last_location)
-                }))
-            {
-                return true;
-            }
-            false
+        ast::Node::TypeofTy(_) => true,
+        ast::Node::ClassPropElem(n)
+            if n.modifiers
+                .is_none_or(|ms| !ms.flags.contains(ast::ModifierFlags::STATIC)) =>
+        {
+            last_location.is_none_or(|last_location| last_location != n.name.id())
         }
+        ast::Node::FnDecl(ast::FnDecl { name, .. }) => last_location
+            .is_none_or(|last_location| name.is_none_or(|name| name.id != last_location)),
+
+        ast::Node::ClassMethodElem(ast::ClassMethodElem { name, .. })
+        | ast::Node::ObjectMethodMember(ast::ObjectMethodMember { name, .. })
+        | ast::Node::GetterDecl(ast::GetterDecl { name, .. })
+        | ast::Node::SetterDecl(ast::SetterDecl { name, .. }) => {
+            last_location.is_none_or(|last_location| name.id() != last_location)
+        }
+        _ => false,
     }
 }
 
@@ -510,7 +518,12 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
             }
             ParamDecl(p) => {
                 if let Some(last_location) = last_location
-                    && p.init.is_some_and(|init| init.id() == last_location)
+                    && (p.init.is_some_and(|init| init.id() == last_location)
+                        || match p.name.kind {
+                            ast::BindingKind::Ident(_) => false,
+                            ast::BindingKind::ObjectPat(n) => n.id == last_location,
+                            ast::BindingKind::ArrayPat(n) => n.id == last_location,
+                        })
                     && associated_declaration_for_containing_initializer_or_binding_name.is_none()
                 {
                     associated_declaration_for_containing_initializer_or_binding_name = Some(id);

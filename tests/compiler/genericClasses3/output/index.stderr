@@ -1,0 +1,38 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericClasses3/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericClasses3/index.ts:9:5]
+ 9 │ b
+   · ─
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericClasses3/index.ts:14:12]
+ 14 │ x
+    · ─
+    ╰────
+
+  × Variable 'v2' is used before being assigned.
+    ╭─[../../tests/compiler/genericClasses3/index.ts:20:9]
+ 20 │ v2
+    · ──
+    ╰────
+
+  × Variable 'v2' is used before being assigned.
+    ╭─[../../tests/compiler/genericClasses3/index.ts:22:9]
+ 22 │ v2
+    · ──
+    ╰────
+
+  × Variable 'v2' is used before being assigned.
+    ╭─[../../tests/compiler/genericClasses3/index.ts:25:9]
+ 25 │ v2
+    · ──
+    ╰────

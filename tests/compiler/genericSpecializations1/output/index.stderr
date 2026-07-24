@@ -1,0 +1,31 @@
+  × Property 'foo' in type 'IntFooBad<IntFooBad>' is not assignable to the
+  │ same property in base type 'IFoo<number, IntFooBad>'.
+    ╭─[../../tests/compiler/genericSpecializations1/index.ts:10:5]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericSpecializations1/index.ts:10:37]
+ 10 │ null
+    · ────
+    ╰────
+
+  × Property 'foo' in type 'StringFoo2<StringFoo2>' is not assignable to the
+  │ same property in base type 'IFoo<string, StringFoo2>'.
+    ╭─[../../tests/compiler/genericSpecializations1/index.ts:16:5]
+ 16 │ foo
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/genericSpecializations1/index.ts:16:37]
+ 16 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/genericSpecializations1/index.ts:22:30]
+ 22 │ null
+    · ────
+    ╰────

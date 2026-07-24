@@ -1,0 +1,6 @@
+  × Subsequent variable declarations must have the same type. Variable 'bold'
+  │ must be of type '() => string', but here has type 'string'.
+    ╭─[../../tests/compiler/methodSignatureHandledDeclarationKindForSymbol/index.ts:10:5]
+ 10 │ bold
+    · ────
+    ╰────

@@ -92,7 +92,7 @@ impl<'cx> Resolver<'cx, '_, '_> {
                 self.push_error(Box::new(error));
             } else if let s = self.symbol(result)
                 && let Some(value_decl) = s.value_decl
-                && self.p.node(value_decl).span().hi() > node.span().hi()
+                && self.p.node(value_decl).span().lo() > node.span().lo()
                 && let nq = self.node_query()
                 && let root = nq.get_root_decl(
                     associated_declaration_for_containing_initializer_or_binding_name,

@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/implicitAnyWidenToAny/index.ts:25:25]
+ 25 │ null
+    · ────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/implicitAnyWidenToAny/index.ts:25:31]
+ 25 │ undefined
+    · ─────────
+    ╰────

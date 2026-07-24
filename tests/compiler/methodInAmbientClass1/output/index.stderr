@@ -1,0 +1,12 @@
+  × An implementation cannot be declared in ambient contexts.
+   ╭─[../../tests/compiler/methodInAmbientClass1/index.ts:6:9]
+ 6 │ fn
+   · ──
+   ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/methodInAmbientClass1/index.ts:6:15]
+ 6 │ boolean
+   · ───────
+   ╰────

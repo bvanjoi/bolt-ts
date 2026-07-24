@@ -1,17 +1,17 @@
   × Property 'a' is missing.
     ╭─[../../tests/compiler/computedPropertyBindingElementDeclarationNoCrash1/index.ts:19:21]
  19 │ ╭─▶ {
- 20 │ │           [key]: value,
- 21 │ │           //~^ ERROR: Property 'a' is missing.
- 22 │ │           //~| ERROR: Property 'b' is missing.
+ 20 │ │           //~^ ERROR: Property 'a' is missing.
+ 21 │ │           //~| ERROR: Property 'b' is missing.
+ 22 │ │           [key]: value,
  23 │ ╰─▶       }
     ╰────
 
   × Property 'b' is missing.
     ╭─[../../tests/compiler/computedPropertyBindingElementDeclarationNoCrash1/index.ts:19:21]
  19 │ ╭─▶ {
- 20 │ │           [key]: value,
- 21 │ │           //~^ ERROR: Property 'a' is missing.
- 22 │ │           //~| ERROR: Property 'b' is missing.
+ 20 │ │           //~^ ERROR: Property 'a' is missing.
+ 21 │ │           //~| ERROR: Property 'b' is missing.
+ 22 │ │           [key]: value,
  23 │ ╰─▶       }
     ╰────

@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/generics4/index.ts:5:22]
+ 5 │ x
+   · ─
+   ╰────
+
+  × Type 'C<Y>' is not assignable to type 'C<X>'.
+    ╭─[../../tests/compiler/generics4/index.ts:12:1]
+ 12 │ a
+    · ─
+    ╰────
