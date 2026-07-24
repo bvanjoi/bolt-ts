@@ -161,7 +161,7 @@ impl<'cx, 'a> Resolver<'cx, 'a> for R<'cx, 'a, '_> {
         self.options
     }
     fn globals(&self) -> &SymbolTable {
-        &self.globals
+        self.globals
     }
 }
 

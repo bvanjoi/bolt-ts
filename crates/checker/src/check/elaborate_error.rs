@@ -134,6 +134,9 @@ impl<'cx> TyChecker<'cx> {
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     false,
                 );
+                if ty.flags.contains(TypeFlags::NEVER) {
+                    return None;
+                }
                 use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => Some(Elaboration {

@@ -1007,15 +1007,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn get_signature_applicability_error(
+    fn get_signature_applicability_error<const REPORT_ERROR: bool>(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         sig: &'cx ty::Sig<'cx>,
         args: &EffectiveCallArguments<'cx>,
         relation: RelationKind,
         check_mode: CheckMode,
-        report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
         // TODO: is_jsx_call_like
@@ -1026,7 +1024,7 @@ impl<'cx> TyChecker<'cx> {
             if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
                 let this_argument_node = self.get_this_argument_of_call(expr);
                 let this_argument_ty = self.get_this_argument_ty(this_argument_node);
-                let error_node = report_error
+                let error_node = REPORT_ERROR
                     .then(|| this_argument_node.unwrap_or(n.expect_call_expr().expr).id());
                 if !self.check_type_related_to(
                     this_argument_ty,
@@ -1057,7 +1055,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let argument_type =
                         self.check_expr_with_contextual_ty(n, parameter_type, None, check_mode);
-                    let error_node = report_error.then(|| n.id());
+                    let error_node = REPORT_ERROR.then(|| n.id());
                     let regular_arg_ty = if check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                         self.get_regular_ty_of_object_literal(argument_type)
                     } else {
@@ -1116,7 +1114,7 @@ impl<'cx> TyChecker<'cx> {
             let spared_ty =
                 self.get_spread_argument_ty(args, arg_count, args.len(), rest_ty, None, check_mode);
             let rest_arg_count = args.len() - arg_count;
-            let error_node = if !report_error {
+            let error_node = if !REPORT_ERROR {
                 None
             } else if rest_arg_count == 0 {
                 Some(expr.id())
@@ -1236,13 +1234,12 @@ impl<'cx> TyChecker<'cx> {
                 || !self.has_correct_arity(effective_call_arguments, candidate)
             {
                 None
-            } else if self.get_signature_applicability_error(
+            } else if self.get_signature_applicability_error::<false>(
                 expr,
                 candidate,
                 effective_call_arguments,
                 relation,
                 CheckMode::empty(),
-                false,
                 None,
             ) {
                 candidates_for_argument_error.insert(candidate.id);
@@ -1301,13 +1298,12 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
 
-                if self.get_signature_applicability_error(
+                if self.get_signature_applicability_error::<false>(
                     expr,
                     check_candidate,
                     effective_call_arguments,
                     relation,
                     argument_check_mode,
-                    false,
                     infer_ctx,
                 ) {
                     candidates_for_argument_error.insert(check_candidate.id);
@@ -1328,13 +1324,12 @@ impl<'cx> TyChecker<'cx> {
                             self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
                     };
 
-                    if self.get_signature_applicability_error(
+                    if self.get_signature_applicability_error::<false>(
                         expr,
                         check_candidate,
                         effective_call_arguments,
                         relation,
                         argument_check_mode,
-                        false,
                         infer_ctx,
                     ) {
                         candidates_for_argument_error.insert(check_candidate.id);
@@ -1597,13 +1592,12 @@ impl<'cx> TyChecker<'cx> {
                 if candidates_for_argument_error.len() == 1 {
                     let last = candidates_for_argument_error.drain().last().unwrap();
                     let last = self.sigs[last.as_usize()];
-                    self.get_signature_applicability_error(
+                    self.get_signature_applicability_error::<true>(
                         n,
                         last,
                         &effective_call_arguments,
                         RelationKind::Assignable,
                         CheckMode::empty(),
-                        true,
                         None,
                     );
                 } else {
