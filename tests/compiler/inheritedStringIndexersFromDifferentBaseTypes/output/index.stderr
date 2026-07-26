@@ -1,0 +1,11 @@
+  × 'string' index signatures are incompatible.
+   ╭─[../../tests/compiler/inheritedStringIndexersFromDifferentBaseTypes/index.ts:6:18]
+ 6 │ number
+   · ──────
+   ╰────
+
+  × 'string' index signatures are incompatible.
+    ╭─[../../tests/compiler/inheritedStringIndexersFromDifferentBaseTypes/index.ts:22:18]
+ 22 │ number
+    · ──────
+    ╰────

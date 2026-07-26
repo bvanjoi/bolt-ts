@@ -265,7 +265,6 @@ pub struct AnonymousTy<'cx> {
 #[derive(Debug)]
 pub struct SingleSigTy<'cx> {
     pub symbol: Option<SymbolID>,
-    pub target: Option<&'cx Ty<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }
 

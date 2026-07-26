@@ -1,0 +1,17 @@
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/arrayOfSubtypeIsAssignableToReadonlyArray/index.ts:18:1]
+ 18 │ rrb
+    · ───
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/arrayOfSubtypeIsAssignableToReadonlyArray/index.ts:24:1]
+ 24 │ rrb
+    · ───
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/arrayOfSubtypeIsAssignableToReadonlyArray/index.ts:24:1]
+ 24 │ rrb
+    · ───
+    ╰────

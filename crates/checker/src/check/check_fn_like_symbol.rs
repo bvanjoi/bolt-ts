@@ -244,7 +244,17 @@ impl<'cx> TyChecker<'cx> {
                         | ast::Node::MethodSignature(_)
                 ) && node.is_static() != subsequent_node.is_static();
                 if report_error {
-                    todo!()
+                    if node.is_static() {
+                        let error = errors::FunctionOverloadMustBeStatic {
+                            span: subsequent_name.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    } else {
+                        let error = errors::FunctionOverloadMustNotBeStatic {
+                            span: subsequent_name.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
                 }
 
                 return;

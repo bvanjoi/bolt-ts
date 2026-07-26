@@ -192,17 +192,16 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
-    pub(super) fn get_single_sig(
+    pub(super) fn get_single_sig<const ALLOW_MEMBERS: bool>(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         kind: SigKind,
-        allow_members: bool,
     ) -> Option<&'cx Sig<'cx>> {
         if !ty.flags.contains(TypeFlags::OBJECT) {
             return None;
         }
         self.resolve_structured_type_members(ty);
-        if !allow_members
+        if !ALLOW_MEMBERS
             || (self.properties_of_object_type(ty).is_empty()
                 && self.index_infos_of_ty(ty).is_empty())
         {
@@ -222,7 +221,7 @@ impl<'cx> TyChecker<'cx> {
 
     #[inline]
     pub(super) fn get_single_call_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx Sig<'cx>> {
-        self.get_single_sig(ty, SigKind::Call, false)
+        self.get_single_sig::<false>(ty, SigKind::Call)
     }
 
     pub(super) fn get_single_call_or_ctor_sig(
@@ -230,7 +229,7 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> Option<&'cx Sig<'cx>> {
         self.get_single_call_sig(ty)
-            .or_else(|| self.get_single_sig(ty, SigKind::Constructor, false))
+            .or_else(|| self.get_single_sig::<false>(ty, SigKind::Constructor))
     }
 
     pub(super) fn get_base_sig(&mut self, sig: &'cx Sig<'cx>) -> &'cx Sig<'cx> {

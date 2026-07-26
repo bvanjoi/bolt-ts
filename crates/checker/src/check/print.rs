@@ -425,7 +425,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     } else if let Some(num) = name.as_numeric() {
                         num.to_string()
                     } else {
-                        unreachable!()
+                        unreachable!("name: {name:#?}");
                     };
                     let ty = self.c.get_type_of_symbol(*symbol);
                     format!(
@@ -445,8 +445,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             )
         }) {
             let s = self.c.symbol(a.symbol.unwrap());
-            let name = s.name.expect_atom();
-            format!("typeof {}", self.c.atoms.get(name))
+            let name = s.name.to_string(&self.c.atoms);
+            format!("typeof {}", name)
         } else if let Some(sig) = self.c.get_signatures_of_type(ty, SigKind::Call).first() {
             print_fn_like_str(self, sig)
         } else if let Some(sig) = self

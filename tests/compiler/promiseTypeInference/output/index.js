@@ -1,0 +1,1 @@
+var $$x = load('something').then((s) => (convert(s)));

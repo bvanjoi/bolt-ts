@@ -1,0 +1,23 @@
+  × Variable 'myItems' is used before being assigned.
+   ╭─[../../tests/compiler/genericFunctions2/index.ts:9:19]
+ 9 │ myItems
+   · ───────
+   ╰────
+
+  × Variable 'myItems' is used before being assigned.
+   ╭─[../../tests/compiler/genericFunctions2/index.ts:9:19]
+ 9 │ myItems
+   · ───────
+   ╰────
+
+  × Variable 'myItems' is used before being assigned.
+   ╭─[../../tests/compiler/genericFunctions2/index.ts:9:19]
+ 9 │ myItems
+   · ───────
+   ╰────
+
+  × Variable 'myItems' is used before being assigned.
+   ╭─[../../tests/compiler/genericFunctions2/index.ts:9:19]
+ 9 │ myItems
+   · ───────
+   ╰────

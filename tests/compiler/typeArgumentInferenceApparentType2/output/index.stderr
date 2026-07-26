@@ -1,0 +1,17 @@
+  × Variable 'u' is used before being assigned.
+   ╭─[../../tests/compiler/typeArgumentInferenceApparentType2/index.ts:8:29]
+ 8 │ u
+   · ─
+   ╰────
+
+  × Variable 'u' is used before being assigned.
+   ╭─[../../tests/compiler/typeArgumentInferenceApparentType2/index.ts:8:29]
+ 8 │ u
+   · ─
+   ╰────
+
+  × Type 'undefined' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/typeArgumentInferenceApparentType2/index.ts:12:5]
+ 12 │ return;
+    · ───────
+    ╰────

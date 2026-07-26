@@ -633,14 +633,21 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_awaited_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
-        let awaited_ty = self.get_awaited_ty_no_alias(ty);
+    pub(super) fn get_awaited_ty(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+        push_error: Option<impl FnOnce(&mut Self) + Copy>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let awaited_ty = self.get_awaited_ty_no_alias(ty, error_node, push_error);
         awaited_ty.map(|awaited_ty| self.create_awaited_ty_if_needed(awaited_ty))
     }
 
     pub(super) fn get_awaited_ty_no_alias(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
+        error_node: Option<ast::NodeID>,
+        push_error: Option<impl FnOnce(&mut Self) + Copy>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         if self.is_type_any(ty) || self.is_awaited_ty_instantiation(ty) {
             return Some(ty);
@@ -661,7 +668,12 @@ impl<'cx> TyChecker<'cx> {
             self.awaited_ty_stack.push(ty);
             // TODO: error node
             let mapped = self
-                .map_union_ty(ty, u, |this, t| this.get_awaited_ty_no_alias(t), false)
+                .map_union_ty(
+                    ty,
+                    u,
+                    |this, t| this.get_awaited_ty_no_alias(t, error_node, push_error),
+                    false,
+                )
                 .unwrap();
             self.awaited_ty_stack.pop();
 
@@ -684,7 +696,7 @@ impl<'cx> TyChecker<'cx> {
                 return None;
             }
             self.awaited_ty_stack.push(ty);
-            let awaited_ty = self.get_awaited_ty_no_alias(promised_ty);
+            let awaited_ty = self.get_awaited_ty_no_alias(promised_ty, error_node, push_error);
             self.awaited_ty_stack.pop();
 
             let awaited_ty = awaited_ty?;
@@ -695,7 +707,11 @@ impl<'cx> TyChecker<'cx> {
         }
 
         if self.is_thenable_ty(ty) {
-            // TODO: error node
+            if error_node.is_some() {
+                // TODO: more case
+                let push_error = push_error.unwrap();
+                push_error(self);
+            }
             return None;
         }
         if let Some(id) = id {

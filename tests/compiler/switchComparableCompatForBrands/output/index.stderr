@@ -1,0 +1,6 @@
+  × Property '_a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/switchComparableCompatForBrands/index.ts:7:13]
+ 7 │ _a
+   · ──
+   ╰────

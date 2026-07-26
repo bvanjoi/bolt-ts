@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/typeArgumentInferenceApparentType1/index.ts:6:5]
+ 6 │ return;
+   · ───────
+   ╰────

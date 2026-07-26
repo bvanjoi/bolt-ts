@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'a'.
+   ╭─[../../tests/compiler/parameterReferenceInInitializer1/index.ts:6:12]
+ 6 │ undefined
+   · ─────────
+   ╰────

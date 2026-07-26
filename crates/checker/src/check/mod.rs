@@ -1695,10 +1695,10 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
         let Some((sig, kind)) = self
-            .get_single_sig(ty, ty::SigKind::Call, true)
+            .get_single_sig::<true>(ty, ty::SigKind::Call)
             .map(|sig| (sig, ty::SigKind::Call))
             .or_else(|| {
-                self.get_single_sig(ty, ty::SigKind::Constructor, true)
+                self.get_single_sig::<true>(ty, ty::SigKind::Constructor)
                     .map(|sig| (sig, ty::SigKind::Constructor))
             })
         else {
@@ -1712,7 +1712,7 @@ impl<'cx> TyChecker<'cx> {
         else {
             return ty;
         };
-        let Some(contextual_sig) = self.get_single_sig(contextual_ty, kind, false) else {
+        let Some(contextual_sig) = self.get_single_sig::<false>(contextual_ty, kind) else {
             return ty;
         };
         if self
@@ -1812,7 +1812,7 @@ impl<'cx> TyChecker<'cx> {
                     }
 
                     self.append_inferred_type_parameters(context_inference, unique_type_parameters);
-                    return self.get_or_create_ty_from_sig(instantiated_sig);
+                    return self.get_or_create_ty_from_sig(instantiated_sig, None);
                 }
             }
         }
@@ -1831,7 +1831,7 @@ impl<'cx> TyChecker<'cx> {
         //     })
         //     .flatten()
         //     .collect::<Vec<_>>();
-        self.get_or_create_ty_from_sig(sig)
+        self.get_or_create_ty_from_sig(sig, None)
     }
 
     fn get_unique_type_parameters(
@@ -1955,35 +1955,40 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
+    fn get_or_create_ty_from_sig(
+        &mut self,
+        sig: &'cx ty::Sig<'cx>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) -> &'cx ty::Ty<'cx> {
         //TODO: cache `isolated_sig_ty`
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
-        let ty = self.create_single_sig_ty(ty::SingleSigTy {
+        let ty = ty::SingleSigTy {
             symbol: sig.node_id.map(|node_id| self.final_res(node_id)),
-            target: None,
-            mapper: None,
-        });
-        let prev = self.ty_links.insert(
-            ty.id,
-            TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
-                members: self.alloc(Default::default()),
-                call_sigs: if !is_constructor {
-                    self.alloc([sig])
-                } else {
-                    self.empty_array()
-                },
-                ctor_sigs: if is_constructor {
-                    self.alloc([sig])
-                } else {
-                    self.empty_array()
-                },
-                index_infos: self.empty_array(),
-                props: self.empty_array(),
-            })),
+            mapper,
+        };
+        let ty = self.create_single_sig_ty(
+            ty,
+            ObjectFlags::ANONYMOUS.union(ObjectFlags::SINGLE_SIGNATURE_TYPE),
         );
+        let links = TyLinks::default().with_structured_members(self.alloc(ty::StructuredMembers {
+            members: self.alloc(Default::default()),
+            call_sigs: if !is_constructor {
+                self.alloc([sig])
+            } else {
+                self.empty_array()
+            },
+            ctor_sigs: if is_constructor {
+                self.alloc([sig])
+            } else {
+                self.empty_array()
+            },
+            index_infos: self.empty_array(),
+            props: self.empty_array(),
+        }));
+        let prev = self.ty_links.insert(ty.id, links);
         assert!(prev.is_none());
         ty
     }
@@ -2509,20 +2514,30 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn symbol_hash_non_method_decl(&mut self, symbol: SymbolID) -> bool {
-        self.for_each_prop(symbol, |this, s| {
+        self.for_each_property(symbol, |this, s| {
             let s = this.symbol(s);
             Some(!s.flags.contains(SymbolFlags::METHOD))
         })
         .unwrap()
     }
 
-    fn for_each_prop<T>(
+    fn for_each_property<T>(
         &mut self,
         prop: SymbolID,
-        f: impl FnOnce(&mut Self, SymbolID) -> Option<T>,
+        f: impl FnOnce(&mut Self, SymbolID) -> Option<T> + Copy,
     ) -> Option<T> {
         if self.get_check_flags(prop).intersects(CheckFlags::SYNTHETIC) {
-            todo!()
+            let containing_ty = self.get_transient_symbol_links(prop).expect_containing_ty();
+            let name = self.symbol(prop).name;
+            let tys = containing_ty.kind.tys_of_union_or_intersection().unwrap();
+            for ty in tys {
+                if let Some(p) = self.get_prop_of_ty::<false, false>(ty, name)
+                    && let Some(result) = self.for_each_property(p, f)
+                {
+                    return Some(result);
+                }
+            }
+            None
         } else {
             f(self, prop)
         }
@@ -2601,7 +2616,7 @@ impl<'cx> TyChecker<'cx> {
                                                        check_class: &'cx ty::Ty<'cx>,
                                                        prop: SymbolID|
          -> Option<&'cx ty::Ty<'cx>> {
-            this.for_each_prop(prop, |this, p| {
+            this.for_each_property(prop, |this, p| {
                 let flags = this.get_declaration_modifier_flags_from_symbol::<IS_WRITE>(p);
                 if flags.contains(ast::ModifierFlags::PROTECTED) {
                     if let Some(base_class) = this.get_declaring_class(p)
@@ -4609,13 +4624,14 @@ impl<'cx> TyChecker<'cx> {
         sent_ty: &'cx ty::Ty<'cx>,
         is_async: bool,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        let error_node = n.expr.map(|expr| expr.id()).unwrap_or(n.id);
+        let error_node = || n.expr.map(|expr| expr.id()).unwrap_or(n.id);
         let yield_ty = if n.asterisk.is_some() {
             let mode = if is_async {
                 IterationUse::ASYNC_YIELD_STAR
             } else {
                 IterationUse::YIELD_STAR
             };
+            let error_node = error_node();
             self.check_iterated_ty_or_element_ty(mode, expr_ty, sent_ty, Some(error_node))
         } else {
             expr_ty
@@ -4623,8 +4639,26 @@ impl<'cx> TyChecker<'cx> {
         if !is_async {
             Some(yield_ty)
         } else {
-            // TODO: error_node
-            self.get_awaited_ty(yield_ty)
+            let error_node = error_node();
+            self.get_awaited_ty(
+                yield_ty,
+                Some(error_node),
+                Some(|this: &mut TyChecker| {
+                    if n.asterisk.is_some() {
+                        let error =
+                            errors::TypeOfIteratedElementsOfAYieldAsteriskOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember {
+                                span: n.span,
+                            };
+                        this.push_error(Box::new(error));
+                    } else {
+                        let error =
+                            errors::TypeOfYieldOperandInAnAsyncGeneratorMustEitherBeAValidPromiseOrMustNotContainACallableThenMember {
+                                span: n.span,
+                            };
+                        this.push_error(Box::new(error));
+                    }
+                }),
+            )
         }
     }
 
@@ -7029,7 +7063,7 @@ impl<'cx> TyChecker<'cx> {
         match expr.kind {
             ast::ExprKind::Await(n) => {
                 let ty = self.get_quick_type_of_expression(n.expr)?;
-                self.get_awaited_ty(ty)
+                self.get_awaited_ty(ty, None, NOOP_HEADING_ERROR)
             }
             ast::ExprKind::Call(n)
                 if !matches!(n.expr.kind, ast::ExprKind::Super(_))
@@ -7360,16 +7394,19 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         ty_args: Option<&'cx ast::Tys<'cx>>,
-        _locc: ast::NodeID,
+        loc: ast::NodeID,
     ) -> impl Iterator<Item = &'cx ty::Sig<'cx>> {
         let ty_arg_count = ty_args.map_or(0, |t| t.list.len());
         let sigs = self.get_signatures_of_type(ty, ty::SigKind::Constructor);
-        // TODO: is_javascript
+        let is_javascript = self.node_query(loc.module()).is_in_js_file(loc);
         sigs.iter().filter_map(move |sig| {
             let ty_params = self.get_sig_links(sig.id).get_ty_params();
             let min = self.get_min_ty_arg_count(ty_params);
-            if ty_arg_count >= min
-                && ty_params.is_none_or(|ty_params| ty_arg_count <= ty_params.len())
+            if (is_javascript || ty_arg_count >= min)
+                && match ty_params {
+                    Some(ty_params) => ty_arg_count <= ty_params.len(),
+                    None => ty_arg_count == 0,
+                }
             {
                 Some(*sig)
             } else {
@@ -8435,13 +8472,9 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn get_awaited_ty_of_promise(
-        &mut self,
-        ty: &'cx ty::Ty<'cx>,
-        _error_nodee: Option<ast::NodeID>,
-    ) -> Option<&'cx ty::Ty<'cx>> {
+    fn get_awaited_ty_of_promise(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<&'cx ty::Ty<'cx>> {
         let promised_ty = self.get_promised_ty_of_promise(ty)?;
-        self.get_awaited_ty(promised_ty)
+        self.get_awaited_ty(promised_ty, None, NOOP_HEADING_ERROR)
     }
 
     fn include_undefined_in_index_sig(&mut self, ty: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {

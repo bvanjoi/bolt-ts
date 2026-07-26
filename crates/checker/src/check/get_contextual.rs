@@ -12,6 +12,7 @@ use super::Ternary;
 use super::TyChecker;
 use super::ast;
 use super::check_expr::IterationUse;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::get_effective_node::EffectiveCallArgument;
 use super::get_effective_node::EffectiveCallArguments;
@@ -282,7 +283,7 @@ impl<'cx> TyChecker<'cx> {
         if fn_flags.contains(FnFlags::ASYNC) {
             self.map_ty(
                 contextual_return_ty,
-                |this, t| this.get_awaited_ty_no_alias(t),
+                |this, t| this.get_awaited_ty_no_alias(t, None, NOOP_HEADING_ERROR),
                 false,
             )
             .map(|contextual_await_ty| {
@@ -404,7 +405,7 @@ impl<'cx> TyChecker<'cx> {
                         TypeFlags::ANY_OR_UNKNOWN
                             .union(TypeFlags::VOID)
                             .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
-                    ) || this.get_awaited_ty_of_promise(t, None).is_some()
+                    ) || this.get_awaited_ty_of_promise(t).is_some()
                 })
             } else {
                 ret_ty

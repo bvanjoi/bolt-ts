@@ -1,0 +1,88 @@
+  × Property 'ptd' is protected and only accessible within class 'A' and its
+  │ subclasses.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:48:1]
+ 48 │ a.ptd
+    · ─────
+    ╰────
+
+  × Property 'pvt' is private and only accessible within class 'A'.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:50:1]
+ 50 │ a.pvt
+    · ─────
+    ╰────
+
+  × The intersection '(Anonymous class)<typeof A> & A' was reduced to 'never'
+  │ because property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:53:4]
+ 53 │ pb
+    · ──
+    ╰────
+
+  × The intersection '(Anonymous class)<typeof A> & A' was reduced to 'never'
+  │ because property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:55:4]
+ 55 │ ptd
+    · ───
+    ╰────
+
+  × The intersection '(Anonymous class)<typeof A> & A' was reduced to 'never'
+  │ because property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:57:4]
+ 57 │ pvt
+    · ───
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:60:5]
+ 60 │ pb
+    · ──
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:62:5]
+ 62 │ ptd
+    · ───
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:64:5]
+ 64 │ pvt
+    · ───
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:67:6]
+ 67 │ pb
+    · ──
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:69:6]
+ 69 │ ptd
+    · ───
+    ╰────
+
+  × The intersection '(Anonymous class)<(typeof (Anonymous class)) & (typeof
+  │ A)> & (Anonymous class)<typeof A> & A' was reduced to 'never' because
+  │ property 'pvt' has conflicting types in some constituents.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:71:6]
+ 71 │ pvt
+    · ───
+    ╰────
+
+  × Property 'accountBalance' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/mixinPrivateAndProtected/index.ts:98:2]
+ 98 │ accountBalance
+    · ──────────────
+    ╰────

@@ -10,6 +10,7 @@ use thin_vec::thin_vec;
 use super::create_ty::IntersectionFlags;
 use super::instantiation_ty_map::TyCacheTrait;
 use super::instantiation_ty_map::{ConditionalTyInstantiationTyMap, TyAliasInstantiationMap};
+use super::links;
 use super::ty::{self, ObjectMappedTyLinks};
 use super::ty::{ObjectFlags, TyMapper, TypeFlags};
 use super::utils::{capitalize, uncapitalize};
@@ -706,7 +707,7 @@ impl<'cx> TyChecker<'cx> {
         let fresh_ty_param = self.clone_param_ty(orig_ty_param);
         let mapper = {
             let m = self.alloc(TyMapper::make_unary(orig_ty_param, fresh_ty_param));
-            self.combine_ty_mappers(Some(m), mapper)
+            self.combine_ty_mappers_worker(m, mapper)
         };
         let prev = self.ty_links.insert(
             fresh_ty_param.id,
@@ -937,6 +938,14 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             let new_mapper = self.create_ty_mapper(ty_params, self.alloc(ty_args));
+            let new_mapper = if target
+                .get_object_flags()
+                .contains(ty::ObjectFlags::SINGLE_SIGNATURE_TYPE)
+            {
+                self.combine_ty_mappers_worker(new_mapper, mapper)
+            } else {
+                new_mapper
+            };
             let ty = if target.kind.is_object_reference() {
                 let ty = ty.kind.expect_object_reference();
                 self.create_deferred_ty_reference(
@@ -1108,8 +1117,8 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,
-        _is_jss: bool,
-        inferred_ty_params: Option<ty::Tys<'cx>>,
+        _is_js: bool,
+        context: Option<super::InferenceContextId>,
     ) -> &'cx ty::Sig<'cx> {
         let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
         let ty_args = self.fill_missing_ty_args(
@@ -1118,10 +1127,41 @@ impl<'cx> TyChecker<'cx> {
             self.get_min_ty_arg_count(sig_ty_params),
         );
         let sig = self.get_sig_instantiation_without_filling_type_arguments(sig, ty_args);
-        if let Some(_inferred_ty_paramss) = inferred_ty_params {
-            todo!()
+        if let Some(context) = context
+            && let ret_sig = self.get_return_type_of_signature(sig)
+            && let Some(ret_sig) = self.get_single_call_or_ctor_sig(ret_sig)
+            && let Some(ty_params) = self.inference(context).inferred_type_parameters.clone()
+        {
+            let new_ret_sig = ty::Sig {
+                id: ty::SigID::dummy(),
+                flags: ret_sig.flags & ty::SigFlags::PROPAGATING_FLAGS,
+                params: ret_sig.params,
+                min_args_count: ret_sig.min_args_count,
+                ret: ret_sig.ret,
+                node_id: ret_sig.node_id,
+                target: ret_sig.target,
+                mapper: ret_sig.mapper,
+                class_decl: ret_sig.class_decl,
+                composite_sigs: ret_sig.composite_sigs,
+                composite_kind: ret_sig.composite_kind,
+            };
+            let mut new_links = links::SigLinks::default();
+            if let Some(this_param) = self.get_sig_links(ret_sig.id).get_this_param() {
+                new_links.set_this_param(this_param);
+            }
+            let ty_params = self.alloc(ty_params);
+            new_links.set_ty_params(ty_params);
+            let new_ret_sig = self.new_sig(new_ret_sig);
+            let prev = self.sig_links.insert(new_ret_sig.id, new_links);
+            debug_assert!(prev.is_none());
+            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig, sig.mapper);
+            let new_instantiated_sig = self.clone_sig(sig);
+            self.get_mut_sig_links(new_instantiated_sig.id)
+                .set_resolved_ret_ty(new_ret_ty);
+            new_instantiated_sig
+        } else {
+            sig
         }
-        sig
     }
 
     pub(super) fn create_sig_instantiation(

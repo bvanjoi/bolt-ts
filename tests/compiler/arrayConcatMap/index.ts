@@ -3,4 +3,4 @@
 var x = [].concat([{ a: 1 }], [{ a: 2 }])
           .map(b => b.a);
 //~^^ ERROR: No overload matches this call.
-          //~^^ ERROR: Property 'a' does not exist on type 'T'.
+          //~^^ ERROR: Property 'a' does not exist on type 'never'.

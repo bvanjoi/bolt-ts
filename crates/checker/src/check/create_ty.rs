@@ -9,6 +9,7 @@ use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capac
 use super::SymbolLinks;
 use super::TemplateLiteralTyKey;
 use super::UnionOfUnionTysKey;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::get_iteration_tys::AsyncIterationTysResolver;
 use super::get_iteration_tys::IterationTysResolver;
 use super::get_iteration_tys::SyncIterationTysResolver;
@@ -471,11 +472,13 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub(super) fn create_single_sig_ty(&mut self, ty: ty::SingleSigTy<'cx>) -> &'cx ty::Ty<'cx> {
-        self.create_object_ty(
-            ty::ObjectTyKind::SingleSigTy(self.alloc(ty)),
-            ObjectFlags::empty(),
-        )
+    pub(super) fn create_single_sig_ty(
+        &mut self,
+        ty: ty::SingleSigTy<'cx>,
+        object_flags: ObjectFlags,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(object_flags.contains(ObjectFlags::SINGLE_SIGNATURE_TYPE));
+        self.create_object_ty(ty::ObjectTyKind::SingleSigTy(self.alloc(ty)), object_flags)
     }
 
     pub(super) fn clone_param_ty(&mut self, old: &'cx ty::Ty<'cx>) -> &'cx ty::Ty<'cx> {
@@ -2274,7 +2277,9 @@ impl<'cx> TyChecker<'cx> {
         let global_promise_like_ty = self.get_global_promise_like_ty::<true>();
         if global_promise_like_ty != self.empty_generic_ty() {
             let ty = self.unwrap_awaited_ty(promised_ty);
-            promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            promised_ty = self
+                .get_awaited_ty_no_alias(ty, None, NOOP_HEADING_ERROR)
+                .unwrap_or(self.unknown_ty);
             let resolved_ty_args = self.alloc([promised_ty]);
             self.create_type_reference(
                 global_promise_like_ty,
@@ -2291,7 +2296,9 @@ impl<'cx> TyChecker<'cx> {
         let global_promise_ty = self.get_global_promise_ty::<true>();
         if global_promise_ty != self.empty_generic_ty() {
             let ty = self.unwrap_awaited_ty(promised_ty);
-            let promised_ty = self.get_awaited_ty_no_alias(ty).unwrap_or(self.unknown_ty);
+            let promised_ty = self
+                .get_awaited_ty_no_alias(ty, None, NOOP_HEADING_ERROR)
+                .unwrap_or(self.unknown_ty);
             let resolved_ty_args = self.alloc([promised_ty]);
             self.create_type_reference(
                 global_promise_ty,

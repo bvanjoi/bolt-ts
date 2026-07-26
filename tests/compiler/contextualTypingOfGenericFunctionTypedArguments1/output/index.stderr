@@ -1,0 +1,13 @@
+  × Argument of type '(x: number) => string' is not assignable to parameter of
+  │ type '(x: number) => Date'.
+    ╭─[../../tests/compiler/contextualTypingOfGenericFunctionTypedArguments1/index.ts:20:32]
+ 20 │ f
+    · ─
+    ╰────
+
+  × Argument of type '(x: number) => string' is not assignable to parameter of
+  │ type '(x: number) => Date'.
+    ╭─[../../tests/compiler/contextualTypingOfGenericFunctionTypedArguments1/index.ts:22:32]
+ 22 │ (x) => { return x.toFixed() }
+    · ─────────────────────────────
+    ╰────

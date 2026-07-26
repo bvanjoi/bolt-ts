@@ -60,6 +60,16 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.get_return_type_of_signature(sig)
     }
 
+    pub fn ensure_type_for_parameter_declaration<const IGNORE_PRIVATE: bool>(
+        &mut self,
+        n: &'cx ast::ParamDecl<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let symbol = self.checker.get_symbol_of_declaration(n.id);
+        let Some(links) = self.checker.symbol_links(symbol) else {
+            return self.checker.any_ty;
+        };
+        links.expect_ty()
+    }
     pub fn print_type(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         self.checker.print_ty(ty, None).to_string()
     }

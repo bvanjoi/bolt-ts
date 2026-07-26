@@ -123,9 +123,20 @@ impl<'cx> IterationTysResolver<'cx> for AsyncIterationTysResolver {
         &self,
         c: &mut TyChecker<'cx>,
         ty: &'cx ty::Ty<'cx>,
-        _error_nodee: Option<bolt_ts_ast::NodeID>,
+        error_node: Option<bolt_ts_ast::NodeID>,
     ) -> Option<&'cx ty::Ty<'cx>> {
-        c.get_awaited_ty(ty)
+        c.get_awaited_ty(
+            ty,
+            error_node,
+            Some(|this: &mut TyChecker<'cx>| {
+                let error_node = error_node.unwrap();
+                let span = this.p.node(error_node).span();
+                let error = errors::TypeOfAwaitOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember {
+                    span,
+                };
+                this.push_error(Box::new(error));
+            }),
+        )
     }
 
     fn get_iteration_tys_of_iterable_cached(
@@ -916,11 +927,15 @@ impl<'cx> TyChecker<'cx> {
         let yield_ty = tys.yield_ty;
         let return_ty = tys.return_ty;
         let next_ty = tys.next_ty;
-        if let Some(_error_nodee) = error_node {
+        if let Some(_error_node) = error_node {
             todo!()
         }
-        let yield_ty = self.get_awaited_ty(yield_ty).unwrap_or(self.any_ty);
-        let return_ty = self.get_awaited_ty(return_ty).unwrap_or(self.any_ty);
+        let yield_ty = self
+            .get_awaited_ty(yield_ty, error_node, NOOP_HEADING_ERROR)
+            .unwrap_or(self.any_ty);
+        let return_ty = self
+            .get_awaited_ty(return_ty, error_node, NOOP_HEADING_ERROR)
+            .unwrap_or(self.any_ty);
         self.create_iteration_tys(yield_ty, return_ty, next_ty)
     }
 
@@ -949,6 +964,16 @@ impl<'cx> TyChecker<'cx> {
                         iteration_tys
                     };
                 }
+            }
+            let iteration_tys = self.get_iteration_tys_of_iterable_slow(
+                ty,
+                AsyncIterationTysResolver,
+                error_node,
+                error_output_container,
+                no_cache,
+            );
+            if !std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
+                return iteration_tys;
             }
         }
 

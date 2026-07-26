@@ -774,19 +774,23 @@ impl<'cx> TyChecker<'cx> {
                         })
                         .and_then(|id| self.get_mapper_from_context(id));
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
-                    let inference_source_ty =
-                        if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
-                            if let Some(_ty_paramm) =
-                                self.get_sig_links(contextual_sig.id).get_ty_params()
-                            {
-                                // TODO: `get_or_create_ty_from_sig`
-                                instantiated_ty
-                            } else {
-                                instantiated_ty
-                            }
+                    let inference_source_ty = if let Some(contextual_sig) =
+                        self.get_single_call_sig(instantiated_ty)
+                    {
+                        if let Some(ty_param) =
+                            self.get_sig_links(contextual_sig.id).get_ty_params()
+                        {
+                            let sig = self.get_sig_instantiation_without_filling_type_arguments(
+                                contextual_sig,
+                                Some(ty_param),
+                            );
+                            self.get_or_create_ty_from_sig(sig, None)
                         } else {
                             instantiated_ty
-                        };
+                        }
+                    } else {
+                        instantiated_ty
+                    };
                     self.infer_tys::<false>(
                         self.inferences[inference.as_usize()].inferences,
                         inference_source_ty,

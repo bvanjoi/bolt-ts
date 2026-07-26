@@ -1,0 +1,11 @@
+  × Cannot find name 'T2'.
+   ╭─[../../tests/compiler/declarationEmitLambdaWithMissingTypeParameterNoCrash/index.ts:7:27]
+ 7 │ T2
+   · ──
+   ╰────
+
+  × Cannot find name 'T2'.
+   ╭─[../../tests/compiler/declarationEmitLambdaWithMissingTypeParameterNoCrash/index.ts:9:33]
+ 9 │ T2
+   · ──
+   ╰────

@@ -1684,7 +1684,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
-            let is_promise = this.get_awaited_ty_of_promise(ty, None).is_some();
+            let is_promise = this.get_awaited_ty_of_promise(ty).is_some();
             if call_signatures.is_empty() && !is_promise {
                 return;
             }

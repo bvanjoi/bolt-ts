@@ -1,0 +1,35 @@
+  × Property 'foo' does not exist on type '{ name: string; id: number; }'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:22:31]
+ 22 │ foo
+    · ───
+    ╰────
+
+  × Property 'foo' does not exist on type '{ name: string; id: number; }'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:24:31]
+ 24 │ foo
+    · ───
+    ╰────
+
+  × Property 'charAt' does not exist on type 'number'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:26:34]
+ 26 │ charAt
+    · ──────
+    ╰────
+
+  × Property 'toExponential' does not exist on type 'string'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:28:36]
+ 28 │ toExponential
+    · ─────────────
+    ╰────
+
+  × Property 'charAt' does not exist on type 'number'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:30:34]
+ 30 │ charAt
+    · ──────
+    ╰────
+
+  × Property 'toExponential' does not exist on type 'string'.
+    ╭─[../../tests/compiler/lambdaParamTypes/index.ts:32:36]
+ 32 │ toExponential
+    · ─────────────
+    ╰────

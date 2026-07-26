@@ -1790,14 +1790,22 @@ impl<'cx> TyChecker<'cx> {
         m2: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx dyn ty::TyMap<'cx> {
         if let Some(m1) = m1 {
-            let mapper = ty::CompositeTyMapper {
-                mapper1: m1,
-                mapper2: m2,
-            };
-            self.alloc(mapper)
+            self.combine_ty_mappers_worker(m1, m2)
         } else {
             m2
         }
+    }
+
+    pub fn combine_ty_mappers_worker(
+        &self,
+        m1: &'cx dyn ty::TyMap<'cx>,
+        m2: &'cx dyn ty::TyMap<'cx>,
+    ) -> &'cx dyn ty::TyMap<'cx> {
+        let mapper = ty::CompositeTyMapper {
+            mapper1: m1,
+            mapper2: m2,
+        };
+        self.alloc(mapper)
     }
 
     pub fn merge_ty_mappers(
@@ -1923,7 +1931,7 @@ impl<'cx> TyChecker<'cx> {
                     self.create_inference_context(infer_ty_params, None, InferenceFlags::empty());
                 if let Some(mapper) = mapper {
                     let non_fixing_mapper = self.inference(context).non_fixing_mapper;
-                    let m = self.combine_ty_mappers(Some(non_fixing_mapper), mapper);
+                    let m = self.combine_ty_mappers_worker(non_fixing_mapper, mapper);
                     self.inferences[context.as_usize()].non_fixing_mapper = m;
                 }
                 if !check_ty_deferred {
@@ -1935,7 +1943,7 @@ impl<'cx> TyChecker<'cx> {
 
                 let m = self.inference(context).mapper;
                 combined_mapper = if let Some(mapper) = mapper {
-                    Some(self.combine_ty_mappers(Some(m), mapper))
+                    Some(self.combine_ty_mappers_worker(m, mapper))
                 } else {
                     Some(m)
                 };

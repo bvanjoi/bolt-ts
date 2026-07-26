@@ -1,0 +1,37 @@
+  × Object literal may only specify known properties, and 'hello' does not
+  │ exist in type 'I2'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:13:6]
+ 13 │ hello
+    · ─────
+    ╰────
+
+  × Property 'doStuff' is missing.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:15:4]
+ 15 │ { value: '' }
+    · ─────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'what' does not
+  │ exist in type 'I2'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:17:17]
+ 17 │ what
+    · ────
+    ╰────
+
+  × Type '(s: any) => any' is not assignable to type '() => string'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:19:6]
+ 19 │ toString
+    · ────────
+    ╰────
+
+  × Type '(s: string) => string' is not assignable to type '() => string'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:21:6]
+ 21 │ toString
+    · ────────
+    ╰────
+
+  × Type '(s: any) => any' is not assignable to type '() => string'.
+    ╭─[../../tests/compiler/objectLiteralFunctionArgContextualTyping2/index.ts:23:17]
+ 23 │ toString
+    · ────────
+    ╰────

@@ -1,0 +1,11 @@
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/genericInterfaceTypeCall/index.ts:15:1]
+ 15 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/genericInterfaceTypeCall/index.ts:17:1]
+ 17 │ test
+    · ────
+    ╰────

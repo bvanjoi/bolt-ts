@@ -1779,6 +1779,13 @@ pub struct FunctionOverloadMustBeStatic {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Function overload must not be static.")]
+pub struct FunctionOverloadMustNotBeStatic {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error(
     "This comparison appears to be unintentional because the types '{ty1}' and '{ty2}' have no overlap."
 )]
@@ -2031,4 +2038,33 @@ pub struct ModuleXIsHiddenByALocalDeclarationWithTheSameName {
     #[label(primary)]
     pub span: Span,
     pub module_name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of 'await' operand must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfAwaitOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of iterated elements of a 'yield*' operand must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfIteratedElementsOfAYieldAsteriskOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of 'yield' operand in an async generator must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfYieldOperandInAnAsyncGeneratorMustEitherBeAValidPromiseOrMustNotContainACallableThenMember
+{
+    #[label(primary)]
+    pub span: Span,
 }

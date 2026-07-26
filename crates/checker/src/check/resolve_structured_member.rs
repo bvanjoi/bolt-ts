@@ -165,7 +165,7 @@ impl<'cx> TyChecker<'cx> {
             let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
             fresh_ty_params = Some(new_ty_params);
             let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
-            mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
+            mapper = self.combine_ty_mappers_worker(new_mapper, mapper);
             for ty in new_ty_params {
                 let prev = self.ty_links.insert(
                     ty.id,
@@ -950,7 +950,7 @@ impl<'cx> TyChecker<'cx> {
         let limited_constraint = self.get_limited_constraint(r);
 
         for prop in props {
-            if let Some(_limited_constraintt) = limited_constraint {
+            if let Some(_limited_constraint) = limited_constraint {
                 todo!()
             };
             let prop = *prop;
@@ -1549,7 +1549,7 @@ impl<'cx> TyChecker<'cx> {
                 && let Some(left_mapper) = left.mapper
                 && left.composite_sigs.is_some()
             {
-                Some(self.combine_ty_mappers(Some(left_mapper), param_mapper))
+                Some(self.combine_ty_mappers_worker(left_mapper, param_mapper))
             } else {
                 Some(param_mapper)
             }

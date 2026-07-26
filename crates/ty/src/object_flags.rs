@@ -42,6 +42,6 @@ bitflags::bitflags! {
         const REQUIRES_WIDENING = Self::CONTAINS_WIDENING_TYPE.bits() | Self::CONTAINS_OBJECT_OR_ARRAY_LITERAL.bits();
         const PROPAGATING_FLAGS = Self::CONTAINS_WIDENING_TYPE.bits() | Self::CONTAINS_OBJECT_OR_ARRAY_LITERAL.bits() | Self::NON_INFERRABLE_TYPE.bits();
         const INSTANTIATED_MAPPED = Self::MAPPED.bits() | Self::INSTANTIATED.bits();
-        const OBJECT_TYPE_KIND_MASK = Self::CLASS_OR_INTERFACE.bits() | Self::REFERENCE.bits() | Self::TUPLE.bits() | Self::ANONYMOUS.bits() | Self::MAPPED.bits() | Self::REVERSE_MAPPED.bits() | Self::EVOLVING_ARRAY.bits();
+        const OBJECT_TYPE_KIND_MASK = Self::CLASS_OR_INTERFACE.bits() | Self::REFERENCE.bits() | Self::TUPLE.bits() | Self::ANONYMOUS.bits() | Self::MAPPED.bits() | Self::REVERSE_MAPPED.bits() | Self::EVOLVING_ARRAY.bits() | Self::INSTANTIATION_EXPRESSION_TYPE.bits() | Self::SINGLE_SIGNATURE_TYPE.bits();
     }
 }

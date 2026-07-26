@@ -1320,8 +1320,12 @@ impl<'cx> TyChecker<'cx> {
                             argument_check_mode,
                             infer_ctx,
                         );
-                        check_candidate =
-                            self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
+                        check_candidate = self.get_sig_instantiation(
+                            candidate,
+                            Some(ty_arg_tys),
+                            false,
+                            Some(infer_ctx),
+                        );
                     };
 
                     if self.get_signature_applicability_error::<false>(
@@ -1991,11 +1995,19 @@ impl<'cx> TyChecker<'cx> {
             composite_sigs: None,
             composite_kind: None,
         });
+        let mut links = super::SigLinks::default();
         if let Some(this_param) = this_param {
-            let links = super::SigLinks::default().with_this_param(this_param);
-            let prev = self.sig_links.insert(sig.id, links);
-            debug_assert!(prev.is_none());
+            links.set_this_param(this_param);
         }
+        let tys = candidates
+            .iter()
+            .map(|sig| self.get_return_type_of_signature(sig))
+            .collect::<Vec<_>>();
+        let resolved_ret_ty =
+            self.get_intersection_ty(&tys, super::IntersectionFlags::None, None, None);
+        links.set_resolved_ret_ty(resolved_ret_ty);
+        let prev = self.sig_links.insert(sig.id, links);
+        debug_assert!(prev.is_none());
         sig
     }
 

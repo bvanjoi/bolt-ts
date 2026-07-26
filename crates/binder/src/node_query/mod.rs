@@ -1427,6 +1427,7 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             || block_scope_kind == ast::NodeFlags::AWAIT_USING
     }
 
+    // TODO: move into `parse_result`?
     pub fn is_in_js_file(&self, node: ast::NodeID) -> bool {
         self.node_flags(node)
             .contains(ast::NodeFlags::JAVASCRIPT_FILE)

@@ -1,0 +1,48 @@
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:6:5]
+ 6 │ n
+   · ─
+   ╰────
+
+  × Property 'n' in type 'Derived<Derived>' is not assignable to the same
+  │ property in base type 'Base<Derived>'.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:13:5]
+ 13 │ n
+    · ─
+    ╰────
+
+  × Property 'fn' in type 'Derived<Derived>' is not assignable to the same
+  │ property in base type 'Base<Derived>'.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:16:5]
+ 16 │ fn
+    · ──
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:13:5]
+ 13 │ n
+    · ─
+    ╰────
+
+  × Property 'n' in type 'DerivedInterface<DerivedInterface>' is not
+  │ assignable to the same property in base type 'Base<DerivedInterface>'.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:22:5]
+ 22 │ n
+    · ─
+    ╰────
+
+  × Property 'fn' in type 'DerivedInterface<DerivedInterface>' is not
+  │ assignable to the same property in base type 'Base<DerivedInterface>'.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:25:5]
+ 25 │ fn
+    · ──
+    ╰────
+
+  × Property 'n' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/baseClassImprovedMismatchErrors/index.ts:22:5]
+ 22 │ n
+    · ─
+    ╰────

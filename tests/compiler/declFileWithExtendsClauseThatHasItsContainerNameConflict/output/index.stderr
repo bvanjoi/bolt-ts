@@ -1,0 +1,13 @@
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileWithExtendsClauseThatHasItsContainerNameConflict/index.ts:13:9]
+ 13 │ id
+    · ──
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileWithExtendsClauseThatHasItsContainerNameConflict/index.ts:20:9]
+ 20 │ name
+    · ────
+    ╰────

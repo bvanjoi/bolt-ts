@@ -398,7 +398,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let is_valid_override_of = {
                 !self
                     .c
-                    .for_each_prop(target_prop, |this, tp| {
+                    .for_each_property(target_prop, |this, tp| {
                         if this
                             .get_declaration_modifier_flags_from_symbol::<false>(tp)
                             .contains(ast::ModifierFlags::PROTECTED)
@@ -407,7 +407,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                                 return Some(true);
                             };
                             // is_property_in_class_derived_from
-                            this.for_each_prop(source_prop, |this, sp| {
+                            this.for_each_property(source_prop, |this, sp| {
                                 let source_class = this.get_declaring_class(sp);
                                 if let Some(source_class) = source_class {
                                     Some(this.has_base_ty(source_class, base_class))

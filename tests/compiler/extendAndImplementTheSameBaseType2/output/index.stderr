@@ -1,0 +1,30 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/extendAndImplementTheSameBaseType2/index.ts:9:16]
+ 9 │ null
+   · ────
+   ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/extendAndImplementTheSameBaseType2/index.ts:6:5]
+ 6 │ foo
+   · ───
+   ╰────
+
+  × Class 'D' incorrectly implements interface 'C'.
+    ╭─[../../tests/compiler/extendAndImplementTheSameBaseType2/index.ts:13:38]
+ 13 │ C<number>
+    · ─────────
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/extendAndImplementTheSameBaseType2/index.ts:19:5]
+ 19 │ r
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/extendAndImplementTheSameBaseType2/index.ts:24:5]
+ 24 │ r4
+    · ──
+    ╰────
