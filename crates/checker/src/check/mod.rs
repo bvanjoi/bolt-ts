@@ -2939,7 +2939,12 @@ impl<'cx> TyChecker<'cx> {
                         );
                     }
                 }
-                let access_flags = AccessFlags::EXPRESSION_POSITION | AccessFlags::ALLOWING_MISSING;
+                let access_flags = AccessFlags::EXPRESSION_POSITION
+                    | if n.init.has_default_value() {
+                        AccessFlags::ALLOWING_MISSING
+                    } else {
+                        AccessFlags::empty()
+                    };
                 let element_ty = self.get_indexed_access_ty(
                     object_literal_ty,
                     expr_ty,

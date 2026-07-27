@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/implicitAnyGenerics/index.ts:7:5]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/implicitAnyGenerics/index.ts:26:31]
+ 26 │ null
+    · ────
+    ╰────

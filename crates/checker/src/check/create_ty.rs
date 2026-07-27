@@ -325,7 +325,7 @@ impl<'cx> TyChecker<'cx> {
         target: &'cx ty::Ty<'cx>,
         resolved_ty_args: Option<ty::Tys<'cx>>,
         flags: ObjectFlags,
-        pattern: Option<ty::Pattern<'cx>>,
+        pattern: Option<ty::PatternNode<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         let id = InstantiationTyMap::create_id(target.id, resolved_ty_args.unwrap_or_default());
         if let Some(res) = self.instantiation_ty_map.get(id) {
@@ -387,12 +387,20 @@ impl<'cx> TyChecker<'cx> {
         node: Option<ast::NodeID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
-        pattern: Option<ty::Pattern<'cx>>,
+        pattern: Option<ty::PatternNode<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
-        let links = self.fresh_ty_links_arena.alloc(Default::default());
         debug_assert!(
             node.is_none() || object_flags.contains(ty::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
         );
+        debug_assert!(
+            pattern.is_none()
+                || object_flags.intersects(
+                    ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES
+                        .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)
+                )
+        );
+        let links = self.fresh_ty_links_arena.alloc(Default::default());
+
         let ty = self.alloc(ty::AnonymousTy {
             symbol,
             target: None,
@@ -420,8 +428,18 @@ impl<'cx> TyChecker<'cx> {
         ctor_sigs: ty::Sigs<'cx>,
         index_infos: ty::IndexInfos<'cx>,
         node: Option<ast::NodeID>,
-        pattern: Option<ty::Pattern<'cx>>,
+        pattern: Option<ty::PatternNode<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(
+            node.is_none() || object_flags.contains(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
+        );
+        debug_assert!(
+            pattern.is_none()
+                || object_flags.intersects(
+                    ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES
+                        .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL)
+                )
+        );
         let ty = self.create_anonymous_ty(symbol, object_flags, node, None, None, pattern);
         let props = self.get_props_from_members(members);
         let prev = self.ty_links.insert(
@@ -448,7 +466,7 @@ impl<'cx> TyChecker<'cx> {
         node: Option<ast::NodeID>,
         alias_symbol: Option<SymbolID>,
         alias_ty_arguments: Option<ty::Tys<'cx>>,
-        pattern: Option<ty::Pattern<'cx>>,
+        pattern: Option<ty::PatternNode<'cx>>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(target.kind.is_object_anonymous());
         debug_assert!(

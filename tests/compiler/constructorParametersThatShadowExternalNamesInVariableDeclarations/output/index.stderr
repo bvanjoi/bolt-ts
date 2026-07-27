@@ -1,0 +1,13 @@
+  × Initializer of instance member variable 'a' cannot reference identifier
+  │ 'x' declared in the constructor.
+   ╭─[../../tests/compiler/constructorParametersThatShadowExternalNamesInVariableDeclarations/index.ts:7:17]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Initializer of instance member variable 'a' cannot reference identifier
+  │ 'x' declared in the constructor.
+    ╭─[../../tests/compiler/constructorParametersThatShadowExternalNamesInVariableDeclarations/index.ts:14:17]
+ 14 │ x
+    · ─
+    ╰────

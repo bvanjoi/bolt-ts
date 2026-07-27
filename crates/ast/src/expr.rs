@@ -308,8 +308,7 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn has_default_value(&self) -> bool {
-        // TODO:
-        false
+        matches!(self.kind, self::ExprKind::Assign(n) if n.op == AssignOp::Eq)
     }
 }
 

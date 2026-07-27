@@ -1976,7 +1976,7 @@ impl<'cx> TyChecker<'cx> {
             && let Some(pattern) = contextual_ty.pattern()
         {
             // TODO: object_binding
-            matches!(pattern, ty::Pattern::ObjectPattern(_))
+            matches!(pattern, ty::PatternNode::ObjectPattern(_))
         } else {
             false
         };
@@ -2328,10 +2328,12 @@ impl<'cx> TyChecker<'cx> {
                 );
                 index_infos.push(index_info);
             }
+
+            // TODO: js object literal
             let object_flags = object_flags
                 | (ObjectFlags::OBJECT_LITERAL
                     .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL))
-                | if in_destructuring_pattern {
+                | if pattern_with_computed_properties {
                     ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES
                 } else {
                     ObjectFlags::empty()
@@ -2341,10 +2343,10 @@ impl<'cx> TyChecker<'cx> {
             let res = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
                 object_flags,
-                pattern_with_computed_properties.then_some(node.id),
                 None,
                 None,
                 None,
+                in_destructuring_pattern.then_some(ty::PatternNode::ObjectLiteral(node)),
             );
 
             let props = this.get_props_from_members(properties_table);

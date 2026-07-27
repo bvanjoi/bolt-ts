@@ -183,7 +183,7 @@ pub struct ReferenceTy<'cx> {
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
     pub promise_or_awaitable_links: PromiseOrAwaitableTyLinksID<'cx>,
-    pub pattern: Option<bolt_ts_ty::Pattern<'cx>>,
+    pub pattern: Option<bolt_ts_ty::PatternNode<'cx>>,
 }
 
 impl<'cx> ReferenceTy<'cx> {
@@ -259,7 +259,7 @@ pub struct AnonymousTy<'cx> {
     pub node: Option<ast::NodeID>,
     pub alias_symbol: Option<SymbolID>,
     pub alias_ty_arguments: Option<super::Tys<'cx>>,
-    pub pattern: Option<bolt_ts_ty::Pattern<'cx>>,
+    pub pattern: Option<bolt_ts_ty::PatternNode<'cx>>,
 }
 
 #[derive(Debug)]

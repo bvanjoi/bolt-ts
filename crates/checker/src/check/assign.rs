@@ -62,7 +62,7 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array()
         };
         if INCLUDE_PATTERN_IN_TY {
-            pattern = Some(ty::Pattern::ObjectPattern(pat));
+            pattern = Some(ty::PatternNode::ObjectPattern(pat));
             object_flags |= ty::ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
         }
         self.create_anonymous_ty_with_resolved(
@@ -222,7 +222,7 @@ impl<'cx> TyChecker<'cx> {
                 result
                     .get_object_flags()
                     .union(ty::ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL),
-                Some(ty::Pattern::ArrayPattern(pat)),
+                Some(ty::PatternNode::ArrayPattern(pat)),
             )
         } else {
             result

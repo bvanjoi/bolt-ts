@@ -1,0 +1,29 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/implicitAnyGenerics.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: noImplicitAny
+
+class C<T> {
+    x: T;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
+}
+
+var c = new C();
+var c2 = new C<any>();
+var c3 = new C<number>();
+var c4: C<any> = new C();
+
+class D<T> {
+    constructor(x: T) { }
+}
+
+var d = new D(null);
+var d2 = new D(1);
+var d3 = new D<any>(1);
+var d4 = new D(<any>1);
+var d5: D<any> = new D(null);
+
+function foo<T>(): T { return null; };
+//~^ ERROR: Type 'null' is not assignable to type 'T'.
+foo() 
+foo<any>();

@@ -1,0 +1,24 @@
+  × Property 'myProp' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/assignToExistingClass/index.ts:7:9]
+ 7 │ myProp
+   · ──────
+   ╰────
+
+  × Cannot assign to 'Mocked' because it is a class.
+    ╭─[../../tests/compiler/assignToExistingClass/index.ts:13:13]
+ 13 │ Mocked
+    · ──────
+    ╰────
+
+  × Cannot assign to 'Mocked' because it is a class.
+    ╭─[../../tests/compiler/assignToExistingClass/index.ts:13:13]
+ 13 │ Mocked
+    · ──────
+    ╰────
+
+  × Cannot assign to 'Mocked' because it is a class.
+    ╭─[../../tests/compiler/assignToExistingClass/index.ts:13:13]
+ 13 │ Mocked
+    · ──────
+    ╰────

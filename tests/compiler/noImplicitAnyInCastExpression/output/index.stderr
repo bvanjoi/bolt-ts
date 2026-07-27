@@ -1,0 +1,25 @@
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/noImplicitAnyInCastExpression/index.ts:12:2]
+ 12 │ <IFoo>{ a: null }
+    · ─────────────────
+    ╰────
+
+  × Conversion of type '{ a: number; b: undefined; }' to type 'IFoo' may be a
+  │ mistake because neither type sufficiently overlaps with the other. If this
+  │ was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/noImplicitAnyInCastExpression/index.ts:16:2]
+ 16 │ <IFoo>{ a: 2, b: undefined }
+    · ────────────────────────────
+    ╰────
+
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/noImplicitAnyInCastExpression/index.ts:20:2]
+ 20 │ <IFoo>{ c: null }
+    · ─────────────────
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/noImplicitAnyInCastExpression/index.ts:20:2]
+ 20 │ <IFoo>{ c: null }
+    · ─────────────────
+    ╰────

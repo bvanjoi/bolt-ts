@@ -15,7 +15,7 @@ pub use bolt_ts_ty::CheckFlags;
 pub use bolt_ts_ty::ElementFlags;
 pub use bolt_ts_ty::IndexFlags;
 pub use bolt_ts_ty::ObjectFlags;
-pub use bolt_ts_ty::Pattern;
+pub use bolt_ts_ty::PatternNode;
 pub use bolt_ts_ty::TypeFacts;
 pub use bolt_ts_ty::TypeFlags;
 
@@ -198,7 +198,7 @@ impl<'cx> Ty<'cx> {
         }
     }
 
-    pub fn pattern(&self) -> Option<Pattern<'cx>> {
+    pub fn pattern(&self) -> Option<PatternNode<'cx>> {
         let object_ty = self.kind.as_object()?;
         match object_ty.kind {
             ObjectTyKind::Reference(t) => {

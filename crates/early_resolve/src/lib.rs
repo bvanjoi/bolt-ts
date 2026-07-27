@@ -693,6 +693,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
     }
 
     fn resolve_param(&mut self, param: &'cx ast::ParamDecl<'cx>) {
+        self.resolve_binding(param.name);
         if let Some(ty) = param.ty {
             self.resolve_ty(ty);
         }

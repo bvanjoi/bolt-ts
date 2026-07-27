@@ -1,0 +1,29 @@
+  × Property 'length' does not exist on type '{ }'.
+   ╭─[../../tests/compiler/defaultBestCommonTypesHaveDecls/index.ts:7:6]
+ 7 │ length
+   · ──────
+   ╰────
+
+  × Property 'length' does not exist on type 'Object'.
+    ╭─[../../tests/compiler/defaultBestCommonTypesHaveDecls/index.ts:11:6]
+ 11 │ length
+    · ──────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type '1'.
+    ╭─[../../tests/compiler/defaultBestCommonTypesHaveDecls/index.ts:15:24]
+ 15 │ ""
+    · ──
+    ╰────
+
+  × Property 'length' does not exist on type 'number'.
+    ╭─[../../tests/compiler/defaultBestCommonTypesHaveDecls/index.ts:17:27]
+ 17 │ length
+    · ──────
+    ╰────
+
+  × Property 'length' does not exist on type 'number'.
+    ╭─[../../tests/compiler/defaultBestCommonTypesHaveDecls/index.ts:22:28]
+ 22 │ length
+    · ──────
+    ╰────
