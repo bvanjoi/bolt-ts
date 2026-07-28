@@ -137,6 +137,31 @@ impl<'cx> TyChecker<'cx> {
                             {
                                 self.check_computed_property_name(computed);
                             }
+                            let parent_check_mode = if elem.dotdotdot.is_some() {
+                                super::CheckMode::REST_BINDING_ELEMENT
+                            } else {
+                                super::CheckMode::empty()
+                            };
+                            if let Some(parent_ty) =
+                                self.get_ty_for_binding_element_parent(n.id, parent_check_mode)
+                                && let name = elem.name.name()
+                                // TODO: more property name
+                                && let ast::PropNameKind::Ident(_) = name
+                                && let expr_ty = self.get_literal_ty_from_prop_name(&name)
+                                && expr_ty.usable_as_prop_name()
+                                && let name_text = self.get_prop_name_from_ty(expr_ty)
+                                && let Some(property) =
+                                    self.get_prop_of_ty::<false, false>(parent_ty, name_text)
+                            {
+                                // TODO: mark_property
+                                let is_super = decl.init().is_some_and(|init| {
+                                    matches!(init.kind, ast::ExprKind::Super(_))
+                                });
+                                self.check_property_accessibility::<false>(
+                                    elem.id, is_super, parent_ty, property, true,
+                                );
+                            }
+
                             self.check_var_like_decl(*elem);
                         }
                     }

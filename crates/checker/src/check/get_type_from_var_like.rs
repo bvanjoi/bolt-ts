@@ -61,11 +61,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_for_binding_element_parent(
         &mut self,
-        pat_id: ast::NodeID,
+        n: ast::NodeID,
         check_mode: CheckMode,
     ) -> Option<&'cx Ty<'cx>> {
-        debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
-        let parent_id = self.parent(pat_id).unwrap();
+        debug_assert!(self.p.node(n).is_object_pat() || self.p.node(n).is_array_pat());
+        let parent_id = self.parent(n).unwrap();
         let parent_node = self.p.node(parent_id);
         if check_mode != CheckMode::empty() {
             match parent_node {

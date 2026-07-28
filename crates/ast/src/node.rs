@@ -1156,6 +1156,14 @@ impl<'cx> Node<'cx> {
             _ => false,
         }
     }
+
+    pub fn is_this_initialized_declaration(&self) -> bool {
+        let self::Node::VarDecl(n) = self else {
+            return false;
+        };
+        n.init
+            .is_some_and(|init| matches!(init.kind, self::ExprKind::This(_)))
+    }
 }
 
 macro_rules! as_node {

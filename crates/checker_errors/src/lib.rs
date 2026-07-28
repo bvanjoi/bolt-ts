@@ -2068,3 +2068,12 @@ pub struct TypeOfYieldOperandInAnAsyncGeneratorMustEitherBeAValidPromiseOrMustNo
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Abstract property '{property}' in class '{class}' cannot be accessed in the constructor.")]
+pub struct AbstractPropertyXInClassYCannotBeAccessedInTheConstructor {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub class: String,
+}

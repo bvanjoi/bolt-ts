@@ -78,3 +78,20 @@ if (xUnknown != null) {
     xUnknown;
 }
 
+
+class C1 {
+    y: string | undefined;
+    y1: string | undefined;
+
+    f() {
+        const a0: string = this.y1;
+        //~^ ERROR: Type 'undefined | string' is not assignable to type 'string'.
+        this.y1 = "y1";
+        const a1: string = this.y1;
+        ({ "y": this.y1 } = this);
+        const a2: string = this.y1;
+        //~^ ERROR: Type 'undefined | string' is not assignable to type 'string'.
+        ({ "y": this.y1 } = {y: 'y'});
+        const a3: string = this.y1;
+    }
+}

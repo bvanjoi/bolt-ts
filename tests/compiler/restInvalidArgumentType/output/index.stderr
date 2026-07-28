@@ -70,6 +70,12 @@
     · ─
     ╰────
 
+  × Variable 'e' is used before being assigned.
+    ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:20]
+ 67 │ e
+    · ─
+    ╰────
+
   × Rest types may only be created from object types.
     ╭─[../../tests/compiler/restInvalidArgumentType/index.ts:67:10]
  67 │ ...r19

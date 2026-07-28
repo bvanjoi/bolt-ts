@@ -68,5 +68,6 @@ function f<T extends { b: string }>(p1: T, p2: T[]) {
     //~^ ERROR: Variable 'e' is used before being assigned.
     //~| ERROR: Variable 'e' is used before being assigned.
     //~| ERROR: Variable 'e' is used before being assigned.
+    //~| ERROR: Variable 'e' is used before being assigned.
     //~| ERROR: Rest types may only be created from object types.
 }

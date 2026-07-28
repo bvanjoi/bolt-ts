@@ -995,6 +995,7 @@ impl<'cx> TyChecker<'cx> {
                 todo!()
             }
             ast::Node::AssignExpr(n) => self.get_assigned_ty_of_assign_expr(n),
+            ast::Node::ObjectPropAssignment(n) => self.get_assigned_ty_of_property_assignment(n),
             _ => self.error_ty,
         }
     }
@@ -1013,6 +1014,32 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_ty_of_expr(n.right)
         }
+    }
+
+    fn get_assigned_ty_of_property_assignment(
+        &mut self,
+        n: &'cx ast::ObjectPropAssignment<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let parent = self.parent(n.id).unwrap();
+        let parent_ty = self.get_assigned_ty(parent);
+        self.get_ty_of_destructured_property(parent_ty, n.name)
+    }
+
+    fn get_ty_of_destructured_property(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: &'cx ast::PropName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let name_ty = self.get_literal_ty_from_prop_name(&name.kind);
+        if !name_ty.usable_as_prop_name() {
+            return self.error_ty;
+        }
+        let name = self.get_prop_name_from_ty(name_ty);
+        self.get_ty_of_prop_of_ty(ty, name).unwrap_or_else(|| {
+            self.get_applicable_index_info_for_name(ty, name)
+                .map(|index_info| self.include_undefined_in_index_sig(index_info.val_ty))
+                .unwrap_or(self.error_ty)
+        })
     }
 
     fn contains_matching_reference(
@@ -1138,6 +1165,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let t = if t.kind.is_union() {
                 let assigned_ty = self.get_init_or_assigned_ty(flow, refer);
+                dbg!(self.print_ty(assigned_ty, None));
                 self.get_assign_reduced_ty(t, assigned_ty)
             } else {
                 t
@@ -2730,7 +2758,7 @@ impl<'cx> TyChecker<'cx> {
         n: ast::NodeID,
         prop: Option<SymbolID>,
         prop_ty: &'cx ty::Ty<'cx>,
-        _error_nodee: Option<ast::NodeID>,
+        _error_node: Option<ast::NodeID>,
         check_mode: Option<super::CheckMode>,
         assignment_kind: AssignmentKind,
         object_expr_is_strict_and_under_strict: bool,

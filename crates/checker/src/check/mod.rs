@@ -2584,6 +2584,65 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
+        let is_this_initialized_object_binding_expression = |this: &Self| {
+            let n = this.p.node(loc);
+            match n {
+                ast::Node::ObjectShorthandMember(_) | ast::Node::ObjectPropAssignment(_) => {}
+                _ => return false,
+            };
+            let parent = this.parent(loc).unwrap();
+            let parent_parent = this.parent(parent).unwrap();
+            let ast::Node::AssignExpr(n) = this.p.node(parent_parent) else {
+                return false;
+            };
+            n.op == ast::AssignOp::Eq && matches!(n.right.kind, ast::ExprKind::This(_))
+        };
+
+        let is_node_used_during_class_initialization = |this: &Self, node: ast::NodeID| {
+            this.node_query(node.module())
+                .find_ancestor(node, |n| {
+                    let node = this.p.node(n);
+                    if node.as_class_ctor().is_some_and(|ctor| ctor.body.is_some())
+                        || node.is_class_prop_elem()
+                    {
+                        Some(true)
+                    } else if node.is_class_like() || node.is_fn_decl_like() {
+                        Some(false)
+                    } else {
+                        None
+                    }
+                })
+                .is_some()
+        };
+
+        if flags.contains(ast::ModifierFlags::ABSTRACT)
+            && self.symbol_hash_non_method_decl(prop)
+            && (self.p.node(loc).is_this_property()
+                || is_this_initialized_object_binding_expression(self)
+                || (self
+                    .p
+                    .node(self.parent(loc).unwrap())
+                    .as_object_pat()
+                    .is_some_and(|parent| {
+                        let parent_parent = self.parent(parent.id).unwrap();
+                        self.p.node(parent_parent).is_this_initialized_declaration()
+                    })))
+            && let Some(parent_symbol) = self.get_parent_of_symbol(prop)
+            && let parent_s = self.symbol(parent_symbol)
+            && parent_s.flags.contains(SymbolFlags::CLASS)
+            && is_node_used_during_class_initialization(self, loc)
+        {
+            if let Some(error_node) = error_node {
+                let error = errors::AbstractPropertyXInClassYCannotBeAccessedInTheConstructor {
+                    span: self.p.node(error_node).span(),
+                    property: self.symbol(prop).name.to_string(&self.atoms),
+                    class: parent_s.name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+            return false;
+        }
+
         if !flags.intersects(ast::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER) {
             return true;
         }
@@ -3014,19 +3073,6 @@ impl<'cx> TyChecker<'cx> {
         match self.p.node(parent_parent) {
             ast::Node::AssignExpr(parent_parent) => {
                 if let Some(flow) = self.get_flow_node_of_node(parent_parent.right.id()) {
-                    debug_assert_eq!(
-                        {
-                            let n = self.p.node(id);
-                            let name_id = match n {
-                                ast::Node::ObjectPropAssignment(n) => n.name.id(),
-                                ast::Node::ObjectShorthandMember(n) => n.name.id,
-                                _ => unreachable!(),
-                            };
-                            self.get_flow_node_of_node(name_id)
-                        },
-                        Some(flow),
-                        "parent_parent: {parent_parent:#?}",
-                    );
                     self.get_flow_ty_of_reference(id, declared_ty, None, None, Some(flow))
                 } else {
                     declared_ty
