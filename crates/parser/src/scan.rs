@@ -339,8 +339,29 @@ impl ParserState<'_, '_> {
                     break;
                 } else {
                     let ch = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
-                    if !is_non_ascii_identifier_start(ch, false) {
-                        return None;
+                    match ch {
+                        non_ascii_character_code::NON_BREAKING_SPACE
+                        | non_ascii_character_code::EN_QUAD
+                        | non_ascii_character_code::EM_QUAD
+                        | non_ascii_character_code::EN_SPACE
+                        | non_ascii_character_code::EM_SPACE
+                        | non_ascii_character_code::THREE_PER_EM_SPACE
+                        | non_ascii_character_code::FOUR_PER_EM_SPACE
+                        | non_ascii_character_code::SIX_PER_EM_SPACE
+                        | non_ascii_character_code::FIGURE_SPACE
+                        | non_ascii_character_code::PUNCTUATION_SPACE
+                        | non_ascii_character_code::THIN_SPACE
+                        | non_ascii_character_code::HAIR_SPACE
+                        | non_ascii_character_code::ZERO_WIDTH_SPACE
+                        | non_ascii_character_code::NARROW_NO_BREAK_SPACE
+                        | non_ascii_character_code::IDEOGRAPHIC_SPACE
+                        | non_ascii_character_code::MATHEMATICAL_SPACE
+                        | non_ascii_character_code::OGHAM => {
+                            let ch = self.ch_unchecked();
+                            return self.scan_identifier::<false>(ch);
+                        }
+                        _ if !is_non_ascii_identifier_start(ch, false) => return None,
+                        _ => {}
                     }
                 }
                 first = false;
@@ -1833,6 +1854,26 @@ fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {
     buf.extend_from_slice(&high_surrogate.to_le_bytes());
     buf.extend_from_slice(&low_surrogate.to_le_bytes());
     buf
+}
+
+pub mod non_ascii_character_code {
+    pub const NON_BREAKING_SPACE: u32 = 0x00A0;
+    pub const EN_QUAD: u32 = 0x2000;
+    pub const EM_QUAD: u32 = 0x2001;
+    pub const EN_SPACE: u32 = 0x2002;
+    pub const EM_SPACE: u32 = 0x2003;
+    pub const THREE_PER_EM_SPACE: u32 = 0x2004;
+    pub const FOUR_PER_EM_SPACE: u32 = 0x2005;
+    pub const SIX_PER_EM_SPACE: u32 = 0x2006;
+    pub const FIGURE_SPACE: u32 = 0x2007;
+    pub const PUNCTUATION_SPACE: u32 = 0x2008;
+    pub const THIN_SPACE: u32 = 0x2009;
+    pub const HAIR_SPACE: u32 = 0x200A;
+    pub const ZERO_WIDTH_SPACE: u32 = 0x200B;
+    pub const NARROW_NO_BREAK_SPACE: u32 = 0x202F;
+    pub const IDEOGRAPHIC_SPACE: u32 = 0x3000;
+    pub const MATHEMATICAL_SPACE: u32 = 0x205F;
+    pub const OGHAM: u32 = 0x1680;
 }
 
 #[test]

@@ -1,0 +1,19 @@
+  × Property 'property1' does not exist on type 'never'.
+    ╭─[../../tests/compiler/typeGuardConstructorDerivedClass/index.ts:17:10]
+ 17 │ property1
+    · ─────────
+    ╰────
+
+  × Property 'property1' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/typeGuardConstructorDerivedClass/index.ts:57:5]
+ 57 │ property1
+    · ─────────
+    ╰────
+
+  × Property 'property1' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/typeGuardConstructorDerivedClass/index.ts:62:5]
+ 62 │ property1
+    · ─────────
+    ╰────

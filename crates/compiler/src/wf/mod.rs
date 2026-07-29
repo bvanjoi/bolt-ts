@@ -447,4 +447,14 @@ impl<'cx> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx> {
         self.check_external_import_equals_declaration(node);
         bolt_ts_ast_visitor::visit_import_equals_decl(self, node)
     }
+    fn visit_ty_param(&mut self, node: &'cx bolt_ts_ast::TyParam<'cx>) -> Self::Result {
+        self.check_type_name_is_reserved(node.name, |this| {
+            let error = errors::TypeParameterNameCannotBeX {
+                span: node.name.span,
+                name: pprint_ident(node.name, this.atoms),
+            };
+            this.push_error(Box::new(error));
+        });
+        bolt_ts_ast_visitor::visit_ty_param(self, node)
+    }
 }

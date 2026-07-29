@@ -29,9 +29,9 @@
     ╰────
 
   × An index signature must have a type annotation.
-    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:18]
- 46 │ ?
-    · ─
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:6]
+ 46 │ idx: number
+    · ───────────
     ╰────
 
   × Property or signature expected.

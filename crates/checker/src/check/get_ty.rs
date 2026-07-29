@@ -105,17 +105,30 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_ty_of_prototype_property(&mut self, _symboll: SymbolID) -> &'cx ty::Ty<'cx> {
-        self.any_ty
-        // let parent = self.symbol(symbol).parent.unwrap();
-        // let class_ty = self.get_declared_ty_of_symbol(parent);
-        // let i = class_ty.kind.as_object_interface().unwrap();
-        // if i.ty_params.is_some() {
-        //     // TODO: widen param into any
-        //     class_ty
-        // } else {
-        //     class_ty
-        // }
+    fn get_ty_of_prototype_property(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        let parent_symbol = self.get_parent_of_symbol(symbol).unwrap();
+        let class_ty = self.get_declared_ty_of_symbol(parent_symbol);
+        let target = match class_ty.kind {
+            TyKind::Object(t) => match t.kind {
+                ty::ObjectTyKind::Interface(_) => class_ty,
+                ty::ObjectTyKind::Reference(i) => i.interface_target().unwrap(),
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+        let i = target.kind.expect_object_interface();
+        if let Some(ty_params) = i.ty_params {
+            let resolved_ty_args = ty_params.iter().map(|_| self.any_ty).collect::<Vec<_>>();
+            let resolved_ty_args = self.alloc(resolved_ty_args);
+            self.create_type_reference(
+                target,
+                Some(resolved_ty_args),
+                ty::ObjectFlags::empty(),
+                None,
+            )
+        } else {
+            class_ty
+        }
     }
 
     pub(super) fn report_circularity_error(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

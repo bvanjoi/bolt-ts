@@ -1697,7 +1697,8 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use ast::BinOpKind::*;
-        match binary_expr.op.kind {
+        let op = binary_expr.op.kind;
+        match op {
             Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, binary_expr, assume_true),
             EqEqEq | NEqEq | EqEq | NEq => {
                 let left = self.get_reference_candidate(binary_expr.left);
@@ -1774,6 +1775,14 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
 
+                if self.is_matching_constructor_reference(refer, left) {
+                    return self.narrow_ty_by_constructor(ty, op, right, assume_true);
+                }
+
+                if self.is_matching_constructor_reference(refer, right) {
+                    return self.narrow_ty_by_constructor(ty, op, left, assume_true);
+                }
+
                 // TODO:
 
                 ty
@@ -1848,6 +1857,81 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             _ => ty,
+        }
+    }
+
+    fn narrow_ty_by_constructor(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        op: ast::BinOpKind,
+        identifier: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if assume_true {
+            if op != ast::BinOpKind::EqEqEq && op != ast::BinOpKind::EqEq {
+                return ty;
+            }
+        } else if op != ast::BinOpKind::NEqEq && op != ast::BinOpKind::NEq {
+            return ty;
+        }
+
+        let identifier_ty = self.get_ty_of_expr(identifier);
+        if self.is_function_type(identifier_ty) && !self.is_constructor_ty(identifier_ty) {
+            return ty;
+        }
+
+        let Some(prototype_property) = self.get_prop_of_ty::<false, false>(
+            identifier_ty,
+            SymbolName::Atom(keyword::IDENT_PROTOTYPE),
+        ) else {
+            return ty;
+        };
+
+        let prototype_ty = self.get_type_of_symbol(prototype_property);
+        if self.is_type_any(prototype_ty) {
+            return ty;
+        }
+        if prototype_ty == self.global_object_ty() || prototype_ty == self.global_fn_ty() {
+            return ty;
+        }
+        if self.is_type_any(ty) {
+            return prototype_ty;
+        }
+        self.filter_type(ty, |this, t| {
+            // is_constructed_by
+            if (t.flags.contains(TypeFlags::OBJECT)
+                && t.get_object_flags().contains(ObjectFlags::CLASS))
+                || (prototype_ty.flags.contains(TypeFlags::OBJECT)
+                    && prototype_ty.get_object_flags().contains(ObjectFlags::CLASS))
+            {
+                t.symbol() == prototype_ty.symbol()
+            } else {
+                this.is_ty_sub_type_of(t, prototype_ty)
+            }
+        })
+    }
+
+    fn is_matching_constructor_reference(
+        &mut self,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> bool {
+        match expr.kind {
+            ast::ExprKind::PropAccess(n) if n.name.name == keyword::KW_CONSTRUCTOR => {
+                self.is_matching_reference(refer, n.expr.id())
+            }
+            ast::ExprKind::EleAccess(n) => match n.arg.kind {
+                ast::ExprKind::StringLit(arg) if arg.val == keyword::KW_CONSTRUCTOR => {
+                    self.is_matching_reference(refer, n.expr.id())
+                }
+                ast::ExprKind::NoSubstitutionTemplateLit(arg)
+                    if arg.val == keyword::KW_CONSTRUCTOR =>
+                {
+                    self.is_matching_reference(refer, n.expr.id())
+                }
+                _ => false,
+            },
+            _ => false,
         }
     }
 

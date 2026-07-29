@@ -1,0 +1,25 @@
+  × Variable 'foo' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyWithOverloads/index.ts:7:5]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Parameter 'a' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyWithOverloads/index.ts:16:16]
+ 16 │ a
+    · ─
+    ╰────
+
+  × 'callb', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/noImplicitAnyWithOverloads/index.ts:12:1]
+ 12 │ function callb(lam: (l: A) => void);
+    · ────────────────────────────────────
+    ╰────
+
+  × 'callb', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/noImplicitAnyWithOverloads/index.ts:14:1]
+ 14 │ function callb(lam: (n: B) => void);
+    · ────────────────────────────────────
+    ╰────

@@ -971,8 +971,9 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
-                let lo = self.token.span.lo();
-                let span = Span::new(lo, lo + 1, self.module_id);
+                let lo = name.span.lo();
+                let hi = name_ty.span().hi();
+                let span = Span::new(lo, hi, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
                 self.parse_missing_ty()

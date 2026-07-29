@@ -1,0 +1,51 @@
+  × Variable 'C' implicitly has type 'any[]' in some locations where its type
+  │ cannot be determined.
+   ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:6:5]
+ 6 │ C
+   · ─
+   ╰────
+
+  × Variable 'C' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:11:15]
+ 11 │ C
+    · ─
+    ╰────
+
+  × Variable 'C' implicitly has type 'any[]' in some locations where its type
+  │ cannot be determined.
+   ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:6:5]
+ 6 │ C
+   · ─
+   ╰────
+
+  × Variable 'C' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:11:15]
+ 11 │ C
+    · ─
+    ╰────
+
+  × Variable 'C' implicitly has type 'any[]' in some locations where its type
+  │ cannot be determined.
+   ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:6:5]
+ 6 │ C
+   · ─
+   ╰────
+
+  × Variable 'C' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:14:9]
+ 14 │ C
+    · ─
+    ╰────
+
+  × Variable 'C' implicitly has type 'any[]' in some locations where its type
+  │ cannot be determined.
+   ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:6:5]
+ 6 │ C
+   · ─
+   ╰────
+
+  × Variable 'C' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/evolvingArrayResolvedAssert/index.ts:14:9]
+ 14 │ C
+    · ─
+    ╰────

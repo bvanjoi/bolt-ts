@@ -855,7 +855,7 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_call(expr, call_sigs, None, check_mode, call_chain_flags)
     }
 
-    fn is_function_type(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_function_type(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags.contains(TypeFlags::OBJECT)
             && !self
                 .get_signatures_of_type(ty, ty::SigKind::Call)

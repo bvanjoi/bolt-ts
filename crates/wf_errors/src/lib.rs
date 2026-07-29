@@ -130,3 +130,11 @@ pub struct ImportDeclarationsInANamespaceCannotReferenceAModule {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type parameter name cannot be '{name}'.")]
+pub struct TypeParameterNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

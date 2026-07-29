@@ -1,0 +1,30 @@
+  × An index signature must have a type annotation.
+   ╭─[../../tests/compiler/indexSignatureMustHaveTypeAnnotation/index.ts:9:6]
+ 9 │ x: string
+   · ─────────
+   ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexSignatureMustHaveTypeAnnotation/index.ts:22:6]
+ 22 │ x: string
+    · ─────────
+    ╰────
+
+  × Cannot find name 'x'.
+   ╭─[../../tests/compiler/indexSignatureMustHaveTypeAnnotation/index.ts:7:6]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Cannot find name 'x'.
+    ╭─[../../tests/compiler/indexSignatureMustHaveTypeAnnotation/index.ts:15:6]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Property 'computed' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/indexSignatureMustHaveTypeAnnotation/index.ts:15:5]
+ 15 │ [x]
+    · ───
+    ╰────

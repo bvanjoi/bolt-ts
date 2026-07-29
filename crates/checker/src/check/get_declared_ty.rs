@@ -200,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn is_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if !self
             .get_signatures_of_type(ty, ty::SigKind::Constructor)
             .is_empty()

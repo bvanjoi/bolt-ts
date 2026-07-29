@@ -6,8 +6,6 @@
 
   × An index signature must have a type annotation.
    ╭─[../../tests/compiler/indexWithoutParamType/index.ts:3:12]
- 3 │ ;
-   · ─
    ╰────
 
   × An index signature parameter type must be 'string', 'number', 'symbol', or
