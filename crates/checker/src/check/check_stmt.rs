@@ -56,13 +56,19 @@ impl<'cx> TyChecker<'cx> {
             Throw(_) => {}
             Break(_) => {}
             Continue(_) => {}
-            Try(_) => {}
+            Try(n) => self.check_try_stmt(n),
             While(n) => self.check_while_stmt(n),
             Do(_) => {}
             Debugger(_) => {}
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {
+        if let Some(catch) = node.catch_clause {
+            self.check_block(catch.block);
+        }
     }
 
     fn check_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) {
