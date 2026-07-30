@@ -1165,7 +1165,6 @@ impl<'cx> TyChecker<'cx> {
             };
             let t = if t.kind.is_union() {
                 let assigned_ty = self.get_init_or_assigned_ty(flow, refer);
-                dbg!(self.print_ty(assigned_ty, None));
                 self.get_assign_reduced_ty(t, assigned_ty)
             } else {
                 t
@@ -1783,8 +1782,33 @@ impl<'cx> TyChecker<'cx> {
                     return self.narrow_ty_by_constructor(ty, op, left, assume_true);
                 }
 
-                // TODO:
+                if let ast::ExprKind::BoolLit(right) = right.kind
+                    && !left.kind.is_access_expr()
+                {
+                    return self.narrow_ty_by_boolean_comparison(
+                        refer,
+                        ty,
+                        declared_ty,
+                        right,
+                        op,
+                        left,
+                        assume_true,
+                    );
+                }
 
+                if let ast::ExprKind::BoolLit(left) = left.kind
+                    && !right.kind.is_access_expr()
+                {
+                    return self.narrow_ty_by_boolean_comparison(
+                        refer,
+                        ty,
+                        declared_ty,
+                        left,
+                        op,
+                        right,
+                        assume_true,
+                    );
+                }
                 ty
             }
             In => {
@@ -1858,6 +1882,22 @@ impl<'cx> TyChecker<'cx> {
             }
             _ => ty,
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn narrow_ty_by_boolean_comparison(
+        &mut self,
+        refer: ast::NodeID,
+        ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+        lit: &'cx ast::BoolLit,
+        op: ast::BinOpKind,
+        expr: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let assume_true =
+            (assume_true != lit.val) != (op != ast::BinOpKind::NEqEq && op != ast::BinOpKind::NEq);
+        self.narrow_ty(ty, declared_ty, refer, expr.id(), assume_true)
     }
 
     fn narrow_ty_by_constructor(

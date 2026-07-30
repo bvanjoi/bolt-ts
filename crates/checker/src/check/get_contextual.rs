@@ -932,9 +932,9 @@ impl<'cx> TyChecker<'cx> {
                             if !prop_symbol.flags.contains(SymbolFlags::OPTIONAL) {
                                 return None;
                             }
-                            let s = self.binder.symbol(self.final_res(n.id));
-                            let members = s.members.as_ref()?;
-                            let name = s.name;
+                            let node_symbol = self.binder.symbol(self.final_res(n.id));
+                            let members = node_symbol.members.as_ref()?;
+                            let name = prop_symbol.name;
                             if !members.0.contains_key(&name)
                                 && self.is_discriminant_prop(contextual_ty, name)
                             {

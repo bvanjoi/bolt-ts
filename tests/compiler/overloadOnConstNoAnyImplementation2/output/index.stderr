@@ -1,0 +1,26 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation2/index.ts:11:5]
+ 11 │ x1
+    · ──
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation2/index.ts:18:18]
+ 18 │ 1
+    · ─
+    ╰────
+
+  × Argument of type '(x: "bye") => number' is not assignable to parameter of
+  │ type '(x: "hi") => number'.
+    ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation2/index.ts:25:9]
+ 25 │ (x: 'bye') => { return 1; }
+    · ───────────────────────────
+    ╰────
+
+  × Argument of type '(x: number) => number' is not assignable to parameter of
+  │ type '(x: "hi") => number'.
+    ╭─[../../tests/compiler/overloadOnConstNoAnyImplementation2/index.ts:29:9]
+ 29 │ (x: number) => { return 1; }
+    · ────────────────────────────
+    ╰────

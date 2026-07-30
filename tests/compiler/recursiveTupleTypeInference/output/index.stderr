@@ -1,0 +1,6 @@
+  × Argument of type '{ b: A; }' is not assignable to parameter of type
+  │ 'G<G<T>>'.
+    ╭─[../../tests/compiler/recursiveTupleTypeInference/index.ts:26:5]
+ 26 │ gK
+    · ──
+    ╰────

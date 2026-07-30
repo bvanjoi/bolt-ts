@@ -286,9 +286,14 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             ty::ObjectTyKind::Reference(_) => self.print_reference_ty(ty),
             ty::ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
             ty::ObjectTyKind::Mapped(_) => self.print_mapped_ty(ty),
-            ty::ObjectTyKind::ReversedMapped(_) => todo!(),
+            ty::ObjectTyKind::ReversedMapped(_) => self.print_reversed_mapped_ty(ty),
             ty::ObjectTyKind::EvolvingArray(_) => todo!(),
         }
+    }
+
+    fn print_reversed_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
+        let reversed_mapped = ty.kind.expect_object_reverse_mapped();
+        self.print_ty(reversed_mapped.mapped_ty)
     }
 
     fn print_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {

@@ -859,15 +859,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Option<Ternary> {
         let res =
             self.type_args_related_to(source, target, variances, report_error, intersection_state);
+        if res != Ternary::FALSE {
+            return Some(res);
+        }
         if variances
             .iter()
             .any(|v| v.intersects(VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
         {
             // TODO: reset error
             self.c.diags.truncate(self.origin_diag_len);
-            return None;
         }
-        Some(res)
+        // TODO: allowStructuralFallback
+        None
     }
 
     fn each_type_related_to_some_type(

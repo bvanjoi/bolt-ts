@@ -24,3 +24,6 @@ rrb = crb;
 rrb = cra; // error: 'A' is not assignable to 'B'
 //~^ ERROR: Property 'b' is missing.
 //~| ERROR: Property 'b' is missing.
+//~| ERROR: Property 'b' is missing.
+//~| ERROR: Property 'b' is missing.
+

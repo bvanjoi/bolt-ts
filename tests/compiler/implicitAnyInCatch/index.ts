@@ -2,7 +2,7 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: noImplicitAny
-//@compiler-options: useUnknownInCatchVariables
+//@compiler-options: useUnknownInCatchVariables=false
 
 // this should not be an error
 try { } catch (error) {

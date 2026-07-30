@@ -1,0 +1,20 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/inlinedAliasAssignableToConstraintSameAsAlias/index.ts:16:3]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/inlinedAliasAssignableToConstraintSameAsAlias/index.ts:18:3]
+ 18 │ y
+    · ─
+    ╰────
+
+  × Property 'z' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/inlinedAliasAssignableToConstraintSameAsAlias/index.ts:20:3]
+ 20 │ z
+    · ─
+    ╰────

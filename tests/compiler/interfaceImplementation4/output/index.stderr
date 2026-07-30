@@ -1,0 +1,12 @@
+  × Property 'iObj' is missing.
+    ╭─[../../tests/compiler/interfaceImplementation4/index.ts:11:7]
+ 11 │ C5
+    · ──
+    ╰────
+
+  × Property 'iNum' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation4/index.ts:13:12]
+ 13 │ iNum
+    · ────
+    ╰────

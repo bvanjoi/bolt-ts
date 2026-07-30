@@ -776,7 +776,7 @@ impl<'cx> TyChecker<'cx> {
             );
         // TODO: should we only store the result when `ret.is_some()`?
         if SKIP_OBJECT_FUNCTION_PROPERTY_ASSIGNMENT {
-            let _prevv = self
+            let _prev = self
                 .union_or_intersection_property_cache_without_object_function_property_augment
                 .insert(key, ret);
             // debug_assert!(prev.is_none())

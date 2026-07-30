@@ -1,0 +1,18 @@
+  × Type 'null' is not assignable to type 'V'.
+   ╭─[../../tests/compiler/genericReversingTypeParameters/index.ts:8:36]
+ 8 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'BiMap<V, K>'.
+    ╭─[../../tests/compiler/genericReversingTypeParameters/index.ts:10:44]
+ 10 │ null
+    · ────
+    ╰────
+
+  × Property 'inverseBiMap' has no initializer and is not definitely assigned
+  │ in the constructor.
+   ╭─[../../tests/compiler/genericReversingTypeParameters/index.ts:6:13]
+ 6 │ inverseBiMap
+   · ────────────
+   ╰────

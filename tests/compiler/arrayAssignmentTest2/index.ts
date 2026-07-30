@@ -51,10 +51,13 @@ var arr_c3: C3[] = [];
 // "clean up error" occurs at this point
 arr_c3 = arr_c2_2; // should be an error - is
 //~^ ERROR: Property 'CM3M1' is missing.
+//~| ERROR: Property 'CM3M1' is missing.
 arr_c3 = arr_c1_2; // should be an error - is
 //~^ ERROR: Property 'CM3M1' is missing.
+//~| ERROR: Property 'CM3M1' is missing.
 arr_c3 = arr_i1_2; // should be an error - is
 //~^ ERROR: Property 'CM3M1' is missing.
+//~| ERROR: Property 'CM3M1' is missing.
 
 arr_any = f1; // should be an error - is
 //~^ ERROR: Type '() => C1' is not assignable to type 'any[]'.

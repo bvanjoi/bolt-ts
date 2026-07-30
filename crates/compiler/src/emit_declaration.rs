@@ -686,12 +686,16 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             Ident(n) => self.visit_ident(n),
             StringLit { raw, .. } => self.visit_string_lit(raw),
             BigIntLit { .. } => todo!(),
-            NumLit(_n) => todo!(),
+            NumLit(n) => self.visit_num_lit(n),
             Computed(n) => {
                 self.visit_computed_prop_name(n);
             }
             PrivateIdent(_private_ident) => todo!(),
         }
+    }
+
+    fn visit_num_lit(&mut self, node: &'cx bolt_ts_ast::NumLit) -> Self::Result {
+        self.emitter.print().p(&node.val.to_string());
     }
 
     fn visit_computed_prop_name(&mut self, node: &'cx ast::ComputedPropName<'cx>) -> Self::Result {

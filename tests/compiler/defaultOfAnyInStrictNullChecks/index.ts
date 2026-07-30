@@ -2,6 +2,7 @@
 
 //@compiler-options: target=es2015
 //@compiler-options: strictNullChecks
+//@compiler-options: useUnknownInCatchVariables=false
 
 function foo() {
     try {

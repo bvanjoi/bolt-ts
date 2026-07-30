@@ -1,0 +1,47 @@
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:15]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:15]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:15]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:15]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:19]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:19]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:19]
+ 9 │ id
+   · ──
+   ╰────
+
+  × Variable 'id' is used before being assigned.
+   ╭─[../../tests/compiler/contextualSignatureInstantiation2/index.ts:9:19]
+ 9 │ id
+   · ──
+   ╰────

@@ -1,0 +1,47 @@
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:5:12]
+ 5 │ item
+   · ────
+   ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:7:12]
+ 7 │ item
+   · ────
+   ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:9:12]
+ 9 │ item
+   · ────
+   ╰────
+
+  × Property 'item' does not exist on type 'never'.
+    ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:37:18]
+ 37 │ item
+    · ────
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:45:11]
+ 45 │ a
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:48:12]
+ 48 │ a
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/instanceofWithStructurallyIdenticalTypes/index.ts:50:21]
+ 50 │ b
+    · ─
+    ╰────
