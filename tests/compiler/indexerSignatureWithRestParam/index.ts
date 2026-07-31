@@ -6,6 +6,7 @@
 interface I {
     [...x]: string;
     //~^ ERROR: An index signature cannot have a rest parameter.
+    //~| ERROR: An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.
 }
 
 class C {

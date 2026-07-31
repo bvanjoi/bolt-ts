@@ -1,0 +1,35 @@
+  × Property 'i1P1' is missing.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:26:7]
+ 26 │ C1
+    · ──
+    ╰────
+
+  × Property 'i1P2' is missing.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:26:7]
+ 26 │ C1
+    · ──
+    ╰────
+
+  × Property 'i1P1' is missing.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:36:1]
+ 36 │ i2
+    · ──
+    ╰────
+
+  × Property 'i1P2' is missing.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:36:1]
+ 36 │ i2
+    · ──
+    ╰────
+
+  × Type 'I5' is not assignable to type 'I4'.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:45:1]
+ 45 │ i4
+    · ──
+    ╰────
+
+  × Type 'I4' is not assignable to type 'I5'.
+    ╭─[../../tests/compiler/interfaceInheritance/index.ts:47:1]
+ 47 │ i5
+    · ──
+    ╰────

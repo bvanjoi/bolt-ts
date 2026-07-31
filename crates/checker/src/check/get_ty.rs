@@ -1967,9 +1967,10 @@ impl<'cx> TyChecker<'cx> {
                 extends_ty
             };
             if !check_ty_deferred && !self.is_deferred_ty(inferred_extends_ty, check_tuples) {
-                if !inferred_extends_ty
+                let inferred_extends_ty_is_any_or_unknown = inferred_extends_ty
                     .flags
-                    .intersects(TypeFlags::ANY_OR_UNKNOWN)
+                    .intersects(TypeFlags::ANY_OR_UNKNOWN);
+                if !inferred_extends_ty_is_any_or_unknown
                     && (check_ty.flags.contains(TypeFlags::ANY) || {
                         let source = self.get_permissive_instantiation(check_ty);
                         let target = self.get_permissive_instantiation(inferred_extends_ty);
@@ -2009,15 +2010,11 @@ impl<'cx> TyChecker<'cx> {
                     break t;
                 }
 
-                if inferred_extends_ty
-                    .flags
-                    .intersects(TypeFlags::ANY_OR_UNKNOWN)
-                    || {
-                        let source = self.get_restrictive_instantiation(check_ty);
-                        let target = self.get_restrictive_instantiation(inferred_extends_ty);
-                        self.is_type_assignable_to(source, target)
-                    }
-                {
+                if inferred_extends_ty_is_any_or_unknown || {
+                    let source = self.get_restrictive_instantiation(check_ty);
+                    let target = self.get_restrictive_instantiation(inferred_extends_ty);
+                    self.is_type_assignable_to(source, target)
+                } {
                     let true_ty = self.get_ty_from_type_node(root.node.true_ty);
                     let true_mapper = combined_mapper.or(mapper);
                     if let Some((new_root, new_root_mapper)) =
@@ -2538,7 +2535,7 @@ impl<'cx> TyChecker<'cx> {
                         self.push_error(Box::new(error));
                     }
                 } else if no_implicit_any {
-                    let error = errors::ParameterImplicitlyHasAn1Type {
+                    let error = errors::ParameterImplicitlyHasAnXType {
                         span: self.p.node(decl).span(),
                         parameter: pprint_binding(n.name, &self.atoms),
                         ty: ty_as_string,

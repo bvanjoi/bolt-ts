@@ -67,8 +67,15 @@
     · ───────────────────
     ╰────
 
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:51:2]
+ 51 │ [p:Purple];
+    · ───────────
+    ╰────
+
   × Type 'Blue' cannot be used as an index type.
-    ╭─[../../tests/compiler/indexTypeCheck/index.ts:67:8]
- 67 │ blue
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:68:8]
+ 68 │ blue
     · ────
     ╰────

@@ -144,12 +144,13 @@ impl<'cx> TyChecker<'cx> {
         self.check_object_ty_for_duplicate_decls(n.members);
         for prop in n.members.iter() {
             use bolt_ts_ast::ObjectTyMemberKind::*;
+            // TODO: use `self.check_object_ty_member(member);` directly
             match &prop.kind {
                 IndexSig(n) => self.check_index_sig_decl(n),
                 Prop(_) => (),
                 Method(n) => self.check_method_sig(n),
-                CallSig(_) => (),
-                CtorSig(_) => (),
+                CallSig(n) => self.check_sig_decl(n.id),
+                CtorSig(n) => self.check_sig_decl(n.id),
                 Setter(n) => self.check_setter_decl(n),
                 Getter(n) => self.check_getter_decl(n),
             }
@@ -167,7 +168,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_fn_like_decl(n);
     }
 
-    fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
+    pub(super) fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
         let ty = self.get_ty_from_type_node(n.key_ty);
         if self.some_type(ty, |this, t| {
             t.flags

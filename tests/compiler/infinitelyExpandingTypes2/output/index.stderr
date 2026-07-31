@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'Bar<number>'.
+    ╭─[../../tests/compiler/infinitelyExpandingTypes2/index.ts:17:5]
+ 17 │ v
+    · ─
+    ╰────

@@ -1035,6 +1035,10 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_dot_dot_dot();
         self.visit_ty(node.ty);
     }
+
+    fn visit_for_in_stmt(&mut self, _: &'cx bolt_ts_ast::ForInStmt<'cx>) -> Self::Result {}
+    fn visit_for_of_stmt(&mut self, _: &'cx bolt_ts_ast::ForOfStmt<'cx>) -> Self::Result {}
+    fn visit_for_stmt(&mut self, _: &'cx bolt_ts_ast::ForStmt<'cx>) -> Self::Result {}
 }
 
 fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &bolt_ts_ast::TemplateHead) {

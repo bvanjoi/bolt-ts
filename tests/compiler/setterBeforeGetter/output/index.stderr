@@ -1,0 +1,6 @@
+  × Property '_bar' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/setterBeforeGetter/index.ts:7:13]
+ 7 │ _bar
+   · ────
+   ╰────

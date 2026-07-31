@@ -111,7 +111,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_object_ty_member(&mut self, member: &'cx ast::ObjectTyMember<'cx>) {
+    pub(super) fn check_object_ty_member(&mut self, member: &'cx ast::ObjectTyMember<'cx>) {
         match member.kind {
             ast::ObjectTyMemberKind::Prop(n) => {
                 let decl_name = ast::DeclarationName::from_prop_name(n.name);
@@ -133,8 +133,14 @@ impl<'cx> TyChecker<'cx> {
             ast::ObjectTyMemberKind::CallSig(n) => {
                 self.check_sig_decl(n.id);
             }
-            _ => {
-                // TODO:
+            ast::ObjectTyMemberKind::IndexSig(n) => {
+                self.check_index_sig_decl(n);
+            }
+            ast::ObjectTyMemberKind::Setter(n) => {
+                self.check_setter_decl(n);
+            }
+            ast::ObjectTyMemberKind::Getter(n) => {
+                self.check_getter_decl(n);
             }
         }
     }

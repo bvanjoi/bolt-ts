@@ -1,0 +1,34 @@
+  × This condition will always return true since this 'Promise<number>' is
+  │ always defined.
+    ╭─[../../tests/compiler/truthinessPromiseCoercion/index.ts:12:9]
+ 12 │ p
+    · ─
+    ╰────
+
+  × This condition will always return true since this 'Promise<number>' is
+  │ always defined.
+    ╭─[../../tests/compiler/truthinessPromiseCoercion/index.ts:17:5]
+ 17 │ p
+    · ─
+    ╰────
+
+  × This condition will always return true since this 'Promise<unknown>' is
+  │ always defined.
+    ╭─[../../tests/compiler/truthinessPromiseCoercion/index.ts:39:9]
+ 39 │ obj.p
+    · ─────
+    ╰────
+
+  × This condition will always return true since this 'Promise<boolean>' is
+  │ always defined.
+    ╭─[../../tests/compiler/truthinessPromiseCoercion/index.ts:48:9]
+ 48 │ pf()
+    · ────
+    ╰────
+
+  × This condition will always return true since this 'Promise<boolean>' is
+  │ always defined.
+    ╭─[../../tests/compiler/truthinessPromiseCoercion/index.ts:52:9]
+ 52 │ pf()
+    · ────
+    ╰────

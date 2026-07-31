@@ -1,0 +1,6 @@
+  × Property 'payload' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/destructuringWithGenericParameter/index.ts:6:5]
+ 6 │ payload
+   · ───────
+   ╰────

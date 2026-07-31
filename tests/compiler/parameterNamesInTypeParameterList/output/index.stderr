@@ -1,0 +1,35 @@
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:5:30]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:10:30]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:15:30]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:21:22]
+ 21 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:25:22]
+ 25 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/parameterNamesInTypeParameterList/index.ts:29:22]
+ 29 │ a
+    · ─
+    ╰────

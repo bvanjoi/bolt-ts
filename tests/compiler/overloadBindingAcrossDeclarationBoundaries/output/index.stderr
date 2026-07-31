@@ -1,0 +1,29 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/overloadBindingAcrossDeclarationBoundaries/index.ts:36:10]
+ 36 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/overloadBindingAcrossDeclarationBoundaries/index.ts:36:10]
+ 36 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/overloadBindingAcrossDeclarationBoundaries/index.ts:39:10]
+ 39 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/overloadBindingAcrossDeclarationBoundaries/index.ts:39:10]
+ 39 │ a
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/overloadBindingAcrossDeclarationBoundaries/index.ts:42:14]
+ 42 │ a
+    · ─
+    ╰────

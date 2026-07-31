@@ -1,0 +1,5 @@
+  × Variable 'aa' is used before being assigned.
+    ╭─[../../tests/compiler/assignmentCompatability4/index.ts:11:28]
+ 11 │ aa
+    · ──
+    ╰────

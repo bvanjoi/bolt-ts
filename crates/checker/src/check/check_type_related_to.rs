@@ -3002,9 +3002,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
-        if self.c.enable_out_of_band_variance_marker_handler
-            && let Some(ty) = source_rest_ty.or(target_rest_ty)
-        {
+        if let Some(ty) = source_rest_ty.or(target_rest_ty) {
             let mapper = self.c.report_unreliable_mapper;
             self.c.instantiate_ty_worker(ty, mapper);
         }
@@ -3066,7 +3064,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty
-                && ((source_ty != target_ty) || check_mode.contains(SigCheckMode::STRICT_ARITY))
+                && (source_ty != target_ty || check_mode.contains(SigCheckMode::STRICT_ARITY))
             {
                 let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK)
                     || is_instantiated_generic_parameter(self, source, i)

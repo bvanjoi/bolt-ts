@@ -1837,10 +1837,14 @@ impl<'cx> TyChecker<'cx> {
                 bolt_ts_ast_visitor::visit_node(&mut v, &body);
                 v.is_used
             });
-
             if !is_used {
                 if is_promise {
-                    todo!()
+                    let error =
+                        errors::ThisConditionWillAlwaysReturnTrueSinceThisXIsAlwaysDefined {
+                            span: loc.span(),
+                            ty: this.print_ty(ty, None).to_string(),
+                        };
+                    this.push_error(Box::new(error));
                 } else {
                     let error = errors::ThisConditionWillAlwaysReturnTrueSinceThisFunctionIsAlwaysDefinedDidYouMeanToCallItInstead {
                         span: loc.span(),
@@ -1848,19 +1852,6 @@ impl<'cx> TyChecker<'cx> {
                     this.push_error(Box::new(error));
                 }
             }
-            // if (!isUsed) {
-            //     if (isPromise) {
-            //         errorAndMaybeSuggestAwait(
-            //             location,
-            //             /*maybeMissingAwait*/ true,
-            //             Diagnostics.This_condition_will_always_return_true_since_this_0_is_always_defined,
-            //             getTypeNameForErrorDisplay(type),
-            //         );
-            //     }
-            //     else {
-            //         error(location, Diagnostics.This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead);
-            //     }
-            // }
         }
 
         both_helper(self, n, cond_ty, body)

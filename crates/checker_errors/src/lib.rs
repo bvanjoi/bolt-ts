@@ -1226,7 +1226,7 @@ pub struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Parameter '{parameter}' implicitly has an '{ty}' type.")]
-pub struct ParameterImplicitlyHasAn1Type {
+pub struct ParameterImplicitlyHasAnXType {
     #[label(primary)]
     pub span: Span,
     pub parameter: String,
@@ -2076,4 +2076,12 @@ pub struct AbstractPropertyXInClassYCannotBeAccessedInTheConstructor {
     pub span: Span,
     pub property: String,
     pub class: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This condition will always return true since this '{ty}' is always defined.")]
+pub struct ThisConditionWillAlwaysReturnTrueSinceThisXIsAlwaysDefined {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
 }

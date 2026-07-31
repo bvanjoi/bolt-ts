@@ -1,0 +1,61 @@
+  × Expected '{'.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:14]
+ 48 │ .
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:14]
+ 48 │ .
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:15]
+ 48 │ I1
+    · ──
+    ╰────
+
+  × Expected '}'.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:15]
+ 48 │ I1
+    · ──
+    ╰────
+
+  × Cannot find name 'I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:15]
+ 48 │ I1
+    · ──
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:13:9]
+ 13 │ item
+    · ────
+    ╰────
+
+  × Interface 'I3' incorrectly extends interface 'Foo.I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:23:11]
+ 23 │ I3
+    · ──
+    ╰────
+
+  × Property 'item' is missing.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:33:7]
+ 33 │ C2
+    · ──
+    ╰────
+
+  × Property 'token' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:35:12]
+ 35 │ token
+    · ─────
+    ╰────
+
+  × Property 'item' is missing.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:44:7]
+ 44 │ C3
+    · ──
+    ╰────

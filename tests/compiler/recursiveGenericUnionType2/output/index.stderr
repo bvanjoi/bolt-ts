@@ -1,0 +1,11 @@
+  × Variable 's2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveGenericUnionType2/index.ts:23:6]
+ 23 │ s2
+    · ──
+    ╰────
+
+  × Variable 's2' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveGenericUnionType2/index.ts:23:6]
+ 23 │ s2
+    · ──
+    ╰────
