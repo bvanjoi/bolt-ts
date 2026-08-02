@@ -417,6 +417,7 @@ impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
         l.lookahead(f)
     }
 
+    // TODO: split it into single function such as `is_start_of_decl_for_module_or_namespace`.
     pub(super) fn is_start_of_decl(&mut self) -> bool {
         self.lookahead(Lookahead::is_decl)
     }

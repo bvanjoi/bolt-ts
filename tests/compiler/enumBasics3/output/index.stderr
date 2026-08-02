@@ -1,0 +1,11 @@
+  × Property 'a' does not exist on type 'E1.a'.
+    ╭─[../../tests/compiler/enumBasics3/index.ts:10:13]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'E1.a'.
+    ╭─[../../tests/compiler/enumBasics3/index.ts:20:20]
+ 20 │ a
+    · ─
+    ╰────

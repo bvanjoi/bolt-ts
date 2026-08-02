@@ -5,21 +5,47 @@ use bolt_ts_config::Target;
 
 use super::Resolver as R;
 
-pub struct ResolvedResult {
+pub struct ResolvedResult<'cx> {
     symbol: SymbolID,
-    associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+    associated_declaration_for_containing_initializer_or_binding_name:
+        Option<AssociatedDeclarationForContainingInitializerOrBindingName<'cx>>,
     within_deferred_context: bool,
     base_class_expression_cannot_reference_class_type_parameters: bool,
     property_with_invalid_initializer: Option<ast::NodeID>,
 }
 
-impl ResolvedResult {
+#[derive(Debug, Clone, Copy)]
+pub enum AssociatedDeclarationForContainingInitializerOrBindingName<'cx> {
+    ParamDecl(&'cx ast::ParamDecl<'cx>),
+    ObjectBindingElem(&'cx ast::ObjectBindingElem<'cx>),
+    ArrayBinding(&'cx ast::ArrayBinding<'cx>),
+}
+
+impl<'cx> AssociatedDeclarationForContainingInitializerOrBindingName<'cx> {
+    pub fn id(&self) -> ast::NodeID {
+        match self {
+            Self::ParamDecl(n) => n.id,
+            Self::ObjectBindingElem(n) => n.id,
+            Self::ArrayBinding(n) => n.id,
+        }
+    }
+
+    pub fn span(&self) -> bolt_ts_span::Span {
+        match self {
+            Self::ParamDecl(n) => n.span,
+            Self::ObjectBindingElem(n) => n.span,
+            Self::ArrayBinding(n) => n.span,
+        }
+    }
+}
+
+impl<'cx> ResolvedResult<'cx> {
     pub fn symbol(&self) -> SymbolID {
         self.symbol
     }
     pub fn associated_declaration_for_containing_initializer_or_binding_name(
         &self,
-    ) -> Option<ast::NodeID> {
+    ) -> Option<AssociatedDeclarationForContainingInitializerOrBindingName<'cx>> {
         self.associated_declaration_for_containing_initializer_or_binding_name
     }
     pub fn within_deferred_context(&self) -> bool {
@@ -177,7 +203,7 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
     resolver: &impl Resolver<'cx, 'a>,
     ident: &'cx ast::Ident,
     meaning: SymbolFlags,
-) -> ResolvedResult {
+) -> ResolvedResult<'cx> {
     use ast::Node::*;
     let key = SymbolName::Atom(ident.name);
     let mut associated_declaration_for_containing_initializer_or_binding_name = None;
@@ -526,7 +552,26 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         })
                     && associated_declaration_for_containing_initializer_or_binding_name.is_none()
                 {
-                    associated_declaration_for_containing_initializer_or_binding_name = Some(id);
+                    associated_declaration_for_containing_initializer_or_binding_name =
+                        Some(AssociatedDeclarationForContainingInitializerOrBindingName::ParamDecl(p));
+                }
+            }
+            ObjectBindingElem(n) => {
+                if let Some(last_location) = last_location
+                    && n.init.is_some_and(|init| init.id() == last_location)
+                    && associated_declaration_for_containing_initializer_or_binding_name.is_none()
+                {
+                    associated_declaration_for_containing_initializer_or_binding_name =
+                        Some(AssociatedDeclarationForContainingInitializerOrBindingName::ObjectBindingElem(n));
+                }
+            }
+            ArrayBinding(n) => {
+                if let Some(last_location) = last_location
+                    && n.init.is_some_and(|init| init.id() == last_location)
+                    && associated_declaration_for_containing_initializer_or_binding_name.is_none()
+                {
+                    associated_declaration_for_containing_initializer_or_binding_name =
+                        Some(AssociatedDeclarationForContainingInitializerOrBindingName::ArrayBinding(n));
                 }
             }
             _ => {}

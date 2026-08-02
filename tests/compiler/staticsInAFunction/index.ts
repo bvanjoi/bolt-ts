@@ -19,4 +19,5 @@ function boo{
    //~| ERROR: Expression expected.
    //~| ERROR: Cannot find name 'test'.
    //~| ERROR: Cannot find name 'any'.
+   //~| ERROR: Unexpected keyword or identifier.
 }

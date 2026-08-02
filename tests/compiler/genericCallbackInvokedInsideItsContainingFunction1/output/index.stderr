@@ -1,0 +1,65 @@
+  × Expected 0 type arguments, but got 1.
+   ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:6:15]
+ 6 │ <number>
+   · ────────
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'T'.
+   ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:8:16]
+ 8 │ 1
+   · ─
+   ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:10:15]
+ 10 │ <any>
+    · ─────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:12:16]
+ 12 │ null
+    · ────
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:16:16]
+ 16 │ <number>
+    · ────────
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:18:16]
+ 18 │ <any>
+    · ─────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:20:17]
+ 20 │ null
+    · ────
+    ╰────
+
+  × Argument of type 'U' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:23:17]
+ 23 │ y
+    · ─
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:25:16]
+ 25 │ <number>
+    · ────────
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:27:16]
+ 27 │ <any>
+    · ─────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/genericCallbackInvokedInsideItsContainingFunction1/index.ts:29:17]
+ 29 │ null
+    · ────
+    ╰────

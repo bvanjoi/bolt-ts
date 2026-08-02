@@ -1,0 +1,19 @@
+  × Property 's' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/differentTypesWithSameName/index.ts:7:5]
+ 7 │ s
+   · ─
+   ╰────
+
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/differentTypesWithSameName/index.ts:16:2]
+ 16 │ t
+    · ─
+    ╰────
+
+  × Property 's' is missing.
+    ╭─[../../tests/compiler/differentTypesWithSameName/index.ts:22:15]
+ 22 │ v
+    · ─
+    ╰────

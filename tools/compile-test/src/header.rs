@@ -97,7 +97,7 @@ fn parse_string_compiler_option_array(input: &mut Peekable<Chars>) -> Vec<String
             }
             input.next();
             skip_whitespace(input);
-        } else if ch.is_ascii_alphanumeric() {
+        } else if ch.is_ascii() {
             current.push(*ch);
             input.next();
         } else {
@@ -292,14 +292,6 @@ const COMMENT: &str = "//@";
 
 fn iter_header(test_file: &Path, rdr: impl Read, iter: &mut dyn FnMut(HeaderLine<'_>)) {
     assert!(test_file.is_file());
-    if test_file
-        .extension()
-        .is_some_and(|e| e == "ts" || e == "tsx")
-    {
-        // skip
-    } else {
-        unreachable!()
-    };
 
     let mut rdr = BufReader::with_capacity(1024, rdr);
     // let mut line_number = 0;
@@ -464,5 +456,13 @@ fn test_config_update_compiler_options() {
             CompilerOption::Bool(true),
             CompilerOption::Bool(false),
         ])
+    );
+
+    config.update_compiler_options("compiler-options: a12=[a.b, c2]");
+    assert_eq!(config.compiler_options.len(), 11);
+    let a12 = &config.compiler_options["a12"];
+    assert_eq!(
+        a12,
+        &CompilerOption::StringArray(vec!["a.b".to_string(), "c2".to_string()])
     );
 }

@@ -1,0 +1,78 @@
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/bases/index.ts:12:9]
+ 12 │ this.y
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/bases/index.ts:12:15]
+ 12 │ :
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/bases/index.ts:24:9]
+ 24 │ this.x
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/bases/index.ts:24:15]
+ 24 │ :
+    · ─
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/bases/index.ts:12:17]
+ 12 │ any
+    · ───
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/bases/index.ts:24:17]
+ 24 │ any
+    · ───
+    ╰────
+
+  × Property 'y' does not exist on type 'B<B>'.
+    ╭─[../../tests/compiler/bases/index.ts:12:14]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/bases/index.ts:20:7]
+ 20 │ C
+    · ─
+    ╰────
+
+  × 'super' must be called before accessing 'this' in the constructor of a
+  │ derived class.
+    ╭─[../../tests/compiler/bases/index.ts:24:9]
+ 24 │ this
+    · ────
+    ╰────
+
+  × Property 'x' does not exist on type 'C<C>'.
+    ╭─[../../tests/compiler/bases/index.ts:24:14]
+ 24 │ x
+    · ─
+    ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/bases/index.ts:22:5]
+ 22 │ constructor
+    · ───────────
+    ╰────
+
+  × Property 'x' does not exist on type 'C'.
+    ╭─[../../tests/compiler/bases/index.ts:33:9]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Property 'y' does not exist on type 'C'.
+    ╭─[../../tests/compiler/bases/index.ts:35:9]
+ 35 │ y
+    · ─
+    ╰────

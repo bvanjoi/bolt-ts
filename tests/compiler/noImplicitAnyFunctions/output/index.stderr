@@ -1,0 +1,25 @@
+  × 'f1', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+   ╭─[../../tests/compiler/noImplicitAnyFunctions/index.ts:6:9]
+ 6 │ function f1();
+   · ──────────────
+   ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyFunctions/index.ts:11:13]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyFunctions/index.ts:26:23]
+ 26 │  y
+    · ──
+    ╰────
+
+  × 'f6', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/noImplicitAnyFunctions/index.ts:23:1]
+ 23 │ function f6(x: string, y: number);
+    · ──────────────────────────────────
+    ╰────

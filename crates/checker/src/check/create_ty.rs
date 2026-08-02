@@ -4,6 +4,7 @@ use std::ops::Not;
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
 use bolt_ts_binder::{SymbolFlags, SymbolID, SymbolName};
+use bolt_ts_utils::fx_indexset_with_capacity;
 use bolt_ts_utils::{FxIndexMap, fx_indexmap_with_capacity, no_hashset_with_capacity};
 
 use super::SymbolLinks;
@@ -717,7 +718,11 @@ impl<'cx> TyChecker<'cx> {
             if includes.contains(TypeFlags::STRING_LITERAL)
                 && includes.intersects(TypeFlags::TEMPLATE_LITERAL.union(TypeFlags::STRING_MAPPING))
             {
-                // TODO:
+                set = self.remove_string_literals_matched_by_template_literals(set);
+            }
+
+            if includes.contains(TypeFlags::INCLUDES_CONSTRAINED_TYPE_VARIABLE) {
+                set = self.remove_constrained_ty_variables(set);
             }
 
             if reduction == UnionReduction::Subtype {
@@ -760,6 +765,119 @@ impl<'cx> TyChecker<'cx> {
             alias_ty_arguments,
             origin,
         )
+    }
+
+    fn remove_constrained_ty_variables(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
+        let mut ty_vars = Vec::with_capacity(tys.len());
+        for ty in &tys {
+            if let Some(i) = ty.kind.as_intersection()
+                && ty
+                    .get_object_flags()
+                    .contains(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+            {
+                let index = if i.tys[0].flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                    0
+                } else {
+                    1
+                };
+                let item = i.tys[index];
+                if !ty_vars.contains(&item) {
+                    ty_vars.push(item);
+                }
+            }
+        }
+        for ty_var in ty_vars {
+            let mut primitives = fx_indexset_with_capacity(tys.len());
+            for ty in &tys {
+                if let Some(i) = ty.kind.as_intersection()
+                    && ty
+                        .get_object_flags()
+                        .contains(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+                {
+                    let index = if i.tys[0].flags.intersects(TypeFlags::TYPE_VARIABLE) {
+                        0
+                    } else {
+                        1
+                    };
+                    if i.tys[index] == ty_var {
+                        primitives.insert(i.tys[1 - index]);
+                    }
+                }
+            }
+            let Some(constraint) = self.get_base_constraint_of_ty(ty_var) else {
+                unreachable!("ty_var: {ty_var:#?}");
+            };
+            if self.every_type(constraint, |_, t| primitives.contains(t)) {
+                let mut i = tys.len();
+                while i > 0 {
+                    i -= 1;
+                    let ty = unsafe {
+                        // SAFETY: `i` is always in bounds
+                        tys.get_unchecked(i)
+                    };
+                    if let Some(intersection_ty) = ty.kind.as_intersection()
+                        && ty
+                            .get_object_flags()
+                            .contains(ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+                    {
+                        let index = if intersection_ty.tys[0]
+                            .flags
+                            .intersects(TypeFlags::TYPE_VARIABLE)
+                        {
+                            0
+                        } else {
+                            1
+                        };
+                        if intersection_ty.tys[index] == ty_var
+                            && primitives.contains(intersection_ty.tys[1 - index])
+                        {
+                            tys.remove(i);
+                        }
+                    }
+                }
+                if !tys.contains(&ty_var) {
+                    tys.push(ty_var);
+                }
+            }
+        }
+        tys
+    }
+
+    fn remove_string_literals_matched_by_template_literals(
+        &mut self,
+        mut tys: Vec<&'cx ty::Ty<'cx>>,
+    ) -> Vec<&'cx ty::Ty<'cx>> {
+        let templates = tys
+            .iter()
+            .filter(|t| t.is_pattern_lit_ty())
+            .copied()
+            .collect::<Vec<_>>();
+        if !templates.is_empty() {
+            let mut i = tys.len();
+            while i > 0 {
+                i -= 1;
+                let t = unsafe {
+                    // SAFETY: `i` is always in bounds
+                    tys.get_unchecked(i)
+                };
+                if t.flags.contains(TypeFlags::STRING_LITERAL)
+                    && templates.iter().any(|template| {
+                        // is_type_matched_by_template_literal_or_string_mapping
+                        if let Some(target) = template.kind.as_template_lit_ty() {
+                            self.is_ty_matched_by_template_lit_ty(t, target)
+                        } else {
+                            self.is_member_of_string_mapping(t, template)
+                        }
+                    })
+                {
+                    tys.remove(i);
+                }
+            }
+        }
+        tys
     }
 
     pub(super) fn get_union_ty<const IS_ENUM: bool>(

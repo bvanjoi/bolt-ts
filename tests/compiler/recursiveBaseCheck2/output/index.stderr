@@ -1,0 +1,12 @@
+  × 'b2Shape' is referenced directly or indirectly in its own base expression.
+   ╭─[../../tests/compiler/recursiveBaseCheck2/index.ts:9:18]
+ 9 │ b2Shape
+   · ───────
+   ╰────
+
+  × 'b2CircleShape' is referenced directly or indirectly in its own base
+  │ expression.
+   ╭─[../../tests/compiler/recursiveBaseCheck2/index.ts:6:18]
+ 6 │ b2CircleShape
+   · ─────────────
+   ╰────

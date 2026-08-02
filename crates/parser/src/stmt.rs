@@ -1308,7 +1308,9 @@ impl<'cx> ParserState<'cx, '_> {
             self.labels.pop();
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
-            self.parse_semi();
+            if !self.try_parse_semi() {
+                self.parse_error_for_missing_semicolon_after(expr.span());
+            }
             let stmt = self.create_expression_statement(self.new_span(start), expr);
             Ok(ast::StmtKind::Expr(stmt))
         }

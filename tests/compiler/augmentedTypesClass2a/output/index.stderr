@@ -1,0 +1,23 @@
+  × Duplicate identifier 'c2'.
+    ╭─[../../tests/compiler/augmentedTypesClass2a/index.ts:10:5]
+  6 │ c2 { public foo() { } } // error
+    · ─┬
+    ·  ╰── Previous definition here
+  7 │ //~^ ERROR: Class declaration cannot implement overload list for 'c2'.
+  8 │ function c2() { } // error
+  9 │ //~^ ERROR: Function with bodies can only merge with classes that are ambient.
+ 10 │ var c2
+    ·     ──
+    ╰────
+
+  × Class declaration cannot implement overload list for 'c2'.
+   ╭─[../../tests/compiler/augmentedTypesClass2a/index.ts:6:7]
+ 6 │ c2
+   · ──
+   ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+   ╭─[../../tests/compiler/augmentedTypesClass2a/index.ts:8:10]
+ 8 │ c2
+   · ──
+   ╰────

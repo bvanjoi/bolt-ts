@@ -40,6 +40,12 @@
     · ─
     ╰────
 
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:11]
+ 17 │ test(name?:any)
+    · ───────────────
+    ╰────
+
   × Cannot find name 'test'.
    ╭─[../../tests/compiler/staticsInAFunction/index.ts:8:11]
  8 │ test

@@ -1,0 +1,21 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/staticPrototypePropertyOnClass.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+class c1 {
+}
+class c2<T> {
+}
+class c3 {
+    constructor() {
+    }
+}
+class c4 {
+    constructor(param: string);
+    constructor(param: number);
+    constructor(param: any) {
+    }
+}
+var a = c1;
+var b = c2;
+var c = c3;
+var d = c4;

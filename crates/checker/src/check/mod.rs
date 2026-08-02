@@ -2447,28 +2447,25 @@ impl<'cx> TyChecker<'cx> {
                 return false;
             };
             let parent_symbol = this.binder.symbol(parent);
-            let parent_name = parent_symbol.name;
-            if !parent_symbol.flags.intersects(SymbolFlags::CLASS) {
+            if !parent_symbol.flags.contains(SymbolFlags::CLASS) {
                 return false;
             }
-            let mut class_ty = this.get_type_of_symbol(parent);
-            loop {
-                if class_ty.symbol().is_none() {
-                    return false;
-                };
-                // get_super_class
-                let x = this.get_base_tys(class_ty);
-                if x.is_empty() {
-                    return false;
-                }
-                class_ty = this.get_intersection_ty(x, IntersectionFlags::None, None, None);
-                // ===
-                if let Some(super_prop) = this.get_prop_of_ty::<false, false>(class_ty, parent_name)
-                    && this.symbol(super_prop).value_decl.is_some()
-                {
-                    return true;
-                }
+            let name = prop_symbol.name;
+            let class_ty = this.get_declared_ty_of_symbol(parent);
+            if class_ty.symbol().is_none() {
+                return false;
+            };
+            // get_super_class
+            let base_tys = this.get_base_tys(class_ty);
+            let Some(base_ty) = base_tys.first() else {
+                return false;
+            };
+            if let Some(super_prop) = this.get_prop_of_ty::<false, false>(base_ty, name)
+                && this.symbol(super_prop).value_decl.is_some()
+            {
+                return true;
             }
+            false
         };
 
         if self
@@ -2485,13 +2482,15 @@ impl<'cx> TyChecker<'cx> {
                 .expr_of_access_expr()
                 .is_some_and(|expr| expr.kind.is_access_expr())
             && !self.is_block_scoped_name_declared_before_use(value_decl, right.id, right.span)
-            && !((value_decl_node.is_class_method_elem()
-                || value_decl_node.is_object_method_member())
-                && self
-                    .node_query(value_decl.module())
-                    .get_combined_modifier_flags(value_decl)
-                    .contains(ast::ModifierFlags::STATIC))
-            && !is_prop_declared_in_ancestor_class(self)
+            && !(matches!(
+                value_decl_node,
+                ast::Node::ClassMethodElem(_) | ast::Node::ObjectMethodMember(_)
+            ) && self
+                .node_query(value_decl.module())
+                .get_combined_modifier_flags(value_decl)
+                .contains(ast::ModifierFlags::STATIC))
+            && (self.config.compiler_options().use_define_for_class_fields()
+                || !is_prop_declared_in_ancestor_class(self))
         {
             let error = errors::PropertyXIsUsedBeforeItsInitialization {
                 span: right.span,
@@ -8929,7 +8928,7 @@ impl<'cx> TyChecker<'cx> {
                 .decl
                 .get_modifiers()
                 .contains(ast::MappedTyModifiers::EXCLUDE_OPTIONAL)
-            && object_mapped_ty.decl.name_ty.is_some()
+            && object_mapped_ty.decl.name_ty.is_none()
     }
 
     fn is_auto_typed_property(&self, symbol: SymbolID) -> bool {

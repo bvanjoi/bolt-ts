@@ -3,3 +3,9 @@
  8 │ yield
    · ─────
    ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/castOfYield/index.ts:8:5]
+ 8 │ <number>
+   · ────────
+   ╰────

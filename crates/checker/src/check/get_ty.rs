@@ -1476,7 +1476,7 @@ impl<'cx> TyChecker<'cx> {
         } else if access_node.is_some() {
             self.error_ty
         } else {
-            self.undefined_ty
+            self.unknown_ty
         }
     }
 

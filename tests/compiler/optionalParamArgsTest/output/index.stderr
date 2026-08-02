@@ -1,0 +1,149 @@
+  × Operator '+' cannot be applied to types 'number' and 'undefined | number'.
+    ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:33:56]
+ 33 │ C1M4A1 + C1M4A2
+    · ───────────────
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:36:12]
+ 36 │ C1M5
+    · ────
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:40:12]
+ 40 │ C1M5
+    · ────
+    ╰────
+
+  × Operator '+' cannot be applied to types 'number' and 'undefined | number'.
+    ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:54:48]
+ 54 │ F4A1 + F4A2
+    · ───────────
+    ╰────
+
+  × Operator '+' cannot be applied to types 'number' and 'undefined | number'.
+    ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:60:55]
+ 60 │ L4A1 + L4A2
+    · ───────────
+    ╰────
+
+  × Expected 0 arguments, but got 1.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:107:1]
+ 107 │ c1o1.C1M1
+     · ─────────
+     ╰────
+
+  × Expected 0 arguments, but got 1.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:109:1]
+ 109 │ i1o1.C1M1
+     · ─────────
+     ╰────
+
+  × Expected 0 arguments, but got 1.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:111:1]
+ 111 │ F1
+     · ──
+     ╰────
+
+  × Expected 0 arguments, but got 1.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:113:1]
+ 113 │ L1
+     · ──
+     ╰────
+
+  × Expected 1 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:115:1]
+ 115 │ c1o1.C1M2
+     · ─────────
+     ╰────
+
+  × Expected 1 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:117:1]
+ 117 │ i1o1.C1M2
+     · ─────────
+     ╰────
+
+  × Expected 1 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:119:1]
+ 119 │ F2
+     · ──
+     ╰────
+
+  × Expected 1 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:121:1]
+ 121 │ L2
+     · ──
+     ╰────
+
+  × Expected 1 arguments, but got 2.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:123:13]
+ 123 │ 2
+     · ─
+     ╰────
+
+  × Expected 1 arguments, but got 2.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:125:13]
+ 125 │ 2
+     · ─
+     ╰────
+
+  × Expected 1 arguments, but got 2.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:127:6]
+ 127 │ 2
+     · ─
+     ╰────
+
+  × Expected 1 arguments, but got 2.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:129:6]
+ 129 │ 2
+     · ─
+     ╰────
+
+  × Expected 0-2 arguments, but got 3.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:131:15]
+ 131 │ 3
+     · ─
+     ╰────
+
+  × Expected 0-2 arguments, but got 3.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:133:15]
+ 133 │ 3
+     · ─
+     ╰────
+
+  × Expected 0-2 arguments, but got 3.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:135:8]
+ 135 │ 3
+     · ─
+     ╰────
+
+  × Expected 0-2 arguments, but got 3.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:137:8]
+ 137 │ 3
+     · ─
+     ╰────
+
+  × Expected 1-2 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:139:1]
+ 139 │ c1o1.C1M4()
+     · ───────────
+     ╰────
+
+  × Expected 1-2 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:141:1]
+ 141 │ i1o1.C1M4()
+     · ───────────
+     ╰────
+
+  × Expected 1-2 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:143:1]
+ 143 │ F4()
+     · ────
+     ╰────
+
+  × Expected 1-2 arguments, but got 0.
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:145:1]
+ 145 │ L4()
+     · ────
+     ╰────

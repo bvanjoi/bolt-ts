@@ -1,0 +1,5 @@
+  × Variable 'n' is used before being assigned.
+   ╭─[../../tests/compiler/numberAssignableToEnumInsideUnion/index.ts:7:22]
+ 7 │ n
+   · ─
+   ╰────

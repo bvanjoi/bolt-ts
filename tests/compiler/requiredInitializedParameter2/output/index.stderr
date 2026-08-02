@@ -1,0 +1,6 @@
+  × Property 'method' in type 'C1<C1>' is not assignable to the same property
+  │ in base type 'I1'.
+    ╭─[../../tests/compiler/requiredInitializedParameter2/index.ts:11:5]
+ 11 │ method
+    · ──────
+    ╰────

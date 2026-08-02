@@ -1,0 +1,76 @@
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/nameCollisions/index.ts:8:15]
+ 6 │ x = 2;
+   · ┬
+   · ╰── Previous definition here
+ 7 │ 
+ 8 │     namespace x
+   ·               ─
+   ╰────
+
+  × Duplicate identifier 'z'.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:19:9]
+ 16 │ z {
+    · ┬
+    · ╰── Previous definition here
+ 17 │         var t;
+ 18 │     }
+ 19 │     var z
+    ·         ─
+    ╰────
+
+  × Duplicate identifier 'f'.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:33:14]
+ 32 │ f;
+    · ┬
+    · ╰── Previous definition here
+ 33 │     function f
+    ·              ─
+    ╰────
+
+  × Duplicate identifier 'f2'.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:37:9]
+ 36 │ f2() { }
+    · ─┬
+    ·  ╰── Previous definition here
+ 37 │     var f2
+    ·         ──
+    ╰────
+
+  × Property 'test' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:11:13]
+ 11 │ test
+    · ────
+    ╰────
+
+  × A namespace declaration cannot be located prior to a class or function
+  │ with which it is merged.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:22:15]
+ 22 │ y
+    · ─
+    ╰────
+
+  × Class declaration cannot implement overload list for 'C'.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:43:11]
+ 43 │ C
+    · ─
+    ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:45:14]
+ 45 │ C
+    · ─
+    ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:48:14]
+ 48 │ C2
+    · ──
+    ╰────
+
+  × Class declaration cannot implement overload list for 'C2'.
+    ╭─[../../tests/compiler/nameCollisions/index.ts:50:11]
+ 50 │ C2
+    · ──
+    ╰────

@@ -1,0 +1,5 @@
+  × Variable 'e1' is used before being assigned.
+    ╭─[../../tests/compiler/typeofEnum/index.ts:11:1]
+ 11 │ e1
+    · ──
+    ╰────

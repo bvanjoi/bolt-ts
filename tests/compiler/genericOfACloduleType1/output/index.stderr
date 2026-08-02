@@ -1,0 +1,5 @@
+  × Argument of type 'null' is not assignable to parameter of type 'M.C'.
+    ╭─[../../tests/compiler/genericOfACloduleType1/index.ts:14:12]
+ 14 │ null
+    · ────
+    ╰────

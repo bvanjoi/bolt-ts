@@ -29,6 +29,12 @@
    · ───────────
    ╰────
 
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:12]
+ 5 │ x = ( y = z ==== 'function'
+   · ───────────────────────────
+   ╰────
+
   × Declaration or statement expected.
    ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:5:39]
  5 │ )
@@ -36,7 +42,7 @@
    ╰────
 
   × '}' expected.
-   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:17:25]
+   ╭─[../../tests/compiler/parserUnparsedTokenCrash2/index.ts:18:25]
    ╰────
 
 Advice: 

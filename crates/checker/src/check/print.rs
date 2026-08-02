@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::TyChecker;
 use super::ty;
 use super::ty::ElementFlags;
@@ -182,25 +184,29 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 let name = self.c.binder.symbol(s.symbol).name;
                 self.c.atoms.get(name.expect_atom()).to_string()
             }
-            ty::TyKind::TemplateLit(n) => {
-                let mut s = String::with_capacity(32);
-                s.push('`');
-                for i in 0..n.texts.len() {
-                    let text = n.texts[i];
-                    s.push_str(self.c.atoms.get(text));
-                    if let Some(ty) = n.tys.get(i) {
-                        s.push_str(&format!(
-                            "${{{}}}",
-                            self.c.print_ty(ty, self.enclosing_declaration)
-                        ));
-                    }
-                }
-                s.push('`');
-                s
-            }
+            ty::TyKind::TemplateLit(n) => self.print_template_literal_type(n),
             ty::TyKind::UniqueESSymbol(_) => "unique symbol".to_string(),
             ty::TyKind::Enum(n) => self.print_enum_symbol(n.symbol),
         }
+    }
+
+    fn print_template_literal_type(&mut self, n: &'cx ty::TemplateLitTy<'cx>) -> String {
+        let mut s = String::with_capacity(32);
+        s.push('`');
+        for i in 0..n.texts.len() {
+            let text = n.texts[i];
+            let str = self.c.atoms.get(text);
+            let str = display_escape(str);
+            s.push_str(&str);
+            if let Some(ty) = n.tys.get(i) {
+                s.push_str(&format!(
+                    "${{{}}}",
+                    self.c.print_ty(ty, self.enclosing_declaration)
+                ));
+            }
+        }
+        s.push('`');
+        s
     }
 
     fn print_alias_symbol(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<String> {
@@ -580,4 +586,15 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
         }
         res
     }
+}
+
+fn display_escape<'a>(s: &'a str) -> Cow<'a, str> {
+    if !s.contains('\r') && !s.contains('\n') && !s.contains('\t') {
+        return Cow::Borrowed(s);
+    }
+    let s = s
+        .replace('\t', "\\t")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n");
+    Cow::Owned(s)
 }

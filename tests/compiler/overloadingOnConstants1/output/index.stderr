@@ -1,0 +1,23 @@
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/overloadingOnConstants1/index.ts:26:5]
+ 26 │ htmlElement2
+    · ────────────
+    ╰────
+
+  × Property 'biz' is missing.
+    ╭─[../../tests/compiler/overloadingOnConstants1/index.ts:28:5]
+ 28 │ htmlCanvasElement2
+    · ──────────────────
+    ╰────
+
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/overloadingOnConstants1/index.ts:30:5]
+ 30 │ htmlDivElement2
+    · ───────────────
+    ╰────
+
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/overloadingOnConstants1/index.ts:32:5]
+ 32 │ htmlSpanElement2
+    · ────────────────
+    ╰────

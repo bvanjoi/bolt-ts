@@ -7,6 +7,8 @@ use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
 
+use bolt_ts_ast::SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS;
+use bolt_ts_ast::SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
 use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
 use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, TokenFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
@@ -329,7 +331,9 @@ impl<'cx> ParserState<'cx, '_> {
         {
             self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident, None)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
-            match expr.kind {
+            const FLAGS: u8 =
+                SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS | SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+            match ast::Expr::skip_outer_expr::<FLAGS>(expr).kind {
                 ast::ExprKind::Ident(n) => {
                     if self.in_strict_mode {
                         self.check_strict_mode_eval_or_arguments(n);

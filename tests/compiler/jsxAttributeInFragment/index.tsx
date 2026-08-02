@@ -4,3 +4,4 @@
 //~| ERROR: Identifier expected.
 //~| ERROR: Expression expected.
 //~| ERROR: Unterminated regular expression literal.
+//~| ERROR: Unexpected keyword or identifier.

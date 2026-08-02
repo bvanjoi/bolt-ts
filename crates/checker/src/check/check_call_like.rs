@@ -764,24 +764,22 @@ impl<'cx> TyChecker<'cx> {
         }
         let func_ty =
             self.check_non_null_ty_with_reporter(func_ty, callee.id(), |this, _, facts| {
-                let error: bolt_ts_errors::BoxedDiag;
                 debug_assert!(facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL));
-                if facts.contains(TypeFacts::IS_UNDEFINED) {
+                let error: bolt_ts_errors::BoxedDiag = if facts.contains(TypeFacts::IS_UNDEFINED) {
                     if facts.contains(TypeFacts::IS_NULL) {
-                        error =
-                            Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
-                                span: callee.span(),
-                            });
-                    } else {
-                        error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyUndefined {
+                        Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
                             span: callee.span(),
-                        });
+                        })
+                    } else {
+                        Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyUndefined {
+                            span: callee.span(),
+                        })
                     }
                 } else {
-                    error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNull {
+                    Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNull {
                         span: callee.span(),
-                    });
-                }
+                    })
+                };
                 this.push_error(error);
             });
 
@@ -1424,7 +1422,7 @@ impl<'cx> TyChecker<'cx> {
         let mut result = Vec::with_capacity(sigs.len());
         self.reorder_candidates(sigs, &mut result, call_chain_flags);
         let candidates = result;
-        // TODO: is_jsx_open_frament
+        // TODO: is_jsx_open_fragment
         if candidates.is_empty() {
             if report_error {
                 let error = errors::CallTargetDoesNotContainAnySignatures {
@@ -2126,11 +2124,6 @@ impl<'cx> TyChecker<'cx> {
         sigs: &[&'cx Sig<'cx>],
         predicate: impl Fn(&'cx Sig<'cx>) -> bool + Copy,
     ) -> bool {
-        for sig in sigs {
-            if self.some_signature(sig, predicate) {
-                return true;
-            }
-        }
-        false
+        sigs.iter().any(|sig| self.some_signature(sig, predicate))
     }
 }

@@ -13,5 +13,6 @@ class C {
     //~^ ERROR: Expected '}'.
     //~| ERROR: Expected ','.
     //~| ERROR: Expression expected.
+    //~| ERROR: Unexpected keyword or identifier.
 }
 //~^ ERROR: Declaration or statement expected.

@@ -16,6 +16,12 @@
    · ─
    ╰────
 
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:1]
+ 1 │ < key="nope">
+   · ─────────────
+   ╰────
+
   × Expression expected.
    ╭─[../../tests/compiler/jsxAttributeInFragment/index.tsx:1:14]
  1 │ <

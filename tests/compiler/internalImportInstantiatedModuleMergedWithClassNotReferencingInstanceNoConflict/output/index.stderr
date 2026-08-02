@@ -1,0 +1,6 @@
+  × Property 'aProp' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/internalImportInstantiatedModuleMergedWithClassNotReferencingInstanceNoConflict/index.ts:6:5]
+ 6 │ aProp
+   · ─────
+   ╰────

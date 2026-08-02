@@ -1,0 +1,44 @@
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/overloadingOnConstants2/index.ts:13:10]
+ 13 │ foo
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'C'.
+    ╭─[../../tests/compiler/overloadingOnConstants2/index.ts:16:11]
+ 16 │ null
+    · ────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadingOnConstants2/index.ts:21:9]
+ 12 │ foo(x: "hi", items: string[]): D;
+    · ─┬─
+    ·  ╰── Unmatched call.
+ 13 │ function foo(x: "bye", items: string[]): E;
+    ·          ─┬─
+    ·           ╰── Unmatched call.
+ 14 │ //~^ ERROR: This overload signature is not compatible with its implementation signature.
+ 15 │ function foo(x: string, items: string[]): C {
+ 16 │    return null;
+ 17 │    //~^ ERROR: Type 'null' is not assignable to type 'C'.
+ 18 │ }
+ 19 │ var a: D = foo("hi", []); // D
+ 20 │ var b: E = foo("bye", []); // E 
+ 21 │ var c = foo("um", [])
+    ·         ─────────────
+    ╰────
+
+  × This overload signature is not compatible with its implementation
+  │ signature.
+    ╭─[../../tests/compiler/overloadingOnConstants2/index.ts:26:10]
+ 26 │ bar
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'C'.
+    ╭─[../../tests/compiler/overloadingOnConstants2/index.ts:30:11]
+ 30 │ null
+    · ────
+    ╰────

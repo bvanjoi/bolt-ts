@@ -155,11 +155,10 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
         indexed_access_ty: &'cx ty::IndexedAccessTy<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        assert!(
-            ty.kind
-                .as_indexed_access()
-                .is_some_and(|t| std::ptr::addr_eq(t, indexed_access_ty))
-        );
+        debug_assert!({
+            let ty = ty.kind.expect_indexed_access();
+            std::ptr::addr_eq(ty, indexed_access_ty)
+        });
         // check cache
         if let Some(cached) = match WRITING {
             true => self.get_ty_links(ty.id).get_writing_simplified_ty(),

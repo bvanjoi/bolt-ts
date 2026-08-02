@@ -1,19 +1,91 @@
-  × Declaration or statement expected.
-    ╭─[../../tests/compiler/parseInvalidNames/index.ts:12:1]
- 12 │ export
-    · ──────
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:5:1]
+ 5 │ namespace
+   · ─────────
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:5:11]
+ 5 │ 100
+   · ───
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:9:1]
+ 9 │ interface
+   · ─────────
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:9:11]
+ 9 │ 100
+   · ───
+   ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:13:1]
+ 13 │ type
+    · ────
     ╰────
 
-  × Declaration or statement expected.
-    ╭─[../../tests/compiler/parseInvalidNames/index.ts:15:1]
- 15 │ export
-    · ──────
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:13:6]
+ 13 │ 100
+    · ───
     ╰────
 
   × Declaration or statement expected.
     ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:1]
  18 │ export
     · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:8]
+ 18 │ namespace
+    · ─────────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:18]
+ 18 │ 100
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:23:1]
+ 23 │ export
+    · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:23:8]
+ 23 │ interface
+    · ─────────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:23:18]
+ 23 │ 100
+    · ───
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:28:1]
+ 28 │ export
+    · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:28:8]
+ 28 │ type
+    · ────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:28:13]
+ 28 │ 100
+    · ───
     ╰────
 
   × Cannot find name 'namespace'.
@@ -23,31 +95,31 @@
    ╰────
 
   × Cannot find name 'interface'.
-   ╭─[../../tests/compiler/parseInvalidNames/index.ts:7:1]
- 7 │ interface
+   ╭─[../../tests/compiler/parseInvalidNames/index.ts:9:1]
+ 9 │ interface
    · ─────────
    ╰────
 
   × Cannot find name 'type'.
-   ╭─[../../tests/compiler/parseInvalidNames/index.ts:9:1]
- 9 │ type
-   · ────
-   ╰────
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:13:1]
+ 13 │ type
+    · ────
+    ╰────
 
   × Cannot find name 'namespace'.
-    ╭─[../../tests/compiler/parseInvalidNames/index.ts:12:8]
- 12 │ namespace
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:8]
+ 18 │ namespace
     · ─────────
     ╰────
 
   × Cannot find name 'interface'.
-    ╭─[../../tests/compiler/parseInvalidNames/index.ts:15:8]
- 15 │ interface
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:23:8]
+ 23 │ interface
     · ─────────
     ╰────
 
   × Cannot find name 'type'.
-    ╭─[../../tests/compiler/parseInvalidNames/index.ts:18:8]
- 18 │ type
+    ╭─[../../tests/compiler/parseInvalidNames/index.ts:28:8]
+ 28 │ type
     · ────
     ╰────

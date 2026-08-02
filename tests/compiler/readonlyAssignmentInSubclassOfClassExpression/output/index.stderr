@@ -1,0 +1,5 @@
+  × Cannot assign to 'attrib' because it is a read-only property.
+   ╭─[../../tests/compiler/readonlyAssignmentInSubclassOfClassExpression/index.ts:8:14]
+ 8 │ attrib
+   · ──────
+   ╰────

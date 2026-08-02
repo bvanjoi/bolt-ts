@@ -160,24 +160,28 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p("namespace");
         self.emitter.print().p_whitespace();
         visit_module_name(self, node.name);
+        if let Some(block) = node.block {
+            self.visit_module_block(block)
+        }
+    }
+
+    fn visit_module_block(&mut self, node: &'cx bolt_ts_ast::ModuleBlock<'cx>) -> Self::Result {
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
-        if let Some(block) = node.block {
-            let saved_flags = self.flags;
-            self.flags
-                .insert(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER);
-            self.flags.remove(EmitDeclarationFlags::NEED_DECLARE);
-            self.emitter.increment_indent();
-            self.emitter.print().p_newline();
-            self.emit_list(
-                block.stmts,
-                |this, stmt| this.visit_stmt(stmt),
-                |this, _| this.emitter.print().p_newline(),
-            );
-            self.emitter.decrement_indent();
-            self.emitter.print().p_newline();
-            self.flags = saved_flags;
-        }
+        let saved_flags = self.flags;
+        self.flags
+            .insert(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER);
+        self.flags.remove(EmitDeclarationFlags::NEED_DECLARE);
+        self.emitter.increment_indent();
+        self.emitter.print().p_newline();
+        self.emit_list(
+            node.stmts,
+            |this, stmt| this.visit_stmt(stmt),
+            |this, _| this.emitter.print().p_newline(),
+        );
+        self.emitter.decrement_indent();
+        self.emitter.print().p_newline();
+        self.flags = saved_flags;
         self.emitter.print().p_r_brace();
     }
 
@@ -383,7 +387,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
         if let Some(implements) = node.implements {
             self.emitter.print().p_whitespace();
-            self.emitter.print().p("implement");
+            self.emitter.print().p("implements");
             self.emitter.print().p_whitespace();
             self.emit_list(
                 implements.list,
@@ -660,6 +664,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_method_signature(&mut self, node: &'cx ast::MethodSignature<'cx>) -> Self::Result {
         self.visit_prop_name(node.name);
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
             node.params,
@@ -1054,7 +1059,7 @@ fn visit_nested_module_declaration_inner<'cx>(
     v.emitter.print().p_dot();
     v.visit_ident(node.name);
     match node.block {
-        ast::NestedModuleBlock::Nested(decl) => v.visit_nested_module_decl(decl),
+        ast::NestedModuleBlock::Nested(decl) => visit_nested_module_declaration_inner(v, decl),
         ast::NestedModuleBlock::Block(block) => v.visit_module_block(block),
     }
 }

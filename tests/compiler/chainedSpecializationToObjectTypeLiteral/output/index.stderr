@@ -1,0 +1,11 @@
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/chainedSpecializationToObjectTypeLiteral/index.ts:13:10]
+ 13 │ s
+    · ─
+    ╰────
+
+  × Variable 's' is used before being assigned.
+    ╭─[../../tests/compiler/chainedSpecializationToObjectTypeLiteral/index.ts:13:10]
+ 13 │ s
+    · ─
+    ╰────

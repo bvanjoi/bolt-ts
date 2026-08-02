@@ -61,7 +61,7 @@ fn run_test_with(
     output: String,
     try_run_node: bool,
 ) -> Result<(), Vec<compile_test::errors::Error>> {
-    assert!(file_name == "index.ts" || file_name == "index.tsx");
+    assert!(file_name == "index.ts" || file_name == "index.tsx" || file_name == "index.js");
     assert!(
         !dir.join("tsconfig.json").exists(),
         "use tsconfig d instead of providing tsconfig.json file"
@@ -198,7 +198,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
 
 #[dir_test::dir_test(
     dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
-    glob: "**/index.ts",
+    glob: "*/index.ts",
 )]
 fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
@@ -207,9 +207,18 @@ fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
 
 #[dir_test::dir_test(
     dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
-    glob: "**/index.tsx",
+    glob: "*/index.tsx",
 )]
 fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry, false);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
+    glob: "*/index.js",
+)]
+fn run_index_js_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
     run_test(entry, false);
 }

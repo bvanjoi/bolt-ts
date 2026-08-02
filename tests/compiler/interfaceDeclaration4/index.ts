@@ -51,3 +51,4 @@ interface Foo.I1 { }
 //~| ERROR: Cannot find name 'I1'.
 //~| ERROR: Property or signature expected.
 //~| ERROR: Property or signature expected.
+//~| ERROR: Unexpected keyword or identifier.

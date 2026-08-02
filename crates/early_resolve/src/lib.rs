@@ -1120,7 +1120,7 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
         &mut self,
         ident: &'cx ast::Ident,
         meaning: SymbolFlags,
-    ) -> ResolvedResult {
+    ) -> ResolvedResult<'cx> {
         let res = resolve_symbol_by_ident(self, ident, meaning);
         let prev = self.final_res.insert(ident.id, res.symbol());
         assert!(

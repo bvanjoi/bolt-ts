@@ -1,0 +1,11 @@
+  × Cannot find name 'any'.
+   ╭─[../../tests/compiler/newNonReferenceType/index.ts:5:13]
+ 5 │ any
+   · ───
+   ╰────
+
+  × Cannot find name 'boolean'.
+   ╭─[../../tests/compiler/newNonReferenceType/index.ts:7:13]
+ 7 │ boolean
+   · ───────
+   ╰────

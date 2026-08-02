@@ -1,0 +1,17 @@
+  × Expected 2 arguments, but got 1.
+   ╭─[../../tests/compiler/templateLiteralsInTypes/index.ts:9:1]
+ 9 │ f
+   · ─
+   ╰────
+
+  × Property 'foo' does not exist on type '`${string}:\t${number}\r\n`'.
+   ╭─[../../tests/compiler/templateLiteralsInTypes/index.ts:9:8]
+ 9 │ foo
+   · ───
+   ╰────
+
+  × Type 'string' is not assignable to type '`${string}:123`'.
+    ╭─[../../tests/compiler/templateLiteralsInTypes/index.ts:13:7]
+ 13 │ a
+    · ─
+    ╰────

@@ -1,0 +1,13 @@
+  × Property 'classFooProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/interfaceClassMerging2/index.ts:11:5]
+ 11 │ classFooProperty
+    · ────────────────
+    ╰────
+
+  × Property 'classBarProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/interfaceClassMerging2/index.ts:26:5]
+ 26 │ classBarProperty
+    · ────────────────
+    ╰────

@@ -10,10 +10,12 @@ class A
         //~^ ERROR: Declaration or statement expected.
         //~| ERROR: Cannot find name 'any'.
         //~| ERROR: Property 'foo' does not exist on type 'A<A>'.
+        //~| ERROR: Unexpected keyword or identifier.
         this.bar: any;
         //~^ ERROR: Declaration or statement expected.
         //~| ERROR: Cannot find name 'any'.
         //~| ERROR: Property 'bar' does not exist on type 'A<A>'.
+        //~| ERROR: Unexpected keyword or identifier.
     }
 
 

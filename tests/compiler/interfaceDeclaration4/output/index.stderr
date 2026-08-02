@@ -22,6 +22,12 @@
     · ──
     ╰────
 
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:15]
+ 48 │ I1
+    · ──
+    ╰────
+
   × Cannot find name 'I1'.
     ╭─[../../tests/compiler/interfaceDeclaration4/index.ts:48:15]
  48 │ I1

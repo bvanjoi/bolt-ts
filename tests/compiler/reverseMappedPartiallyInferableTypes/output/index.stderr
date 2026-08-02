@@ -1,0 +1,11 @@
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/reverseMappedPartiallyInferableTypes/index.ts:96:20]
+ 96 │ k
+    · ─
+    ╰────
+
+  × Object is of type 'unknown'.
+    ╭─[../../tests/compiler/reverseMappedPartiallyInferableTypes/index.ts:96:20]
+ 96 │ k
+    · ─
+    ╰────

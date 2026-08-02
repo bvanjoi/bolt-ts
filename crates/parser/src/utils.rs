@@ -550,7 +550,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_error_for_missing_semicolon_after(node_span);
     }
 
-    fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
+    pub(super) fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
         let error = errors::UnexpectedKeywordOrIdentifier { span: node_span };
         self.push_error(Box::new(error));
     }

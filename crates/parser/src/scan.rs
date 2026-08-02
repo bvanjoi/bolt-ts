@@ -1063,7 +1063,7 @@ impl ParserState<'_, '_> {
                     };
                 }
                 b'\\' => {
-                    contents.extend(&self.input[start..self.pos]);
+                    // contents.extend(&self.input[start..self.pos]);
                     let flags = EscapeSequenceScanningFlags::STRING.union(
                         if SHOULD_EMIT_INVALID_ESCAPE_ERROR {
                             EscapeSequenceScanningFlags::REPORT_ERRORS

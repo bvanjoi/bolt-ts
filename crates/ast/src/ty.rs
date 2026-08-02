@@ -601,6 +601,13 @@ pub struct ObjectLit<'cx> {
 pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
+    /// ```ts
+    /// type T<U> = {
+    ///     [K in keyof U ]: number;
+    /// //   ~~~~~~~~~~~~ type_parameter
+    /// }
+    ///
+    /// ```
     pub ty_param: &'cx self::TyParam<'cx>,
     /// - Plus token means `+readonly`,
     /// - Minus token means `-readonly`,
@@ -608,6 +615,13 @@ pub struct MappedTy<'cx> {
     /// - Other token is unreachable.
     /// - No token means no modifier.
     pub readonly_token: Option<Token>,
+    /// ```ts
+    /// type T<U> = {
+    ///     [K in keyof U as `keyof N`]: number;
+    /// //                   ~~~~~~~~~ name_ty
+    /// }
+    ///
+    /// ```
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Token>,
     pub ty: Option<&'cx Ty<'cx>>,

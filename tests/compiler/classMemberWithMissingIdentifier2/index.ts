@@ -9,6 +9,7 @@ class C {
     //~| ERROR: Unexpected keyword or identifier.
     //~| ERROR: Expected '}'.
     //~| ERROR: Expected ','.
+    //~| ERROR: Unexpected keyword or identifier.
     //~| ERROR: Declaration or statement expected.
     //~| ERROR: Cannot find name 'string'.
     //~| ERROR: Cannot find name 'VariableDeclaration'.

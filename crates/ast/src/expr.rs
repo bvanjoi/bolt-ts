@@ -179,7 +179,9 @@ impl<'cx> Expr<'cx> {
                     expr = n.expr;
                 }
                 ExprKind::Satisfies(n)
-                    if (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS)
+                    if (FLAGS
+                        & (SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS
+                            | SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS))
                         != 0 =>
                 {
                     expr = n.expr;

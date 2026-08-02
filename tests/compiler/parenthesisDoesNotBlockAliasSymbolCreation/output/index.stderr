@@ -1,0 +1,31 @@
+  × Conversion of type 'null' to type 'A<{ x: number; }>' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/parenthesisDoesNotBlockAliasSymbolCreation/index.ts:18:18]
+ 18 │ null as A<{ x : number }>
+    · ─────────────────────────
+    ╰────
+
+  × Conversion of type 'null' to type 'A2<{ x: number; }>' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/parenthesisDoesNotBlockAliasSymbolCreation/index.ts:20:19]
+ 20 │ null as A2<{ x : number }>
+    · ──────────────────────────
+    ╰────
+
+  × Conversion of type 'null' to type '{ x: number; } & InvalidKeys<"a">' may
+  │ be a mistake because neither type sufficiently overlaps with the other. If
+  │ this was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/parenthesisDoesNotBlockAliasSymbolCreation/index.ts:22:19]
+ 22 │ null as { x : number } & InvalidKeys<"a">
+    · ─────────────────────────────────────────
+    ╰────
+
+  × Conversion of type 'null' to type '{ x: number; } & InvalidKeys2<"a">' may
+  │ be a mistake because neither type sufficiently overlaps with the other. If
+  │ this was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/parenthesisDoesNotBlockAliasSymbolCreation/index.ts:24:19]
+ 24 │ null as { x : number } & InvalidKeys2<"a">
+    · ──────────────────────────────────────────
+    ╰────

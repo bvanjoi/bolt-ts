@@ -34,8 +34,14 @@
     · ─
     ╰────
 
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:12:20]
+ 12 │ ()
+    · ──
+    ╰────
+
   × Declaration or statement expected.
-    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:16:1]
- 16 │ }
+    ╭─[../../tests/compiler/ClassDeclaration26/index.ts:17:1]
+ 17 │ }
     · ─
     ╰────

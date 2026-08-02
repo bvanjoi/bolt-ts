@@ -446,6 +446,12 @@
      · ──
      ╰────
 
+  × Unexpected keyword or identifier.
+     ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:1]
+ 151 │ 09.
+     · ───
+     ╰────
+
   × Cannot find name 'x'.
      ╭─[../../tests/compiler/numberLiteralsWithLeadingZeros/index.ts:151:4]
  151 │ x
