@@ -14,3 +14,8 @@ declare global {
 export function foo<T>(p: Promise<T>) {
     p[FOO_SYMBOL] = 3;
 }
+
+type Tag<Token extends string> = Token;
+type GetTagMetadata<Type extends Tag<TagName>, TagName extends string> = string;
+const _a = '' as GetTagMetadata<'URL', 'NonExistentTag'>;
+//~^ ERROR: Type '"URL"' does not satisfy the constraint '"NonExistentTag"'.

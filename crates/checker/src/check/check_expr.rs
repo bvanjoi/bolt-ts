@@ -1289,6 +1289,7 @@ impl<'cx> TyChecker<'cx> {
             }
             return self.get_regular_ty_of_literal_ty(expr_ty);
         }
+        self.check_ty(assert_ty);
         self.check_node_deferred(node_id);
         let ret = self.get_ty_from_type_node(assert_ty);
         if let Some(_old) = self.get_node_links(node_id).get_assertion_expression_ty() {

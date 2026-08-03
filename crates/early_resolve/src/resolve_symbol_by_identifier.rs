@@ -552,8 +552,9 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         })
                     && associated_declaration_for_containing_initializer_or_binding_name.is_none()
                 {
-                    associated_declaration_for_containing_initializer_or_binding_name =
-                        Some(AssociatedDeclarationForContainingInitializerOrBindingName::ParamDecl(p));
+                    associated_declaration_for_containing_initializer_or_binding_name = Some(
+                        AssociatedDeclarationForContainingInitializerOrBindingName::ParamDecl(p),
+                    );
                 }
             }
             ObjectBindingElem(n) => {
@@ -570,8 +571,9 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                     && n.init.is_some_and(|init| init.id() == last_location)
                     && associated_declaration_for_containing_initializer_or_binding_name.is_none()
                 {
-                    associated_declaration_for_containing_initializer_or_binding_name =
-                        Some(AssociatedDeclarationForContainingInitializerOrBindingName::ArrayBinding(n));
+                    associated_declaration_for_containing_initializer_or_binding_name = Some(
+                        AssociatedDeclarationForContainingInitializerOrBindingName::ArrayBinding(n),
+                    );
                 }
             }
             _ => {}
