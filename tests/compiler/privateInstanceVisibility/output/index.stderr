@@ -1,0 +1,13 @@
+  × Property 'someNumber' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/privateInstanceVisibility/index.ts:9:17]
+ 9 │ someNumber
+   · ──────────
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/privateInstanceVisibility/index.ts:33:13]
+ 33 │ x
+    · ─
+    ╰────

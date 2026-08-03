@@ -1,0 +1,43 @@
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:51:24]
+ 51 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'Editor.List<T>'.
+    ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:76:24]
+ 76 │ null
+    · ────
+    ╰────
+
+  × Property 'next' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:8:16]
+ 8 │ next
+   · ────
+   ╰────
+
+  × Property 'prev' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:10:16]
+ 10 │ prev
+    · ────
+    ╰────
+
+  × Argument of type 'null' is not assignable to parameter of type 'T'.
+     ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:120:52]
+ 120 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'Editor.List<T>'.
+     ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:136:24]
+ 136 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'Editor.List<T>'.
+     ╭─[../../tests/compiler/genericClassWithStaticFactory/index.ts:141:24]
+ 141 │ null
+     · ────
+     ╰────

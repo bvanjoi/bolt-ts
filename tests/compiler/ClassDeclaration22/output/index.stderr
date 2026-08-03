@@ -1,0 +1,5 @@
+  × Function implementation name must be 'foo'.
+   ╭─[../../tests/compiler/ClassDeclaration22/index.ts:8:5]
+ 8 │ "bar"
+   · ─────
+   ╰────

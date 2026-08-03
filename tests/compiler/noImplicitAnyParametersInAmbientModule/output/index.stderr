@@ -1,0 +1,131 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:11:20]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:18:20]
+ 18 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:18:22]
+ 18 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:18:25]
+ 18 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:24:20]
+ 24 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:24:30]
+ 24 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:29:20]
+ 29 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:33:20]
+ 33 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:33:22]
+ 33 │  ...r
+    · ─────
+    ╰────
+
+  × Parameter 'x1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:38:20]
+ 38 │ x1
+    · ──
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:40:31]
+ 40 │  y2
+    · ───
+    ╰────
+
+  × Parameter 'x3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:42:20]
+ 42 │ x3
+    · ──
+    ╰────
+
+  × Parameter 'y3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:42:23]
+ 42 │  y3
+    · ───
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:50:18]
+ 50 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:54:18]
+ 54 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:54:20]
+ 54 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:54:23]
+ 54 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:60:18]
+ 60 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:60:28]
+ 60 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:65:18]
+ 65 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:69:18]
+ 69 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInAmbientModule/index.ts:69:20]
+ 69 │  ...r
+    · ─────
+    ╰────

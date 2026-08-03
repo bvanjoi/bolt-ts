@@ -1865,9 +1865,51 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 );
                 if result != Ternary::FALSE {
-                    // TODO: this_ty & mapped_ty_generic_indexed_access
                     return result;
                 }
+                let source_with_this_argument = self
+                    .c
+                    .get_type_with_this_argument::<false>(constraint, Some(source));
+                result = self.is_related_to(
+                    source_with_this_argument,
+                    target,
+                    RecursionFlags::SOURCE,
+                    report_error
+                        && constraint != self.c.unknown_ty
+                        && !(target_flags
+                            .intersects(source_flags.intersection(TypeFlags::TYPE_PARAMETER))),
+                    intersection_state,
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
+                if self.c.is_mapped_ty_generic_indexed_access(source) {
+                    let source_index_access = source.kind.expect_indexed_access();
+                    if let Some(index_constraint) =
+                        self.c.get_constraint_of_ty(source_index_access.index_ty)
+                    {
+                        let index_access_ty = self.c.get_indexed_access_ty(
+                            source_index_access.object_ty,
+                            index_constraint,
+                            None,
+                            None,
+                            None,
+                            None,
+                        );
+                        result = self.is_related_to(
+                            index_access_ty,
+                            target,
+                            RecursionFlags::SOURCE,
+                            report_error,
+                            IntersectionState::empty(),
+                        );
+                        if result != Ternary::FALSE {
+                            return result;
+                        }
+                    }
+                }
+
+                // TODO: this_ty & mapped_ty_generic_indexed_access
             }
         } else if let Some(source_index) = source.kind.as_index_ty() {
             result = self.is_related_to(

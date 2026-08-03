@@ -1,0 +1,13 @@
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/functionOverloadsRecursiveGenericReturnType/index.ts:6:13]
+ 6 │ id
+   · ──
+   ╰────
+
+  × Property 'GetEnumerator' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/functionOverloadsRecursiveGenericReturnType/index.ts:11:5]
+ 11 │ GetEnumerator
+    · ─────────────
+    ╰────

@@ -7255,8 +7255,12 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    pub fn check_external_module_exports(&mut self, node: &'cx ast::Program<'cx>) {
-        let module_symbol = self.get_symbol_of_declaration(node.id());
+    pub fn check_external_module_exports(&mut self, node: ast::NodeID) {
+        debug_assert!(matches!(
+            self.p.node(node),
+            ast::Node::BlockModuleDecl(_) | ast::Node::Program(_)
+        ));
+        let module_symbol = self.get_symbol_of_declaration(node);
         if self
             .get_symbol_links(module_symbol)
             .get_exports_checked()

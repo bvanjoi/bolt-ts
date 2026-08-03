@@ -1,0 +1,12 @@
+  × Property '_subscription' has no initializer and is not definitely assigned
+  │ in the constructor.
+    ╭─[../../tests/compiler/infinitelyExpandingOverloads/index.ts:18:13]
+ 18 │ _subscription
+    · ─────────────
+    ╰────
+
+  × Type 'null' is not assignable to type 'ViewModel<TValue>'.
+    ╭─[../../tests/compiler/infinitelyExpandingOverloads/index.ts:29:16]
+ 29 │ null
+    · ────
+    ╰────

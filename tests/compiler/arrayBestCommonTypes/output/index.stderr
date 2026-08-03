@@ -1,0 +1,597 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:20:22]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 16 │         public voidIfAny(x: any, y = false): any { return null; }
+ 17 │ 
+ 18 │         public x() {
+ 19 │             <number>(this.voidIfAny([4, 2][0]));
+ 20 │             <number>(this.voidIfAny([4, 2, undefined][0])
+    ·                      ────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:22:22]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 16 │         public voidIfAny(x: any, y = false): any { return null; }
+ 17 │ 
+ 18 │         public x() {
+ 19 │             <number>(this.voidIfAny([4, 2][0]));
+ 20 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 21 │             //~^ ERROR: No overload matches this call.
+ 22 │             <number>(this.voidIfAny([undefined, 2, 4][0])
+    ·                      ────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:24:22]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 16 │         public voidIfAny(x: any, y = false): any { return null; }
+ 17 │ 
+ 18 │         public x() {
+ 19 │             <number>(this.voidIfAny([4, 2][0]));
+ 20 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 21 │             //~^ ERROR: No overload matches this call.
+ 22 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+ 23 │             //~^ ERROR: No overload matches this call.
+ 24 │             <number>(this.voidIfAny([null, 2, 4][0])
+    ·                      ───────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:26:22]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 16 │         public voidIfAny(x: any, y = false): any { return null; }
+ 17 │ 
+ 18 │         public x() {
+ 19 │             <number>(this.voidIfAny([4, 2][0]));
+ 20 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 21 │             //~^ ERROR: No overload matches this call.
+ 22 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+ 23 │             //~^ ERROR: No overload matches this call.
+ 24 │             <number>(this.voidIfAny([null, 2, 4][0]));
+ 25 │             //~^ ERROR: No overload matches this call.
+ 26 │             <number>(this.voidIfAny([2, 4, null][0])
+    ·                      ───────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:28:22]
+ 28 │ this.voidIfAny([undefined, 4, null][0])
+    · ───────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:32:22]
+ 32 │ this.voidIfAny(['', "q", undefined][0])
+    · ───────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:34:22]
+ 34 │ this.voidIfAny([undefined, "q", ''][0])
+    · ───────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:36:22]
+ 36 │ this.voidIfAny([null, "q", ''][0])
+    · ──────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:38:22]
+ 38 │ this.voidIfAny(["q", '', null][0])
+    · ──────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:40:22]
+ 40 │ this.voidIfAny([undefined, '', null][0])
+    · ────────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:13:16]
+ 13 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 14 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 15 │         public voidIfAny
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+    ╰────
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:43:22]
+ 43 │ this.voidIfAny([[3, 4], [null]][0][0])
+    · ──────────────────────────────────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:49:52]
+ 49 │ x
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'iface'.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:58:17]
+ 58 │ ifaceObj
+    · ────────
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:35]
+ 73 │ x
+    · ─
+    ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:73:46]
+ 73 │ y
+    · ─
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:36]
+ 76 │ x
+    · ─
+    ╰────
+
+  × Property 'z' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:76:47]
+ 76 │ z
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:79:34]
+ 79 │ a
+    · ─
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:91:22]
+ 84 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 85 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 86 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 87 │         public voidIfAny(x: any, y = false): any { return null; }
+ 88 │ 
+ 89 │         public x() {
+ 90 │             <number>(this.voidIfAny([4, 2][0]));
+ 91 │             <number>(this.voidIfAny([4, 2, undefined][0])
+    ·                      ────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:93:22]
+ 84 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 85 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 86 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 87 │         public voidIfAny(x: any, y = false): any { return null; }
+ 88 │ 
+ 89 │         public x() {
+ 90 │             <number>(this.voidIfAny([4, 2][0]));
+ 91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 92 │             //~^ ERROR: No overload matches this call.
+ 93 │             <number>(this.voidIfAny([undefined, 2, 4][0])
+    ·                      ────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:95:22]
+ 84 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 85 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 86 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 87 │         public voidIfAny(x: any, y = false): any { return null; }
+ 88 │ 
+ 89 │         public x() {
+ 90 │             <number>(this.voidIfAny([4, 2][0]));
+ 91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 92 │             //~^ ERROR: No overload matches this call.
+ 93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+ 94 │             //~^ ERROR: No overload matches this call.
+ 95 │             <number>(this.voidIfAny([null, 2, 4][0])
+    ·                      ───────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:97:22]
+ 84 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 85 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 86 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 87 │         public voidIfAny(x: any, y = false): any { return null; }
+ 88 │ 
+ 89 │         public x() {
+ 90 │             <number>(this.voidIfAny([4, 2][0]));
+ 91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 92 │             //~^ ERROR: No overload matches this call.
+ 93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+ 94 │             //~^ ERROR: No overload matches this call.
+ 95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+ 96 │             //~^ ERROR: No overload matches this call.
+ 97 │             <number>(this.voidIfAny([2, 4, null][0])
+    ·                      ───────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:99:22]
+ 84 │ voidIfAny(x: boolean, y?: boolean): number;
+    · ────┬────
+    ·     ╰── Unmatched call.
+ 85 │         public voidIfAny(x: string, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 86 │         public voidIfAny(x: number, y?: boolean): number;
+    ·                ────┬────
+    ·                    ╰── Unmatched call.
+ 87 │         public voidIfAny(x: any, y = false): any { return null; }
+ 88 │ 
+ 89 │         public x() {
+ 90 │             <number>(this.voidIfAny([4, 2][0]));
+ 91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+ 92 │             //~^ ERROR: No overload matches this call.
+ 93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+ 94 │             //~^ ERROR: No overload matches this call.
+ 95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+ 96 │             //~^ ERROR: No overload matches this call.
+ 97 │             <number>(this.voidIfAny([2, 4, null][0]));
+ 98 │             //~^ ERROR: No overload matches this call.
+ 99 │             <number>(this.voidIfAny([undefined, 4, null][0])
+    ·                      ───────────────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:103:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0])
+     ·                      ───────────────────────────────────────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:105:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0]));
+ 104 │             //~^ ERROR: No overload matches this call.
+ 105 │             <number>(this.voidIfAny([undefined, "q", ''][0])
+     ·                      ───────────────────────────────────────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:107:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0]));
+ 104 │             //~^ ERROR: No overload matches this call.
+ 105 │             <number>(this.voidIfAny([undefined, "q", ''][0]));
+ 106 │             //~^ ERROR: No overload matches this call.
+ 107 │             <number>(this.voidIfAny([null, "q", ''][0])
+     ·                      ──────────────────────────────────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:109:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0]));
+ 104 │             //~^ ERROR: No overload matches this call.
+ 105 │             <number>(this.voidIfAny([undefined, "q", ''][0]));
+ 106 │             //~^ ERROR: No overload matches this call.
+ 107 │             <number>(this.voidIfAny([null, "q", ''][0]));
+ 108 │             //~^ ERROR: No overload matches this call.
+ 109 │             <number>(this.voidIfAny(["q", '', null][0])
+     ·                      ──────────────────────────────────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:111:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0]));
+ 104 │             //~^ ERROR: No overload matches this call.
+ 105 │             <number>(this.voidIfAny([undefined, "q", ''][0]));
+ 106 │             //~^ ERROR: No overload matches this call.
+ 107 │             <number>(this.voidIfAny([null, "q", ''][0]));
+ 108 │             //~^ ERROR: No overload matches this call.
+ 109 │             <number>(this.voidIfAny(["q", '', null][0]));
+ 110 │             //~^ ERROR: No overload matches this call.
+ 111 │             <number>(this.voidIfAny([undefined, '', null][0])
+     ·                      ────────────────────────────────────────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:114:22]
+  84 │ voidIfAny(x: boolean, y?: boolean): number;
+     · ────┬────
+     ·     ╰── Unmatched call.
+  85 │         public voidIfAny(x: string, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  86 │         public voidIfAny(x: number, y?: boolean): number;
+     ·                ────┬────
+     ·                    ╰── Unmatched call.
+  87 │         public voidIfAny(x: any, y = false): any { return null; }
+  88 │ 
+  89 │         public x() {
+  90 │             <number>(this.voidIfAny([4, 2][0]));
+  91 │             <number>(this.voidIfAny([4, 2, undefined][0]));
+  92 │             //~^ ERROR: No overload matches this call.
+  93 │             <number>(this.voidIfAny([undefined, 2, 4][0]));
+  94 │             //~^ ERROR: No overload matches this call.
+  95 │             <number>(this.voidIfAny([null, 2, 4][0]));
+  96 │             //~^ ERROR: No overload matches this call.
+  97 │             <number>(this.voidIfAny([2, 4, null][0]));
+  98 │             //~^ ERROR: No overload matches this call.
+  99 │             <number>(this.voidIfAny([undefined, 4, null][0]));
+ 100 │             //~^ ERROR: No overload matches this call.
+ 101 │ 
+ 102 │             <number>(this.voidIfAny(['', "q"][0]));
+ 103 │             <number>(this.voidIfAny(['', "q", undefined][0]));
+ 104 │             //~^ ERROR: No overload matches this call.
+ 105 │             <number>(this.voidIfAny([undefined, "q", ''][0]));
+ 106 │             //~^ ERROR: No overload matches this call.
+ 107 │             <number>(this.voidIfAny([null, "q", ''][0]));
+ 108 │             //~^ ERROR: No overload matches this call.
+ 109 │             <number>(this.voidIfAny(["q", '', null][0]));
+ 110 │             //~^ ERROR: No overload matches this call.
+ 111 │             <number>(this.voidIfAny([undefined, '', null][0]));
+ 112 │             //~^ ERROR: No overload matches this call.
+ 113 │ 
+ 114 │             <number>(this.voidIfAny([[3, 4], [null]][0][0])
+     ·                      ──────────────────────────────────────
+     ╰────
+
+  × Type 'undefined' is not assignable to type 'string'.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:119:52]
+ 119 │ x
+     · ─
+     ╰────
+
+  × Type 'null' is not assignable to type 'iface'.
+     ╭─[../../tests/compiler/arrayBestCommonTypes/index.ts:128:17]
+ 128 │ ifaceObj
+     · ────────
+     ╰────

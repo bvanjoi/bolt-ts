@@ -443,7 +443,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         checker.check_program(root);
         checker.check_deferred_nodes(*item);
         if checker.p.get(*item).is_external_or_commonjs_module() {
-            checker.check_external_module_exports(root);
+            checker.check_external_module_exports(root.id());
         }
         assert!(
             !is_default_lib || prev == checker.diags.len(),

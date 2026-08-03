@@ -51,7 +51,7 @@ impl<'cx> TyChecker<'cx> {
             ImportEquals(node) => self.check_import_equals_decl(node),
             Export(node) => self.check_export_decl(node),
             Enum(node) => self.check_enum_decl(node),
-            ExportAssign(_) => {}
+            ExportAssign(node) => self.check_export_assignment(node),
             Empty(_) => {}
             Throw(_) => {}
             Break(_) => {}
@@ -63,6 +63,19 @@ impl<'cx> TyChecker<'cx> {
             Switch(n) => self.check_switch_stmt(n),
             Labeled(n) => self.check_stmt(n.stmt),
         };
+    }
+
+    fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
+        let container = if let Some(parent) = self.parent(node.id) {
+            if self.p.node(parent).is_program() {
+                parent
+            } else {
+                self.parent(parent).unwrap()
+            }
+        } else {
+            unreachable!()
+        };
+        self.check_external_module_exports(container);
     }
 
     fn check_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) {

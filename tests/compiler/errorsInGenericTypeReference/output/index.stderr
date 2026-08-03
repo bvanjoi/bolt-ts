@@ -1,0 +1,125 @@
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:16:17]
+ 16 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:23:31]
+ 23 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:29:29]
+ 29 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:31:36]
+ 31 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:33:27]
+ 33 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:35:24]
+ 35 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:41:36]
+ 41 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:46:36]
+ 46 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:51:17]
+ 51 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:56:33]
+ 56 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:59:41]
+ 59 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:63:27]
+ 63 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:68:25]
+ 68 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:74:35]
+ 74 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:79:39]
+ 79 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:85:22]
+ 85 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:85:38]
+ 85 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:88:27]
+ 88 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:90:24]
+ 90 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:90:40]
+ 90 │ V
+    · ─
+    ╰────
+
+  × Cannot find name 'V'.
+    ╭─[../../tests/compiler/errorsInGenericTypeReference/index.ts:93:24]
+ 93 │ V
+    · ─
+    ╰────
