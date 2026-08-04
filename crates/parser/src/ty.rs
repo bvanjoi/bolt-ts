@@ -210,7 +210,7 @@ impl<'cx> ParserState<'cx, '_> {
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::TYPE);
-        self.check_parameters(params, CheckParameterFlags::empty());
+        self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let span = self.new_span(start);
         let ty = if is_ctor_ty {
@@ -814,7 +814,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters(SignatureFlags::TYPE);
-            self.check_parameters(params, CheckParameterFlags::empty());
+            self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
@@ -847,7 +847,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::TYPE);
-        self.check_parameters(params, CheckParameterFlags::empty());
+        self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);

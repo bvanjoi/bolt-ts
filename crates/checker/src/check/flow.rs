@@ -1306,22 +1306,61 @@ impl<'cx> TyChecker<'cx> {
         let cond_antecedent = cond.antecedent;
         let cond_node = cond.node;
         let assume_true = n.flags.contains(FlowFlags::TRUE_CONDITION);
-        let flow_ty = self.get_ty_at_flow_node(
-            cond_antecedent,
-            refer,
-            shared_flow_start,
-            declared_ty,
-            init_ty,
-            flow_container,
-            key,
-        );
+        if assume_true {
+            self.get_ty_at_flow_cond_worker::<true>(
+                cond_node,
+                Some(cond_antecedent),
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        } else {
+            self.get_ty_at_flow_cond_worker::<false>(
+                cond_node,
+                Some(cond_antecedent),
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn get_ty_at_flow_cond_worker<const ASSUME_TRUE: bool>(
+        &mut self,
+        cond_node: ast::NodeID,
+        cond_antecedent: Option<FlowID>,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let flow_ty = cond_antecedent.map_or(FlowTy::Ty(init_ty), |cond_antecedent| {
+            self.get_ty_at_flow_node(
+                cond_antecedent,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        });
         let ty = self.get_ty_from_flow_ty(flow_ty);
         if ty.flags.contains(TypeFlags::NEVER) {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
         let narrowed_ty =
-            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, assume_true);
+            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, ASSUME_TRUE);
         if narrowed_ty == non_evolving_ty {
             flow_ty
         } else {
@@ -1330,7 +1369,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_flow_ty(&self, flow_ty: FlowTy<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_ty_from_flow_ty(&self, flow_ty: FlowTy<'cx>) -> &'cx ty::Ty<'cx> {
         match flow_ty {
             FlowTy::Ty(ty) => ty,
             FlowTy::Incomplete { ty, .. } => ty,

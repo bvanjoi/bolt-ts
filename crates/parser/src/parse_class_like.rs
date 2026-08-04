@@ -352,9 +352,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             };
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters(flags);
-            self.check_parameters(params, CheckParameterFlags::empty());
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
+            if body.is_some() {
+                self.check_parameters(params, CheckParameterFlags::empty());
+            } else {
+                self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+            }
             let span = self.new_span(start);
             let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,

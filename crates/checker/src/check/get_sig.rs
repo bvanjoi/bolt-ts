@@ -1,6 +1,7 @@
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::keyword::is_prim_value_name;
 use bolt_ts_ast::r#trait::node_id_of_binding;
+use bolt_ts_ast_visitor::VisitorResult;
 use bolt_ts_binder::SymbolFlags;
 use bolt_ts_binder::SymbolID;
 
@@ -421,7 +422,7 @@ impl<'cx> TyChecker<'cx> {
                 // func_ty = Some()
                 todo!()
             } else if let parent = self.parent(node).unwrap()
-                && let Some(_stmtt) = self.p.node(parent).as_expr_stmt()
+                && let Some(_stmt) = self.p.node(parent).as_expr_stmt()
             {
                 func_ty = self.get_ty_of_dotted_name(expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {
@@ -532,26 +533,189 @@ impl<'cx> TyChecker<'cx> {
             let ty = sig
                 .node_id
                 .and_then(|node_id| self.get_effective_ret_type_node(node_id));
-            let pred = if let Some(ty) = ty {
+            if let Some(ty) = ty {
                 if let ast::TyKind::Pred(p) = ty.kind {
                     self.create_ty_pred_from_ty_pred_node(p, sig)
                 } else {
                     self.no_ty_pred()
                 }
-            } else if let Some(_decll) = sig.node_id {
-                // TODO: is_function_like_decl then get from body
-                self.no_ty_pred()
+            } else if let Some(decl) = sig.node_id
+                && let decl_node = self.p.node(decl)
+                && decl_node.is_fn_decl_like()
+                && self
+                    .get_sig_links(sig.id)
+                    .get_resolved_ret_ty()
+                    .is_none_or(|ret_ty| ret_ty.flags.contains(TypeFlags::BOOLEAN))
+                && !sig.params.is_empty()
+            {
+                // get_type_predicate_from_body
+                if matches!(
+                    decl_node,
+                    ast::Node::ClassCtor(_) | ast::Node::GetterDecl(_) | ast::Node::SetterDecl(_)
+                ) {
+                    self.no_ty_pred()
+                } else if decl_node.fn_flags() != ast::FnFlags::empty() {
+                    self.no_ty_pred()
+                } else {
+                    let Some(fn_body) = decl_node.fn_body() else {
+                        unreachable!()
+                    };
+
+                    let single_return;
+                    let mut bailed_early = false;
+                    // let mut has_implicit_return = false;
+                    match fn_body {
+                        ast::ArrowFnExprBody::Expr(expr) => {
+                            single_return = Some(expr);
+                        }
+                        ast::ArrowFnExprBody::Block(block_stmt) => {
+                            // has_implicit_return = self.fn_has_implicit_return(decl);
+                            struct CollectReturnStmtVisitor<'cx> {
+                                single_return: Option<&'cx ast::Expr<'cx>>,
+                                bailed_early: bool,
+                            }
+                            impl<'cx> RetStmtVisitor<'cx> for CollectReturnStmtVisitor<'cx> {
+                                type Result = bolt_ts_ast_visitor::ControlFlow;
+
+                                fn visit_ret_stmt(
+                                    &mut self,
+                                    _: &mut TyChecker<'_>,
+                                    stmt: &'cx ast::RetStmt<'cx>,
+                                ) -> Self::Result {
+                                    if self.single_return.is_some() {
+                                        self.bailed_early = true;
+                                        return bolt_ts_ast_visitor::ControlFlow::Break;
+                                    }
+                                    match stmt.expr {
+                                        Some(expr) => {
+                                            self.single_return = Some(expr);
+                                            bolt_ts_ast_visitor::ControlFlow::Continue
+                                        }
+                                        None => {
+                                            self.bailed_early = true;
+                                            bolt_ts_ast_visitor::ControlFlow::Break
+                                        }
+                                    }
+                                }
+                            }
+
+                            let mut visitor = CollectReturnStmtVisitor {
+                                single_return: None,
+                                bailed_early: false,
+                            };
+                            for_each_return_statement(self, block_stmt.id, &mut visitor);
+                            single_return = visitor.single_return;
+                            bailed_early = visitor.bailed_early;
+                        }
+                    }
+                    if bailed_early
+                    /* || has_implicit_return */
+                    {
+                        self.no_ty_pred()
+                    } else {
+                        match single_return {
+                            Some(single_return) => self
+                                .check_if_expression_refines_any_parameter(decl, single_return)
+                                .unwrap_or(self.no_ty_pred()),
+                            None => self.no_ty_pred(),
+                        }
+                    }
+                }
             } else {
                 self.no_ty_pred()
-            };
-            self.get_mut_sig_links(sig.id).set_resolved_ty_pred(pred);
-            pred
+            }
         };
         if std::ptr::eq(pred, self.no_ty_pred()) {
             None
         } else {
             Some(pred)
         }
+    }
+
+    fn check_if_expression_refines_any_parameter(
+        &mut self,
+        decl: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> Option<&'cx TyPred<'cx>> {
+        let expr = ast::Expr::skip_parens(expr);
+        let ret_ty = self.check_expression_cached(expr, None);
+        if !ret_ty.flags.contains(TypeFlags::BOOLEAN) {
+            return None;
+        }
+
+        let n = self.p.node(decl);
+        let params = n.params()?;
+        for (i, param) in params.iter().enumerate() {
+            let param_symbol = self.final_res(param.id);
+            let init_ty = self.get_type_of_symbol(param_symbol);
+
+            let ast::BindingKind::Ident(name) = param.name.kind else {
+                continue;
+            };
+            if init_ty.flags.contains(TypeFlags::BOOLEAN) || self.is_symbol_assigned(param_symbol) {
+                continue;
+            }
+            if let Some(true_ty) =
+                self.check_if_expression_refines_parameter(decl, expr, param, init_ty)
+            {
+                return Some(self.create_ident_ty_pred(name.name, i as u32, true_ty));
+            }
+        }
+        None
+    }
+
+    fn check_if_expression_refines_parameter(
+        &mut self,
+        func: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+        param: &'cx ast::ParamDecl<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let antecedent = if let Some(flow) = self.get_flow_node_of_node(expr.id()) {
+            Some(flow)
+        } else if let Some(parent) = self.parent(expr.id())
+            && let ast::Node::RetStmt(n) = self.p.node(parent)
+            && let Some(flow) = self.get_flow_node_of_node(n.id)
+        {
+            Some(flow)
+        } else {
+            None
+        };
+
+        let shared_flow_start = self.shared_flow_info.len();
+        let mut key = std::cell::OnceCell::new();
+        let true_ty = self.get_ty_at_flow_cond_worker::<true>(
+            expr.id(),
+            antecedent,
+            param.id,
+            shared_flow_start,
+            init_ty,
+            init_ty,
+            Some(func),
+            &mut key,
+        );
+        let true_ty = self.get_ty_from_flow_ty(true_ty);
+        if true_ty == init_ty {
+            return None;
+        }
+
+        let mut key = std::cell::OnceCell::new();
+        let false_ty = self.get_ty_at_flow_cond_worker::<false>(
+            expr.id(),
+            antecedent,
+            param.id,
+            shared_flow_start,
+            init_ty,
+            true_ty,
+            Some(func),
+            &mut key,
+        );
+        let false_ty = self.get_ty_from_flow_ty(false_ty);
+        let false_subtype = self.get_reduced_ty(false_ty);
+        false_subtype
+            .flags
+            .contains(TypeFlags::NEVER)
+            .then_some(true_ty)
     }
 }
 
@@ -668,4 +832,120 @@ fn get_sig_from_decl<'cx>(
         },
         this_param,
     )
+}
+
+trait RetStmtVisitor<'cx> {
+    type Result: VisitorResult;
+
+    fn visit_ret_stmt(
+        &mut self,
+        checker: &mut TyChecker<'cx>,
+        stmt: &'cx ast::RetStmt<'cx>,
+    ) -> Self::Result;
+}
+
+fn for_each_return_statement<'cx, V: RetStmtVisitor<'cx>>(
+    checker: &mut TyChecker<'cx>,
+    node: ast::NodeID,
+    v: &mut V,
+) -> V::Result {
+    match checker.p.node(node) {
+        ast::Node::RetStmt(n) => v.visit_ret_stmt(checker, n),
+        ast::Node::CaseBlock(n) => {
+            for clause in n.clauses {
+                let result = for_each_return_statement(checker, clause.id(), v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::BlockStmt(n) => {
+            for stmt in n.stmts {
+                let result = for_each_return_statement(checker, stmt.id(), v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::IfStmt(n) => {
+            let result = for_each_return_statement(checker, n.then.id(), v);
+            if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                return result;
+            }
+            if let Some(else_then) = n.else_then {
+                let result = for_each_return_statement(checker, else_then.id(), v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::DoWhileStmt(ast::DoWhileStmt { stmt, .. })
+        | ast::Node::WhileStmt(ast::WhileStmt { stmt, .. }) => {
+            let result = for_each_return_statement(checker, stmt.id(), v);
+            if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                return result;
+            }
+            V::Result::output()
+        }
+        ast::Node::ForStmt(ast::ForStmt { body, .. })
+        | ast::Node::ForInStmt(ast::ForInStmt { body, .. })
+        | ast::Node::ForOfStmt(ast::ForOfStmt { body, .. }) => {
+            let result = for_each_return_statement(checker, body.id(), v);
+            if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                return result;
+            }
+            V::Result::output()
+        }
+        // TODO: with
+        ast::Node::SwitchStmt(n) => {
+            let result = for_each_return_statement(checker, n.case_block.id, v);
+            if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                return result;
+            }
+            V::Result::output()
+        }
+        ast::Node::CaseClause(n) => {
+            for stmt in n.stmts {
+                let result = for_each_return_statement(checker, stmt.id(), v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::DefaultClause(n) => {
+            for stmt in n.stmts {
+                let result = for_each_return_statement(checker, stmt.id(), v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::LabeledStmt(n) => for_each_return_statement(checker, n.stmt.id(), v),
+        ast::Node::TryStmt(n) => {
+            let result = for_each_return_statement(checker, n.try_block.id, v);
+            if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                return result;
+            }
+            if let Some(catch_clause) = n.catch_clause {
+                let result = for_each_return_statement(checker, catch_clause.id, v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            if let Some(finally_block) = n.finally_block {
+                let result = for_each_return_statement(checker, finally_block.id, v);
+                if result.branch() == bolt_ts_ast_visitor::ControlFlow::Break {
+                    return result;
+                }
+            }
+            V::Result::output()
+        }
+        ast::Node::CatchClause(n) => for_each_return_statement(checker, n.block.id, v),
+        _ => V::Result::output(),
+    }
 }

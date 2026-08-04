@@ -888,3 +888,10 @@ pub struct ADefiniteAssignmentAssertionIsNotPermittedInThisContext {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A binding pattern parameter cannot be optional in an implementation signature.")]
+pub struct ABindingPatternParameterCannotBeOptionalInAnImplementationSignature {
+    #[label(primary)]
+    pub span: Span,
+}

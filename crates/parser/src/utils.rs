@@ -1038,7 +1038,6 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::empty());
-        self.check_parameters(params, CheckParameterFlags::empty());
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),
@@ -1069,6 +1068,11 @@ impl<'cx> ParserState<'cx, '_> {
         }
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
+        if body.is_some() {
+            self.check_parameters(params, CheckParameterFlags::empty());
+        } else {
+            self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+        }
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
         Ok(self.create_setter_declaration(span, modifiers, name, params, body))

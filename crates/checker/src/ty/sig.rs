@@ -49,6 +49,7 @@ pub struct Sig<'cx> {
     pub params: &'cx [SymbolID],
     pub min_args_count: u32,
     pub ret: Option<ast::NodeID>,
+    // TODO: use fn declaration.
     pub node_id: Option<ast::NodeID>,
     pub target: Option<&'cx Sig<'cx>>,
     pub mapper: Option<&'cx dyn TyMap<'cx>>,

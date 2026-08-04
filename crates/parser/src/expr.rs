@@ -104,6 +104,7 @@ impl<'cx> ParserState<'cx, '_> {
         flags: CheckParameterFlags,
     ) {
         let is_container = flags.contains(CheckParameterFlags::CONSTRUCTOR);
+        let is_missing_body = flags.contains(CheckParameterFlags::MISSING_BODY);
         for param in params {
             if let Some(ms) = param.modifiers {
                 if ms
@@ -133,6 +134,20 @@ impl<'cx> ParserState<'cx, '_> {
                     }
                     flags.insert(m.kind().into_flag());
                 }
+            }
+
+            if !is_missing_body
+                && matches!(
+                    param.name.kind,
+                    ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_)
+                )
+                && let Some(question) = param.question
+            {
+                let error =
+                    errors::ABindingPatternParameterCannotBeOptionalInAnImplementationSignature {
+                        span: question,
+                    };
+                self.push_error(Box::new(error));
             }
         }
     }

@@ -1,0 +1,25 @@
+  × Variable 'x' implicitly has type 'any' in some locations where its type
+  │ cannot be determined.
+     ╭─[../../tests/compiler/controlFlowNoImplicitAny/index.ts:107:9]
+ 107 │ x
+     · ─
+     ╰────
+
+  × Variable 'x' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/controlFlowNoImplicitAny/index.ts:117:19]
+ 117 │ x
+     · ─
+     ╰────
+
+  × Variable 'x' implicitly has type 'any' in some locations where its type
+  │ cannot be determined.
+     ╭─[../../tests/compiler/controlFlowNoImplicitAny/index.ts:124:9]
+ 124 │ x
+     · ─
+     ╰────
+
+  × Variable 'x' implicitly has an 'any' type.
+     ╭─[../../tests/compiler/controlFlowNoImplicitAny/index.ts:134:19]
+ 134 │ x
+     · ─
+     ╰────

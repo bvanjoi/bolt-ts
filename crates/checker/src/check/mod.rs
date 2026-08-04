@@ -5622,6 +5622,13 @@ impl<'cx> TyChecker<'cx> {
             s == this.get_symbol_of_declaration(target)
         };
 
+        let is_same_by_source_node_id =
+            |this: &mut Self, source: ast::NodeID, target: ast::NodeID| {
+                let s = this.final_res(source);
+                let s = this.get_export_symbol_of_value_symbol_if_exported(s);
+                s == this.get_symbol_of_declaration(target)
+            };
+
         let get_access_expression_and_property_name = |this: &mut Self, n: ast::Node<'cx>| match n {
             ast::Node::PropAccessExpr(prop_access) => (
                 Some(prop_access.expr.id()),
@@ -5816,6 +5823,29 @@ impl<'cx> TyChecker<'cx> {
                 //    ~~~~
                 // TODO:
                 false
+            }
+            ast::Node::ParamDecl(s) => {
+                // f((x: number | null) => x !== null);
+                //    ~
+                debug_assert!(matches!(s.name.kind, ast::BindingKind::Ident(_)));
+                if let Some(t_ident) = t.as_ident()
+                    && !keyword::is_prim_value_name(t_ident.name)
+                {
+                    self.final_res(s.id) == self.resolve_symbol_by_ident(t_ident)
+                } else if let Some(t_v) = t.as_var_decl() {
+                    match t_v.name.kind {
+                        ast::BindingKind::Ident(_) => is_same_by_source_node_id(self, s.id, t_v.id),
+                        ast::BindingKind::ObjectPat(_) | ast::BindingKind::ArrayPat(_) => {
+                            unreachable!()
+                        }
+                    }
+                } else if let Some(t) = t.as_object_binding_elem() {
+                    is_same_by_source_node_id(self, s.id, t.id)
+                } else if let Some(t) = t.as_array_binding() {
+                    is_same_by_source_node_id(self, s.id, t.id)
+                } else {
+                    false
+                }
             }
             _ => false,
         }

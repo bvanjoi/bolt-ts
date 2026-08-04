@@ -422,7 +422,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_contextual_ty_for_assign(
         &mut self,
         parent: &'cx ast::AssignExpr<'cx>,
-        _flagss: Option<ContextFlags>,
+        _flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let kind = self
             .node_query(parent.id.module())

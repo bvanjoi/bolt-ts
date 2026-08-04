@@ -67,14 +67,19 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
         let container = if let Some(parent) = self.parent(node.id) {
-            if self.p.node(parent).is_program() {
-                parent
-            } else {
-                self.parent(parent).unwrap()
+            let parent_node = self.p.node(parent);
+            match parent_node {
+                ast::Node::Program(_) => parent,
+                ast::Node::ModuleBlock(_) => self.parent(parent).unwrap(),
+                _ => {
+                    // TODO: delay_span_bug
+                    return;
+                }
             }
         } else {
             unreachable!()
         };
+
         self.check_external_module_exports(container);
     }
 
