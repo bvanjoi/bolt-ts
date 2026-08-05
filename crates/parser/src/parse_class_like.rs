@@ -6,10 +6,11 @@ use bolt_ts_span::Span;
 use super::CheckParameterFlags;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
+use super::state::is_js_variant;
 use super::{PResult, ParserState};
 use super::{SignatureFlags, keyword};
 
-pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
+pub(super) fn is_class_ele_start<const VARIANT: u8>(s: &mut ParserState<'_, '_, VARIANT>) -> bool {
     let mut id_token = None;
 
     if s.token.kind == TokenKind::At {
@@ -52,12 +53,12 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     }
 }
 
-pub(super) trait ClassLike<'cx, 'p> {
+pub(super) trait ClassLike<'cx, 'p, const VARIANT: u8> {
     type Node;
     #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -69,11 +70,11 @@ pub(super) trait ClassLike<'cx, 'p> {
 }
 
 pub(super) struct ParseClassDecl;
-impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
+impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -87,11 +88,11 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
+impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassExpr {
     type Node = &'cx ast::ClassExpr<'cx>;
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         _modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -104,7 +105,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     fn parse_name_of_class_decl_or_expr(&mut self) -> Option<&'cx ast::Ident> {
         (self.token.kind.is_binding_ident() && !self.is_implements_clause())
             .then(|| self.parse_binding_ident())
@@ -112,7 +113,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
-        mode: impl ClassLike<'cx, 'p, Node = Node>,
+        mode: impl ClassLike<'cx, 'p, VARIANT, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         debug_assert!(self.token.kind == TokenKind::Class);
@@ -441,6 +442,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
 
                 let span = this.p().new_span(start);
+                if is_js_variant(VARIANT) && body.is_none() {
+                    let error =
+                        errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
+                    this.p().push_error(Box::new(error));
+                }
                 let ctor = this
                     .p()
                     .create_class_constructor(span, mods, name_span, params, ret, body);

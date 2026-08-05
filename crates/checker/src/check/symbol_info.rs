@@ -1256,16 +1256,13 @@ fn get_target_of_export_spec<const DONT_RESOLVE_ALIAS: bool>(
             }
         }
         ast::Node::ExportNamedSpec(n) => match n.prop_name.kind {
-            ast::ModuleExportNameKind::Ident(_identt) => {
+            ast::ModuleExportNameKind::Ident(ident) => {
                 let p = this.parent(node).unwrap();
                 let p = this.p.node(p).expect_specs_export();
                 if p.module.is_some() {
                     todo!()
                 } else {
-                    this.binder.bind_results[n.id.module().as_usize()]
-                        .final_res
-                        .get(&n.id)
-                        .copied()
+                    Some(this.final_res(ident.id))
                 }
             }
             ast::ModuleExportNameKind::StringLit(_) => todo!(),

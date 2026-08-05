@@ -5,7 +5,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast_factory::ASTFactory;
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn can_follow_modifier(&self) -> bool {
         let t = self.token.kind;
         use bolt_ts_ast::TokenKind::*;

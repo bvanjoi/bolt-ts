@@ -8,7 +8,7 @@ use super::{ast, errors};
 use bolt_ts_ast::{Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn should_parse_ret_ty<const IS_COLON: bool, const IS_TY: bool>(&mut self) -> bool {
         if !IS_COLON {
             self.expect(TokenKind::EqGreat);

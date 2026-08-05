@@ -1,0 +1,5 @@
+  × Property 'y' does not exist on type 'Foo<Foo>'.
+    ╭─[../../tests/compiler/propertyOrdering2/index.ts:10:21]
+ 10 │ y
+    · ─
+    ╰────

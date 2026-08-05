@@ -14,7 +14,7 @@ use super::parse_import_export_spec::ParseNamedImports;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let kind = self.token.kind;

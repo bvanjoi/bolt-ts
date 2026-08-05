@@ -61,15 +61,18 @@ fn run_test_with(
     output: String,
     try_run_node: bool,
 ) -> Result<(), Vec<compile_test::errors::Error>> {
-    assert!(file_name == "index.ts" || file_name == "index.tsx" || file_name == "index.js");
     assert!(
         !dir.join("tsconfig.json").exists(),
-        "use tsconfig d instead of providing tsconfig.json file"
+        "use tsconfig directive instead of providing tsconfig.json file"
     );
     let default_include = if file_name == "index.ts" {
         vec!["./*.ts".to_string()]
+    } else if file_name == "index.tsx" {
+        vec!["./*.tsx".to_string(), "./*.ts".to_string()]
+    } else if file_name == "index.js" {
+        vec!["./*.js".to_string(), "./*.ts".to_string()]
     } else {
-        vec![file_name.to_string()]
+        unreachable!()
     };
     let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
     let tsconfig = RawTsConfig::default()

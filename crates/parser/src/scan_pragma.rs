@@ -10,7 +10,7 @@ enum State {
     ExpectString,
 }
 
-impl super::ParserState<'_, '_> {
+impl<const VARIANT: u8> super::ParserState<'_, '_, VARIANT> {
     pub(super) fn scan_triple_slash_xml_pragma(&mut self) {
         assert_eq!(self.ch_unchecked(), b'<');
         self.pos += 1;

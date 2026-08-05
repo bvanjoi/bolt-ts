@@ -35,8 +35,8 @@ pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
 pub use self::scan::is_identifier_part;
-use self::state::LanguageVariant;
 use self::state::ParserState;
+use self::state::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 pub use self::touch::get_touching_property_name;
 pub use self::utils::parse_pseudo_bigint;
 use std::path::PathBuf;
@@ -231,41 +231,29 @@ pub fn parse_parallel<'cx, 'p>(
     // })
 }
 
-pub fn parse<'cx, 'p>(
+fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
     atoms: Arc<Mutex<AtomIntern>>,
     arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
+    nodes: Nodes<'cx>,
     input: &'p [u8],
     module_id: ModuleID,
-    module_arena: &'p ModuleArena,
+    file_path: &std::path::Path,
     always_strict: bool,
 ) -> ParseResult<'cx> {
-    let nodes = Nodes(Vec::with_capacity(1024 * 8));
-    let file_path = module_arena.get_path(module_id);
-    let variant = if file_path
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("jsx") || ext.eq_ignore_ascii_case("tsx"))
-    {
-        LanguageVariant::Jsx
-    } else {
-        LanguageVariant::Standard
-    };
-    let mut s = ParserState::new(
+    let mut s = ParserState::<{ VARIANT }>::new(
         atoms,
         arena,
         nodes,
         input,
         module_id,
         file_path,
-        variant,
         always_strict,
     );
-
     s.parse();
 
     s.record_new_line_offset();
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
-
     let c = collect_deps(
         s.is_declaration,
         s.external_module_indicator.is_some(),
@@ -289,6 +277,83 @@ pub fn parse<'cx, 'p>(
         ambient_modules: c.ambient_modules,
         lib_reference_directives: s.lib_reference_directives,
         _pragmas: s.pragmas,
+    }
+}
+
+pub fn parse<'cx, 'p>(
+    atoms: Arc<Mutex<AtomIntern>>,
+    arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
+    input: &'p [u8],
+    module_id: ModuleID,
+    module_arena: &'p ModuleArena,
+    always_strict: bool,
+) -> ParseResult<'cx> {
+    let nodes = Nodes(Vec::with_capacity(1024 * 8));
+    let file_path = module_arena.get_path(module_id);
+
+    if let Some(ext) = file_path.extension() {
+        let ext = ext.to_ascii_lowercase();
+        if ext.eq_ignore_ascii_case("jsx") {
+            parser_state_parse::<{ JSX_VARIANT }>(
+                atoms,
+                arena,
+                nodes,
+                input,
+                module_id,
+                file_path,
+                always_strict,
+            )
+        } else if ext.eq_ignore_ascii_case("tsx") {
+            parser_state_parse::<{ TSX_VARIANT }>(
+                atoms,
+                arena,
+                nodes,
+                input,
+                module_id,
+                file_path,
+                always_strict,
+            )
+        } else if ext.eq_ignore_ascii_case("ts") {
+            parser_state_parse::<{ TS_VARIANT }>(
+                atoms,
+                arena,
+                nodes,
+                input,
+                module_id,
+                file_path,
+                always_strict,
+            )
+        } else if ext.eq_ignore_ascii_case("d.ts") {
+            parser_state_parse::<{ DTS_VARIANT }>(
+                atoms,
+                arena,
+                nodes,
+                input,
+                module_id,
+                file_path,
+                always_strict,
+            )
+        } else {
+            parser_state_parse::<{ JS_VARIANT }>(
+                atoms,
+                arena,
+                nodes,
+                input,
+                module_id,
+                file_path,
+                always_strict,
+            )
+        }
+    } else {
+        parser_state_parse::<{ TS_VARIANT }>(
+            atoms,
+            arena,
+            nodes,
+            input,
+            module_id,
+            file_path,
+            always_strict,
+        )
     }
 }
 
@@ -481,7 +546,9 @@ bitflags::bitflags! {
     }
 }
 
-impl<'cx, 'p> bolt_ts_ast_factory::ASTFactory<'cx> for ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> bolt_ts_ast_factory::ASTFactory<'cx>
+    for ParserState<'cx, 'p, VARIANT>
+{
     #[inline(always)]
     fn next_node_id(&mut self) -> NodeID {
         self.next_node_id()

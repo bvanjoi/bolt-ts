@@ -25,7 +25,7 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
     }
 }
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn parse_fn_block_or_semi(
         &mut self,
         flags: SignatureFlags,

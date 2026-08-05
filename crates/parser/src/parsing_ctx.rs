@@ -70,7 +70,7 @@ impl ParsingContext {
     }
 }
 
-impl ParserState<'_, '_> {
+impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     pub(super) fn is_list_element(&mut self, ctx: ParsingContext, in_error_recovery: bool) -> bool {
         match ctx {
             ParsingContext::SOURCE_ELEMENTS
@@ -294,7 +294,7 @@ impl ParserState<'_, '_> {
     }
 }
 
-fn is_ty_member_start(s: &mut ParserState) -> bool {
+fn is_ty_member_start<const VARIANT: u8>(s: &mut ParserState<'_, '_, VARIANT>) -> bool {
     use bolt_ts_ast::TokenKind::*;
     if matches!(s.token.kind, LParen | Less | Get | Set) {
         return true;

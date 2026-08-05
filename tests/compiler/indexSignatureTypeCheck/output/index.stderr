@@ -1,0 +1,120 @@
+  × An index signature parameter cannot have a question mark.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:19:8]
+ 19 │ ?
+    · ─
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:19:6]
+ 19 │ p2?: string
+    · ───────────
+    ╰────
+
+  × An index signature cannot have a rest parameter.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:23:6]
+ 23 │ ...
+    · ───
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:23:9]
+ 23 │ p3: any[]
+    · ─────────
+    ╰────
+
+  × An index signature cannot have a trailing comma.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:16]
+ 27 │ ,
+    · ─
+    ╰────
+
+  × Expected ']'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:18]
+ 27 │ p5
+    · ──
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:6]
+ 27 │ p4: string
+    · ──────────
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:29]
+ 27 │ ]
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:30]
+ 27 │ ;
+    · ─
+    ╰────
+
+  × An index signature cannot have a trailing comma.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:16]
+ 34 │ ,
+    · ─
+    ╰────
+
+  × Expected ']'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:18]
+ 34 │ ...
+    · ───
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:6]
+ 34 │ p6: string
+    · ──────────
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:18]
+ 34 │ ...
+    · ───
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:30]
+ 34 │ ]
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:31]
+ 34 │ ;
+    · ─
+    ╰────
+
+  × Type 'null' is not assignable to type 'IPropertySet'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:12:5]
+ 12 │ ps
+    · ──
+    ╰────
+
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:23:5]
+ 23 │ [...p3: any[]];
+    · ───────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:19:5]
+ 19 │ [p2?: string];
+    · ──────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:27:5]
+ 27 │ [p4: string,
+    · ────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/indexSignatureTypeCheck/index.ts:34:5]
+ 34 │ [p6: string,
+    · ────────────
+    ╰────

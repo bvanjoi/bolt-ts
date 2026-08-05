@@ -3,7 +3,7 @@ use super::ast;
 use super::errors;
 use super::parsing_ctx::ParseContext;
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn check_export_default_error(&mut self, span: bolt_ts_span::Span) {
         if self.parse_context.contains(ParseContext::MODULE_BLOCK)
             && !self.node_context_flags.contains(ast::NodeFlags::AMBIENT)

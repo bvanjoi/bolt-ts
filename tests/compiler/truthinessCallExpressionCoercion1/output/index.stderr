@@ -1,0 +1,34 @@
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+   ╭─[../../tests/compiler/truthinessCallExpressionCoercion1/index.ts:8:5]
+ 8 │ required
+   · ────────
+   ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion1/index.ts:25:5]
+ 25 │ test
+    · ────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion1/index.ts:40:5]
+ 40 │ test
+    · ────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion1/index.ts:54:5]
+ 54 │ x.foo.bar
+    · ─────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/truthinessCallExpressionCoercion1/index.ts:85:9]
+ 85 │ this.isUser
+    · ───────────
+    ╰────

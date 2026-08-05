@@ -1,15 +1,15 @@
-use super::state::LanguageVariant;
+use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
 use bolt_ts_ast::{BinPrec, TokenKind, keyword};
 
-pub(super) struct Lookahead<'a, 'cx, 'p> {
-    p: &'a mut ParserState<'cx, 'p>,
+pub(super) struct Lookahead<'a, 'cx, 'p, const VARIANT: u8> {
+    p: &'a mut ParserState<'cx, 'p, VARIANT>,
 }
 
-impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
+impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
     #[inline(always)]
-    pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p> {
+    pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p, VARIANT> {
         self.p
     }
 
@@ -302,7 +302,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             debug_assert_eq!(first, Less);
             if !self.p.is_ident() && self.p.token.kind != Const {
                 Tristate::False
-            } else if self.p.variant == LanguageVariant::Jsx {
+            } else if is_jsx_like_variant(VARIANT) {
                 let is_arrow_fn_in_jsx = self.lookahead(|this| {
                     this.p.parse_optional(Const);
                     this.p.next_token();
@@ -400,10 +400,10 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
     }
 }
 
-impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
+impl<'a, 'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn try_parse<T: ParseSuccess>(
         &'a mut self,
-        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p>) -> T,
+        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p, VARIANT>) -> T,
     ) -> T {
         let mut l = Lookahead { p: self };
         l.in_try_context(f, |r| !r.is_success())
@@ -411,7 +411,7 @@ impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn lookahead<T>(
         &'a mut self,
-        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p>) -> T,
+        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p, VARIANT>) -> T,
     ) -> T {
         let mut l = Lookahead { p: self };
         l.lookahead(f)

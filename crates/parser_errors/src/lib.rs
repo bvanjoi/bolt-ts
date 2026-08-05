@@ -895,3 +895,10 @@ pub struct ABindingPatternParameterCannotBeOptionalInAnImplementationSignature {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Signature declarations can only be used in TypeScript files.")]
+pub struct SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}

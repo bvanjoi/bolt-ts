@@ -2,7 +2,7 @@ use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::LanguageVariant;
+use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
@@ -21,12 +21,12 @@ bitflags::bitflags! {
     }
 }
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn is_update_expr(&self) -> bool {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
-            Less if !matches!(self.variant, LanguageVariant::Jsx) => false,
+            Less if !is_jsx_like_variant(VARIANT) => false,
             _ => true,
         }
     }
@@ -568,7 +568,7 @@ impl<'cx> ParserState<'cx, '_> {
         if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus) {
             self.parse_prefix_unary_expr(Self::parse_left_hand_side_expr_or_higher)
         } else if self.token.kind == TokenKind::Less
-            && matches!(self.variant, LanguageVariant::Jsx)
+            && is_jsx_like_variant(VARIANT)
             && self
                 .lookahead(Lookahead::next_token_is_ident_or_keyword_or_great)
                 .unwrap_or_default()

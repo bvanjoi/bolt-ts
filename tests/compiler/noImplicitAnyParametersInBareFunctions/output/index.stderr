@@ -1,0 +1,131 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:10:13]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:17:13]
+ 17 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:17:15]
+ 17 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:17:18]
+ 17 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:23:13]
+ 23 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:23:23]
+ 23 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:28:13]
+ 28 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:32:13]
+ 32 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:32:15]
+ 32 │  ...r
+    · ─────
+    ╰────
+
+  × Parameter 'y3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:41:16]
+ 41 │  y3
+    · ───
+    ╰────
+
+  × Parameter 'x3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:41:13]
+ 41 │ x3
+    · ──
+    ╰────
+
+  × Parameter 'x1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:37:13]
+ 37 │ x1
+    · ──
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:39:24]
+ 39 │  y2
+    · ───
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:49:12]
+ 49 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:53:12]
+ 53 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:53:14]
+ 53 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:53:17]
+ 53 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:59:12]
+ 59 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:59:22]
+ 59 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:64:12]
+ 64 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:68:12]
+ 68 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInBareFunctions/index.ts:68:14]
+ 68 │  ...r
+    · ─────
+    ╰────

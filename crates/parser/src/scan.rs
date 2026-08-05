@@ -82,7 +82,7 @@ bitflags::bitflags! {
     }
 }
 
-impl ParserState<'_, '_> {
+impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     pub(super) fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }

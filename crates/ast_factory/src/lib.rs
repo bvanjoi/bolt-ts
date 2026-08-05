@@ -453,7 +453,6 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    #[allow(clippy::too_many_arguments)]
     fn create_object_property_assignment(
         &mut self,
         span: Span,
