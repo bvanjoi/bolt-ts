@@ -73,6 +73,11 @@ pub const fn is_js_variant(variant: u8) -> bool {
     matches!(variant, JS_VARIANT)
 }
 
+pub const fn is_ts_like_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_variant(variant));
+    matches!(variant, TS_VARIANT | TSX_VARIANT | DTS_VARIANT)
+}
+
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn new(
         atoms: Arc<Mutex<AtomIntern>>,

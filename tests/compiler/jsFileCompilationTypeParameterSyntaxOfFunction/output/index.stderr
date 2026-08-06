@@ -1,0 +1,33 @@
+  × Expected '('.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:1:11]
+ 1 │ <
+   · ─
+   ╰────
+
+  × Expected '{'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:1:11]
+ 1 │ <
+   · ─
+   ╰────
+
+  × Expression expected.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:1:15]
+ 1 │ )
+   · ─
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:1:11]
+ 1 │ <T>()
+   · ─────
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:2:1]
+   ╰────
+
+  × Cannot find name 'T'.
+   ╭─[../../tests/compiler/jsFileCompilationTypeParameterSyntaxOfFunction/a.js:1:12]
+ 1 │ T
+   · ─
+   ╰────

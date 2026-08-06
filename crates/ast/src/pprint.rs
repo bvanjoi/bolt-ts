@@ -13,7 +13,7 @@ pub fn print_prop_name(node: &super::PropNameKind<'_>, atoms: &AtomIntern) -> St
         StringLit { raw, .. } => atoms.get(raw.val).to_string(),
         BigIntLit(lit) => atoms.get(lit.val.1).to_string(),
         NumLit(lit) => lit.val.to_string(),
-        Computed(_) => todo!(),
+        Computed(_) => "[computed]".to_string(),
     }
 }
 

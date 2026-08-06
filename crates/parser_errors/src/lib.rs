@@ -902,3 +902,11 @@ pub struct SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type parameter declarations can only be used in TypeScript files.")]
+
+pub struct TypeParameterDeclarationsCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}

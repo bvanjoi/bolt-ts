@@ -1,0 +1,11 @@
+  × Type 'undefined' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/indexSignaturesInferentialTyping/index.ts:5:60]
+ 5 │ undefined
+   · ─────────
+   ╰────
+
+  × Type 'undefined' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/indexSignaturesInferentialTyping/index.ts:7:60]
+ 7 │ undefined
+   · ─────────
+   ╰────

@@ -1,0 +1,41 @@
+  × Cannot find name 'Unresolved'.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:33:27]
+ 33 │ Unresolved
+    · ──────────
+    ╰────
+
+  × Cannot find name 'Unresolved'.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:36:27]
+ 36 │ Unresolved
+    · ──────────
+    ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:11:29]
+ 11 │ Array
+    · ─────
+    ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:16:29]
+ 16 │ Array
+    · ─────
+    ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:21:28]
+ 21 │ Array
+    · ─────
+    ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:26:28]
+ 26 │ Array
+    · ─────
+    ╰────
+
+  × Generic type 'Array<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/isolatedDeclarationsAddUndefined2/index.ts:30:27]
+ 30 │ Array
+    · ─────
+    ╰────

@@ -1,0 +1,17 @@
+  × Invalid character.
+   ╭─[../../tests/compiler/invalidUnicodeEscapeSequance3/index.ts:5:1]
+ 5 │ a\
+   · ──
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/invalidUnicodeEscapeSequance3/index.ts:5:1]
+ 5 │ a\
+   · ──
+   ╰────
+
+  × Cannot find name 'u'.
+   ╭─[../../tests/compiler/invalidUnicodeEscapeSequance3/index.ts:5:3]
+ 5 │ u
+   · ─
+   ╰────

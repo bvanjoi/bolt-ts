@@ -3565,9 +3565,6 @@ impl<'cx> TyChecker<'cx> {
         {
             let (decl_span, kind) = match self.p.node(decl) {
                 ast::Node::VarDecl(decl) => (decl.span, errors::DeclKind::BlockScopedVariable),
-                ast::Node::ObjectBindingElem(elem) => {
-                    (elem.span, errors::DeclKind::BlockScopedVariable)
-                }
                 ast::Node::ClassDecl(class) => (class.name.unwrap().span, errors::DeclKind::Class),
                 ast::Node::EnumDecl(decl) => {
                     if s.flags.contains(SymbolFlags::REGULAR_ENUM) {
@@ -3576,7 +3573,9 @@ impl<'cx> TyChecker<'cx> {
                         return;
                     }
                 }
-                _ => unreachable!(),
+                ast::Node::ArrayBinding(n) => (n.span, errors::DeclKind::BlockScopedVariable),
+                ast::Node::ObjectBindingElem(n) => (n.span, errors::DeclKind::BlockScopedVariable),
+                n => unreachable!("node: {n:#?}"),
             };
             let name = self.atoms.get(ident.name).to_string();
             let error = errors::CannotUsedBeforeItsDeclaration {

@@ -5,7 +5,7 @@
 
 interface IFace {
     member1;  // error at "member1"
-    //~^ ERROR: Variable 'member1' implicitly has an 'any' type.
+    //~^ ERROR: Member 'member1' implicitly has an 'any' type.
     member2: string;
     constructor(c1, c2: string, c3);  // error at "c1, c3, "constructor"
     //~^ ERROR: 'constructor', which lacks return-type annotation, implicitly has an 'any' return type.

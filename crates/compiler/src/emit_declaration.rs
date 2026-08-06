@@ -144,6 +144,48 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p_whitespace();
         }
     }
+
+    fn emit_variable_declaration_by_array_pat(&mut self, node: &'cx ast::ArrayPat<'cx>) {
+        self.emit_list(
+            node.elems,
+            |this, element| match element.kind {
+                ast::ArrayBindingElemKind::Omit(_) => {}
+                ast::ArrayBindingElemKind::Binding(item) => {
+                    this.emit_variable_by_binding(item.name, item.id)
+                }
+            },
+            |this, item| match item.kind {
+                ast::ArrayBindingElemKind::Omit(_) => {}
+                ast::ArrayBindingElemKind::Binding(_) => {
+                    this.emitter.print().p_comma();
+                    this.emitter.print().p_whitespace();
+                }
+            },
+        );
+    }
+
+    fn emit_variable_declaration_by_object_pat(&mut self, _: &'cx ast::ObjectPat<'cx>) {
+        todo!()
+    }
+
+    fn emit_variable_by_binding(&mut self, node: &'cx ast::Binding<'cx>, binding: ast::NodeID) {
+        match node.kind {
+            ast::BindingKind::Ident(name) => {
+                self.emitter.emit_atom(self.resolver.atoms(), name.name);
+                self.emitter.print().p_colon();
+                self.emitter.print().p_whitespace();
+                let ty = self.resolver.ensure_type_for_identifier_in_binding(binding);
+                let ty_str = self.resolver.print_type(ty);
+                self.emitter.print().p(&ty_str);
+            }
+            ast::BindingKind::ArrayPat(node) => {
+                self.emit_variable_declaration_by_array_pat(node);
+            }
+            ast::BindingKind::ObjectPat(node) => {
+                self.emit_variable_declaration_by_object_pat(node);
+            }
+        }
+    }
 }
 
 impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
@@ -852,9 +894,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) -> Self::Result {
-        let ast::BindingKind::Ident(name) = node.name.kind else {
-            todo!()
-        };
+        match node.name.kind {
+            ast::BindingKind::ArrayPat(n) if n.elems.is_empty() => return,
+            ast::BindingKind::ObjectPat(n) if n.elems.is_empty() => return,
+            _ => {}
+        }
         self.emit_declare_if_needed();
         let node_flags = self.resolver.node_flags(node.id);
         if node_flags.contains(ast::NodeFlags::CONST) {
@@ -865,18 +909,24 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emitter.print().p("var");
         }
         self.emitter.print().p_whitespace();
-        self.emitter.emit_atom(self.resolver.atoms(), name.name);
-        self.emitter.print().p_colon();
-        self.emitter.print().p_whitespace();
-        if let Some(ty) = node.ty {
-            self.visit_ty(ty);
-        } else {
-            let ty = self.resolver.ensure_type_for_variable_declaration(node);
-            let ty_str = self.resolver.print_type(ty);
-            self.emitter.print().p(&ty_str);
+        match node.name.kind {
+            ast::BindingKind::Ident(name) => {
+                self.emitter.emit_atom(self.resolver.atoms(), name.name);
+                self.emitter.print().p_colon();
+                self.emitter.print().p_whitespace();
+                if let Some(ty) = node.ty {
+                    self.visit_ty(ty);
+                } else {
+                    let ty = self.resolver.ensure_type_for_variable_declaration(node);
+                    let ty_str = self.resolver.print_type(ty);
+                    self.emitter.print().p(&ty_str);
+                }
+                self.emitter.print().p_semi();
+                self.emitter.print().p_newline();
+            }
+            ast::BindingKind::ArrayPat(n) => self.emit_variable_declaration_by_array_pat(n),
+            ast::BindingKind::ObjectPat(n) => self.emit_variable_declaration_by_object_pat(n),
         }
-        self.emitter.print().p_semi();
-        self.emitter.print().p_newline();
     }
 
     fn visit_typeof_ty(&mut self, node: &'cx ast::TypeofTy<'cx>) -> Self::Result {

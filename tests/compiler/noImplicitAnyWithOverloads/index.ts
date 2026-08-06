@@ -5,7 +5,7 @@
 
 interface A {
     foo;
-    //~^ ERROR: Variable 'foo' implicitly has an 'any' type.
+    //~^ ERROR: Member 'foo' implicitly has an 'any' type.
 }
 interface B { }
 

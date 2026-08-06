@@ -1,0 +1,33 @@
+  × Duplicate identifier 'StringHashTable'.
+    ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:21:11]
+ 21 │ StringHashTable
+    · ───────┬───────
+    ·        ╰── Previous definition here
+    ╰────
+    ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:61:11]
+ 61 │ StringHashTable
+    · ───────────────
+    ╰────
+
+  × Duplicate identifier 'IdentifierNameHashTable'.
+    ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:34:11]
+ 34 │ IdentifierNameHashTable
+    · ───────────┬───────────
+    ·            ╰── Previous definition here
+    ╰────
+    ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:75:11]
+ 75 │ IdentifierNameHashTable
+    · ───────────────────────
+    ╰────
+
+  × Duplicate index signature for type 'string'.
+   ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:7:9]
+ 7 │ [s: string]: T;
+   · ───────────────
+   ╰────
+
+  × Duplicate index signature for type 'string'.
+    ╭─[../../tests/compiler/genericClassesRedeclaration/index.ts:47:9]
+ 47 │ [s: string]: T;
+    · ───────────────
+    ╰────

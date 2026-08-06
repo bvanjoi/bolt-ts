@@ -10,19 +10,19 @@
     · ─
     ╰────
 
-  × Variable 'v' implicitly has an 'any' type.
+  × Member 'v' implicitly has an 'any' type.
    ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:11]
  3 │ private v
    · ─────────
    ╰────
 
-  × Variable 'p' implicitly has an 'any' type.
+  × Member 'p' implicitly has an 'any' type.
    ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:22]
  3 │ public p
    · ────────
    ╰────
 
-  × Variable 's' implicitly has an 'any' type.
+  × Member 's' implicitly has an 'any' type.
    ╭─[../../tests/compiler/scopeCheckExtendedClassInsidePublicMethod2/index.ts:3:32]
  3 │ static s
    · ────────

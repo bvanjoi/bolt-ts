@@ -1,0 +1,5 @@
+  × Module 'Foo' is hidden by a local declaration with the same name.
+    ╭─[../../tests/compiler/reboundIdentifierOnImportAlias/index.ts:10:16]
+ 10 │ Foo
+    · ───
+    ╰────

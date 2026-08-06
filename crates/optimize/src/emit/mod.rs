@@ -783,7 +783,19 @@ impl<'ir> JSEmitter<'_, 'ir> {
                         },
                     )
                     .collect(),
-                ir::Binding::ArrayPat(_) => todo!(),
+                ir::Binding::ArrayPat(n) => this
+                    .nodes
+                    .get_array_pat(&n)
+                    .elems()
+                    .iter()
+                    .flat_map(|elem| match elem {
+                        ir::ArrayBindingElem::Omit(_) => vec![],
+                        ir::ArrayBindingElem::Binding(n) => {
+                            let n = this.nodes.get_array_binding(n);
+                            sub_names_of_binding(this, n.name())
+                        }
+                    })
+                    .collect::<Vec<_>>(),
             }
         }
 

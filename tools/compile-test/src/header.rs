@@ -188,6 +188,7 @@ fn parse_compiler_options(input: &str) -> Vec<(String, CompilerOption)> {
 pub struct TestProps {
     pass_mode: Option<PassMode>,
     fail_mode: Option<FailMode>,
+    skip_message_match: bool,
 }
 
 impl TestProps {
@@ -195,6 +196,7 @@ impl TestProps {
         TestProps {
             pass_mode: None,
             fail_mode: None,
+            skip_message_match: false,
         }
     }
 
@@ -212,9 +214,16 @@ impl TestProps {
             &mut |HeaderLine { directive: ln, .. }| {
                 self.update_pass_mode(ln, config);
                 self.update_fail_mode(ln, config);
-                config.update_compiler_options(ln)
+                self.update_skip_message_match(ln);
+                config.update_compiler_options(ln);
             },
         );
+    }
+
+    fn update_skip_message_match(&mut self, ln: &str) {
+        if parse_name_directive(ln, "skip-message-match") {
+            self.skip_message_match = true;
+        }
     }
 
     fn update_pass_mode(&mut self, ln: &str, config: &TestConfig) {
@@ -249,6 +258,10 @@ impl TestProps {
             (Some(_), Some(_)) => panic!("multiple `*-fail` headers in a single test"),
             (_, None) => {}
         }
+    }
+
+    pub fn skip_message_match(&self) -> bool {
+        self.skip_message_match
     }
 
     pub fn pass_mode(&self) -> Option<PassMode> {

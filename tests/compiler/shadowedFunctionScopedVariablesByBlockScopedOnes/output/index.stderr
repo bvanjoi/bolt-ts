@@ -1,0 +1,34 @@
+  × Cannot initialize outer scoped variable 'v' in the same scope as block
+  │ scoped declaration 'v'.
+    ╭─[../../tests/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes/index.ts:11:27]
+ 11 │ v
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'v' in the same scope as block
+  │ scoped declaration 'v'.
+    ╭─[../../tests/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes/index.ts:15:29]
+ 15 │ v
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'v' in the same scope as block
+  │ scoped declaration 'v'.
+    ╭─[../../tests/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes/index.ts:19:29]
+ 19 │ v
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes/index.ts:26:17]
+ 26 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes/index.ts:34:17]
+ 34 │ x
+    · ─
+    ╰────

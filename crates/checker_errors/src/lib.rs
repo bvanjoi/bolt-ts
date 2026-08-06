@@ -1947,6 +1947,15 @@ pub struct VariableXImplicitlyHasAnYType {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Member '{member}' implicitly has an '{ty}' type.")]
+pub struct MemberXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub member: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "A mixin class that extends from a type variable containing an abstract construct signature must also be declared 'abstract'."
 )]

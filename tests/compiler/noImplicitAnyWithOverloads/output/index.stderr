@@ -1,4 +1,4 @@
-  × Variable 'foo' implicitly has an 'any' type.
+  × Member 'foo' implicitly has an 'any' type.
    ╭─[../../tests/compiler/noImplicitAnyWithOverloads/index.ts:7:5]
  7 │ foo
    · ───

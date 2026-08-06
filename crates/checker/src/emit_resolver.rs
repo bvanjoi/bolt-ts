@@ -44,6 +44,21 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         links.expect_ty()
     }
 
+    pub fn ensure_type_for_identifier_in_binding(
+        &mut self,
+        binding: ast::NodeID,
+    ) -> &'cx ty::Ty<'cx> {
+        debug_assert!(matches!(
+            self.checker.p.node(binding),
+            ast::Node::ArrayBinding(_) | ast::Node::ObjectBindingElem(_)
+        ));
+        let symbol = self.checker.get_symbol_of_declaration(binding);
+        let Some(links) = self.checker.symbol_links(symbol) else {
+            unreachable!()
+        };
+        links.expect_ty()
+    }
+
     pub fn ensure_type_for_function_declaration(
         &mut self,
         n: &'cx ast::FnDecl<'cx>,

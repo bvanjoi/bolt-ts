@@ -1,0 +1,7 @@
+  × Conversion of type 'undefined' to type 'readonly ["a", "b", "c"]' may be a
+  │ mistake because neither type sufficiently overlaps with the other. If this
+  │ was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/correctOrderOfPromiseMethod/index.ts:35:56]
+ 35 │ undefined as readonly ["a", "b", "c"]
+    · ─────────────────────────────────────
+    ╰────

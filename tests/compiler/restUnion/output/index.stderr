@@ -1,0 +1,47 @@
+  × Variable 'union' is used before being assigned.
+   ╭─[../../tests/compiler/restUnion/index.ts:8:22]
+ 8 │ union
+   · ─────
+   ╰────
+
+  × Variable 'union' is used before being assigned.
+   ╭─[../../tests/compiler/restUnion/index.ts:8:22]
+ 8 │ union
+   · ─────
+   ╰────
+
+  × Variable 'union' is used before being assigned.
+   ╭─[../../tests/compiler/restUnion/index.ts:8:22]
+ 8 │ union
+   · ─────
+   ╰────
+
+  × Property '"n"' does not exist on type 'undefined | { n: number; }'.
+    ╭─[../../tests/compiler/restUnion/index.ts:15:6]
+ 15 │ n
+    · ─
+    ╰────
+
+  × Variable 'nullUnion' is used before being assigned.
+    ╭─[../../tests/compiler/restUnion/index.ts:21:22]
+ 21 │ nullUnion
+    · ─────────
+    ╰────
+
+  × Property '"n"' does not exist on type 'null | { n: number; }'.
+    ╭─[../../tests/compiler/restUnion/index.ts:21:6]
+ 21 │ n
+    · ─
+    ╰────
+
+  × Variable 'nullUnion' is used before being assigned.
+    ╭─[../../tests/compiler/restUnion/index.ts:21:22]
+ 21 │ nullUnion
+    · ─────────
+    ╰────
+
+  × Variable 'nullUnion' is used before being assigned.
+    ╭─[../../tests/compiler/restUnion/index.ts:21:22]
+ 21 │ nullUnion
+    · ─────────
+    ╰────

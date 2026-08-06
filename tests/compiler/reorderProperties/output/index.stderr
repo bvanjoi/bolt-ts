@@ -1,0 +1,5 @@
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/reorderProperties/index.ts:22:38]
+ 22 │ c
+    · ─
+    ╰────

@@ -2,6 +2,8 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use crate::state::is_ts_like_variant;
+
 use super::CheckParameterFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -117,7 +119,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     }
 
     pub(super) fn parse_ty_params(&mut self) -> Option<ast::TyParams<'cx>> {
-        if self.token.kind == TokenKind::Less {
+        if is_ts_like_variant(VARIANT) && self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list::<false, _>(
                 ParsingContext::TYPE_PARAMETERS,

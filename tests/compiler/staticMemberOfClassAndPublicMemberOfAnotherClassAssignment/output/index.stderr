@@ -1,0 +1,23 @@
+  × Property 'prop' is missing.
+    ╭─[../../tests/compiler/staticMemberOfClassAndPublicMemberOfAnotherClassAssignment/index.ts:17:1]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Property 'prop' is missing.
+    ╭─[../../tests/compiler/staticMemberOfClassAndPublicMemberOfAnotherClassAssignment/index.ts:19:1]
+ 19 │ a
+    · ─
+    ╰────
+
+  × Property 'prop' is missing.
+    ╭─[../../tests/compiler/staticMemberOfClassAndPublicMemberOfAnotherClassAssignment/index.ts:23:5]
+ 23 │ b
+    · ─
+    ╰────
+
+  × Property 'prop' is missing.
+    ╭─[../../tests/compiler/staticMemberOfClassAndPublicMemberOfAnotherClassAssignment/index.ts:25:1]
+ 25 │ b
+    · ─
+    ╰────

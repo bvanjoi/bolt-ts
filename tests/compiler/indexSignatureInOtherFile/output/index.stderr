@@ -1,0 +1,14 @@
+  × Property '[...]' of type '() => IterableIterator<any, any, any>' is not
+  │ assignable to 'symbol' index type 'string'.
+   ╭─[../../tests/compiler/indexSignatureInOtherFile/index.ts:6:4]
+ 6 │ key
+   · ───
+   ╰────
+
+  × Property '[...]' of type '() => { copyWithin: boolean; entries: boolean;
+  │ fill: boolean; find: boolean; findIndex: boolean; keys: boolean; values:
+  │ boolean; }' is not assignable to 'symbol' index type 'string'.
+   ╭─[../../tests/compiler/indexSignatureInOtherFile/index.ts:6:4]
+ 6 │ key
+   · ───
+   ╰────

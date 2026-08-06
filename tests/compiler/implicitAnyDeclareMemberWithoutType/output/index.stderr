@@ -1,4 +1,4 @@
-  × Variable 'member1' implicitly has an 'any' type.
+  × Member 'member1' implicitly has an 'any' type.
    ╭─[../../tests/compiler/implicitAnyDeclareMemberWithoutType/index.ts:7:5]
  7 │ member1
    · ───────

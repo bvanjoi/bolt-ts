@@ -1,4 +1,4 @@
-  × Variable 'sideLength' implicitly has an 'any' type.
+  × Member 'sideLength' implicitly has an 'any' type.
    ╭─[../../tests/compiler/staticVisibility2/index.ts:7:5]
  7 │ static sideLength
    · ─────────────────

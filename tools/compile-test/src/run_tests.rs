@@ -51,6 +51,27 @@ impl TestCx<'_> {
                 assert!(self.props.fail_mode().is_none());
             }
             Err(errors) => {
+                assert!(
+                    self.pass_mode().is_none(),
+                    r#"
+                        ensure you do not mark `//@ {{check, run}}-pass` in header,
+                        it should been **failed** but you had been set success flag {pass_mode} in {file}"#,
+                    pass_mode = self.pass_mode().unwrap(),
+                    file = self.test_file.to_string_lossy()
+                );
+                if self.props.skip_message_match() {
+                    assert!(
+                        expected_errors.is_empty(),
+                        "skip-message-match is set, but we still got expected errors in {}",
+                        self.test_file.display()
+                    );
+                    assert!(
+                        !errors.is_empty(),
+                        "skip-message-match is set, but we cannot find any errors in {}",
+                        self.test_file.display()
+                    );
+                    return;
+                }
                 if errors.is_empty() {
                     assert_eq!(
                         self.props.fail_mode(),
@@ -60,14 +81,6 @@ impl TestCx<'_> {
                     );
                 }
                 self.check_expected_errors(&expected_errors, &errors);
-                assert!(
-                    self.pass_mode().is_none(),
-                    r#"
-                        ensure you do not mark `//@ {{check, run}}-pass` in header,
-                        it should been **failed** but you had been set success flag {pass_mode} in {file}"#,
-                    pass_mode = self.pass_mode().unwrap(),
-                    file = self.test_file.to_string_lossy()
-                );
             }
         }
     }

@@ -2581,6 +2581,19 @@ impl<'cx> TyChecker<'cx> {
                     todo!()
                 }
             }
+            ast::Node::PropSignature(_) | ast::Node::ClassPropElem(_) => {
+                let decl_name = self.p.node(decl).name();
+                if no_implicit_any {
+                    let error = errors::MemberXImplicitlyHasAnYType {
+                        span: self.p.node(decl).span(),
+                        member: decl_name.unwrap().to_string(&self.atoms),
+                        ty: self.print_ty(ty, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                } else {
+                    // todo!()
+                }
+            }
             _ => {
                 let decl_name = self.p.node(decl).name();
                 if no_implicit_any {

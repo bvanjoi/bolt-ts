@@ -5,3 +5,4 @@
 
 export default class C {
 }
+export const [a,b] = [1,2];
