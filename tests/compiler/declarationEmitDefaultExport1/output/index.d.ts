@@ -1,2 +1,2 @@
 export default class C {}
-const a: number, b: number
+export var a: number, b: number;

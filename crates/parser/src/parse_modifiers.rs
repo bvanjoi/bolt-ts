@@ -36,10 +36,16 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             if !self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
                 return None;
             }
-        } else if ((STOP_ON_START_OF_CLASS_STATIC_BLOCK || has_seen_static_modifier)
-            && t == TokenKind::Static)
-            || !self.parse_any_contextual_modifier()
+        } else if (STOP_ON_START_OF_CLASS_STATIC_BLOCK && t == TokenKind::Static)
+            && self.lookahead(|l| {
+                l.p().next_token();
+                l.p().token.kind == TokenKind::LBrace
+            })
         {
+            return None;
+        } else if has_seen_static_modifier && t == TokenKind::Static {
+            return None;
+        } else if !self.parse_any_contextual_modifier() {
             return None;
         }
 

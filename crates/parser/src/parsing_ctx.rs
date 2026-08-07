@@ -84,8 +84,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             }
             ParsingContext::TYPE_MEMBERS => self.lookahead(|l| is_ty_member_start(l.p())),
             ParsingContext::CLASS_MEMBERS => {
-                self.lookahead(|l| is_class_ele_start(l.p()))
-                    || (self.token.kind == TokenKind::Semi && !in_error_recovery)
+                (self.token.kind == TokenKind::Semi && !in_error_recovery)
+                    || self.lookahead(|l| is_class_ele_start(l.p()))
             }
             ParsingContext::ENUM_MEMBERS => {
                 self.token.kind == TokenKind::LBracket || self.token.kind.is_lit_prop_name()

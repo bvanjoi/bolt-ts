@@ -8,4 +8,3 @@ declare function f5<T extends {
   (...args: any[]): void;
 }>(): void;
 declare var f6: () => any[];
-

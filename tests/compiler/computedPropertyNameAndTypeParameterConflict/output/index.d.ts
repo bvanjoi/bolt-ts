@@ -1,5 +1,4 @@
-declare const O: unique symbol;
-
+declare var O: unique symbol;
 declare class Bar <O>{
   [O]: number;
 }

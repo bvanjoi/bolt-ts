@@ -351,6 +351,15 @@ impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
                 }
             }
             Default => self.next_token_can_follow_default_keyword(),
+            Static => {
+                self.p.next_token();
+                self.p.can_follow_modifier()
+            }
+            Get | Set => {
+                self.p.next_token();
+                // can_follow_get_or_set_keyword
+                self.p.token.kind == TokenKind::LBracket || self.p.token.kind.is_lit_prop_name()
+            }
             _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
         }
     }

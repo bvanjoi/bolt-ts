@@ -1,2 +1,1 @@
 declare var x: () => any;
-

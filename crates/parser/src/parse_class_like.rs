@@ -484,7 +484,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             _ => {}
         }
 
-        let modifiers = self.parse_modifiers::<false, true>(true);
+        let modifiers = self.parse_modifiers::<true, true>(true);
         let under_type_context = |this: &Self| {
             this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
                 || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))

@@ -334,6 +334,19 @@ impl<'cx> Node<'cx> {
             ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
             ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
             IndexSigDecl(n) => DeclarationName::from_binding(n.key),
+            ArrayBinding(n) => match n.name.kind {
+                super::BindingKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                super::BindingKind::ObjectPat(_) => None,
+                super::BindingKind::ArrayPat(_) => None,
+            },
+            ObjectBindingElem(n) => match n.name {
+                super::ObjectBindingName::Shorthand(ident) => Some(DeclarationName::Ident(ident)),
+                super::ObjectBindingName::Prop { name, .. } => match name.kind {
+                    super::BindingKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                    super::BindingKind::ObjectPat(_) => None,
+                    super::BindingKind::ArrayPat(_) => None,
+                },
+            },
             _ => None,
         }
     }

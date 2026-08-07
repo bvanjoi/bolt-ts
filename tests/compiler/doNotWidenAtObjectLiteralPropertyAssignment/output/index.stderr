@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'undefined | IIntervalTreeNode[]'.
+    ╭─[../../tests/compiler/doNotWidenAtObjectLiteralPropertyAssignment/index.ts:15:60]
+ 15 │ children
+    · ────────
+    ╰────

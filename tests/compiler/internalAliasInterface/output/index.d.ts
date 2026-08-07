@@ -4,5 +4,4 @@ declare namespace a {
 declare namespace c {
   import b = a.I;
   var x: b;
-  
 }

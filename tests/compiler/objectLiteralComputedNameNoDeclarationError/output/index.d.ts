@@ -1,4 +1,2 @@
-const Foo: { BANANA: "banana"; };
-
-const Baa: { banana: number; };
-
+var Foo: { BANANA: "banana"; };
+export var Baa: { banana: number; };

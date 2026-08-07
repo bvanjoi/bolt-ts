@@ -4,7 +4,5 @@ declare namespace a {
 declare namespace c {
   import b = a.foo;
   var bVal: number;
-  
   var bVal2: (x: number) => number;
-  
 }

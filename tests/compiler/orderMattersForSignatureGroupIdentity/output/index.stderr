@@ -1,0 +1,30 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/orderMattersForSignatureGroupIdentity/index.ts:24:1]
+ 24 │ v({ s: "", n: 0 })
+    · ──────────────────
+    ╰────
+
+  × Property 'toLowerCase' does not exist on type 'never'.
+    ╭─[../../tests/compiler/orderMattersForSignatureGroupIdentity/index.ts:24:20]
+ 24 │ toLowerCase
+    · ───────────
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'w'
+  │ must be of type 'A', but here has type 'C'.
+    ╭─[../../tests/compiler/orderMattersForSignatureGroupIdentity/index.ts:29:13]
+ 29 │ w
+    · ─
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/orderMattersForSignatureGroupIdentity/index.ts:32:1]
+ 32 │ w({ s: "", n: 0 })
+    · ──────────────────
+    ╰────
+
+  × Property 'toLowerCase' does not exist on type 'never'.
+    ╭─[../../tests/compiler/orderMattersForSignatureGroupIdentity/index.ts:32:20]
+ 32 │ toLowerCase
+    · ───────────
+    ╰────

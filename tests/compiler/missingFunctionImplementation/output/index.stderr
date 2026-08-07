@@ -1,0 +1,196 @@
+  × Duplicate identifier 'm'.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:65:19]
+ 60 │ m(a): void;
+    · ┬
+    · ╰── Previous definition here
+ 61 │   static m(a, b): void;
+ 62 │   //~^ ERROR: Function implementation is missing or not immediately following the declaration.
+ 63 │ }
+ 64 │ namespace C8 {
+ 65 │   export function m
+    ·                   ─
+    ╰────
+
+  × Duplicate identifier 'm'.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:74:19]
+ 71 │ m(a): void { }
+    · ┬
+    · ╰── Previous definition here
+ 72 │ }
+ 73 │ namespace C9 {
+ 74 │   export function m
+    ·                   ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:8:3]
+ 8 │ m
+   · ─
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:14:3]
+ 14 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:23:3]
+ 23 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:30:10]
+ 30 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:37:10]
+ 37 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:43:10]
+ 43 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:52:10]
+ 52 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:61:10]
+ 61 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:74:19]
+ 74 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:74:19]
+ 74 │ m
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:82:19]
+ 82 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:91:19]
+ 91 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:96:19]
+ 96 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:101:19]
+ 101 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:108:19]
+ 108 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:91:19]
+ 91 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:96:19]
+ 96 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:101:19]
+ 101 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:108:19]
+ 108 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:91:19]
+ 91 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:96:19]
+ 96 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:101:19]
+ 101 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:108:19]
+ 108 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:91:19]
+ 91 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:96:19]
+ 96 │ m
+    · ─
+    ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:101:19]
+ 101 │ m
+     · ─
+     ╰────
+
+  × Duplicate function implementation.
+     ╭─[../../tests/compiler/missingFunctionImplementation/index.ts:108:19]
+ 108 │ m
+     · ─
+     ╰────

@@ -1,34 +1,17 @@
-let mapOnLooseArrayLiteral: number[];
-
-let numTuple: [number];
-
-let a: number[];
-
-let numNum: [number, number];
-
-let strStr: [string, string];
-
-let numStr: [number, string];
-
-let b: number[];
-
-let c: number[];
-
-let d: (number | string)[];
-
-let numNumNum: [number, number, number];
-
-let e: number[];
-
-let numNumNumNum: [number, number, number, number];
-
-let f: number[];
-
-let numNumNumNumNum: [number, number, number, number, number];
-
-let g: number[];
-
-let numNumNumNumNumNum: [number, number, number, number, number, number];
-
-let h: number[];
-
+export var mapOnLooseArrayLiteral: number[];
+var numTuple: [number];
+export var a: number[];
+var numNum: [number, number];
+var strStr: [string, string];
+var numStr: [number, string];
+export var b: number[];
+export var c: number[];
+export var d: (number | string)[];
+var numNumNum: [number, number, number];
+export var e: number[];
+var numNumNumNum: [number, number, number, number];
+export var f: number[];
+var numNumNumNumNum: [number, number, number, number, number];
+export var g: number[];
+var numNumNumNumNumNum: [number, number, number, number, number, number];
+export var h: number[];
