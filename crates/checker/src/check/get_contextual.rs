@@ -89,13 +89,15 @@ impl<'cx> TyChecker<'cx> {
                     }
                     (first, last)
                 };
-                self.get_contextual_ty_for_element_expr(
-                    ty,
-                    element_idx,
-                    Some(parent.elems.len()),
-                    first,
-                    last,
-                )
+                ty.and_then(|ty| {
+                    self.get_contextual_ty_for_element_expr(
+                        ty,
+                        element_idx,
+                        Some(parent.elems.len()),
+                        first,
+                        last,
+                    )
+                })
             }
             TyAssertionExpr(parent) => {
                 debug_assert!(parent.id == parent_id);
@@ -594,7 +596,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::ArrayBindingElemKind::Binding(item) => std::ptr::eq(item, parent),
                 })?;
             self.get_contextual_ty_for_element_expr(
-                Some(parent_parent_parent_ty),
+                parent_parent_parent_ty,
                 index,
                 None,
                 None,
@@ -607,14 +609,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_contextual_ty_for_element_expr(
         &mut self,
-        ty: Option<&'cx ty::Ty<'cx>>,
+        ty: &'cx ty::Ty<'cx>,
         index: usize,
         length: Option<usize>,
         first_spread_index: Option<usize>,
         last_spread_index: Option<usize>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         self.map_ty(
-            ty?,
+            ty,
             |this, t| {
                 if let Some(tup) = t.as_tuple() {
                     if first_spread_index

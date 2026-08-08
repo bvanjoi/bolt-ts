@@ -7,6 +7,7 @@ use super::TyChecker;
 impl TyChecker<'_> {
     pub(super) fn has_context_sensitive_params(&self, id: ast::NodeID) -> bool {
         let node = self.p.node(id);
+        debug_assert!(node.is_fn_like());
         if node.ty_params().is_none() {
             if let Some(params) = node.params()
                 && params.iter().any(|p| p.ty.is_none())
@@ -21,7 +22,10 @@ impl TyChecker<'_> {
                     bolt_ts_ast::BindingKind::ObjectPat(_) => false,
                     bolt_ts_ast::BindingKind::ArrayPat(_) => todo!(),
                 }) {
-                    return true;
+                    return self
+                        .p
+                        .node_flags(id)
+                        .contains(ast::NodeFlags::CONTAINS_THIS);
                 }
             }
         }

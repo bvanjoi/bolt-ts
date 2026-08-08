@@ -1,0 +1,53 @@
+  × Type 'Foo1<string>' is not assignable to type 'Foo1<"a">'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:15:7]
+ 15 │ f11
+    · ───
+    ╰────
+
+  × Type 'Foo2<string>' is not assignable to type 'Foo2<"a">'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:27:7]
+ 27 │ f21
+    · ───
+    ╰────
+
+  × Type 'Foo2<string>' is not assignable to type 'Foo2<unknown>'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:29:7]
+ 29 │ f22
+    · ───
+    ╰────
+
+  × Type 'Foo3<string>' is not assignable to type 'Foo3<"a">'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:41:7]
+ 41 │ f31
+    · ───
+    ╰────
+
+  × Type 'Foo4<string>' is not assignable to type 'Foo4<"a">'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:53:7]
+ 53 │ f41
+    · ───
+    ╰────
+
+  × Type 'Foo4<string>' is not assignable to type 'Foo4<unknown>'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:55:7]
+ 55 │ f42
+    · ───
+    ╰────
+
+  × Type 'Fn<string, number>' is not assignable to type 'Fn<unknown, number>'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:68:7]
+ 68 │ fn1
+    · ───
+    ╰────
+
+  × Type 'Fn<string, number>' is not assignable to type 'Fn<string, 0>'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:74:7]
+ 74 │ fn4
+    · ───
+    ╰────
+
+  × Type 'C<unknown, number>' is not assignable to type 'C<unknown, string>'.
+    ╭─[../../tests/compiler/varianceMeasurement/index.ts:88:7]
+ 88 │ c1
+    · ──
+    ╰────

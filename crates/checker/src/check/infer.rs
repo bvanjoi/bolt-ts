@@ -1064,7 +1064,7 @@ impl<'cx> TyChecker<'cx> {
                 let element_index = i - index;
                 let contextual_ty = if rest_ty.is_tuple() {
                     self.get_contextual_ty_for_element_expr(
-                        Some(rest_ty),
+                        rest_ty,
                         element_index,
                         Some(arg_count - index),
                         None,

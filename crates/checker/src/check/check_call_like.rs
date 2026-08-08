@@ -1444,6 +1444,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut argument_check_mode = CheckMode::empty();
 
+        // TODO: !is_decorator
         if !is_single_non_generic_candidate
             && match &effective_call_arguments {
                 EffectiveCallArguments::Borrowed(args) => {

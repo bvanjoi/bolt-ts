@@ -25,6 +25,6 @@ const no1: number = { 0: 1 };
 const so1: string = { 0: 1 };
 //~^ ERROR: Type '{ 0: number; }' is not assignable to type 'string'.
 const so2: string = { "0": 1 };
-//~^ ERROR: Type '{ 0: number; }' is not assignable to type 'string'.
+//~^ ERROR: Type '{ "0": number; }' is not assignable to type 'string'.
 const so3: string = { 0: "1" };
 //~^ ERROR: Type '{ 0: string; }' is not assignable to type 'string'.

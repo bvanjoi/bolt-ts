@@ -1,9 +1,15 @@
 mod scan_integer;
+mod scan_str;
 mod unicode;
 
 pub use self::scan_integer::parse_integer;
-pub use self::unicode::{is_unicode_es5_identifier_part, is_unicode_es5_identifier_start};
-pub use self::unicode::{is_unicode_esnext_identifier_part, is_unicode_esnext_identifier_start};
+pub use self::scan_str::is_ascii_identifier_part;
+pub use self::scan_str::is_ascii_identifier_start;
+pub use self::scan_str::is_identifier_part;
+pub use self::scan_str::is_identifier_start;
+pub use self::scan_str::is_non_ascii_identifier_start;
+pub use self::scan_str::non_ascii_character_code;
+pub use self::scan_str::utf16_encode_as_bytes;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TokenValue {

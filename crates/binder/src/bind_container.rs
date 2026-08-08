@@ -65,6 +65,7 @@ impl BinderState<'_, '_, '_> {
             let save_exception_target = self.current_exception_target;
             // TODO: active_label_list
             let save_has_explicit_return = self.has_explicit_return;
+            let save_seen_this_keyword = self.seen_this_keyword;
             let is_immediately_invoked = (container_flags
                 .contains(ContainerFlags::IS_FUNCTION_EXPRESSION)
                 && !n.has_syntactic_modifier(ast::ModifierFlags::ASYNC)
@@ -118,6 +119,13 @@ impl BinderState<'_, '_, '_> {
                     .insert_end_flow_node(node, self.current_flow.unwrap());
             }
 
+            if self.seen_this_keyword {
+                self.p.node_flags_map.update(node, |flags| {
+                    *flags |= ast::NodeFlags::CONTAINS_THIS;
+                });
+            }
+            // TODO: container is program
+
             if let Some(current_return_target) = self.current_return_target {
                 self.flow_nodes
                     .add_antecedent(current_return_target, self.current_flow.unwrap());
@@ -142,7 +150,13 @@ impl BinderState<'_, '_, '_> {
             self.current_exception_target = save_exception_target;
             // TODO: active_label_list
             self.has_explicit_return = save_has_explicit_return;
-        } else if container_flags.intersects(ContainerFlags::IS_INTERFACE) {
+            self.seen_this_keyword =
+                if container_flags.contains(ContainerFlags::PROPAGATES_THIS_KEY_WORD) {
+                    save_seen_this_keyword || self.seen_this_keyword
+                } else {
+                    save_seen_this_keyword
+                };
+        } else if container_flags.contains(ContainerFlags::IS_INTERFACE) {
             self.seen_this_keyword = false;
             self.bind_children(node);
             assert!(!n.is_ident());

@@ -1,0 +1,78 @@
+  × Expected ','.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:28]
+ 10 │ :
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:32]
+ 10 │ {
+    · ─
+    ╰────
+
+  × Expected ':'.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:12]
+ 16 │ arg
+    · ───
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:15]
+ 16 │ ;
+    · ─
+    ╰────
+
+  × Expected ')'.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:21:27]
+   ╰────
+
+  × Duplicate identifier 'arg'.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:12]
+ 10 │ arg: T: T {
+    · ─┬─
+    ·  ╰── Previous definition here
+ 11 │   //~^ ERROR: Expected ','.
+ 12 │   //~| ERROR: Expected ','.
+ 13 │   //~| ERROR: Function implementation is missing or not immediately following the declaration.
+ 14 │   //~| ERROR: Parameter 'T' implicitly has an 'any' type.
+ 15 │   //~| ERROR: 'identity', which lacks return-type annotation, implicitly has an 'any' return type.
+ 16 │     return arg
+    ·            ───
+    ╰────
+
+  × 'arg' is an unused renaming of 'return'. Did you intend to use it as a
+  │ type annotation?
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:16:12]
+ 16 │ arg
+    · ───
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:10]
+ 10 │ identity
+    · ────────
+    ╰────
+
+  × Parameter 'T' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:29]
+ 10 │  T
+    · ──
+    ╰────
+
+  × 'identity', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash1/index.ts:10:1]
+ 10 │ ╭─▶ function identity<T>(arg: T: T {
+ 11 │ │     //~^ ERROR: Expected ','.
+ 12 │ │     //~| ERROR: Expected ','.
+ 13 │ │     //~| ERROR: Function implementation is missing or not immediately following the declaration.
+ 14 │ │     //~| ERROR: Parameter 'T' implicitly has an 'any' type.
+ 15 │ │     //~| ERROR: 'identity', which lacks return-type annotation, implicitly has an 'any' return type.
+ 16 │ │       return arg;
+ 17 │ │     //~^ ERROR: Expected ':'.
+ 18 │ │     //~| ERROR: Expected ','.
+ 19 │ │     //~| ERROR: Duplicate identifier 'arg'.
+ 20 │ │     //~| ERROR: 'arg' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
+ 21 │ ╰─▶ }
+    ╰────

@@ -8,6 +8,8 @@ use super::ty::SigKind;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_scanner::is_identifier_part;
+use bolt_ts_scanner::is_identifier_start;
 use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -342,7 +344,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                             res.push_str(self.c.atoms.get(n.name))
                         }
                         ast::PropNameKind::StringLit { raw, .. } => {
-                            res.push_str(self.c.atoms.get(raw.val))
+                            res.push_str(self.c.atoms.get(raw.val));
                         }
                         ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
                         ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
@@ -430,8 +432,10 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                         let name = self.c.atoms.get(name).to_string();
                         if name.is_empty() {
                             "''".to_string()
-                        } else {
+                        } else if is_valid_identifier(&name) {
                             name
+                        } else {
+                            format!("\"{name}\"")
                         }
                     } else if let Some(num) = name.as_numeric() {
                         num.to_string()
@@ -597,4 +601,20 @@ fn display_escape<'a>(s: &'a str) -> Cow<'a, str> {
         .replace('\r', "\\r")
         .replace('\n', "\\n");
     Cow::Owned(s)
+}
+
+fn is_valid_identifier(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let Some(first) = bytes.first() else {
+        return false;
+    };
+    if !is_identifier_start::<false>(*first as u32) {
+        return false;
+    }
+    for byte in bytes.iter().skip(1) {
+        if !is_identifier_part::<false>(*byte as u32) {
+            return false;
+        }
+    }
+    true
 }

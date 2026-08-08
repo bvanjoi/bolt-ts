@@ -335,7 +335,7 @@ impl<'cx> TyChecker<'cx> {
         let mut iteration_tys = self
             .get_iteration_tys_of_iterator_cached(ty, resolver)
             .or_else(|| self.get_iteration_tys_of_iterator_fast(ty, resolver));
-        if let Some(_error_nodee) = error_node
+        if let Some(_error_node) = error_node
             && let Some(tys) = iteration_tys
             && std::ptr::eq(tys, self.no_iteration_tys())
         {
@@ -855,7 +855,7 @@ impl<'cx> TyChecker<'cx> {
             self.is_reference_to_ty(ty, target)
         } {
             let ty_arguments = self.get_ty_arguments(ty);
-            debug_assert!(ty_arguments.len() == 3);
+            debug_assert!(ty_arguments.len() == 3 || ty_arguments.len() == 4);
             let yield_ty = ty_arguments[0];
             let ret_ty = ty_arguments[1];
             let next_ty = ty_arguments[2];

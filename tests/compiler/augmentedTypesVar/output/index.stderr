@@ -1,0 +1,58 @@
+  × Duplicate identifier 'x2'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:11:10]
+ 10 │ x2 = 1; // error
+    · ─┬
+    ·  ╰── Previous definition here
+ 11 │ function x2
+    ·          ──
+    ╰────
+
+  × Duplicate identifier 'x4'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:20:7]
+ 19 │ x4 = 1; // error
+    · ─┬
+    ·  ╰── Previous definition here
+ 20 │ class x4
+    ·       ──
+    ╰────
+
+  × Duplicate identifier 'x4a'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:24:7]
+ 23 │ x4a = 1; // error
+    · ─┬─
+    ·  ╰── Previous definition here
+ 24 │ class x4a
+    ·       ───
+    ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:29:6]
+ 29 │ x5
+    · ──
+    ╰────
+
+  × Duplicate identifier 'x6a'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:37:11]
+ 36 │ x6a = 1; // error
+    · ─┬─
+    ·  ╰── Previous definition here
+ 37 │ namespace x6a
+    ·           ───
+    ╰────
+
+  × Duplicate identifier 'x6b'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:41:11]
+ 40 │ x6b = 1; // error
+    · ─┬─
+    ·  ╰── Previous definition here
+ 41 │ namespace x6b
+    ·           ───
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'x3'
+  │ must be of type 'number', but here has type '() => void'.
+    ╭─[../../tests/compiler/augmentedTypesVar/index.ts:15:5]
+ 15 │ x3
+    · ──
+    ╰────

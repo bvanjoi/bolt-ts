@@ -335,6 +335,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 }
             }
             ThisExpr(_) => {
+                self.seen_this_keyword = true;
                 if let Some(flow) = self.current_flow {
                     self.flow_nodes.insert_flow_of_node(node, flow);
                 }

@@ -1,0 +1,11 @@
+  × Cannot find name 'v'.
+    ╭─[../../tests/compiler/scopeCheckInsideStaticMethod1/index.ts:11:7]
+ 11 │ v
+    · ─
+    ╰────
+
+  × Property 'p' does not exist on type 'typeof C'.
+    ╭─[../../tests/compiler/scopeCheckInsideStaticMethod1/index.ts:14:12]
+ 14 │ p
+    · ─
+    ╰────

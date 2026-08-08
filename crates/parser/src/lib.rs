@@ -34,7 +34,6 @@ use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::pragmas::PragmaMap;
-pub use self::scan::is_identifier_part;
 use self::state::ParserState;
 use self::state::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 pub use self::touch::get_touching_property_name;

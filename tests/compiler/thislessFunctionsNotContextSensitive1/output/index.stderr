@@ -1,0 +1,18 @@
+  × Argument of type 'boolean' is not assignable to parameter of type 'true'.
+    ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive1/index.ts:31:3]
+ 31 │ false
+    · ─────
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'never'.
+     ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive1/index.ts:150:13]
+ 150 │ 'value'
+     · ───────
+     ╰────
+
+  × Type '"$test6"' is not assignable to type 'undefined | "$test4" | "$test1"
+  │ | "$test2" | "$test3" | "$test5"'.
+     ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive1/index.ts:184:3]
+ 184 │ target
+     · ──────
+     ╰────

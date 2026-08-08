@@ -30,7 +30,7 @@ pub fn emit_declarations<'cx, 'a>(
         .collect::<Vec<_>>()
 }
 
-pub fn emit_declaration<'cx, 'a>(module_id: ModuleID, checker: &'a mut TyChecker<'cx>) -> String {
+fn emit_declaration<'cx, 'a>(module_id: ModuleID, checker: &'a mut TyChecker<'cx>) -> String {
     let emitter = Emitter::new();
     let mut flags = EmitDeclarationFlags::NEED_DECLARE;
     if checker.p.get(module_id).is_external_or_commonjs_module() {
@@ -185,7 +185,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
                     this.emit_identifier_name_in_variable_declaration(ident, item.id);
                 }
                 ast::ObjectBindingName::Prop { name, .. } => {
-                    this.emit_variable_by_binding(*name, item.id);
+                    this.emit_variable_by_binding(name, item.id);
                 }
             },
             |this, _| {

@@ -212,6 +212,7 @@ dependencies = [
  "bolt_ts_module_graph",
  "bolt_ts_parser",
  "bolt_ts_path",
+ "bolt_ts_scanner",
  "bolt_ts_span",
  "bolt_ts_ty",
  "bolt_ts_utils",

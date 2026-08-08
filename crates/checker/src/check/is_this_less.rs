@@ -64,7 +64,7 @@ impl<'cx> TyChecker<'cx> {
             } else if self
                 .p
                 .node_flags(decl)
-                .intersects(ast::NodeFlags::CONTAINS_THIS)
+                .contains(ast::NodeFlags::CONTAINS_THIS)
             {
                 return false;
             }
