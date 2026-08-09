@@ -1,5 +1,5 @@
-  × Type '(x: T, y: S) => void' is not assignable to type '(x: T, y: S) =>
-  │ void'.
+  × Type '<T, S>(x: T, y: S) => void' is not assignable to type '<T, S>(x: T,
+  │ y: S) => void'.
     ╭─[../../tests/compiler/assignmentStricterConstraints/index.ts:11:1]
  11 │ g
     · ─

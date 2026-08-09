@@ -1,4 +1,4 @@
-  × Type '(x: T, y: T) => void' is not assignable to type '(g: Giraffe, e:
+  × Type '<T>(x: T, y: T) => void' is not assignable to type '(g: Giraffe, e:
   │ Elephant) => void'.
     ╭─[../../tests/compiler/contextualSignatureInstatiationContravariance/index.ts:13:1]
  13 │ g2

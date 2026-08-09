@@ -145,16 +145,19 @@ impl ModuleArena {
         assert!(idx < self.path_map.len());
         unsafe { self.path_map.get_unchecked(idx) }
     }
+
     pub fn get_content(&self, id: ModuleID) -> &str {
         let idx = id.as_usize();
         assert!(id.as_usize() < self.content_map.len());
         unsafe { self.content_map.get_unchecked(idx) }
     }
+
     pub fn get_module(&self, id: ModuleID) -> &Module {
         let idx = id.as_usize();
         assert!(idx < self.modules.len());
         unsafe { self.modules.get_unchecked(idx) }
     }
+
     pub fn modules(&self) -> &[Module] {
         &self.modules
     }

@@ -1,0 +1,24 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/ParameterList5/index.ts:5:16]
+ 5 │ public
+   · ──────
+   ╰────
+
+  × Cannot find name 'C'.
+   ╭─[../../tests/compiler/ParameterList5/index.ts:5:29]
+ 5 │ C
+   · ─
+   ╰────
+
+  × Parameter 'B' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/ParameterList5/index.ts:5:16]
+ 5 │ public B
+   · ────────
+   ╰────
+
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+   ╭─[../../tests/compiler/ParameterList5/index.ts:5:15]
+ 5 │ (public B) => C
+   · ───────────────
+   ╰────

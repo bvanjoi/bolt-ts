@@ -1,0 +1,15 @@
+  × A function whose declared type is neither 'undefined', 'void', nor 'any'
+  │ must return a value.
+    ╭─[../../tests/compiler/multiLineErrors/index.ts:7:22]
+  7 │ ╭─▶ {
+  8 │ │     //~^ ERROR: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+  9 │ │       n: string;
+ 10 │ │       y: number;
+ 11 │ ╰─▶ }
+    ╰────
+
+  × Type 'A2' is not assignable to type 'A1'.
+    ╭─[../../tests/compiler/multiLineErrors/index.ts:26:1]
+ 26 │ t1
+    · ──
+    ╰────

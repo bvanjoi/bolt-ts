@@ -11,4 +11,4 @@ namespace __test2__ {
     export var __val__obj = obj;
 }
 __test2__.__val__obj = __test1__.__val__obj4
-//~^ ERROR: Type '__test1__.interfaceWithPublicAndOptional<number, string>' is not assignable to type '(a: Tnumber) => Tnumber'.
+//~^ ERROR: Type '__test1__.interfaceWithPublicAndOptional<number, string>' is not assignable to type '<Tnumber>(a: Tnumber) => Tnumber'.

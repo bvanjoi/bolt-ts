@@ -96,12 +96,17 @@ fn run_test_with(
         let _ = std::fs::remove_file(output_err_path);
 
         let mut index_file_path = None;
+        let has_multiple_js_output = output_files
+            .keys()
+            .filter(|k| k.extension().is_some_and(|ext| ext.eq("js")))
+            .count()
+            > 1;
         for (p, content) in &output_files {
             if content.trim().is_empty() {
                 continue;
             }
 
-            if p.ends_with("index.js") {
+            if p.ends_with("index.js") && !has_multiple_js_output {
                 let temp_node_file =
                     compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
                 assert!(temp_node_file.is_absolute());

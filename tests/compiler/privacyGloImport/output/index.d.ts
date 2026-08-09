@@ -1,13 +1,13 @@
 declare namespace m1 {
   namespace m1_M1_public {
-    export class c1 {}
-    export function f1(): m1.m1_M1_public.c1;
+    class c1 {}
+    function f1(): m1.m1_M1_public.c1;
     var v1: typeof c1;
     var v2: c1;
   }
   namespace m1_M2_private {
-    export class c1 {}
-    export function f1(): m1_M2_private.c1;
+    class c1 {}
+    function f1(): m1_M2_private.c1;
     var v1: typeof c1;
     var v2: c1;
   }
@@ -33,14 +33,14 @@ declare namespace m1 {
   export import m1_im2_public = m1_M2_private;
 }
 declare namespace glo_M1_public {
-  export class c1 {}
-  export function f1(): glo_M1_public.c1;
+  class c1 {}
+  function f1(): glo_M1_public.c1;
   var v1: typeof c1;
   var v2: c1;
 }
 declare namespace "glo_M2_public" {
-  export function f1(): any;
-  export class c1 {}
+  function f1(): any;
+  class c1 {}
   var v1: {
     new (): c1;
   };

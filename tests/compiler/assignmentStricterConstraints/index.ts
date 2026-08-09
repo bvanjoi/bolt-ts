@@ -9,5 +9,5 @@ var f = function <T, S extends T>(x: T, y: S): void {
 var g = function <T, S>(x: T, y: S): void { }
 
 g = f
-//~^ ERROR: Type '(x: T, y: S) => void' is not assignable to type '(x: T, y: S) => void'.
+//~^ ERROR: Type '<T, S>(x: T, y: S) => void' is not assignable to type '<T, S>(x: T, y: S) => void'.
 g(1, "")

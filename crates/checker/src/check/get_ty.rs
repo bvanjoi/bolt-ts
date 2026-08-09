@@ -298,6 +298,10 @@ impl<'cx> TyChecker<'cx> {
             if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
                 return ty;
             };
+        } else if self.config.compiler_options().strict_null_checks()
+            && s.flags.contains(SymbolFlags::OPTIONAL)
+        {
+            ty = self.get_optional_ty::<true>(ty)
         }
         self.get_mut_symbol_links(symbol).set_ty(ty);
         ty

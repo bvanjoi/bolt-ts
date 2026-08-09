@@ -1,0 +1,6 @@
+  × Property 'computed' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/computedPropertiesTransformedInOtherwiseNonTSClasses/index.ts:10:9]
+ 10 │ [NS.x]
+    · ──────
+    ╰────

@@ -1,0 +1,28 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/deeplyNestedTemplateLiteralIntersection.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
+//@compiler-options: strict
+//@compiler-options: noEmit
+
+type R = `${number}a` & {
+    _thing: true;
+};
+
+type _S = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
+
+type S = `${_S}${_S}`;
+
+
+type T = R | S;
+type X = `${T} ${T}`;
+
+export type Props = Partial<{
+    x: X;
+}>;
+
+const a1: Props = {};
+const a2: Props = {};
+
+const b = { ...a1, ...a2 };
+
+export { b };

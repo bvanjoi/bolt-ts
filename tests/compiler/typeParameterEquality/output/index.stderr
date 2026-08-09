@@ -1,4 +1,4 @@
-  × Type 'null' is not assignable to type '(a: T) => T'.
+  × Type 'null' is not assignable to type '<T>(a: T) => T'.
    ╭─[../../tests/compiler/typeParameterEquality/index.ts:6:38]
  6 │ null
    · ────

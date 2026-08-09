@@ -1,12 +1,12 @@
-  × Type '(x: T, z: U) => void' is not assignable to type '(x: T, z: U) =>
-  │ void'.
+  × Type '<T, U>(x: T, z: U) => void' is not assignable to type '<T, U>(x: T,
+  │ z: U) => void'.
    ╭─[../../tests/compiler/genericAssignmentCompatOfFunctionSignatures1/index.ts:8:1]
  8 │ x1
    · ──
    ╰────
 
-  × Type '(x: T, z: U) => void' is not assignable to type '(x: T, z: U) =>
-  │ void'.
+  × Type '<T, U>(x: T, z: U) => void' is not assignable to type '<T, U>(x: T,
+  │ z: U) => void'.
     ╭─[../../tests/compiler/genericAssignmentCompatOfFunctionSignatures1/index.ts:10:1]
  10 │ x2
     · ──

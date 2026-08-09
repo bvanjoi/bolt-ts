@@ -1,0 +1,32 @@
+  × Argument of type '(a: M.IFrenchEye, b: M.IFrenchEye) => number' is not
+  │ assignable to parameter of type 'undefined | ((a: M.IEye, b: M.IEye) =>
+  │ number)'.
+    ╭─[../../tests/compiler/interfaceAssignmentCompat/index.ts:36:18]
+ 36 │ CompareYeux
+    · ───────────
+    ╰────
+
+  × Property '_map' does not exist on type '{ Green: Color.Green; Blue:
+  │ Color.Blue; Brown: Color.Brown; }'.
+    ╭─[../../tests/compiler/interfaceAssignmentCompat/index.ts:42:29]
+ 42 │ _map
+    · ────
+    ╰────
+
+  × Property 'coleur' is missing.
+    ╭─[../../tests/compiler/interfaceAssignmentCompat/index.ts:48:13]
+ 48 │ eeks[j]
+    · ───────
+    ╰────
+
+  × Property 'coleur' is missing.
+    ╭─[../../tests/compiler/interfaceAssignmentCompat/index.ts:51:9]
+ 51 │ eeks
+    · ────
+    ╰────
+
+  × Property 'coleur' is missing.
+    ╭─[../../tests/compiler/interfaceAssignmentCompat/index.ts:51:9]
+ 51 │ eeks
+    · ────
+    ╰────

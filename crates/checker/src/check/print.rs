@@ -400,6 +400,18 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
     fn print_anonymous_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         let a = ty.kind.expect_object_anonymous();
         let print_fn_like_str = |this: &mut Self, sig: &'cx super::Sig<'cx>| -> String {
+            let ty_params = this.c.get_sig_links(sig.id).get_ty_params();
+            let ty_params = ty_params.map(|ty_params| {
+                ty_params
+                    .iter()
+                    .map(|ty_param| {
+                        this.c
+                            .print_ty(ty_param, this.enclosing_declaration)
+                            .to_string()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            });
             let params = sig
                 .params
                 .iter()
@@ -415,7 +427,11 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 .join(", ");
             let ret = this.c.get_return_type_of_signature(sig);
             let ret = this.c.print_ty(ret, this.enclosing_declaration);
-            format!("({params}) => {ret}")
+            if let Some(ty_params) = ty_params {
+                format!("<{ty_params}>({params}) => {ret}")
+            } else {
+                format!("({params}) => {ret}")
+            }
         };
         let symbol_flags = a.symbol.map(|s| self.c.symbol(s).flags);
         if symbol_flags.is_some_and(|s| s.contains(SymbolFlags::OBJECT_LITERAL)) {

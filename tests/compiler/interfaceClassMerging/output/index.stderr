@@ -1,0 +1,33 @@
+  × Property 'additionalProperty' has no initializer and is not definitely
+  │ assigned in the constructor.
+    ╭─[../../tests/compiler/interfaceClassMerging/index.ts:13:5]
+ 13 │ additionalProperty
+    · ──────────────────
+    ╰────
+
+  × Property 'method' in type 'Bar<Bar>' is not assignable to the same
+  │ property in base type 'Foo<Bar>'.
+    ╭─[../../tests/compiler/interfaceClassMerging/index.ts:22:5]
+ 22 │ method
+    · ──────
+    ╰────
+
+  × Cannot invoke an object which is possibly 'undefined'.
+    ╭─[../../tests/compiler/interfaceClassMerging/index.ts:31:1]
+ 31 │ bar.optionalMethod
+    · ──────────────────
+    ╰────
+
+  × Variable 'obj' is used before being assigned.
+    ╭─[../../tests/compiler/interfaceClassMerging/index.ts:45:7]
+ 45 │ obj
+    · ───
+    ╰────
+
+  × Type 'Bar' is not assignable to type '{ method: (a: number) => string;
+  │ property: string; additionalProperty: string; additionalMethod: (a:
+  │ number) => string; }'.
+    ╭─[../../tests/compiler/interfaceClassMerging/index.ts:47:1]
+ 47 │ obj
+    · ───
+    ╰────

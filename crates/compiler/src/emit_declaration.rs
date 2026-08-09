@@ -54,10 +54,15 @@ bitflags::bitflags! {
         const NEED_DECLARE          = 1 << 1;
     }
 }
+
 struct DeclarationEmitter<'cx, 'a> {
     emitter: Emitter,
     resolver: EmitResolver<'cx, 'a>,
     flags: EmitDeclarationFlags,
+}
+
+fn contain_export_modifier<'cx>(flags: Option<&'cx ast::Modifiers<'cx>>) -> bool {
+    flags.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT))
 }
 
 impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
@@ -136,6 +141,17 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_double_quote();
         self.emitter.emit_atom(self.resolver.atoms(), atom);
         self.emitter.print().p_double_quote();
+    }
+
+    fn emit_export_modifier_if_needed(&mut self, contain_export_modifier: bool) {
+        if contain_export_modifier
+            && !self
+                .flags
+                .contains(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER)
+        {
+            self.emitter.print().p("export");
+            self.emitter.print().p_whitespace();
+        }
     }
 
     fn emit_declare_if_needed(&mut self) {
@@ -263,7 +279,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
     }
 
-    fn visit_module_block(&mut self, node: &'cx bolt_ts_ast::ModuleBlock<'cx>) -> Self::Result {
+    fn visit_module_block(&mut self, node: &'cx ast::ModuleBlock<'cx>) -> Self::Result {
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_brace();
         let saved_flags = self.flags;
@@ -435,6 +451,11 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_semi();
     }
 
+    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
+        self.emit_type_parameters(node.ty_params);
+        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node)
+    }
+
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
         self.emitter.print().p("constructor");
         self.emitter.print().p_l_paren();
@@ -458,11 +479,8 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_class_decl(&mut self, node: &'cx ast::ClassDecl<'cx>) -> Self::Result {
+        self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
         if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::EXPORT) {
-                self.emitter.print().p("export");
-                self.emitter.print().p_whitespace();
-            }
             if ms.flags.contains(ast::ModifierFlags::DEFAULT) {
                 self.emitter.print().p("default");
                 self.emitter.print().p_whitespace();
@@ -580,6 +598,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_interface_decl(&mut self, node: &'cx ast::InterfaceDecl<'cx>) -> Self::Result {
+        self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
         self.emitter.print().p("interface");
         self.emitter.print().p_whitespace();
         self.emitter
@@ -801,7 +820,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         }
     }
 
-    fn visit_num_lit(&mut self, node: &'cx bolt_ts_ast::NumLit) -> Self::Result {
+    fn visit_num_lit(&mut self, node: &'cx ast::NumLit) -> Self::Result {
         self.emitter.print().p(&node.val.to_string());
     }
 
@@ -870,12 +889,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Self::Result {
-        if n.modifiers
-            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT))
-        {
-            self.emitter.print().p("export");
-            self.emitter.print().p_whitespace();
-        }
+        self.emit_export_modifier_if_needed(contain_export_modifier(n.modifiers));
         if n.modifiers
             .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::DEFAULT))
         {
@@ -953,7 +967,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_r_brace();
     }
 
-    fn visit_var_stmt(&mut self, node: &'cx bolt_ts_ast::VarStmt<'cx>) -> Self::Result {
+    fn visit_var_stmt(&mut self, node: &'cx ast::VarStmt<'cx>) -> Self::Result {
         if !node
             .list
             .iter()
@@ -962,16 +976,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             return;
         }
 
-        if node
-            .modifiers
-            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::EXPORT))
-            && !self
-                .flags
-                .contains(EmitDeclarationFlags::STRIP_EXPORT_MODIFIER)
-        {
-            self.emitter.print().p("export");
-            self.emitter.print().p_whitespace();
-        }
+        self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
 
         self.emit_declare_if_needed();
 
@@ -1098,6 +1103,72 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         );
     }
 
+    fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) -> Self::Result {
+        self.emitter.print().p("import");
+        self.emitter.print().p_whitespace();
+        if let Some(clause) = node.clause {
+            self.visit_import_clause(clause);
+            self.emitter.print().p_whitespace();
+        }
+        self.emitter.print().p("from");
+        self.emitter.print().p_whitespace();
+        self.emit_string_literal(node.module.val);
+    }
+
+    fn visit_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) -> Self::Result {
+        if let Some(name) = node.name {
+            self.visit_ident(name);
+        }
+        if let Some(kind) = node.kind {
+            match kind {
+                ast::ImportClauseKind::Ns(n) => self.visit_ns_import(n),
+                ast::ImportClauseKind::Specs(list) => {
+                    self.emitter.print().p_l_brace();
+                    self.emitter.print().p_whitespace();
+                    self.emit_list(
+                        list,
+                        |this, item| match item.kind {
+                            ast::ImportSpecKind::Named(n) => this.visit_import_named_spec(n),
+                            ast::ImportSpecKind::Shorthand(n) => {
+                                this.visit_import_shorthand_spec(n)
+                            }
+                        },
+                        |this, _| {
+                            this.emitter.print().p_comma();
+                            this.emitter.print().p_whitespace();
+                        },
+                    );
+                    self.emitter.print().p_whitespace();
+                    self.emitter.print().p_r_brace();
+                }
+            }
+        }
+    }
+
+    fn visit_import_named_spec(&mut self, node: &'cx ast::ImportNamedSpec<'cx>) -> Self::Result {
+        self.emitter
+            .emit_atom(self.resolver.atoms(), node.name.name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("as");
+        self.emitter.print().p_whitespace();
+        match node.prop_name.kind {
+            ast::ModuleExportNameKind::Ident(n) => {
+                self.visit_ident(n);
+            }
+            ast::ModuleExportNameKind::StringLit(n) => {
+                self.visit_string_lit(n);
+            }
+        }
+    }
+
+    fn visit_import_shorthand_spec(
+        &mut self,
+        node: &'cx ast::ImportShorthandSpec<'cx>,
+    ) -> Self::Result {
+        self.emitter
+            .emit_atom(self.resolver.atoms(), node.name.name);
+    }
+
     fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
         if node.export_modifier.is_some() {
             self.emitter.print().p("export");
@@ -1179,12 +1250,12 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.visit_ty(node.ty);
     }
 
-    fn visit_for_in_stmt(&mut self, _: &'cx bolt_ts_ast::ForInStmt<'cx>) -> Self::Result {}
-    fn visit_for_of_stmt(&mut self, _: &'cx bolt_ts_ast::ForOfStmt<'cx>) -> Self::Result {}
-    fn visit_for_stmt(&mut self, _: &'cx bolt_ts_ast::ForStmt<'cx>) -> Self::Result {}
+    fn visit_for_in_stmt(&mut self, _: &'cx ast::ForInStmt<'cx>) -> Self::Result {}
+    fn visit_for_of_stmt(&mut self, _: &'cx ast::ForOfStmt<'cx>) -> Self::Result {}
+    fn visit_for_stmt(&mut self, _: &'cx ast::ForStmt<'cx>) -> Self::Result {}
 }
 
-fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &bolt_ts_ast::TemplateHead) {
+fn visit_template_head_ty(v: &mut DeclarationEmitter, node: &ast::TemplateHead) {
     v.emitter.print().p_backtick();
     v.emitter.emit_atom(v.resolver.atoms(), node.text);
     v.emitter.print().p("${");

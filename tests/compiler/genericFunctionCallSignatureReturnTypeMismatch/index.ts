@@ -8,7 +8,7 @@ declare var f : { <T>(x:T): T; }
 
 declare var g : { <S>() : S[]; };
 f = g;
-//~^ ERROR: Type '() => S[]' is not assignable to type '(x: T) => T'.
+//~^ ERROR: Type '<S>() => S[]' is not assignable to type '<T>(x: T) => T'.
 
 var s = f("str").toUpperCase();
 

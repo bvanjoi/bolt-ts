@@ -29,7 +29,7 @@ macro_rules! visit_return {
     }};
 }
 
-pub fn visit_type_parameters<'cx, V: Visitor<'cx>>(
+fn visit_type_parameters<'cx, V: Visitor<'cx>>(
     v: &mut V,
     ty_params: Option<ast::TyParams<'cx>>,
 ) -> V::Result {
@@ -41,34 +41,28 @@ pub fn visit_type_parameters<'cx, V: Visitor<'cx>>(
     V::Result::output()
 }
 
-pub fn visit_param_decls<'cx, V: Visitor<'cx>>(
-    v: &mut V,
-    params: ast::ParamsDecl<'cx>,
-) -> V::Result {
+fn visit_param_decls<'cx, V: Visitor<'cx>>(v: &mut V, params: ast::ParamsDecl<'cx>) -> V::Result {
     for param in params {
         visit_return!(v.visit_param_decl(param));
     }
     V::Result::output()
 }
 
-pub fn visit_optional_ty<'cx, V: Visitor<'cx>>(
-    v: &mut V,
-    ty: Option<&'cx ast::Ty<'cx>>,
-) -> V::Result {
+fn visit_optional_ty<'cx, V: Visitor<'cx>>(v: &mut V, ty: Option<&'cx ast::Ty<'cx>>) -> V::Result {
     if let Some(ty) = ty {
         return v.visit_ty(ty);
     }
     V::Result::output()
 }
 
-pub fn visit_tys<'cx, V: Visitor<'cx>>(v: &mut V, tys: &'cx [&'cx ast::Ty<'cx>]) -> V::Result {
+fn visit_tys<'cx, V: Visitor<'cx>>(v: &mut V, tys: &'cx [&'cx ast::Ty<'cx>]) -> V::Result {
     for ty in tys {
         visit_return!(v.visit_ty(ty));
     }
     V::Result::output()
 }
 
-pub fn visit_type_arguments<'cx, V: Visitor<'cx>>(
+fn visit_type_arguments<'cx, V: Visitor<'cx>>(
     v: &mut V,
     ty_args: Option<&'cx ast::Tys<'cx>>,
 ) -> V::Result {
@@ -79,24 +73,21 @@ pub fn visit_type_arguments<'cx, V: Visitor<'cx>>(
     }
 }
 
-pub fn visit_stmts<'cx, V: Visitor<'cx>>(v: &mut V, stmts: ast::Stmts<'cx>) -> V::Result {
+fn visit_stmts<'cx, V: Visitor<'cx>>(v: &mut V, stmts: ast::Stmts<'cx>) -> V::Result {
     for stmt in stmts {
         visit_return!(v.visit_stmt(stmt));
     }
     V::Result::output()
 }
 
-pub fn visit_exprs<'cx, V: Visitor<'cx>>(
-    v: &mut V,
-    exprs: &'cx [&'cx ast::Expr<'cx>],
-) -> V::Result {
+fn visit_exprs<'cx, V: Visitor<'cx>>(v: &mut V, exprs: &'cx [&'cx ast::Expr<'cx>]) -> V::Result {
     for expr in exprs {
         visit_return!(v.visit_expr(expr));
     }
     V::Result::output()
 }
 
-pub fn visit_optional_expr<'cx, V: Visitor<'cx>>(
+fn visit_optional_expr<'cx, V: Visitor<'cx>>(
     v: &mut V,
     expr: Option<&'cx ast::Expr<'cx>>,
 ) -> V::Result {
@@ -106,7 +97,7 @@ pub fn visit_optional_expr<'cx, V: Visitor<'cx>>(
     V::Result::output()
 }
 
-pub fn visit_optional_block_stmt<'cx, V: Visitor<'cx>>(
+fn visit_optional_block_stmt<'cx, V: Visitor<'cx>>(
     v: &mut V,
     body: Option<&'cx ast::BlockStmt<'cx>>,
 ) -> V::Result {
@@ -116,7 +107,7 @@ pub fn visit_optional_block_stmt<'cx, V: Visitor<'cx>>(
     V::Result::output()
 }
 
-pub fn visit_call_like_signature<'cx, V: Visitor<'cx>>(
+fn visit_call_like_signature<'cx, V: Visitor<'cx>>(
     v: &mut V,
     ty_params: Option<ast::TyParams<'cx>>,
     params: ast::ParamsDecl<'cx>,
@@ -127,7 +118,7 @@ pub fn visit_call_like_signature<'cx, V: Visitor<'cx>>(
     visit_optional_ty(v, ty)
 }
 
-pub fn visit_refer_tys<'cx, V: Visitor<'cx>>(
+fn visit_refer_tys<'cx, V: Visitor<'cx>>(
     v: &mut V,
     tys: &'cx [&'cx ast::ReferTy<'cx>],
 ) -> V::Result {
@@ -137,7 +128,7 @@ pub fn visit_refer_tys<'cx, V: Visitor<'cx>>(
     V::Result::output()
 }
 
-pub fn visit_optional_exprs<'cx, V: Visitor<'cx>>(
+fn visit_optional_exprs<'cx, V: Visitor<'cx>>(
     v: &mut V,
     exprs: Option<&'cx [&'cx ast::Expr<'cx>]>,
 ) -> V::Result {
@@ -148,7 +139,7 @@ pub fn visit_optional_exprs<'cx, V: Visitor<'cx>>(
     }
 }
 
-pub fn visit_fn_like_with_optional_body<'cx, V: Visitor<'cx>>(
+fn visit_fn_like_with_optional_body<'cx, V: Visitor<'cx>>(
     v: &mut V,
     ty_params: Option<ast::TyParams<'cx>>,
     params: ast::ParamsDecl<'cx>,
@@ -159,7 +150,7 @@ pub fn visit_fn_like_with_optional_body<'cx, V: Visitor<'cx>>(
     visit_optional_block_stmt(v, body)
 }
 
-pub fn visit_object_ty_members<'cx, V: Visitor<'cx>>(
+fn visit_object_ty_members<'cx, V: Visitor<'cx>>(
     v: &mut V,
     members: &'cx [&'cx ast::ObjectTyMember<'cx>],
 ) -> V::Result {
