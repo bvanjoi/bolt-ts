@@ -1,55 +1,55 @@
   × Type '[]' is not assignable to type '[string]'.
-    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:12:9]
- 12 │ c
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:13:9]
+ 13 │ c
     · ─
     ╰────
 
   × Type 'boolean' is not assignable to type 'false'.
-    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:35:9]
- 35 │ a
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:36:9]
+ 36 │ a
     · ─
     ╰────
 
   × Type '1' is not assignable to type '0'.
-    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:42:9]
- 42 │ a
+    ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:43:9]
+ 43 │ a
     · ─
     ╰────
 
   × Type 'never[]' has no properties in common with type 'EmptyObject'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:187:9]
- 187 │ foo
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:188:9]
+ 188 │ foo
      · ───
      ╰────
 
   × Non-abstract class 'WrongConcreteExtendedBar' does not implement inherited
   │ abstract member 'barMethod' from class 'ExtendedBar<typeof Bar> & Bar'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:264:3]
- 264 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:265:3]
+ 265 │ class WrongConcreteExtendedBar extends withBar(Bar) {}
      · ──────────────────────────────────────────────────────
      ╰────
 
   × Type 'boolean' is not assignable to type 'false'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:290:9]
- 290 │ a0
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:291:9]
+ 291 │ a0
      · ──
      ╰────
 
   × Element implicitly has an 'any' type because expression of type '1' can't
   │ be used to index type '{ 0: string; }'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:325:3]
- 325 │ a1[1]
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:326:3]
+ 326 │ a1[1]
      · ─────
      ╰────
 
   × Type 'boolean' is not assignable to type 'true'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:336:9]
- 336 │ a1
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:337:9]
+ 337 │ a1
      · ──
      ╰────
 
   × Type '"other value"' is not assignable to type '"some value"'.
-     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:344:9]
- 344 │ c
+     ╭─[../../tests/compiler/removeMissingTyForWidened/index.ts:345:9]
+ 345 │ c
      · ─
      ╰────

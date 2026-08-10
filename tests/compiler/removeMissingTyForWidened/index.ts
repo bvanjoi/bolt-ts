@@ -1,5 +1,6 @@
 //@compiler-options: strict
 //@compiler-options: exactOptionalPropertyTypes
+//@compiler-options: target=es2015
 
 type O = {
   b?: boolean;	

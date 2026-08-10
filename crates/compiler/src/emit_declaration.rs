@@ -143,6 +143,15 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_double_quote();
     }
 
+    fn emit_default_modifier(&mut self, ms: Option<&'cx ast::Modifiers<'cx>>) {
+        if let Some(ms) = ms
+            && ms.flags.contains(ast::ModifierFlags::DEFAULT)
+        {
+            self.emitter.print().p("default");
+            self.emitter.print().p_whitespace();
+        }
+    }
+
     fn emit_export_modifier_if_needed(&mut self, contain_export_modifier: bool) {
         if contain_export_modifier
             && !self
@@ -480,12 +489,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_class_decl(&mut self, node: &'cx ast::ClassDecl<'cx>) -> Self::Result {
         self.emit_export_modifier_if_needed(contain_export_modifier(node.modifiers));
-        if let Some(ms) = node.modifiers {
-            if ms.flags.contains(ast::ModifierFlags::DEFAULT) {
-                self.emitter.print().p("default");
-                self.emitter.print().p_whitespace();
-            }
-        }
+        self.emit_default_modifier(node.modifiers);
         self.emit_declare_if_needed();
         self.emitter.print().p("class");
         self.emitter.print().p_whitespace();
@@ -890,12 +894,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
 
     fn visit_fn_decl(&mut self, n: &'cx ast::FnDecl<'cx>) -> Self::Result {
         self.emit_export_modifier_if_needed(contain_export_modifier(n.modifiers));
-        if n.modifiers
-            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::DEFAULT))
-        {
-            self.emitter.print().p("default");
-            self.emitter.print().p_whitespace();
-        }
+        self.emit_default_modifier(n.modifiers);
         self.emit_declare_if_needed();
         self.emitter.print().p("function");
         self.emitter.print().p_whitespace();

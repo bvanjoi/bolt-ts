@@ -1,11 +1,39 @@
   × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:8:5]
+ 8 │ ["a"]
+   · ─────
+   ╰────
+
+  × Property 'computed' has no initializer and is not definitely assigned in
+  │ the constructor.
    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:6:5]
  6 │ ["a"]
    · ─────
    ╰────
 
+  × Property 'computed' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:8:5]
+ 8 │ ["a"]
+   · ─────
+   ╰────
+
   × Duplicate identifier 'a'.
-    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:13:5]
- 13 │ a
+    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:17:5]
+ 17 │ a
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:15:5]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/duplicateIdentifierComputedName/index.ts:17:5]
+ 17 │ a
     · ─
     ╰────

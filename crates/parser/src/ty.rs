@@ -2,6 +2,7 @@ use super::CheckParameterFlags;
 use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
+use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 
@@ -213,15 +214,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
         let ty = self.parse_return_ty::<false, false>()?.unwrap();
         let span = self.new_span(start);
-        let ty = if is_ctor_ty {
+        let kind = if is_ctor_ty {
             let node = self.create_constructor_type(span, modifiers, ty_params, params, ty);
-            let kind = ast::TyKind::Ctor(node);
-            self.alloc(ast::Ty { kind })
+            ast::TyKind::Ctor(node)
         } else {
             let node = self.create_function_type(span, ty_params, params, ty);
-            let kind = ast::TyKind::Fn(node);
-            self.alloc(ast::Ty { kind })
+            ast::TyKind::Fn(node)
         };
+        let ty = self.alloc(ast::Ty { kind });
         Ok(ty)
     }
 
@@ -304,6 +304,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     if self.lookahead(Lookahead::next_token_is_start_of_expr) {
                         return Ok(ty);
                     } else {
+                        if is_ts_like_variant(VARIANT) {
+                            let error = errors::XAtTheEndOfATypeIsNotValidTypeScriptSyntax {
+                                span: self.token.span,
+                                token: TokenKind::Question.as_str().to_string(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
                         self.next_token();
                         let n = self.create_nullable_type(self.new_span(start), ty);
                         ty = self.alloc(ast::Ty {

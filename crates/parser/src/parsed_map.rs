@@ -1,53 +1,74 @@
+use std::mem::MaybeUninit;
+
 use bolt_ts_ast as ast;
 use bolt_ts_span::ModuleID;
 
-use crate::ParseResultForGraph;
+use super::ParseResultForGraph;
 
 #[derive(Default)]
 pub struct ParsedMap<'cx> {
-    map: Vec<ParseResultForGraph<'cx>>,
+    map: Vec<MaybeUninit<ParseResultForGraph<'cx>>>,
 }
 
 impl<'cx> ParsedMap<'cx> {
     #[inline(always)]
-    pub fn new() -> Self {
-        Self {
-            map: Vec::with_capacity(512),
+    pub fn preserve(cap: usize) -> Self {
+        let mut map: Vec<MaybeUninit<ParseResultForGraph<'cx>>> = Vec::with_capacity(cap * 4);
+        unsafe {
+            map.set_len(cap);
         }
+        Self { map }
     }
 
     #[inline(always)]
     pub fn from_map(map: Vec<ParseResultForGraph<'cx>>) -> Self {
+        let map = map.into_iter().map(MaybeUninit::new).collect();
         Self { map }
     }
 
     #[inline(always)]
     pub fn into_map(self) -> Vec<ParseResultForGraph<'cx>> {
-        self.map
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
+        let this = std::mem::ManuallyDrop::new(self);
+        let (ptr, len, cap) = (this.map.as_ptr(), this.map.len(), this.map.capacity());
+        unsafe { Vec::from_raw_parts(ptr as *mut ParseResultForGraph<'cx>, len, cap) }
     }
 
     #[inline(always)]
-    pub fn get_map(&self) -> &Vec<ParseResultForGraph<'cx>> {
-        &self.map
+    pub fn get_map(&self) -> &[ParseResultForGraph<'cx>] {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
+        let ptr = self.map.as_ptr() as *const ParseResultForGraph<'cx>;
+        unsafe { std::slice::from_raw_parts(ptr, self.map.len()) }
     }
 
     #[inline(always)]
     pub fn insert(&mut self, id: ModuleID, result: ParseResultForGraph<'cx>) {
         assert_eq!(id.as_usize(), self.map.len());
-        self.map.push(result);
+        self.map.push(MaybeUninit::new(result));
+    }
+
+    #[inline(always)]
+    pub fn insert_within_preserve(&mut self, index: ModuleID, result: ParseResultForGraph<'cx>) {
+        debug_assert!(index.as_usize() < self.map.len());
+        self.map[index.as_usize()] = MaybeUninit::new(result);
     }
 
     #[inline(always)]
     pub fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         let idx = id.as_usize();
         debug_assert!(idx < self.map.len());
-        unsafe { self.map.get_unchecked(idx) }
+        unsafe { &*self.map.get_unchecked(idx).as_ptr() }
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.map
             .iter_mut()
-            .flat_map(|result| std::mem::take(&mut result.diags))
+            .flat_map(|result| {
+                let ptr = unsafe { &mut *result.as_mut_ptr() };
+                std::mem::take(&mut ptr.diags)
+            })
             .collect()
     }
 
@@ -57,18 +78,21 @@ impl<'cx> ParsedMap<'cx> {
     }
 
     pub fn node_flags(&self, node: ast::NodeID) -> ast::NodeFlags {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         let idx = node.module().as_usize();
         debug_assert!(idx < self.map.len());
-        unsafe { self.map.get_unchecked(idx).node_flags(node) }
+        unsafe { (&*self.map.get_unchecked(idx).as_ptr()).node_flags(node) }
     }
 
     #[inline(always)]
     pub fn root(&self, id: ModuleID) -> &'cx ast::Program<'cx> {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.get(id).root()
     }
 
     #[inline(always)]
     pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.get(id.module()).node(id)
     }
 

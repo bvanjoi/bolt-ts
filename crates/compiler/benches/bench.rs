@@ -132,7 +132,7 @@ fn compile(input_dir: std::path::PathBuf) {
 fn parse(input: std::path::PathBuf) {
     let parser_arena = bolt_ts_arena::bumpalo_herd::Herd::new();
     let mut atoms = bolt_ts_ast::keyword::init_atom_map();
-    let mut module_arena = bolt_ts_span::ModuleArena::new(4);
+    let mut module_arena = bolt_ts_span::ModuleArena::default();
     let mut fs = bolt_ts_fs::LocalFS::new(&mut atoms);
     let module_id = module_arena.new_module(
         input,

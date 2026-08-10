@@ -909,3 +909,11 @@ pub struct TypeParameterDeclarationsCanOnlyBeUsedInTypeScriptFiles {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{token}' at the end of a type is not valid TypeScript syntax.")]
+pub struct XAtTheEndOfATypeIsNotValidTypeScriptSyntax {
+    #[label(primary)]
+    pub span: Span,
+    pub token: String,
+}

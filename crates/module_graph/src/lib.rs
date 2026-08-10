@@ -183,7 +183,7 @@ pub fn build_graph<'cx>(
                             continue;
                         }
                         let content = fs.read_file(lib_reference, atoms).unwrap();
-                        let to = module_arena.new_module_with_content(
+                        let to = module_arena.new_module_with_content_within_preserve(
                             lib_reference.to_path_buf(),
                             true,
                             content,
@@ -194,7 +194,11 @@ pub fn build_graph<'cx>(
                 }
             }
 
-            parsed.insert(id, parse_result);
+            if module_arena.is_preserve(id) {
+                parsed.insert_within_preserve(id, parse_result);
+            } else {
+                parsed.insert(id, parse_result);
+            }
 
             for (ast_id, dep) in deps {
                 let module_name_node = parsed.node(ast_id);

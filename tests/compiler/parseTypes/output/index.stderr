@@ -1,0 +1,56 @@
+  × Type '(s: string) => void' is not assignable to type '() => number'.
+    ╭─[../../tests/compiler/parseTypes/index.ts:16:1]
+ 16 │ y
+    · ─
+    ╰────
+
+  × Type '(s: string) => void' is not assignable to type '() => number'.
+    ╭─[../../tests/compiler/parseTypes/index.ts:18:1]
+ 18 │ x
+    · ─
+    ╰────
+
+  × Type '(s: string) => void' is not assignable to type '{ [x: number]:
+  │ number }'.
+    ╭─[../../tests/compiler/parseTypes/index.ts:20:1]
+ 20 │ w
+    · ─
+    ╰────
+
+  × Type '(s: string) => void' is not assignable to type 'new () => number'.
+    ╭─[../../tests/compiler/parseTypes/index.ts:22:1]
+ 22 │ z
+    · ─
+    ╰────
+
+  × Conversion of type 'null' to type '() => number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/parseTypes/index.ts:5:9]
+ 5 │ <() => number>null
+   · ──────────────────
+   ╰────
+
+  × Conversion of type 'null' to type '() => number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/parseTypes/index.ts:7:9]
+ 7 │ <{(): number; }>null
+   · ────────────────────
+   ╰────
+
+  × Conversion of type 'null' to type 'new () => number' may be a mistake
+  │ because neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/parseTypes/index.ts:9:9]
+ 9 │ <{new(): number; }>null
+   · ───────────────────────
+   ╰────
+
+  × Conversion of type 'null' to type '{ [x: number]: number }' may be a
+  │ mistake because neither type sufficiently overlaps with the other. If this
+  │ was intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/parseTypes/index.ts:11:9]
+ 11 │ <{[x:number]: number; }>null
+    · ────────────────────────────
+    ╰────

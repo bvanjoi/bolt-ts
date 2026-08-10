@@ -34,14 +34,11 @@ fn eval_in_test<'cx>(
     // ==== fs init ====
     let fs = LocalFS::new(&mut atoms);
     let exe_dir = bolt_ts_compiler::current_exe_dir();
-    let mut default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::DEFAULT_LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
 
-    // extra default lib
-    let current_dir = std::env::current_dir().unwrap();
-    default_libs.push(current_dir.join("tests/test.d.ts"));
     bolt_ts_compiler::eval_with_fs(
         root,
         tsconfig,

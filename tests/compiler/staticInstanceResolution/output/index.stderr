@@ -1,5 +1,0 @@
-  × Variable 'c' is used before being assigned.
-    ╭─[../../tests/compiler/staticInstanceResolution/index.ts:17:9]
- 17 │ c
-    · ─
-    ╰────

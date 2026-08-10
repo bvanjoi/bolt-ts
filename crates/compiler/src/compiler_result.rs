@@ -131,7 +131,7 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
     }
 
     pub fn steal_module_arena(&mut self) -> ModuleArena {
-        std::mem::replace(&mut self.checker.module_arena, ModuleArena::new(0))
+        std::mem::take(&mut self.checker.module_arena)
     }
 
     pub fn type_count(&self) -> usize {
