@@ -162,6 +162,7 @@ pub enum Node<'cx> {
     PropSignature(&'cx super::PropSignature<'cx>),
     MethodSignature(&'cx super::MethodSignature<'cx>),
     RestTy(&'cx super::RestTy<'cx>),
+    OptionalTy(&'cx super::OptionalTy<'cx>),
     NamedTupleTy(&'cx super::NamedTupleTy<'cx>),
     TupleTy(&'cx super::TupleTy<'cx>),
     CondTy(&'cx super::CondTy<'cx>),
@@ -1393,6 +1394,7 @@ as_node!(
     (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
     (TypeAliasDecl, super::TypeAliasDecl<'cx>, type_alias_decl),
     (RestTy, super::RestTy<'cx>, rest_ty),
+    (OptionalTy, super::OptionalTy<'cx>, optional_ty),
     (NamedTupleTy, super::NamedTupleTy<'cx>, named_tuple_ty),
     (TupleTy, super::TupleTy<'cx>, tuple_ty),
     (

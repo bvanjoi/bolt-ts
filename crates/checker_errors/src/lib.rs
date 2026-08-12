@@ -2094,3 +2094,11 @@ pub struct ThisConditionWillAlwaysReturnTrueSinceThisXIsAlwaysDefined {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' is specified more than once, so this usage will be overwritten.")]
+pub struct XIsSpecifiedMoreThanOnceSoThisUsageWillBeOverwritten {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

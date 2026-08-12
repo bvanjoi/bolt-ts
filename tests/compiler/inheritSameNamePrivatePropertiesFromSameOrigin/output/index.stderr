@@ -1,0 +1,6 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/inheritSameNamePrivatePropertiesFromSameOrigin/index.ts:6:13]
+ 6 │ x
+   · ─
+   ╰────

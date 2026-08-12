@@ -1,0 +1,5 @@
+  × Invalid character.
+   ╭─[../../tests/compiler/invalidUnicodeEscapeSequance4/index.ts:6:5]
+ 6 │ \
+   · ─
+   ╰────

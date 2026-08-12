@@ -33,6 +33,7 @@ use bolt_ts_utils::path::NormalizePath;
 use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
+pub use self::parsed_map::ParsedMapState;
 pub use self::pragmas::PragmaMap;
 use self::state::ParserState;
 use self::state::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};

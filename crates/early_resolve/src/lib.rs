@@ -624,6 +624,9 @@ impl<'cx, 'a> Resolver<'cx, 'a, '_> {
                     self.resolve_ty(item.ty);
                 }
             }
+            Optional(n) => {
+                self.resolve_ty(n.ty);
+            }
             Intrinsic(_) | This(_) => {}
             Import(_) => {}
         }

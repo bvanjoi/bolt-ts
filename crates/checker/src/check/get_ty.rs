@@ -536,6 +536,10 @@ impl<'cx> TyChecker<'cx> {
             ObjectLit(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             Ctor(node) => self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(node.id),
             Rest(rest) => self.get_ty_from_rest_ty_node(rest),
+            Optional(n) => {
+                let ty = self.get_ty_from_type_node(n.ty);
+                self.add_optionality::<true>(ty, true)
+            }
             IndexedAccess(node) => self.get_ty_from_indexed_access_node(node),
             Cond(node) => self.get_ty_from_cond_ty_node(node),
             Union(node) => self.get_ty_from_union_ty_node(node),
@@ -2209,7 +2213,7 @@ impl<'cx> TyChecker<'cx> {
     pub fn get_tuple_element_flags(node: &'cx ast::Ty<'cx>) -> ElementFlags {
         use bolt_ts_ast::TyKind::*;
         match node.kind {
-            Nullable(_) => ElementFlags::OPTIONAL,
+            Optional(_) => ElementFlags::OPTIONAL,
             Rest(rest) => Self::get_rest_ty_ele_flags(rest),
             NamedTuple(named) => {
                 if named.question.is_some() {

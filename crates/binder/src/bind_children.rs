@@ -1393,6 +1393,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             NewMetaProperty(n) => {
                 self.bind(n.name.id);
             }
+            OptionalTy(n) => {
+                self.bind(n.ty.id());
+            }
         }
         // TODO: bind_js_doc
         self.in_assignment_pattern = save_in_assignment_pattern;

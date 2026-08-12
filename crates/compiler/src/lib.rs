@@ -350,7 +350,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         .collect::<Vec<_>>();
 
     // ==== build graph ====
-    let mut p = bolt_ts_parser::ParsedMap::preserve(preserve_len);
+    let mut p = bolt_ts_parser::ParsedMapState::preserve(preserve_len);
     let atoms = Arc::new(Mutex::new(atoms));
     let fs = Arc::new(Mutex::new(fs));
     let mut mg = bolt_ts_module_graph::build_graph(
@@ -363,6 +363,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         fs.clone(),
         &tsconfig,
     );
+    let p = p.to_result();
     let fs = Arc::try_unwrap(fs).unwrap().into_inner().unwrap();
 
     // ==== bind ====

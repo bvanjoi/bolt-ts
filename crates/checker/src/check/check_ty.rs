@@ -46,6 +46,7 @@ impl<'cx> TyChecker<'cx> {
             TemplateLit(_nn) => (),
             This(_nn) => (),
             Import(_) => (),
+            Optional(_) => {}
         };
         self.current_node = saved_current_node;
     }

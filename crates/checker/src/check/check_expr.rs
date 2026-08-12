@@ -1957,6 +1957,11 @@ impl<'cx> TyChecker<'cx> {
             .is_some();
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
+        let mut all_properties_table = if self.config.compiler_options().strict_null_checks() {
+            Some(fx_hashmap_with_capacity(node.members.len()))
+        } else {
+            None
+        };
         let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
@@ -2119,6 +2124,10 @@ impl<'cx> TyChecker<'cx> {
                             parent,
                         )
                     };
+
+                    if let Some(p) = all_properties_table.as_mut() {
+                        p.insert(name, prop);
+                    }
                     push_properties_table(
                         self,
                         computed_named_ty,
@@ -2188,6 +2197,9 @@ impl<'cx> TyChecker<'cx> {
                     if self.is_valid_spread_ty(ty) {
                         let merged_ty = self
                             .try_merge_union_of_object_ty_and_empty_object(ty, is_const_context);
+                        if let Some(all_properties_table) = &all_properties_table {
+                            self.check_spared_property_overrides(merged_ty, all_properties_table);
+                        }
                         let s = *symbol.get_or_init(|| self.get_symbol_of_declaration(node.id));
                         spread = self.get_spread_ty(
                             spread,
@@ -2373,6 +2385,30 @@ impl<'cx> TyChecker<'cx> {
             offset,
             &properties_array,
         )
+    }
+
+    fn check_spared_property_overrides(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        props: &FxHashMap<SymbolName, SymbolID>,
+        // node: &'cx ast::SpreadAssignment,
+    ) {
+        for &right in self.get_props_of_ty(ty) {
+            let r = self.symbol(right);
+            let flags = r.flags;
+            let name = r.name;
+            if !flags.contains(SymbolFlags::OPTIONAL)
+                && self.get_check_flags(right).intersects(CheckFlags::PARTIAL)
+                && let Some(left) = props.get(&name)
+            {
+                let l = self.symbol(*left);
+                let error = errors::XIsSpecifiedMoreThanOnceSoThisUsageWillBeOverwritten {
+                    span: self.p.node(l.value_decl.unwrap()).span(),
+                    name: l.name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn is_empty_object_ty_or_spreads_into_empty_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {

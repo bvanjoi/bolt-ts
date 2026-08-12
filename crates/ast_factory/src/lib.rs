@@ -1588,6 +1588,18 @@ pub trait ASTFactory<'cx> {
         node
     }
 
+    fn create_optional_type(
+        &mut self,
+        span: Span,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::OptionalTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::OptionalTy { id, span, ty });
+        self.insert_node(id, ast::Node::OptionalTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
     #[inline(always)]
     fn create_conditional_type(
         &mut self,

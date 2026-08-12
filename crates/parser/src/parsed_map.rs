@@ -6,11 +6,11 @@ use bolt_ts_span::ModuleID;
 use super::ParseResultForGraph;
 
 #[derive(Default)]
-pub struct ParsedMap<'cx> {
+pub struct ParsedMapState<'cx> {
     map: Vec<MaybeUninit<ParseResultForGraph<'cx>>>,
 }
 
-impl<'cx> ParsedMap<'cx> {
+impl<'cx> ParsedMapState<'cx> {
     #[inline(always)]
     pub fn preserve(cap: usize) -> Self {
         let mut map: Vec<MaybeUninit<ParseResultForGraph<'cx>>> = Vec::with_capacity(cap * 4);
@@ -21,24 +21,12 @@ impl<'cx> ParsedMap<'cx> {
     }
 
     #[inline(always)]
-    pub fn from_map(map: Vec<ParseResultForGraph<'cx>>) -> Self {
-        let map = map.into_iter().map(MaybeUninit::new).collect();
-        Self { map }
-    }
-
-    #[inline(always)]
-    pub fn into_map(self) -> Vec<ParseResultForGraph<'cx>> {
+    pub fn to_result(self) -> ParsedMap<'cx> {
         debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         let this = std::mem::ManuallyDrop::new(self);
         let (ptr, len, cap) = (this.map.as_ptr(), this.map.len(), this.map.capacity());
-        unsafe { Vec::from_raw_parts(ptr as *mut ParseResultForGraph<'cx>, len, cap) }
-    }
-
-    #[inline(always)]
-    pub fn get_map(&self) -> &[ParseResultForGraph<'cx>] {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
-        let ptr = self.map.as_ptr() as *const ParseResultForGraph<'cx>;
-        unsafe { std::slice::from_raw_parts(ptr, self.map.len()) }
+        let map = unsafe { Vec::from_raw_parts(ptr as *mut ParseResultForGraph<'cx>, len, cap) };
+        ParsedMap { map }
     }
 
     #[inline(always)]
@@ -54,21 +42,51 @@ impl<'cx> ParsedMap<'cx> {
     }
 
     #[inline(always)]
-    pub fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
+    fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
         let idx = id.as_usize();
         debug_assert!(idx < self.map.len());
-        unsafe { &*self.map.get_unchecked(idx).as_ptr() }
+        let item = unsafe { self.map.get_unchecked(idx) };
+        let item = unsafe { item.assume_init_ref() };
+        item
+    }
+
+    #[inline(always)]
+    pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
+        self.get(id.module()).node(id)
+    }
+}
+
+pub struct ParsedMap<'cx> {
+    map: Vec<ParseResultForGraph<'cx>>,
+}
+
+impl<'cx> ParsedMap<'cx> {
+    #[inline(always)]
+    pub fn from_map(map: Vec<ParseResultForGraph<'cx>>) -> Self {
+        Self { map }
+    }
+
+    #[inline(always)]
+    pub fn into_map(self) -> Vec<ParseResultForGraph<'cx>> {
+        self.map
+    }
+
+    #[inline(always)]
+    pub fn get_map(&self) -> &[ParseResultForGraph<'cx>] {
+        self.map.as_slice()
+    }
+
+    #[inline(always)]
+    pub fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
+        let idx = id.as_usize();
+        debug_assert!(idx < self.map.len());
+        unsafe { self.map.get_unchecked(idx) }
     }
 
     pub fn steal_errors(&mut self) -> Vec<bolt_ts_errors::Diag> {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.map
             .iter_mut()
-            .flat_map(|result| {
-                let ptr = unsafe { &mut *result.as_mut_ptr() };
-                std::mem::take(&mut ptr.diags)
-            })
+            .flat_map(|result| std::mem::take(&mut result.diags))
             .collect()
     }
 
@@ -78,21 +96,18 @@ impl<'cx> ParsedMap<'cx> {
     }
 
     pub fn node_flags(&self, node: ast::NodeID) -> ast::NodeFlags {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         let idx = node.module().as_usize();
         debug_assert!(idx < self.map.len());
-        unsafe { (&*self.map.get_unchecked(idx).as_ptr()).node_flags(node) }
+        unsafe { self.map.get_unchecked(idx).node_flags(node) }
     }
 
     #[inline(always)]
     pub fn root(&self, id: ModuleID) -> &'cx ast::Program<'cx> {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.get(id).root()
     }
 
     #[inline(always)]
     pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
-        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
         self.get(id.module()).node(id)
     }
 

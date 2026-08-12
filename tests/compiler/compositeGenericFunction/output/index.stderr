@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'R'.
+   ╭─[../../tests/compiler/compositeGenericFunction/index.ts:6:51]
+ 6 │ null
+   · ────
+   ╰────

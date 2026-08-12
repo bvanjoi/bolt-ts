@@ -48,7 +48,7 @@ fn visit_param_decls<'cx, V: Visitor<'cx>>(v: &mut V, params: ast::ParamsDecl<'c
     V::Result::output()
 }
 
-fn visit_optional_ty<'cx, V: Visitor<'cx>>(v: &mut V, ty: Option<&'cx ast::Ty<'cx>>) -> V::Result {
+fn visit_option_ty<'cx, V: Visitor<'cx>>(v: &mut V, ty: Option<&'cx ast::Ty<'cx>>) -> V::Result {
     if let Some(ty) = ty {
         return v.visit_ty(ty);
     }
@@ -115,7 +115,7 @@ fn visit_call_like_signature<'cx, V: Visitor<'cx>>(
 ) -> V::Result {
     visit_return!(visit_type_parameters(v, ty_params));
     visit_return!(visit_param_decls(v, params));
-    visit_optional_ty(v, ty)
+    visit_option_ty(v, ty)
 }
 
 fn visit_refer_tys<'cx, V: Visitor<'cx>>(
@@ -238,7 +238,7 @@ pub fn visit_param_decl<'cx, V: Visitor<'cx>>(
     node: &'cx ast::ParamDecl<'cx>,
 ) -> V::Result {
     visit_return!(v.visit_binding(node.name));
-    visit_return!(visit_optional_ty(v, node.ty));
+    visit_return!(visit_option_ty(v, node.ty));
     visit_optional_expr(v, node.init)
 }
 
@@ -248,7 +248,7 @@ pub fn visit_fn_decl<'cx, V: Visitor<'cx>>(v: &mut V, node: &'cx ast::FnDecl<'cx
     }
     visit_return!(visit_type_parameters(v, node.ty_params));
     visit_return!(visit_param_decls(v, node.params));
-    visit_return!(visit_optional_ty(v, node.ty));
+    visit_return!(visit_option_ty(v, node.ty));
     visit_optional_block_stmt(v, node.body)
 }
 
@@ -337,7 +337,7 @@ pub fn visit_module_name<'cx, V: Visitor<'cx>>(v: &mut V, name: ast::ModuleName<
 
 pub fn visit_var_decl<'cx, V: Visitor<'cx>>(v: &mut V, decl: &'cx ast::VarDecl<'cx>) -> V::Result {
     visit_return!(v.visit_binding(decl.name));
-    visit_return!(visit_optional_ty(v, decl.ty));
+    visit_return!(visit_option_ty(v, decl.ty));
     visit_optional_expr(v, decl.init)
 }
 
@@ -394,7 +394,7 @@ pub fn visit_prop_signature<'cx, V: Visitor<'cx>>(
     n: &'cx ast::PropSignature<'cx>,
 ) -> V::Result {
     visit_return!(v.visit_prop_name(n.name));
-    visit_optional_ty(v, n.ty)
+    visit_option_ty(v, n.ty)
 }
 
 pub fn visit_method_signature<'cx, V: Visitor<'cx>>(
@@ -434,7 +434,7 @@ pub fn visit_class_elem<'cx, V: Visitor<'cx>>(
 
 pub fn visit_class_ctor<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::ClassCtor<'cx>) -> V::Result {
     visit_return!(visit_param_decls(v, n.params));
-    visit_return!(visit_optional_ty(v, n.ret));
+    visit_return!(visit_option_ty(v, n.ret));
     visit_optional_block_stmt(v, n.body)
 }
 
@@ -452,7 +452,7 @@ pub fn visit_class_prop_elem<'cx, V: Visitor<'cx>>(
     n: &'cx ast::ClassPropElem<'cx>,
 ) -> V::Result {
     visit_return!(v.visit_prop_name(n.name));
-    visit_return!(visit_optional_ty(v, n.ty));
+    visit_return!(visit_option_ty(v, n.ty));
     visit_optional_expr(v, n.init)
 }
 
@@ -491,7 +491,15 @@ pub fn visit_ty<'cx, V: Visitor<'cx>>(v: &mut V, ty: &'cx ast::Ty<'cx>) -> V::Re
         TemplateLit(n) => v.visit_template_lit_ty(n),
         This(n) => v.visit_this_ty(n),
         Import(n) => v.visit_import_type(n),
+        Optional(n) => v.visit_optional_ty(n),
     }
+}
+
+pub fn visit_optional_ty<'cx, V: Visitor<'cx>>(
+    v: &mut V,
+    n: &'cx ast::OptionalTy<'cx>,
+) -> V::Result {
+    v.visit_ty(n.ty)
 }
 
 pub fn visit_this_ty<'cx, V: Visitor<'cx>>(_v: &mut V, _n: &'cx ast::ThisTy) -> V::Result {
@@ -562,7 +570,7 @@ pub fn visit_getter_decl<'cx, V: Visitor<'cx>>(
     n: &'cx ast::GetterDecl<'cx>,
 ) -> V::Result {
     visit_return!(v.visit_prop_name(n.name));
-    visit_return!(visit_optional_ty(v, n.ty));
+    visit_return!(visit_option_ty(v, n.ty));
     visit_optional_block_stmt(v, n.body)
 }
 
@@ -618,7 +626,7 @@ pub fn visit_mapped_ty<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::MappedTy<'c
     if let Some(name_ty) = n.name_ty {
         visit_return!(v.visit_ty(name_ty));
     }
-    visit_optional_ty(v, n.ty)
+    visit_option_ty(v, n.ty)
 }
 
 pub fn visit_ty_op_ty<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::TypeOp<'cx>) -> V::Result {
@@ -631,7 +639,7 @@ pub fn visit_pred_ty<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::PredTy<'cx>) 
         Ident(ident) => visit_return!(v.visit_ident(ident)),
         This(n) => visit_return!(v.visit_this_ty(n)),
     }
-    visit_optional_ty(v, n.ty)
+    visit_option_ty(v, n.ty)
 }
 
 pub fn visit_paren_ty<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::ParenTy<'cx>) -> V::Result {
@@ -849,8 +857,8 @@ pub fn visit_if_stmt<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::IfStmt<'cx>) 
 
 pub fn visit_ty_param<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::TyParam<'cx>) -> V::Result {
     visit_return!(v.visit_ident(n.name));
-    visit_return!(visit_optional_ty(v, n.constraint));
-    visit_optional_ty(v, n.default)
+    visit_return!(visit_option_ty(v, n.constraint));
+    visit_option_ty(v, n.default)
 }
 
 pub fn visit_ret_stmt<'cx, V: Visitor<'cx>>(v: &mut V, n: &'cx ast::RetStmt<'cx>) -> V::Result {
@@ -1763,6 +1771,7 @@ pub fn visit_node<'cx, V: Visitor<'cx>>(v: &mut V, node: &ast::Node<'cx>) -> V::
         PropSignature(n) => v.visit_prop_signature(n),
         MethodSignature(n) => v.visit_method_signature(n),
         RestTy(n) => v.visit_rest_ty(n),
+        OptionalTy(n) => v.visit_optional_ty(n),
         NamedTupleTy(n) => v.visit_named_tuple_ty(n),
         TupleTy(n) => v.visit_tuple_ty(n),
         CondTy(n) => v.visit_cond_ty(n),
