@@ -153,8 +153,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 }
                 s
             }),
-            ty::TyKind::Param(param) => {
-                let Some(symbol) = param.symbol else {
+            ty::TyKind::Param(t) => {
+                let Some(symbol) = t.symbol else {
                     return "dummy_parameter".to_string();
                 };
                 let name = self.c.symbol(symbol).name;
@@ -404,10 +404,15 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             let ty_params = ty_params.map(|ty_params| {
                 ty_params
                     .iter()
-                    .map(|ty_param| {
-                        this.c
-                            .print_ty(ty_param, this.enclosing_declaration)
-                            .to_string()
+                    .map(|p| {
+                        let ty = this.c.print_ty(p, this.enclosing_declaration).to_string();
+                        match this.c.get_base_constraint_of_ty(p) {
+                            Some(c) => {
+                                let c = this.print_ty(c);
+                                format!("{} extends {}", ty, c)
+                            }
+                            None => ty,
+                        }
                     })
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -421,7 +426,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     let name = this.print_binding(n.name);
                     let ty = this.c.get_type_of_symbol(*param);
                     let ty = this.c.print_ty(ty, this.enclosing_declaration);
-                    format!("{name}: {ty}",)
+                    format!("{}{name}: {ty}", if n.is_rest() { "..." } else { "" })
                 })
                 .collect::<Vec<_>>()
                 .join(", ");

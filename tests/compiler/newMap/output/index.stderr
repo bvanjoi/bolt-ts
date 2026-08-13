@@ -1,0 +1,6 @@
+  × No overload expects 1 type arguments, but overloads do exist that expect
+  │ either 0 or 2 type arguments.
+   ╭─[../../tests/compiler/newMap/index.ts:6:8]
+ 6 │ <string>
+   · ────────
+   ╰────

@@ -19,7 +19,7 @@ class C {
 }
 
 type Cps = Parameters<typeof C>; // should not work
-//~^ ERROR: Type 'typeof C' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'typeof C' does not satisfy the constraint '(...args: any) => any'.
 type Ccps = ConstructorParameters<typeof C>; // should be [number, string]
 
 class D {

@@ -75,7 +75,7 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
         for (idx, item) in list.iter().enumerate() {
             emit_item(self, item);
             if idx != list.len() - 1 {
-                emit_sep(self, item)
+                emit_sep(self, item);
             }
         }
     }
@@ -184,22 +184,20 @@ impl<'cx, 'a> DeclarationEmitter<'cx, 'a> {
     }
 
     fn emit_variable_declaration_by_array_pat(&mut self, node: &'cx ast::ArrayPat<'cx>) {
-        self.emit_list(
-            node.elems,
-            |this, element| match element.kind {
-                ast::ArrayBindingElemKind::Omit(_) => {}
-                ast::ArrayBindingElemKind::Binding(item) => {
-                    this.emit_variable_by_binding(item.name, item.id)
-                }
-            },
-            |this, item| match item.kind {
-                ast::ArrayBindingElemKind::Omit(_) => {}
-                ast::ArrayBindingElemKind::Binding(_) => {
-                    this.emitter.print().p_comma();
-                    this.emitter.print().p_whitespace();
-                }
-            },
-        );
+        let elements = node.elems.iter().filter(|element| match element.kind {
+            ast::ArrayBindingElemKind::Omit(_) => false,
+            ast::ArrayBindingElemKind::Binding(_) => true,
+        });
+
+        for (idx, element) in elements.enumerate() {
+            if idx != 0 {
+                self.emitter.print().p_comma();
+                self.emitter.print().p_whitespace();
+            }
+            if let ast::ArrayBindingElemKind::Binding(item) = &element.kind {
+                self.emit_variable_by_binding(item.name, item.id);
+            }
+        }
     }
 
     fn emit_variable_declaration_by_object_pat(&mut self, node: &'cx ast::ObjectPat<'cx>) {

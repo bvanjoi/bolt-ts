@@ -24,18 +24,18 @@ export type allAreFunctionsAsExpected = TypeHardcodedAsParameterWithoutReturnTyp
 export type returnTypeOfFunctions = ReturnType<allAreFunctionsAsExpected>; //string | number | boolean as expected
 export type SucceedingCombo = ReturnType<TypeHardcodedAsParameterWithoutReturnType<'Boat', keyof DataFetchFns['Boat']>>;
 export type FailingCombo<T extends 'Boat', F extends keyof DataFetchFns[T]> = ReturnType<TypeHardcodedAsParameterWithoutReturnType<T,F>>;
-//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any) => any'.
 export type TypeHardcodedAsParameter<T extends 'Boat', F extends keyof DataFetchFns[T]> = ReturnType<DataFetchFns[T][F]>;
-//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any) => any'.
 type VehicleSelector<T extends keyof DataFetchFns> = DataFetchFns[T];
 export type TypeHardcodedAsParameter2<T extends 'Boat', F extends keyof DataFetchFns[T]> = ReturnType<VehicleSelector<T>[F]>;
-//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any) => any'.
 export type TypeGeneric1<T extends keyof DataFetchFns, F extends keyof DataFetchFns[T]> = ReturnType<DataFetchFns[T][F]>;
-//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any) => any'.
 export type TypeGeneric2<T extends keyof DataFetchFns, F extends keyof DataFetchFns[T]> = ReturnType<DataFetchFns[T][T]>; // error
-//~^ ERROR: Type 'DataFetchFns[T][T]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[T][T]' does not satisfy the constraint '(...args: any) => any'.
 //~| ERROR: Type 'T' cannot be used to index type 'DataFetchFns[T]'.
 export type TypeGeneric3<T extends keyof DataFetchFns, F extends keyof DataFetchFns[T]> = ReturnType<DataFetchFns[F][F]>; // error
-//~^ ERROR: Type 'DataFetchFns[F][F]' does not satisfy the constraint '(args: any) => any'.
+//~^ ERROR: Type 'DataFetchFns[F][F]' does not satisfy the constraint '(...args: any) => any'.
 //~| ERROR: Type 'F' cannot be used to index type 'DataFetchFns[F]'.
 //~| ERROR: Type 'F' cannot be used to index type 'DataFetchFns'.

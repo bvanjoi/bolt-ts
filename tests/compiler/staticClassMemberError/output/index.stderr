@@ -1,0 +1,31 @@
+  × Cannot find name 's'.
+   ╭─[../../tests/compiler/staticClassMemberError/index.ts:9:3]
+ 9 │ s
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Did you mean the static member 'C.s'?
+   ╭─[../../tests/compiler/staticClassMemberError/index.ts:7:9]
+ 7 │ s
+   · ─
+   ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/staticClassMemberError/index.ts:15:10]
+ 15 │ Foo
+    · ───
+    ╰────
+
+  × Class declaration cannot implement overload list for 'Foo'.
+    ╭─[../../tests/compiler/staticClassMemberError/index.ts:18:7]
+ 18 │ Foo
+    · ───
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/staticClassMemberError/index.ts:15:10]
+ 15 │ Foo
+    · ───
+    ╰────

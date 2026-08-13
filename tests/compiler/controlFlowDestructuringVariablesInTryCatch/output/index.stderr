@@ -1,0 +1,29 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/controlFlowDestructuringVariablesInTryCatch/index.ts:21:1]
+ 21 │ a
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/controlFlowDestructuringVariablesInTryCatch/index.ts:23:1]
+ 23 │ b
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/controlFlowDestructuringVariablesInTryCatch/index.ts:25:1]
+ 25 │ c
+    · ─
+    ╰────
+
+  × Variable 'd' is used before being assigned.
+    ╭─[../../tests/compiler/controlFlowDestructuringVariablesInTryCatch/index.ts:27:1]
+ 27 │ d
+    · ─
+    ╰────
+
+  × Variable 'e' is used before being assigned.
+    ╭─[../../tests/compiler/controlFlowDestructuringVariablesInTryCatch/index.ts:29:1]
+ 29 │ e
+    · ─
+    ╰────

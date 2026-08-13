@@ -1,19 +1,22 @@
   × Subsequent variable declarations must have the same type. Variable 'x'
-  │ must be of type '<T>(x: T) => T', but here has type '<T>(x: T) => T'.
+  │ must be of type '<T extends Date>(x: T) => T', but here has type '<T
+  │ extends number>(x: T) => T'.
    ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:9:5]
  9 │ x
    · ─
    ╰────
 
   × Subsequent variable declarations must have the same type. Variable 'x'
-  │ must be of type '<T>(x: T) => T', but here has type '<T>(x: T) => T'.
+  │ must be of type '<T extends Date>(x: T) => T', but here has type '<T>(x:
+  │ T) => T'.
     ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:14:5]
  14 │ x
     · ─
     ╰────
 
   × Subsequent variable declarations must have the same type. Variable 'x'
-  │ must be of type '<T>(x: T) => T', but here has type '<T>(x: any) => any'.
+  │ must be of type '<T extends Date>(x: T) => T', but here has type '<T>(x:
+  │ any) => any'.
     ╭─[../../tests/compiler/genericSignatureIdentity/index.ts:19:5]
  19 │ x
     · ─

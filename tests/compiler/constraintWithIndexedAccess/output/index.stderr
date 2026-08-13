@@ -1,26 +1,26 @@
-  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:26:90]
  26 │ TypeHardcodedAsParameterWithoutReturnType<T,F>
     · ──────────────────────────────────────────────
     ╰────
 
-  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:28:102]
  28 │ DataFetchFns[T][F]
     · ──────────────────
     ╰────
 
-  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:31:103]
  31 │ VehicleSelector<T>[F]
     · ─────────────────────
     ╰────
 
-  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[T][F]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:33:102]
  33 │ DataFetchFns[T][F]
     · ──────────────────
@@ -32,8 +32,8 @@
     · ──────────────────
     ╰────
 
-  × Type 'DataFetchFns[T][T]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[T][T]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:35:102]
  35 │ DataFetchFns[T][T]
     · ──────────────────
@@ -51,8 +51,8 @@
     · ──────────────────
     ╰────
 
-  × Type 'DataFetchFns[F][F]' does not satisfy the constraint '(args: any) =>
-  │ any'.
+  × Type 'DataFetchFns[F][F]' does not satisfy the constraint '(...args: any)
+  │ => any'.
     ╭─[../../tests/compiler/constraintWithIndexedAccess/index.ts:38:102]
  38 │ DataFetchFns[F][F]
     · ──────────────────

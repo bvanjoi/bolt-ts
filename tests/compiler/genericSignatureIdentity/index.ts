@@ -7,16 +7,16 @@ var x: {
 };
 
 var x: {
-  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T>(x: T) => T', but here has type '<T>(x: T) => T'.
+  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T extends Date>(x: T) => T', but here has type '<T extends number>(x: T) => T'.
     <T extends number>(x: T): T;
 };
 
 var x: {
-  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T>(x: T) => T', but here has type '<T>(x: T) => T'.
+  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T extends Date>(x: T) => T', but here has type '<T>(x: T) => T'.
     <T>(x: T): T;
 };
 
 var x: {
-  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T>(x: T) => T', but here has type '<T>(x: any) => any'.
+  //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'x' must be of type '<T extends Date>(x: T) => T', but here has type '<T>(x: any) => any'.
     <T>(x: any): any;
 };

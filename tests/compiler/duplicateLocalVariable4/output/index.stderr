@@ -1,0 +1,6 @@
+  × Subsequent variable declarations must have the same type. Variable 'x'
+  │ must be of type '{ a: E.a; }', but here has type 'E.a'.
+    ╭─[../../tests/compiler/duplicateLocalVariable4/index.ts:10:5]
+ 10 │ x
+    · ─
+    ╰────

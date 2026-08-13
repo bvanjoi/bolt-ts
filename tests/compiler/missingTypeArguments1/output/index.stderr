@@ -1,0 +1,115 @@
+  × Generic type 'X<T>' requires 1 type argument.
+   ╭─[../../tests/compiler/missingTypeArguments1/index.ts:8:15]
+ 8 │ X
+   · ─
+   ╰────
+
+  × Property 'p1' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/missingTypeArguments1/index.ts:8:5]
+ 8 │ p1
+   · ──
+   ╰────
+
+  × Generic type 'X2<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:15:26]
+ 15 │ X2
+    · ──
+    ╰────
+
+  × Property 'p2' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:15:5]
+ 15 │ p2
+    · ──
+    ╰────
+
+  × Generic type 'X3<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:22:9]
+ 22 │ X3
+    · ──
+    ╰────
+
+  × Property 'p3' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:22:5]
+ 22 │ p3
+    · ──
+    ╰────
+
+  × Generic type 'X4<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:29:11]
+ 29 │ X4
+    · ──
+    ╰────
+
+  × Property 'p4' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:29:5]
+ 29 │ p4
+    · ──
+    ╰────
+
+  × Generic type 'X5<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:36:9]
+ 36 │ X5
+    · ──
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:42:15]
+ 42 │ Y
+    · ─
+    ╰────
+
+  × Property 'p6' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:42:5]
+ 42 │ p6
+    · ──
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:49:26]
+ 49 │ Y
+    · ─
+    ╰────
+
+  × Property 'p7' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:49:5]
+ 49 │ p7
+    · ──
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:56:9]
+ 56 │ Y
+    · ─
+    ╰────
+
+  × Property 'p8' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:56:5]
+ 56 │ p8
+    · ──
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:63:11]
+ 63 │ Y
+    · ─
+    ╰────
+
+  × Property 'p9' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:63:5]
+ 63 │ p9
+    · ──
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/missingTypeArguments1/index.ts:70:9]
+ 70 │ Y
+    · ─
+    ╰────

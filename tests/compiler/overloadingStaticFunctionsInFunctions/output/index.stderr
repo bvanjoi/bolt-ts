@@ -1,0 +1,77 @@
+  × Expected '('.
+   ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:6:14]
+ 6 │ {
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:8:3]
+ 8 │ static
+   · ──────
+   ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:3]
+ 11 │ static
+    · ──────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:19]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Argument expression expected.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:19]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:3]
+ 17 │ static
+    · ──────
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:20]
+ 17 │ :
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:10]
+ 17 │ test(name?:any)
+    · ───────────────
+    ╰────
+
+  × Cannot find name 'test'.
+   ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:8:10]
+ 8 │ test
+   · ────
+   ╰────
+
+  × Cannot find name 'test'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:10]
+ 11 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:11:20]
+ 11 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'test'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:10]
+ 17 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:21]
+ 17 │ any
+    · ───
+    ╰────

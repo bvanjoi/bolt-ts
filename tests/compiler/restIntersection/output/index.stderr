@@ -1,0 +1,17 @@
+  × Variable 'intersection' is used before being assigned.
+   ╭─[../../tests/compiler/restIntersection/index.ts:8:22]
+ 8 │ intersection
+   · ────────────
+   ╰────
+
+  × Variable 'intersection' is used before being assigned.
+   ╭─[../../tests/compiler/restIntersection/index.ts:8:22]
+ 8 │ intersection
+   · ────────────
+   ╰────
+
+  × Variable 'intersection' is used before being assigned.
+   ╭─[../../tests/compiler/restIntersection/index.ts:8:22]
+ 8 │ intersection
+   · ────────────
+   ╰────

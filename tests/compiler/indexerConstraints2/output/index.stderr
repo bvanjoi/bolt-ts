@@ -1,0 +1,72 @@
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:93:6]
+ 93 │ key: Key
+    · ────────
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/indexerConstraints2/index.ts:5:11]
+ 5 │ a
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/indexerConstraints2/index.ts:7:21]
+ 7 │ b
+   · ─
+   ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:15:5]
+ 15 │ [n: number]: A
+    · ──────────────
+    ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:24:5]
+ 24 │ [s: string]: B
+    · ──────────────
+    ╰────
+
+  × 'number' index type 'A' is not assignable to 'string' index type 'B'.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:34:5]
+ 34 │ [n: number]: A;
+    · ───────────────
+    ╰────
+
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:55:5]
+ 55 │ [b: AliasedBoolean]: A;
+    · ───────────────────────
+    ╰────
+
+  × An index signature parameter type cannot be a literal type or generic
+  │ type. Consider using a mapped object type instead.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:62:5]
+ 62 │ [u: IndexableUnion]: A;
+    · ───────────────────────
+    ╰────
+
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:69:5]
+ 69 │ [u: NonIndexableUnion]: A;
+    · ──────────────────────────
+    ╰────
+
+  × An index signature parameter type cannot be a literal type or generic
+  │ type. Consider using a mapped object type instead.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:82:5]
+ 82 │ [u: NonIndexableUnion3]: A;
+    · ───────────────────────────
+    ╰────
+
+  × An index signature parameter type cannot be a literal type or generic
+  │ type. Consider using a mapped object type instead.
+    ╭─[../../tests/compiler/indexerConstraints2/index.ts:87:5]
+ 87 │ [u: "foo" | "bar"]: A;
+    · ──────────────────────
+    ╰────

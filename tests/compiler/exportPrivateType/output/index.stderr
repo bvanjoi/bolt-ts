@@ -1,0 +1,13 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/exportPrivateType/index.ts:7:9]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/exportPrivateType/index.ts:9:9]
+ 9 │ y
+   · ─
+   ╰────

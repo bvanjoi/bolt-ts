@@ -1355,6 +1355,8 @@ impl<'cx> TyChecker<'cx> {
                 flow = match &flow_node.kind {
                     bolt_ts_binder::FlowNodeKind::Cond(n) => n.antecedent,
                     bolt_ts_binder::FlowNodeKind::Assign(n) => n.antecedent,
+                    bolt_ts_binder::FlowNodeKind::ArrayMutation(n) => n.antecedent,
+                    bolt_ts_binder::FlowNodeKind::Switch(n) => n.antecedent,
                     _ => unreachable!(),
                 };
             } else if flags.intersects(FlowFlags::CALL) {
@@ -2198,7 +2200,7 @@ impl<'cx> TyChecker<'cx> {
                         let merged_ty = self
                             .try_merge_union_of_object_ty_and_empty_object(ty, is_const_context);
                         if let Some(all_properties_table) = &all_properties_table {
-                            self.check_spared_property_overrides(merged_ty, all_properties_table);
+                            self.check_spread_property_overrides(merged_ty, all_properties_table);
                         }
                         let s = *symbol.get_or_init(|| self.get_symbol_of_declaration(node.id));
                         spread = self.get_spread_ty(
@@ -2387,7 +2389,7 @@ impl<'cx> TyChecker<'cx> {
         )
     }
 
-    fn check_spared_property_overrides(
+    fn check_spread_property_overrides(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         props: &FxHashMap<SymbolName, SymbolID>,
@@ -2398,7 +2400,7 @@ impl<'cx> TyChecker<'cx> {
             let flags = r.flags;
             let name = r.name;
             if !flags.contains(SymbolFlags::OPTIONAL)
-                && self.get_check_flags(right).intersects(CheckFlags::PARTIAL)
+                && !self.get_check_flags(right).intersects(CheckFlags::PARTIAL)
                 && let Some(left) = props.get(&name)
             {
                 let l = self.symbol(*left);

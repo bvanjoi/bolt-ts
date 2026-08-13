@@ -15,7 +15,7 @@ interface Foo {
 
 function foo1(): () => Foo {
     return () => ({a: ''});
-    //~^ ERROR: Type '{ a: string; }' is not assignable to type 'Foo'.
+    //~^ ERROR: Type 'string' is not assignable to type 'number'.
 }
 
 function foo3(): Foo[] {

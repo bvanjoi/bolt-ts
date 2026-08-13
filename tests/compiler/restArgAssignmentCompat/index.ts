@@ -7,5 +7,5 @@ function g(x: number[], y: string) { }
 
 var n = g;
 n = f;
-//~^ ERROR: Type '(x: number[]) => void' is not assignable to type '(x: number[], y: string) => void'.
+//~^ ERROR: Type '(...x: number[]) => void' is not assignable to type '(x: number[], y: string) => void'.
 n([4], 'foo');

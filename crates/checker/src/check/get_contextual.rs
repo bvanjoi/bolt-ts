@@ -48,6 +48,54 @@ impl DiscriminateContextualTyByObjectLiteral {
 }
 
 impl<'cx> TyChecker<'cx> {
+    fn get_contextual_ty_for_yield_op(
+        &mut self,
+        node: &'cx ast::YieldExpr<'cx>,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let func = self
+            .node_query(node.id.module())
+            .get_containing_fn(node.id)?;
+        let mut contextual_return_ty = self.get_contextual_ret_ty(func, flags)?;
+        let is_async_generator = self.p.node(func).fn_flags().contains(ast::FnFlags::ASYNC);
+        let has_asterisk = node.asterisk.is_some();
+        if !has_asterisk && contextual_return_ty.kind.is_union() {
+            contextual_return_ty = self.filter_type(contextual_return_ty, |this, t| {
+                this.get_iteration_ty_of_generator_fn_return_ty(
+                    super::IterationTypeKind::Return,
+                    t,
+                    is_async_generator,
+                )
+                .is_some()
+            })
+        }
+        if has_asterisk {
+            let iteration_tys = self.get_iteration_tys_of_generator_fn_return_ty(
+                contextual_return_ty,
+                is_async_generator,
+            );
+            let yield_ty = iteration_tys.map_or(self.silent_never_ty, |t| t.yield_ty);
+            let ret_ty = self
+                .get_contextual_ty(node.id, flags)
+                .unwrap_or(self.silent_never_ty);
+            let next_ty = iteration_tys.map_or(self.unknown_ty, |t| t.next_ty);
+            let generator_ty = self.create_generator_ty(yield_ty, ret_ty, next_ty, false);
+            Some(if is_async_generator {
+                let async_generator_ty = self.create_generator_ty(yield_ty, ret_ty, next_ty, true);
+                let tys = &[generator_ty, async_generator_ty];
+                self.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None, None)
+            } else {
+                generator_ty
+            })
+        } else {
+            self.get_iteration_ty_of_generator_fn_return_ty(
+                super::IterationTypeKind::Yield,
+                contextual_return_ty,
+                is_async_generator,
+            )
+        }
+    }
+
     pub(super) fn get_contextual_ty(
         &mut self,
         id: ast::NodeID,
@@ -71,6 +119,7 @@ impl<'cx> TyChecker<'cx> {
             }
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
+            YieldExpr(n) => self.get_contextual_ty_for_yield_op(n, flags),
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
                 let element_idx = self.p.index_of_node(parent.elems, id);
@@ -466,15 +515,64 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             AssignmentDeclarationKind::Property => {
-                // TODO: isPossiblyAliasedThisProperty
-                // TODO: !can_have_symbol
-                // TODO: let decl = self.final_res(parent.left.id());
-                None
+                if self.is_possibly_aliased_this_property(parent, Some(kind)) {
+                    // TODO:
+                    None
+                } else if !parent.left.can_have_symbol()
+                    || !self
+                        .binder
+                        .get(parent.left.id().module())
+                        .final_res
+                        .contains_key(&parent.left.id())
+                {
+                    Some(self.get_ty_of_expr(parent.left))
+                } else {
+                    // TODO: let decl = self.final_res(parent.left.id());
+                    None
+                }
+            }
+            AssignmentDeclarationKind::ObjectDefinePropertyValue
+            | AssignmentDeclarationKind::ObjectDefinePropertyExports
+            | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                unreachable!()
             }
             _ => {
                 // TODO: other case
                 None
             }
+        }
+    }
+
+    fn is_possibly_aliased_this_property(
+        &mut self,
+        n: &'cx ast::AssignExpr<'cx>,
+        kind: Option<AssignmentDeclarationKind>,
+    ) -> bool {
+        let kind = kind.unwrap_or_else(|| {
+            self.node_query(n.id.module())
+                .get_assignment_declaration_kind_for_assign_expr(n)
+        });
+        if matches!(kind, AssignmentDeclarationKind::ThisProperty) {
+            return true;
+        }
+        if !self.node_query(n.id.module()).is_in_js_file(n.id)
+            || !matches!(kind, AssignmentDeclarationKind::Property)
+            || match n.left.kind {
+                ast::ExprKind::EleAccess(n) => !matches!(n.expr.kind, ast::ExprKind::Ident(_)),
+                ast::ExprKind::PropAccess(n) => !matches!(n.expr.kind, ast::ExprKind::Ident(_)),
+                _ => unreachable!(),
+            }
+        {
+            false
+        } else {
+            let name = match n.left.kind {
+                ast::ExprKind::EleAccess(n) if let ast::ExprKind::Ident(n) = n.expr.kind => n,
+                ast::ExprKind::PropAccess(n) if let ast::ExprKind::Ident(n) = n.expr.kind => n,
+                _ => unreachable!(),
+            };
+            let symbol = self.resolve_ident::<true, true>(name, SymbolFlags::VALUE);
+            let value_declaration = self.symbol(symbol).value_decl;
+            value_declaration.is_some_and(|v| self.p.node(v).is_this_initialized_declaration())
         }
     }
 

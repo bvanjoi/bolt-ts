@@ -46,8 +46,7 @@ impl<'cx> ParsedMapState<'cx> {
         let idx = id.as_usize();
         debug_assert!(idx < self.map.len());
         let item = unsafe { self.map.get_unchecked(idx) };
-        let item = unsafe { item.assume_init_ref() };
-        item
+        unsafe { item.assume_init_ref() }
     }
 
     #[inline(always)]
