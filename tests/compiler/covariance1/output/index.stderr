@@ -1,0 +1,11 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/covariance1/index.ts:15:10]
+ 15 │ a
+    · ─
+    ╰────
+
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/covariance1/index.ts:19:10]
+ 19 │ b
+    · ─
+    ╰────

@@ -4406,8 +4406,9 @@ impl<'cx> TyChecker<'cx> {
         left_ty: &'cx ty::Ty<'cx>,
         right: &'cx ast::Expr,
         right_ty: &'cx ty::Ty<'cx>,
+        token: ast::TokenKind,
     ) -> bool {
-        if let Some(_offending_symbol_opp) = if self
+        let offending_symbol_op = if self
             .maybe_type_of_kind_considering_base_constraint(left_ty, TypeFlags::ES_SYMBOL_LIKE)
         {
             Some(left)
@@ -4417,8 +4418,13 @@ impl<'cx> TyChecker<'cx> {
             Some(right)
         } else {
             None
-        } {
-            // TODO: error
+        };
+        if let Some(offending_symbol_op) = offending_symbol_op {
+            let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                span: offending_symbol_op.span(),
+                operator: token.as_str(),
+            };
+            self.push_error(Box::new(error));
             false
         } else {
             true

@@ -269,7 +269,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
                 span: error_span,
-                op: op.kind.to_string(),
+                op: op.kind.as_str(),
                 ty1: self.print_ty(effective_left_ty, None).to_string(),
                 ty2: self.print_ty(effective_right_ty, None).to_string(),
             };
@@ -451,7 +451,13 @@ impl<'cx> TyChecker<'cx> {
                 self.boolean_ty()
             }
             Less | LessEq | Great | GreatEq => {
-                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty) {
+                if self.check_for_disallowed_es_symbol_operation(
+                    left,
+                    left_ty,
+                    right,
+                    right_ty,
+                    op.kind.into(),
+                ) {
                     let left_ty = self.check_non_null_type(left_ty, left.id());
                     let left_ty = self.get_base_ty_of_literal_ty_for_comparison(left_ty);
                     let right_ty = self.check_non_null_type(right_ty, right.id());
@@ -1053,7 +1059,7 @@ impl<'cx> TyChecker<'cx> {
         if allow_async_iterables {
             todo!()
         } else {
-            let error = errors::TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),
                 ty: self.print_ty(ty, None).to_string(),
             };
@@ -1170,6 +1176,12 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = Vec::with_capacity(8);
         for span in node.spans {
             let ty = self.check_expression::<false>(span.expr, None);
+            if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE) {
+                let error = errors::ImplicitConversionOfASymbolToAStringWillFailAtRuntimeConsiderWrappingThisExpressionInString {
+                    span:span.span
+                };
+                self.push_error(Box::new(error));
+            }
             texts.push(span.text);
             if self.is_type_assignable_to(ty, self.template_constraint_ty()) {
                 tys.push(ty);
@@ -2661,6 +2673,30 @@ impl<'cx> TyChecker<'cx> {
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::BIG_INT_LIKE,
+                ) {
+                    let ty = self.get_base_ty_of_literal_ty(operand_ty);
+                    let ty = self.print_ty(ty, None);
+                    let error = errors::OperatorCannotBeAppliedToTypeX {
+                        span: expr.span,
+                        op: expr.op.as_str(),
+                        ty: ty.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+
                 if let ty::TyKind::NumberLit(_nn) = operand_ty.kind {
                     operand_ty
                 } else {
@@ -2668,10 +2704,45 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ast::PrefixUnaryOp::Minus => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                }
                 if let ty::TyKind::NumberLit(n) = operand_ty.kind {
                     self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
+                }
+            }
+            ast::PrefixUnaryOp::Tilde => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                self.number_ty
+            }
+            ast::PrefixUnaryOp::Excl => {
+                self.check_truthiness_of_ty(operand_ty, expr.expr);
+                let facts =
+                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
+                match facts {
+                    TypeFacts::TRUTHY => self.false_ty,
+                    TypeFacts::FALSY => self.true_ty,
+                    _ => self.boolean_ty(),
                 }
             }
             ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
@@ -2715,17 +2786,6 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
                     _ => unreachable!(),
-                }
-            }
-            ast::PrefixUnaryOp::Tilde => self.number_ty,
-            ast::PrefixUnaryOp::Excl => {
-                self.check_truthiness_of_ty(operand_ty, expr.expr);
-                let facts =
-                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
-                match facts {
-                    TypeFacts::TRUTHY => self.false_ty,
-                    TypeFacts::FALSY => self.true_ty,
-                    _ => self.boolean_ty(),
                 }
             }
         }
@@ -3036,7 +3096,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if let Some(result_ty) = result_ty
-            && !self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty)
+            && !self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, token)
         {
             return result_ty;
         }
@@ -3044,7 +3104,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(result_ty) = result_ty else {
             // report_operator_error
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-                op: token.as_str().to_string(),
+                op: token.as_str(),
                 ty1: self.print_ty(left_ty, None).to_string(),
                 ty2: self.print_ty(right_ty, None).to_string(),
                 span: node_span,

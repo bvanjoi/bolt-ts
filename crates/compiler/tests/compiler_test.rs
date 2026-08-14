@@ -3,7 +3,7 @@ use bolt_ts_errors::miette::Severity;
 use bolt_ts_fs::LocalFS;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
-use compile_test::{ensure_node_exist, run_node_with_assert_context};
+use compile_test::{ensure_node_exist, run_node};
 use std::path::PathBuf;
 
 #[test]
@@ -121,7 +121,7 @@ fn run_test_with(
         if let Some(index_file_path) = index_file_path
             && try_run_node
         {
-            match run_node_with_assert_context(&index_file_path) {
+            match run_node(&index_file_path) {
                 Ok(_) => {}
                 Err(_) => return Err(vec![]),
             }

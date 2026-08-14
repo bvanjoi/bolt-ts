@@ -1,0 +1,6 @@
+  × Type 'null' is not assignable to type
+  │ 'Windows.Foundation.IPromise<number>'.
+    ╭─[../../tests/compiler/ipromise4/index.ts:15:5]
+ 15 │ p
+    · ─
+    ╰────

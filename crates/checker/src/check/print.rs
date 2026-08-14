@@ -8,6 +8,7 @@ use super::ty::SigKind;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolName;
 use bolt_ts_scanner::is_identifier_part;
 use bolt_ts_scanner::is_identifier_start;
 use bolt_ts_ty::TypeFlags;
@@ -449,19 +450,23 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             let members = members
                 .iter()
                 .map(|(name, symbol)| {
-                    let name = if let Some(name) = name.as_atom() {
-                        let name = self.c.atoms.get(name).to_string();
-                        if name.is_empty() {
-                            "''".to_string()
-                        } else if is_valid_identifier(&name) {
-                            name
-                        } else {
-                            format!("\"{name}\"")
+                    let name = match name {
+                        SymbolName::Atom(name) => {
+                            let name = self.c.atoms.get(*name).to_string();
+                            if name.is_empty() {
+                                "''".to_string()
+                            } else if is_valid_identifier(&name) {
+                                name
+                            } else {
+                                format!("\"{name}\"")
+                            }
                         }
-                    } else if let Some(num) = name.as_numeric() {
-                        num.to_string()
-                    } else {
-                        unreachable!("name: {name:#?}");
+                        SymbolName::EleNum(n) => Into::<f64>::into(*n).to_string(),
+                        SymbolName::ESSymbol { escaped_name, .. } => {
+                            let name = self.c.atoms.get(*escaped_name).to_string();
+                            format!("[{name}]")
+                        }
+                        _ => unreachable!(),
                     };
                     let ty = self.c.get_type_of_symbol(*symbol);
                     format!(

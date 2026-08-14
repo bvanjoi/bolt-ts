@@ -1,0 +1,13 @@
+  × Expression expected.
+   ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions3/index.ts:10:23]
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions3/index.ts:10:23]
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/taggedTemplatesWithIncompleteTemplateExpressions3/index.ts:10:18]
+ 10 │ 1
+    · ─
+    ╰────

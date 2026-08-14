@@ -1,0 +1,11 @@
+  × Type 'string' does not satisfy the constraint 'number'.
+   ╭─[../../tests/compiler/primitiveConstraints1/index.ts:6:6]
+ 6 │ string
+   · ──────
+   ╰────
+
+  × Type 'string' does not satisfy the constraint 'number'.
+    ╭─[../../tests/compiler/primitiveConstraints1/index.ts:10:14]
+ 10 │ string
+    · ──────
+    ╰────

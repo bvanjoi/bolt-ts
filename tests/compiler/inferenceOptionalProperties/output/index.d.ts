@@ -9,7 +9,7 @@ declare var x2: {
   a?: string;
   b?: number | undefined;
 };
-declare var y1: undefined | number | string;
+declare var y1: number | string;
 declare var y2: undefined | number | string;
 declare var v1: Required<{
   a?: string;

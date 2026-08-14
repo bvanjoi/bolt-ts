@@ -2590,8 +2590,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         let prop_ty = self.c.get_type_of_symbol(*prop);
                         props_tys.push(
                             if self.c.symbol(*prop).flags.intersects(SymbolFlags::OPTIONAL) {
-                                // TODO: remove missing
-                                prop_ty
+                                self.c.remove_missing_or_undefined_ty(prop_ty)
                             } else {
                                 prop_ty
                             },
@@ -2604,7 +2603,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         .c
                         .is_applicable_index_ty(info.key_ty, target_info.key_ty)
                     {
-                        props_tys.push(info.key_ty);
+                        props_tys.push(info.val_ty);
                     }
                 }
 

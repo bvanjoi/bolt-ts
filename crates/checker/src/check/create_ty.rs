@@ -19,7 +19,6 @@ use super::instantiation_ty_map::{TyCacheTrait, create_iteration_tys_key};
 use super::links::TyLinks;
 use super::relation;
 use super::relation::RelationKind;
-
 use super::ty;
 use super::ty::{CheckFlags, ElementFlags, IndexFlags};
 use super::ty::{ObjectFlags, TyID, TypeFlags, UnionReduction};

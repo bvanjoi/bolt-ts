@@ -1,0 +1,5 @@
+  × Variable 'p1' is used before being assigned.
+    ╭─[../../tests/compiler/ipromise3/index.ts:14:29]
+ 14 │ p1
+    · ──
+    ╰────

@@ -1,0 +1,19 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase/index.ts:6:5]
+ 6 │ x
+   · ─
+   ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase/index.ts:11:5]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Type 'B<number>' is not assignable to type 'A<number>'.
+    ╭─[../../tests/compiler/genericDerivedTypeWithSpecializedBase/index.ts:17:1]
+ 17 │ x
+    · ─
+    ╰────

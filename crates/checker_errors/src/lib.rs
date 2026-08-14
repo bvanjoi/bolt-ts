@@ -788,9 +788,18 @@ pub struct TypeXProvidesNoMatchForTheSignatureY {
 pub struct OperatorCannotBeAppliedToTypesXAndY {
     #[label(primary)]
     pub span: Span,
-    pub op: String,
+    pub op: &'static str,
     pub ty1: String,
     pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Operator '{op}' cannot be applied to type '{ty}'.")]
+pub struct OperatorCannotBeAppliedToTypeX {
+    #[label(primary)]
+    pub span: Span,
+    pub op: &'static str,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -1399,14 +1408,6 @@ pub struct SuperCannotBeReferencedInConstructorArguments {
 pub struct AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface {
     #[label(primary)]
     pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
-pub struct TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
-    #[label(primary)]
-    pub span: Span,
-    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -2101,4 +2102,22 @@ pub struct XIsSpecifiedMoreThanOnceSoThisUsageWillBeOverwritten {
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'."
+)]
+pub struct ImplicitConversionOfASymbolToAStringWillFailAtRuntimeConsiderWrappingThisExpressionInString
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'The '{operator}' operator cannot be applied to type 'symbol'.")]
+pub struct TheXOperatorCannotBeAppliedToTypeSymbol {
+    #[label(primary)]
+    pub span: Span,
+    pub operator: &'static str,
 }
