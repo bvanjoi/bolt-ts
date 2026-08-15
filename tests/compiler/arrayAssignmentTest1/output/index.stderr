@@ -1,0 +1,223 @@
+  × Type 'null' is not assignable to type 'void[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:10:23]
+ 10 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'C1[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:12:22]
+ 12 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'C2[]'.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:16:26]
+ 16 │ null
+    · ────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:52:5]
+ 52 │ i1_error
+    · ────────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:54:5]
+ 54 │ c1_error
+    · ────────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:54:5]
+ 54 │ c1_error
+    · ────────
+    ╰────
+
+  × Type 'never[]' is missing the following properties from type 'C2': IM1,
+  │ C1M1, and 1 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:57:5]
+ 57 │ c2_error
+    · ────────
+    ╰────
+
+  × Property 'CM3M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:59:5]
+ 59 │ c3_error
+    · ────────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:71:1]
+ 71 │ arr_i1
+    · ──────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:71:1]
+ 71 │ arr_i1
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:77:1]
+ 77 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:77:1]
+ 77 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:80:1]
+ 80 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:80:1]
+ 80 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'IM1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:80:1]
+ 80 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:80:1]
+ 80 │ arr_c1
+    · ──────
+    ╰────
+
+  × Property 'C2M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:87:1]
+ 87 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'C2M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:87:1]
+ 87 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:90:1]
+ 90 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'C2M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:90:1]
+ 90 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'C1M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:90:1]
+ 90 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'C2M1' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:90:1]
+ 90 │ arr_c2
+    · ──────
+    ╰────
+
+  × Type 'C3' is missing the following properties from type 'C2': IM1, C1M1,
+  │ and 1 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:95:1]
+ 95 │ arr_c2
+    · ──────
+    ╰────
+
+  × Type 'C3' is missing the following properties from type 'C2': IM1, C1M1,
+  │ and 1 more.
+    ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:95:1]
+ 95 │ arr_c2
+    · ──────
+    ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:102:1]
+ 102 │ arr_c3
+     · ──────
+     ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:102:1]
+ 102 │ arr_c3
+     · ──────
+     ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:105:1]
+ 105 │ arr_c3
+     · ──────
+     ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:105:1]
+ 105 │ arr_c3
+     · ──────
+     ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:108:1]
+ 108 │ arr_c3
+     · ──────
+     ╰────
+
+  × Property 'CM3M1' is missing.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:108:1]
+ 108 │ arr_c3
+     · ──────
+     ╰────
+
+  × Type '() => C1' is not assignable to type 'any[]'.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:112:1]
+ 112 │ arr_any
+     · ───────
+     ╰────
+
+  × Type '{ one: number; }' is missing the following properties from type
+  │ 'any[]': length, pop, and 27 more.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:114:1]
+ 114 │ arr_any
+     · ───────
+     ╰────
+
+  × Type 'C1' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:117:1]
+ 117 │ arr_any
+     · ───────
+     ╰────
+
+  × Type 'C2' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:119:1]
+ 119 │ arr_any
+     · ───────
+     ╰────
+
+  × Type 'C3' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:121:1]
+ 121 │ arr_any
+     · ───────
+     ╰────
+
+  × Type 'I1' is missing the following properties from type 'any[]': length,
+  │ pop, and 27 more.
+     ╭─[../../tests/compiler/arrayAssignmentTest1/index.ts:123:1]
+ 123 │ arr_any
+     · ───────
+     ╰────

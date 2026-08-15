@@ -1,0 +1,53 @@
+  × Type 'undefined' is not assignable to type 'U'.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:36:16]
+ 36 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:55:24]
+ 55 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:60:45]
+ 60 │ null
+    · ────
+    ╰────
+
+  × Variable 'scanner' is used before being assigned.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:71:5]
+ 71 │ scanner
+    · ───────
+    ╰────
+
+  × Property 'toString' does not exist on type 'T'.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:73:42]
+ 73 │ toString
+    · ────────
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:99:84]
+ 99 │ end
+    · ───
+    ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+     ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:110:70]
+ 110 │ to
+     · ──
+     ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+     ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:127:14]
+ 127 │ null
+     · ────
+     ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+     ╭─[../../tests/compiler/staticAnonymousTypeNotReferencingTypeParameter/index.ts:130:9]
+ 130 │ solution
+     · ────────
+     ╰────

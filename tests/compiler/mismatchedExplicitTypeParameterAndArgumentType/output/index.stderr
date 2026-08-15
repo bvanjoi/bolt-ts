@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/mismatchedExplicitTypeParameterAndArgumentType/index.ts:14:34]
+ 14 │ ""
+    · ──
+    ╰────
+
+  × Expected 2 type arguments, but got 1.
+    ╭─[../../tests/compiler/mismatchedExplicitTypeParameterAndArgumentType/index.ts:16:14]
+ 16 │ <number>
+    · ────────
+    ╰────

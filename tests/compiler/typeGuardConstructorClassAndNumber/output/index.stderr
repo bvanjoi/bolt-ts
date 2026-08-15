@@ -1,0 +1,95 @@
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:14:11]
+ 14 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:23:11]
+ 23 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:32:11]
+ 32 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:41:11]
+ 41 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:50:11]
+ 50 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:59:11]
+ 59 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:68:11]
+ 68 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type '42'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:77:11]
+ 77 │ a
+    · ─
+    ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:86:10]
+ 86 │ property1
+    · ─────────
+    ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+    ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:94:10]
+ 94 │ property1
+    · ─────────
+    ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:102:10]
+ 102 │ property1
+     · ─────────
+     ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:110:10]
+ 110 │ property1
+     · ─────────
+     ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:118:10]
+ 118 │ property1
+     · ─────────
+     ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:126:10]
+ 126 │ property1
+     · ─────────
+     ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:134:10]
+ 134 │ property1
+     · ─────────
+     ╰────
+
+  × Property 'property1' does not exist on type 'number | C1'.
+     ╭─[../../tests/compiler/typeGuardConstructorClassAndNumber/index.ts:142:10]
+ 142 │ property1
+     · ─────────
+     ╰────

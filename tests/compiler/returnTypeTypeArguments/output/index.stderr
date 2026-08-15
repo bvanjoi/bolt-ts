@@ -1,0 +1,326 @@
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:6:5]
+ 6 │ value
+   · ─────
+   ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:10:5]
+ 10 │ value
+    · ─────
+    ╰────
+
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:12:5]
+ 12 │ id
+    · ──
+    ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:16:5]
+ 16 │ value
+    · ─────
+    ╰────
+
+  × Property 'id' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:18:5]
+ 18 │ id
+    · ──
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:20:5]
+ 20 │ name
+    · ────
+    ╰────
+
+  × Generic type 'One<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:24:16]
+ 24 │ One
+    · ───
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:26:16]
+ 26 │ Two
+    · ───
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:28:16]
+ 28 │ Three
+    · ─────
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:31:16]
+ 31 │ Two<number>
+    · ───────────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:33:16]
+ 33 │ Three<string>
+    · ─────────────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:35:16]
+ 35 │ Three<string, number>
+    · ─────────────────────
+    ╰────
+
+  × Generic type 'One<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:39:11]
+ 39 │ One
+    · ───
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:41:11]
+ 41 │ Two
+    · ───
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:43:11]
+ 43 │ Three
+    · ─────
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:46:11]
+ 46 │ Two<number>
+    · ───────────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:48:11]
+ 48 │ Three<string>
+    · ─────────────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:50:11]
+ 50 │ Three<string, number>
+    · ─────────────────────
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:55:11]
+ 55 │ Two<T>
+    · ──────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:57:11]
+ 57 │ Three<T>
+    · ────────
+    ╰────
+
+  × Generic type 'Two<T, U>' requires 2 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:60:11]
+ 60 │ Two<T>
+    · ──────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:62:11]
+ 62 │ Three<T>
+    · ────────
+    ╰────
+
+  × Generic type 'Three<T, U, V>' requires 3 type arguments.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:64:11]
+ 64 │ Three<string, T>
+    · ────────────────
+    ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:74:5]
+ 74 │ value
+    · ─────
+    ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:80:15]
+ 80 │ X
+    · ─
+    ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:83:26]
+ 83 │ X
+    · ─
+    ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:86:9]
+ 86 │ X
+    · ─
+    ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:89:11]
+ 89 │ X
+    · ─
+    ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:92:9]
+ 92 │ X
+    · ─
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:94:15]
+ 94 │ Y
+    · ─
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:97:26]
+ 97 │ Y
+    · ─
+    ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:100:9]
+ 100 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:103:11]
+ 103 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:106:9]
+ 106 │ Y
+     · ─
+     ╰────
+
+  × Property 'p1' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:80:5]
+ 80 │ p1
+    · ──
+    ╰────
+
+  × Property 'p2' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:83:5]
+ 83 │ p2
+    · ──
+    ╰────
+
+  × Property 'p3' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:86:5]
+ 86 │ p3
+    · ──
+    ╰────
+
+  × Property 'p4' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:89:5]
+ 89 │ p4
+    · ──
+    ╰────
+
+  × Property 'p6' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:94:5]
+ 94 │ p6
+    · ──
+    ╰────
+
+  × Property 'p7' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:97:5]
+ 97 │ p7
+    · ──
+    ╰────
+
+  × Property 'p8' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:100:5]
+ 100 │ p8
+     · ──
+     ╰────
+
+  × Property 'p9' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:103:5]
+ 103 │ p9
+     · ──
+     ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:111:15]
+ 111 │ X
+     · ─
+     ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:113:26]
+ 113 │ X
+     · ─
+     ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:115:9]
+ 115 │ X
+     · ─
+     ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:117:11]
+ 117 │ X
+     · ─
+     ╰────
+
+  × Generic type 'X<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:119:9]
+ 119 │ X
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:121:15]
+ 121 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:123:26]
+ 123 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:125:9]
+ 125 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:127:11]
+ 127 │ Y
+     · ─
+     ╰────
+
+  × Generic type 'Y<T>' requires 1 type argument.
+     ╭─[../../tests/compiler/returnTypeTypeArguments/index.ts:129:9]
+ 129 │ Y
+     · ─
+     ╰────

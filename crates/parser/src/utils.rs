@@ -108,11 +108,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
-        let stmts = self.do_outside_of_parse_context(ParseContext::TOP_LEVEL, |this| {
-            this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
-                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
-            })
-        });
+        let stmts = self.do_outside_of_parse_context(
+            ParseContext::TOP_LEVEL.union(ParseContext::DISALLOW_BLOCK_DECLARATION),
+            |this| {
+                this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
+                    this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+                })
+            },
+        );
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
         self.create_block_statement(self.new_span(start), stmts)

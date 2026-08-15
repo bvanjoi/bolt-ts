@@ -216,6 +216,7 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_ty",
  "bolt_ts_utils",
+ "bolt_ts_wf_check",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -262,7 +263,7 @@ dependencies = [
  "bolt_ts_span",
  "bolt_ts_tracing",
  "bolt_ts_utils",
- "bolt_ts_wf_errors",
+ "bolt_ts_wf_check",
  "codspeed-divan-compat",
  "compile-test",
  "dir-test",
@@ -487,6 +488,7 @@ dependencies = [
  "bitflags 2.9.4",
  "bolt_ts_arena",
  "bolt_ts_ast",
+ "bolt_ts_ast_visitor",
  "bolt_ts_atom",
  "bolt_ts_binder",
  "bolt_ts_checker",
@@ -627,6 +629,35 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "bolt_ts_wf_check"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.9.4",
+ "bolt_ts_arena",
+ "bolt_ts_ast",
+ "bolt_ts_ast_visitor",
+ "bolt_ts_atom",
+ "bolt_ts_binder",
+ "bolt_ts_checker_errors",
+ "bolt_ts_config",
+ "bolt_ts_early_resolve",
+ "bolt_ts_ecma_rules",
+ "bolt_ts_errors",
+ "bolt_ts_fs",
+ "bolt_ts_middle",
+ "bolt_ts_module_graph",
+ "bolt_ts_module_resolve",
+ "bolt_ts_parser",
+ "bolt_ts_span",
+ "bolt_ts_utils",
+ "bolt_ts_wf_errors",
+ "nohash-hasher",
+ "rayon",
+ "rustc-hash",
+ "thiserror",
 ]
 
 [[package]]

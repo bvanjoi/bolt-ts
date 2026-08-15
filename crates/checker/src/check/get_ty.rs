@@ -1519,12 +1519,32 @@ impl<'cx> TyChecker<'cx> {
             access_flags.insert(AccessFlags::INCLUDE_UNDEFINED);
         }
 
+        let index_ty_less_than = |this: &mut Self, index_ty: &'cx Ty<'cx>, limit: f64| {
+            this.every_type(index_ty, |this, t| {
+                if t.flags.intersects(TypeFlags::STRING_OR_NUMBER_LITERAL) {
+                    let prop_name = this.get_prop_name_from_ty(t);
+                    if let Some(name) = prop_name.as_numeric() {
+                        return name >= 0. && name < limit;
+                    }
+                }
+                false
+            })
+        };
+
         let is_generic_index = if self.is_generic_index_ty(index_ty) {
             true
         } else if access_node.is_some_and(|n| !self.p.node(n).is_indexed_access_ty()) {
-            object_ty.kind.is_generic_tuple_type()
+            object_ty.kind.is_generic_tuple_type() && {
+                let count = self.get_total_fixed_elem_count(object_ty);
+                !index_ty_less_than(self, index_ty, count as f64)
+            }
         } else {
             self.is_generic_object_ty(object_ty)
+                && !(object_ty.is_tuple() && {
+                    let count = self.get_total_fixed_elem_count(object_ty);
+                    index_ty_less_than(self, index_ty, count as f64)
+                })
+                || self.is_generic_reducible_ty(object_ty)
         };
 
         if is_generic_index {

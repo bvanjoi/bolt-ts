@@ -2121,3 +2121,12 @@ pub struct TheXOperatorCannotBeAppliedToTypeSymbol {
     pub span: Span,
     pub operator: &'static str,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'Return type of constructor signature must be assignable to the instance type of the class."
+)]
+pub struct ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTheClass {
+    #[label(primary)]
+    pub span: Span,
+}

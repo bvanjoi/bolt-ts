@@ -2151,7 +2151,7 @@ impl<'cx> TyChecker<'cx> {
                 modifiers_ty,
                 include,
                 false,
-                &mut add_member_for_key_ty,
+                add_member_for_key_ty,
             );
         } else {
             let ty = self.get_lower_bound_of_key_ty(constraint_ty);

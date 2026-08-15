@@ -5,7 +5,6 @@ mod compiler_result;
 mod diag;
 mod emit_declaration;
 mod match_files;
-mod wf;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -13,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use self::cli::get_filenames;
 pub use self::compiler_result::{CompilerResult, OutputFile};
 use self::emit_declaration::emit_declarations;
-use self::wf::well_formed_check_parallel;
 
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
@@ -27,6 +25,7 @@ use bolt_ts_optimize::optimize_and_js_emit;
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::ModuleArena;
 use bolt_ts_utils::path::NormalizePath;
+use bolt_ts_wf_check::well_formed_check_parallel;
 
 use rayon::prelude::*;
 
@@ -490,6 +489,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         merged_symbols,
         global_symbols,
         emit_standard_class_fields,
+        well_formed_check_results,
     );
     for item in &entries {
         let is_default_lib = checker.module_arena.get_module(*item).is_default_lib();

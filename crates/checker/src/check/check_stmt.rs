@@ -185,7 +185,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) {
         let has_module_spec = node.module_spec().is_some();
-        if !has_module_spec || self.check_external_module_name(node.id) {
+        if !has_module_spec || self.check_external_module_name(node) {
             if let ast::ExportClauseKind::Specs(specs) = node.clause.kind {
                 // export { a, b as c } from 'xxxx'
                 // export { a, b as c }
@@ -266,12 +266,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_external_module_name(&mut self, node: ast::NodeID) -> bool {
-        let Some(_module_name) = self.p.node(node).get_external_module_name() else {
-            return false;
-        };
-        // TODO: more checks
-        true
+    fn check_external_module_name(&mut self, node: &'cx ast::ExportDecl<'cx>) -> bool {
+        !self.issue_external_export_declarations.contains(node)
     }
 
     fn check_type_name_is_reserved(
@@ -916,13 +912,19 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             } else if matches!(c, ast::Node::ClassCtor(_)) {
-                if let Some(expr) = node.expr {
-                    self.check_type_assignable_to_and_optionally_elaborate(
+                if let Some(expr) = node.expr
+                    && let expr_ty = self.check_expression_cached(expr, None)
+                    && !self.check_type_assignable_to_and_optionally_elaborate(
                         expr_ty,
                         ret_ty,
                         Some(expr.id()),
                         Some(expr.id()),
-                    );
+                    )
+                {
+                    let error = errors::ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTheClass {
+                        span: expr.span()
+                    };
+                    self.push_error(Box::new(error));
                 }
             } else if self.get_ret_ty_from_anno(container).is_some() {
                 let fn_flags = self.p.node(container).fn_flags();

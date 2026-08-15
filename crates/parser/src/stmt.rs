@@ -192,7 +192,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             start as usize,
         );
         let stmt = self.do_inside_of_parse_context(
-            ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
+            ParseContext::ALLOW_BREAK
+                .union(ParseContext::ALLOW_CONTINUE)
+                .union(ParseContext::DISALLOW_BLOCK_DECLARATION),
             Self::parse_stmt,
         )?;
         let stmt = self.create_while_statement(self.new_span(start), expr, stmt);
@@ -344,7 +346,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             };
             self.expect(RParen);
             let body = self.do_inside_of_parse_context(
-                ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
+                ParseContext::ALLOW_BREAK
+                    .union(ParseContext::ALLOW_CONTINUE)
+                    .union(ParseContext::DISALLOW_BLOCK_DECLARATION),
                 Self::parse_stmt,
             )?;
             if let Some(init) = &init
@@ -578,6 +582,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             self.parse_ty()?
         };
         self.parse_semi();
+        self.check_allow_block_declaration(|this| {
+            let error = errors::XDeclarationsCanOnlyBeDeclaredInsideABlock {
+                span: name.span,
+                kind: "type".to_string(),
+            };
+            this.push_error(Box::new(error));
+        });
         let decl = self.create_type_alias_declaration(
             self.new_span(start),
             modifiers,
@@ -1254,7 +1265,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         self.expect(TokenKind::LParen);
         let expr = self.parse_expr()?;
         self.expect(TokenKind::RParen);
-        let then = self.parse_stmt()?;
+        let then = self.do_inside_of_parse_context(
+            ParseContext::DISALLOW_BLOCK_DECLARATION,
+            Self::parse_stmt,
+        )?;
         let else_then = if self.parse_optional(TokenKind::Else).is_some() {
             Some(self.parse_stmt()?)
         } else {

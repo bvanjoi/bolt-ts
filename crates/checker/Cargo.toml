@@ -22,6 +22,7 @@ bolt_ts_path = { path = "../path" }
 bolt_ts_ty = { path = "../ty" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_early_resolve = { path = "../early_resolve" }
+bolt_ts_wf_check = { path = "../wf_check" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
 bitflags = { workspace = true }

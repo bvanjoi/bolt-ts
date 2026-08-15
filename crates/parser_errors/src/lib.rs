@@ -917,3 +917,11 @@ pub struct XAtTheEndOfATypeIsNotValidTypeScriptSyntax {
     pub span: Span,
     pub token: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{kind}' declarations can only be declared inside a block.")]
+pub struct XDeclarationsCanOnlyBeDeclaredInsideABlock {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: String,
+}

@@ -3,12 +3,13 @@ mod print;
 use std::borrow::Cow;
 
 use bolt_ts_ast as ast;
+use bolt_ts_ast_visitor::{Visitor, noop_visit_type_node};
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_checker::emit_resolver::EmitResolver;
+use bolt_ts_span::ModuleID;
 use rustc_hash::FxHashSet;
 
 use super::emit::print::PPrint;
-use super::ir;
-use super::lowering::LoweringResult;
 
 #[derive(Clone, Copy)]
 pub struct EmitterOptions {
@@ -19,22 +20,25 @@ bolt_ts_utils::index! {
     ScopeID
 }
 
-pub fn emit_js(atoms: &AtomIntern, ir: &LoweringResult, origin: &str) -> String {
+pub fn emit_js<'cx, 'a>(
+    resolver: EmitResolver<'cx, 'a>,
+    module: ModuleID,
+    origin: String,
+) -> String {
     let emitter = Emitter::new();
     let scope = ScopeID::root();
     let max_scope = ScopeID::root().next();
     let mut js_emitter = JSEmitter {
         emitter,
-        atoms,
+        resolver,
         ns_names: FxHashSet::default(),
         scope,
         max_scope,
-        graph_arena: &ir.graph_arena,
-        current_graph: ir.entry_graph,
-        nodes: &ir.nodes,
         origin,
     };
-    js_emitter.emit_root(ir.entry_graph)
+    let root = js_emitter.resolver.program(module);
+    js_emitter.visit_program(root);
+    js_emitter.emitter.print().take_content()
 }
 
 pub struct Emitter {
@@ -78,62 +82,24 @@ impl Emitter {
     }
 }
 
-struct JSEmitter<'cx, 'ir> {
+struct JSEmitter<'cx, 'a> {
     emitter: Emitter,
-    atoms: &'cx AtomIntern,
+    resolver: EmitResolver<'cx, 'a>,
     ns_names: FxHashSet<(ScopeID, bolt_ts_atom::Atom)>,
     scope: ScopeID,
     max_scope: ScopeID,
-    nodes: &'ir ir::Nodes,
-    graph_arena: &'ir ir::GraphArena,
-    current_graph: ir::GraphID,
-    origin: &'ir str,
+    origin: String,
 }
 
-impl<'ir> JSEmitter<'_, 'ir> {
+impl<'cx, 'a> JSEmitter<'cx, 'a> {
     fn next_scope(&mut self) -> ScopeID {
         let scope = self.max_scope;
         self.max_scope = self.max_scope.next();
         scope
     }
 
-    fn emit_root(&mut self, entry: ir::GraphID) -> String {
-        self.emit_program(entry);
-        self.emitter.print().take_content()
-    }
-
-    fn graph(&self, id: ir::GraphID) -> &'ir ir::Graph {
-        self.graph_arena.get(id)
-    }
-
-    fn emit_basic_block(&mut self, graph: ir::GraphID, id: ir::BasicBlockID) {
-        let saved = self.current_graph;
-        self.current_graph = graph;
-
-        let block = self.graph(graph).get_basic_block(id);
-        self.emit_stmts(block.stmts());
-
-        self.current_graph = saved;
-    }
-
-    fn emit_basic_block_with_brace(&mut self, graph: ir::GraphID, id: ir::BasicBlockID) {
-        let saved = self.current_graph;
-        self.current_graph = graph;
-
-        self.emitter.print().p_l_brace();
-        let block = self.graph(graph).get_basic_block(id);
-        if !block.stmts().is_empty() {
-            self.emitter.print().indent += self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emit_stmts(block.stmts());
-        if !block.stmts().is_empty() {
-            self.emitter.print().indent -= self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emitter.print().p_r_brace();
-
-        self.current_graph = saved;
+    fn atoms(&self) -> &AtomIntern {
+        self.resolver.atoms()
     }
 
     fn emit_list<T>(
@@ -150,40 +116,10 @@ impl<'ir> JSEmitter<'_, 'ir> {
         }
     }
 
-    fn emit_program(&mut self, root: ir::GraphID) {
-        self.emit_basic_block(root, ir::BasicBlockID::ENTRY);
-    }
-
-    fn emit_stmts(&mut self, stmts: &[ir::Stmt]) {
-        self.emit_list(
-            stmts,
-            |this, item| this.emit_stmt(*item),
-            |this, _| {
-                this.emitter.content.p_newline();
-            },
-        )
-    }
-
-    fn emit_var_stmt(&mut self, var: ir::VarStmtID) {
-        let var = self.nodes.get_var_stmt(&var);
-        if var
-            .modifiers()
-            .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
-        {
-            return;
-        }
-        self.emitter.print().p("var");
-        self.emitter.print().p_whitespace();
-        let decls = var.decls();
-        self.emit_var_decls(decls);
-        self.emitter.print().p_semi();
-    }
-
-    fn emit_var_decls(&mut self, decls: &'ir [ir::VarDeclID]) {
-        // TODO: modifier
+    fn emit_var_decls(&mut self, decls: ast::VarDecls<'cx>) {
         self.emit_list(
             decls,
-            |this, decl| this.emit_var_decl(*decl),
+            |this, decl| this.visit_var_decl(decl),
             |this, _| {
                 this.emitter.content.p_comma();
                 this.emitter.content.p_whitespace();
@@ -191,47 +127,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
         );
     }
 
-    fn emit_var_decl(&mut self, decl: ir::VarDeclID) {
-        let decl = self.nodes.get_var_decl(&decl);
-        self.emit_binding(decl.name());
-        if let Some(init) = decl.init() {
-            self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
-            self.emitter.print().p_whitespace();
-            self.emit_expr(init);
-        }
-    }
-
-    fn emit_ident(&mut self, ident: ir::IdentID) {
-        let ident = self.nodes.get_ident(&ident);
-        let content = self.atoms.get(ident.name());
-        self.emitter.print().p(content);
-    }
-
-    fn emit_private_ident(&mut self, ident: ir::PrivateIdentID) {
-        let ident = self.nodes.get_private_ident(&ident);
-        let content = self.atoms.get(ident.name());
-        self.emitter.print().p(content);
-    }
-
-    fn emit_num_lit(&mut self, num: ir::NumLitID) {
-        let num = self.nodes.get_num_lit(&num);
-        self.emitter.print().p(&num.val().to_string())
-    }
-
-    fn emit_string_lit(&mut self, s: ir::StringLitID) {
-        let s = self.nodes.get_string_lit(&s);
-        let val = s.val();
-        if s.is_template() {
-            let content = get_source_text_from_source(self.origin, s.span());
-            self.emitter.print().p(content);
-        } else {
-            self.emit_as_string(val);
-        }
-    }
-
     fn emit_as_string(&mut self, val: Atom) {
-        let s = self.atoms.get(val);
+        let s = self.atoms().get(val);
         self.emitter.print().p("'");
         for c in s.chars() {
             match c {
@@ -242,145 +139,11 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p("'");
     }
 
-    fn emit_prop_name(&mut self, name: ir::PropName) {
-        match name {
-            ir::PropName::Ident(id) => self.emit_ident(id),
-            ir::PropName::NumLit(id) => self.emit_num_lit(id),
-            ir::PropName::StringLit(id) => self.emit_string_lit(id),
-            ir::PropName::Computed(id) => {
-                self.emitter.print().p_l_bracket();
-                let name = self.nodes.get_computed_prop_name(&id);
-                self.emit_expr(name.expr());
-                self.emitter.print().p_r_bracket();
-            }
-            ir::PropName::PrivateIdent(n) => {
-                self.emit_private_ident(n);
-            }
-            ir::PropName::BigIntLit(id) => {
-                let lit = self.nodes.get_bigint_lit(&id);
-                let content = self.atoms.get(lit.val().1);
-                self.emitter.print().p(content);
-            }
-        }
-    }
-
-    fn emit_object_binding_elem(&mut self, id: ir::ObjectBindingElemID) {
-        let elem = self.nodes.get_object_binding_elem(&id);
-        if elem.dotdotdot().is_some() {
-            self.emitter.print().p_dot_dot_dot();
-        }
-        match elem.name() {
-            ir::ObjectBindingName::Shorthand(ident) => {
-                self.emit_ident(ident);
-            }
-            ir::ObjectBindingName::Prop { prop_name, name } => {
-                self.emit_prop_name(prop_name);
-                self.emitter.print().p(":");
-                self.emitter.print().p_whitespace();
-                self.emit_binding(name);
-            }
-        }
-        if let Some(init) = elem.init() {
-            self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
-            self.emitter.print().p_whitespace();
-            self.emit_expr(init);
-        }
-    }
-
-    fn emit_array_binding_elem(&mut self, elem: &ir::ArrayBindingElem) {
-        match elem {
-            ir::ArrayBindingElem::Omit(_) => {}
-            ir::ArrayBindingElem::Binding(n) => {
-                let n = self.nodes.get_array_binding(n);
-                if n.dotdotdot().is_some() {
-                    self.emitter.print().p_dot_dot_dot();
-                }
-                self.emit_binding(n.name());
-                if let Some(init) = n.init() {
-                    self.emitter.print().p_whitespace();
-                    self.emitter.print().p_eq();
-                    self.emitter.print().p_whitespace();
-                    self.emit_expr(init);
-                }
-            }
-        }
-    }
-
-    fn emit_binding(&mut self, binding: ir::Binding) {
-        match binding {
-            ir::Binding::Ident(n) => self.emit_ident(n),
-            ir::Binding::ObjectPat(n) => {
-                self.emitter.print().p_l_brace();
-                let pat = self.nodes.get_object_pat(&n);
-                self.emit_list(
-                    pat.elems(),
-                    |this, item| this.emit_object_binding_elem(*item),
-                    |this, _| {
-                        this.emitter.content.p_comma();
-                        this.emitter.content.p_whitespace();
-                    },
-                );
-                self.emitter.print().p_r_brace();
-            }
-            ir::Binding::ArrayPat(n) => {
-                self.emitter.print().p_l_bracket();
-                let pat = self.nodes.get_array_pat(&n);
-                self.emit_list(
-                    pat.elems(),
-                    |this, item| {
-                        this.emit_array_binding_elem(item);
-                    },
-                    |this, _| {
-                        this.emitter.content.p_comma();
-                        this.emitter.content.p_whitespace();
-                    },
-                );
-                self.emitter.print().p_r_bracket();
-            }
-        };
-    }
-
-    fn emit_fn_decl(&mut self, f: ir::FnDeclID) {
-        let f = self.nodes.get_fn_decl(&f);
-        if let Some(name) = f.name() {
-            self.ns_names
-                .insert((self.scope, self.nodes.get_ident(&name).name()));
-        }
-        if let Some(ms) = f.modifiers() {
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::EXPORT) {
-                self.emitter.print().p("export");
-                self.emitter.print().p_whitespace();
-            }
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::DEFAULT) {
-                self.emitter.print().p("default");
-                self.emitter.print().p_whitespace();
-            }
-            if ms.flags().contains(ast::ModifierFlags::ASYNC) {
-                self.emitter.print().p("async");
-                self.emitter.print().p_whitespace();
-            }
-        }
-
-        self.emitter.print().p("function");
-        if f.asterisk().is_some() {
-            self.emitter.print().p("*");
-        }
-        self.emitter.print().p_whitespace();
-        if let Some(name) = f.name() {
-            self.emit_ident(name);
-        }
-        self.emit_params(f.params());
-        self.emitter.print().p_whitespace();
-
-        self.emit_basic_block_with_brace(f.body(), ir::BasicBlockID::ENTRY);
-    }
-
-    fn emit_params(&mut self, params: &[ir::ParamDeclID]) {
+    fn emit_params(&mut self, params: ast::ParamsDecl<'cx>) {
         self.emitter.print().p_l_paren();
         self.emit_list(
             params,
-            |this, item| this.emit_param(*item),
+            |this, item| this.visit_param_decl(item),
             |this, _| {
                 this.emitter.content.p_comma();
                 this.emitter.content.p_whitespace();
@@ -389,328 +152,59 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p_r_paren();
     }
 
-    fn emit_param(&mut self, param: ir::ParamDeclID) {
-        let param = self.nodes.get_param_decl(&param);
-        if param.dotdotdot().is_some() {
-            self.emitter.print().p_dot_dot_dot();
-        }
-        self.emit_binding(param.name());
-        if let Some(init) = param.init() {
-            self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
-            self.emitter.print().p_whitespace();
-            self.emit_expr(init);
-        }
-    }
-
-    fn emit_block_stmt(&mut self, block: ir::BlockStmtID) {
-        let block = self.nodes.get_block_stmt(&block);
-        self.emitter.print().p_l_brace();
-        if !block.stmts().is_empty() {
-            self.emitter.print().indent += self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emit_stmts(block.stmts());
-        if !block.stmts().is_empty() {
-            self.emitter.print().indent -= self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emitter.print().p_r_brace();
-    }
-
-    fn emit_if_stmt(&mut self, stmt: ir::IfStmtID) {
-        let stmt = self.nodes.get_if_stmt(&stmt);
-        self.emitter.print().p("if");
-        self.emitter.print().p_whitespace();
-        // test
+    fn emit_args(&mut self, args: ast::Exprs<'cx>) {
         self.emitter.print().p_l_paren();
-        self.emit_expr(stmt.expr());
+        self.emit_list(
+            args,
+            |this, arg| this.visit_expr(arg),
+            |this, _| {
+                this.emitter.content.p_comma();
+                this.emitter.content.p_whitespace();
+            },
+        );
         self.emitter.print().p_r_paren();
-        self.emitter.print().p_whitespace();
-        // block
-        self.emit_basic_block(self.current_graph, stmt.then());
-        // else
-        if let Some(else_then) = stmt.else_then() {
-            self.emitter.print().p_whitespace();
-            self.emitter.print().p("else");
-            self.emitter.print().p_whitespace();
-            self.emit_basic_block(self.current_graph, else_then);
-        }
-        self.emitter.print().p_newline();
     }
 
-    fn emit_ret_stmt(&mut self, ret: ir::RetStmtID) {
-        let ret = self.nodes.get_ret_stmt(&ret);
-        self.emitter.print().p("return");
-        self.emitter.print().p_whitespace();
-        if let Some(expr) = ret.expr() {
-            self.emit_expr(expr);
-        }
-    }
-
-    fn emit_class_extends_clause(&mut self, extends: ir::ClassExtendsClauseID) {
-        let extends = self.nodes.get_class_extends_clause(&extends);
-        self.emitter.print().p("extends");
-        self.emitter.print().p_whitespace();
-        self.emit_expr(extends.expr());
-        self.emitter.print().p_whitespace();
-    }
-
-    fn emit_class_elem(&mut self, elem: ir::ClassElem) {
-        match elem {
-            ir::ClassElem::PropElem(id) => self.emit_class_prop_elem(id),
-            ir::ClassElem::MethodElem(id) => self.emit_class_method_elem(id),
-            ir::ClassElem::StaticBlock(id) => self.emit_class_static_block(id),
-            ir::ClassElem::Ctor(id) => self.emit_class_ctor(id),
-            ir::ClassElem::Getter(id) => self.emit_getter_decl(id),
-            ir::ClassElem::Setter(id) => self.emit_setter_decl(id),
-        }
-    }
-
-    fn emit_getter_decl(&mut self, elem: ir::GetterDeclID) {
-        let elem = self.nodes.get_getter_decl(&elem);
-        if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierFlags::STATIC)
-        {
-            self.emitter.print().p("static");
-            self.emitter.print().p_whitespace();
-        }
-        self.emitter.print().p("get");
-        self.emitter.print().p_whitespace();
-        self.emit_prop_name(elem.name());
-        self.emit_params(&[]);
-        self.emitter.print().p_whitespace();
-        self.emit_block_stmt(elem.body());
-    }
-
-    fn emit_setter_decl(&mut self, elem: ir::SetterDeclID) {
-        let elem = self.nodes.get_setter_decl(&elem);
-        if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierFlags::STATIC)
-        {
-            self.emitter.print().p("static");
-            self.emitter.print().p_whitespace();
-        }
-        self.emitter.print().p("set");
-        self.emitter.print().p_whitespace();
-        self.emit_prop_name(elem.name());
-        self.emit_params(elem.params());
-        self.emitter.print().p_whitespace();
-        self.emit_block_stmt(elem.body());
-    }
-
-    fn emit_class_ctor(&mut self, elem: ir::ClassCtorID) {
-        let ctor = self.nodes.get_class_ctor(&elem);
-        self.emitter.print().p("constructor");
-        self.emit_params(ctor.params());
-        self.emitter.print().p_whitespace();
-
-        let body = ctor.body();
-        self.emitter.print().p_l_brace();
-        self.emitter.print().indent += self.emitter.options.indent;
-
-        let block = self.nodes.get_block_stmt(&body);
-
-        let has_block_stmt = !block.stmts().is_empty()
-            && ctor.params().iter().any(|param| {
-                let param = self.nodes.get_param_decl(param);
-                param.dotdotdot().is_none()
-                    && param
-                        .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
-            });
-
-        if has_block_stmt {
-            self.emitter.print().p_newline();
-        }
-
-        let last_super_call = block.stmts().iter().rev().position(|stmt| {
-            if let ir::Stmt::Expr(expr) = stmt
-                && let expr = self.nodes.get_expr_stmt(expr)
-                && let ir::Expr::Call(call) = expr.expr()
-                && let call = self.nodes.get_call_expr(&call)
-                && let ir::Expr::Super(_) = call.callee()
-            {
-                return true;
-            }
-            false
-        });
-
-        let last_super_call = last_super_call.map(|pos| block.stmts().len() - 1 - pos);
-
-        let (prev_stmts, after_stmts) = if let Some(last_super_call) = last_super_call {
-            block.stmts().split_at(last_super_call + 1)
-        } else {
-            let after_stmts: &[ir::Stmt] = &[];
-            (block.stmts(), after_stmts)
-        };
-
-        self.emit_list(
-            prev_stmts,
-            |this, elem| this.emit_stmt(*elem),
-            |this, _| {
-                this.emitter.content.p_newline();
-            },
-        );
-
-        self.emit_list(
-            ctor.params(),
-            |this, param| {
-                let param = self.nodes.get_param_decl(param);
-                if param.dotdotdot().is_none()
-                    && param
-                        .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
-                {
-                    this.emitter.content.p_newline();
-
-                    this.emitter.content.p("this");
-                    this.emitter.content.p_dot();
-                    this.emit_binding(param.name());
-                    this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
-                    this.emitter.content.p_whitespace();
-                    this.emit_binding(param.name());
-                }
-            },
-            |this, param| {
-                let param = self.nodes.get_param_decl(param);
-                if param.dotdotdot().is_none()
-                    && param
-                        .modifiers()
-                        .is_some_and(|ms| ms.flags().contains(ast::ModifierFlags::PUBLIC))
-                {
-                    this.emitter.content.p_newline();
-                }
-            },
-        );
-
-        self.emit_list(
-            after_stmts,
-            |this, elem| this.emit_stmt(*elem),
-            |this, _| {
-                this.emitter.content.p_newline();
-            },
-        );
-
-        if has_block_stmt {
-            self.emitter.print().p_newline();
-        }
-        self.emitter.print().indent -= self.emitter.options.indent;
-        self.emitter.print().p_r_brace();
-    }
-
-    fn emit_class_static_block(&mut self, elem: ir::ClassStaticBlockDeclID) {
-        let elem = self.nodes.get_class_static_block_decl(&elem);
-        self.emitter.print().p("static");
-        self.emitter.print().p_whitespace();
-
-        self.emitter.print().p_l_brace();
-        self.emit_block_stmt(elem.body());
-        self.emitter.print().p_r_brace();
-    }
-
-    fn emit_class_prop_elem(&mut self, elem: ir::ClassPropElemID) {
-        let elem = self.nodes.get_class_prop_elem(&elem);
-        if let Some(mods) = elem.modifiers() {
-            if mods.flags().contains(ast::ModifierFlags::ABSTRACT) {
-                return;
-            }
-            if mods.flags().contains(ast::ModifierFlags::STATIC) {
-                self.emitter.print().p("static");
-                self.emitter.print().p_whitespace();
-            }
-        }
-        self.emit_prop_name(elem.name());
-        if let Some(init) = elem.init() {
-            self.emitter.print().p_whitespace();
-            self.emitter.print().p_eq();
-            self.emitter.print().p_whitespace();
-            self.emit_expr(init);
-        }
-        self.emitter.print().p_semi();
-    }
-
-    fn emit_class_method_elem(&mut self, elem: ir::ClassMethodElemID) {
-        let elem = self.nodes.get_class_method_elem(&elem);
-        if let Some(mods) = elem.modifiers()
-            && mods.flags().contains(ast::ModifierFlags::STATIC)
-        {
-            self.emitter.print().p("static");
-            self.emitter.print().p_whitespace();
-        }
-        if elem.asterisk().is_some() {
-            self.emitter.print().p_asterisk();
-        }
-        self.emit_prop_name(elem.name());
-        self.emit_params(elem.params());
-        self.emitter.print().p_whitespace();
-        self.emit_block_stmt(elem.body());
-    }
-
-    fn emit_class_decl(&mut self, class: ir::ClassDeclID) {
-        let class = self.nodes.get_class_decl(&class);
-        let ms = class.modifiers();
-        if let Some(ms) = ms {
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::EXPORT) {
+    fn emit_export_modifier_if_root(&mut self, modifiers: Option<&'cx ast::Modifiers<'cx>>) {
+        if let Some(ms) = modifiers {
+            if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::EXPORT) {
                 self.emitter.print().p("export");
                 self.emitter.print().p_whitespace();
             }
-            if self.scope == ScopeID::root() && ms.flags().contains(ast::ModifierFlags::DEFAULT) {
+            if self.scope == ScopeID::root() && ms.flags.contains(ast::ModifierFlags::DEFAULT) {
                 self.emitter.print().p("default");
                 self.emitter.print().p_whitespace();
             }
         }
-        self.emitter.print().p("class");
-        self.emitter.print().p_whitespace();
-        if let Some(ident) = class.name() {
-            self.emit_ident(ident);
-            self.emitter.print().p_whitespace();
-            let name = self.nodes.get_ident(&ident).name();
-            self.ns_names.insert((self.scope, name));
-        }
-        if let Some(extends) = class.extends() {
-            self.emit_class_extends_clause(extends);
-        }
-        self.emitter.print().p_l_brace();
-        if !class.elems().is_empty() {
-            self.emitter.print().indent += self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emit_list(
-            class.elems(),
-            |this, elem| {
-                this.emit_class_elem(*elem);
-            },
-            |this, _| {
-                this.emitter.content.p_newline();
-            },
-        );
-        if !class.elems().is_empty() {
-            self.emitter.print().indent -= self.emitter.options.indent;
-            self.emitter.print().p_newline();
-        }
-        self.emitter.print().p_r_brace();
     }
 
-    fn emit_throw_stmt(&mut self, stmt: ir::ThrowStmtID) {
-        let stmt = self.nodes.get_throw_stmt(&stmt);
-        self.emitter.print().p("throw");
+    fn emit_static_modifier(&mut self, modifiers: Option<&'cx ast::Modifiers<'cx>>) {
+        if let Some(ms) = modifiers
+            && ms.flags.contains(ast::ModifierFlags::STATIC)
+        {
+            self.emitter.print().p("static");
+            self.emitter.print().p_whitespace();
+        }
+    }
+
+    fn emit_class_extends_clause(&mut self, extends: &'cx ast::ClassExtendsClause<'cx>) {
+        self.emitter.print().p("extends");
         self.emitter.print().p_whitespace();
-        self.emit_expr(stmt.expr());
+        self.visit_expr_with_ty_args(extends.expr_with_ty_args);
+        self.emitter.print().p_whitespace();
     }
 
     fn emit_with_var_fn_wrapper(
         &mut self,
-        decl_name: ir::IdentID,
+        decl_name: &'cx ast::Ident,
         param_name: &str,
         f: impl FnOnce(&mut Self),
     ) {
-        let name = self.nodes.get_ident(&decl_name).name();
+        let name = decl_name.name;
         if self.ns_names.insert((self.scope, name)) {
             self.emitter.print().p("var");
             self.emitter.print().p_whitespace();
-            self.emit_ident(decl_name);
+            self.visit_ident(decl_name);
             self.emitter.print().p_whitespace();
             self.emitter.print().p_eq();
             self.emitter.print().p_whitespace();
@@ -745,101 +239,370 @@ impl<'ir> JSEmitter<'_, 'ir> {
 
         self.emitter.print().p_r_paren();
         self.emitter.print().p_l_paren();
-        self.emit_ident(decl_name);
+        self.visit_ident(decl_name);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_semi();
     }
 
-    fn emit_module_decl(&mut self, decl: ir::ModuleDeclID) {
-        let ns = self.nodes.get_module_decl(&decl);
-        if ns
-            .modifiers()
-            .map(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
-            .unwrap_or_default()
-            || !ns.instantiated()
+    fn sub_names_of_binding(&self, binding: &'cx ast::Binding<'cx>) -> Vec<Atom> {
+        match binding.kind {
+            ast::BindingKind::Ident(n) => vec![n.name],
+            ast::BindingKind::ObjectPat(n) => n
+                .elems
+                .iter()
+                .flat_map(|elem| match elem.name {
+                    ast::ObjectBindingName::Shorthand(ident) => vec![ident.name],
+                    ast::ObjectBindingName::Prop { name, .. } => self.sub_names_of_binding(name),
+                })
+                .collect(),
+            ast::BindingKind::ArrayPat(n) => n
+                .elems
+                .iter()
+                .flat_map(|elem| match elem.kind {
+                    ast::ArrayBindingElemKind::Omit(_) => vec![],
+                    ast::ArrayBindingElemKind::Binding(n) => self.sub_names_of_binding(n.name),
+                })
+                .collect(),
+        }
+    }
+
+    fn is_param_property(&self, param: &'cx ast::ParamDecl<'cx>) -> bool {
+        param.dotdotdot.is_none()
+            && param
+                .modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::PUBLIC))
+    }
+
+    fn emit_module_block_contents(&mut self, block: &'cx ast::ModuleBlock<'cx>, param_name: &str) {
+        for stmt in block.stmts {
+            if self.stmt_is_omitted(stmt) {
+                continue;
+            }
+            self.emitter.content.p_newline();
+            self.visit_stmt(stmt);
+            self.emitter.content.p_newline();
+            let t = match stmt.kind {
+                ast::StmtKind::Var(v) => {
+                    if let Some(ms) = v.modifiers
+                        && ms.flags.contains(ast::ModifierFlags::EXPORT)
+                        && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
+                    {
+                        for item in v.list {
+                            self.emitter.content.p(param_name);
+                            self.emitter.content.p_dot();
+                            self.visit_binding(item.name);
+                            self.emitter.content.p_whitespace();
+                            self.emitter.content.p_eq();
+                            self.emitter.content.p_whitespace();
+                            self.visit_binding(item.name);
+                            self.emitter.content.p_newline();
+                        }
+                    }
+                    continue;
+                }
+                ast::StmtKind::Fn(f) => {
+                    let Some(name) = f.name else {
+                        continue;
+                    };
+                    f.modifiers.map(|ms| (ms, name))
+                }
+                ast::StmtKind::Class(c) => {
+                    if let Some(name) = c.name {
+                        c.modifiers.map(|ms| (ms, name))
+                    } else {
+                        return;
+                    }
+                }
+                ast::StmtKind::NestedModule(n) => n.modifiers.map(|ms| {
+                    let ident = n.name;
+                    (ms, ident)
+                }),
+                ast::StmtKind::BlockModule(n) => {
+                    let ident = match n.name {
+                        ast::ModuleName::Ident(ident) => ident,
+                        ast::ModuleName::StringLit(_) => unreachable!(),
+                    };
+                    n.modifiers.map(|ms| (ms, ident))
+                }
+                ast::StmtKind::Enum(n) => n.modifiers.map(|ms| (ms, n.name)),
+                _ => None,
+            };
+            let Some((ms, name)) = t else {
+                continue;
+            };
+            if ms.flags.contains(ast::ModifierFlags::EXPORT)
+                && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
+            {
+                self.emitter.content.p(param_name);
+                self.emitter.content.p_dot();
+                self.visit_ident(name);
+                self.emitter.content.p_whitespace();
+                self.emitter.content.p_eq();
+                self.emitter.content.p_whitespace();
+                self.visit_ident(name);
+                self.emitter.content.p_semi();
+                self.emitter.content.p_newline();
+            }
+        }
+    }
+
+    fn stmt_is_omitted(&self, stmt: &'cx ast::Stmt<'cx>) -> bool {
+        use ast::StmtKind::*;
+        match stmt.kind {
+            Interface(_) | TypeAlias(_) | Debugger(_) => true,
+            Class(n) => n
+                .modifiers
+                .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT)),
+            Fn(n) => n.body.is_none(),
+            _ => false,
+        }
+    }
+
+    fn emit_stmts_skip_omitted(&mut self, stmts: &'cx [&'cx ast::Stmt<'cx>]) {
+        let mut first = true;
+        for stmt in stmts {
+            if self.stmt_is_omitted(stmt) {
+                continue;
+            }
+            if !first {
+                self.emitter.content.p_newline();
+            }
+            self.visit_stmt(stmt);
+            first = false;
+        }
+    }
+
+    fn class_elem_is_empty(&self, elem: &'cx ast::ClassElem<'cx>) -> bool {
+        use ast::ClassElemKind::*;
+        match elem.kind {
+            IndexSig(_) | Semi(_) => true,
+            Ctor(n) => n.body.is_none(),
+            Method(n) => n.body.is_none(),
+            Getter(n) => n.body.is_none(),
+            Setter(n) => n.body.is_none(),
+            _ => false,
+        }
+    }
+
+    fn nested_module_instantiated(&self, node: &'cx ast::NestedModuleDecl<'cx>) -> bool {
+        match node.block {
+            ast::NestedModuleBlock::Nested(inner) => self.nested_module_instantiated(inner),
+            ast::NestedModuleBlock::Block(block) => {
+                self.resolver
+                    .is_module_instantiated(node.id.module(), Some(block), node.id)
+            }
+        }
+    }
+
+    fn is_this_param(&self, param: &'cx ast::ParamDecl<'cx>) -> bool {
+        matches!(
+            param.name.kind,
+            ast::BindingKind::Ident(ident) if ident.name == ast::keyword::KW_THIS
+        )
+    }
+
+    fn emit_params_without_this(&mut self, params: ast::ParamsDecl<'cx>) {
+        self.emitter.print().p_l_paren();
+        let filtered: Vec<_> = params
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, param)| {
+                if idx == 0 && self.is_this_param(param) {
+                    None
+                } else {
+                    Some(*param)
+                }
+            })
+            .collect();
+        self.emit_list(
+            &filtered,
+            |this, item| this.visit_param_decl(item),
+            |this, _| {
+                this.emitter.content.p_comma();
+                this.emitter.content.p_whitespace();
+            },
+        );
+        self.emitter.print().p_r_paren();
+    }
+
+    fn emit_class_body(&mut self, elems: &'cx ast::ClassElems<'cx>) {
+        let items: Vec<_> = elems
+            .list
+            .iter()
+            .filter(|e| !self.class_elem_is_empty(e))
+            .copied()
+            .collect();
+        self.emitter.print().p_l_brace();
+        if !items.is_empty() {
+            self.emitter.print().indent += self.emitter.options.indent;
+            self.emitter.print().p_newline();
+            self.emit_list(
+                &items,
+                |this, elem| {
+                    this.visit_class_elem(elem);
+                },
+                |this, _| {
+                    this.emitter.content.p_newline();
+                },
+            );
+            self.emitter.print().indent -= self.emitter.options.indent;
+            self.emitter.print().p_newline();
+        }
+        self.emitter.print().p_r_brace();
+    }
+
+    fn emit_enum_member_name(&mut self, name: &'cx ast::EnumMemberNameKind<'cx>) {
+        use ast::EnumMemberNameKind::*;
+        match name {
+            Ident(ident) => self.emit_as_string(ident.name),
+            StringLit { raw, .. } => self.visit_string_lit(raw),
+        }
+    }
+
+    fn visit_import_spec(&mut self, node: &'cx ast::ImportSpec<'cx>) {
+        match node.kind {
+            ast::ImportSpecKind::Shorthand(n) => self.visit_import_shorthand_spec(n),
+            ast::ImportSpecKind::Named(n) => self.visit_import_named_spec(n),
+        }
+    }
+
+    fn emit_for_init(&mut self, init: ast::ForInitKind<'cx>) {
+        match init {
+            ast::ForInitKind::Var(decls) => {
+                self.emitter.print().p("var");
+                self.emitter.print().p_whitespace();
+                self.emit_var_decls(decls);
+            }
+            ast::ForInitKind::Expr(expr) => self.visit_expr(expr),
+        }
+    }
+
+    fn visit_export_spec(&mut self, node: &'cx ast::ExportSpec<'cx>) {
+        match node.kind {
+            ast::ExportSpecKind::Shorthand(n) => self.visit_export_shorthand_spec(n),
+            ast::ExportSpecKind::Named(n) => self.visit_export_named_spec(n),
+        }
+    }
+
+    fn visit_object_member(&mut self, node: &'cx ast::ObjectMember<'cx>) {
+        use ast::ObjectMemberKind::*;
+        match node.kind {
+            PropAssignment(n) => self.visit_object_prop_assignment(n),
+            Shorthand(n) => self.visit_object_shorthand_member(n),
+            Method(n) => self.visit_object_method_member(n),
+            SpreadAssignment(n) => {
+                self.emitter.print().p("...");
+                self.visit_expr(n.expr);
+            }
+            Getter(n) => self.visit_getter_decl(n),
+            Setter(n) => self.visit_setter_decl(n),
+        }
+    }
+
+    fn visit_jsx_tag_name(&mut self, node: ast::JsxTagName<'cx>) {
+        use ast::JsxTagName::*;
+        match node {
+            Ident(n) => self.visit_ident(n),
+            Ns(n) => self.visit_jsx_ns_name(n),
+            PropAccess(n) => self.visit_prop_access_expr(n),
+            This(_) => self.emitter.print().p("this"),
+        }
+    }
+
+    fn visit_jsx_attr(&mut self, node: &'cx ast::JsxAttr<'cx>) {
+        match node {
+            ast::JsxAttr::Spread(n) => {
+                self.emitter.print().p_l_brace();
+                self.emitter.print().p_dot_dot_dot();
+                self.visit_expr(n.expr);
+                self.emitter.print().p_r_brace();
+            }
+            ast::JsxAttr::Named(n) => {
+                self.visit_jsx_attr_name(n.name.clone());
+                if let Some(v) = n.init {
+                    self.emitter.print().p_eq();
+                    self.visit_jsx_attr_value(v);
+                }
+            }
+        }
+    }
+
+    fn visit_jsx_attr_name(&mut self, node: ast::JsxAttrName<'cx>) {
+        use ast::JsxAttrName::*;
+        match node {
+            Ident(n) => self.visit_ident(n),
+            Ns(n) => self.visit_jsx_ns_name(n),
+        }
+    }
+
+    fn visit_jsx_attr_value(&mut self, node: ast::JsxAttrValue<'cx>) {
+        use ast::JsxAttrValue::*;
+        match node {
+            StringLit(n) => self.visit_string_lit(n),
+            Expr(n) => self.visit_jsx_expr(n),
+            Ele(n) => self.visit_jsx_elem(n),
+            SelfClosingEle(n) => self.visit_jsx_self_closing_elem(n),
+            Frag(n) => self.visit_jsx_frag(n),
+        }
+    }
+
+    fn visit_jsx_child(&mut self, child: ast::JsxChild<'cx>) {
+        use ast::JsxChild::*;
+        match child {
+            Text(n) => {
+                let content = self.atoms().get(n.text);
+                self.emitter.print().p(content);
+            }
+            Expr(n) => self.visit_jsx_expr(n),
+            Elem(n) => self.visit_jsx_elem(n),
+            SelfClosingEle(n) => self.visit_jsx_self_closing_elem(n),
+            Frag(n) => self.visit_jsx_frag(n),
+        }
+    }
+
+    fn emit_block_module_decl(&mut self, node: &ast::BlockModuleDecl<'cx>) {
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+        {
+            return;
+        }
+        let Some(block) = node.block else {
+            return;
+        };
+        let module = node.id.module();
+        if !self
+            .resolver
+            .is_module_instantiated(module, Some(block), node.id)
         {
             return;
         }
 
-        let block = ns.block();
+        let ident = match node.name {
+            ast::ModuleName::Ident(ident) => ident,
+            ast::ModuleName::StringLit(_) => return,
+        };
 
-        // var name
-        fn sub_names_of_binding(this: &JSEmitter, binding: ir::Binding) -> Vec<bolt_ts_atom::Atom> {
-            match binding {
-                ir::Binding::Ident(n) => vec![this.nodes.get_ident(&n).name()],
-                ir::Binding::ObjectPat(n) => this
-                    .nodes
-                    .get_object_pat(&n)
-                    .elems()
-                    .iter()
-                    .flat_map(
-                        |elem| match this.nodes.get_object_binding_elem(elem).name() {
-                            ir::ObjectBindingName::Shorthand(ident) => {
-                                vec![this.nodes.get_ident(&ident).name()]
-                            }
-                            ir::ObjectBindingName::Prop { name, .. } => {
-                                sub_names_of_binding(this, name)
-                            }
-                        },
-                    )
-                    .collect(),
-                ir::Binding::ArrayPat(n) => this
-                    .nodes
-                    .get_array_pat(&n)
-                    .elems()
-                    .iter()
-                    .flat_map(|elem| match elem {
-                        ir::ArrayBindingElem::Omit(_) => vec![],
-                        ir::ArrayBindingElem::Binding(n) => {
-                            let n = this.nodes.get_array_binding(n);
-                            sub_names_of_binding(this, n.name())
-                        }
-                    })
-                    .collect::<Vec<_>>(),
-            }
-        }
-
-        let block = self.nodes.get_module_block(&block);
-
-        let mut sub_names = block
-            .stmts()
+        let mut sub_names: Vec<_> = block
+            .stmts
             .iter()
-            .filter_map(|stmt| match stmt {
-                ir::Stmt::Var(v) => Some(
-                    self.nodes
-                        .get_var_stmt(v)
-                        .decls()
+            .filter_map(|stmt| match stmt.kind {
+                ast::StmtKind::Var(v) => Some(
+                    v.list
                         .iter()
-                        .flat_map(|item| {
-                            sub_names_of_binding(self, self.nodes.get_var_decl(item).name())
-                        })
+                        .flat_map(|item| self.sub_names_of_binding(item.name))
                         .collect::<Vec<_>>(),
                 ),
-                ir::Stmt::Class(c) => self
-                    .nodes
-                    .get_class_decl(c)
-                    .name()
-                    .map(|name| self.nodes.get_ident(&name).name())
-                    .map(|name| vec![name]),
-                ir::Stmt::Fn(f) => {
-                    if let Some(name) = self.nodes.get_fn_decl(f).name() {
-                        Some(vec![self.nodes.get_ident(&name).name()])
-                    } else {
-                        None
-                    }
-                }
+                ast::StmtKind::Class(c) => c.name.map(|name| vec![name.name]),
+                ast::StmtKind::Fn(f) => f.name.map(|name| vec![name.name]),
                 _ => None,
             })
             .flatten()
-            .map(|name| self.atoms.get(name))
-            .collect::<Vec<_>>();
+            .map(|name| self.atoms().get(name))
+            .collect();
         sub_names.sort();
 
-        let ident = match ns.name() {
-            ir::ModuleName::Ident(ident) => ident,
-            ir::ModuleName::StringLit(_) => return,
-        };
-        let mut param_name = Cow::Borrowed(self.atoms.get(self.nodes.get_ident(&ident).name()));
+        let mut param_name = Cow::Borrowed(self.atoms().get(ident.name));
         if let Some(i) = sub_names.iter().position(|sub| *sub == param_name) {
             let mut offset = 1;
             let mut n = format!("{param_name}_{offset}");
@@ -855,551 +618,844 @@ impl<'ir> JSEmitter<'_, 'ir> {
         }
 
         self.emit_with_var_fn_wrapper(ident, &param_name, |this| {
-            for stmt in block.stmts() {
-                this.emitter.content.p_newline();
-                this.emit_stmt(*stmt);
-                this.emitter.content.p_newline();
-                let t = match stmt {
-                    ir::Stmt::Var(v) => {
-                        let v = this.nodes.get_var_stmt(v);
-                        if let Some(ms) = v.modifiers()
-                            && ms.flags().contains(ast::ModifierFlags::EXPORT)
-                            && !ms.flags().contains(ast::ModifierFlags::AMBIENT)
-                        {
-                            for item in v.decls() {
-                                this.emitter.content.p(&param_name);
-                                this.emitter.content.p_dot();
-                                this.emit_binding(this.nodes.get_var_decl(item).name());
-                                this.emitter.content.p_whitespace();
-                                this.emitter.content.p_eq();
-                                this.emitter.content.p_whitespace();
-                                // TODO: fix
-                                this.emit_binding(this.nodes.get_var_decl(item).name());
-                                this.emitter.content.p_newline();
-                            }
-                        }
-                        continue;
-                    }
-                    ir::Stmt::Fn(f) => {
-                        let f = this.nodes.get_fn_decl(f);
-                        let Some(name) = f.name() else {
-                            continue;
-                        };
-                        f.modifiers().map(|ms| (ms, name))
-                    }
-                    ir::Stmt::Class(c) => {
-                        let c = this.nodes.get_class_decl(c);
-                        if let Some(name) = c.name() {
-                            c.modifiers().map(|ms| (ms, name))
-                        } else {
-                            return;
-                        }
-                    }
-                    ir::Stmt::Module(n) => {
-                        let n = this.nodes.get_module_decl(n);
-                        n.modifiers().map(|ms| {
-                            let ident = match n.name() {
-                                ir::ModuleName::Ident(ident) => ident,
-                                ir::ModuleName::StringLit(_) => unreachable!(),
-                            };
-                            (ms, ident)
-                        })
-                    }
-                    ir::Stmt::Enum(n) => {
-                        let n = this.nodes.get_enum_decl(n);
-                        n.modifiers().map(|ms| (ms, n.name()))
-                    }
-                    _ => None,
-                };
-                let Some((ms, name)) = t else {
-                    continue;
-                };
-                if ms.flags().contains(ast::ModifierFlags::EXPORT)
-                    && !ms.flags().contains(ast::ModifierFlags::AMBIENT)
-                {
-                    this.emitter.content.p(&param_name);
-                    this.emitter.content.p_dot();
-                    this.emit_ident(name);
-                    this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
-                    this.emitter.content.p_whitespace();
-                    this.emit_ident(name);
-                    this.emitter.content.p_semi();
-                    this.emitter.content.p_newline();
-                }
-            }
+            this.emit_module_block_contents(block, &param_name);
         });
     }
+}
 
-    fn emit_enum_decl(&mut self, e: ir::EnumDeclID) {
-        let e = self.nodes.get_enum_decl(&e);
-        if e.modifiers()
-            .map(|ms| ms.flags().contains(ast::ModifierFlags::AMBIENT))
-            .unwrap_or_default()
+impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
+    type Result = ();
+
+    fn visit_program(&mut self, node: &'cx ast::Program<'cx>) -> Self::Result {
+        let mut first = true;
+        for stmt in node.stmts() {
+            if self.stmt_is_omitted(stmt) {
+                continue;
+            }
+            if !first {
+                self.emitter.content.p_newline();
+            }
+            self.visit_stmt(stmt);
+            first = false;
+        }
+    }
+
+    fn visit_var_stmt(&mut self, node: &'cx ast::VarStmt<'cx>) -> Self::Result {
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
         {
-            return;
-        }
-        self.emit_with_var_fn_wrapper(
-            e.name(),
-            self.atoms.get(self.nodes.get_ident(&e.name()).name()),
-            |this| {
-                for member in e.members() {
-                    this.emitter.content.p_newline();
-                    this.emit_ident(e.name());
-                    this.emitter.content.p_l_bracket();
-                    this.emit_ident(e.name());
-                    this.emitter.content.p_l_bracket();
-                    let member = this.nodes.get_enum_member(member);
-                    match member.name() {
-                        ir::PropName::Ident(ident) => {
-                            this.emit_as_string(self.nodes.get_ident(&ident).name())
-                        }
-                        ir::PropName::StringLit(lit) => this.emit_string_lit(lit),
-                        ir::PropName::NumLit(num) => this.emit_num_lit(num),
-                        ir::PropName::Computed(_) => todo!(),
-                        ir::PropName::PrivateIdent(_) => todo!(),
-                        ir::PropName::BigIntLit(n) => this.emit_bigint_lit(n),
-                    }
-                    this.emitter.content.p_r_bracket();
-                    this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
-                    this.emitter.content.p_whitespace();
-                    if let Some(init) = member.init() {
-                        this.emit_expr(init);
-                    } else {
-                        // todo:
-                        let val = 0;
-                        this.emitter.content.p(&val.to_string());
-                    }
-                    this.emitter.content.p_r_bracket();
-                    this.emitter.content.p_whitespace();
-                    this.emitter.content.p_eq();
-                    this.emitter.content.p_whitespace();
-                    match member.name() {
-                        ir::PropName::Ident(ident) => {
-                            this.emit_as_string(self.nodes.get_ident(&ident).name())
-                        }
-                        ir::PropName::StringLit(lit) => this.emit_string_lit(lit),
-                        ir::PropName::NumLit(num) => this.emit_num_lit(num),
-                        ir::PropName::Computed(_) => todo!(),
-                        ir::PropName::PrivateIdent(_) => todo!(),
-                        ir::PropName::BigIntLit(n) => this.emit_bigint_lit(n),
-                    }
-                }
-            },
-        )
-    }
-
-    fn emit_import_decl(&mut self, n: ir::ImportDeclID) {
-        let n = self.nodes.get_import_decl(&n);
-
-        self.emitter.print().p("import");
-        self.emitter.print().p_whitespace();
-        if let Some(clause) = n.clause() {
-            self.emit_import_clause(clause);
-        }
-        self.emitter.print().p_whitespace();
-        self.emitter.print().p("from");
-        self.emitter.print().p_whitespace();
-        self.emit_string_lit(n.module());
-    }
-
-    fn emit_import_equals_decl(&mut self, n: ir::ImportEqualsDeclID) {
-        let n = self.nodes.get_import_equals_decl(&n);
-        if n.import_namespace_module() {
             return;
         }
         self.emitter.print().p("var");
         self.emitter.print().p_whitespace();
-        self.emit_ident(n.name());
-        self.emitter.print().p_whitespace();
-        self.emitter.print().p_eq();
-        self.emitter.print().p_whitespace();
-        self.emit_module_reference(n.module_reference());
+        self.emit_var_decls(node.list);
+        self.emitter.print().p_semi();
     }
 
-    fn emit_module_reference(&mut self, reference: ir::ModuleReferenceKind) {
-        match reference {
-            ir::ModuleReferenceKind::Require(n) => self.emit_string_lit(n),
-            ir::ModuleReferenceKind::EntityName(n) => self.emit_entity_name(n),
-        }
-    }
-
-    fn emit_qualified_name(&mut self, n: ir::QualifiedNameID) {
-        let n = self.nodes.get_qualified_name(&n);
-        self.emit_entity_name(n.left());
-        self.emitter.print().p_dot();
-        self.emit_ident(n.right());
-    }
-
-    fn emit_entity_name(&mut self, name: ir::EntityName) {
-        match name {
-            ir::EntityName::Ident(n) => self.emit_ident(n),
-            ir::EntityName::QualifiedName(n) => self.emit_qualified_name(n),
-        }
-    }
-
-    fn emit_import_clause(&mut self, clause: ir::ImportClauseID) {
-        let clause = self.nodes.get_import_clause(&clause);
-        if let Some(name) = clause.name() {
-            self.emit_ident(name);
+    fn visit_var_decl(&mut self, node: &'cx ast::VarDecl<'cx>) -> Self::Result {
+        self.visit_binding(node.name);
+        if let Some(init) = node.init {
             self.emitter.print().p_whitespace();
-        } else if let Some(kind) = clause.kind() {
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_expr(init);
+        }
+    }
+
+    fn visit_ident(&mut self, node: &'cx ast::Ident) -> Self::Result {
+        let content = self.atoms().get(node.name);
+        self.emitter.print().p(content);
+    }
+
+    fn visit_private_ident(&mut self, node: &'cx ast::PrivateIdent) -> Self::Result {
+        let content = self.atoms().get(node.name);
+        self.emitter.print().p(content);
+    }
+
+    fn visit_num_lit(&mut self, node: &'cx ast::NumLit) -> Self::Result {
+        self.emitter.print().p(&node.val.to_string())
+    }
+
+    fn visit_string_lit(&mut self, node: &'cx ast::StringLit) -> Self::Result {
+        self.emit_as_string(node.val);
+    }
+
+    fn visit_prop_name(&mut self, node: &'cx ast::PropName<'cx>) -> Self::Result {
+        use ast::PropNameKind::*;
+        match &node.kind {
+            Ident(n) => self.visit_ident(n),
+            NumLit(n) => self.visit_num_lit(n),
+            StringLit { raw, .. } => self.visit_string_lit(raw),
+            Computed(n) => {
+                self.emitter.print().p_l_bracket();
+                self.visit_expr(n.expr);
+                self.emitter.print().p_r_bracket();
+            }
+            PrivateIdent(n) => self.visit_private_ident(n),
+            BigIntLit(n) => {
+                let content = self.atoms().get(n.val.1);
+                self.emitter.print().p(content);
+            }
+        }
+    }
+
+    fn visit_object_binding_elem(
+        &mut self,
+        node: &'cx ast::ObjectBindingElem<'cx>,
+    ) -> Self::Result {
+        if node.dotdotdot.is_some() {
+            self.emitter.print().p_dot_dot_dot();
+        }
+        match node.name {
+            ast::ObjectBindingName::Shorthand(ident) => {
+                self.visit_ident(ident);
+            }
+            ast::ObjectBindingName::Prop { prop_name, name } => {
+                self.visit_prop_name(prop_name);
+                self.emitter.print().p(":");
+                self.emitter.print().p_whitespace();
+                self.visit_binding(name);
+            }
+        }
+        if let Some(init) = node.init {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_expr(init);
+        }
+    }
+
+    fn visit_array_binding(&mut self, node: &'cx ast::ArrayBinding<'cx>) -> Self::Result {
+        if node.dotdotdot.is_some() {
+            self.emitter.print().p_dot_dot_dot();
+        }
+        self.visit_binding(node.name);
+        if let Some(init) = node.init {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_expr(init);
+        }
+    }
+
+    fn visit_binding(&mut self, node: &'cx ast::Binding<'cx>) -> Self::Result {
+        use ast::BindingKind::*;
+        match node.kind {
+            Ident(n) => self.visit_ident(n),
+            ObjectPat(n) => {
+                self.emitter.print().p_l_brace();
+                self.emit_list(
+                    n.elems,
+                    |this, item| this.visit_object_binding_elem(item),
+                    |this, _| {
+                        this.emitter.content.p_comma();
+                        this.emitter.content.p_whitespace();
+                    },
+                );
+                self.emitter.print().p_r_brace();
+            }
+            ArrayPat(n) => {
+                self.emitter.print().p_l_bracket();
+                self.emit_list(
+                    n.elems,
+                    |this, item| match item.kind {
+                        ast::ArrayBindingElemKind::Omit(_) => {}
+                        ast::ArrayBindingElemKind::Binding(n) => {
+                            this.visit_array_binding(n);
+                        }
+                    },
+                    |this, _| {
+                        this.emitter.content.p_comma();
+                        this.emitter.content.p_whitespace();
+                    },
+                );
+                self.emitter.print().p_r_bracket();
+            }
+        }
+    }
+
+    fn visit_param_decl(&mut self, node: &'cx ast::ParamDecl<'cx>) -> Self::Result {
+        if node.dotdotdot.is_some() {
+            self.emitter.print().p_dot_dot_dot();
+        }
+        self.visit_binding(node.name);
+        if let Some(init) = node.init {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_expr(init);
+        }
+    }
+
+    fn visit_block_stmt(&mut self, node: &'cx ast::BlockStmt<'cx>) -> Self::Result {
+        self.emitter.print().p_l_brace();
+        let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
+        if has_stmts {
+            self.emitter.print().indent += self.emitter.options.indent;
+            self.emitter.print().p_newline();
+        }
+        self.emit_stmts_skip_omitted(node.stmts);
+        if has_stmts {
+            self.emitter.print().indent -= self.emitter.options.indent;
+            self.emitter.print().p_newline();
+        }
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_if_stmt(&mut self, node: &'cx ast::IfStmt<'cx>) -> Self::Result {
+        self.emitter.print().p("if");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_l_paren();
+        self.visit_expr(node.expr);
+        self.emitter.print().p_r_paren();
+        self.emitter.print().p_whitespace();
+        self.visit_stmt(node.then);
+        if let Some(else_then) = node.else_then {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p("else");
+            self.emitter.print().p_whitespace();
+            self.visit_stmt(else_then);
+        }
+        self.emitter.print().p_newline();
+    }
+
+    fn visit_ret_stmt(&mut self, node: &'cx ast::RetStmt<'cx>) -> Self::Result {
+        self.emitter.print().p("return");
+        self.emitter.print().p_whitespace();
+        if let Some(expr) = node.expr {
+            self.visit_expr(expr);
+        }
+    }
+
+    fn visit_getter_decl(&mut self, node: &'cx ast::GetterDecl<'cx>) -> Self::Result {
+        let Some(body) = node.body else {
+            return;
+        };
+        self.emit_static_modifier(node.modifiers);
+        self.emitter.print().p("get");
+        self.emitter.print().p_whitespace();
+        self.visit_prop_name(node.name);
+        self.emit_params(&[]);
+        self.emitter.print().p_whitespace();
+        self.visit_block_stmt(body);
+    }
+
+    fn visit_setter_decl(&mut self, node: &'cx ast::SetterDecl<'cx>) -> Self::Result {
+        let Some(body) = node.body else {
+            return;
+        };
+        self.emit_static_modifier(node.modifiers);
+        self.emitter.print().p("set");
+        self.emitter.print().p_whitespace();
+        self.visit_prop_name(node.name);
+        self.emit_params_without_this(node.params);
+        self.emitter.print().p_whitespace();
+        self.visit_block_stmt(body);
+    }
+
+    fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
+        let Some(body) = node.body else {
+            return;
+        };
+        self.emitter.print().p("constructor");
+        self.emit_params_without_this(node.params);
+        self.emitter.print().p_whitespace();
+
+        self.emitter.print().p_l_brace();
+        self.emitter.print().indent += self.emitter.options.indent;
+
+        let has_block_stmt = body.stmts.iter().any(|s| !self.stmt_is_omitted(s))
+            && node
+                .params
+                .iter()
+                .any(|param| self.is_param_property(param));
+
+        if has_block_stmt {
+            self.emitter.print().p_newline();
+        }
+
+        let last_super_call = body.stmts.iter().rev().position(|stmt| {
+            if let ast::StmtKind::Expr(expr_stmt) = stmt.kind
+                && let ast::ExprKind::Call(call) = expr_stmt.expr.kind
+            {
+                return matches!(call.expr.kind, ast::ExprKind::Super(_));
+            }
+            false
+        });
+        let last_super_call = last_super_call.map(|pos| body.stmts.len() - 1 - pos);
+
+        let (prev_stmts, after_stmts) = if let Some(last_super_call) = last_super_call {
+            body.stmts.split_at(last_super_call + 1)
+        } else {
+            let after_stmts: &[&ast::Stmt<'cx>] = &[];
+            (body.stmts, after_stmts)
+        };
+
+        self.emit_stmts_skip_omitted(prev_stmts);
+
+        self.emit_list(
+            node.params,
+            |this, param| {
+                if this.is_param_property(param) {
+                    this.emitter.content.p_newline();
+                    this.emitter.content.p("this");
+                    this.emitter.content.p_dot();
+                    this.visit_binding(param.name);
+                    this.emitter.content.p_whitespace();
+                    this.emitter.content.p_eq();
+                    this.emitter.content.p_whitespace();
+                    this.visit_binding(param.name);
+                }
+            },
+            |this, param| {
+                if this.is_param_property(param) {
+                    this.emitter.content.p_newline();
+                }
+            },
+        );
+
+        self.emit_stmts_skip_omitted(after_stmts);
+
+        if has_block_stmt {
+            self.emitter.print().p_newline();
+        }
+        self.emitter.print().indent -= self.emitter.options.indent;
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_class_static_block_decl(
+        &mut self,
+        node: &'cx ast::ClassStaticBlockDecl<'cx>,
+    ) -> Self::Result {
+        self.emitter.print().p("static");
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_l_brace();
+        self.visit_block_stmt(node.body);
+        self.emitter.print().p_r_brace();
+    }
+
+    fn visit_class_prop_elem(&mut self, node: &'cx ast::ClassPropElem<'cx>) -> Self::Result {
+        if let Some(mods) = node.modifiers
+            && mods.flags.contains(ast::ModifierFlags::ABSTRACT)
+        {
+            return;
+        }
+        self.emit_static_modifier(node.modifiers);
+        self.visit_prop_name(node.name);
+        if let Some(init) = node.init {
+            self.emitter.print().p_whitespace();
+            self.emitter.print().p_eq();
+            self.emitter.print().p_whitespace();
+            self.visit_expr(init);
+        }
+        self.emitter.print().p_semi();
+    }
+
+    fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) -> Self::Result {
+        let Some(body) = node.body else {
+            return;
+        };
+        self.emit_static_modifier(node.modifiers);
+        if node.asterisk.is_some() {
+            self.emitter.print().p_asterisk();
+        }
+        self.visit_prop_name(node.name);
+        self.emit_params_without_this(node.params);
+        self.emitter.print().p_whitespace();
+        self.visit_block_stmt(body);
+    }
+
+    fn visit_class_elem(&mut self, node: &'cx ast::ClassElem<'cx>) -> Self::Result {
+        use ast::ClassElemKind::*;
+        match node.kind {
+            Prop(n) => self.visit_class_prop_elem(n),
+            Method(n) => self.visit_class_method_elem(n),
+            StaticBlockDecl(n) => self.visit_class_static_block_decl(n),
+            Ctor(n) => self.visit_class_ctor(n),
+            Getter(n) => self.visit_getter_decl(n),
+            Setter(n) => self.visit_setter_decl(n),
+            IndexSig(_) | Semi(_) => {}
+        }
+    }
+
+    fn visit_fn_decl(&mut self, node: &'cx ast::FnDecl<'cx>) -> Self::Result {
+        let Some(body) = node.body else {
+            return;
+        };
+        if let Some(name) = node.name {
+            self.ns_names.insert((self.scope, name.name));
+        }
+        self.emit_export_modifier_if_root(node.modifiers);
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ASYNC))
+        {
+            self.emitter.print().p("async");
+            self.emitter.print().p_whitespace();
+        }
+        self.emitter.print().p("function");
+        if node.asterisk.is_some() {
+            self.emitter.print().p("*");
+        }
+        self.emitter.print().p_whitespace();
+        if let Some(name) = node.name {
+            self.visit_ident(name);
+        }
+        self.emit_params_without_this(node.params);
+        self.emitter.print().p_whitespace();
+        self.visit_block_stmt(body);
+    }
+
+    fn visit_class_decl(&mut self, node: &'cx ast::ClassDecl<'cx>) -> Self::Result {
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+        {
+            return;
+        }
+        self.emit_export_modifier_if_root(node.modifiers);
+        self.emitter.print().p("class");
+        self.emitter.print().p_whitespace();
+        if let Some(name) = node.name {
+            self.visit_ident(name);
+            self.ns_names.insert((self.scope, name.name));
+            self.emitter.print().p_whitespace();
+        }
+        if let Some(extends) = node.extends {
+            self.emit_class_extends_clause(extends);
+        }
+        self.emit_class_body(node.elems);
+    }
+
+    fn visit_class_expr(&mut self, node: &'cx ast::ClassExpr<'cx>) -> Self::Result {
+        self.emitter.print().p("class");
+        self.emitter.print().p_whitespace();
+        if let Some(name) = node.name {
+            self.visit_ident(name);
+            self.ns_names.insert((self.scope, name.name));
+            self.emitter.print().p_whitespace();
+        }
+        if let Some(extends) = node.extends {
+            self.emit_class_extends_clause(extends);
+        }
+        self.emit_class_body(node.elems);
+    }
+
+    fn visit_throw_stmt(&mut self, node: &'cx ast::ThrowStmt<'cx>) -> Self::Result {
+        self.emitter.print().p("throw");
+        self.emitter.print().p_whitespace();
+        self.visit_expr(node.expr);
+    }
+
+    fn visit_block_module_decl(&mut self, node: &'cx ast::BlockModuleDecl<'cx>) -> Self::Result {
+        self.emit_block_module_decl(node);
+    }
+
+    fn visit_nested_module_decl(&mut self, node: &'cx ast::NestedModuleDecl<'cx>) -> Self::Result {
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+        {
+            return;
+        }
+        match node.block {
+            ast::NestedModuleBlock::Nested(inner) => {
+                if !self.nested_module_instantiated(node) {
+                    return;
+                }
+                let param_name = self.atoms().get(node.name.name).to_string();
+                self.emit_with_var_fn_wrapper(node.name, &param_name, |this| {
+                    this.emitter.content.p_newline();
+                    this.visit_nested_module_decl(inner);
+                    this.emitter.content.p_newline();
+                    if let Some(ms) = inner.modifiers
+                        && ms.flags.contains(ast::ModifierFlags::EXPORT)
+                        && !ms.flags.contains(ast::ModifierFlags::AMBIENT)
+                    {
+                        this.emitter.content.p(&param_name);
+                        this.emitter.content.p_dot();
+                        this.visit_ident(inner.name);
+                        this.emitter.content.p_whitespace();
+                        this.emitter.content.p_eq();
+                        this.emitter.content.p_whitespace();
+                        this.visit_ident(inner.name);
+                        this.emitter.content.p_semi();
+                        this.emitter.content.p_newline();
+                    }
+                });
+            }
+            ast::NestedModuleBlock::Block(block) => {
+                self.emit_block_module_decl(&ast::BlockModuleDecl {
+                    id: node.id,
+                    span: node.span,
+                    modifiers: node.modifiers,
+                    is_global_argument: false,
+                    name: ast::ModuleName::Ident(node.name),
+                    block: Some(block),
+                });
+            }
+        }
+    }
+
+    fn visit_enum_decl(&mut self, node: &'cx ast::EnumDecl<'cx>) -> Self::Result {
+        if node
+            .modifiers
+            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
+        {
+            return;
+        }
+        self.emit_with_var_fn_wrapper(node.name, self.atoms().get(node.name.name), |this| {
+            for member in node.members {
+                this.emitter.content.p_newline();
+                this.visit_ident(node.name);
+                this.emitter.content.p_l_bracket();
+                this.visit_ident(node.name);
+                this.emitter.content.p_l_bracket();
+                this.emit_enum_member_name(&member.name);
+                this.emitter.content.p_r_bracket();
+                this.emitter.content.p_whitespace();
+                this.emitter.content.p_eq();
+                this.emitter.content.p_whitespace();
+                if let Some(init) = member.init {
+                    this.visit_expr(init);
+                } else {
+                    this.emitter.content.p("0");
+                }
+                this.emitter.content.p_r_bracket();
+                this.emitter.content.p_whitespace();
+                this.emitter.content.p_eq();
+                this.emitter.content.p_whitespace();
+                this.emit_enum_member_name(&member.name);
+            }
+        });
+    }
+
+    fn visit_enum_member(&mut self, _node: &'cx ast::EnumMember<'cx>) -> Self::Result {
+        // Enum members are emitted inline by visit_enum_decl.
+    }
+
+    fn visit_import_decl(&mut self, node: &'cx ast::ImportDecl<'cx>) -> Self::Result {
+        self.emitter.print().p("import");
+        self.emitter.print().p_whitespace();
+        if let Some(clause) = node.clause {
+            self.visit_import_clause(clause);
+        }
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("from");
+        self.emitter.print().p_whitespace();
+        self.visit_string_lit(node.module);
+    }
+
+    fn visit_import_clause(&mut self, node: &'cx ast::ImportClause<'cx>) -> Self::Result {
+        if let Some(name) = node.name {
+            self.visit_ident(name);
+            self.emitter.print().p_whitespace();
+        } else if let Some(kind) = node.kind {
             match kind {
-                ir::ImportClauseKind::Specs(specs) => {
+                ast::ImportClauseKind::Specs(specs) => {
                     self.emit_list(
                         specs,
-                        |this, spec| this.emit_import_spec(*spec),
+                        |this, spec| this.visit_import_spec(spec),
                         |this, _| {
                             this.emitter.content.p_comma();
                             this.emitter.content.p_whitespace();
                         },
                     );
                 }
-                ir::ImportClauseKind::Ns(ns) => self.emit_ns_import(*ns),
+                ast::ImportClauseKind::Ns(ns) => self.visit_ns_import(ns),
             }
         }
     }
 
-    fn emit_ns_import(&mut self, ns: ir::NsImportID) {
-        let ns = self.nodes.get_ns_import(&ns);
+    fn visit_ns_import(&mut self, node: &'cx ast::NsImport<'cx>) -> Self::Result {
         self.emitter.print().p_asterisk();
         self.emitter.print().p_whitespace();
         self.emitter.print().p("as");
         self.emitter.print().p_whitespace();
-        self.emit_ident(ns.name());
+        self.visit_ident(node.name);
     }
 
-    fn emit_module_export_name(&mut self, n: ir::ModuleExportName) {
-        match n {
-            ir::ModuleExportName::Ident(ident) => self.emit_ident(ident),
-            ir::ModuleExportName::StringLit(lit) => self.emit_string_lit(lit),
+    fn visit_module_export_name(&mut self, node: &'cx ast::ModuleExportName<'cx>) -> Self::Result {
+        match node.kind {
+            ast::ModuleExportNameKind::Ident(ident) => self.visit_ident(ident),
+            ast::ModuleExportNameKind::StringLit(lit) => self.visit_string_lit(lit),
         }
     }
 
-    fn emit_shorthand_spec(&mut self, n: ir::ShorthandSpecID) {
-        let n = self.nodes.get_shorthand_spec(&n);
-        self.emit_ident(n.name());
+    fn visit_import_shorthand_spec(
+        &mut self,
+        node: &'cx ast::ImportShorthandSpec<'cx>,
+    ) -> Self::Result {
+        self.visit_ident(node.name);
     }
 
-    fn emit_import_spec(&mut self, spec: ir::ImportSpec) {
-        match spec {
-            ir::ImportSpec::Shorthand(n) => self.emit_shorthand_spec(n),
-            ir::ImportSpec::Named(n) => {
-                let n = self.nodes.get_import_named_spec(&n);
-                self.emit_module_export_name(n.prop_name());
-                self.emitter.print().p_whitespace();
-                self.emitter.print().p("as");
-                self.emitter.print().p_whitespace();
-                self.emit_ident(n.name());
-            }
-        }
+    fn visit_import_named_spec(&mut self, node: &'cx ast::ImportNamedSpec<'cx>) -> Self::Result {
+        self.visit_module_export_name(node.prop_name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("as");
+        self.emitter.print().p_whitespace();
+        self.visit_ident(node.name);
     }
 
-    fn emit_stmt(&mut self, stmt: ir::Stmt) {
-        use ir::Stmt::*;
-        match stmt {
-            Var(id) => self.emit_var_stmt(id),
-            Expr(id) => {
-                let stmt = self.nodes.get_expr_stmt(&id);
-                self.emit_expr(stmt.expr());
+    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) -> Self::Result {
+        use ast::StmtKind::*;
+        match node.kind {
+            Var(n) => self.visit_var_stmt(n),
+            Expr(n) => {
+                self.visit_expr_stmt(n);
                 self.emitter.print().p_semi();
             }
-            Fn(id) => self.emit_fn_decl(id),
-            If(id) => self.emit_if_stmt(id),
-            Block(id) => self.emit_block_stmt(id),
-            Ret(id) => {
-                self.emit_ret_stmt(id);
+            Fn(n) => self.visit_fn_decl(n),
+            If(n) => self.visit_if_stmt(n),
+            Block(n) => self.visit_block_stmt(n),
+            Ret(n) => {
+                self.visit_ret_stmt(n);
                 self.emitter.print().p_semi();
             }
-            Class(id) => self.emit_class_decl(id),
-            Throw(id) => self.emit_throw_stmt(id),
-            Module(id) => self.emit_module_decl(id),
-            Enum(id) => self.emit_enum_decl(id),
-            Import(id) => self.emit_import_decl(id),
-            ImportEquals(id) => self.emit_import_equals_decl(id),
-            Export(id) => self.emit_export_decl(id),
-            For(id) => self.emit_for_stmt(id),
-            ForOf(id) => self.emit_for_of_stmt(id),
-            ForIn(id) => self.emit_for_in_stmt(id),
-            Break(id) => self.emit_break_stmt(id),
-            Continue(id) => self.emit_continue_stmt(id),
-            Try(id) => self.emit_try_stmt(id),
-            While(id) => self.emit_while_stmt(id),
-            Do(id) => self.emit_do_stmt(id),
-            ExportAssign(id) => self.emit_export_assign(id),
-            Labeled(id) => self.emit_labeled_stmt(id),
-            Empty(id) => self.emit_empty_stmt(id),
-            Switch(id) => self.emit_switch_stmt(id),
+            Class(n) => self.visit_class_decl(n),
+            Throw(n) => self.visit_throw_stmt(n),
+            NestedModule(n) => self.visit_nested_module_decl(n),
+            BlockModule(n) => self.visit_block_module_decl(n),
+            Enum(n) => self.visit_enum_decl(n),
+            Import(n) => self.visit_import_decl(n),
+            ImportEquals(n) => self.visit_import_equals_decl(n),
+            Export(n) => self.visit_export_decl(n),
+            ExportAssign(n) => {
+                self.visit_export_assign(n);
+                self.emitter.print().p_semi();
+            }
+            For(n) => self.visit_for_stmt(n),
+            ForOf(n) => self.visit_for_of_stmt(n),
+            ForIn(n) => self.visit_for_in_stmt(n),
+            Break(n) => {
+                self.visit_break_stmt(n);
+                self.emitter.print().p_semi();
+            }
+            Continue(n) => {
+                self.visit_continue_stmt(n);
+                self.emitter.print().p_semi();
+            }
+            Try(n) => self.visit_try_stmt(n),
+            While(n) => self.visit_while_stmt(n),
+            Do(n) => self.visit_do_while_stmt(n),
+            Labeled(n) => self.visit_labeled_stmt(n),
+            Empty(_) => self.emitter.print().p_semi(),
+            Switch(n) => self.visit_switch_stmt(n),
+            Interface(_) | TypeAlias(_) | Debugger(_) => {}
         }
     }
 
-    fn emit_switch_stmt(&mut self, n: ir::SwitchStmtID) {
-        let n = self.nodes.get_switch_stmt(&n);
+    fn visit_switch_stmt(&mut self, node: &'cx ast::SwitchStmt<'cx>) -> Self::Result {
         self.emitter.print().p("switch");
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_paren();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p_r_paren();
         self.emitter.print().p_whitespace();
-
         self.emitter.print().p_l_brace();
-        self.emit_case_block(n.case_block());
+        self.visit_case_block(node.case_block);
         self.emitter.print().p_r_brace();
     }
 
-    fn emit_case_block(&mut self, n: ir::CaseBlockID) {
-        let n = self.nodes.get_case_block(&n);
-        if !n.clauses().is_empty() {
+    fn visit_case_block(&mut self, node: &'cx ast::CaseBlock<'cx>) -> Self::Result {
+        if !node.clauses.is_empty() {
             self.emitter.print().indent += self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
         self.emit_list(
-            n.clauses(),
-            |this, item| match *item {
-                ir::CaseOrDefaultClause::Case(n) => this.emit_case_clause(n),
-                ir::CaseOrDefaultClause::Default(n) => this.emit_default_clause(n),
+            node.clauses,
+            |this, item| match item {
+                ast::CaseOrDefaultClause::Case(n) => this.visit_case_clause(n),
+                ast::CaseOrDefaultClause::Default(n) => this.visit_default_clause(n),
             },
             |this, _| {
                 this.emitter.content.p_newline();
             },
         );
-        if !n.clauses().is_empty() {
+        if !node.clauses.is_empty() {
             self.emitter.print().indent -= self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
     }
 
-    fn emit_case_clause(&mut self, n: ir::CaseClauseID) {
-        let n = self.nodes.get_case_clause(&n);
+    fn visit_case_clause(&mut self, node: &'cx ast::CaseClause<'cx>) -> Self::Result {
         self.emitter.print().p("case");
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p_colon();
-        if !n.stmts().is_empty() {
+        let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
+        if has_stmts {
             self.emitter.print().indent += self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
-        self.emit_stmts(n.stmts());
-        if !n.stmts().is_empty() {
+        self.emit_stmts_skip_omitted(node.stmts);
+        if has_stmts {
             self.emitter.print().indent -= self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
     }
 
-    fn emit_default_clause(&mut self, n: ir::DefaultClauseID) {
-        let n = self.nodes.get_default_clause(&n);
+    fn visit_default_clause(&mut self, node: &'cx ast::DefaultClause<'cx>) -> Self::Result {
         self.emitter.print().p("default");
         self.emitter.print().p_colon();
-        if !n.stmts().is_empty() {
+        let has_stmts = node.stmts.iter().any(|s| !self.stmt_is_omitted(s));
+        if has_stmts {
             self.emitter.print().indent += self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
-        self.emit_stmts(n.stmts());
-        if !n.stmts().is_empty() {
+        self.emit_stmts_skip_omitted(node.stmts);
+        if has_stmts {
             self.emitter.print().indent -= self.emitter.options.indent;
             self.emitter.print().p_newline();
         }
     }
 
-    fn emit_empty_stmt(&mut self, _: ir::EmptyStmtID) {
-        self.emitter.print().p_semi();
+    fn visit_export_assign(&mut self, node: &'cx ast::ExportAssign<'cx>) -> Self::Result {
+        self.emitter.print().p("export default");
+        self.emitter.print().p_whitespace();
+        self.visit_expr(node.expr);
     }
 
-    fn emit_export_assign(&mut self, n: ir::ExportAssignID) {
-        let n = self.nodes.get_export_assign(&n);
-        self.emitter.print().p("export default ");
-        self.emit_expr(n.expr());
-        self.emitter.print().p_semi();
-    }
-
-    fn emit_labeled_stmt(&mut self, n: ir::LabeledStmtID) {
-        let n = self.nodes.get_labeled_stmt(&n);
-        self.emit_ident(n.label());
+    fn visit_labeled_stmt(&mut self, node: &'cx ast::LabeledStmt<'cx>) -> Self::Result {
+        self.visit_ident(node.label);
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.body());
+        self.visit_stmt(node.stmt);
     }
 
-    fn emit_do_stmt(&mut self, n: ir::DoStmtID) {
-        let n = self.nodes.get_do_stmt(&n);
+    fn visit_do_while_stmt(&mut self, node: &'cx ast::DoWhileStmt<'cx>) -> Self::Result {
         self.emitter.print().p("do");
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.stmt());
+        self.visit_stmt(node.stmt);
         self.emitter.print().p_whitespace();
         self.emitter.print().p("while");
         self.emitter.print().p_whitespace();
         self.emitter.print().p_l_paren();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p_r_paren();
     }
 
-    fn emit_while_stmt(&mut self, n: ir::WhileStmtID) {
-        let n = self.nodes.get_while_stmt(&n);
-
+    fn visit_while_stmt(&mut self, node: &'cx ast::WhileStmt<'cx>) -> Self::Result {
         self.emitter.print().p("while");
         self.emitter.print().p_whitespace();
-
         self.emitter.print().p_l_paren();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p_r_paren();
-
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.body());
+        self.visit_stmt(node.stmt);
     }
 
-    fn emit_catch_block(&mut self, n: ir::CatchClauseID) {
-        let n = self.nodes.get_catch_clause(&n);
+    fn visit_catch_clause(&mut self, node: &'cx ast::CatchClause<'cx>) -> Self::Result {
         self.emitter.print().p("catch");
         self.emitter.print().p_whitespace();
-        if let Some(var) = n.var() {
+        if let Some(var) = node.var {
             self.emitter.print().p("(");
-            self.emit_var_decl(var);
+            self.visit_var_decl(var);
             self.emitter.print().p(")");
         }
         self.emitter.print().p_whitespace();
-        self.emit_block_stmt(n.block());
+        self.visit_block_stmt(node.block);
     }
 
-    fn emit_try_stmt(&mut self, n: ir::TryStmtID) {
-        let n = self.nodes.get_try_stmt(&n);
-
+    fn visit_try_stmt(&mut self, node: &'cx ast::TryStmt<'cx>) -> Self::Result {
         self.emitter.print().p("try");
         self.emitter.print().p_whitespace();
-        self.emit_block_stmt(n.try_block());
-        if let Some(catch) = n.catch_clause() {
+        self.visit_block_stmt(node.try_block);
+        if let Some(catch) = node.catch_clause {
             self.emitter.print().p_whitespace();
-            self.emit_catch_block(catch);
+            self.visit_catch_clause(catch);
         }
-        if let Some(finally) = n.finally_block() {
+        if let Some(finally) = node.finally_block {
             self.emitter.print().p("finally");
             self.emitter.print().p_whitespace();
-            self.emit_block_stmt(finally);
+            self.visit_block_stmt(finally);
         }
     }
 
-    fn emit_continue_stmt(&mut self, n: ir::ContinueStmtID) {
-        let n = self.nodes.get_continue_stmt(&n);
+    fn visit_continue_stmt(&mut self, node: &'cx ast::ContinueStmt<'cx>) -> Self::Result {
         self.emitter.print().p("continue");
-        if let Some(label) = n.label() {
+        if let Some(label) = node.label {
             self.emitter.print().p_whitespace();
-            self.emit_ident(label);
+            self.visit_ident(label);
         }
-        self.emitter.print().p_semi();
     }
 
-    fn emit_break_stmt(&mut self, n: ir::BreakStmtID) {
-        let n = self.nodes.get_break_stmt(&n);
+    fn visit_break_stmt(&mut self, node: &'cx ast::BreakStmt<'cx>) -> Self::Result {
         self.emitter.print().p("break");
-        if let Some(label) = n.label() {
+        if let Some(label) = node.label {
             self.emitter.print().p_whitespace();
-            self.emit_ident(label);
+            self.visit_ident(label);
         }
-        self.emitter.print().p_semi();
     }
 
-    fn emit_for_in_stmt(&mut self, n: ir::ForInStmtID) {
-        let n = self.nodes.get_for_in_stmt(&n);
+    fn visit_for_in_stmt(&mut self, node: &'cx ast::ForInStmt<'cx>) -> Self::Result {
         self.emitter.print().p("for");
         self.emitter.print().p_whitespace();
         self.emitter.print().p("(");
         self.emitter.print().p_whitespace();
-        self.emit_for_init(n.init());
+        self.emit_for_init(node.init);
         self.emitter.print().p_whitespace();
         self.emitter.print().p("in");
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p(")");
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.body());
+        self.visit_stmt(node.body);
     }
 
-    fn emit_for_stmt(&mut self, n: ir::ForStmtID) {
-        let n = self.nodes.get_for_stmt(&n);
-
+    fn visit_for_stmt(&mut self, node: &'cx ast::ForStmt<'cx>) -> Self::Result {
         self.emitter.print().p("for");
         self.emitter.print().p_whitespace();
         self.emitter.print().p("(");
         self.emitter.print().p_whitespace();
-        if let Some(init) = n.init() {
+        if let Some(init) = node.init {
             self.emit_for_init(init);
         }
         self.emitter.print().p_semi();
         self.emitter.print().p_whitespace();
-        if let Some(cond) = n.cond() {
-            self.emit_expr(cond);
+        if let Some(cond) = node.cond {
+            self.visit_expr(cond);
         }
         self.emitter.print().p_semi();
         self.emitter.print().p_whitespace();
-        if let Some(incr) = n.incr() {
-            self.emit_expr(incr);
+        if let Some(incr) = node.incr {
+            self.visit_expr(incr);
         }
         self.emitter.print().p(")");
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.body());
+        self.visit_stmt(node.body);
     }
 
-    fn emit_for_init(&mut self, n: &'ir ir::ForInit) {
-        match n {
-            ir::ForInit::Var(decls) => {
-                self.emitter.print().p("var");
-                self.emitter.print().p_whitespace();
-                self.emit_var_decls(decls);
-            }
-            ir::ForInit::Expr(expr) => self.emit_expr(*expr),
-        }
-    }
-
-    fn emit_for_of_stmt(&mut self, n: ir::ForOfStmtID) {
-        let n = self.nodes.get_for_of_stmt(&n);
-
+    fn visit_for_of_stmt(&mut self, node: &'cx ast::ForOfStmt<'cx>) -> Self::Result {
         self.emitter.print().p("for");
         self.emitter.print().p_whitespace();
-        if n.r#await().is_some() {
+        if node.r#await.is_some() {
             self.emitter.print().p("await");
             self.emitter.print().p_whitespace();
         }
         self.emitter.print().p("(");
         self.emitter.print().p_whitespace();
-        self.emit_for_init(n.init());
+        self.emit_for_init(node.init);
         self.emitter.print().p_whitespace();
         self.emitter.print().p("of");
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p(")");
         self.emitter.print().p_whitespace();
-        self.emit_stmt(n.body());
+        self.visit_stmt(node.body);
     }
 
-    fn emit_export_spec(&mut self, spec: ir::ExportSpec) {
-        match spec {
-            ir::ExportSpec::Shorthand(n) => self.emit_shorthand_spec(n),
-            ir::ExportSpec::Named(n) => self.emit_export_named_spec(n),
-        }
-    }
-
-    fn emit_export_named_spec(&mut self, n: ir::ExportNamedSpecID) {
-        let n = self.nodes.get_export_named_spec(&n);
-        self.emit_module_export_name(n.prop_name());
-        self.emitter.print().p_whitespace();
-        self.emitter.print().p("as");
-        self.emitter.print().p_whitespace();
-        self.emit_module_export_name(n.name());
-    }
-
-    fn emit_export_decl(&mut self, n: ir::ExportDeclID) {
-        let n = self.nodes.get_export_decl(&n);
-
+    fn visit_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) -> Self::Result {
         self.emitter.print().p("export");
         self.emitter.print().p_whitespace();
-        match n.clause() {
-            ir::ExportClause::Specs(specs) => {
+        match node.clause.kind {
+            ast::ExportClauseKind::Specs(specs) => {
                 self.emitter.print().p("{");
                 self.emitter.print().p_whitespace();
-                let specs = self.nodes.get_specs_export(&specs);
                 self.emit_list(
-                    specs.list(),
-                    |this, spec| this.emit_export_spec(*spec),
+                    specs.list,
+                    |this, spec| this.visit_export_spec(spec),
                     |this, _| {
                         this.emitter.content.p_comma();
                         this.emitter.content.p_whitespace();
@@ -1407,88 +1463,96 @@ impl<'ir> JSEmitter<'_, 'ir> {
                 );
                 self.emitter.print().p_whitespace();
                 self.emitter.print().p("}");
-                if let Some(module) = specs.module() {
+                if let Some(module) = specs.module {
                     self.emitter.print().p_whitespace();
                     self.emitter.print().p("from");
                     self.emitter.print().p_whitespace();
-                    self.emit_string_lit(module);
+                    self.visit_string_lit(module);
                 }
             }
-            ir::ExportClause::Ns(n) => self.emit_ns_export(n),
-            ir::ExportClause::Glob(n) => {
+            ast::ExportClauseKind::Ns(n) => self.visit_ns_export(n),
+            ast::ExportClauseKind::Glob(n) => {
                 self.emitter.print().p("*");
                 self.emitter.print().p_whitespace();
                 self.emitter.print().p("from");
                 self.emitter.print().p_whitespace();
-                self.emit_string_lit(self.nodes.get_glob_export(&n).name());
+                self.visit_string_lit(n.module);
             }
         }
     }
 
-    fn emit_ns_export(&mut self, ns: ir::NsExportID) {
-        let ns = self.nodes.get_ns_export(&ns);
+    fn visit_export_named_spec(&mut self, node: &'cx ast::ExportNamedSpec<'cx>) -> Self::Result {
+        self.visit_module_export_name(node.prop_name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p("as");
+        self.emitter.print().p_whitespace();
+        self.visit_module_export_name(node.name);
+    }
+
+    fn visit_export_shorthand_spec(
+        &mut self,
+        node: &'cx ast::ExportShorthandSpec<'cx>,
+    ) -> Self::Result {
+        self.visit_ident(node.name);
+    }
+
+    fn visit_ns_export(&mut self, node: &'cx ast::NsExport<'cx>) -> Self::Result {
         self.emitter.print().p("*");
         self.emitter.print().p_whitespace();
         self.emitter.print().p("as");
         self.emitter.print().p_whitespace();
-        self.emit_module_export_name(ns.name());
+        self.visit_module_export_name(node.name);
         self.emitter.print().p_whitespace();
         self.emitter.print().p("from");
         self.emitter.print().p_whitespace();
-        self.emit_string_lit(ns.module());
+        self.visit_string_lit(node.module);
     }
 
-    fn emit_assign_expr(&mut self, n: ir::AssignExprID) {
-        let n = self.nodes.get_assign_expr(&n);
-        self.emit_expr(n.left());
+    fn visit_assign_expr(&mut self, node: &'cx ast::AssignExpr<'cx>) -> Self::Result {
+        self.visit_expr(node.left);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p(n.op().as_str());
+        self.emitter.print().p(node.op.as_str());
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.right());
+        self.visit_expr(node.right);
     }
 
-    fn emit_bin_expr(&mut self, n: ir::BinExprID) {
-        let n = self.nodes.get_bin_expr(&n);
-        self.emit_expr(n.left());
+    fn visit_bin_expr(&mut self, node: &'cx ast::BinExpr<'cx>) -> Self::Result {
+        self.visit_expr(node.left);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p(n.op().kind.as_str());
+        self.emitter.print().p(node.op.kind.as_str());
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.right());
+        self.visit_expr(node.right);
     }
 
-    fn emit_paren_expr(&mut self, n: ir::ParenExprID) {
-        let n = self.nodes.get_paren_expr(&n);
+    fn visit_paren_expr(&mut self, node: &'cx ast::ParenExpr<'cx>) -> Self::Result {
         self.emitter.print().p_l_paren();
-        self.emit_expr(n.expr());
+        self.visit_expr(node.expr);
         self.emitter.print().p_r_paren();
     }
 
-    fn emit_this_expr(&mut self, _: ir::ThisExprID) {
+    fn visit_this_expr(&mut self, _node: &'cx ast::ThisExpr) -> Self::Result {
         self.emitter.print().p("this");
     }
 
-    fn emit_bigint_lit(&mut self, n: ir::BigIntLitID) {
-        let n = self.nodes.get_bigint_lit(&n);
-        if n.val().0 {
+    fn visit_big_int_lit(&mut self, node: &'cx ast::BigIntLit) -> Self::Result {
+        if node.val.0 {
             self.emitter.print().p("-");
         }
-        let content = self.atoms.get(n.val().1);
+        let content = self.atoms().get(node.val.1);
         self.emitter.print().p(content);
         self.emitter.print().p("n");
     }
 
-    fn emit_regexp_lit(&mut self, n: ir::RegExpLitID) {
-        let n = self.nodes.get_regexp_lit(&n);
-        let content = self.atoms.get(n.val());
+    fn visit_reg_exp_lit(&mut self, node: &'cx ast::RegExpLit) -> Self::Result {
+        let content = self.atoms().get(node.val);
         self.emitter.print().p(content);
     }
 
-    fn emit_array_lit(&mut self, n: ir::ArrayLitID) {
-        let n = self.nodes.get_array_lit(&n);
+    fn visit_array_lit(&mut self, node: &'cx ast::ArrayLit<'cx>) -> Self::Result {
         self.emitter.print().p_l_bracket();
-        for (idx, expr) in n.elems().iter().enumerate() {
-            self.emit_expr(*expr);
-            if idx != n.elems().len() - 1 {
+        for (idx, expr) in node.elems.iter().enumerate() {
+            self.visit_expr(expr);
+            if idx != node.elems.len() - 1 {
                 self.emitter.print().p_comma();
                 self.emitter.print().p_whitespace();
             }
@@ -1496,9 +1560,8 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p_r_bracket();
     }
 
-    fn emit_object_lit(&mut self, n: ir::ObjectLitID) {
-        let n = self.nodes.get_object_lit(&n);
-        if n.members().is_empty() {
+    fn visit_object_lit(&mut self, node: &'cx ast::ObjectLit<'cx>) -> Self::Result {
+        if node.members.is_empty() {
             self.emitter.print().p("{}");
             return;
         }
@@ -1508,9 +1571,9 @@ impl<'ir> JSEmitter<'_, 'ir> {
         let indent = self.emitter.print().indent;
         self.emitter.print().p_pieces_of_whitespace(indent);
         self.emit_list(
-            n.members(),
+            node.members,
             |this, member| {
-                this.emit_object_member(*member);
+                this.visit_object_member(member);
             },
             |this, _| {
                 this.emitter.content.p_comma();
@@ -1524,430 +1587,356 @@ impl<'ir> JSEmitter<'_, 'ir> {
         self.emitter.print().p_r_brace();
     }
 
-    fn emit_object_member(&mut self, field: ir::ObjectLitMember) {
-        match field {
-            ir::ObjectLitMember::Prop(n) => self.emit_object_prop_member(n),
-            ir::ObjectLitMember::Shorthand(n) => self.emit_object_shorthand_member(n),
-            ir::ObjectLitMember::Method(n) => self.emit_object_method_member(n),
-            ir::ObjectLitMember::SpreadAssignment(n) => {
-                self.emitter.print().p("...");
-                let n = self.nodes.get_spread_assignment(&n);
-                self.emit_expr(n.expr());
-            }
-            ir::ObjectLitMember::Getter(n) => {
-                self.emit_getter_decl(n);
-            }
-            ir::ObjectLitMember::Setter(n) => {
-                self.emit_setter_decl(n);
-            }
-        }
-    }
-
-    fn emit_object_method_member(&mut self, method: ir::ObjectMethodMemberID) {
-        let n = self.nodes.get_object_method_member(&method);
-        if n.asterisk().is_some() {
+    fn visit_object_method_member(
+        &mut self,
+        node: &'cx ast::ObjectMethodMember<'cx>,
+    ) -> Self::Result {
+        if node.asterisk.is_some() {
             self.emitter.print().p_asterisk();
         }
-        self.emit_prop_name(n.name());
-        self.emit_params(n.params());
+        self.visit_prop_name(node.name);
+        self.emit_params_without_this(node.params);
         self.emitter.print().p_whitespace();
-        self.emit_block_stmt(n.body());
+        self.visit_block_stmt(node.body);
     }
 
-    fn emit_object_prop_member(&mut self, prop: ir::ObjectPropMemberID) {
-        let n = self.nodes.get_object_prop_member(&prop);
-        self.emit_prop_name(n.name());
+    fn visit_object_prop_assignment(
+        &mut self,
+        node: &'cx ast::ObjectPropAssignment<'cx>,
+    ) -> Self::Result {
+        self.visit_prop_name(node.name);
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.init());
+        self.visit_expr(node.init);
     }
 
-    fn emit_object_shorthand_member(&mut self, shorthand: ir::ObjectShorthandMemberID) {
-        let n = self.nodes.get_object_shorthand_member(&shorthand);
-        self.emit_ident(n.name());
+    fn visit_object_shorthand_member(
+        &mut self,
+        node: &'cx ast::ObjectShorthandMember<'cx>,
+    ) -> Self::Result {
+        self.visit_ident(node.name);
     }
 
-    fn emit_prop_access_expr(&mut self, n: ir::PropAccessExprID) {
-        let n = self.nodes.get_prop_access_expr(&n);
-        if let ir::Expr::NumLit(id) = n.expr() {
-            self.emit_num_lit(id);
-            if self.nodes.get_num_lit(&id).val().fract() == 0. {
+    fn visit_prop_access_expr(&mut self, node: &'cx ast::PropAccessExpr<'cx>) -> Self::Result {
+        if let ast::ExprKind::NumLit(n) = node.expr.kind {
+            self.visit_num_lit(n);
+            if n.val.fract() == 0. {
                 self.emitter.print().p(".");
             }
         } else {
-            self.emit_expr(n.expr());
+            self.visit_expr(node.expr);
         }
         self.emitter.print().p_dot();
-        self.emit_ident(n.name());
+        self.visit_ident(node.name);
     }
 
-    fn emit_template_expr(&mut self, n: ir::TemplateExprID) {
-        let n = self.nodes.get_template_expr(&n);
+    fn visit_template_expr(&mut self, node: &'cx ast::TemplateExpr<'cx>) -> Self::Result {
         self.emitter.print().p("`");
-        let head = self.nodes.get_template_head(&n.head());
-        let content = self.atoms.get(head.text());
+        let content = self.atoms().get(node.head.text);
         let content = escape_snippet_text(content);
         self.emitter.print().p(&content);
-        for span in n.spans() {
+        for span in node.spans {
             self.emitter.print().p("${");
-            let span = self.nodes.get_template_span(span);
-            self.emit_expr(span.expr());
+            self.visit_expr(span.expr);
             self.emitter.print().p("}");
-            let content = self.atoms.get(span.text());
+            let content = self.atoms().get(span.text);
             self.emitter.print().p(content);
         }
         self.emitter.print().p("`");
     }
 
-    fn emit_expr(&mut self, expr: ir::Expr) {
-        match expr {
-            ir::Expr::Assign(id) => self.emit_assign_expr(id),
-            ir::Expr::Bin(id) => self.emit_bin_expr(id),
-            ir::Expr::Omit(_) => {}
-            ir::Expr::Paren(id) => self.emit_paren_expr(id),
-            ir::Expr::This(id) => self.emit_this_expr(id),
-            ir::Expr::Ident(id) => self.emit_ident(id),
-            ir::Expr::BoolLit(id) => {
-                let n = self.nodes.get_bool_lit(&id);
-                self.emitter.print().p(&n.val().to_string());
-            }
-            ir::Expr::NullLit(_) => {
-                self.emitter.print().p("null");
-            }
-            ir::Expr::NumLit(id) => self.emit_num_lit(id),
-            ir::Expr::BigIntLit(id) => self.emit_bigint_lit(id),
-            ir::Expr::RegExpLit(id) => self.emit_regexp_lit(id),
-            ir::Expr::StringLit(id) => self.emit_string_lit(id),
-            ir::Expr::ArrayLit(id) => self.emit_array_lit(id),
-            ir::Expr::ObjectLit(id) => self.emit_object_lit(id),
-            ir::Expr::Void(id) => {
-                let n = self.nodes.get_void_expr(&id);
+    fn visit_no_substitution_template_lit(
+        &mut self,
+        node: &'cx ast::NoSubstitutionTemplateLit,
+    ) -> Self::Result {
+        let content = get_source_text_from_source(&self.origin, node.span);
+        self.emitter.print().p(content);
+    }
+
+    fn visit_expr(&mut self, node: &'cx ast::Expr<'cx>) -> Self::Result {
+        use ast::ExprKind::*;
+        match node.kind {
+            Assign(n) => self.visit_assign_expr(n),
+            Bin(n) => self.visit_bin_expr(n),
+            Omit(_) => {}
+            Paren(n) => self.visit_paren_expr(n),
+            This(n) => self.visit_this_expr(n),
+            Ident(n) => self.visit_ident(n),
+            BoolLit(n) => self.emitter.print().p(&n.val.to_string()),
+            NullLit(_) => self.emitter.print().p("null"),
+            NumLit(n) => self.visit_num_lit(n),
+            BigIntLit(n) => self.visit_big_int_lit(n),
+            RegExpLit(n) => self.visit_reg_exp_lit(n),
+            StringLit(n) => self.visit_string_lit(n),
+            NoSubstitutionTemplateLit(n) => self.visit_no_substitution_template_lit(n),
+            ArrayLit(n) => self.visit_array_lit(n),
+            ObjectLit(n) => self.visit_object_lit(n),
+            Void(n) => {
                 self.emitter.print().p("void");
                 self.emitter.print().p_whitespace();
-                self.emit_expr(n.expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::Typeof(id) => {
-                let n = self.nodes.get_typeof_expr(&id);
+            Typeof(n) => {
                 self.emitter.print().p("typeof");
                 self.emitter.print().p_whitespace();
-                self.emit_expr(n.expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::Super(_) => {
-                self.emitter.print().p("super");
-            }
-            ir::Expr::EleAccess(id) => {
-                let n = self.nodes.get_ele_access_expr(&id);
-                self.emit_expr(n.expr());
+            Super(_) => self.emitter.print().p("super"),
+            EleAccess(n) => {
+                self.visit_expr(n.expr);
                 self.emitter.print().p_l_bracket();
-                self.emit_expr(n.arg());
+                self.visit_expr(n.arg);
                 self.emitter.print().p_r_bracket();
             }
-            ir::Expr::PropAccess(id) => self.emit_prop_access_expr(id),
-            ir::Expr::PostfixUnary(id) => {
-                let n = self.nodes.get_postfix_unary_expr(&id);
-                self.emit_expr(n.expr());
-                self.emitter.print().p(n.op().as_str());
+            PropAccess(n) => self.visit_prop_access_expr(n),
+            PostfixUnary(n) => {
+                self.visit_expr(n.expr);
+                self.emitter.print().p(n.op.as_str());
             }
-            ir::Expr::PrefixUnary(id) => {
-                let n = self.nodes.get_prefix_unary_expr(&id);
-                self.emitter.print().p(n.op().as_str());
-                if let ir::Expr::PrefixUnary(_) = n.expr() {
+            PrefixUnary(n) => {
+                self.emitter.print().p(n.op.as_str());
+                if matches!(n.expr.kind, PrefixUnary(_)) {
                     self.emitter.print().p_whitespace();
                 }
-                self.emit_expr(n.expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::TaggedTemplate(id) => {
-                let n = self.nodes.get_tagged_template_expr(&id);
-                self.emit_expr(n.tag());
-                self.emit_expr(n.tpl());
+            TaggedTemplate(n) => {
+                self.visit_expr(n.tag);
+                match n.tpl {
+                    ast::TemplateExpressionKind::NoSubstitutionTemplateLit(n) => {
+                        self.visit_no_substitution_template_lit(n);
+                    }
+                    ast::TemplateExpressionKind::TemplateExpr(n) => {
+                        self.visit_template_expr(n);
+                    }
+                }
             }
-            ir::Expr::Template(id) => self.emit_template_expr(id),
-            ir::Expr::SpreadElem(id) => {
-                let n = self.nodes.get_spread_element(&id);
+            Template(n) => self.visit_template_expr(n),
+            SpreadElement(n) => {
                 self.emitter.print().p("...");
-                self.emit_expr(n.expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::ArrowFn(id) => self.emit_arrow_fn(id),
-            ir::Expr::New(id) => self.emit_new_expr(id),
-            ir::Expr::Class(id) => self.emit_class_expr(id),
-            ir::Expr::Fn(id) => self.emit_fn_expr(id),
-            ir::Expr::Call(id) => self.emit_call_expr(id),
-            ir::Expr::Cond(id) => self.emit_cond_expr(id),
-            ir::Expr::JsxElem(id) => self.emit_jsx_elem(id),
-            ir::Expr::JsxSelfClosingElem(id) => self.emit_jsx_self_closing_ele(id),
-            ir::Expr::JsxFrag(id) => self.emit_jsx_frag(id),
-            ir::Expr::Delete(id) => {
+            ArrowFn(n) => self.visit_arrow_fn_expr(n),
+            New(n) => self.visit_new_expr(n),
+            Class(n) => self.visit_class_expr(n),
+            Fn(n) => self.visit_fn_expr(n),
+            Call(n) => self.visit_call_expr(n),
+            Cond(n) => self.visit_cond_expr(n),
+            JsxElem(n) => self.visit_jsx_elem(n),
+            JsxSelfClosingElem(n) => self.visit_jsx_self_closing_elem(n),
+            JsxFrag(n) => self.visit_jsx_frag(n),
+            Delete(n) => {
                 self.emitter.print().p("delete");
                 self.emitter.print().p_whitespace();
-                self.emit_expr(self.nodes.get_delete_expr(&id).expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::Await(id) => {
+            Await(n) => {
                 self.emitter.print().p("await");
                 self.emitter.print().p_whitespace();
-                self.emit_expr(self.nodes.get_await_expr(&id).expr());
+                self.visit_expr(n.expr);
             }
-            ir::Expr::Yield(id) => {
+            Yield(n) => {
                 self.emitter.print().p("yield");
                 self.emitter.print().p_whitespace();
-                let n = self.nodes.get_yield_expr(&id);
-                if n.asterisk().is_some() {
+                if n.asterisk.is_some() {
                     self.emitter.print().p_asterisk();
                     self.emitter.print().p_whitespace();
                 }
-                if let Some(expr) = n.expr() {
-                    self.emit_expr(expr);
+                if let Some(expr) = n.expr {
+                    self.visit_expr(expr);
                 }
             }
-            ir::Expr::NewMetaProperty(id) => {
-                let n = self.nodes.get_new_meta_property(&id);
+            NewMetaProperty(n) => {
                 self.emitter.print().p("new");
                 self.emitter.print().p(".");
-                self.emit_ident(n.name());
+                self.visit_ident(n.name);
             }
-        }
-    }
-
-    fn emit_jsx_ns_name(&mut self, n: ir::JsxNsNameID) {
-        let n = self.nodes.get_jsx_ns_name(&n);
-        self.emit_ident(n.ns());
-        self.emitter.print().p(":");
-        self.emit_ident(n.name());
-    }
-
-    fn emit_jsx_tag_name(&mut self, n: ir::JsxTagName) {
-        match n {
-            ir::JsxTagName::Ident(ident) => self.emit_ident(ident),
-            ir::JsxTagName::Ns(n) => self.emit_jsx_ns_name(n),
-            ir::JsxTagName::PropAccess(n) => self.emit_prop_access_expr(n),
-            ir::JsxTagName::This(_) => self.emitter.print().p("this"),
-        };
-    }
-
-    fn emit_jsx_attrs(&mut self, attrs: &[ir::JsxAttr]) {
-        for attr in attrs {
-            self.emitter.print().p_whitespace();
-            self.emit_jsx_attr(*attr);
-        }
-    }
-
-    fn emit_jsx_attr(&mut self, n: ir::JsxAttr) {
-        match n {
-            ir::JsxAttr::Spread(n) => {
-                self.emitter.print().p_l_brace();
-                self.emitter.print().p_dot_dot_dot();
-                let n = self.nodes.get_jsx_spread_attr(&n);
-                self.emit_expr(n.expr());
-                self.emitter.print().p_r_brace();
-            }
-            ir::JsxAttr::Named(n) => {
-                let n = self.nodes.get_jsx_named_attr(&n);
-                match n.name() {
-                    ir::JsxAttrName::Ident(n) => self.emit_ident(n),
-                    ir::JsxAttrName::Ns(ns) => self.emit_jsx_ns_name(ns),
-                };
-                if let Some(v) = n.init() {
-                    self.emitter.print().p_eq();
-                    self.emit_jsx_attr_value(v);
+            As(n) => self.visit_expr(n.expr),
+            Satisfies(n) => self.visit_expr(n.expr),
+            NonNull(n) => self.visit_expr(n.expr),
+            TyAssertion(n) => {
+                if matches!(n.expr.kind, ast::ExprKind::ObjectLit(_)) {
+                    self.emitter.print().p_l_paren();
+                    self.visit_expr(n.expr);
+                    self.emitter.print().p_r_paren();
+                } else {
+                    self.visit_expr(n.expr);
                 }
             }
-        };
+            ExprWithTyArgs(n) => self.visit_expr_with_ty_args(n),
+            Import(_) => todo!(),
+        }
     }
 
-    fn emit_jsx_expr(&mut self, n: ir::JsxExprID) {
-        let n = self.nodes.get_jsx_expr(&n);
+    fn visit_jsx_ns_name(&mut self, node: &'cx ast::JsxNsName<'cx>) -> Self::Result {
+        self.visit_ident(node.ns);
+        self.emitter.print().p(":");
+        self.visit_ident(node.name);
+    }
+
+    fn visit_jsx_expr(&mut self, node: &'cx ast::JsxExpr<'cx>) -> Self::Result {
         self.emitter.print().p_l_brace();
-        if n.dotdotdot().is_some() {
+        if node.dotdotdot_token.is_some() {
             self.emitter.print().p_dot_dot_dot();
         }
-        if let Some(expr) = n.expr() {
-            self.emit_expr(expr);
+        if let Some(expr) = node.expr {
+            self.visit_expr(expr);
         }
         self.emitter.print().p_r_brace();
     }
 
-    fn emit_jsx_child(&mut self, child: ir::JsxChild) {
-        match child {
-            ir::JsxChild::Text(n) => {
-                let n = self.nodes.get_jsx_text(&n);
-                let content = self.atoms.get(n.text());
-                self.emitter.print().p(content);
-            }
-            ir::JsxChild::Expr(n) => self.emit_jsx_expr(n),
-            ir::JsxChild::Elem(n) => self.emit_jsx_elem(n),
-            ir::JsxChild::SelfClosingEle(n) => {
-                self.emit_jsx_self_closing_ele(n);
-            }
-            ir::JsxChild::Frag(n) => self.emit_jsx_frag(n),
-        }
-    }
-
-    fn emit_jsx_children(&mut self, children: &[ir::JsxChild]) {
-        for child in children {
-            self.emit_jsx_child(*child);
-        }
-    }
-
-    fn emit_jsx_attr_value(&mut self, n: ir::JsxAttrValue) {
-        match n {
-            ir::JsxAttrValue::StringLit(id) => self.emit_string_lit(id),
-            ir::JsxAttrValue::Expr(id) => self.emit_jsx_expr(id),
-            ir::JsxAttrValue::Ele(id) => self.emit_jsx_elem(id),
-            ir::JsxAttrValue::SelfClosingEle(id) => self.emit_jsx_self_closing_ele(id),
-            ir::JsxAttrValue::Frag(id) => self.emit_jsx_frag(id),
-        };
-    }
-
-    fn emit_jsx_frag(&mut self, n: ir::JsxFragID) {
-        let n = self.nodes.get_jsx_frag(&n);
+    fn visit_jsx_frag(&mut self, node: &'cx ast::JsxFrag<'cx>) -> Self::Result {
         self.emitter.print().p("<>");
-        self.emit_jsx_children(n.children());
+        for child in node.children {
+            self.visit_jsx_child(*child);
+        }
         self.emitter.print().p("</>");
     }
 
-    fn emit_jsx_self_closing_ele(&mut self, n: ir::JsxSelfClosingElemID) {
-        let n = self.nodes.get_jsx_self_closing_elem(&n);
+    fn visit_jsx_self_closing_elem(
+        &mut self,
+        node: &'cx ast::JsxSelfClosingElem<'cx>,
+    ) -> Self::Result {
         self.emitter.print().p("<");
-        self.emit_jsx_tag_name(n.tag_name());
+        self.visit_jsx_tag_name(node.tag_name);
         self.emitter.print().p_whitespace();
-        self.emit_jsx_attrs(n.attrs());
+        for attr in node.attrs {
+            self.emitter.print().p_whitespace();
+            self.visit_jsx_attr(attr);
+        }
         self.emitter.print().p(" />");
     }
 
-    fn emit_jsx_elem(&mut self, elem: ir::JsxElemID) {
-        let n = self.nodes.get_jsx_elem(&elem);
+    fn visit_jsx_elem(&mut self, node: &'cx ast::JsxElem<'cx>) -> Self::Result {
         self.emitter.print().p("<");
-        self.emit_jsx_tag_name(
-            self.nodes
-                .get_jsx_opening_elem(&n.opening_elem())
-                .tag_name(),
-        );
+        self.visit_jsx_tag_name(node.opening_elem.tag_name);
         self.emitter.print().p_whitespace();
-        self.emit_jsx_attrs(self.nodes.get_jsx_opening_elem(&n.opening_elem()).attrs());
+        for attr in node.opening_elem.attrs {
+            self.emitter.print().p_whitespace();
+            self.visit_jsx_attr(attr);
+        }
         self.emitter.print().p(">");
 
-        self.emit_jsx_children(n.children());
+        for child in node.children {
+            self.visit_jsx_child(*child);
+        }
 
         self.emitter.print().p("</");
-        self.emit_jsx_tag_name(
-            self.nodes
-                .get_jsx_closing_elem(&n.closing_elem())
-                .tag_name(),
-        );
+        self.visit_jsx_tag_name(node.closing_elem.tag_name);
         self.emitter.print().p(">");
     }
 
-    fn emit_cond_expr(&mut self, cond: ir::CondExprID) {
-        let n = self.nodes.get_cond_expr(&cond);
-        self.emit_expr(n.cond());
+    fn visit_cond_expr(&mut self, node: &'cx ast::CondExpr<'cx>) -> Self::Result {
+        self.visit_expr(node.cond);
         self.emitter.print().p_whitespace();
         self.emitter.print().p_question();
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.when_true());
+        self.visit_expr(node.when_true);
         self.emitter.print().p_whitespace();
         self.emitter.print().p_colon();
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.when_false());
+        self.visit_expr(node.when_false);
     }
 
-    fn emit_fn_expr(&mut self, f: ir::FnExprID) {
-        let n = self.nodes.get_fn_expr(&f);
+    fn visit_fn_expr(&mut self, node: &'cx ast::FnExpr<'cx>) -> Self::Result {
         self.emitter.print().p("function");
-        if n.asterisk().is_some() {
+        if node.asterisk.is_some() {
             self.emitter.print().p("*");
         }
         self.emitter.print().p_whitespace();
-        if let Some(name) = n.name() {
-            self.emit_ident(name);
+        if let Some(name) = node.name {
+            self.visit_ident(name);
         }
-        self.emit_params(n.params());
+        self.emit_params_without_this(node.params);
         self.emitter.print().p_whitespace();
-
-        self.emit_basic_block_with_brace(n.body(), ir::BasicBlockID::ENTRY);
+        self.visit_block_stmt(node.body);
     }
 
-    fn emit_call_expr(&mut self, call: ir::CallExprID) {
-        let n = self.nodes.get_call_expr(&call);
-        self.emit_expr(n.callee());
-        self.emit_args(n.args());
+    fn visit_call_expr(&mut self, node: &'cx ast::CallExpr<'cx>) -> Self::Result {
+        self.visit_expr(node.expr);
+        self.emit_args(node.args);
     }
 
-    fn emit_class_expr(&mut self, n: ir::ClassExprID) {
-        let n = self.nodes.get_class_expr(&n);
-        self.emitter.print().p("class");
-        self.emitter.print().p_whitespace();
-        if let Some(ident) = n.name() {
-            self.emit_ident(ident);
-            self.emitter.print().p_whitespace();
-            let name = self.nodes.get_ident(&ident).name();
-            self.ns_names.insert((self.scope, name));
-        }
-        if let Some(extends) = n.extends() {
-            self.emit_class_extends_clause(extends);
-        }
-        self.emitter.print().p_l_brace();
-        if !n.elems().is_empty() {
-            self.emitter.increment_indent();
-            self.emitter.print().p_newline();
-            self.emit_list(
-                n.elems(),
-                |this, elem| {
-                    this.emit_class_elem(*elem);
-                },
-                |this, _| {
-                    this.emitter.content.p_newline();
-                },
-            );
-            self.emitter.decrement_indent();
-            self.emitter.print().p_newline();
-        }
-        self.emitter.print().p_r_brace();
-    }
-
-    fn emit_args(&mut self, args: &[ir::Expr]) {
-        self.emitter.print().p_l_paren();
-        self.emit_list(
-            args,
-            |this, arg| this.emit_expr(*arg),
-            |this, _| {
-                this.emitter.content.p_comma();
-                this.emitter.content.p_whitespace();
-            },
-        );
-        self.emitter.print().p_r_paren();
-    }
-
-    fn emit_new_expr(&mut self, n: ir::NewExprID) {
-        let n = self.nodes.get_new_expr(&n);
+    fn visit_new_expr(&mut self, node: &'cx ast::NewExpr<'cx>) -> Self::Result {
         self.emitter.print().p("new");
         self.emitter.print().p_whitespace();
-        self.emit_expr(n.expr());
-        self.emit_args(n.args());
+        self.visit_expr(node.expr);
+        match node.args {
+            Some(args) => self.emit_args(args),
+            None => self.emit_args(&[]),
+        }
     }
 
-    fn emit_arrow_fn(&mut self, f: ir::ArrowFnExprID) {
-        let n = self.nodes.get_arrow_fn_expr(&f);
-        if n.modifier().is_some() {
+    fn visit_expr_with_ty_args(&mut self, node: &'cx ast::ExprWithTyArgs<'cx>) -> Self::Result {
+        self.visit_expr(node.expr);
+    }
+
+    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
+        if node.async_modifier.is_some() {
             self.emitter.print().p("async");
             self.emitter.print().p_whitespace();
         }
-        self.emit_params(n.params());
+        self.emit_params_without_this(node.params);
         self.emitter.print().p_whitespace();
-        self.emitter.print().p("=>");
+        self.emitter.print().p_arrow_right();
         self.emitter.print().p_whitespace();
 
-        let graph = self.graph(n.body());
-        let block = graph.get_basic_block(ir::BasicBlockID::ENTRY);
-        if block.stmts().len() == 1
-            && let ir::Stmt::Ret(ret) = block.stmts()[0]
-            && let Some(expr) = self.nodes.get_ret_stmt(&ret).expr()
-        {
-            self.emitter.print().p("(");
-            self.emit_expr(expr);
-            self.emitter.print().p(")");
-        } else {
-            self.emit_basic_block_with_brace(n.body(), ir::BasicBlockID::ENTRY);
+        match node.body {
+            ast::ArrowFnExprBody::Expr(expr) => {
+                self.emitter.print().p("(");
+                self.visit_expr(expr);
+                self.emitter.print().p(")");
+            }
+            ast::ArrowFnExprBody::Block(block) => {
+                let mut non_omitted = block.stmts.iter().filter(|s| !self.stmt_is_omitted(s));
+                let single = non_omitted.next().filter(|_| non_omitted.next().is_none());
+                if let Some(stmt) = single
+                    && let ast::StmtKind::Ret(ret) = stmt.kind
+                    && let Some(expr) = ret.expr
+                {
+                    self.emitter.print().p("(");
+                    self.visit_expr(expr);
+                    self.emitter.print().p(")");
+                } else {
+                    self.visit_block_stmt(block);
+                }
+            }
         }
     }
+
+    fn visit_import_equals_decl(&mut self, node: &'cx ast::ImportEqualsDecl<'cx>) -> Self::Result {
+        if self.resolver.is_import_equals_namespace_module(node) {
+            return;
+        }
+        self.emitter.print().p("var");
+        self.emitter.print().p_whitespace();
+        self.visit_ident(node.name);
+        self.emitter.print().p_whitespace();
+        self.emitter.print().p_eq();
+        self.emitter.print().p_whitespace();
+        match node.module_reference {
+            ast::ModuleReferenceKind::EntityName(n) => self.visit_entity_name(n),
+            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                self.visit_string_lit(n.module_spec())
+            }
+        }
+    }
+
+    fn visit_qualified_name(&mut self, node: &'cx ast::QualifiedName<'cx>) -> Self::Result {
+        self.visit_entity_name(node.left);
+        self.emitter.print().p_dot();
+        self.visit_ident(node.right);
+    }
+
+    fn visit_entity_name(&mut self, node: &'cx ast::EntityName<'cx>) -> Self::Result {
+        use ast::EntityNameKind::*;
+        match &node.kind {
+            Ident(n) => self.visit_ident(n),
+            Qualified(n) => self.visit_qualified_name(n),
+        }
+    }
+
+    noop_visit_type_node!();
 }
 
 fn get_source_text_from_source(source: &str, span: bolt_ts_span::Span) -> &str {

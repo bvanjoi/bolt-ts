@@ -92,6 +92,7 @@ use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
+use bolt_ts_wf_check::IssueExternalExportDeclarations;
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
@@ -285,6 +286,7 @@ pub struct TyChecker<'cx> {
     evolving_array_tys: IntMap<TyID, &'cx ty::Ty<'cx>>,
     final_array_ty_of_evolving_array_cache: IntMap<TyID, &'cx ty::Ty<'cx>>,
     widened_context_arena: WideningContextArena<'cx>,
+    issue_external_export_declarations: IssueExternalExportDeclarations,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -527,6 +529,7 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: MergedSymbols,
         mut global_symbols: GlobalSymbols,
         emit_standard_class_fields: bool,
+        wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
     ) -> Self {
         let cap = p.module_count() * 1024;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
@@ -680,7 +683,13 @@ impl<'cx> TyChecker<'cx> {
             props: cast_empty_array(empty_array),
         });
 
+        let issue_external_export_declarations = IssueExternalExportDeclarations::join(
+            wf_check_result
+                .into_iter()
+                .map(|r| r.issue_external_export_declarations),
+        );
         let mut this = Self {
+            issue_external_export_declarations,
             tys,
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
@@ -6668,7 +6677,7 @@ impl<'cx> TyChecker<'cx> {
                 // could_access_optional_property
                 self.get_base_constraint_of_ty(index_ty)
                     .is_some_and(|index_constraint| {
-                        self.get_props_of_ty(index_constraint).iter().any(|&p| {
+                        self.get_props_of_ty(object_ty).iter().any(|&p| {
                             self.symbol(p).flags.contains(SymbolFlags::OPTIONAL) && {
                                 let lit_ty = self.get_literal_ty_from_prop(
                                     p,

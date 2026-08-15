@@ -3,3 +3,10 @@
  5 │ 1
    · ─
    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+   ╭─[../../tests/compiler/constructorReturnsInvalidType/index.ts:5:16]
+ 5 │ 1
+   · ─
+   ╰────

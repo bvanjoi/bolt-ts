@@ -1,0 +1,5 @@
+  × Export declarations are not permitted in a namespace.
+    ╭─[../../tests/compiler/exportDeclarationsInAmbientNamespaces2/index.ts:10:23]
+ 10 │ "mod"
+    · ─────
+    ╰────

@@ -28,6 +28,39 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
         self.checker.p.root(module_id)
     }
 
+    pub fn module_content(&self, module: bolt_ts_span::ModuleID) -> &str {
+        self.checker.module_arena.get_content(module)
+    }
+
+    pub fn is_module_instantiated(
+        &self,
+        module: bolt_ts_span::ModuleID,
+        block: Option<&'cx ast::ModuleBlock<'cx>>,
+        _id: ast::NodeID,
+    ) -> bool {
+        let Some(block) = block else {
+            return true;
+        };
+        self.checker
+            .node_query(module)
+            .get_module_instance_state_worker(block, |n, _| self.checker.binder.parent(n))
+            != bolt_ts_binder::ModuleInstanceState::NonInstantiated
+    }
+
+    pub fn is_import_equals_namespace_module(&self, node: &'cx ast::ImportEqualsDecl<'cx>) -> bool {
+        match node.module_reference {
+            ast::ModuleReferenceKind::EntityName(n) => {
+                let most_left = n.get_first_identifier();
+                let symbol = self.checker.final_res(most_left.id);
+                self.checker
+                    .symbol(symbol)
+                    .flags
+                    .contains(bolt_ts_binder::SymbolFlags::NAMESPACE_MODULE)
+            }
+            ast::ModuleReferenceKind::ExternalModuleReference(_) => false,
+        }
+    }
+
     pub fn node_flags(&self, id: ast::NodeID) -> bolt_ts_ast::NodeFlags {
         self.checker.p.node_flags(id)
     }

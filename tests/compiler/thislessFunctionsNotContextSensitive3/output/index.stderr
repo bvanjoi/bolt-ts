@@ -1,0 +1,25 @@
+  × 'editor' is specified more than once, so this usage will be overwritten.
+    ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive3/index.ts:68:9]
+ 68 │ editor: this.editor
+    · ───────────────────
+    ╰────
+
+  × 'editor' is specified more than once, so this usage will be overwritten.
+    ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive3/index.ts:88:9]
+ 88 │ editor: this.editor
+    · ───────────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'child' does not
+  │ exist in type 'Partial<{ parent: string; overwrite: string; }>'.
+     ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive3/index.ts:104:3]
+ 104 │ child
+     · ─────
+     ╰────
+
+  × Object literal may only specify known properties, and 'child' does not
+  │ exist in type 'Partial<{ parent: string; overwrite: string; }>'.
+     ╭─[../../tests/compiler/thislessFunctionsNotContextSensitive3/index.ts:117:3]
+ 117 │ child
+     · ─────
+     ╰────

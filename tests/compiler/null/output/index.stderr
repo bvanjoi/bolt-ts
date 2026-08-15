@@ -1,0 +1,5 @@
+  × Operator '+' cannot be applied to types '3' and 'null'.
+   ╭─[../../tests/compiler/null/index.ts:9:7]
+ 9 │ 3+null
+   · ──────
+   ╰────

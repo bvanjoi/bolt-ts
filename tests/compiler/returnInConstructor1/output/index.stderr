@@ -1,0 +1,65 @@
+  × Type 'number' is not assignable to type 'B'.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:15:16]
+ 15 │ 1
+    · ─
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:15:16]
+ 15 │ 1
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'D'.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:31:16]
+ 31 │ "test"
+    · ──────
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:31:16]
+ 31 │ "test"
+    · ──────
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:38:12]
+ 38 │ foo
+    · ───
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:49:18]
+ 49 │ foo
+    · ───
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:49:16]
+ 49 │ { foo: 1 }
+    · ──────────
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:46:12]
+ 46 │ foo
+    · ───
+    ╰────
+
+  × Type 'G' is not assignable to type 'H'.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:67:16]
+ 67 │ new G()
+    · ───────
+    ╰────
+
+  × 'Return type of constructor signature must be assignable to the instance
+  │ type of the class.
+    ╭─[../../tests/compiler/returnInConstructor1/index.ts:67:16]
+ 67 │ new G()
+    · ───────
+    ╰────

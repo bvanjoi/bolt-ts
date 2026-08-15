@@ -53,4 +53,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
 
         push_error(self);
     }
+
+    pub(super) fn check_allow_block_declaration(&mut self, push_error: impl FnOnce(&mut Self)) {
+        if self
+            .parse_context
+            .contains(ParseContext::DISALLOW_BLOCK_DECLARATION)
+        {
+            push_error(self);
+        }
+    }
 }

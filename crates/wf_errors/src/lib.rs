@@ -138,3 +138,10 @@ pub struct TypeParameterNameCannotBeX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Export declarations are not permitted in a namespace.")]
+pub struct ExportDeclarationsAreNotPermittedInANamespace {
+    #[label(primary)]
+    pub span: Span,
+}

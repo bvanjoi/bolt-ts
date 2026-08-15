@@ -73,6 +73,13 @@
     · ───
     ╰────
 
+  × Property 'z' of type 'I' is not assignable to 'string' index type '{ x:
+  │ any; y: any; }'.
+    ╭─[../../tests/compiler/typeName1/index.ts:37:50]
+ 37 │ z
+    · ─
+    ╰────
+
   × Type 'number' is not assignable to type '{ z: I; x: boolean; y: (s:
   │ string) => boolean; w: () => boolean; }[][]'.
     ╭─[../../tests/compiler/typeName1/index.ts:37:5]
@@ -81,19 +88,19 @@
     ╰────
 
   × Type 'number' is not assignable to type '() => { }'.
-    ╭─[../../tests/compiler/typeName1/index.ts:39:5]
- 39 │ x13
+    ╭─[../../tests/compiler/typeName1/index.ts:40:5]
+ 40 │ x13
     · ───
     ╰────
 
   × Type 'number' is not assignable to type '() => string'.
-    ╭─[../../tests/compiler/typeName1/index.ts:41:5]
- 41 │ x14
+    ╭─[../../tests/compiler/typeName1/index.ts:42:5]
+ 42 │ x14
     · ───
     ╰────
 
   × Type 'typeof C' is not assignable to type 'number'.
-    ╭─[../../tests/compiler/typeName1/index.ts:43:5]
- 43 │ x15
+    ╭─[../../tests/compiler/typeName1/index.ts:44:5]
+ 44 │ x15
     · ───
     ╰────
