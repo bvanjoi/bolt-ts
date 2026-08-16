@@ -75,3 +75,9 @@
  17 │ any
     · ───
     ╰────
+
+  × An expression of type 'void' cannot be tested for truthiness.
+    ╭─[../../tests/compiler/overloadingStaticFunctionsInFunctions/index.ts:17:15]
+ 17 │ name
+    · ────
+    ╰────

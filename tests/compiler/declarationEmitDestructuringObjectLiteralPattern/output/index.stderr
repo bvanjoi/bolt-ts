@@ -1,0 +1,27 @@
+  × Object literal may only specify known properties, and 'y4' does not exist
+  │ in type '{ x4: any; }'.
+   ╭─[../../tests/compiler/declarationEmitDestructuringObjectLiteralPattern/index.ts:7:23]
+ 7 │ y4
+   · ──
+   ╰────
+
+  × Object literal may only specify known properties, and 'x5' does not exist
+  │ in type '{ y5: any; }'.
+   ╭─[../../tests/compiler/declarationEmitDestructuringObjectLiteralPattern/index.ts:9:16]
+ 9 │ x5
+   · ──
+   ╰────
+
+  × Object literal may only specify known properties, and 'y7' does not exist
+  │ in type '{ x7: any; }'.
+    ╭─[../../tests/compiler/declarationEmitDestructuringObjectLiteralPattern/index.ts:12:27]
+ 12 │ y7
+    · ──
+    ╰────
+
+  × Object literal may only specify known properties, and 'x8' does not exist
+  │ in type '{ y8: any; }'.
+    ╭─[../../tests/compiler/declarationEmitDestructuringObjectLiteralPattern/index.ts:14:20]
+ 14 │ x8
+    · ──
+    ╰────

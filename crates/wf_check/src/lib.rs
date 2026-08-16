@@ -143,31 +143,6 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         };
     }
 
-    fn check_grammar_modifiers(&mut self, node: ast::NodeID) {
-        let n = self.p.node(node);
-        let Some(modifiers) = n.modifiers() else {
-            return;
-        };
-        for modifier in modifiers.list {
-            use ast::ModifierKind::*;
-            if modifier.kind() == Abstract {
-                let parent = self.parent(node).unwrap();
-                let parent_node = self.p.node(parent);
-                if !(parent_node.is_class_decl() && parent_node.has_abstract_modifier()) {
-                    let error = if n.is_class_prop_elem() {
-                        todo!()
-                    } else {
-                        errors::AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
-                            span: modifier.span(),
-                        }
-                    };
-                    self.push_error(Box::new(error));
-                    return;
-                }
-            }
-        }
-    }
-
     fn check_grammar_object_lit_expr(&mut self, _node: &'cx ast::ObjectLit<'cx>) {
         // TODO:
     }
@@ -345,7 +320,6 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
         bolt_ts_ast_visitor::visit_class_decl(self, class)
     }
     fn visit_class_method_elem(&mut self, node: &'cx ast::ClassMethodElem<'cx>) {
-        self.check_grammar_modifiers(node.id);
         self.check_implement_in_ambient(node.id);
         bolt_ts_ast_visitor::visit_class_method_elem(self, node)
     }

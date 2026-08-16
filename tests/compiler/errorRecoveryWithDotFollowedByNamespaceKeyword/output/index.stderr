@@ -1,0 +1,51 @@
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:9:13]
+  9 │ ╭─▶ B.
+ 10 │ │               
+ 11 │ │   
+ 12 │ ╰─▶         namespace
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:12:19]
+ 12 │ B
+    · ─
+    ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:8:19]
+ 8 │ {
+   · ─
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:7:20]
+ 7 │ {
+   · ─
+   ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╰────
+
+  × Cannot find name 'B'.
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:9:13]
+ 9 │ B
+   · ─
+   ╰────
+
+  × Cannot find name 'B'.
+    ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:12:19]
+ 12 │ B
+    · ─
+    ╰────

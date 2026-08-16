@@ -7,7 +7,7 @@ abstract
 //~^ ERROR: Cannot find name 'abstract'
 class NonAbstractClass {
   abstract s();
-  //~^ ERROR: Abstract methods can only appear within an abstract class.
+  //~^ ERROR: Abstract modifier can only appear within an abstract class.
 }
 
 class C2 {

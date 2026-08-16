@@ -29,15 +29,15 @@
     ╰────
 
   × Expected 0 arguments, but got 1.
-     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:107:1]
- 107 │ c1o1.C1M1
-     · ─────────
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:107:6]
+ 107 │ C1M1
+     · ────
      ╰────
 
   × Expected 0 arguments, but got 1.
-     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:109:1]
- 109 │ i1o1.C1M1
-     · ─────────
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:109:6]
+ 109 │ C1M1
+     · ────
      ╰────
 
   × Expected 0 arguments, but got 1.
@@ -53,15 +53,15 @@
      ╰────
 
   × Expected 1 arguments, but got 0.
-     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:115:1]
- 115 │ c1o1.C1M2
-     · ─────────
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:115:6]
+ 115 │ C1M2
+     · ────
      ╰────
 
   × Expected 1 arguments, but got 0.
-     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:117:1]
- 117 │ i1o1.C1M2
-     · ─────────
+     ╭─[../../tests/compiler/optionalParamArgsTest/index.ts:117:6]
+ 117 │ C1M2
+     · ────
      ╰────
 
   × Expected 1 arguments, but got 0.

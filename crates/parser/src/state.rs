@@ -117,7 +117,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
-            comments: Vec::with_capacity(256),
+            comments: Vec::with_capacity(16),
 
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),

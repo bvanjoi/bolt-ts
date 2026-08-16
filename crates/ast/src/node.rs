@@ -405,6 +405,7 @@ impl<'cx> Node<'cx> {
     pub fn ty_args(&self) -> Option<&'cx super::Tys<'cx>> {
         match self {
             Node::ReferTy(n) => n.ty_args,
+            Node::ExprWithTyArgs(n) => n.ty_args,
             _ => None,
         }
     }

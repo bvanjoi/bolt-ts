@@ -1,0 +1,23 @@
+  × Conversion of type 'U' to type 'T' may be a mistake because neither type
+  │ sufficiently overlaps with the other. If this was intentional, convert the
+  │ expression to 'unknown' first.
+    ╭─[../../tests/compiler/genericTypeAssertions6/index.ts:13:13]
+ 13 │ <T>y
+    · ────
+    ╰────
+
+  × Conversion of type 'T' to type 'U' may be a mistake because neither type
+  │ sufficiently overlaps with the other. If this was intentional, convert the
+  │ expression to 'unknown' first.
+    ╭─[../../tests/compiler/genericTypeAssertions6/index.ts:15:13]
+ 15 │ <U>x
+    · ────
+    ╰────
+
+  × Conversion of type 'U' to type 'T' may be a mistake because neither type
+  │ sufficiently overlaps with the other. If this was intentional, convert the
+  │ expression to 'unknown' first.
+    ╭─[../../tests/compiler/genericTypeAssertions6/index.ts:26:17]
+ 26 │ <T><U>new Date()
+    · ────────────────
+    ╰────

@@ -10,10 +10,10 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_effective_base_type_node(
         &self,
         id: ast::NodeID,
-    ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
+    ) -> Option<&'cx ast::ExprWithTyArgs<'cx>> {
         match self.p.node(id) {
-            ast::Node::ClassDecl(c) => c.extends,
-            ast::Node::ClassExpr(c) => c.extends,
+            ast::Node::ClassDecl(c) => c.extends.map(|e| e.expr_with_ty_args),
+            ast::Node::ClassExpr(c) => c.extends.map(|e| e.expr_with_ty_args),
             _ => None,
         }
     }

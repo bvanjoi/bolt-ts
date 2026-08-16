@@ -1,0 +1,44 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadResolutionTest1/index.ts:12:12]
+  6 │ foo(bar:{a:number;}[]):string;
+    · ─┬─
+    ·  ╰── Unmatched call.
+  7 │ function foo(bar:{a:boolean;}[]):number;
+    ·          ─┬─
+    ·           ╰── Unmatched call.
+  8 │ function foo(bar:{a:any;}[]):any{ return bar };
+  9 │ 
+ 10 │ var x1 = foo([{a:true}]); // works
+ 11 │ var x11 = foo([{a:0}]); // works
+ 12 │ var x111 = foo([{a:"s"}])
+    ·            ──────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadResolutionTest1/index.ts:24:10]
+ 18 │ foo2(bar:{a:number;}):string;
+    · ──┬─
+    ·   ╰── Unmatched call.
+ 19 │ function foo2(bar:{a:boolean;}):number;
+    ·          ──┬─
+    ·            ╰── Unmatched call.
+ 20 │ function foo2(bar:{a:any;}):any{ return bar };
+ 21 │ 
+ 22 │ var x2 = foo2({a:0}); // works
+ 23 │ var x3 = foo2({a:true}); // works
+ 24 │ var x4 = foo2({a:"s"})
+    ·          ─────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadResolutionTest1/index.ts:31:9]
+ 28 │ foo4(bar:{a:number;}):number;
+    · ──┬─
+    ·   ╰── Unmatched call.
+ 29 │ function foo4(bar:{a:string;}):string;
+    ·          ──┬─
+    ·            ╰── Unmatched call.
+ 30 │ function foo4(bar:{a:any;}):any{ return bar };
+ 31 │ var x = foo4({a:true})
+    ·         ──────────────
+    ╰────

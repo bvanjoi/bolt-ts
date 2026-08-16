@@ -824,7 +824,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             return Ok(m);
         }
 
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, true>(false);
 
         let check_invalid_modifiers_for_method_like = |this: &mut Self| {
             if let Some(ms) = &modifiers {

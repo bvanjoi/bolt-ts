@@ -896,7 +896,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers::<false, false>(false);
+        let mods = self.parse_modifiers::<false, false, true>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if mods.is_some_and(|ms| {
             ms.flags

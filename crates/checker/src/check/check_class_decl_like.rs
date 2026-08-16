@@ -446,7 +446,7 @@ impl<'cx> TyChecker<'cx> {
                         .is_node_within_class(base_ty_node.id, class_decl)
                 {
                     let error = errors::CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
-                        span: base_ty_node.expr_with_ty_args.span,
+                        span: base_ty_node.span,
                         class: pprint_ident(
                             self.p.node(class_decl).ident_name().unwrap(),
                             &self.atoms,
@@ -455,6 +455,25 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
                 // ============
+
+                if let Some(ty_args) = base_ty_node.ty_args {
+                    for ty_arg in ty_args.list {
+                        self.check_ty(ty_arg);
+                    }
+                    let ctor_sig_list = self
+                        .get_constructor_for_ty_args(static_base_ty, Some(ty_args), base_ty_node.id)
+                        .collect::<Vec<_>>();
+                    for ctor in ctor_sig_list {
+                        let ty_parameters = self.get_sig_links(ctor.id).expect_ty_params();
+                        if !self.check_type_argument_constraints(
+                            base_ty_node.id,
+                            base_ty_node.ty_args,
+                            ty_parameters,
+                        ) {
+                            break;
+                        }
+                    }
+                }
 
                 let this_arg = ty
                     .kind
@@ -546,7 +565,7 @@ impl<'cx> TyChecker<'cx> {
                 }) && !base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
                     && let constructors = self.get_instantiated_constructors_for_type_arguments(
                         static_base_ty,
-                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.ty_args,
                         base_ty_node.id,
                     )
                     && constructors.iter().any(|sig| {
@@ -556,7 +575,7 @@ impl<'cx> TyChecker<'cx> {
                     })
                 {
                     let error = errors::BaseConstructorsMustAllHaveTheSameReturnType {
-                        span: base_ty_node.expr_with_ty_args.span,
+                        span: base_ty_node.span,
                     };
                     self.push_error(Box::new(error));
                 }

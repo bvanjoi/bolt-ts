@@ -1,0 +1,117 @@
+  × Cannot find name 'Interface'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:20:11]
+ 20 │ Interface
+    · ─────────
+    ╰────
+
+Advice: 
+  ☞ 'Interface' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:5:11]
+ 5 │ Interface
+   · ────┬────
+   ·     ╰── 'Interface' is defined here.
+   ╰────
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:20:11]
+ 20 │ Interface
+    · ─────────
+    ╰────
+
+  × Cannot find name 'InterfaceNotFound'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:22:11]
+ 22 │ InterfaceNotFound
+    · ─────────────────
+    ╰────
+
+  × Cannot find name 'TypeAliasForSomeClass'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:24:13]
+ 24 │ TypeAliasForSomeClass
+    · ─────────────────────
+    ╰────
+
+Advice: 
+  ☞ 'TypeAliasForSomeClass' only refers to a type, but is being used as a
+  │ value here.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:24:13]
+ 13 │ TypeAliasForSomeClass = SomeClass;
+    · ──────────┬──────────
+    ·           ╰── 'TypeAliasForSomeClass' is defined here.
+ 14 │ type someType = { x: number };
+ 15 │ 
+ 16 │ function acceptsSomeType(a: someType) {
+ 17 │ 
+ 18 │ }
+ 19 │ 
+ 20 │ let one = Interface;
+ 21 │ //~^ ERROR: Cannot find name 'Interface'.
+ 22 │ let two = InterfaceNotFound;
+ 23 │ //~^ ERROR: Cannot find name 'InterfaceNotFound'.
+ 24 │ let three = TypeAliasForSomeClass
+    ·             ─────────────────────
+    ╰────
+
+  × Cannot find name 'TypeAliasForSomeClass'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:26:16]
+ 26 │ TypeAliasForSomeClass
+    · ─────────────────────
+    ╰────
+
+Advice: 
+  ☞ 'TypeAliasForSomeClass' only refers to a type, but is being used as a
+  │ value here.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:13:6]
+ 13 │ TypeAliasForSomeClass
+    · ──────────┬──────────
+    ·           ╰── 'TypeAliasForSomeClass' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:26:16]
+ 26 │ TypeAliasForSomeClass
+    · ─────────────────────
+    ╰────
+
+  × Cannot find name 'TypeAliasForSomeClassNotFound'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:28:16]
+ 28 │ TypeAliasForSomeClassNotFound
+    · ─────────────────────────────
+    ╰────
+
+  × Cannot find name 'someType'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:30:11]
+ 30 │ someType
+    · ────────
+    ╰────
+
+Advice: 
+  ☞ 'someType' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:14:6]
+ 14 │ someType
+    · ────┬───
+    ·     ╰── 'someType' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:30:11]
+ 30 │ someType
+    · ────────
+    ╰────
+
+  × Cannot find name 'someType'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:32:17]
+ 32 │ someType
+    · ────────
+    ╰────
+
+Advice: 
+  ☞ 'someType' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:14:6]
+ 14 │ someType
+    · ────┬───
+    ·     ╰── 'someType' is defined here.
+    ╰────
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:32:17]
+ 32 │ someType
+    · ────────
+    ╰────
+
+  × Cannot find name 'someTypeNotFound'.
+    ╭─[../../tests/compiler/typeUsedAsValueError/index.ts:34:17]
+ 34 │ someTypeNotFound
+    · ────────────────
+    ╰────

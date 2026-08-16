@@ -677,14 +677,18 @@ impl<'cx> TyChecker<'cx> {
             return sig;
         }
 
-        self.invocation_error(expr.callee().span(), expr_ty, ty::SigKind::Constructor);
+        self.invocation_error(
+            expr.callee_most_right_span(),
+            expr_ty,
+            ty::SigKind::Constructor,
+        );
         self.resolve_error_call(expr)
     }
 
     fn invocation_error(
         &mut self,
         callee_span: Span,
-        _apparent_tyy: &'cx ty::Ty<'cx>,
+        _apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
         let error = if kind == ty::SigKind::Call {
@@ -727,7 +731,7 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(base_ty_node) = self.get_effective_base_type_node(n) {
                     let base_ctors = self.get_instantiated_constructors_for_type_arguments(
                         super_ty,
-                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.ty_args,
                         base_ty_node.id,
                     );
                     return self.resolve_call(
@@ -828,7 +832,11 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             } else {
-                self.invocation_error(expr.callee().span(), apparent_ty, ty::SigKind::Call);
+                self.invocation_error(
+                    expr.callee_most_right_span(),
+                    apparent_ty,
+                    ty::SigKind::Call,
+                );
             }
             return self.resolve_error_call(expr);
         }
@@ -1538,7 +1546,7 @@ impl<'cx> TyChecker<'cx> {
                 let hi = effective_call_arguments.last().span().hi();
                 Span::new(lo, hi, n.span().module())
             } else {
-                n.callee().span()
+                n.callee_most_right_span()
             };
             let error = errors::ExpectedXArgsButGotY {
                 span,

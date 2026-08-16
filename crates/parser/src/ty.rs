@@ -937,7 +937,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
 
         let start = self.token.start();
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, false>(false);
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl =

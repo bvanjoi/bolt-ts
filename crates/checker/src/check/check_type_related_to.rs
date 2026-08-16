@@ -370,8 +370,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     #[allow(clippy::too_many_arguments)]
     fn property_related_to(
         &mut self,
-        _sourcee: &'cx Ty<'cx>,
-        _targett: &'cx Ty<'cx>,
+        _source: &'cx Ty<'cx>,
+        _target: &'cx Ty<'cx>,
         source_prop: SymbolID,
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,

@@ -1,0 +1,18 @@
+  × A parameter property is only allowed in a constructor implementation.
+   ╭─[../../tests/compiler/ParameterList13/index.ts:6:10]
+ 6 │ public
+   · ──────
+   ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/ParameterList13/index.ts:6:10]
+ 6 │ public x
+   · ────────
+   ╰────
+
+  × Construct signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+   ╭─[../../tests/compiler/ParameterList13/index.ts:6:5]
+ 6 │ new (public x);
+   · ───────────────
+   ╰────

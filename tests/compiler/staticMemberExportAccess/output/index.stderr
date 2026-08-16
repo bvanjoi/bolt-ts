@@ -1,7 +1,7 @@
   × This expression is not constructable.
-    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:19:35]
- 19 │ new $.sammy
-    · ───────────
+    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:19:41]
+ 19 │ sammy
+    · ─────
     ╰────
 
   × Property 'bar' does not exist on type 'Sammy'.

@@ -6,6 +6,13 @@ pub trait CallLike<'cx>: std::fmt::Debug {
     fn ty_args(&self) -> Option<&'cx crate::Tys<'cx>>;
     fn args(&self) -> crate::Exprs<'cx>;
     fn span(&self) -> Span;
+    fn callee_most_right_span(&self) -> bolt_ts_span::Span {
+        let callee = self.callee();
+        match &callee.kind {
+            crate::ExprKind::PropAccess(n) => n.name.span,
+            _ => callee.span(),
+        }
+    }
 }
 
 impl<'cx> CallLike<'cx> for crate::CallExpr<'cx> {

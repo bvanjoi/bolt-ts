@@ -925,3 +925,10 @@ pub struct XDeclarationsCanOnlyBeDeclaredInsideABlock {
     pub span: Span,
     pub kind: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Abstract modifier can only appear within an abstract class.")]
+pub struct AbstractModifierCanOnlyAppearWithinAnAbstractClass {
+    #[label(primary)]
+    pub span: Span,
+}

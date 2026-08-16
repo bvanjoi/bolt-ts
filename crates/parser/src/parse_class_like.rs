@@ -181,12 +181,22 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             }
         }
 
+        let allow_abstract_modifier =
+            modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
         let elements = if let Some(ms) = modifiers
             && ms.flags.contains(ast::ModifierFlags::AMBIENT)
         {
-            self.do_inside_of_node_flags(ast::NodeFlags::AMBIENT, Self::parse_class_members)
+            self.do_inside_of_node_flags(ast::NodeFlags::AMBIENT, |this| {
+                if allow_abstract_modifier {
+                    this.parse_class_members::<true>()
+                } else {
+                    this.parse_class_members::<false>()
+                }
+            })
+        } else if allow_abstract_modifier {
+            self.parse_class_members::<true>()
         } else {
-            self.parse_class_members()
+            self.parse_class_members::<false>()
         };
         self.in_strict_mode = old_in_strict_mode;
         self.set_await_context(old_awaited_context);
@@ -460,7 +470,9 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         })
     }
 
-    fn parse_class_element(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
+    fn parse_class_element<const ALLOW_ABSTRACT_MODIFIER: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start();
 
         let token = self.token.kind;
@@ -484,7 +496,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             _ => {}
         }
 
-        let modifiers = self.parse_modifiers::<true, true>(true);
+        let modifiers = self.parse_modifiers::<true, true, ALLOW_ABSTRACT_MODIFIER>(true);
         let under_type_context = |this: &Self| {
             this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
                 || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
@@ -568,12 +580,18 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
         }))
     }
 
-    fn parse_class_members(&mut self) -> &'cx ast::ClassElems<'cx> {
+    fn parse_class_members<const ALLOW_ABSTRACT_MODIFIER: bool>(
+        &mut self,
+    ) -> &'cx ast::ClassElems<'cx> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
         let elems = self.do_outside_of_parse_context(
             ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
-            |this| this.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_element),
+            |this| {
+                this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
+                    this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
+                })
+            },
         );
         let end = self.token.end();
         self.expect(TokenKind::RBrace);

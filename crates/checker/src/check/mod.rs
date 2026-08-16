@@ -8492,7 +8492,7 @@ impl<'cx> TyChecker<'cx> {
         if target.get_object_flags().contains(ObjectFlags::CLASS)
             && let Some(base_ty_node) = self.get_base_type_node_of_class(ty)
             && !matches!(
-                base_ty_node.expr_with_ty_args.expr.kind,
+                base_ty_node.expr.kind,
                 ast::ExprKind::Ident(_) | ast::ExprKind::PropAccess(_)
             )
         {

@@ -20,4 +20,5 @@ function boo{
    //~| ERROR: Cannot find name 'test'.
    //~| ERROR: Cannot find name 'any'.
    //~| ERROR: Unexpected keyword or identifier.
+   //~| ERROR: An expression of type 'void' cannot be tested for truthiness.
 }

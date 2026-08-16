@@ -17,7 +17,8 @@ function boo {
   static test(name?:any){ }
   //~^ ERROR: Declaration or statement expected.
   //~| ERROR: Expression expected.
-  //~| ERROR:  Unexpected keyword or identifier.
   //~| ERROR: Cannot find name 'test'.
   //~| ERROR: Cannot find name 'any'.
+  //~| ERROR: Unexpected keyword or identifier.
+   //~| ERROR: An expression of type 'void' cannot be tested for truthiness.
 }

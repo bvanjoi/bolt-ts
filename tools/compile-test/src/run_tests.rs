@@ -48,6 +48,9 @@ impl TestCx<'_> {
                 if !expected_errors.is_empty() {
                     panic("it actually had some expected errors".to_string());
                 }
+                if self.props.skip_message_match() {
+                    panic!("skip-message-match had been marked but actual run success",);
+                }
                 assert!(self.props.fail_mode().is_none());
             }
             Err(errors) => {

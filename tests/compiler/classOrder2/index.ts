@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/abstractPropertyInConstructor.ts`, Apache-2.0 License
+
+//@compiler-options: target=es2015
 
 class A extends B { 
   //~^ ERROR: Class 'B' used before its declaration.

@@ -428,6 +428,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn parse_modifiers<
         const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool,
         const PERMIT_CONST_AS_MODIFIER: bool,
+        const ALLOW_ABSTRACT_MODIFIER: bool,
     >(
         &mut self,
         _allow_decorators: bool,
@@ -536,6 +537,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         };
                         self.push_error(Box::new(error));
                     }
+                }
+                ast::ModifierKind::Abstract if !ALLOW_ABSTRACT_MODIFIER => {
+                    let error = errors::AbstractModifierCanOnlyAppearWithinAnAbstractClass {
+                        span: m.span(),
+                    };
+                    self.push_error(Box::new(error));
                 }
                 _ => {}
             }
@@ -724,7 +731,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         &mut self,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.full_start_pos as u32;
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, false>(false);
         const INVALID_MODIFIERS: ast::ModifierFlags = ast::ModifierFlags::STATIC
             .union(ast::ModifierFlags::EXPORT)
             .union(ast::ModifierFlags::AMBIENT);
@@ -828,7 +835,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers::<false, false>(false);
+                this.parse_modifiers::<false, false, false>(false);
             }
             if this.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();

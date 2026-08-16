@@ -18,13 +18,6 @@ pub struct DeclNameCannotBe {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Abstract methods can only appear within an abstract class.")]
-pub struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Catch clause variable cannot have an initializer.")]
 pub struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
     #[label(primary)]

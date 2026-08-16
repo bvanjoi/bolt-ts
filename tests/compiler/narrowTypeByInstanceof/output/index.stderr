@@ -1,0 +1,35 @@
+  × Variable 'elementA' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:22:5]
+ 22 │ elementA
+    · ────────
+    ╰────
+
+  × Variable 'elementB' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:22:38]
+ 22 │ elementB
+    · ────────
+    ╰────
+
+  × Variable 'elementB' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:22:38]
+ 22 │ elementB
+    · ────────
+    ╰────
+
+  × Variable 'elementA' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:28:12]
+ 28 │ elementA
+    · ────────
+    ╰────
+
+  × Variable 'elementB' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:28:41]
+ 28 │ elementB
+    · ────────
+    ╰────
+
+  × Variable 'elementB' is used before being assigned.
+    ╭─[../../tests/compiler/narrowTypeByInstanceof/index.ts:28:41]
+ 28 │ elementB
+    · ────────
+    ╰────

@@ -1,0 +1,29 @@
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/indexerReturningTypeParameter1/index.ts:9:9]
+ 9 │ a
+   · ─
+   ╰────
+
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/indexerReturningTypeParameter1/index.ts:9:9]
+ 9 │ a
+   · ─
+   ╰────
+
+  × Type 'null' is not assignable to type '{ [key: string]: T[] }'.
+    ╭─[../../tests/compiler/indexerReturningTypeParameter1/index.ts:15:16]
+ 15 │ null
+    · ────
+    ╰────
+
+  × Variable 'a2' is used before being assigned.
+    ╭─[../../tests/compiler/indexerReturningTypeParameter1/index.ts:20:10]
+ 20 │ a2
+    · ──
+    ╰────
+
+  × Variable 'a2' is used before being assigned.
+    ╭─[../../tests/compiler/indexerReturningTypeParameter1/index.ts:20:10]
+ 20 │ a2
+    · ──
+    ╰────

@@ -1,0 +1,5 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/mutuallyRecursiveGenericBaseTypes1/index.ts:17:1]
+ 17 │ b
+    · ─
+    ╰────

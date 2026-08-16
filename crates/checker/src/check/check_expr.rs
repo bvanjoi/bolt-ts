@@ -1877,7 +1877,7 @@ impl<'cx> TyChecker<'cx> {
         cond: &'cx ast::CondExpr<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.check_expression::<false>(cond.cond, check_mode);
+        let ty = self.check_truthiness_expr(cond.cond, check_mode);
         self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
             cond.cond,
             ty,
@@ -2156,7 +2156,7 @@ impl<'cx> TyChecker<'cx> {
                     );
                     properties_array.push(member_symbol);
 
-                    if let Some(_contextual_tyy) = contextual_ty
+                    if let Some(_contextual_ty) = contextual_ty
                         && check_mode.contains(CheckMode::INFERENTIAL)
                         && !check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
                         && matches!(member.kind, PropAssignment(_) | Method(_))
@@ -2224,7 +2224,10 @@ impl<'cx> TyChecker<'cx> {
                         );
                         offset = properties_array.len();
                     } else {
-                        // TODO: error
+                        let error = errors::SpreadTypesMayOnlyBeCreatedFromObjectTypes {
+                            span: member.span(),
+                        };
+                        self.push_error(Box::new(error));
                         spread = self.error_ty;
                     }
                 }

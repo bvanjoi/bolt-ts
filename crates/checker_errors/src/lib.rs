@@ -2130,3 +2130,10 @@ pub struct ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTh
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Spread types may only be created from object types.")]
+pub struct SpreadTypesMayOnlyBeCreatedFromObjectTypes {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -118,6 +118,9 @@ impl<'cx> TyChecker<'cx> {
                 self.get_contextual_ty_for_class_property_element(parent, flags)
             }
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
+            ObjectBindingElem(parent) => {
+                self.get_contextual_ty_for_object_binding_element(parent, id, flags)
+            }
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
             YieldExpr(n) => self.get_contextual_ty_for_yield_op(n, flags),
             ArrayLit(parent) => {
@@ -660,16 +663,49 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
+    fn get_contextual_ty_for_object_binding_element(
+        &mut self,
+        parent: &'cx ast::ObjectBindingElem<'cx>,
+        node: ast::NodeID,
+        _context_flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
+        if parent.init.is_some_and(|init| init.id() == node) {
+            let parent_parent_id = self.parent(parent.id).unwrap();
+            debug_assert!(self.p.node(parent_parent_id).is_object_pat());
+            let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
+            let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
+                ast::Node::VarDecl(n) => {
+                    // TODO: init_ty
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                }
+                _ => {
+                    // TODO: other cases
+                    None
+                }
+            }?;
+            let prop_name = parent.name.name();
+            let name_ty = self.get_literal_ty_from_prop_name(&prop_name);
+            if name_ty.usable_as_prop_name() {
+                let text = self.get_prop_name_from_ty(name_ty);
+                self.get_ty_of_prop_of_ty(parent_parent_parent_ty, text)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     fn get_contextual_ty_for_array_binding(
         &mut self,
         parent: &'cx ast::ArrayBinding<'cx>,
         node: ast::NodeID,
-        _context_flagss: Option<ContextFlags>,
+        _context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
-            let _namee = parent.name;
             let parent_parent_id = self.parent(parent.id).unwrap();
             debug_assert!(self.p.node(parent_parent_id).is_array_pat());
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
