@@ -3,6 +3,7 @@ use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::state::is_jsx_like_variant;
+use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
@@ -567,8 +568,8 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus) {
             self.parse_prefix_unary_expr(Self::parse_left_hand_side_expr_or_higher)
-        } else if self.token.kind == TokenKind::Less
-            && is_jsx_like_variant(VARIANT)
+        } else if is_jsx_like_variant(VARIANT)
+            && self.token.kind == TokenKind::Less
             && self
                 .lookahead(Lookahead::next_token_is_ident_or_keyword_or_great)
                 .unwrap_or_default()
@@ -1417,7 +1418,9 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     expr = self.alloc(ast::Expr { kind });
                     continue;
                 }
-                if let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())? {
+                if is_ts_like_variant(VARIANT)
+                    && let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())?
+                {
                     let span = self.new_span(start as u32);
                     let ele = self.create_expression_with_type_arguments(span, expr, Some(ty_args));
                     expr = self.alloc(ast::Expr {

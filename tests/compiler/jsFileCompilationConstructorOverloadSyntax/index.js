@@ -9,3 +9,5 @@ class A {
   //~^ ERROR: Signature declarations can only be used in TypeScript files.
   //~| ERROR: Constructor implementation is missing.
 }
+
+1 << 5

@@ -474,30 +474,55 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 ast::ModifierKind::Public
                 | ast::ModifierKind::Protected
                 | ast::ModifierKind::Private => {
-                    if flags.contains(ast::ModifierFlags::STATIC) {
-                        push_precede_error(self, m, ast::ModifierKind::Static);
-                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
-                        push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierFlags::READONLY) {
-                        push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
-                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    const FLAGS: ast::ModifierFlags = ast::ModifierFlags::STATIC
+                        .union(ast::ModifierFlags::ACCESSOR)
+                        .union(ast::ModifierFlags::READONLY)
+                        .union(ast::ModifierFlags::ASYNC);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::STATIC) {
+                            push_precede_error(self, m, ast::ModifierKind::Static);
+                        }
+                        if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                            push_precede_error(self, m, ast::ModifierKind::Accessor);
+                        }
+                        if flags.contains(ast::ModifierFlags::READONLY) {
+                            push_precede_error(self, m, ast::ModifierKind::Readonly);
+                        }
+                        if flags.contains(ast::ModifierFlags::ASYNC) {
+                            push_precede_error(self, m, ast::ModifierKind::Async);
+                        }
                     }
                 }
                 ast::ModifierKind::Static => {
-                    if flags.contains(ast::ModifierFlags::READONLY) {
-                        push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
-                        push_precede_error(self, m, ast::ModifierKind::Async);
-                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
-                        push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierFlags::OVERRIDE) {
-                        push_precede_error(self, m, ast::ModifierKind::Override);
+                    const FLAGS: ast::ModifierFlags = ast::ModifierFlags::READONLY
+                        .union(ast::ModifierFlags::ASYNC)
+                        .union(ast::ModifierFlags::ACCESSOR)
+                        .union(ast::ModifierFlags::OVERRIDE);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::READONLY) {
+                            push_precede_error(self, m, ast::ModifierKind::Readonly);
+                        }
+                        if flags.contains(ast::ModifierFlags::ASYNC) {
+                            push_precede_error(self, m, ast::ModifierKind::Async);
+                        }
+                        if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                            push_precede_error(self, m, ast::ModifierKind::Accessor);
+                        }
+                        if flags.contains(ast::ModifierFlags::OVERRIDE) {
+                            push_precede_error(self, m, ast::ModifierKind::Override);
+                        }
                     }
                 }
                 ast::ModifierKind::Export => {
-                    if flags.contains(ast::ModifierFlags::EXPORT) {
-                        push_already_seen_error(self, m);
+                    const FLAGS: ast::ModifierFlags =
+                        ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::AMBIENT);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::EXPORT) {
+                            push_already_seen_error(self, m);
+                        }
+                        if flags.contains(ast::ModifierFlags::AMBIENT) {
+                            push_precede_error(self, m, ast::ModifierKind::Ambient);
+                        }
                     }
                 }
                 ast::ModifierKind::Ambient => {

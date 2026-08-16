@@ -4,6 +4,12 @@
     · ───────
     ╰────
 
+  × 'export' modifier must precede 'declare' modifier.
+    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:10:13]
+ 10 │ export
+    · ──────
+    ╰────
+
   × A 'declare' modifier cannot be used with an import declaration.
     ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:10:5]
  10 │ declare
@@ -11,20 +17,20 @@
     ╰────
 
   × A 'declare' modifier cannot be used in an already ambient context.
-    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:13:5]
- 13 │ declare
+    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:14:5]
+ 14 │ declare
     · ───────
     ╰────
 
   × A 'declare' modifier cannot be used with an import declaration.
-    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:21:1]
- 21 │ declare
+    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:22:1]
+ 22 │ declare
     · ───────
     ╰────
 
   × An import declaration can only be used at the top level of a namespace or
   │ module.
-    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:25:3]
- 25 │ import
+    ╭─[../../tests/compiler/importDeclWithDeclareModifierInAmbientContext/index.ts:26:3]
+ 26 │ import
     · ──────
     ╰────

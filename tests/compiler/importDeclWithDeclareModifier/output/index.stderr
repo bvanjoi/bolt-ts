@@ -1,0 +1,17 @@
+  × 'export' modifier must precede 'declare' modifier.
+   ╭─[../../tests/compiler/importDeclWithDeclareModifier/index.ts:9:9]
+ 9 │ export
+   · ──────
+   ╰────
+
+  × A 'declare' modifier cannot be used with an import declaration.
+   ╭─[../../tests/compiler/importDeclWithDeclareModifier/index.ts:9:1]
+ 9 │ declare
+   · ───────
+   ╰────
+
+  × Namespace 'x' has no exported member 'c'.
+   ╭─[../../tests/compiler/importDeclWithDeclareModifier/index.ts:9:29]
+ 9 │ c
+   · ─
+   ╰────
