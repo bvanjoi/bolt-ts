@@ -1,0 +1,7 @@
+  × Conversion of type 'undefined' to type 'number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/castOfAwait/index.ts:9:32]
+ 9 │ <number> void await 0
+   · ─────────────────────
+   ╰────

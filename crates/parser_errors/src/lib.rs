@@ -932,3 +932,10 @@ pub struct AbstractModifierCanOnlyAppearWithinAnAbstractClass {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Invalid optional chain from new expression.")]
+pub struct InvalidOptionalChainFromNewExpression {
+    #[label(primary)]
+    pub span: Span,
+}

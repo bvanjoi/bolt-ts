@@ -13,7 +13,7 @@
     ╰────
 
   × '}' expected.
-   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:15:1]
    ╰────
 
 Advice: 
@@ -24,7 +24,7 @@ Advice:
    ╰────
 
   × '}' expected.
-   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:15:1]
    ╰────
 
 Advice: 
@@ -35,7 +35,7 @@ Advice:
    ╰────
 
   × Expected '}'.
-   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:14:2]
+   ╭─[../../tests/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword/index.ts:15:1]
    ╰────
 
   × Cannot find name 'B'.

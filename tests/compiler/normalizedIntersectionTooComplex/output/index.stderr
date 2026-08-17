@@ -1,0 +1,5 @@
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/normalizedIntersectionTooComplex/index.ts:39:40]
+ 39 │ x
+    · ─
+    ╰────

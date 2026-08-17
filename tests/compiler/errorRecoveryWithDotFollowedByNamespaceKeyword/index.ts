@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/errorRecoveryInClassDeclaration.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
 //@skip-message-match

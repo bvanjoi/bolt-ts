@@ -145,8 +145,6 @@ impl<'cx> TyChecker<'cx> {
                             if let Some(parent_ty) =
                                 self.get_ty_for_binding_element_parent(n.id, parent_check_mode)
                                 && let name = elem.name.name()
-                                // TODO: more property name
-                                && let ast::PropNameKind::Ident(_) = name
                                 && let expr_ty = self.get_literal_ty_from_prop_name(&name)
                                 && expr_ty.usable_as_prop_name()
                                 && let name_text = self.get_prop_name_from_ty(expr_ty)

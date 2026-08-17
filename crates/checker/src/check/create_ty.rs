@@ -2133,7 +2133,16 @@ impl<'cx> TyChecker<'cx> {
                 Entry::Occupied(mut occ) => {
                     let right_prop = *occ.get();
                     let s = self.symbol(right_prop);
-                    if s.flags.intersects(SymbolFlags::OPTIONAL) {
+                    if s.flags.contains(SymbolFlags::OPTIONAL) {
+                        let declarations = match (left_prop_symbol.decls.clone(), s.decls.clone()) {
+                            (None, None) => None,
+                            (None, Some(right)) => Some(right),
+                            (Some(left), None) => Some(left),
+                            (Some(mut left), Some(right)) => Some({
+                                left.extend(right);
+                                left
+                            }),
+                        };
                         let flags = SymbolFlags::PROPERTY.union(SymbolFlags::TRANSIENT)
                             | left_prop_symbol_flags.intersection(SymbolFlags::OPTIONAL);
                         let name = s.name;
@@ -2161,9 +2170,15 @@ impl<'cx> TyChecker<'cx> {
                         if let Some(name_ty) = self.get_symbol_links(*left_prop).get_name_ty() {
                             links = links.with_name_ty(name_ty);
                         }
-                        // TODO: left_spread, right_spread, declarations
-                        let result =
-                            self.create_transient_symbol(name, flags, links, None, None, None);
+                        // TODO: left_spread, right_spread
+                        let result = self.create_transient_symbol(
+                            name,
+                            flags,
+                            links,
+                            declarations,
+                            None,
+                            None,
+                        );
                         occ.insert(result);
                     }
                 }

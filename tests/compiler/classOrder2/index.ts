@@ -1,4 +1,4 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/abstractPropertyInConstructor.ts`, Apache-2.0 License
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/classOrder2.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
 

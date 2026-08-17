@@ -1188,6 +1188,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
+        if self.token.kind == TokenKind::QuestionDot {
+            let error = errors::InvalidOptionalChainFromNewExpression {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+        }
         let args = if self.token.kind == TokenKind::LParen {
             Some(self.parse_args())
         } else {

@@ -2476,10 +2476,7 @@ impl<'cx> TyChecker<'cx> {
                 if t.get_object_flags()
                     .contains(ObjectFlags::CONTAINS_WIDENING_TYPE)
                 {
-                    if error_reported {
-                        break;
-                    }
-                    error_reported |= self.report_widening_errors_in_ty(t);
+                    error_reported = self.report_widening_errors_in_ty(t);
                     if !error_reported {
                         let s = self.symbol(p);
                         let Some(decls) = s.decls.as_ref() else {
@@ -2517,7 +2514,7 @@ impl<'cx> TyChecker<'cx> {
         error_reported
     }
 
-    fn report_errors_from_widening(
+    pub(super) fn report_errors_from_widening(
         &mut self,
         decl: ast::NodeID,
         ty: &'cx ty::Ty<'cx>,

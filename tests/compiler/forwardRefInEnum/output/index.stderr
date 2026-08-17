@@ -1,0 +1,27 @@
+  × A member initializer in a enum declaration cannot reference members
+  │ declared after it, including members defined in other enums.
+   ╭─[../../tests/compiler/forwardRefInEnum/index.ts:8:5]
+ 8 │ X = Y
+   · ─────
+   ╰────
+
+  × A member initializer in a enum declaration cannot reference members
+  │ declared after it, including members defined in other enums.
+    ╭─[../../tests/compiler/forwardRefInEnum/index.ts:10:5]
+ 10 │ X1 = E1["Y"]
+    · ────────────
+    ╰────
+
+  × A member initializer in a enum declaration cannot reference members
+  │ declared after it, including members defined in other enums.
+    ╭─[../../tests/compiler/forwardRefInEnum/index.ts:13:5]
+ 13 │ Y = E1.Z
+    · ────────
+    ╰────
+
+  × A member initializer in a enum declaration cannot reference members
+  │ declared after it, including members defined in other enums.
+    ╭─[../../tests/compiler/forwardRefInEnum/index.ts:15:5]
+ 15 │ Y1 = E1["Z"]
+    · ────────────
+    ╰────

@@ -1,0 +1,119 @@
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+   ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:7:6]
+ 7 │ [foo]
+   · ─────
+   ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:14:6]
+ 14 │ [foo2()]
+    · ────────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:17:7]
+ 17 │ [foo]
+    · ─────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:19:7]
+ 19 │ [foo2()]
+    · ────────
+    ╰────
+
+  × Type '{ bar: number; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:23:14]
+ 23 │ [foo]
+    · ─────
+    ╰────
+
+  × Type '{ bar: number; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:25:14]
+ 25 │ [foo2()]
+    · ────────
+    ╰────
+
+  × Type '{ bar: number; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:27:15]
+ 27 │ [foo]
+    · ─────
+    ╰────
+
+  × Type '{ bar: number; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:29:15]
+ 29 │ [foo2()]
+    · ────────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:33:8]
+ 33 │ foo
+    · ───
+    ╰────
+
+  × Type 'any' cannot be used as an index type.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:33:7]
+ 33 │ [foo()]
+    · ───────
+    ╰────
+
+  × Property 'toExponential' does not exist on type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:36:12]
+ 36 │ toExponential
+    · ─────────────
+    ╰────
+
+  × Type 'any' cannot be used as an index type.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:36:7]
+ 36 │ [foo.toExponential()]
+    · ─────────────────────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:41:3]
+ 41 │ [foo]
+    · ─────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:46:3]
+ 46 │ [foo2()]
+    · ────────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:49:3]
+ 49 │ [foo]
+    · ─────
+    ╰────
+
+  × Type '{ bar: string; }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:51:3]
+ 51 │ [foo2()]
+    · ────────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:54:4]
+ 54 │ foo
+    · ───
+    ╰────
+
+  × Type 'any' cannot be used as an index type.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:54:3]
+ 54 │ [foo()]
+    · ───────
+    ╰────
+
+  × Operator '+' cannot be applied to types '1' and '{ }'.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:58:5]
+ 58 │ 1 + {}
+    · ──────
+    ╰────
+
+  × Type 'any' cannot be used as an index type.
+    ╭─[../../tests/compiler/computedPropertiesInDestructuring1_ES6/index.ts:58:3]
+ 58 │ [(1 + {})]
+    · ──────────
+    ╰────

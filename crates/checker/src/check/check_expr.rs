@@ -2359,7 +2359,6 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     ObjectFlags::empty()
                 };
-            // TODO: is_js_object_literal
 
             let res = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
