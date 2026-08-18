@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/promiseType.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: target=es2015
 
 
 async function A() {

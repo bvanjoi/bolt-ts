@@ -494,6 +494,7 @@ dependencies = [
  "bolt_ts_checker",
  "bolt_ts_config",
  "bolt_ts_ecma_logical",
+ "bolt_ts_scanner",
  "bolt_ts_span",
  "bolt_ts_utils",
  "nohash-hasher",

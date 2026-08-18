@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typePredicateFreshLiteralWidening.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var satisfies = () => ((narrow) => (narrow));
 var isNotNull = (value) => (value !== null);
 var item1 = satisfies()({

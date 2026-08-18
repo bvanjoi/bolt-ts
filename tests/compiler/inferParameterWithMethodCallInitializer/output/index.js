@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/inferParameterWithMethodCallInitializer.ts`, Apache-2.0 License
 function getNumber() {
   return 1;
 }

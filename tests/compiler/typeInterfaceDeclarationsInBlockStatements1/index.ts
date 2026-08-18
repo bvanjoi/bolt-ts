@@ -1,10 +1,40 @@
-//@ run-fail
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typeInterfaceDeclarationsInBlockStatements1.ts`, Apache-2.0 License
 
-// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/typeInferenceWithTypeAnnotation.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
+//@compiler-options: declaration
 
-declare function f<T>(p: (t: T) => T): T;
+// https://github.com/microsoft/TypeScript/issues/60175
 
-f((n: number) => n); 
+function f1() {
+  if (true) type s = string;
+  //~^ ERROR: 'type' declarations can only be declared inside a block.
+  console.log("" as s);
+}
 
-let n0: number = f((n: number) => n);
-let n1: string = f((n: string) => n);
+function f2() {
+  if (true) {
+    type s = string;
+  }
+  console.log("" as s);
+  //~^ ERROR: Cannot find name 's'.
+}
+
+function f3() {
+  if (true)
+    interface s {
+      //~^ ERROR: 'interface' declarations can only be declared inside a block.
+      length: number;
+    }
+  console.log("" as s);
+}
+
+function f4() {
+  if (true) {
+    interface s {
+      length: number;
+    }
+  }
+  console.log("" as s);
+  //~^ ERROR: Cannot find name 's'.
+}

@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/staticPrototypePropertyOnClass.ts`, Apache-2.0 License
 class c1 {}
 class c2 {}
 class c3 {

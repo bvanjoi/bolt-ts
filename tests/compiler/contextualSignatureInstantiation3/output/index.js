@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/contextualSignatureInstantiation3.ts`, Apache-2.0 License
 function map(items, f) {
   return items.map(f);
 }

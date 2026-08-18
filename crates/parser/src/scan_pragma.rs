@@ -1,9 +1,9 @@
 use bolt_ts_ast::keyword;
 use bolt_ts_atom::Atom;
+use bolt_ts_scanner::is_line_break;
 
-use crate::FileReference;
-
-use super::{PResult, scan::is_line_break};
+use super::FileReference;
+use super::PResult;
 
 enum State {
     ExpectEq,

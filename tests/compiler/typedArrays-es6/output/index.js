@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typedArrays-es6.ts`, Apache-2.0 License
+//@compiler-options: strict=false
+//@compiler-options: target=ES6
 var float32Array = new Float32Array(1);
 [...float32Array];
 var float64Array = new Float64Array(1);

@@ -1,0 +1,17 @@
+  × 'S18' is referenced directly or indirectly in its own base expression.
+   ╭─[../../tests/compiler/complicatedGenericRecursiveBaseClassReference/index.ts:5:7]
+ 5 │ S18
+   · ───
+   ╰────
+
+  × Expected 0 arguments, but got 1.
+   ╭─[../../tests/compiler/complicatedGenericRecursiveBaseClassReference/index.ts:9:6]
+ 9 │ S18
+   · ───
+   ╰────
+
+  × Property 'S18' does not exist on type 'S18<unknown, unknown, unknown>'.
+   ╭─[../../tests/compiler/complicatedGenericRecursiveBaseClassReference/index.ts:9:16]
+ 9 │ S18
+   · ───
+   ╰────

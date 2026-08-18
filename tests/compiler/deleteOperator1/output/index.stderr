@@ -1,0 +1,41 @@
+  × 'delete' cannot be called on an identifier in strict mode.
+   ╭─[../../tests/compiler/deleteOperator1/index.ts:6:18]
+ 6 │ delete a
+   · ────────
+   ╰────
+
+  × 'delete' cannot be called on an identifier in strict mode.
+   ╭─[../../tests/compiler/deleteOperator1/index.ts:9:14]
+ 9 │ delete a
+   · ────────
+   ╰────
+
+  × 'delete' cannot be called on an identifier in strict mode.
+    ╭─[../../tests/compiler/deleteOperator1/index.ts:12:17]
+ 12 │ delete a
+    · ────────
+    ╰────
+
+  × The operand of a 'delete' operator must be a property reference.
+   ╭─[../../tests/compiler/deleteOperator1/index.ts:6:25]
+ 6 │ a
+   · ─
+   ╰────
+
+  × The operand of a 'delete' operator must be a property reference.
+   ╭─[../../tests/compiler/deleteOperator1/index.ts:9:21]
+ 9 │ a
+   · ─
+   ╰────
+
+  × The operand of a 'delete' operator must be a property reference.
+    ╭─[../../tests/compiler/deleteOperator1/index.ts:12:24]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Type 'boolean' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/deleteOperator1/index.ts:12:5]
+ 12 │ z
+    · ─
+    ╰────

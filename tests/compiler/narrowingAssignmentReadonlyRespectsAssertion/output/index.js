@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingAssignmentReadonlyRespectsAssertion.ts`, Apache-2.0 License
 function subDataFunc() {
   return [{
       val1: 'a',

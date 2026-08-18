@@ -24,6 +24,7 @@ pub fn optimize_and_js_emit<'cx>(
                 None
             } else {
                 let resolver = EmitResolver::new(checker);
+                // TODO: remove `to_string`.
                 let origin = resolver.module_content(item).to_string();
                 let files_output = emit::emit_js(resolver, item, origin);
                 Some((item, files_output))

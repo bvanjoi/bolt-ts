@@ -961,6 +961,13 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             Self::parse_object_ty_members,
         );
         let span = self.new_span(start);
+        self.check_allow_block_declaration(|this| {
+            let error = errors::XDeclarationsCanOnlyBeDeclaredInsideABlock {
+                span: name.span,
+                kind: "interface".to_string(),
+            };
+            this.push_error(Box::new(error));
+        });
         self.create_interface_declaration(span, modifiers, name, ty_params, extends, members)
     }
 

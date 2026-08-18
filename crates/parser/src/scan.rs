@@ -1,19 +1,14 @@
 use std::borrow::Cow;
 
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-use bolt_ts_scanner::is_non_ascii_identifier_start;
 use bolt_ts_scanner::{is_ascii_identifier_part, is_ascii_identifier_start};
 use bolt_ts_scanner::{is_identifier_part, is_identifier_start};
+use bolt_ts_scanner::{is_line_break, is_non_ascii_identifier_start};
 use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
 use bolt_ts_span::Span;
 
 use super::{CommentDirective, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
-
-#[inline(always)]
-pub(super) fn is_line_break(ch: u8) -> bool {
-    ch == b'\n' || ch == b'\r'
-}
 
 #[inline(always)]
 fn is_octal_digit(ch: u8) -> bool {
@@ -498,10 +493,6 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        let c = bolt_ts_ast::SingleLineComment {
-                            span: Span::new(start as u32, self.pos as u32, self.module_id),
-                        };
-                        self.comments.push(bolt_ts_ast::Comment::SingleLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -514,10 +505,6 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
-                        let c = bolt_ts_ast::MultiLineComment {
-                            span: Span::new(start as u32, self.pos as u32, self.module_id),
-                        };
-                        self.comments.push(bolt_ts_ast::Comment::MultiLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;

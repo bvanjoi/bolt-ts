@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/valueOfTypedArray.ts`, Apache-2.0 License
 var typedArray0 = (new Int8Array()).valueOf();
 var typedArray1 = (new Uint8Array()).valueOf();
 var typedArray2 = (new Int16Array()).valueOf();

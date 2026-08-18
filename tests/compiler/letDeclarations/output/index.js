@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/letDeclarations.ts`, Apache-2.0 License
+//@compiler-options: target=ES6
 var l1;
 var l2;
 var l3, l4, l5, l6;

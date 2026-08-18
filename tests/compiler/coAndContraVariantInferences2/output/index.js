@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/coAndContraVariantInferences2.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
 function f1(a, b) {
   var x1 = cast(a, isC);
   var x2 = cast(b, isC);

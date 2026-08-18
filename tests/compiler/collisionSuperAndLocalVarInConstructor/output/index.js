@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/objectLiteralsAgainstUnionsOfArrays01.ts`, Apache-2.0 License
 var _super = 10;
 class Foo {
   constructor() {var _super = 10;}

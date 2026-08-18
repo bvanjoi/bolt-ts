@@ -1,0 +1,23 @@
+  × 'type' declarations can only be declared inside a block.
+    ╭─[../../tests/compiler/typeInterfaceDeclarationsInBlockStatements1/index.ts:10:18]
+ 10 │ s
+    · ─
+    ╰────
+
+  × 'interface' declarations can only be declared inside a block.
+    ╭─[../../tests/compiler/typeInterfaceDeclarationsInBlockStatements1/index.ts:25:15]
+ 25 │ s
+    · ─
+    ╰────
+
+  × Cannot find name 's'.
+    ╭─[../../tests/compiler/typeInterfaceDeclarationsInBlockStatements1/index.ts:19:21]
+ 19 │ s
+    · ─
+    ╰────
+
+  × Cannot find name 's'.
+    ╭─[../../tests/compiler/typeInterfaceDeclarationsInBlockStatements1/index.ts:38:21]
+ 38 │ s
+    · ─
+    ╰────

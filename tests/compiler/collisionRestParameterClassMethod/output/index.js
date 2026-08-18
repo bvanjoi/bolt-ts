@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionRestParameterClassMethod.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 class c1 {
   foo(_i, ...restParameters) {
     var _i = 10;

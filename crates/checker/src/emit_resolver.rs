@@ -1,4 +1,5 @@
 use bolt_ts_ast as ast;
+use bolt_ts_config::NormalizedTsConfig;
 
 use super::check::EnumMemberValue;
 use super::check::TyChecker;
@@ -22,6 +23,10 @@ impl<'cx, 'a> EmitResolver<'cx, 'a> {
             unreachable!()
         };
         node_links.expect_enum_member_value()
+    }
+
+    pub fn config(&self) -> &NormalizedTsConfig {
+        &self.checker.config
     }
 
     pub fn program(&self, module_id: bolt_ts_span::ModuleID) -> &'cx ast::Program<'cx> {

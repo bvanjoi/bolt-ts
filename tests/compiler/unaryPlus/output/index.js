@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/unaryPlus.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var a = +1;
 var b = +('');
 var E = {};

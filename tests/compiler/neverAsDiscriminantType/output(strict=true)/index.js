@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/neverAsDiscriminantType.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function f1(foo) {
   if (foo.kind === 'a') {
     foo.a;

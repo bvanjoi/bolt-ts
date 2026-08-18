@@ -36,7 +36,6 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
-    pub(super) comments: Vec<ast::Comment>,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
@@ -117,7 +116,6 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
-            comments: Vec::with_capacity(16),
 
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),

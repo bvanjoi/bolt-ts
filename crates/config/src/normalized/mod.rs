@@ -44,15 +44,16 @@ bitflags::bitflags! {
         const RESOLVE_JSON_MODULE                       = 1 << 17;
         const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 18;
         const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 19;
+        const REMOVE_COMMENTS                           = 1 << 20;
 
-        const ALWAYS_STRICT                             = 1 << 20;
-        const DECLARATION                               = 1 << 21;
-        const PRESERVE_SYMLINKS                         = 1 << 22;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 23;
-        const ES_MODULE_INTEROP                         = 1 << 24;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 25;
-        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 26;
-        const CHECK_JS                                  = 1 << 27;
+        const ALWAYS_STRICT                             = 1 << 21;
+        const DECLARATION                               = 1 << 22;
+        const PRESERVE_SYMLINKS                         = 1 << 23;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 24;
+        const ES_MODULE_INTEROP                         = 1 << 25;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 26;
+        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 27;
+        const CHECK_JS                                  = 1 << 28;
     }
 }
 
@@ -207,6 +208,11 @@ impl NormalizedCompilerOptions {
     pub const fn resolve_package_json_imports(&self) -> bool {
         self.flags
             .contains(CompilerOptionFlags::RESOLVE_PACKAGE_JSON_IMPORTS)
+    }
+
+    #[inline(always)]
+    pub const fn remove_comments(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::REMOVE_COMMENTS)
     }
 
     pub fn import_syntax_affects_module_resolution(&self) -> bool {

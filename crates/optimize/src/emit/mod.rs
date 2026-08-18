@@ -621,12 +621,34 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
             this.emit_module_block_contents(block, &param_name);
         });
     }
+
+    fn emit_leading_comments(&mut self, pos: u32) {
+        if self.resolver.config().compiler_options().remove_comments() {
+            return;
+        }
+        bolt_ts_scanner::iterate_comment_ranges::<false, false>(
+            &self.origin,
+            pos as usize,
+            |kind, start, end, has_trailing_newline| {
+                let comment = &self.origin[start..end];
+                self.emitter.print().p(comment);
+                if has_trailing_newline {
+                    self.emitter.print().p_newline();
+                } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
+                    self.emitter.print().p_whitespace();
+                }
+                false
+            },
+        );
+    }
 }
 
 impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
     type Result = ();
 
     fn visit_program(&mut self, node: &'cx ast::Program<'cx>) -> Self::Result {
+        let span = node.span();
+        self.emit_leading_comments(span.lo());
         let mut first = true;
         for stmt in node.stmts() {
             if self.stmt_is_omitted(stmt) {

@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/nestedBlockScopedBindings4.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function a0() {
   for ( var x; x < 1; ) {
     x = x + 1;

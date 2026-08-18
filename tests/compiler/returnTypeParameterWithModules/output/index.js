@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/returnTypeParameterWithModules.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var M1 = {};
 (function (M1) {
 

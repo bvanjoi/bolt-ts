@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/assignmentNestedInLiterals.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var target, x, y;
 target = [x = 1, y = x];
 var aegis, a, b;
