@@ -1,0 +1,19 @@
+  × Class 'c1' incorrectly implements interface 'i1'.
+   ╭─[../../tests/compiler/privateInterfaceProperties/index.ts:8:21]
+ 8 │ i1
+   · ──
+   ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/privateInterfaceProperties/index.ts:8:34]
+ 8 │ name
+   · ────
+   ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/privateInterfaceProperties/index.ts:13:33]
+ 13 │ name
+    · ────
+    ╰────

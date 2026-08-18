@@ -1,0 +1,26 @@
+  × Element implicitly has an 'any' type because expression of type 'string'
+  │ can't be used to index type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyForIn/index.ts:12:18]
+ 12 │ x[i][j]
+    · ───────
+    ╰────
+
+  × Element implicitly has an 'any' type because expression of type 'string'
+  │ can't be used to index type '{ }'.
+    ╭─[../../tests/compiler/noImplicitAnyForIn/index.ts:20:18]
+ 20 │ k1[k]
+    · ─────
+    ╰────
+
+  × This kind of expression is always truthy.
+    ╭─[../../tests/compiler/noImplicitAnyForIn/index.ts:35:9]
+ 35 │ [[]]
+    · ────
+    ╰────
+
+  × The left-hand side of a 'for...in' statement must be of type 'string' or
+  │ 'any'.
+    ╭─[../../tests/compiler/noImplicitAnyForIn/index.ts:38:6]
+ 38 │ n[idx++]
+    · ────────
+    ╰────

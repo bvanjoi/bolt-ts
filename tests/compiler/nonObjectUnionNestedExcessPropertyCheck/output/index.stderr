@@ -1,0 +1,20 @@
+  × Object literal may only specify known properties, and 'INVALID_PROP_NAME'
+  │ does not exist in type 'IProps'.
+    ╭─[../../tests/compiler/nonObjectUnionNestedExcessPropertyCheck/index.ts:17:35]
+ 17 │ INVALID_PROP_NAME
+    · ─────────────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'asdfasdf' does not
+  │ exist in type '{ testBool: undefined | false | true; }'.
+    ╭─[../../tests/compiler/nonObjectUnionNestedExcessPropertyCheck/index.ts:21:49]
+ 21 │ asdfasdf
+    · ────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'INVALID_PROP_NAME'
+  │ does not exist in type 'IProps'.
+    ╭─[../../tests/compiler/nonObjectUnionNestedExcessPropertyCheck/index.ts:25:56]
+ 25 │ INVALID_PROP_NAME
+    · ─────────────────
+    ╰────

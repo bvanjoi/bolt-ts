@@ -5,3 +5,4 @@ class Foo {
   static bar = '';
 }
 Foo.prototype.bar = undefined; // Should be OK
+//~^ ERROR: Type 'undefined' is not assignable to type 'number'.

@@ -36,6 +36,7 @@ var x11:{z:I;x:boolean;}[][]=3;
 //~^ ERROR: Type 'number' is not assignable to type '{ z: I; x: boolean; }[][]'.
 var x12:{z:I;x:boolean;y:(s:string)=>boolean;w:{ z:I;[s:string]:{ x; y; };[n:number]:{x; y;};():boolean; };}[][]=3;
 //~^ ERROR: Type 'number' is not assignable to type '{ z: I; x: boolean; y: (s: string) => boolean; w: () => boolean; }[][]'.
+//~| ERROR: Property 'z' of type 'I' is not assignable to 'string' index type '{ x: any; y: any; }'.
 var x13:{ new(): number; new(n:number):number; x: string; w: {y: number;}; (): {}; } = 3;
 //~^ ERROR: Type 'number' is not assignable to type '() => { }'.
 var x14:{ f(x:number):boolean; p; q; ():string; }=3;

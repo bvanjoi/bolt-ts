@@ -1,0 +1,18 @@
+  × Member 'publicMember' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyInAmbientDeclaration/index.ts:8:9]
+ 8 │ public publicMember
+   · ───────────────────
+   ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyInAmbientDeclaration/index.ts:12:31]
+ 12 │ x
+    · ─
+    ╰────
+
+  × 'publicFunction', which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/implicitAnyInAmbientDeclaration/index.ts:12:9]
+ 12 │ public publicFunction(x);
+    · ─────────────────────────
+    ╰────

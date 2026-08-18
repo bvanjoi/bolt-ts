@@ -1,0 +1,25 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/getAndSetNotIdenticalType2/index.ts:5:14]
+ 5 │ foo
+   · ───
+   ╰────
+
+  × Type 'A<string>' is not assignable to type 'A<T>'.
+    ╭─[../../tests/compiler/getAndSetNotIdenticalType2/index.ts:15:9]
+ 15 │ this.data
+    · ─────────
+    ╰────
+
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/getAndSetNotIdenticalType2/index.ts:9:5]
+ 9 │ data
+   · ────
+   ╰────
+
+  × Type 'A<unknown>' is not assignable to type 'A<string>'.
+    ╭─[../../tests/compiler/getAndSetNotIdenticalType2/index.ts:22:1]
+ 22 │ x.x
+    · ───
+    ╰────

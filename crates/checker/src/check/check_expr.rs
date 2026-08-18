@@ -269,7 +269,7 @@ impl<'cx> TyChecker<'cx> {
         } else {
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
                 span: error_span,
-                op: op.kind.to_string(),
+                op: op.kind.as_str(),
                 ty1: self.print_ty(effective_left_ty, None).to_string(),
                 ty2: self.print_ty(effective_right_ty, None).to_string(),
             };
@@ -451,7 +451,13 @@ impl<'cx> TyChecker<'cx> {
                 self.boolean_ty()
             }
             Less | LessEq | Great | GreatEq => {
-                if self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty) {
+                if self.check_for_disallowed_es_symbol_operation(
+                    left,
+                    left_ty,
+                    right,
+                    right_ty,
+                    op.kind.into(),
+                ) {
                     let left_ty = self.check_non_null_type(left_ty, left.id());
                     let left_ty = self.get_base_ty_of_literal_ty_for_comparison(left_ty);
                     let right_ty = self.check_non_null_type(right_ty, right.id());
@@ -1053,7 +1059,7 @@ impl<'cx> TyChecker<'cx> {
         if allow_async_iterables {
             todo!()
         } else {
-            let error = errors::TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
+            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),
                 ty: self.print_ty(ty, None).to_string(),
             };
@@ -1170,6 +1176,12 @@ impl<'cx> TyChecker<'cx> {
         let mut tys = Vec::with_capacity(8);
         for span in node.spans {
             let ty = self.check_expression::<false>(span.expr, None);
+            if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE) {
+                let error = errors::ImplicitConversionOfASymbolToAStringWillFailAtRuntimeConsiderWrappingThisExpressionInString {
+                    span:span.span
+                };
+                self.push_error(Box::new(error));
+            }
             texts.push(span.text);
             if self.is_type_assignable_to(ty, self.template_constraint_ty()) {
                 tys.push(ty);
@@ -1289,6 +1301,7 @@ impl<'cx> TyChecker<'cx> {
             }
             return self.get_regular_ty_of_literal_ty(expr_ty);
         }
+        self.check_ty(assert_ty);
         self.check_node_deferred(node_id);
         let ret = self.get_ty_from_type_node(assert_ty);
         if let Some(_old) = self.get_node_links(node_id).get_assertion_expression_ty() {
@@ -1354,6 +1367,8 @@ impl<'cx> TyChecker<'cx> {
                 flow = match &flow_node.kind {
                     bolt_ts_binder::FlowNodeKind::Cond(n) => n.antecedent,
                     bolt_ts_binder::FlowNodeKind::Assign(n) => n.antecedent,
+                    bolt_ts_binder::FlowNodeKind::ArrayMutation(n) => n.antecedent,
+                    bolt_ts_binder::FlowNodeKind::Switch(n) => n.antecedent,
                     _ => unreachable!(),
                 };
             } else if flags.intersects(FlowFlags::CALL) {
@@ -1684,7 +1699,7 @@ impl<'cx> TyChecker<'cx> {
             }
 
             let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
-            let is_promise = this.get_awaited_ty_of_promise(ty, None).is_some();
+            let is_promise = this.get_awaited_ty_of_promise(ty).is_some();
             if call_signatures.is_empty() && !is_promise {
                 return;
             }
@@ -1837,10 +1852,14 @@ impl<'cx> TyChecker<'cx> {
                 bolt_ts_ast_visitor::visit_node(&mut v, &body);
                 v.is_used
             });
-
             if !is_used {
                 if is_promise {
-                    todo!()
+                    let error =
+                        errors::ThisConditionWillAlwaysReturnTrueSinceThisXIsAlwaysDefined {
+                            span: loc.span(),
+                            ty: this.print_ty(ty, None).to_string(),
+                        };
+                    this.push_error(Box::new(error));
                 } else {
                     let error = errors::ThisConditionWillAlwaysReturnTrueSinceThisFunctionIsAlwaysDefinedDidYouMeanToCallItInstead {
                         span: loc.span(),
@@ -1848,19 +1867,6 @@ impl<'cx> TyChecker<'cx> {
                     this.push_error(Box::new(error));
                 }
             }
-            // if (!isUsed) {
-            //     if (isPromise) {
-            //         errorAndMaybeSuggestAwait(
-            //             location,
-            //             /*maybeMissingAwait*/ true,
-            //             Diagnostics.This_condition_will_always_return_true_since_this_0_is_always_defined,
-            //             getTypeNameForErrorDisplay(type),
-            //         );
-            //     }
-            //     else {
-            //         error(location, Diagnostics.This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead);
-            //     }
-            // }
         }
 
         both_helper(self, n, cond_ty, body)
@@ -1871,7 +1877,7 @@ impl<'cx> TyChecker<'cx> {
         cond: &'cx ast::CondExpr<'cx>,
         check_mode: Option<CheckMode>,
     ) -> &'cx ty::Ty<'cx> {
-        let ty = self.check_expression::<false>(cond.cond, check_mode);
+        let ty = self.check_truthiness_expr(cond.cond, check_mode);
         self.check_testing_known_truth_callable_or_awaitable_or_enum_member_ty(
             cond.cond,
             ty,
@@ -1965,6 +1971,11 @@ impl<'cx> TyChecker<'cx> {
             .is_some();
         let mut seen = fx_hashmap_with_capacity(node.members.len());
         let mut object_flags = ObjectFlags::FRESH_LITERAL;
+        let mut all_properties_table = if self.config.compiler_options().strict_null_checks() {
+            Some(fx_hashmap_with_capacity(node.members.len()))
+        } else {
+            None
+        };
         let mut properties_table = fx_indexmap_with_capacity(node.members.len());
         let mut properties_array = Vec::with_capacity(node.members.len());
         let mut spread = self.empty_object_ty();
@@ -1976,7 +1987,7 @@ impl<'cx> TyChecker<'cx> {
             && let Some(pattern) = contextual_ty.pattern()
         {
             // TODO: object_binding
-            matches!(pattern, ty::Pattern::ObjectPattern(_))
+            matches!(pattern, ty::PatternNode::ObjectPattern(_))
         } else {
             false
         };
@@ -2127,6 +2138,10 @@ impl<'cx> TyChecker<'cx> {
                             parent,
                         )
                     };
+
+                    if let Some(p) = all_properties_table.as_mut() {
+                        p.insert(name, prop);
+                    }
                     push_properties_table(
                         self,
                         computed_named_ty,
@@ -2141,7 +2156,7 @@ impl<'cx> TyChecker<'cx> {
                     );
                     properties_array.push(member_symbol);
 
-                    if let Some(_contextual_tyy) = contextual_ty
+                    if let Some(_contextual_ty) = contextual_ty
                         && check_mode.contains(CheckMode::INFERENTIAL)
                         && !check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE)
                         && matches!(member.kind, PropAssignment(_) | Method(_))
@@ -2196,6 +2211,9 @@ impl<'cx> TyChecker<'cx> {
                     if self.is_valid_spread_ty(ty) {
                         let merged_ty = self
                             .try_merge_union_of_object_ty_and_empty_object(ty, is_const_context);
+                        if let Some(all_properties_table) = &all_properties_table {
+                            self.check_spread_property_overrides(merged_ty, all_properties_table);
+                        }
                         let s = *symbol.get_or_init(|| self.get_symbol_of_declaration(node.id));
                         spread = self.get_spread_ty(
                             spread,
@@ -2206,7 +2224,10 @@ impl<'cx> TyChecker<'cx> {
                         );
                         offset = properties_array.len();
                     } else {
-                        // TODO: error
+                        let error = errors::SpreadTypesMayOnlyBeCreatedFromObjectTypes {
+                            span: member.span(),
+                        };
+                        self.push_error(Box::new(error));
                         spread = self.error_ty;
                     }
                 }
@@ -2328,23 +2349,24 @@ impl<'cx> TyChecker<'cx> {
                 );
                 index_infos.push(index_info);
             }
+
+            // TODO: js object literal
             let object_flags = object_flags
                 | (ObjectFlags::OBJECT_LITERAL
                     .union(ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL))
-                | if in_destructuring_pattern {
+                | if pattern_with_computed_properties {
                     ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES
                 } else {
                     ObjectFlags::empty()
                 };
-            // TODO: is_js_object_literal
 
             let res = this.create_anonymous_ty(
                 Some(this.final_res(node.id)),
                 object_flags,
-                pattern_with_computed_properties.then_some(node.id),
                 None,
                 None,
                 None,
+                in_destructuring_pattern.then_some(ty::PatternNode::ObjectLiteral(node)),
             );
 
             let props = this.get_props_from_members(properties_table);
@@ -2379,6 +2401,30 @@ impl<'cx> TyChecker<'cx> {
             offset,
             &properties_array,
         )
+    }
+
+    fn check_spread_property_overrides(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        props: &FxHashMap<SymbolName, SymbolID>,
+        // node: &'cx ast::SpreadAssignment,
+    ) {
+        for &right in self.get_props_of_ty(ty) {
+            let r = self.symbol(right);
+            let flags = r.flags;
+            let name = r.name;
+            if !flags.contains(SymbolFlags::OPTIONAL)
+                && !self.get_check_flags(right).intersects(CheckFlags::PARTIAL)
+                && let Some(left) = props.get(&name)
+            {
+                let l = self.symbol(*left);
+                let error = errors::XIsSpecifiedMoreThanOnceSoThisUsageWillBeOverwritten {
+                    span: self.p.node(l.value_decl.unwrap()).span(),
+                    name: l.name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            }
+        }
     }
 
     fn is_empty_object_ty_or_spreads_into_empty_object(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
@@ -2629,6 +2675,30 @@ impl<'cx> TyChecker<'cx> {
 
         match expr.op {
             ast::PrefixUnaryOp::Plus => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                } else if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::BIG_INT_LIKE,
+                ) {
+                    let ty = self.get_base_ty_of_literal_ty(operand_ty);
+                    let ty = self.print_ty(ty, None);
+                    let error = errors::OperatorCannotBeAppliedToTypeX {
+                        span: expr.span,
+                        op: expr.op.as_str(),
+                        ty: ty.to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+
                 if let ty::TyKind::NumberLit(_nn) = operand_ty.kind {
                     operand_ty
                 } else {
@@ -2636,10 +2706,45 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             ast::PrefixUnaryOp::Minus => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                }
                 if let ty::TyKind::NumberLit(n) = operand_ty.kind {
                     self.get_number_literal_type_from_number(-n.val.val())
                 } else {
                     self.number_ty
+                }
+            }
+            ast::PrefixUnaryOp::Tilde => {
+                self.check_non_null_type(operand_ty, expr.expr.id());
+                if self.maybe_type_of_kind_considering_base_constraint(
+                    operand_ty,
+                    TypeFlags::ES_SYMBOL_LIKE,
+                ) {
+                    let error = errors::TheXOperatorCannotBeAppliedToTypeSymbol {
+                        span: expr.span,
+                        operator: expr.op.as_str(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                self.number_ty
+            }
+            ast::PrefixUnaryOp::Excl => {
+                self.check_truthiness_of_ty(operand_ty, expr.expr);
+                let facts =
+                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
+                match facts {
+                    TypeFacts::TRUTHY => self.false_ty,
+                    TypeFacts::FALSY => self.true_ty,
+                    _ => self.boolean_ty(),
                 }
             }
             ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus => {
@@ -2683,17 +2788,6 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
                     _ => unreachable!(),
-                }
-            }
-            ast::PrefixUnaryOp::Tilde => self.number_ty,
-            ast::PrefixUnaryOp::Excl => {
-                self.check_truthiness_of_ty(operand_ty, expr.expr);
-                let facts =
-                    self.get_ty_facts(operand_ty, TypeFacts::TRUTHY.union(TypeFacts::FALSY));
-                match facts {
-                    TypeFacts::TRUTHY => self.false_ty,
-                    TypeFacts::FALSY => self.true_ty,
-                    _ => self.boolean_ty(),
                 }
             }
         }
@@ -3004,7 +3098,7 @@ impl<'cx> TyChecker<'cx> {
         };
 
         if let Some(result_ty) = result_ty
-            && !self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty)
+            && !self.check_for_disallowed_es_symbol_operation(left, left_ty, right, right_ty, token)
         {
             return result_ty;
         }
@@ -3012,7 +3106,7 @@ impl<'cx> TyChecker<'cx> {
         let Some(result_ty) = result_ty else {
             // report_operator_error
             let error = errors::OperatorCannotBeAppliedToTypesXAndY {
-                op: token.as_str().to_string(),
+                op: token.as_str(),
                 ty1: self.print_ty(left_ty, None).to_string(),
                 ty2: self.print_ty(right_ty, None).to_string(),
                 span: node_span,

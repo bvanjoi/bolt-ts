@@ -1,0 +1,19 @@
+  × Type 'I1<T>' recursively references itself as a base type.
+   ╭─[../../tests/compiler/recursiveBaseCheck5/index.ts:5:11]
+ 5 │ I1<T> extends I2
+   · ──            ─┬
+   ·  │             ╰── Base type is defined here.
+   ╰────
+
+  × Type 'I2<T>' recursively references itself as a base type.
+   ╭─[../../tests/compiler/recursiveBaseCheck5/index.ts:7:11]
+ 7 │ I2<T> extends I1
+   · ──            ─┬
+   ·  │             ╰── Base type is defined here.
+   ╰────
+
+  × Property 'blah' does not exist on type 'X<unknown, unknown>'.
+    ╭─[../../tests/compiler/recursiveBaseCheck5/index.ts:10:9]
+ 10 │ blah
+    · ────
+    ╰────

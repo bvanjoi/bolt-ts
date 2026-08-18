@@ -1,0 +1,35 @@
+  × Type 'typeof Foo' is not comparable to type '0'.
+   ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:8:10]
+ 8 │ Foo
+   · ───
+   ╰────
+
+  × Type '"sss"' is not comparable to type '0'.
+    ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:10:10]
+ 10 │ "sss"
+    · ─────
+    ╰────
+
+  × Type '123' is not comparable to type '0'.
+    ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:12:10]
+ 12 │ 123
+    · ───
+    ╰────
+
+  × Type 'true' is not comparable to type '0'.
+    ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:14:10]
+ 14 │ true
+    · ────
+    ╰────
+
+  × Type 'true' is not comparable to type 'number | "hello"'.
+    ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:24:10]
+ 24 │ true
+    · ────
+    ╰────
+
+  × Type '"world"' is not comparable to type 'number | "hello"'.
+    ╭─[../../tests/compiler/switchCasesExpressionTypeMismatch/index.ts:27:10]
+ 27 │ "world"
+    · ───────
+    ╰────

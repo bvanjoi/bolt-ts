@@ -50,6 +50,7 @@ interface Purple {
 interface Magenta {
 	[p:Purple]; // error
   //~^ ERROR: An index signature must have a type annotation.
+  //~| ERROR: An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.
 }
 
 declare var yellow: Yellow;

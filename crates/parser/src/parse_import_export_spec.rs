@@ -13,29 +13,29 @@ pub(super) struct ParseNamedImports;
 #[derive(Copy, Clone)]
 pub(super) struct ParseNamedExports;
 
-pub(super) trait ParseNamedImportsExports<'cx, 'p>: Copy {
+pub(super) trait ParseNamedImportsExports<'cx, 'p, const VARIANT: u8>: Copy {
     type Spec;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         check_ident_is_keyword: &mut bool,
         check_ident_start: &mut u32,
         check_ident_end: &mut u32,
     ) -> &'cx ast::ModuleExportName<'cx>;
     fn finish_spec(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
     ) -> Self::Spec;
 }
 
-impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
+impl<'cx, 'p, const VARIANT: u8> ParseNamedImportsExports<'cx, 'p, VARIANT> for ParseNamedImports {
     type Spec = &'cx ast::ImportSpec<'cx>;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         check_ident_is_keyword: &mut bool,
         check_ident_start: &mut u32,
         check_ident_end: &mut u32,
@@ -51,7 +51,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
     }
     fn finish_spec(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
@@ -72,11 +72,11 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedImports {
         state.alloc(ast::ImportSpec { kind })
     }
 }
-impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
+impl<'cx, 'p, const VARIANT: u8> ParseNamedImportsExports<'cx, 'p, VARIANT> for ParseNamedExports {
     type Spec = &'cx ast::ExportSpec<'cx>;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         check_ident_is_keyword: &mut bool,
         check_ident_start: &mut u32,
         check_ident_end: &mut u32,
@@ -91,7 +91,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
     }
     fn finish_spec(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         prop_name: Option<&'cx ast::ModuleExportName<'cx>>,
         name: &'cx ast::ModuleExportName<'cx>,
@@ -110,7 +110,7 @@ impl<'cx, 'p> ParseNamedImportsExports<'cx, 'p> for ParseNamedExports {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub fn parse_module_export_name(
         &mut self,
         parse_name: impl FnOnce(&mut Self) -> &'cx ast::Ident,
@@ -138,7 +138,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     fn parse_import_or_export_spec<Spec>(
         &mut self,
-        kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
+        kind: impl ParseNamedImportsExports<'cx, 'p, VARIANT, Spec = Spec>,
     ) -> PResult<Spec> {
         let start = self.token.start();
         let mut check_ident_is_keyword = self.token.kind.is_keyword() && !self.is_ident();
@@ -223,7 +223,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_named_imports_or_exports<Spec>(
         &mut self,
-        kind: impl ParseNamedImportsExports<'cx, 'p, Spec = Spec>,
+        kind: impl ParseNamedImportsExports<'cx, 'p, VARIANT, Spec = Spec>,
     ) -> &'cx [Spec] {
         // `{ ... }`
         self.parse_bracketed_list::<false, _>(

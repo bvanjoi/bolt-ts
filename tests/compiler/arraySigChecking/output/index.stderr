@@ -1,7 +1,7 @@
   × An index signature must have a type annotation.
-    ╭─[../../tests/compiler/arraySigChecking/index.ts:13:26]
- 13 │ ;
-    · ─
+    ╭─[../../tests/compiler/arraySigChecking/index.ts:13:15]
+ 13 │ index: any
+    · ──────────
     ╰────
 
   × An index signature parameter type must be 'string', 'number', 'symbol', or

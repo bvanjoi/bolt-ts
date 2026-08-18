@@ -1,0 +1,6 @@
+  × Property 'values' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceContextualType/index.ts:15:12]
+ 15 │ values
+    · ──────
+    ╰────

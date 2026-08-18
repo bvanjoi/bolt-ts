@@ -1,5 +1,6 @@
 use super::IterationTypeKind;
 use super::TyChecker;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::ty;
 
 use bolt_ts_ast as ast;
@@ -22,13 +23,13 @@ impl<'cx> TyChecker<'cx> {
             };
             if is_async {
                 let ty = self.unwrap_awaited_ty(ret_iteration_ty);
-                self.get_awaited_ty_no_alias(ty)
+                self.get_awaited_ty_no_alias(ty, None, NOOP_HEADING_ERROR)
             } else {
                 Some(ret_iteration_ty)
             }
         } else if is_async {
             Some(
-                self.get_awaited_ty_no_alias(ret_ty)
+                self.get_awaited_ty_no_alias(ret_ty, None, NOOP_HEADING_ERROR)
                     .unwrap_or(self.error_ty),
             )
         } else {

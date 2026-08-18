@@ -995,6 +995,7 @@ impl<'cx> TyChecker<'cx> {
                 todo!()
             }
             ast::Node::AssignExpr(n) => self.get_assigned_ty_of_assign_expr(n),
+            ast::Node::ObjectPropAssignment(n) => self.get_assigned_ty_of_property_assignment(n),
             _ => self.error_ty,
         }
     }
@@ -1013,6 +1014,32 @@ impl<'cx> TyChecker<'cx> {
         } else {
             self.get_ty_of_expr(n.right)
         }
+    }
+
+    fn get_assigned_ty_of_property_assignment(
+        &mut self,
+        n: &'cx ast::ObjectPropAssignment<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let parent = self.parent(n.id).unwrap();
+        let parent_ty = self.get_assigned_ty(parent);
+        self.get_ty_of_destructured_property(parent_ty, n.name)
+    }
+
+    fn get_ty_of_destructured_property(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        name: &'cx ast::PropName<'cx>,
+    ) -> &'cx ty::Ty<'cx> {
+        let name_ty = self.get_literal_ty_from_prop_name(&name.kind);
+        if !name_ty.usable_as_prop_name() {
+            return self.error_ty;
+        }
+        let name = self.get_prop_name_from_ty(name_ty);
+        self.get_ty_of_prop_of_ty(ty, name).unwrap_or_else(|| {
+            self.get_applicable_index_info_for_name(ty, name)
+                .map(|index_info| self.include_undefined_in_index_sig(index_info.val_ty))
+                .unwrap_or(self.error_ty)
+        })
     }
 
     fn contains_matching_reference(
@@ -1279,22 +1306,61 @@ impl<'cx> TyChecker<'cx> {
         let cond_antecedent = cond.antecedent;
         let cond_node = cond.node;
         let assume_true = n.flags.contains(FlowFlags::TRUE_CONDITION);
-        let flow_ty = self.get_ty_at_flow_node(
-            cond_antecedent,
-            refer,
-            shared_flow_start,
-            declared_ty,
-            init_ty,
-            flow_container,
-            key,
-        );
+        if assume_true {
+            self.get_ty_at_flow_cond_worker::<true>(
+                cond_node,
+                Some(cond_antecedent),
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        } else {
+            self.get_ty_at_flow_cond_worker::<false>(
+                cond_node,
+                Some(cond_antecedent),
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn get_ty_at_flow_cond_worker<const ASSUME_TRUE: bool>(
+        &mut self,
+        cond_node: ast::NodeID,
+        cond_antecedent: Option<FlowID>,
+        refer: ast::NodeID,
+        shared_flow_start: usize,
+        declared_ty: &'cx ty::Ty<'cx>,
+        init_ty: &'cx ty::Ty<'cx>,
+        flow_container: Option<ast::NodeID>,
+        key: &mut OnceCell<Option<FlowCacheKey>>,
+    ) -> FlowTy<'cx> {
+        let flow_ty = cond_antecedent.map_or(FlowTy::Ty(init_ty), |cond_antecedent| {
+            self.get_ty_at_flow_node(
+                cond_antecedent,
+                refer,
+                shared_flow_start,
+                declared_ty,
+                init_ty,
+                flow_container,
+                key,
+            )
+        });
         let ty = self.get_ty_from_flow_ty(flow_ty);
         if ty.flags.contains(TypeFlags::NEVER) {
             return flow_ty;
         };
         let non_evolving_ty = self.finalize_evolving_array_ty(ty);
         let narrowed_ty =
-            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, assume_true);
+            self.narrow_ty(non_evolving_ty, declared_ty, refer, cond_node, ASSUME_TRUE);
         if narrowed_ty == non_evolving_ty {
             flow_ty
         } else {
@@ -1303,7 +1369,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn get_ty_from_flow_ty(&self, flow_ty: FlowTy<'cx>) -> &'cx ty::Ty<'cx> {
+    pub(super) fn get_ty_from_flow_ty(&self, flow_ty: FlowTy<'cx>) -> &'cx ty::Ty<'cx> {
         match flow_ty {
             FlowTy::Ty(ty) => ty,
             FlowTy::Incomplete { ty, .. } => ty,
@@ -1669,7 +1735,8 @@ impl<'cx> TyChecker<'cx> {
         assume_true: bool,
     ) -> &'cx ty::Ty<'cx> {
         use ast::BinOpKind::*;
-        match binary_expr.op.kind {
+        let op = binary_expr.op.kind;
+        match op {
             Instanceof => self.narrow_ty_by_instanceof_expr(ty, refer, binary_expr, assume_true),
             EqEqEq | NEqEq | EqEq | NEq => {
                 let left = self.get_reference_candidate(binary_expr.left);
@@ -1746,8 +1813,41 @@ impl<'cx> TyChecker<'cx> {
                     );
                 }
 
-                // TODO:
+                if self.is_matching_constructor_reference(refer, left) {
+                    return self.narrow_ty_by_constructor(ty, op, right, assume_true);
+                }
 
+                if self.is_matching_constructor_reference(refer, right) {
+                    return self.narrow_ty_by_constructor(ty, op, left, assume_true);
+                }
+
+                if let ast::ExprKind::BoolLit(right) = right.kind
+                    && !left.kind.is_access_expr()
+                {
+                    return self.narrow_ty_by_boolean_comparison(
+                        refer,
+                        ty,
+                        declared_ty,
+                        right,
+                        op,
+                        left,
+                        assume_true,
+                    );
+                }
+
+                if let ast::ExprKind::BoolLit(left) = left.kind
+                    && !right.kind.is_access_expr()
+                {
+                    return self.narrow_ty_by_boolean_comparison(
+                        refer,
+                        ty,
+                        declared_ty,
+                        left,
+                        op,
+                        right,
+                        assume_true,
+                    );
+                }
                 ty
             }
             In => {
@@ -1820,6 +1920,97 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             _ => ty,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn narrow_ty_by_boolean_comparison(
+        &mut self,
+        refer: ast::NodeID,
+        ty: &'cx ty::Ty<'cx>,
+        declared_ty: &'cx ty::Ty<'cx>,
+        lit: &'cx ast::BoolLit,
+        op: ast::BinOpKind,
+        expr: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        let assume_true =
+            (assume_true != lit.val) != (op != ast::BinOpKind::NEqEq && op != ast::BinOpKind::NEq);
+        self.narrow_ty(ty, declared_ty, refer, expr.id(), assume_true)
+    }
+
+    fn narrow_ty_by_constructor(
+        &mut self,
+        ty: &'cx ty::Ty<'cx>,
+        op: ast::BinOpKind,
+        identifier: &'cx ast::Expr<'cx>,
+        assume_true: bool,
+    ) -> &'cx ty::Ty<'cx> {
+        if assume_true {
+            if op != ast::BinOpKind::EqEqEq && op != ast::BinOpKind::EqEq {
+                return ty;
+            }
+        } else if op != ast::BinOpKind::NEqEq && op != ast::BinOpKind::NEq {
+            return ty;
+        }
+
+        let identifier_ty = self.get_ty_of_expr(identifier);
+        if self.is_function_type(identifier_ty) && !self.is_constructor_ty(identifier_ty) {
+            return ty;
+        }
+
+        let Some(prototype_property) = self.get_prop_of_ty::<false, false>(
+            identifier_ty,
+            SymbolName::Atom(keyword::IDENT_PROTOTYPE),
+        ) else {
+            return ty;
+        };
+
+        let prototype_ty = self.get_type_of_symbol(prototype_property);
+        if self.is_type_any(prototype_ty) {
+            return ty;
+        }
+        if prototype_ty == self.global_object_ty() || prototype_ty == self.global_fn_ty() {
+            return ty;
+        }
+        if self.is_type_any(ty) {
+            return prototype_ty;
+        }
+        self.filter_type(ty, |this, t| {
+            // is_constructed_by
+            if (t.flags.contains(TypeFlags::OBJECT)
+                && t.get_object_flags().contains(ObjectFlags::CLASS))
+                || (prototype_ty.flags.contains(TypeFlags::OBJECT)
+                    && prototype_ty.get_object_flags().contains(ObjectFlags::CLASS))
+            {
+                t.symbol() == prototype_ty.symbol()
+            } else {
+                this.is_ty_sub_type_of(t, prototype_ty)
+            }
+        })
+    }
+
+    fn is_matching_constructor_reference(
+        &mut self,
+        refer: ast::NodeID,
+        expr: &'cx ast::Expr<'cx>,
+    ) -> bool {
+        match expr.kind {
+            ast::ExprKind::PropAccess(n) if n.name.name == keyword::KW_CONSTRUCTOR => {
+                self.is_matching_reference(refer, n.expr.id())
+            }
+            ast::ExprKind::EleAccess(n) => match n.arg.kind {
+                ast::ExprKind::StringLit(arg) if arg.val == keyword::KW_CONSTRUCTOR => {
+                    self.is_matching_reference(refer, n.expr.id())
+                }
+                ast::ExprKind::NoSubstitutionTemplateLit(arg)
+                    if arg.val == keyword::KW_CONSTRUCTOR =>
+                {
+                    self.is_matching_reference(refer, n.expr.id())
+                }
+                _ => false,
+            },
+            _ => false,
         }
     }
 
@@ -2730,7 +2921,7 @@ impl<'cx> TyChecker<'cx> {
         n: ast::NodeID,
         prop: Option<SymbolID>,
         prop_ty: &'cx ty::Ty<'cx>,
-        _error_nodee: Option<ast::NodeID>,
+        _error_node: Option<ast::NodeID>,
         check_mode: Option<super::CheckMode>,
         assignment_kind: AssignmentKind,
         object_expr_is_strict_and_under_strict: bool,

@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/genericBaseClassLiteralProperty2.ts`, Apache-2.0 License
 class CollectionItem2 {}
 class BaseCollection2 {
   _itemsByKey;

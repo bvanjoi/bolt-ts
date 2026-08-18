@@ -5,6 +5,6 @@
 class C {
     global x
     //~^ ERROR: Unexpected keyword or identifier.
-    //~| ERROR: Variable 'global' implicitly has an 'any' type.
-    //~| ERROR: Variable 'x' implicitly has an 'any' type.
+    //~| ERROR: Member 'global' implicitly has an 'any' type.
+    //~| ERROR: Member 'x' implicitly has an 'any' type.
 }

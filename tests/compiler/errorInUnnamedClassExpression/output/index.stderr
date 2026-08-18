@@ -1,0 +1,18 @@
+  × Abstract modifier can only appear within an abstract class.
+    ╭─[../../tests/compiler/errorInUnnamedClassExpression/index.ts:14:5]
+ 14 │ abstract
+    · ────────
+    ╰────
+
+  × Abstract property 'bar' in class '(Anonymous class)' cannot be accessed in
+  │ the constructor.
+    ╭─[../../tests/compiler/errorInUnnamedClassExpression/index.ts:11:9]
+ 11 │ this.bar
+    · ────────
+    ╰────
+
+  × Member 'bar' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/errorInUnnamedClassExpression/index.ts:14:5]
+ 14 │ abstract bar
+    · ────────────
+    ╰────

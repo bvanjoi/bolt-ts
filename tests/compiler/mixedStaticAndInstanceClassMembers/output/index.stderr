@@ -1,0 +1,17 @@
+  × Function overload must be static.
+   ╭─[../../tests/compiler/mixedStaticAndInstanceClassMembers/index.ts:8:5]
+ 8 │ m1
+   · ──
+   ╰────
+
+  × Function overload must not be static.
+    ╭─[../../tests/compiler/mixedStaticAndInstanceClassMembers/index.ts:17:12]
+ 17 │ m1
+    · ──
+    ╰────
+
+  × Function overload must be static.
+    ╭─[../../tests/compiler/mixedStaticAndInstanceClassMembers/index.ts:19:5]
+ 19 │ m1
+    · ──
+    ╰────

@@ -61,11 +61,11 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_ty_for_binding_element_parent(
         &mut self,
-        pat_id: ast::NodeID,
+        n: ast::NodeID,
         check_mode: CheckMode,
     ) -> Option<&'cx Ty<'cx>> {
-        debug_assert!(self.p.node(pat_id).is_object_pat() || self.p.node(pat_id).is_array_pat());
-        let parent_id = self.parent(pat_id).unwrap();
+        debug_assert!(self.p.node(n).is_object_pat() || self.p.node(n).is_array_pat());
+        let parent_id = self.parent(n).unwrap();
         let parent_node = self.p.node(parent_id);
         if check_mode != CheckMode::empty() {
             match parent_node {
@@ -828,25 +828,32 @@ impl<'cx> TyChecker<'cx> {
         ty: Option<&'cx Ty<'cx>>,
         decl: &impl r#trait::VarLike<'cx>,
     ) -> &'cx Ty<'cx> {
-        if let Some(ty) = ty {
-            // TODO: more case
-            return self.get_widened_ty(ty);
-        }
-        let ty = if let Some(decl) = self.p.node(decl.id()).as_param_decl() {
-            if decl.dotdotdot.is_some() {
-                self.any_array_ty()
-            } else {
-                self.any_ty
+        match ty {
+            Some(ty) => {
+                // TODO: esymbol check
+                if REPORT_ERROR {
+                    self.report_errors_from_widening(decl.id(), ty, None);
+                }
+                self.get_widened_ty(ty)
             }
-        } else {
-            self.any_ty
-        };
+            None => {
+                let ty = if let Some(decl) = self.p.node(decl.id()).as_param_decl() {
+                    if decl.dotdotdot.is_some() {
+                        self.any_array_ty()
+                    } else {
+                        self.any_ty
+                    }
+                } else {
+                    self.any_ty
+                };
 
-        if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(decl) {
-            self.report_implicit_any(decl.id(), ty, None);
+                if REPORT_ERROR && !self.declaration_belongs_to_private_ambient_member(decl) {
+                    self.report_implicit_any(decl.id(), ty, None);
+                }
+
+                ty
+            }
         }
-
-        ty
     }
 
     fn declaration_belongs_to_private_ambient_member(&self, decl: &impl VarLike<'cx>) -> bool {

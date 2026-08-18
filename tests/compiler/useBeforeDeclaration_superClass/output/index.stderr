@@ -1,0 +1,5 @@
+  × Property 'x' is used before its initialization.
+    ╭─[../../tests/compiler/useBeforeDeclaration_superClass/index.ts:29:18]
+ 29 │ x
+    · ─
+    ╰────

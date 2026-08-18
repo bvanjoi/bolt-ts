@@ -187,7 +187,7 @@ impl<'cx> TyChecker<'cx> {
                 mapper(self, t)
             };
             if let Some(mapped) = mapped {
-                changed |= !mapped.eq(ty);
+                changed |= !mapped.eq(t);
                 if let Some(mapped_tys) = &mut mapped_tys {
                     mapped_tys.push(mapped);
                 } else {

@@ -1,0 +1,12 @@
+  × Property '_store' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/inferFromGenericFunctionReturnTypes1/index.ts:7:3]
+ 7 │ _store
+   · ──────
+   ╰────
+
+  × Property 'toUpperCase' does not exist on type 'number'.
+    ╭─[../../tests/compiler/inferFromGenericFunctionReturnTypes1/index.ts:71:16]
+ 71 │ toUpperCase
+    · ───────────
+    ╰────

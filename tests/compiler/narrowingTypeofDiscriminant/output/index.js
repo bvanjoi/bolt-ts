@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/narrowingTypeofDiscriminant.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function f(wrapped) {
   if (typeof wrapped.value !== 'string') {
     return '42';

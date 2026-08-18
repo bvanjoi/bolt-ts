@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/fallFromLastCase2.ts`, Apache-2.0 License
+//@compiler-options: target=es6
+//@compiler-options: strict=false
 function foo1(a) {
   switch (a) {
     case 1:

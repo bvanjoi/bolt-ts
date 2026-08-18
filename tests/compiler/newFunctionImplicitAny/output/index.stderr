@@ -1,0 +1,6 @@
+  × 'new' expression, whose target lacks a construct signature, implicitly has
+  │ an 'any' type.
+   ╭─[../../tests/compiler/newFunctionImplicitAny/index.ts:9:12]
+ 9 │ new Test()
+   · ──────────
+   ╰────

@@ -334,7 +334,7 @@ impl<'cx> TyChecker<'cx> {
 
         let add_name = |this: &mut Self,
                         names: &mut nohash_hasher::IntMap<Atom, DeclarationMeaning>,
-                        prop_name: &ast::PropName,
+                        prop_name_span: bolt_ts_span::Span,
                         prop_name_atom: Atom,
                         meaning: DeclarationMeaning| {
             match names.get(&prop_name_atom) {
@@ -355,7 +355,7 @@ impl<'cx> TyChecker<'cx> {
                             .intersects(DeclarationMeaning::PRIVATE_STATIC.complement())
                         {
                             let error = errors::DuplicateIdentifier {
-                                span: prop_name.span(),
+                                span: prop_name_span,
                                 ident: this.atoms.get(prop_name_atom).to_string(),
                             };
                             this.push_error(Box::new(error));
@@ -372,14 +372,26 @@ impl<'cx> TyChecker<'cx> {
 
         for elem in class.elems().list {
             if let ast::ClassElemKind::Ctor(ctor) = elem.kind {
-                for _paramm in ctor.params {
-                    // TODO:
+                for param in ctor.params {
+                    if param.modifiers.is_some_and(|ms| {
+                        ms.flags
+                            .intersects(ast::ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+                    }) && let ast::BindingKind::Ident(ident) = &param.name.kind
+                    {
+                        add_name(
+                            self,
+                            &mut instance_names,
+                            ident.span,
+                            ident.name,
+                            DeclarationMeaning::PROPERTY_ASSIGNMENT,
+                        );
+                    }
                 }
             } else if let Some(name) = elem.kind.name()
                 && let Some(member_name) = name.kind.get_name(&mut self.atoms)
             {
                 let is_static = elem.kind.is_static();
-                let is_private = false; // TODO:
+                let is_private = matches!(name.kind, ast::PropNameKind::PrivateIdent(_));
                 let names = if is_private {
                     &mut private_names
                 } else if is_static {
@@ -387,6 +399,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     &mut instance_names
                 };
+
                 let meaning = match elem.kind {
                     ast::ClassElemKind::Getter(_) => DeclarationMeaning::GET_ACCESSOR,
                     ast::ClassElemKind::Setter(_) => DeclarationMeaning::SET_ACCESSOR,
@@ -394,7 +407,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::ClassElemKind::Method(_) => DeclarationMeaning::METHOD,
                     _ => unreachable!(),
                 };
-                add_name(self, names, name, member_name, meaning)
+                add_name(self, names, name.span(), member_name, meaning)
             }
         }
     }
@@ -433,7 +446,7 @@ impl<'cx> TyChecker<'cx> {
                         .is_node_within_class(base_ty_node.id, class_decl)
                 {
                     let error = errors::CannotExtendAClass0ClassConstructorIsMarkedAsPrivate {
-                        span: base_ty_node.expr_with_ty_args.span,
+                        span: base_ty_node.span,
                         class: pprint_ident(
                             self.p.node(class_decl).ident_name().unwrap(),
                             &self.atoms,
@@ -442,6 +455,25 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
                 // ============
+
+                if let Some(ty_args) = base_ty_node.ty_args {
+                    for ty_arg in ty_args.list {
+                        self.check_ty(ty_arg);
+                    }
+                    let ctor_sig_list = self
+                        .get_constructor_for_ty_args(static_base_ty, Some(ty_args), base_ty_node.id)
+                        .collect::<Vec<_>>();
+                    for ctor in ctor_sig_list {
+                        let ty_parameters = self.get_sig_links(ctor.id).expect_ty_params();
+                        if !self.check_type_argument_constraints(
+                            base_ty_node.id,
+                            base_ty_node.ty_args,
+                            ty_parameters,
+                        ) {
+                            break;
+                        }
+                    }
+                }
 
                 let this_arg = ty
                     .kind
@@ -533,7 +565,7 @@ impl<'cx> TyChecker<'cx> {
                 }) && !base_ctor_ty.flags.intersects(TypeFlags::TYPE_VARIABLE)
                     && let constructors = self.get_instantiated_constructors_for_type_arguments(
                         static_base_ty,
-                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.ty_args,
                         base_ty_node.id,
                     )
                     && constructors.iter().any(|sig| {
@@ -543,7 +575,7 @@ impl<'cx> TyChecker<'cx> {
                     })
                 {
                     let error = errors::BaseConstructorsMustAllHaveTheSameReturnType {
-                        span: base_ty_node.expr_with_ty_args.span,
+                        span: base_ty_node.span,
                     };
                     self.push_error(Box::new(error));
                 }

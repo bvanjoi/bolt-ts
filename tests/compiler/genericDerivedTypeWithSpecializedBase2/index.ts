@@ -2,15 +2,18 @@
 
 //@compiler-options: target=es2015
 
-interface Array<T> {}
+class A<T extends { length: number }> {
+    x: T;
+    //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
+}
 
-declare var f : { <T>(x:T): T; }
+class B<U> extends A<string> {
+    y: U;
+    //~^ ERROR: Property 'y' has no initializer and is not definitely assigned in the constructor.
+}
 
-declare var g : { <S>() : S[]; };
-f = g;
-//~^ ERROR:  Type '() => S[]' is not assignable to type '(x: T) => T'.
-
-var s = f("str").toUpperCase();
-
-console.log(s);
+declare var x: A<{ length: number; foo: number }>;
+declare var y: B<number>;
+x = y;  // error
+//~^ ERROR: Type 'B<number>' is not assignable to type 'A<{ length: number; foo: number; }>'.
 

@@ -1,0 +1,241 @@
+  × Identifier expected.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:7:30]
+ 7 │ ?
+   · ─
+   ╰────
+
+  × Expected '{'.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:7:30]
+ 7 │ ?
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:7:30]
+ 7 │ ?
+   · ─
+   ╰────
+
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:7:31]
+ 7 │ string
+   · ──────
+   ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:11:22]
+ 11 │ ?
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:12:22]
+ 12 │ ?
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:16]
+ 14 │ ?
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:16]
+ 14 │ ?
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:16]
+ 14 │ ?
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:17]
+ 14 │ string
+    · ──────
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:16]
+ 15 │ ?
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:16]
+ 15 │ ?
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:16]
+ 15 │ ?
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:17]
+ 15 │ number
+    · ──────
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:17:25]
+ 17 │ ?
+    · ─
+    ╰────
+
+  × Expected '{'.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:17:25]
+ 17 │ ?
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:17:25]
+ 17 │ ?
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:17:26]
+ 17 │ string
+    · ──────
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:21:19]
+ 21 │ ?
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:22:16]
+ 22 │ ?
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:24:16]
+ 24 │ ?
+    · ─
+    ╰────
+
+  × Expected ':'.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:24:20]
+ 24 │ ;
+    · ─
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:24:20]
+ 24 │ ;
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:25:10]
+ 25 │ ?
+    · ─
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:25:10]
+ 25 │ ?
+    · ─
+    ╰────
+
+  × Declarations must be initialized.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:25:7]
+ 25 │ d
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:27:15]
+ 27 │ ?
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:28:13]
+ 28 │ ?
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:29:12]
+ 29 │ ?
+    · ─
+    ╰────
+
+  × '?' at the end of a type is not valid TypeScript syntax.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:30:17]
+ 30 │ ?
+    · ─
+    ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:31:1]
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:31:1]
+   ╰────
+
+  × Duplicate identifier 'a'.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:21:7]
+ 17 │ a: string): ?string {
+    · ┬
+    · ╰── Previous definition here
+ 18 │     return true;
+ 19 │ }
+ 20 │ 
+ 21 │ const a
+    ·       ─
+    ╰────
+
+  × Cannot find name 'string'.
+   ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:7:31]
+ 7 │ string
+   · ──────
+   ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:17:26]
+ 17 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:24:17]
+ 24 │ any
+    · ───
+    ╰────
+
+  × Parameter '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:15]
+ 14 │  ?
+    · ──
+    ╰────
+
+  × Parameter 'string' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:14:17]
+ 14 │ string
+    · ──────
+    ╰────
+
+  × Parameter '' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:15]
+ 15 │  ?
+    · ──
+    ╰────
+
+  × Parameter 'number' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/parseInvalidNullableTypes/index.ts:15:17]
+ 15 │ number
+    · ──────
+    ╰────

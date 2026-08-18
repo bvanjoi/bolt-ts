@@ -46,6 +46,7 @@ impl<'cx> TyChecker<'cx> {
             TemplateLit(_nn) => (),
             This(_nn) => (),
             Import(_) => (),
+            Optional(_) => {}
         };
         self.current_node = saved_current_node;
     }
@@ -142,18 +143,10 @@ impl<'cx> TyChecker<'cx> {
 
     fn check_object_lit_ty(&mut self, n: &'cx ast::ObjectLitTy<'cx>) {
         self.check_object_ty_for_duplicate_decls(n.members);
-        for prop in n.members.iter() {
-            use bolt_ts_ast::ObjectTyMemberKind::*;
-            match &prop.kind {
-                IndexSig(n) => self.check_index_sig_decl(n),
-                Prop(_) => (),
-                Method(n) => self.check_method_sig(n),
-                CallSig(_) => (),
-                CtorSig(_) => (),
-                Setter(n) => self.check_setter_decl(n),
-                Getter(n) => self.check_getter_decl(n),
-            }
-        }
+
+        n.members.iter().for_each(|member| {
+            self.check_object_ty_member(member);
+        });
 
         let ty = self.get_ty_from_object_lit_or_fn_or_ctor_ty_node(n.id);
         self.check_index_constraints::<false>(ty, ty.symbol().unwrap());
@@ -167,7 +160,7 @@ impl<'cx> TyChecker<'cx> {
         self.check_fn_like_decl(n);
     }
 
-    fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
+    pub(super) fn check_index_sig_decl(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
         let ty = self.get_ty_from_type_node(n.key_ty);
         if self.some_type(ty, |this, t| {
             t.flags

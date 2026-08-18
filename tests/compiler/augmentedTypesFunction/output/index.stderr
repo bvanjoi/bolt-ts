@@ -1,0 +1,60 @@
+  × Duplicate identifier 'y1'.
+   ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:7:5]
+ 6 │ y1() { } // error
+   · ─┬
+   ·  ╰── Previous definition here
+ 7 │ var y1
+   ·     ──
+   ╰────
+
+  × Duplicate identifier 'y2a'.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:17:5]
+ 16 │ y2a() { }  // error
+    · ─┬─
+    ·  ╰── Previous definition here
+ 17 │ var y2a
+    ·     ───
+    ╰────
+
+  × Enum declarations can only merge with namespace or other enum
+  │ declarations.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:33:6]
+ 33 │ y4
+    · ──
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:11:10]
+ 11 │ y2
+    · ──
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:13:10]
+ 13 │ y2
+    · ──
+    ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:21:10]
+ 21 │ y3
+    · ──
+    ╰────
+
+  × Class declaration cannot implement overload list for 'y3'.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:23:7]
+ 23 │ y3
+    · ──
+    ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:26:10]
+ 26 │ y3a
+    · ───
+    ╰────
+
+  × Class declaration cannot implement overload list for 'y3a'.
+    ╭─[../../tests/compiler/augmentedTypesFunction/index.ts:28:7]
+ 28 │ y3a
+    · ───
+    ╰────

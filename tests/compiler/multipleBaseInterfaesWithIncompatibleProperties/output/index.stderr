@@ -1,0 +1,6 @@
+  × Interface 'C' cannot simultaneously extend types 'A<string>' and
+  │ 'A<number>'.
+    ╭─[../../tests/compiler/multipleBaseInterfaesWithIncompatibleProperties/index.ts:10:11]
+ 10 │ C
+    · ─
+    ╰────

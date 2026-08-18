@@ -1,0 +1,6 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/parameterReferencesOtherParameter2/index.ts:6:12]
+ 6 │ name
+   · ────
+   ╰────

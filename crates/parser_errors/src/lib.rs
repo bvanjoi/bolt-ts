@@ -537,6 +537,15 @@ pub struct AwaitExpressionsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOf
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'for await' loops are only allowed within async functions and at the top levels of modules."
+)]
+pub struct ForAwaitLoopsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Interface declaration cannot have 'implements' clause.")]
 pub struct InterfaceDeclarationCannotHaveImplementsClause {
     #[label(primary)]
@@ -876,6 +885,57 @@ pub struct DeclarationsWithDefiniteAssignmentAssertionsMustAlsoHaveTypeAnnotatio
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("A definite assignment assertion '!' is not permitted in this context.")]
 pub struct ADefiniteAssignmentAssertionIsNotPermittedInThisContext {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A binding pattern parameter cannot be optional in an implementation signature.")]
+pub struct ABindingPatternParameterCannotBeOptionalInAnImplementationSignature {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Signature declarations can only be used in TypeScript files.")]
+pub struct SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type parameter declarations can only be used in TypeScript files.")]
+pub struct TypeParameterDeclarationsCanOnlyBeUsedInTypeScriptFiles {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{token}' at the end of a type is not valid TypeScript syntax.")]
+pub struct XAtTheEndOfATypeIsNotValidTypeScriptSyntax {
+    #[label(primary)]
+    pub span: Span,
+    pub token: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{kind}' declarations can only be declared inside a block.")]
+pub struct XDeclarationsCanOnlyBeDeclaredInsideABlock {
+    #[label(primary)]
+    pub span: Span,
+    pub kind: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Abstract modifier can only appear within an abstract class.")]
+pub struct AbstractModifierCanOnlyAppearWithinAnAbstractClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Invalid optional chain from new expression.")]
+pub struct InvalidOptionalChainFromNewExpression {
     #[label(primary)]
     pub span: Span,
 }

@@ -1,0 +1,31 @@
+  × Block-scoped variable 'l1' used before its declaration.
+   ╭─[../../tests/compiler/letDeclarations-useBeforeDefinition/index.ts:6:5]
+ 6 │ l1
+   · ──
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'l1' is defined here
+   ╭─[../../tests/compiler/letDeclarations-useBeforeDefinition/index.ts:8:9]
+ 8 │ l1
+   · ──
+   ╰────
+
+  × Block-scoped variable 'v1' used before its declaration.
+    ╭─[../../tests/compiler/letDeclarations-useBeforeDefinition/index.ts:13:5]
+ 13 │ v1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v1' is defined here
+    ╭─[../../tests/compiler/letDeclarations-useBeforeDefinition/index.ts:16:9]
+ 16 │ v1 = 0
+    · ──────
+    ╰────
+
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/letDeclarations-useBeforeDefinition/index.ts:13:5]
+ 13 │ v1
+    · ──
+    ╰────

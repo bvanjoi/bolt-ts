@@ -1,0 +1,13 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/numericIndexerConstraint4/index.ts:6:5]
+ 6 │ foo
+   · ───
+   ╰────
+
+  × Property 'bar' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/numericIndexerConstraint4/index.ts:11:5]
+ 11 │ bar
+    · ───
+    ╰────

@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/defaultParameterAddsUndefinedWithStrictNullChecks.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strictNullChecks
 function f(addUndefined1 = 'J', addUndefined2) {
   return addUndefined1.length + (addUndefined2 || 0);
 }

@@ -3,6 +3,6 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 
-function foo();
+function foo(); //~ ERROR: Function implementation is missing or not immediately following the declaration.
 1+1;
 function foo():string { return "a" }

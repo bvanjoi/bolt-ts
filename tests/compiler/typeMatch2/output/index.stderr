@@ -37,20 +37,32 @@
     ╰────
 
   × Property 'g' is missing.
-    ╭─[../../tests/compiler/typeMatch2/index.ts:33:5]
- 33 │ xb
+    ╭─[../../tests/compiler/typeMatch2/index.ts:28:5]
+ 28 │ gg
+    · ──
+    ╰────
+
+  × Property 'g' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:34:5]
+ 34 │ xb
+    · ──
+    ╰────
+
+  × Property 'g' is missing.
+    ╭─[../../tests/compiler/typeMatch2/index.ts:34:5]
+ 34 │ xb
     · ──
     ╰────
 
   × Object literal may only specify known properties, and 'z' does not exist
   │ in type '{ x: number; y: number; }'.
-    ╭─[../../tests/compiler/typeMatch2/index.ts:46:26]
- 46 │ z
+    ╭─[../../tests/compiler/typeMatch2/index.ts:48:26]
+ 48 │ z
     · ─
     ╰────
 
   × Property 'y' is missing.
-    ╭─[../../tests/compiler/typeMatch2/index.ts:48:5]
- 48 │ a
+    ╭─[../../tests/compiler/typeMatch2/index.ts:50:5]
+ 50 │ a
     · ─
     ╰────

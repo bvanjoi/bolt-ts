@@ -1,0 +1,13 @@
+  × Type 'FunctionComponent2<SomePropsCloneX>' is not assignable to type
+  │ 'undefined | FunctionComponent2<SomeProps>'.
+    ╭─[../../tests/compiler/identicalTypesNoDifferByCheckOrder/index.ts:37:30]
+ 37 │ renderAs
+    · ────────
+    ╰────
+
+  × Type 'FunctionComponent1<SomePropsX>' is not assignable to type 'undefined
+  │ | FunctionComponent1<SomeProps>'.
+    ╭─[../../tests/compiler/identicalTypesNoDifferByCheckOrder/index.ts:42:30]
+ 42 │ renderAs
+    · ────────
+    ╰────

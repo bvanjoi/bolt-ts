@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/ambientConstLiterals.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function f(x) {
   return x;
 }
@@ -26,6 +28,6 @@ var c9 = {
 };
 var c10 = [123];
 var c11 = 'abc' + 'def';
-var c12 = 579;
+var c12 = 123 + 456;
 var c13 = Math.random() > 0.5 ? 'abc' : 'def';
 var c14 = Math.random() > 0.5 ? 123 : 456;

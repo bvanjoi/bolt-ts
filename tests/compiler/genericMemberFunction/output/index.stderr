@@ -1,0 +1,36 @@
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/genericMemberFunction/index.ts:24:5]
+ 24 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'removedFiles'.
+    ╭─[../../tests/compiler/genericMemberFunction/index.ts:26:5]
+ 26 │ removedFiles
+    · ────────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'FileWithErrors<A, B, C>'.
+   ╭─[../../tests/compiler/genericMemberFunction/index.ts:8:12]
+ 8 │ undefined
+   · ─────────
+   ╰────
+
+  × Type 'undefined' is not assignable to type 'BuildError<A, B, C>[]'.
+    ╭─[../../tests/compiler/genericMemberFunction/index.ts:14:12]
+ 14 │ undefined
+    · ─────────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'BuildResult<A, B, C>'.
+    ╭─[../../tests/compiler/genericMemberFunction/index.ts:18:12]
+ 18 │ undefined
+    · ─────────
+    ╰────
+
+  × Property 'removeFile' does not exist on type 'BuildResult<A, B, C,
+  │ BuildResult>'.
+    ╭─[../../tests/compiler/genericMemberFunction/index.ts:28:12]
+ 28 │ removeFile
+    · ──────────
+    ╰────

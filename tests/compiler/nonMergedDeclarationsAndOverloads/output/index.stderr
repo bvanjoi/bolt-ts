@@ -1,0 +1,41 @@
+  × Duplicate identifier 'm1'.
+   ╭─[../../tests/compiler/nonMergedDeclarationsAndOverloads/index.ts:9:5]
+ 6 │ m1: string;
+   · ─┬
+   ·  ╰── Previous definition here
+ 7 │     //~^ ERROR: Property 'm1' has no initializer and is not definitely assigned in the constructor.
+ 8 │     f() {}
+ 9 │     m1
+   ·     ──
+   ╰────
+
+  × Duplicate identifier 'm1'.
+    ╭─[../../tests/compiler/nonMergedDeclarationsAndOverloads/index.ts:11:5]
+  6 │ m1: string;
+    · ─┬
+    ·  ╰── Previous definition here
+  7 │     //~^ ERROR: Property 'm1' has no initializer and is not definitely assigned in the constructor.
+  8 │     f() {}
+  9 │     m1 (a: string): void;
+ 10 │     //~^ ERROR: Duplicate identifier 'm1'.
+ 11 │     m1
+    ·     ──
+    ╰────
+
+  × Duplicate identifier 'm1'.
+   ╭─[../../tests/compiler/nonMergedDeclarationsAndOverloads/index.ts:6:5]
+ 6 │ m1
+   · ─┬
+   ·  ╰── Previous definition here
+   ╰────
+    ╭─[../../tests/compiler/nonMergedDeclarationsAndOverloads/index.ts:13:5]
+ 13 │ m1
+    · ──
+    ╰────
+
+  × Property 'm1' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/nonMergedDeclarationsAndOverloads/index.ts:6:5]
+ 6 │ m1
+   · ──
+   ╰────

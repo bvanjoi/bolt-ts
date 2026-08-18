@@ -97,7 +97,7 @@ fn parse_string_compiler_option_array(input: &mut Peekable<Chars>) -> Vec<String
             }
             input.next();
             skip_whitespace(input);
-        } else if ch.is_ascii_alphanumeric() {
+        } else if ch.is_ascii() {
             current.push(*ch);
             input.next();
         } else {
@@ -188,6 +188,7 @@ fn parse_compiler_options(input: &str) -> Vec<(String, CompilerOption)> {
 pub struct TestProps {
     pass_mode: Option<PassMode>,
     fail_mode: Option<FailMode>,
+    skip_message_match: bool,
 }
 
 impl TestProps {
@@ -195,6 +196,7 @@ impl TestProps {
         TestProps {
             pass_mode: None,
             fail_mode: None,
+            skip_message_match: false,
         }
     }
 
@@ -212,9 +214,16 @@ impl TestProps {
             &mut |HeaderLine { directive: ln, .. }| {
                 self.update_pass_mode(ln, config);
                 self.update_fail_mode(ln, config);
-                config.update_compiler_options(ln)
+                self.update_skip_message_match(ln);
+                config.update_compiler_options(ln);
             },
         );
+    }
+
+    fn update_skip_message_match(&mut self, ln: &str) {
+        if parse_name_directive(ln, "skip-message-match") {
+            self.skip_message_match = true;
+        }
     }
 
     fn update_pass_mode(&mut self, ln: &str, config: &TestConfig) {
@@ -249,6 +258,10 @@ impl TestProps {
             (Some(_), Some(_)) => panic!("multiple `*-fail` headers in a single test"),
             (_, None) => {}
         }
+    }
+
+    pub fn skip_message_match(&self) -> bool {
+        self.skip_message_match
     }
 
     pub fn pass_mode(&self) -> Option<PassMode> {
@@ -292,14 +305,6 @@ const COMMENT: &str = "//@";
 
 fn iter_header(test_file: &Path, rdr: impl Read, iter: &mut dyn FnMut(HeaderLine<'_>)) {
     assert!(test_file.is_file());
-    if test_file
-        .extension()
-        .is_some_and(|e| e == "ts" || e == "tsx")
-    {
-        // skip
-    } else {
-        unreachable!()
-    };
 
     let mut rdr = BufReader::with_capacity(1024, rdr);
     // let mut line_number = 0;
@@ -464,5 +469,13 @@ fn test_config_update_compiler_options() {
             CompilerOption::Bool(true),
             CompilerOption::Bool(false),
         ])
+    );
+
+    config.update_compiler_options("compiler-options: a12=[a.b, c2]");
+    assert_eq!(config.compiler_options.len(), 11);
+    let a12 = &config.compiler_options["a12"];
+    assert_eq!(
+        a12,
+        &CompilerOption::StringArray(vec!["a.b".to_string(), "c2".to_string()])
     );
 }

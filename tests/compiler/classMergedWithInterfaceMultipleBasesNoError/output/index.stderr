@@ -1,0 +1,5 @@
+  × Property 'handleIntersection' is used before its initialization.
+    ╭─[../../tests/compiler/classMergedWithInterfaceMultipleBasesNoError/index.ts:12:30]
+ 12 │ handleIntersection
+    · ──────────────────
+    ╰────

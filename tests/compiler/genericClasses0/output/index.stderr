@@ -1,0 +1,12 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/genericClasses0/index.ts:7:9]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Variable 'v1' is used before being assigned.
+    ╭─[../../tests/compiler/genericClasses0/index.ts:13:9]
+ 13 │ v1
+    · ──
+    ╰────

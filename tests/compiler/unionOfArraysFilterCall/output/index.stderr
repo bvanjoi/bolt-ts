@@ -1,0 +1,17 @@
+  × 'item.id' is possibly 'undefined'.
+    ╭─[../../tests/compiler/unionOfArraysFilterCall/index.ts:30:50]
+ 30 │ item?.id
+    · ────────
+    ╰────
+
+  × 'item.id' is possibly 'undefined'.
+    ╭─[../../tests/compiler/unionOfArraysFilterCall/index.ts:30:50]
+ 30 │ item?.id
+    · ────────
+    ╰────
+
+  × 'item.id' is possibly 'undefined'.
+    ╭─[../../tests/compiler/unionOfArraysFilterCall/index.ts:30:50]
+ 30 │ item?.id
+    · ────────
+    ╰────

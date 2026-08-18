@@ -1,0 +1,64 @@
+  × Cannot find name 'T'.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:41:15]
+ 41 │ T
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Cannot use namespace as a value.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:36:11]
+ 36 │ T
+    · ─
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+   ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:9:19]
+ 9 │ ''
+   · ──
+   ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:9:5]
+ 9 │ s
+   · ─
+   ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:12:1]
+ 12 │ s
+    · ─
+    ╰────
+
+  × Type 'number' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:16:20]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:20:1]
+ 20 │ n
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:28:41]
+ 28 │ a
+    · ─
+    ╰────
+
+  × Conversion of type 'string' to type 'number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:24:51]
+ 24 │ <number>s
+    · ─────────
+    ╰────
+
+  × Conversion of type 'string' to type 'number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/defaultArgsInFunctionExpressions/index.ts:32:62]
+ 32 │ <number>s
+    · ─────────
+    ╰────

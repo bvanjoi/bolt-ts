@@ -1,0 +1,6 @@
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/constraintsThatReferenceOtherContstraints1/index.ts:9:5]
+ 9 │ data
+   · ────
+   ╰────

@@ -1,0 +1,65 @@
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:36:16]
+ 36 │ ...i
+    · ────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:38:16]
+ 38 │ ...k
+    · ────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:44:16]
+ 44 │ ...union_primitive
+    · ──────────────────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:48:17]
+ 48 │ ...intersection_primitive
+    · ─────────────────────────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:51:17]
+ 51 │ ...num
+    · ──────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:53:17]
+ 53 │ ...str
+    · ──────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:56:17]
+ 56 │ ...u
+    · ────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:58:17]
+ 58 │ ...n
+    · ────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:63:17]
+ 63 │ ...literal_string
+    · ─────────────────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:65:17]
+ 65 │ ...literal_number
+    · ─────────────────
+    ╰────
+
+  × Spread types may only be created from object types.
+    ╭─[../../tests/compiler/spreadInvalidArgumentType/index.ts:68:17]
+ 68 │ ...e
+    · ────
+    ╰────

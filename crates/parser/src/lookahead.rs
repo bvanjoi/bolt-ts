@@ -1,15 +1,15 @@
-use super::state::LanguageVariant;
+use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState, Tristate, utils::ParseSuccess};
 
 use bolt_ts_ast::{BinPrec, TokenKind, keyword};
 
-pub(super) struct Lookahead<'a, 'cx, 'p> {
-    p: &'a mut ParserState<'cx, 'p>,
+pub(super) struct Lookahead<'a, 'cx, 'p, const VARIANT: u8> {
+    p: &'a mut ParserState<'cx, 'p, VARIANT>,
 }
 
-impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
+impl<'a, 'cx, 'p, const VARIANT: u8> Lookahead<'a, 'cx, 'p, VARIANT> {
     #[inline(always)]
-    pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p> {
+    pub(super) fn p(&mut self) -> &mut ParserState<'cx, 'p, VARIANT> {
         self.p
     }
 
@@ -302,7 +302,7 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
             debug_assert_eq!(first, Less);
             if !self.p.is_ident() && self.p.token.kind != Const {
                 Tristate::False
-            } else if self.p.variant == LanguageVariant::Jsx {
+            } else if is_jsx_like_variant(VARIANT) {
                 let is_arrow_fn_in_jsx = self.lookahead(|this| {
                     this.p.parse_optional(Const);
                     this.p.next_token();
@@ -351,6 +351,15 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
                 }
             }
             Default => self.next_token_can_follow_default_keyword(),
+            Static => {
+                self.p.next_token();
+                self.p.can_follow_modifier()
+            }
+            Get | Set => {
+                self.p.next_token();
+                // can_follow_get_or_set_keyword
+                self.p.token.kind == TokenKind::LBracket || self.p.token.kind.is_lit_prop_name()
+            }
             _ => self.next_token_is_on_same_line_and_can_follow_modifier(),
         }
     }
@@ -400,10 +409,10 @@ impl<'a, 'cx, 'p> Lookahead<'a, 'cx, 'p> {
     }
 }
 
-impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
+impl<'a, 'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn try_parse<T: ParseSuccess>(
         &'a mut self,
-        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p>) -> T,
+        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p, VARIANT>) -> T,
     ) -> T {
         let mut l = Lookahead { p: self };
         l.in_try_context(f, |r| !r.is_success())
@@ -411,12 +420,13 @@ impl<'a, 'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn lookahead<T>(
         &'a mut self,
-        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p>) -> T,
+        f: impl FnOnce(&mut Lookahead<'a, 'cx, 'p, VARIANT>) -> T,
     ) -> T {
         let mut l = Lookahead { p: self };
         l.lookahead(f)
     }
 
+    // TODO: split it into single function such as `is_start_of_decl_for_module_or_namespace`.
     pub(super) fn is_start_of_decl(&mut self) -> bool {
         self.lookahead(Lookahead::is_decl)
     }

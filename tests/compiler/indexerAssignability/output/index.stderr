@@ -1,0 +1,17 @@
+  × Variable 'b' is used before being assigned.
+   ╭─[../../tests/compiler/indexerAssignability/index.ts:9:5]
+ 9 │ b
+   · ─
+   ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/indexerAssignability/index.ts:11:5]
+ 11 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/indexerAssignability/index.ts:14:5]
+ 14 │ c
+    · ─
+    ╰────

@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/higherOrderMappedIndexLookupInference.ts`, Apache-2.0 License
+//@compiler-options: strict
 function f1(a, b) {
   a = b;
   b = a;

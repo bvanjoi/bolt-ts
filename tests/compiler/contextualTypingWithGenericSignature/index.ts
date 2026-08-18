@@ -6,4 +6,4 @@ var f2: {
 
 f2 = (x, y) => { return x }
 f2 = (x, y) => { return y }
-//~^ ERROR: Type '(x: T, y: U) => U' is not assignable to type '(x: T, y: U) => T'.
+//~^ ERROR: Type '<T, U>(x: T, y: U) => U' is not assignable to type '<T, U>(x: T, y: U) => T'.

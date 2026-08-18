@@ -1,0 +1,12 @@
+  × Property 'aProp' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/internalImportUnInstantiatedModuleMergedWithClassNotReferencingInstance/index.ts:7:5]
+ 7 │ aProp
+   · ─────
+   ╰────
+
+  × Module 'A' is hidden by a local declaration with the same name.
+    ╭─[../../tests/compiler/internalImportUnInstantiatedModuleMergedWithClassNotReferencingInstance/index.ts:16:16]
+ 16 │ A
+    · ─
+    ╰────

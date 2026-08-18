@@ -1,0 +1,11 @@
+  × Signature declarations can only be used in TypeScript files.
+   ╭─[../../tests/compiler/jsFileCompilationConstructorOverloadSyntax/index.js:8:3]
+ 8 │ constructor();
+   · ──────────────
+   ╰────
+
+  × Constructor implementation is missing.
+   ╭─[../../tests/compiler/jsFileCompilationConstructorOverloadSyntax/index.js:8:3]
+ 8 │ constructor
+   · ───────────
+   ╰────

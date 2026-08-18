@@ -1,0 +1,6 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/functionOverloads1/index.ts:6:10]
+ 6 │ foo
+   · ───
+   ╰────

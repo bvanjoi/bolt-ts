@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/conditionalTypeRelaxingConstraintAssignability.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 
 export class Elem {
   constructor(children_) {}

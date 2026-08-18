@@ -1,0 +1,13 @@
+  × Construct signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+   ╭─[../../tests/compiler/noImplicitAnyInBareInterface/index.ts:8:5]
+ 8 │ new ();
+   · ───────
+   ╰────
+
+  × 'foo', which lacks return-type annotation, implicitly has an 'any' return
+  │ type.
+    ╭─[../../tests/compiler/noImplicitAnyInBareInterface/index.ts:11:5]
+ 11 │ foo()
+    · ─────
+    ╰────

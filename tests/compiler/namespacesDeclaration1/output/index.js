@@ -1,16 +1,2 @@
-var M = {};
-(function (M) {
-
-  var N = {};
-  (function (N) {
-  
-    var M2 = {};
-    (function (M2) {
-    
-    })(M2);
-    N.M2 = M2;
-    
-  })(N);
-  M.N = N;
-  
-})(M);
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/namespacesDeclaration1.ts`, Apache-2.0 License
+//@compiler-options: target=es2015

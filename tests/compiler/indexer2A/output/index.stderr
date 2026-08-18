@@ -1,0 +1,6 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/indexer2A/index.ts:9:5]
+ 9 │ hasOwnProperty
+   · ──────────────
+   ╰────

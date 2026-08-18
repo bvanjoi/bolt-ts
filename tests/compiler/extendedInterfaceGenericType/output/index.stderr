@@ -1,0 +1,11 @@
+  × Variable 'alpha' is used before being assigned.
+    ╭─[../../tests/compiler/extendedInterfaceGenericType/index.ts:13:20]
+ 13 │ alpha
+    · ─────
+    ╰────
+
+  × Variable 'alpha' is used before being assigned.
+    ╭─[../../tests/compiler/extendedInterfaceGenericType/index.ts:13:20]
+ 13 │ alpha
+    · ─────
+    ╰────

@@ -1,0 +1,35 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/anonymousModules/index.ts:5:1]
+ 5 │ module
+   · ──────
+   ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/anonymousModules/index.ts:10:2]
+ 10 │ module
+    · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/anonymousModules/index.ts:18:2]
+ 18 │ module
+    · ──────
+    ╰────
+
+  × Cannot find name 'module'.
+   ╭─[../../tests/compiler/anonymousModules/index.ts:5:1]
+ 5 │ module
+   · ──────
+   ╰────
+
+  × Cannot find name 'module'.
+    ╭─[../../tests/compiler/anonymousModules/index.ts:10:2]
+ 10 │ module
+    · ──────
+    ╰────
+
+  × Cannot find name 'module'.
+    ╭─[../../tests/compiler/anonymousModules/index.ts:18:2]
+ 18 │ module
+    · ──────
+    ╰────

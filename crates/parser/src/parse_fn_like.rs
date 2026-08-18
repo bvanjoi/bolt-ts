@@ -8,18 +8,18 @@ use super::SignatureFlags;
 use super::parsing_ctx::ParseContext;
 use super::{PResult, ParserState};
 
-pub(super) trait FnLike<'cx, 'p> {
+pub(super) trait FnLike<'cx, 'p, const VARIANT: u8> {
     type Node;
     type Modifier;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         ms: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>>;
     #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Self::Modifier,
         asterisk_token: Option<Span>,
@@ -32,12 +32,12 @@ pub(super) trait FnLike<'cx, 'p> {
 }
 
 pub(super) struct ParseFnDecl;
-impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
+impl<'cx, 'p, const VARIANT: u8> FnLike<'cx, 'p, VARIANT> for ParseFnDecl {
     type Node = &'cx ast::FnDecl<'cx>;
     type Modifier = Option<&'cx ast::Modifiers<'cx>>;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         ms: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>> {
         if ms.contains(ast::ModifierFlags::DEFAULT) {
@@ -48,7 +48,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
     }
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Self::Modifier,
         asterisk: Option<Span>,
@@ -69,12 +69,12 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnDecl {
 }
 
 pub(super) struct ParseFnExpr;
-impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
+impl<'cx, 'p, const VARIANT: u8> FnLike<'cx, 'p, VARIANT> for ParseFnExpr {
     type Node = &'cx ast::FnExpr<'cx>;
     type Modifier = Option<&'cx ast::Modifier>;
     fn parse_name(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         _: ast::ModifierFlags,
     ) -> PResult<Option<&'cx ast::Ident>> {
         // TODO: is_generator, is_async
@@ -82,7 +82,7 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     }
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         async_modifier: Self::Modifier,
         asterisk: Option<Span>,
@@ -105,10 +105,10 @@ impl<'cx, 'p> FnLike<'cx, 'p> for ParseFnExpr {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn parse_fn_decl_or_expr<Node, Modifier>(
         &mut self,
-        mode: impl FnLike<'cx, 'p, Node = Node, Modifier = Modifier>,
+        mode: impl FnLike<'cx, 'p, VARIANT, Node = Node, Modifier = Modifier>,
         modifiers: Modifier,
         modifier_flags: ast::ModifierFlags,
     ) -> PResult<Node> {
@@ -135,10 +135,14 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                     (false, false) => SignatureFlags::empty(),
                 };
                 let params = this.parse_parameters(flags);
-                this.check_parameters(params, CheckParameterFlags::empty());
                 let ret_ty = this.parse_fn_decl_ret_type()?;
 
                 let body = this.parse_fn_block_or_semi(flags);
+                if body.is_none() {
+                    this.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+                } else {
+                    this.check_parameters(params, CheckParameterFlags::empty());
+                }
                 let span = this.new_span(start);
                 Ok(mode.finish(
                     this,

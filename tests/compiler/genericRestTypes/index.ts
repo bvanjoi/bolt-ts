@@ -19,7 +19,7 @@ function assignmentWithComplexRest<T extends any[]>() {
 function assignmentWithComplexRest2<T extends any[]>() {
     const fn1: (cb: (x: string, ...rest: T) => void) => void = (cb) => {};
     const fn2: (cb: (...args: never) => void) => void = fn1;
-    //~^ ERROR: Type '(cb: (x: string, rest: T) => void) => void' is not assignable to type '(cb: (args: never) => void) => void'.
+    //~^ ERROR: Type '(cb: (x: string, ...rest: T) => void) => void' is not assignable to type '(cb: (...args: never) => void) => void'.
 }
 
 function assignmentWithComplexRest3<T extends any[]>() {

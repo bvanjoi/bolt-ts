@@ -1,0 +1,17 @@
+  × Type 'T | U' is not assignable to type 'Top'.
+    ╭─[../../tests/compiler/typeParameterDiamond3/index.ts:12:13]
+ 12 │ top
+    · ───
+    ╰────
+
+  × Type 'Bottom' is not assignable to type 'T | U'.
+    ╭─[../../tests/compiler/typeParameterDiamond3/index.ts:14:13]
+ 14 │ middle
+    · ──────
+    ╰────
+
+  × Type 'Bottom' is not assignable to type 'Top'.
+    ╭─[../../tests/compiler/typeParameterDiamond3/index.ts:16:13]
+ 16 │ top
+    · ───
+    ╰────

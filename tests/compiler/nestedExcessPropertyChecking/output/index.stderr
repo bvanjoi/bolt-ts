@@ -1,0 +1,36 @@
+  × Type '{ c: string; }' has no properties in common with type '{ a:
+  │ undefined | string; } & { b: undefined | string; }'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:11:7]
+ 11 │ ab1
+    · ───
+    ╰────
+
+  × Type 'C2' has no properties in common with type 'A2 & B2'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:19:7]
+ 19 │ ab2
+    · ───
+    ╰────
+
+  × Type 'E.A' has no properties in common with type '{ nope: any; }'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:24:5]
+ 24 │ x
+    · ─
+    ╰────
+
+  × Type 'E.A' has no properties in common with type '{ nope: any; }'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:26:5]
+ 26 │ y
+    · ─
+    ╰────
+
+  × Type 'false' has no properties in common with type 'OverridesInput'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:39:22]
+ 39 │ overrides
+    · ─────────
+    ╰────
+
+  × Type 'false' has no properties in common with type 'OverridesInput'.
+    ╭─[../../tests/compiler/nestedExcessPropertyChecking/index.ts:49:9]
+ 49 │ overrides
+    · ─────────
+    ╰────

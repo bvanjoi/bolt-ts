@@ -1,0 +1,24 @@
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest5/index.ts:28:17]
+ 28 │ tokens
+    · ──────
+    ╰────
+
+  × Property 'state' is missing.
+    ╭─[../../tests/compiler/arrayAssignmentTest5/index.ts:28:17]
+ 28 │ tokens
+    · ──────
+    ╰────
+
+  × Function lacks ending return statement and return type does not include
+  │ 'undefined'.
+    ╭─[../../tests/compiler/arrayAssignmentTest5/index.ts:25:66]
+ 25 │ IAction
+    · ───────
+    ╰────
+
+  × Type 'null' is not assignable to type 'ILineTokens'.
+    ╭─[../../tests/compiler/arrayAssignmentTest5/index.ts:36:20]
+ 36 │ null
+    · ────
+    ╰────

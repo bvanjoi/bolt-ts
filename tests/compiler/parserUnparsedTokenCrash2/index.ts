@@ -14,4 +14,5 @@ export = } x = ( y = z ==== 'function') {
 //~| ERROR: Cannot find name 'y'.
 //~| ERROR: Cannot find name 'z'.
 //~| ERROR: Type 'string' is not assignable to type 'boolean'.
+//~| ERROR: Unexpected keyword or identifier.
 //~ ERROR: '}' expected.

@@ -1,0 +1,13 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/implicitAnyNewExprLackConstructorSignature/index.ts:6:20]
+ 6 │ this
+   · ────
+   ╰────
+
+  × 'new' expression, whose target lacks a construct signature, implicitly has
+  │ an 'any' type.
+   ╭─[../../tests/compiler/implicitAnyNewExprLackConstructorSignature/index.ts:8:14]
+ 8 │ new Point()
+   · ───────────
+   ╰────

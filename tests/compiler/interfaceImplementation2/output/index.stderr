@@ -1,0 +1,19 @@
+  × Property 'iFn' is missing.
+    ╭─[../../tests/compiler/interfaceImplementation2/index.ts:12:7]
+ 12 │ C3
+    · ──
+    ╰────
+
+  × Property 'iObj' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation2/index.ts:14:12]
+ 14 │ iObj
+    · ────
+    ╰────
+
+  × Property 'iNum' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation2/index.ts:16:12]
+ 16 │ iNum
+    · ────
+    ╰────

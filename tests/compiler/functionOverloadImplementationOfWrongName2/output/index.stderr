@@ -1,0 +1,12 @@
+  × Function implementation name must be 'foo'.
+   ╭─[../../tests/compiler/functionOverloadImplementationOfWrongName2/index.ts:7:10]
+ 7 │ bar
+   · ───
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/functionOverloadImplementationOfWrongName2/index.ts:9:10]
+ 9 │ foo
+   · ───
+   ╰────

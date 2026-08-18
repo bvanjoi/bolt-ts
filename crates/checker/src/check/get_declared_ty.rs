@@ -200,7 +200,7 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn is_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_constructor_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         if !self
             .get_signatures_of_type(ty, ty::SigKind::Constructor)
             .is_empty()
@@ -229,7 +229,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::ResolvedBaseConstructorType(ty.id)) {
             return self.error_ty;
         }
-        let base_ctor_ty = self.check_expression::<false>(extends.expr_with_ty_args.expr, None);
+        let base_ctor_ty = self.check_expression::<false>(extends.expr, None);
         const FLAGS: TypeFlags = TypeFlags::OBJECT.union(TypeFlags::INTERSECTION);
         if base_ctor_ty.flags.intersects(FLAGS) {
             self.resolve_structured_type_members(base_ctor_ty);
@@ -259,7 +259,7 @@ impl<'cx> TyChecker<'cx> {
             && !self.is_constructor_ty(base_ctor_ty)
         {
             let error = errors::TypeXIsNotAConstructorFunctionType {
-                span: extends.expr_with_ty_args.expr.span(),
+                span: extends.expr.span(),
                 ty: self.print_ty(base_ctor_ty, None).to_string(),
             };
             self.push_error(Box::new(error));
@@ -562,7 +562,10 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn get_enum_member_value(&mut self, member: &ast::EnumMember) -> EnumMemberValue {
+    pub(super) fn get_enum_member_value(
+        &mut self,
+        member: &'cx ast::EnumMember<'cx>,
+    ) -> EnumMemberValue {
         let parent = self.parent(member.id).unwrap();
         let node = self.p.node(parent).expect_enum_decl();
         self.compute_enum_member_values(node);

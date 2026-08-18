@@ -1,0 +1,11 @@
+  × Object literal's property 'p' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyUnionNormalizedObjectLiteral1/index.ts:23:3]
+ 23 │ p: null
+    · ───────
+    ╰────
+
+  × Object literal's property 's' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyUnionNormalizedObjectLiteral1/index.ts:25:3]
+ 25 │ s: null
+    · ───────
+    ╰────

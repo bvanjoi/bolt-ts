@@ -1,0 +1,5 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/reversedRecusiveTypeInstantiation/index.ts:10:1]
+ 10 │ a
+    · ─
+    ╰────

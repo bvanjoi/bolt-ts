@@ -4,7 +4,7 @@ use bolt_ts_span::Span;
 
 use super::errors;
 use super::parsing_ctx::ParsingContext;
-use super::state::LanguageVariant;
+use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState};
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl JsxEleOrSelfClosingEleOrFrag<'_> {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn parse_jsx_ele_or_self_closing_ele_or_frag(
         &mut self,
         in_expr_context: bool,
@@ -32,7 +32,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         opening_tag: Option<bolt_ts_ast::JsxTagName<'cx>>,
         must_be_unary: bool,
     ) -> PResult<JsxEleOrSelfClosingEleOrFrag<'cx>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         // parse_jsx_opening_or_self_closing_or_opening_frag
         let result: JsxEleOrSelfClosingEleOrFrag<'cx>;
@@ -147,7 +147,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_text(&mut self) -> &'cx bolt_ts_ast::JsxText {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let text = self.string_token();
         let contains_only_trivia_whitespace = self.token.kind == TokenKind::JSXTextAllWhiteSpaces;
         let node = self.create_jsx_text(text, self.token.span, contains_only_trivia_whitespace);
@@ -160,7 +160,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         opening_tag_name: Option<bolt_ts_ast::JsxTagName<'cx>>,
         token: TokenKind,
     ) -> PResult<Option<bolt_ts_ast::JsxChild<'cx>>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         match token {
             TokenKind::EOF => {
                 if let Some(_opening_tag_name) = opening_tag_name {
@@ -201,7 +201,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         opening_tag_name: Option<bolt_ts_ast::JsxTagName<'cx>>,
     ) -> &'cx [bolt_ts_ast::JsxChild<'cx>] {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let mut list = Vec::with_capacity(16);
         // let start = self.token.start();
         // let save_parsing_context = self.parsecon
@@ -224,13 +224,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_attrs(&mut self) -> bolt_ts_ast::JsxAttrs<'cx> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
 
         (self.parse_list(ParsingContext::JSX_ATTRIBUTES, Self::parse_jsx_attr)) as _
     }
 
     fn parse_jsx_ele_name(&mut self) -> JsxTagName<'cx> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         let init_expr = self.parse_jsx_tag_name();
 
@@ -260,7 +260,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_tag_name(&mut self) -> JsxTagName<'cx> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         self.scan_jsx_ident();
         let is_this = self.token.kind == TokenKind::This;
@@ -284,7 +284,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         in_expr_context: bool,
     ) -> PResult<Option<&'cx bolt_ts_ast::JsxExpr<'cx>>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         if !self.expect(TokenKind::LBrace) {
             Ok(None)
@@ -317,7 +317,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_attr(&mut self) -> PResult<bolt_ts_ast::JsxAttr<'cx>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         Ok(if self.token.kind == TokenKind::LBrace {
             bolt_ts_ast::JsxAttr::Spread(self.parse_jsx_spread_attr()?)
         } else {
@@ -330,7 +330,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_attr_value(&mut self) -> Option<bolt_ts_ast::JsxAttrValue<'cx>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         use bolt_ts_ast::JsxAttrValue::*;
         if self.token.kind == TokenKind::Eq {
             self.scan_jsx_attr_value();
@@ -366,7 +366,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_attr_name(&mut self) -> bolt_ts_ast::JsxAttrName<'cx> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         self.scan_jsx_ident();
         let name = self.parse_identifier_name_error_or_unicode_escape_sequence();
@@ -381,7 +381,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
     }
 
     fn parse_jsx_spread_attr(&mut self) -> PResult<&'cx bolt_ts_ast::JsxSpreadAttr<'cx>> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
         self.expect(TokenKind::DotDotDot);
@@ -396,7 +396,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         in_expr_context: bool,
         opening_tag: Option<bolt_ts_ast::JsxTagName<'cx>>,
     ) -> &'cx bolt_ts_ast::JsxClosingElem<'cx> {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         self.expect(TokenKind::LessSlash);
         let tag_name = self.parse_jsx_ele_name();
@@ -435,13 +435,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         &mut self,
         in_expr_context: bool,
     ) -> &'cx bolt_ts_ast::JsxClosingFrag {
-        debug_assert!(self.variant == LanguageVariant::Jsx);
+        debug_assert!(is_jsx_like_variant(VARIANT));
         let start = self.token.start();
         self.expect(TokenKind::LessSlash);
 
         if self.expect_with::<false>(
             TokenKind::Great,
-            Some(|this: &mut ParserState<'cx, 'p>| {
+            Some(|this: &mut ParserState<'cx, 'p, VARIANT>| {
                 Box::new(errors::ExpectedCorrespondingClosingTagForJsxFragment {
                     span: this.token.span,
                 }) as _

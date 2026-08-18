@@ -1,0 +1,5 @@
+  × Cannot find name 'OriginalB'.
+    ╭─[../../tests/compiler/noCrashOnImportShadowing/index.ts:14:10]
+ 14 │ OriginalB
+    · ─────────
+    ╰────

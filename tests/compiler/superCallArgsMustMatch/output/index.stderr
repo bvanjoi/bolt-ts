@@ -1,0 +1,12 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/superCallArgsMustMatch/index.ts:7:12]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/superCallArgsMustMatch/index.ts:22:15]
+ 22 │ "hi"
+    · ────
+    ╰────

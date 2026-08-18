@@ -1,0 +1,163 @@
+  × Call signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+   ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:8:5]
+ 8 │ ();
+   · ───
+   ╰────
+
+  × Parameter 'x1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:10:6]
+ 10 │ x1
+    · ──
+    ╰────
+
+  × Call signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:10:5]
+ 10 │ (x1);
+    · ─────
+    ╰────
+
+  × Parameter 'x2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:13:6]
+ 13 │ x2
+    · ──
+    ╰────
+
+  × Parameter 'z2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:13:21]
+ 13 │  z2
+    · ───
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:21:8]
+ 21 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:28:8]
+ 28 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:28:10]
+ 28 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:28:13]
+ 28 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:34:8]
+ 34 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:34:18]
+ 34 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:39:8]
+ 39 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:43:8]
+ 43 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:43:10]
+ 43 │  ...r
+    · ─────
+    ╰────
+
+  × Parameter 'x1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:49:8]
+ 49 │ x1
+    · ──
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:51:19]
+ 51 │  y2
+    · ───
+    ╰────
+
+  × Parameter 'x3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:53:8]
+ 53 │ x3
+    · ──
+    ╰────
+
+  × Parameter 'y3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:53:11]
+ 53 │  y3
+    · ───
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:61:11]
+ 61 │ x
+    · ─
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:65:11]
+ 65 │ x
+    · ─
+    ╰────
+
+  × Parameter 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:65:13]
+ 65 │  y
+    · ──
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:65:16]
+ 65 │  z
+    · ──
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:71:11]
+ 71 │ x
+    · ─
+    ╰────
+
+  × Parameter 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:71:21]
+ 71 │  z
+    · ──
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:76:11]
+ 76 │ ...r
+    · ────
+    ╰────
+
+  × Parameter 'x' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:80:11]
+ 80 │ x
+    · ─
+    ╰────
+
+  × Rest parameter 'r' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/noImplicitAnyParametersInInterface/index.ts:80:13]
+ 80 │  ...r
+    · ─────
+    ╰────

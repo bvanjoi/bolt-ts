@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/sigantureIsSubTypeIfTheyAreIdentical/index.ts:11:16]
+ 11 │ undefined
+    · ─────────
+    ╰────

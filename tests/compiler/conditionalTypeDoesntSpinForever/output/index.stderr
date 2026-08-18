@@ -1,0 +1,167 @@
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:27:15]
+ 27 │ soFar
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'TYPE'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:30:20]
+ 30 │ instance
+    · ────────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:21]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:45]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:45]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'TYPE'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:69:26]
+ 69 │ instance
+    · ────────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:81:17]
+ 81 │ soFar
+    · ─────
+    ╰────
+
+  × Type 'undefined' is not assignable to type 'TYPE'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:84:22]
+ 84 │ instance
+    · ────────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:43:19]
+ 43 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+     ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:114:21]
+ 114 │ soFar
+     · ─────
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:27:15]
+ 27 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:43:19]
+ 43 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:21]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:45]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:62:45]
+ 62 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:81:17]
+ 81 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+    ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:97:38]
+ 97 │ soFar
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+     ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:114:21]
+ 114 │ soFar
+     · ─────
+     ╰────
+
+  × No overload matches this call.
+     ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:118:29]
+ 118 │ Object.keys(soFar)
+     · ──────────────────
+     ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got
+  │ 'SO_FAR'.
+     ╭─[../../tests/compiler/conditionalTypeDoesntSpinForever/index.ts:120:71]
+ 120 │ soFar
+     · ─────
+     ╰────

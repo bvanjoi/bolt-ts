@@ -1,65 +1,14 @@
 use std::borrow::Cow;
 
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
+use bolt_ts_scanner::{is_ascii_identifier_part, is_ascii_identifier_start};
+use bolt_ts_scanner::{is_identifier_part, is_identifier_start};
+use bolt_ts_scanner::{is_line_break, is_non_ascii_identifier_start};
+use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
 use bolt_ts_span::Span;
 
 use super::{CommentDirective, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
-
-#[inline(always)]
-fn is_ascii_letter(ch: u8) -> bool {
-    ch.is_ascii_alphabetic()
-}
-
-#[inline(always)]
-fn is_word_character(ch: u8) -> bool {
-    is_ascii_letter(ch) || ch.is_ascii_digit() || ch == b'_'
-}
-
-#[inline(always)]
-fn is_ascii_identifier_start(ch: u8) -> bool {
-    ch == b'$' || ch == b'_' || is_ascii_letter(ch)
-}
-
-#[inline(always)]
-fn is_non_ascii_identifier_start(ch: u32, is_es5_target: bool) -> bool {
-    debug_assert!(ch > 127);
-    if is_es5_target {
-        bolt_ts_scanner::is_unicode_es5_identifier_start(ch)
-    } else {
-        bolt_ts_scanner::is_unicode_esnext_identifier_start(ch)
-    }
-}
-
-#[inline(always)]
-fn is_identifier_start(ch: u32, is_es5_target: bool) -> bool {
-    if ch <= 127 {
-        is_ascii_identifier_start(ch as u8)
-    } else {
-        is_non_ascii_identifier_start(ch, is_es5_target)
-    }
-}
-
-#[inline(always)]
-fn is_ascii_identifier_part(ch: u8) -> bool {
-    is_word_character(ch) || ch == b'$'
-}
-
-#[inline(always)]
-pub fn is_identifier_part(ch: u32, is_es5_target: bool) -> bool {
-    if ch <= 127 {
-        is_ascii_identifier_part(ch as u8)
-    } else if is_es5_target {
-        bolt_ts_scanner::is_unicode_es5_identifier_part(ch)
-    } else {
-        bolt_ts_scanner::is_unicode_esnext_identifier_part(ch)
-    }
-}
-
-#[inline(always)]
-pub(super) fn is_line_break(ch: u8) -> bool {
-    ch == b'\n' || ch == b'\r'
-}
 
 #[inline(always)]
 fn is_octal_digit(ch: u8) -> bool {
@@ -82,7 +31,7 @@ bitflags::bitflags! {
     }
 }
 
-impl ParserState<'_, '_> {
+impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     pub(super) fn ch(&self) -> Option<u8> {
         self.input.get(self.pos).copied()
     }
@@ -339,8 +288,29 @@ impl ParserState<'_, '_> {
                     break;
                 } else {
                     let ch = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
-                    if !is_non_ascii_identifier_start(ch, false) {
-                        return None;
+                    match ch {
+                        non_ascii_character_code::NON_BREAKING_SPACE
+                        | non_ascii_character_code::EN_QUAD
+                        | non_ascii_character_code::EM_QUAD
+                        | non_ascii_character_code::EN_SPACE
+                        | non_ascii_character_code::EM_SPACE
+                        | non_ascii_character_code::THREE_PER_EM_SPACE
+                        | non_ascii_character_code::FOUR_PER_EM_SPACE
+                        | non_ascii_character_code::SIX_PER_EM_SPACE
+                        | non_ascii_character_code::FIGURE_SPACE
+                        | non_ascii_character_code::PUNCTUATION_SPACE
+                        | non_ascii_character_code::THIN_SPACE
+                        | non_ascii_character_code::HAIR_SPACE
+                        | non_ascii_character_code::ZERO_WIDTH_SPACE
+                        | non_ascii_character_code::NARROW_NO_BREAK_SPACE
+                        | non_ascii_character_code::IDEOGRAPHIC_SPACE
+                        | non_ascii_character_code::MATHEMATICAL_SPACE
+                        | non_ascii_character_code::OGHAM => {
+                            let ch = self.ch_unchecked();
+                            return self.scan_identifier::<false>(ch);
+                        }
+                        _ if !is_non_ascii_identifier_start::<false>(ch) => return None,
+                        _ => {}
                     }
                 }
                 first = false;
@@ -523,10 +493,6 @@ impl ParserState<'_, '_> {
                                 self.pos += 1;
                             }
                         }
-                        let c = bolt_ts_ast::SingleLineComment {
-                            span: Span::new(start as u32, self.pos as u32, self.module_id),
-                        };
-                        self.comments.push(bolt_ts_ast::Comment::SingleLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -539,10 +505,6 @@ impl ParserState<'_, '_> {
                                 self.pos += 1;
                             }
                         }
-                        let c = bolt_ts_ast::MultiLineComment {
-                            span: Span::new(start as u32, self.pos as u32, self.module_id),
-                        };
-                        self.comments.push(bolt_ts_ast::Comment::MultiLine(c));
                         continue;
                     } else if self.next_ch() == Some(b'=') {
                         self.pos += 2;
@@ -920,7 +882,7 @@ impl ParserState<'_, '_> {
                 b'0'..=b'9' => self.scan_number(),
                 b'\\' => {
                     if let Some(extended_cooked_char) = self.peek_extend_unicode_escape()
-                        && is_identifier_start(extended_cooked_char, false)
+                        && is_identifier_start::<false>(extended_cooked_char)
                     {
                         let mut unicode = self.scan_extended_unicode_escape(true);
                         if let Some(ident_parts) = self.scan_identifier_parts() {
@@ -933,7 +895,7 @@ impl ParserState<'_, '_> {
                     }
 
                     if let Some(cooked_char) = self.peek_unicode_escape()
-                        && is_identifier_start(cooked_char, false)
+                        && is_identifier_start::<false>(cooked_char)
                     {
                         self.pos += 6;
                         self.token_flags |= TokenFlags::UNICODE_ESCAPE;
@@ -1042,7 +1004,7 @@ impl ParserState<'_, '_> {
                     };
                 }
                 b'\\' => {
-                    contents.extend(&self.input[start..self.pos]);
+                    // contents.extend(&self.input[start..self.pos]);
                     let flags = EscapeSequenceScanningFlags::STRING.union(
                         if SHOULD_EMIT_INVALID_ESCAPE_ERROR {
                             EscapeSequenceScanningFlags::REPORT_ERRORS
@@ -1739,7 +1701,7 @@ impl ParserState<'_, '_> {
             } else if ch == b'\\' {
                 let ch = self.peek_extend_unicode_escape();
                 if let Some(ch) = ch
-                    && is_identifier_part(ch, false)
+                    && is_identifier_part::<false>(ch)
                 {
                     result.extend(self.scan_extended_unicode_escape(true));
                     start = self.pos;
@@ -1748,7 +1710,7 @@ impl ParserState<'_, '_> {
                 let ch = self.peek_unicode_escape();
                 match ch {
                     Some(ch) => {
-                        if !is_identifier_part(ch, false) {
+                        if !is_identifier_part::<false>(ch) {
                             self.pos += 6;
                             return None;
                         }
@@ -1813,31 +1775,4 @@ fn ch_to_regexp_flags(ch: u8) -> Option<RegularExpressionFlags> {
         _ => return None,
     };
     Some(flags)
-}
-
-fn utf16_encode_as_bytes(code_point: u32) -> Vec<u8> {
-    assert!(code_point <= 0x10FFFF);
-    if code_point < 256 {
-        return vec![code_point as u8];
-    } else if code_point <= 0xFFFF {
-        let lo = (code_point & 0xFF) as u8;
-        let hi = ((code_point >> 8) & 0xFF) as u8;
-        return vec![lo, hi];
-    }
-
-    let surrogate = code_point - 0x10000;
-    let high_surrogate = ((surrogate >> 10) + 0xD800) as u16;
-    let low_surrogate = ((surrogate & 0x3FF) + 0xDC00) as u16;
-
-    let mut buf = Vec::with_capacity(4);
-    buf.extend_from_slice(&high_surrogate.to_le_bytes());
-    buf.extend_from_slice(&low_surrogate.to_le_bytes());
-    buf
-}
-
-#[test]
-fn test_utf16_encode_as_bytes() {
-    assert_eq!(utf16_encode_as_bytes(9), vec![9]);
-    assert_eq!(utf16_encode_as_bytes(20), vec![20]);
-    assert_eq!(utf16_encode_as_bytes(255), vec![255]);
 }

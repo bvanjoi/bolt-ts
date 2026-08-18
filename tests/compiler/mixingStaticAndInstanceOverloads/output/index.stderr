@@ -1,0 +1,35 @@
+  × Function overload must not be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:10:12]
+ 10 │ foo1
+    · ────
+    ╰────
+
+  × Function overload must be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:17:5]
+ 17 │ foo2
+    · ────
+    ╰────
+
+  × Function overload must not be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:23:12]
+ 23 │ foo3
+    · ────
+    ╰────
+
+  × Function overload must be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:25:5]
+ 25 │ foo3
+    · ────
+    ╰────
+
+  × Function overload must be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:31:5]
+ 31 │ foo4
+    · ────
+    ╰────
+
+  × Function overload must not be static.
+    ╭─[../../tests/compiler/mixingStaticAndInstanceOverloads/index.ts:33:12]
+ 33 │ foo4
+    · ────
+    ╰────

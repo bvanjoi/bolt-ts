@@ -22,7 +22,8 @@
     · ────────
     ╰────
 
-  × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+  × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
+  │ 'typeof A'.
     ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:22:3]
  22 │ <
     · ─
@@ -34,7 +35,8 @@
     · ─
     ╰────
 
-  × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+  × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
+  │ 'typeof A'.
     ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:12:5]
  12 │ <
     · ─
@@ -46,7 +48,8 @@
     · ─
     ╰────
 
-  × Operator '<' cannot be applied to types '(x: any) => any' and 'typeof A'.
+  × Operator '<' cannot be applied to types '<T, U>(x: any) => any' and
+  │ 'typeof A'.
     ╭─[../../tests/compiler/grammarAmbiguities1/index.ts:16:5]
  16 │ <
     · ─

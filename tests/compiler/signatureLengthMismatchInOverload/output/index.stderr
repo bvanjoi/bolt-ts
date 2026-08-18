@@ -1,0 +1,13 @@
+  × No overload matches this call.
+   ╭─[../../tests/compiler/signatureLengthMismatchInOverload/index.ts:9:1]
+ 5 │ f(callback: (arg: string, arg2: string) => void): void;
+   · ┬
+   · ╰── Unmatched call.
+ 6 │ function f(callback: (arg: number) => void): void;
+   ·          ┬
+   ·          ╰── Unmatched call.
+ 7 │ function f(callback: unknown) { }
+ 8 │ 
+ 9 │ f((arg: number, arg2: number) => {})
+   · ────────────────────────────────────
+   ╰────

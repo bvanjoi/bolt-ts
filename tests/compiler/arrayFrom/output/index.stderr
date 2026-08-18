@@ -5,7 +5,19 @@
     ╰────
 
   × Property 'b' is missing.
-    ╭─[../../tests/compiler/arrayFrom/index.ts:26:7]
- 26 │ result6
+    ╭─[../../tests/compiler/arrayFrom/index.ts:22:7]
+ 22 │ result3
+    · ───────
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/arrayFrom/index.ts:27:7]
+ 27 │ result6
+    · ───────
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/arrayFrom/index.ts:27:7]
+ 27 │ result6
     · ───────
     ╰────

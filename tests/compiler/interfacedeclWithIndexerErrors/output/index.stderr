@@ -1,0 +1,54 @@
+  × An interface cannot extend a primitive type like 'number'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:54:21]
+ 54 │ number
+    · ──────
+    ╰────
+  help: It can only extend other named object types.
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:60:18]
+ 60 │ string
+    · ──────
+    ╰────
+
+  × Property 'p2' of type 'string' is not assignable to 'string' index type
+  │ '() => string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:17:5]
+ 17 │ p2
+    · ──
+    ╰────
+
+  × Property 'p4' of type 'number' is not assignable to 'string' index type
+  │ '() => string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:20:5]
+ 20 │ p4
+    · ──
+    ╰────
+
+  × Property 'p5' of type '(s: number) => string' is not assignable to
+  │ 'string' index type '() => string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:22:5]
+ 22 │ p5
+    · ──
+    ╰────
+
+  × Property 'f3' of type '(a: string) => number' is not assignable to
+  │ 'string' index type '() => string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:27:5]
+ 27 │ f3
+    · ──
+    ╰────
+
+  × Property 'f4' of type '(s: number) => string' is not assignable to
+  │ 'string' index type '() => string'.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:29:5]
+ 29 │ f4
+    · ──
+    ╰────
+
+  × An interface can only extend an object type or intersection of object
+  │ types with statically known members.
+    ╭─[../../tests/compiler/interfacedeclWithIndexerErrors/index.ts:54:21]
+ 54 │ number
+    · ──────
+    ╰────

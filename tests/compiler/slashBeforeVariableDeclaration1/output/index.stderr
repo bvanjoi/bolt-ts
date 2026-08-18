@@ -1,0 +1,17 @@
+  × Invalid character.
+   ╭─[../../tests/compiler/slashBeforeVariableDeclaration1/index.ts:5:1]
+ 5 │ \
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/slashBeforeVariableDeclaration1/index.ts:5:1]
+ 5 │ \
+   · ─
+   ╰────
+
+  × Variable 'v' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/slashBeforeVariableDeclaration1/index.ts:5:15]
+ 5 │ v
+   · ─
+   ╰────

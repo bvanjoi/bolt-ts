@@ -1,5 +1,7 @@
 ﻿// From `github.com/microsoft/TypeScript/blob/v5.8.2/tests/cases/compiler/genericArrayMethods1.ts`, Apache-2.0 License
 
+//@compiler-options: target=es2015
+
 var x:string[] =  [0,1].slice(0);
 //~^ ERROR: Type 'number[]' is not assignable to type 'string[]'.
 

@@ -165,7 +165,7 @@ impl<'cx> TyChecker<'cx> {
             let new_ty_params: ty::Tys<'cx> = self.alloc(new_ty_params);
             fresh_ty_params = Some(new_ty_params);
             let new_mapper = self.create_ty_mapper(ty_params, new_ty_params);
-            mapper = self.combine_ty_mappers(Some(new_mapper), mapper);
+            mapper = self.combine_ty_mappers_worker(new_mapper, mapper);
             for ty in new_ty_params {
                 let prev = self.ty_links.insert(
                     ty.id,
@@ -324,7 +324,7 @@ impl<'cx> TyChecker<'cx> {
     pub(super) fn get_base_type_node_of_class(
         &self,
         i: &'cx ty::Ty<'cx>,
-    ) -> Option<&'cx ast::ClassExtendsClause<'cx>> {
+    ) -> Option<&'cx ast::ExprWithTyArgs<'cx>> {
         let symbol = i.symbol().unwrap();
         self.get_class_like_decl_of_symbol(symbol)
             .and_then(|decl| self.get_effective_base_type_node(decl))
@@ -373,12 +373,10 @@ impl<'cx> TyChecker<'cx> {
             && self.are_all_outer_parameters_applied(original_base_ty.unwrap())
         {
             let base_ty_node = base_ty_node.unwrap();
-            let span = base_ty_node.expr_with_ty_args.span;
-            let ty_args = base_ty_node.expr_with_ty_args.ty_args;
             base_ty = self.get_ty_from_class_or_interface_reference(
                 base_ty_node.id,
-                span,
-                ty_args,
+                base_ty_node.span,
+                base_ty_node.ty_args,
                 None,
                 s,
             );
@@ -386,10 +384,9 @@ impl<'cx> TyChecker<'cx> {
             base_ty = base_ctor_ty;
         } else {
             let base_ty_node = base_ty_node.unwrap();
-            let ty_args = base_ty_node.expr_with_ty_args.ty_args;
             let ctors = self.get_instantiated_constructors_for_type_arguments(
                 base_ctor_ty,
-                ty_args,
+                base_ty_node.ty_args,
                 base_ty_node.id,
             );
             if ctors.is_empty() {
@@ -748,7 +745,7 @@ impl<'cx> TyChecker<'cx> {
             self.alloc([sig])
         } else if let Some(base_ty_node) = self.get_base_type_node_of_class(class_ty) {
             let is_js = false;
-            let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.expr_with_ty_args.ty_args);
+            let ty_args = self.ty_args_from_ty_refer_node(base_ty_node.ty_args);
             let ty_arg_count = ty_args.map(|t| t.len()).unwrap_or_default();
             let mut res = Vec::with_capacity(base_sigs.len());
             for base_sig in base_sigs {
@@ -950,7 +947,7 @@ impl<'cx> TyChecker<'cx> {
         let limited_constraint = self.get_limited_constraint(r);
 
         for prop in props {
-            if let Some(_limited_constraintt) = limited_constraint {
+            if let Some(_limited_constraint) = limited_constraint {
                 todo!()
             };
             let prop = *prop;
@@ -1549,7 +1546,7 @@ impl<'cx> TyChecker<'cx> {
                 && let Some(left_mapper) = left.mapper
                 && left.composite_sigs.is_some()
             {
-                Some(self.combine_ty_mappers(Some(left_mapper), param_mapper))
+                Some(self.combine_ty_mappers_worker(left_mapper, param_mapper))
             } else {
                 Some(param_mapper)
             }
@@ -2151,7 +2148,7 @@ impl<'cx> TyChecker<'cx> {
                 modifiers_ty,
                 include,
                 false,
-                &mut add_member_for_key_ty,
+                add_member_for_key_ty,
             );
         } else {
             let ty = self.get_lower_bound_of_key_ty(constraint_ty);

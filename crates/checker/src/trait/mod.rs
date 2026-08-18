@@ -1,3 +1,1 @@
-mod var_like;
-
-pub use var_like::VarLike;
+pub use bolt_ts_wf_check::VarLike;

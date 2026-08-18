@@ -1,0 +1,24 @@
+  × Property 'notMethod' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/methodChainError/index.ts:6:5]
+ 6 │ notMethod
+   · ─────────
+   ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/methodChainError/index.ts:15:6]
+ 15 │ method
+    · ──────
+    ╰────
+
+  × This expression is not callable.
+    ╭─[../../tests/compiler/methodChainError/index.ts:21:6]
+ 21 │ notMethod
+    · ─────────
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/methodChainError/index.ts:28:11]
+ 28 │ a
+    · ─
+    ╰────

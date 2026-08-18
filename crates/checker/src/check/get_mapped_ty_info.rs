@@ -100,6 +100,12 @@ impl<'cx> TyChecker<'cx> {
         t
     }
 
+    /// ```ts
+    /// type T = {
+    ///     [K in "one" | "two"]: number;
+    ///     //     ^^^^^^^^^^^^^ constraint type of Mapped type
+    /// }
+    /// ```
     pub(super) fn get_constraint_ty_from_mapped_ty(
         &mut self,
         ty: &'cx ty::MappedTy<'cx>,
@@ -136,6 +142,12 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
+    /// ```ts
+    /// type T = {
+    ///     [K in "one" | "two"]: number;
+    ///     //                    ^^^^^^ template type of Mapped type
+    /// }
+    /// ```
     pub(super) fn get_template_ty_from_mapped_ty(
         &mut self,
         ty: &'cx ty::MappedTy<'cx>,

@@ -1,0 +1,13 @@
+  × Property 'g' in type 'Baad<Baad>' is not assignable to the same property
+  │ in base type 'Good<Baad>'.
+    ╭─[../../tests/compiler/inheritance/index.ts:38:12]
+ 38 │ g
+    · ─
+    ╰────
+
+  × Class 'Good' defines instance member property 'f', but extended class
+  │ 'Baad' defines it as instance member function.
+    ╭─[../../tests/compiler/inheritance/index.ts:36:12]
+ 36 │ f
+    · ─
+    ╰────

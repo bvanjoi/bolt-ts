@@ -18,13 +18,6 @@ pub struct DeclNameCannotBe {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
-#[error("Abstract methods can only appear within an abstract class.")]
-pub struct AbstractMethodsCanOnlyAppearWithinAnAbstractClass {
-    #[label(primary)]
-    pub span: Span,
-}
-
-#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Catch clause variable cannot have an initializer.")]
 pub struct CatchClauseVariableTypeAnnotationMustBeAnyOrUnknownIfSpecified {
     #[label(primary)]
@@ -127,6 +120,21 @@ pub struct XIsAnUnusedRenamingOfYDidYouIntendToUseItAsATypeAnnotation {
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Import declarations in a namespace cannot reference a module.")]
 pub struct ImportDeclarationsInANamespaceCannotReferenceAModule {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Type parameter name cannot be '{name}'.")]
+pub struct TypeParameterNameCannotBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Export declarations are not permitted in a namespace.")]
+pub struct ExportDeclarationsAreNotPermittedInANamespace {
     #[label(primary)]
     pub span: Span,
 }

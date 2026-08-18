@@ -1,0 +1,12 @@
+  × Property '_name' does not exist on type
+  │ 'MsPortal.Util.TemplateEngine.StringTemplate<StringTemplate>'.
+    ╭─[../../tests/compiler/crashRegressionTest/index.ts:20:56]
+ 20 │ _name
+    · ─────
+    ╰────
+
+  × Type 'undefined | string' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/crashRegressionTest/index.ts:20:13]
+ 20 │ this._templateStorage.templateSources[this._name]
+    · ─────────────────────────────────────────────────
+    ╰────

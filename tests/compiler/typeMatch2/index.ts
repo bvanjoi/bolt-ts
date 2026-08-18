@@ -27,11 +27,13 @@ function f2() {
     aa = gg;
     gg = aa; // error
     //~^ ERROR: Property 'g' is missing.
+    //~| ERROR: Property 'g' is missing.
     var xa = { f1: 5, f2: aa };
     var xb = { f1: 5, f2: gg };
     xa = xb; // Should be ok
     xb = xa; // Not ok
     //~^ ERROR: Property 'g' is missing.
+    //~| ERROR: Property 'g' is missing.
 }
 
 function f4() {

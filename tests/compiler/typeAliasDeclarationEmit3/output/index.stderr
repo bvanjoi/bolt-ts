@@ -1,0 +1,17 @@
+  × 'type' declarations can only be declared inside a block.
+   ╭─[../../tests/compiler/typeAliasDeclarationEmit3/index.ts:7:14]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × 'type' declarations can only be declared inside a block.
+    ╭─[../../tests/compiler/typeAliasDeclarationEmit3/index.ts:13:14]
+ 13 │ foo
+    · ───
+    ╰────
+
+  × 'type' declarations can only be declared inside a block.
+    ╭─[../../tests/compiler/typeAliasDeclarationEmit3/index.ts:19:14]
+ 19 │ foo
+    · ───
+    ╰────

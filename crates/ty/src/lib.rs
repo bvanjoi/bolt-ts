@@ -37,7 +37,8 @@ bitflags::bitflags! {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Pattern<'cx> {
+pub enum PatternNode<'cx> {
+    ObjectLiteral(&'cx ast::ObjectLit<'cx>),
     ObjectPattern(&'cx ast::ObjectPat<'cx>),
     ArrayPattern(&'cx ast::ArrayPat<'cx>),
 }

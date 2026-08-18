@@ -1,0 +1,13 @@
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/functionOverloadsOutOfOrder/index.ts:10:13]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/functionOverloadsOutOfOrder/index.ts:19:13]
+ 19 │ foo
+    · ───
+    ╰────

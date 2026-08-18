@@ -1,13 +1,13 @@
   × An index signature must have a type annotation.
-   ╭─[../../tests/compiler/indexTypeCheck/index.ts:7:12]
- 7 │ ;
-   · ─
+   ╭─[../../tests/compiler/indexTypeCheck/index.ts:7:3]
+ 7 │ n:number
+   · ────────
    ╰────
 
   × An index signature must have a type annotation.
-   ╭─[../../tests/compiler/indexTypeCheck/index.ts:9:12]
- 9 │ ;
-   · ─
+   ╭─[../../tests/compiler/indexTypeCheck/index.ts:9:3]
+ 9 │ s:string
+   · ────────
    ╰────
 
   × An index signature cannot have a trailing comma.
@@ -23,9 +23,9 @@
     ╰────
 
   × An index signature must have a type annotation.
-    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:13]
- 42 │ s
-    · ─
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:42:3]
+ 42 │ n:number
+    · ────────
     ╰────
 
   × Property or signature expected.
@@ -41,9 +41,9 @@
     ╰────
 
   × An index signature must have a type annotation.
-    ╭─[../../tests/compiler/indexTypeCheck/index.ts:51:12]
- 51 │ ;
-    · ─
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:51:3]
+ 51 │ p:Purple
+    · ────────
     ╰────
 
   × 'number' index type 'number' is not assignable to 'string' index type
@@ -67,8 +67,15 @@
     · ───────────────────
     ╰────
 
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:51:2]
+ 51 │ [p:Purple];
+    · ───────────
+    ╰────
+
   × Type 'Blue' cannot be used as an index type.
-    ╭─[../../tests/compiler/indexTypeCheck/index.ts:67:8]
- 67 │ blue
+    ╭─[../../tests/compiler/indexTypeCheck/index.ts:68:8]
+ 68 │ blue
     · ────
     ╰────

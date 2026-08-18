@@ -1,0 +1,12 @@
+  × Type 'T' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/incompatibleAssignmentOfIdenticallyNamedTypes/index.ts:11:9]
+ 11 │ this.x
+    · ──────
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/incompatibleAssignmentOfIdenticallyNamedTypes/index.ts:8:5]
+ 8 │ x
+   · ─
+   ╰────

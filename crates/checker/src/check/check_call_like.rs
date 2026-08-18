@@ -677,14 +677,18 @@ impl<'cx> TyChecker<'cx> {
             return sig;
         }
 
-        self.invocation_error(expr.callee().span(), expr_ty, ty::SigKind::Constructor);
+        self.invocation_error(
+            expr.callee_most_right_span(),
+            expr_ty,
+            ty::SigKind::Constructor,
+        );
         self.resolve_error_call(expr)
     }
 
     fn invocation_error(
         &mut self,
         callee_span: Span,
-        _apparent_tyy: &'cx ty::Ty<'cx>,
+        _apparent_ty: &'cx ty::Ty<'cx>,
         kind: ty::SigKind,
     ) {
         let error = if kind == ty::SigKind::Call {
@@ -727,7 +731,7 @@ impl<'cx> TyChecker<'cx> {
                 if let Some(base_ty_node) = self.get_effective_base_type_node(n) {
                     let base_ctors = self.get_instantiated_constructors_for_type_arguments(
                         super_ty,
-                        base_ty_node.expr_with_ty_args.ty_args,
+                        base_ty_node.ty_args,
                         base_ty_node.id,
                     );
                     return self.resolve_call(
@@ -764,24 +768,22 @@ impl<'cx> TyChecker<'cx> {
         }
         let func_ty =
             self.check_non_null_ty_with_reporter(func_ty, callee.id(), |this, _, facts| {
-                let error: bolt_ts_errors::BoxedDiag;
                 debug_assert!(facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL));
-                if facts.contains(TypeFacts::IS_UNDEFINED) {
+                let error: bolt_ts_errors::BoxedDiag = if facts.contains(TypeFacts::IS_UNDEFINED) {
                     if facts.contains(TypeFacts::IS_NULL) {
-                        error =
-                            Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
-                                span: callee.span(),
-                            });
-                    } else {
-                        error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyUndefined {
+                        Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNullOrUndefined {
                             span: callee.span(),
-                        });
+                        })
+                    } else {
+                        Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyUndefined {
+                            span: callee.span(),
+                        })
                     }
                 } else {
-                    error = Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNull {
+                    Box::new(errors::CannotInvokeAnObjectWhichIsPossiblyNull {
                         span: callee.span(),
-                    });
-                }
+                    })
+                };
                 this.push_error(error);
             });
 
@@ -830,7 +832,11 @@ impl<'cx> TyChecker<'cx> {
                 };
                 self.push_error(Box::new(error));
             } else {
-                self.invocation_error(expr.callee().span(), apparent_ty, ty::SigKind::Call);
+                self.invocation_error(
+                    expr.callee_most_right_span(),
+                    apparent_ty,
+                    ty::SigKind::Call,
+                );
             }
             return self.resolve_error_call(expr);
         }
@@ -855,7 +861,7 @@ impl<'cx> TyChecker<'cx> {
         self.resolve_call(expr, call_sigs, None, check_mode, call_chain_flags)
     }
 
-    fn is_function_type(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_function_type(&mut self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.flags.contains(TypeFlags::OBJECT)
             && !self
                 .get_signatures_of_type(ty, ty::SigKind::Call)
@@ -1007,15 +1013,13 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn get_signature_applicability_error(
+    fn get_signature_applicability_error<const REPORT_ERROR: bool>(
         &mut self,
         expr: &impl CallLikeExpr<'cx>,
         sig: &'cx ty::Sig<'cx>,
         args: &EffectiveCallArguments<'cx>,
         relation: RelationKind,
         check_mode: CheckMode,
-        report_error: bool,
         inference_context: Option<InferenceContextId>,
     ) -> bool {
         // TODO: is_jsx_call_like
@@ -1026,7 +1030,7 @@ impl<'cx> TyChecker<'cx> {
             if !(n.is_new_expr() || n.as_call_expr().is_some_and(|e| e.expr.is_super_prop())) {
                 let this_argument_node = self.get_this_argument_of_call(expr);
                 let this_argument_ty = self.get_this_argument_ty(this_argument_node);
-                let error_node = report_error
+                let error_node = REPORT_ERROR
                     .then(|| this_argument_node.unwrap_or(n.expect_call_expr().expr).id());
                 if !self.check_type_related_to(
                     this_argument_ty,
@@ -1057,7 +1061,7 @@ impl<'cx> TyChecker<'cx> {
                 {
                     let argument_type =
                         self.check_expr_with_contextual_ty(n, parameter_type, None, check_mode);
-                    let error_node = report_error.then(|| n.id());
+                    let error_node = REPORT_ERROR.then(|| n.id());
                     let regular_arg_ty = if check_mode.contains(CheckMode::SKIP_CONTEXT_SENSITIVE) {
                         self.get_regular_ty_of_object_literal(argument_type)
                     } else {
@@ -1116,7 +1120,7 @@ impl<'cx> TyChecker<'cx> {
             let spared_ty =
                 self.get_spread_argument_ty(args, arg_count, args.len(), rest_ty, None, check_mode);
             let rest_arg_count = args.len() - arg_count;
-            let error_node = if !report_error {
+            let error_node = if !REPORT_ERROR {
                 None
             } else if rest_arg_count == 0 {
                 Some(expr.id())
@@ -1236,13 +1240,12 @@ impl<'cx> TyChecker<'cx> {
                 || !self.has_correct_arity(effective_call_arguments, candidate)
             {
                 None
-            } else if self.get_signature_applicability_error(
+            } else if self.get_signature_applicability_error::<false>(
                 expr,
                 candidate,
                 effective_call_arguments,
                 relation,
                 CheckMode::empty(),
-                false,
                 None,
             ) {
                 candidates_for_argument_error.insert(candidate.id);
@@ -1301,13 +1304,12 @@ impl<'cx> TyChecker<'cx> {
                     }
                 }
 
-                if self.get_signature_applicability_error(
+                if self.get_signature_applicability_error::<false>(
                     expr,
                     check_candidate,
                     effective_call_arguments,
                     relation,
                     argument_check_mode,
-                    false,
                     infer_ctx,
                 ) {
                     candidates_for_argument_error.insert(check_candidate.id);
@@ -1324,17 +1326,20 @@ impl<'cx> TyChecker<'cx> {
                             argument_check_mode,
                             infer_ctx,
                         );
-                        check_candidate =
-                            self.get_sig_instantiation(candidate, Some(ty_arg_tys), false, None);
+                        check_candidate = self.get_sig_instantiation(
+                            candidate,
+                            Some(ty_arg_tys),
+                            false,
+                            Some(infer_ctx),
+                        );
                     };
 
-                    if self.get_signature_applicability_error(
+                    if self.get_signature_applicability_error::<false>(
                         expr,
                         check_candidate,
                         effective_call_arguments,
                         relation,
                         argument_check_mode,
-                        false,
                         infer_ctx,
                     ) {
                         candidates_for_argument_error.insert(check_candidate.id);
@@ -1425,7 +1430,7 @@ impl<'cx> TyChecker<'cx> {
         let mut result = Vec::with_capacity(sigs.len());
         self.reorder_candidates(sigs, &mut result, call_chain_flags);
         let candidates = result;
-        // TODO: is_jsx_open_frament
+        // TODO: is_jsx_open_fragment
         if candidates.is_empty() {
             if report_error {
                 let error = errors::CallTargetDoesNotContainAnySignatures {
@@ -1447,6 +1452,7 @@ impl<'cx> TyChecker<'cx> {
 
         let mut argument_check_mode = CheckMode::empty();
 
+        // TODO: !is_decorator
         if !is_single_non_generic_candidate
             && match &effective_call_arguments {
                 EffectiveCallArguments::Borrowed(args) => {
@@ -1540,7 +1546,7 @@ impl<'cx> TyChecker<'cx> {
                 let hi = effective_call_arguments.last().span().hi();
                 Span::new(lo, hi, n.span().module())
             } else {
-                n.callee().span()
+                n.callee_most_right_span()
             };
             let error = errors::ExpectedXArgsButGotY {
                 span,
@@ -1597,13 +1603,12 @@ impl<'cx> TyChecker<'cx> {
                 if candidates_for_argument_error.len() == 1 {
                     let last = candidates_for_argument_error.drain().last().unwrap();
                     let last = self.sigs[last.as_usize()];
-                    self.get_signature_applicability_error(
+                    self.get_signature_applicability_error::<true>(
                         n,
                         last,
                         &effective_call_arguments,
                         RelationKind::Assignable,
                         CheckMode::empty(),
-                        true,
                         None,
                     );
                 } else {
@@ -1997,11 +2002,19 @@ impl<'cx> TyChecker<'cx> {
             composite_sigs: None,
             composite_kind: None,
         });
+        let mut links = super::SigLinks::default();
         if let Some(this_param) = this_param {
-            let links = super::SigLinks::default().with_this_param(this_param);
-            let prev = self.sig_links.insert(sig.id, links);
-            debug_assert!(prev.is_none());
+            links.set_this_param(this_param);
         }
+        let tys = candidates
+            .iter()
+            .map(|sig| self.get_return_type_of_signature(sig))
+            .collect::<Vec<_>>();
+        let resolved_ret_ty =
+            self.get_intersection_ty(&tys, super::IntersectionFlags::None, None, None);
+        links.set_resolved_ret_ty(resolved_ret_ty);
+        let prev = self.sig_links.insert(sig.id, links);
+        debug_assert!(prev.is_none());
         sig
     }
 
@@ -2120,11 +2133,6 @@ impl<'cx> TyChecker<'cx> {
         sigs: &[&'cx Sig<'cx>],
         predicate: impl Fn(&'cx Sig<'cx>) -> bool + Copy,
     ) -> bool {
-        for sig in sigs {
-            if self.some_signature(sig, predicate) {
-                return true;
-            }
-        }
-        false
+        sigs.iter().any(|sig| self.some_signature(sig, predicate))
     }
 }

@@ -1,0 +1,17 @@
+  × 'x' is specified more than once, so this usage will be overwritten.
+    ╭─[../../tests/compiler/spreadUnionPropOverride/index.ts:35:5]
+ 35 │ x: 1
+    · ────
+    ╰────
+
+  × 'a' is specified more than once, so this usage will be overwritten.
+    ╭─[../../tests/compiler/spreadUnionPropOverride/index.ts:52:5]
+ 52 │ a: "test"
+    · ─────────
+    ╰────
+
+  × 'name' is specified more than once, so this usage will be overwritten.
+    ╭─[../../tests/compiler/spreadUnionPropOverride/index.ts:70:5]
+ 70 │ name: "test"
+    · ────────────
+    ╰────

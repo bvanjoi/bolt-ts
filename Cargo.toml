@@ -30,6 +30,7 @@ members = [
   "crates/tracing",
   "crates/ty",
   "crates/wasm",
+  "crates/wf_check",
   "crates/wf_errors",
 
   "helper/arena",

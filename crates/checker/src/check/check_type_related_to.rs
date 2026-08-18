@@ -370,8 +370,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     #[allow(clippy::too_many_arguments)]
     fn property_related_to(
         &mut self,
-        _sourcee: &'cx Ty<'cx>,
-        _targett: &'cx Ty<'cx>,
+        _source: &'cx Ty<'cx>,
+        _target: &'cx Ty<'cx>,
         source_prop: SymbolID,
         target_prop: SymbolID,
         get_ty_of_source_prop: impl Fn(&mut Self, SymbolID) -> &'cx Ty<'cx>,
@@ -398,7 +398,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             let is_valid_override_of = {
                 !self
                     .c
-                    .for_each_prop(target_prop, |this, tp| {
+                    .for_each_property(target_prop, |this, tp| {
                         if this
                             .get_declaration_modifier_flags_from_symbol::<false>(tp)
                             .contains(ast::ModifierFlags::PROTECTED)
@@ -407,7 +407,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                                 return Some(true);
                             };
                             // is_property_in_class_derived_from
-                            this.for_each_prop(source_prop, |this, sp| {
+                            this.for_each_property(source_prop, |this, sp| {
                                 let source_class = this.get_declaring_class(sp);
                                 if let Some(source_class) = source_class {
                                     Some(this.has_base_ty(source_class, base_class))
@@ -859,15 +859,18 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
     ) -> Option<Ternary> {
         let res =
             self.type_args_related_to(source, target, variances, report_error, intersection_state);
+        if res != Ternary::FALSE {
+            return Some(res);
+        }
         if variances
             .iter()
             .any(|v| v.intersects(VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
         {
             // TODO: reset error
             self.c.diags.truncate(self.origin_diag_len);
-            return None;
         }
-        Some(res)
+        // TODO: allowStructuralFallback
+        None
     }
 
     fn each_type_related_to_some_type(
@@ -1862,9 +1865,51 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 );
                 if result != Ternary::FALSE {
-                    // TODO: this_ty & mapped_ty_generic_indexed_access
                     return result;
                 }
+                let source_with_this_argument = self
+                    .c
+                    .get_type_with_this_argument::<false>(constraint, Some(source));
+                result = self.is_related_to(
+                    source_with_this_argument,
+                    target,
+                    RecursionFlags::SOURCE,
+                    report_error
+                        && constraint != self.c.unknown_ty
+                        && !(target_flags
+                            .intersects(source_flags.intersection(TypeFlags::TYPE_PARAMETER))),
+                    intersection_state,
+                );
+                if result != Ternary::FALSE {
+                    return result;
+                }
+                if self.c.is_mapped_ty_generic_indexed_access(source) {
+                    let source_index_access = source.kind.expect_indexed_access();
+                    if let Some(index_constraint) =
+                        self.c.get_constraint_of_ty(source_index_access.index_ty)
+                    {
+                        let index_access_ty = self.c.get_indexed_access_ty(
+                            source_index_access.object_ty,
+                            index_constraint,
+                            None,
+                            None,
+                            None,
+                            None,
+                        );
+                        result = self.is_related_to(
+                            index_access_ty,
+                            target,
+                            RecursionFlags::SOURCE,
+                            report_error,
+                            IntersectionState::empty(),
+                        );
+                        if result != Ternary::FALSE {
+                            return result;
+                        }
+                    }
+                }
+
+                // TODO: this_ty & mapped_ty_generic_indexed_access
             }
         } else if let Some(source_index) = source.kind.as_index_ty() {
             result = self.is_related_to(
@@ -2414,13 +2459,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         );
         if res == Ternary::FALSE && report_error {
             if source.key_ty == target.key_ty {
-                let decl = self.c.symbol(source.symbol).opt_decl().unwrap();
-                let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
-                let error = errors::IndexSignaturesAreIncompatible {
-                    span,
-                    ty: self.c.print_ty(target.val_ty, None).to_string(),
-                };
-                self.c.push_error(Box::new(error));
+                if let Some(decl) = self.c.symbol(source.symbol).opt_decl() {
+                    let span = self.c.p.node(decl).expect_index_sig_decl().ty.span();
+                    let error = errors::IndexSignaturesAreIncompatible {
+                        span,
+                        ty: self.c.print_ty(target.val_ty, None).to_string(),
+                    };
+                    self.c.push_error(Box::new(error));
+                }
             } else {
                 todo!()
             }
@@ -2998,9 +3044,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
         let target_rest_ty = target.get_non_array_rest_ty(self.c);
-        if self.c.enable_out_of_band_variance_marker_handler
-            && let Some(ty) = source_rest_ty.or(target_rest_ty)
-        {
+        if let Some(ty) = source_rest_ty.or(target_rest_ty) {
             let mapper = self.c.report_unreliable_mapper;
             self.c.instantiate_ty_worker(ty, mapper);
         }
@@ -3062,7 +3106,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty
-                && ((source_ty != target_ty) || check_mode.contains(SigCheckMode::STRICT_ARITY))
+                && (source_ty != target_ty || check_mode.contains(SigCheckMode::STRICT_ARITY))
             {
                 let source_sig = if check_mode.intersects(SigCheckMode::CALLBACK)
                     || is_instantiated_generic_parameter(self, source, i)

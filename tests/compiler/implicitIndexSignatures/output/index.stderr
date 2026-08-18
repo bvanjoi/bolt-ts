@@ -1,0 +1,71 @@
+  × Variable 'empty2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:15:7]
+ 15 │ empty2
+    · ──────
+    ╰────
+
+  × Variable 'names2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:18:7]
+ 18 │ names2
+    · ──────
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:28:36]
+ 28 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:28:36]
+ 28 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:37:36]
+ 37 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:37:36]
+ 37 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:46:36]
+ 46 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:46:36]
+ 46 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:55:36]
+ 55 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:55:36]
+ 55 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:59:36]
+ 59 │ o2
+    · ──
+    ╰────
+
+  × Variable 'o2' is used before being assigned.
+    ╭─[../../tests/compiler/implicitIndexSignatures/index.ts:59:36]
+ 59 │ o2
+    · ──
+    ╰────

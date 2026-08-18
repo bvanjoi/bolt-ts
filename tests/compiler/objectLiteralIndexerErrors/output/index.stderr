@@ -1,0 +1,11 @@
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/objectLiteralIndexerErrors/index.ts:17:54]
+ 17 │ 0
+    · ─
+    ╰────
+
+  × Property 'y' is missing.
+    ╭─[../../tests/compiler/objectLiteralIndexerErrors/index.ts:19:14]
+ 19 │ 0
+    · ─
+    ╰────

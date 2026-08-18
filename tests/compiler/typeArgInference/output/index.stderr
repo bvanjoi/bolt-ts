@@ -1,0 +1,47 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:11:10]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:11:10]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:15:10]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:15:10]
+ 15 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:19:10]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:19:10]
+ 19 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:23:10]
+ 23 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/typeArgInference/index.ts:23:10]
+ 23 │ x
+    · ─
+    ╰────

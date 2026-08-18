@@ -1,11 +1,11 @@
   × 'foo' is possibly 'undefined'.
-    ╭─[../../tests/compiler/voidUndefinedReduction/index.ts:17:3]
- 17 │ foo
+    ╭─[../../tests/compiler/voidUndefinedReduction/index.ts:18:3]
+ 18 │ foo
     · ───
     ╰────
 
   × 'foo' is possibly 'undefined'.
-    ╭─[../../tests/compiler/voidUndefinedReduction/index.ts:22:3]
- 22 │ foo
+    ╭─[../../tests/compiler/voidUndefinedReduction/index.ts:23:3]
+ 23 │ foo
     · ───
     ╰────

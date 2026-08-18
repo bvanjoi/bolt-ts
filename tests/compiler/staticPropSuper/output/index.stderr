@@ -1,0 +1,17 @@
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/staticPropSuper/index.ts:19:5]
+ 19 │ constructor
+    · ───────────
+    ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/staticPropSuper/index.ts:28:5]
+ 28 │ constructor
+    · ───────────
+    ╰────
+
+  × Constructors for derived classes must contain a 'super' call.
+    ╭─[../../tests/compiler/staticPropSuper/index.ts:37:5]
+ 37 │ constructor
+    · ───────────
+    ╰────

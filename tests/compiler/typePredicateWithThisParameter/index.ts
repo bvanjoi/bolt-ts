@@ -1,7 +1,6 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/typePredicateWithThisParameter.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
-//@run-fail
 
 interface Foo {
     foo: string;
@@ -26,4 +25,10 @@ if (isFoo1(test)) {
 
 if (isFoo2(test)) {
     test.foo = 'hi';
+}
+
+declare function f<T, S extends T>(g: (value: T) => value is S): S;
+function k() {
+    const bcd: string = f((x: number | null) => x !== null);
+    //~^ ERROR: Type 'number' is not assignable to type 'string'.
 }

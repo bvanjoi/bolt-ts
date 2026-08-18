@@ -1,0 +1,105 @@
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:17:7]
+ 17 │ ?
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:17:8]
+ 17 │ :
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:20:5]
+ 20 │ ?
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:27:11]
+ 27 │ ?
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:27:12]
+ 27 │ :
+    · ─
+    ╰────
+
+  × An index signature must have a type annotation.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:6]
+ 46 │ idx: number
+    · ───────────
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:18]
+ 46 │ ?
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:19]
+ 46 │ :
+    · ─
+    ╰────
+
+  × Property or signature expected.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:51:5]
+ 51 │ ?
+    · ─
+    ╰────
+
+  × An index signature parameter cannot have a question mark.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:54:9]
+ 54 │ ?
+    · ─
+    ╰────
+
+  × Overload signatures must all be optional or required.
+   ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:9:5]
+ 9 │ fn
+   · ──
+   ╰────
+
+  × Duplicate identifier 'prop'.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:37:5]
+ 35 │ prop: any;
+    · ────┬────
+    ·     ╰── Previous definition here
+ 36 │     //~^ ERROR: All declarations of 'prop' must have identical modifiers.
+ 37 │     prop?: any
+    ·     ──────────
+    ╰────
+
+  × All declarations of 'prop' must have identical modifiers.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:35:5]
+ 35 │ prop
+    · ────
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:44:5]
+ 44 │ [idx: number]: any;
+    · ───────────────────
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:46:5]
+ 46 │ [idx: number]
+    · ─────────────
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:51:7]
+ 51 │ [idx: number]: any;
+    · ───────────────────
+    ╰────
+
+  × Duplicate index signature for type 'number'.
+    ╭─[../../tests/compiler/optionalPropertiesSyntax/index.ts:54:5]
+ 54 │ [idx?: number]: any;
+    · ────────────────────
+    ╰────

@@ -1,0 +1,6 @@
+  × Property 'props' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/defaultDeclarationEmitNamedCorrectly/index.ts:19:5]
+ 19 │ props
+    · ─────
+    ╰────

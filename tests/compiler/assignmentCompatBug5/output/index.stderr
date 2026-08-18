@@ -1,0 +1,32 @@
+  × Object literal may only specify known properties, and 'b' does not exist
+  │ in type '{ a: number; }'.
+   ╭─[../../tests/compiler/assignmentCompatBug5/index.ts:6:8]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/assignmentCompatBug5/index.ts:10:7]
+ 10 │ "s"
+    · ───
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/assignmentCompatBug5/index.ts:10:12]
+ 10 │ "t"
+    · ───
+    ╰────
+
+  × Argument of type '(s: string) => void' is not assignable to parameter of
+  │ type '(n: number) => number'.
+    ╭─[../../tests/compiler/assignmentCompatBug5/index.ts:15:6]
+ 15 │ (s:string) => { }
+    · ─────────────────
+    ╰────
+
+  × Argument of type '(n: number) => undefined' is not assignable to parameter
+  │ of type '(n: number) => number'.
+    ╭─[../../tests/compiler/assignmentCompatBug5/index.ts:17:6]
+ 17 │ (n) => { return; }
+    · ──────────────────
+    ╰────

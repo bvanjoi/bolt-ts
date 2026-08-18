@@ -1,0 +1,22 @@
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/fieldAndGetterWithSameName/index.ts:9:7]
+ 7 │ x: number;
+   · ┬
+   · ╰── Previous definition here
+ 8 │     //~^ ERROR: Property 'x' has no initializer and is not definitely assigned in the constructor.
+ 9 │   get x
+   ·       ─
+   ╰────
+
+  × Duplicate identifier 'x'.
+   ╭─[../../tests/compiler/fieldAndGetterWithSameName/index.ts:9:7]
+ 9 │ x
+   · ─
+   ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/fieldAndGetterWithSameName/index.ts:7:5]
+ 7 │ x
+   · ─
+   ╰────

@@ -1,0 +1,11 @@
+  × 'x' is possibly 'undefined'.
+    ╭─[../../tests/compiler/implicitConstParameters/index.ts:49:27]
+ 49 │ x
+    · ─
+    ╰────
+
+  × 'x' is possibly 'undefined'.
+    ╭─[../../tests/compiler/implicitConstParameters/index.ts:49:27]
+ 49 │ x
+    · ─
+    ╰────

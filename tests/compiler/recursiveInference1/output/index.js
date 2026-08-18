@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/recursiveInference1.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 function fib(x) {
   return x <= 1 ? x : fib(x - 1) + fib(x - 2);
 }

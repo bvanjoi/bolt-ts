@@ -5,7 +5,7 @@
    ╰────
 
   × Expected 1 arguments, but got 0.
-   ╭─[../../tests/compiler/typeAssertionToGenericFunctionType/index.ts:9:1]
- 9 │ x.b
-   · ───
+   ╭─[../../tests/compiler/typeAssertionToGenericFunctionType/index.ts:9:3]
+ 9 │ b
+   · ─
    ╰────

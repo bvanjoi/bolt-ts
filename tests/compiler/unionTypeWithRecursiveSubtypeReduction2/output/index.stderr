@@ -1,0 +1,39 @@
+  × Property 'members' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:7:12]
+ 7 │ members
+   · ───────
+   ╰────
+
+  × Property 'members' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:12:12]
+ 12 │ members
+    · ───────
+    ╰────
+
+  × Property 'parent' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:17:12]
+ 17 │ parent
+    · ──────
+    ╰────
+
+  × Property 'parent' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:22:12]
+ 22 │ parent
+    · ──────
+    ╰────
+
+  × Property 'members' is missing.
+    ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:28:1]
+ 28 │ c
+    · ─
+    ╰────
+
+  × Type 'Class' is not assignable to type 'Property'.
+    ╭─[../../tests/compiler/unionTypeWithRecursiveSubtypeReduction2/index.ts:30:1]
+ 30 │ p
+    · ─
+    ╰────

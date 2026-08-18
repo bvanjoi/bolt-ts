@@ -1,5 +1,5 @@
-  × Type '(x: number[]) => void' is not assignable to type '(x: number[], y:
-  │ string) => void'.
+  × Type '(...x: number[]) => void' is not assignable to type '(x: number[],
+  │ y: string) => void'.
    ╭─[../../tests/compiler/restArgAssignmentCompat/index.ts:9:1]
  9 │ n
    · ─

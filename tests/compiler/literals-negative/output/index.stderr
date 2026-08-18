@@ -1,0 +1,23 @@
+  × Conversion of type 'null' to type 'number' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/literals-negative/index.ts:7:9]
+ 7 │ <number>(null)
+   · ──────────────
+   ╰────
+
+  × Conversion of type 'null' to type 'string' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+   ╭─[../../tests/compiler/literals-negative/index.ts:9:9]
+ 9 │ <string>(null)
+   · ──────────────
+   ╰────
+
+  × Conversion of type 'number' to type 'boolean' may be a mistake because
+  │ neither type sufficiently overlaps with the other. If this was
+  │ intentional, convert the expression to 'unknown' first.
+    ╭─[../../tests/compiler/literals-negative/index.ts:11:9]
+ 11 │ <boolean>(n)
+    · ────────────
+    ╰────

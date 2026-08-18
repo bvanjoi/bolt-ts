@@ -1,5 +1,7 @@
 // From `github.com/sindresorhus/type-fest`, MIT License
 
+//@compiler-options: target=es2015
+
 function n(): never {
   throw new Error();
 }

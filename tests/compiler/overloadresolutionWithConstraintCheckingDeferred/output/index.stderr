@@ -1,0 +1,88 @@
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:19:37]
+ 19 │ x
+    · ─
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:19:22]
+ 15 │ foo(arg: (x: D) => number): string;
+    · ─┬─
+    ·  ╰── Unmatched call.
+ 16 │ declare function foo(arg: (x: C) => any): string;
+    ·                  ─┬─
+    ·                   ╰── Unmatched call.
+ 17 │ declare function foo(arg: (x: B) => any): number;
+    ·                  ─┬─
+    ·                   ╰── Unmatched call.
+ 18 │ 
+ 19 │ var result: number = foo(x => new G(x))
+    ·                      ──────────────────
+    ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:23:38]
+ 23 │ typeof x
+    · ────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:23:23]
+ 15 │ foo(arg: (x: D) => number): string;
+    · ─┬─
+    ·  ╰── Unmatched call.
+ 16 │ declare function foo(arg: (x: C) => any): string;
+    ·                  ─┬─
+    ·                   ╰── Unmatched call.
+ 17 │ declare function foo(arg: (x: B) => any): number;
+    ·                  ─┬─
+    ·                   ╰── Unmatched call.
+ 18 │ 
+ 19 │ var result: number = foo(x => new G(x)); // x has type D, new G(x) fails, so first overload is picked.
+ 20 │ //~^ ERROR: No overload matches this call.
+ 21 │ //~| ERROR: Property 'x' is missing.
+ 22 │ 
+ 23 │ var result2: number = foo(x => new G<typeof x>(x))
+    ·                       ────────────────────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:27:23]
+ 15 │     foo(arg: (x: D) => number): string;
+    ·     ─┬─
+    ·      ╰── Unmatched call.
+ 16 │     declare function foo(arg: (x: C) => any): string;
+    ·                      ─┬─
+    ·                       ╰── Unmatched call.
+ 17 │     declare function foo(arg: (x: B) => any): number;
+    ·                      ─┬─
+    ·                       ╰── Unmatched call.
+ 18 │     
+ 19 │     var result: number = foo(x => new G(x)); // x has type D, new G(x) fails, so first overload is picked.
+ 20 │     //~^ ERROR: No overload matches this call.
+ 21 │     //~| ERROR: Property 'x' is missing.
+ 22 │     
+ 23 │     var result2: number = foo(x => new G<typeof x>(x)); // x has type D, new G(x) fails, so first overload is picked.
+ 24 │     //~^ ERROR: No overload matches this call.
+ 25 │     //~| ERROR: Property 'x' is missing.
+ 26 │     
+ 27 │ ╭─▶ var result3: string = foo(x => { // x has type D
+ 28 │ │       //~^ ERROR: No overload matches this call.
+ 29 │ │       var y: G<typeof x> = new G(x); // error that D does not satisfy constraint, y is of type G<D>, entire call to foo is an error
+ 30 │ │       //~^ ERROR: Type 'D' does not satisfy the constraint 'A'.
+ 31 │ │       //~| ERROR: Property 'x' is missing.
+ 32 │ │       return y;
+ 33 │ ╰─▶ })
+    ╰────
+
+  × Type 'D' does not satisfy the constraint 'A'.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:29:14]
+ 29 │ typeof x
+    · ────────
+    ╰────
+
+  × Property 'x' is missing.
+    ╭─[../../tests/compiler/overloadresolutionWithConstraintCheckingDeferred/index.ts:29:32]
+ 29 │ x
+    · ─
+    ╰────

@@ -1,0 +1,45 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:13:12]
+ 13 │ name
+    · ────
+    ╰────
+
+  × Class 'C2' incorrectly implements interface 'i1'.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:17:21]
+ 17 │ i1
+    · ──
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:19:13]
+ 19 │ name
+    · ────
+    ╰────
+
+  × Class 'C5' incorrectly implements interface 'i1'.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:28:32]
+ 28 │ i1
+    · ──
+    ╰────
+
+  × Class 'C6' incorrectly implements interface 'i1'.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:30:32]
+ 30 │ i1
+    · ──
+    ╰────
+
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:43:12]
+ 43 │ name
+    · ────
+    ╰────
+
+  × Property 'age' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation8/index.ts:48:12]
+ 48 │ age
+    · ───
+    ╰────

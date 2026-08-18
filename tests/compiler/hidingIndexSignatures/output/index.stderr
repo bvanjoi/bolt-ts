@@ -1,0 +1,11 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/hidingIndexSignatures/index.ts:14:1]
+ 14 │ b
+    · ─
+    ╰────
+
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/hidingIndexSignatures/index.ts:17:1]
+ 17 │ a
+    · ─
+    ╰────

@@ -14,7 +14,7 @@ use super::parse_import_export_spec::ParseNamedImports;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub fn parse_stmt(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let kind = self.token.kind;
@@ -192,7 +192,9 @@ impl<'cx> ParserState<'cx, '_> {
             start as usize,
         );
         let stmt = self.do_inside_of_parse_context(
-            ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
+            ParseContext::ALLOW_BREAK
+                .union(ParseContext::ALLOW_CONTINUE)
+                .union(ParseContext::DISALLOW_BLOCK_DECLARATION),
             Self::parse_stmt,
         )?;
         let stmt = self.create_while_statement(self.new_span(start), expr, stmt);
@@ -289,7 +291,18 @@ impl<'cx> ParserState<'cx, '_> {
             None
         };
 
-        if (await_token.is_some() && self.expect(Of)) || self.parse_optional(Of).is_some() {
+        let has_await_token = await_token.is_some();
+        if (has_await_token && self.expect(Of)) || self.parse_optional(Of).is_some() {
+            if has_await_token && !self.parse_context.contains(ParseContext::ASYNC) {
+                if self.parse_context.contains(ParseContext::TOP_LEVEL) {
+                    // TODO: handle under different module config
+                } else {
+                    let hi = start + "await".len() as u32;
+                    let span = bolt_ts_span::Span::new(start, hi, self.module_id);
+                    let error = errors::ForAwaitLoopsAreOnlyAllowedWithinAsyncFunctionsAndAtTheTopLevelsOfModules { span };
+                    self.push_error(Box::new(error));
+                }
+            }
             let init = init.unwrap();
             let expr = self.allow_in_and(|this| this.parse_assign_expr_or_higher::<true>())?;
             self.expect(RParen);
@@ -333,7 +346,9 @@ impl<'cx> ParserState<'cx, '_> {
             };
             self.expect(RParen);
             let body = self.do_inside_of_parse_context(
-                ParseContext::ALLOW_BREAK.union(ParseContext::ALLOW_CONTINUE),
+                ParseContext::ALLOW_BREAK
+                    .union(ParseContext::ALLOW_CONTINUE)
+                    .union(ParseContext::DISALLOW_BLOCK_DECLARATION),
                 Self::parse_stmt,
             )?;
             if let Some(init) = &init
@@ -567,6 +582,13 @@ impl<'cx> ParserState<'cx, '_> {
             self.parse_ty()?
         };
         self.parse_semi();
+        self.check_allow_block_declaration(|this| {
+            let error = errors::XDeclarationsCanOnlyBeDeclaredInsideABlock {
+                span: name.span,
+                kind: "type".to_string(),
+            };
+            this.push_error(Box::new(error));
+        });
         let decl = self.create_type_alias_declaration(
             self.new_span(start),
             modifiers,
@@ -874,7 +896,7 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     fn parse_decl(&mut self) -> PResult<&'cx ast::Stmt<'cx>> {
-        let mods = self.parse_modifiers::<false, false>(false);
+        let mods = self.parse_modifiers::<false, false, true>(false);
         let is_ambient = mods.is_some_and(Self::contain_declare_mod);
         if mods.is_some_and(|ms| {
             ms.flags
@@ -939,6 +961,13 @@ impl<'cx> ParserState<'cx, '_> {
             Self::parse_object_ty_members,
         );
         let span = self.new_span(start);
+        self.check_allow_block_declaration(|this| {
+            let error = errors::XDeclarationsCanOnlyBeDeclaredInsideABlock {
+                span: name.span,
+                kind: "interface".to_string(),
+            };
+            this.push_error(Box::new(error));
+        });
         self.create_interface_declaration(span, modifiers, name, ty_params, extends, members)
     }
 
@@ -1243,7 +1272,10 @@ impl<'cx> ParserState<'cx, '_> {
         self.expect(TokenKind::LParen);
         let expr = self.parse_expr()?;
         self.expect(TokenKind::RParen);
-        let then = self.parse_stmt()?;
+        let then = self.do_inside_of_parse_context(
+            ParseContext::DISALLOW_BLOCK_DECLARATION,
+            Self::parse_stmt,
+        )?;
         let else_then = if self.parse_optional(TokenKind::Else).is_some() {
             Some(self.parse_stmt()?)
         } else {
@@ -1297,7 +1329,9 @@ impl<'cx> ParserState<'cx, '_> {
             self.labels.pop();
             Ok(ast::StmtKind::Labeled(stmt))
         } else {
-            self.parse_semi();
+            if !self.try_parse_semi() {
+                self.parse_error_for_missing_semicolon_after(expr.span());
+            }
             let stmt = self.create_expression_statement(self.new_span(start), expr);
             Ok(ast::StmtKind::Expr(stmt))
         }

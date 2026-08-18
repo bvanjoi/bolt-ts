@@ -1,0 +1,11 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericObjectLitReturnType/index.ts:12:10]
+ 12 │ x
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/genericObjectLitReturnType/index.ts:12:10]
+ 12 │ x
+    · ─
+    ╰────

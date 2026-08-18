@@ -1,0 +1,16 @@
+  × Duplicate identifier 'w'.
+    ╭─[../../tests/compiler/duplicateIdentifierInCatchBlock/index.ts:11:9]
+  9 │ w() { }
+    · ┬
+    · ╰── Previous definition here
+ 10 │ try { } catch (e) {
+ 11 │     var w
+    ·         ─
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'p'
+  │ must be of type 'string', but here has type 'number'.
+    ╭─[../../tests/compiler/duplicateIdentifierInCatchBlock/index.ts:20:9]
+ 20 │ p
+    · ─
+    ╰────

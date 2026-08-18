@@ -1,0 +1,17 @@
+  × Variable 'maybeArray' is used before being assigned.
+   ╭─[../../tests/compiler/isArray/index.ts:8:19]
+ 8 │ maybeArray
+   · ──────────
+   ╰────
+
+  × Variable 'maybeArray' is used before being assigned.
+    ╭─[../../tests/compiler/isArray/index.ts:13:5]
+ 13 │ maybeArray
+    · ──────────
+    ╰────
+
+  × Property 'toFixed' does not exist on type 'number | number[]'.
+    ╭─[../../tests/compiler/isArray/index.ts:13:16]
+ 13 │ toFixed
+    · ───────
+    ╰────

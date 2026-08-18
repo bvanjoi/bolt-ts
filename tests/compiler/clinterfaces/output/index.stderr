@@ -1,0 +1,13 @@
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/clinterfaces/index.ts:18:5]
+ 18 │ b
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/clinterfaces/index.ts:23:5]
+ 23 │ b
+    · ─
+    ╰────

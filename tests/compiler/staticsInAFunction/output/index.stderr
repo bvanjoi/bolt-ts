@@ -1,0 +1,83 @@
+  × Expected '('.
+   ╭─[../../tests/compiler/staticsInAFunction/index.ts:6:13]
+ 6 │ {
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/staticsInAFunction/index.ts:8:4]
+ 8 │ static
+   · ──────
+   ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:11:4]
+ 11 │ static
+    · ──────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:11:20]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Argument expression expected.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:11:20]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:4]
+ 17 │ static
+    · ──────
+    ╰────
+
+  × Expression expected.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:21]
+ 17 │ :
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:11]
+ 17 │ test(name?:any)
+    · ───────────────
+    ╰────
+
+  × Cannot find name 'test'.
+   ╭─[../../tests/compiler/staticsInAFunction/index.ts:8:11]
+ 8 │ test
+   · ────
+   ╰────
+
+  × Cannot find name 'test'.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:11:11]
+ 11 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:11:21]
+ 11 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'test'.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:11]
+ 17 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'any'.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:22]
+ 17 │ any
+    · ───
+    ╰────
+
+  × An expression of type 'void' cannot be tested for truthiness.
+    ╭─[../../tests/compiler/staticsInAFunction/index.ts:17:16]
+ 17 │ name
+    · ────
+    ╰────

@@ -1,0 +1,18 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/destructuringTuple/index.ts:16:48]
+ 16 │ accu.concat(el)
+    · ───────────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/destructuringTuple/index.ts:16:17]
+ 16 │ [1, 2, 3].reduce((accu, el) => accu.concat(el), [])
+    · ───────────────────────────────────────────────────
+    ╰────
+
+  × Type 'number' must have a '[Symbol.iterator]()' method that returns an
+  │ iterator.
+    ╭─[../../tests/compiler/destructuringTuple/index.ts:16:7]
+ 16 │ [oops1]
+    · ───────
+    ╰────

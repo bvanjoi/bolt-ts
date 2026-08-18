@@ -179,7 +179,9 @@ impl<'cx> Expr<'cx> {
                     expr = n.expr;
                 }
                 ExprKind::Satisfies(n)
-                    if (FLAGS & SKIP_OUTER_EXPRESSION_EXPRESSION_WITH_TYPE_ARGUMENTS_FLAGS)
+                    if (FLAGS
+                        & (SKIP_OUTER_EXPRESSION_TYPE_ASSERTIONS_FLAGS
+                            | SKIP_OUTER_EXPRESSION_SATISFIES_FLAGS))
                         != 0 =>
                 {
                     expr = n.expr;
@@ -308,8 +310,27 @@ impl<'cx> Expr<'cx> {
     }
 
     pub fn has_default_value(&self) -> bool {
-        // TODO:
-        false
+        matches!(self.kind, self::ExprKind::Assign(n) if n.op == AssignOp::Eq)
+    }
+
+    pub fn can_have_symbol(&self) -> bool {
+        matches!(
+            self.kind,
+            ExprKind::ArrowFn(_)
+                | ExprKind::Bin(_)
+                | ExprKind::Assign(_)
+                | ExprKind::Call(_)
+                | ExprKind::Class(_)
+                | ExprKind::EleAccess(_)
+                | ExprKind::Fn(_)
+                | ExprKind::Ident(_)
+                | ExprKind::New(_)
+                | ExprKind::NoSubstitutionTemplateLit(_)
+                | ExprKind::NumLit(_)
+                | ExprKind::ObjectLit(_)
+                | ExprKind::PropAccess(_)
+                | ExprKind::StringLit(_)
+        )
     }
 }
 

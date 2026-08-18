@@ -1,0 +1,25 @@
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation6/index.ts:11:12]
+ 11 │ item
+    · ────
+    ╰────
+
+  × Class 'C2' incorrectly implements interface 'I1'.
+    ╭─[../../tests/compiler/interfaceImplementation6/index.ts:15:21]
+ 15 │ I1
+    · ──
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceImplementation6/index.ts:17:13]
+ 17 │ item
+    · ────
+    ╰────
+
+  × Property 'item' is missing.
+    ╭─[../../tests/compiler/interfaceImplementation6/index.ts:21:7]
+ 21 │ C3
+    · ──
+    ╰────

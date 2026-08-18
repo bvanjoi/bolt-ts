@@ -1,0 +1,12 @@
+  × Variable 'foo' implicitly has type 'any[]' in some locations where its
+  │ type cannot be determined.
+   ╭─[../../tests/compiler/narrowSwitchOptionalChainContainmentEvolvingArrayNoCrash1/index.ts:7:5]
+ 7 │ foo
+   · ───
+   ╰────
+
+  × Variable 'foo' implicitly has an 'any[]' type.
+    ╭─[../../tests/compiler/narrowSwitchOptionalChainContainmentEvolvingArrayNoCrash1/index.ts:12:5]
+ 12 │ foo
+    · ───
+    ╰────

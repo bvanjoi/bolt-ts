@@ -774,19 +774,23 @@ impl<'cx> TyChecker<'cx> {
                         })
                         .and_then(|id| self.get_mapper_from_context(id));
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
-                    let inference_source_ty =
-                        if let Some(contextual_sig) = self.get_single_call_sig(instantiated_ty) {
-                            if let Some(_ty_paramm) =
-                                self.get_sig_links(contextual_sig.id).get_ty_params()
-                            {
-                                // TODO: `get_or_create_ty_from_sig`
-                                instantiated_ty
-                            } else {
-                                instantiated_ty
-                            }
+                    let inference_source_ty = if let Some(contextual_sig) =
+                        self.get_single_call_sig(instantiated_ty)
+                    {
+                        if let Some(ty_param) =
+                            self.get_sig_links(contextual_sig.id).get_ty_params()
+                        {
+                            let sig = self.get_sig_instantiation_without_filling_type_arguments(
+                                contextual_sig,
+                                Some(ty_param),
+                            );
+                            self.get_or_create_ty_from_sig(sig, None)
                         } else {
                             instantiated_ty
-                        };
+                        }
+                    } else {
+                        instantiated_ty
+                    };
                     self.infer_tys::<false>(
                         self.inferences[inference.as_usize()].inferences,
                         inference_source_ty,
@@ -1060,7 +1064,7 @@ impl<'cx> TyChecker<'cx> {
                 let element_index = i - index;
                 let contextual_ty = if rest_ty.is_tuple() {
                     self.get_contextual_ty_for_element_expr(
-                        Some(rest_ty),
+                        rest_ty,
                         element_index,
                         Some(arg_count - index),
                         None,
@@ -2586,8 +2590,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         let prop_ty = self.c.get_type_of_symbol(*prop);
                         props_tys.push(
                             if self.c.symbol(*prop).flags.intersects(SymbolFlags::OPTIONAL) {
-                                // TODO: remove missing
-                                prop_ty
+                                self.c.remove_missing_or_undefined_ty(prop_ty)
                             } else {
                                 prop_ty
                             },
@@ -2600,7 +2603,7 @@ impl<'cx> InferenceState<'cx, '_> {
                         .c
                         .is_applicable_index_ty(info.key_ty, target_info.key_ty)
                     {
-                        props_tys.push(info.key_ty);
+                        props_tys.push(info.val_ty);
                     }
                 }
 

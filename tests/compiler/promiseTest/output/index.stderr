@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'Promise<number>'.
+    ╭─[../../tests/compiler/promiseTest/index.ts:11:5]
+ 11 │ p
+    · ─
+    ╰────

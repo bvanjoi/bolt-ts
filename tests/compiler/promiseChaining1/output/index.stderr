@@ -1,0 +1,11 @@
+  × Type 'string' is not assignable to type 'Function'.
+    ╭─[../../tests/compiler/promiseChaining1/index.ts:11:55]
+ 11 │ "abc"
+    · ─────
+    ╰────
+
+  × Type 'number' is not assignable to type 'Function'.
+    ╭─[../../tests/compiler/promiseChaining1/index.ts:11:84]
+ 11 │ x.length
+    · ────────
+    ╰────

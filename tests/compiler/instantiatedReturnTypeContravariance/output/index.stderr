@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type 'B<void>'.
+    ╭─[../../tests/compiler/instantiatedReturnTypeContravariance/index.ts:17:8]
+ 17 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'B<number>'.
+    ╭─[../../tests/compiler/instantiatedReturnTypeContravariance/index.ts:28:8]
+ 28 │ null
+    · ────
+    ╰────

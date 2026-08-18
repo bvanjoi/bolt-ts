@@ -12,6 +12,7 @@ use super::Ternary;
 use super::TyChecker;
 use super::ast;
 use super::check_expr::IterationUse;
+use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::get_effective_node::EffectiveCallArgument;
 use super::get_effective_node::EffectiveCallArguments;
@@ -47,6 +48,54 @@ impl DiscriminateContextualTyByObjectLiteral {
 }
 
 impl<'cx> TyChecker<'cx> {
+    fn get_contextual_ty_for_yield_op(
+        &mut self,
+        node: &'cx ast::YieldExpr<'cx>,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        let func = self
+            .node_query(node.id.module())
+            .get_containing_fn(node.id)?;
+        let mut contextual_return_ty = self.get_contextual_ret_ty(func, flags)?;
+        let is_async_generator = self.p.node(func).fn_flags().contains(ast::FnFlags::ASYNC);
+        let has_asterisk = node.asterisk.is_some();
+        if !has_asterisk && contextual_return_ty.kind.is_union() {
+            contextual_return_ty = self.filter_type(contextual_return_ty, |this, t| {
+                this.get_iteration_ty_of_generator_fn_return_ty(
+                    super::IterationTypeKind::Return,
+                    t,
+                    is_async_generator,
+                )
+                .is_some()
+            })
+        }
+        if has_asterisk {
+            let iteration_tys = self.get_iteration_tys_of_generator_fn_return_ty(
+                contextual_return_ty,
+                is_async_generator,
+            );
+            let yield_ty = iteration_tys.map_or(self.silent_never_ty, |t| t.yield_ty);
+            let ret_ty = self
+                .get_contextual_ty(node.id, flags)
+                .unwrap_or(self.silent_never_ty);
+            let next_ty = iteration_tys.map_or(self.unknown_ty, |t| t.next_ty);
+            let generator_ty = self.create_generator_ty(yield_ty, ret_ty, next_ty, false);
+            Some(if is_async_generator {
+                let async_generator_ty = self.create_generator_ty(yield_ty, ret_ty, next_ty, true);
+                let tys = &[generator_ty, async_generator_ty];
+                self.get_union_ty::<false>(tys, ty::UnionReduction::Lit, None, None, None, None)
+            } else {
+                generator_ty
+            })
+        } else {
+            self.get_iteration_ty_of_generator_fn_return_ty(
+                super::IterationTypeKind::Yield,
+                contextual_return_ty,
+                is_async_generator,
+            )
+        }
+    }
+
     pub(super) fn get_contextual_ty(
         &mut self,
         id: ast::NodeID,
@@ -69,7 +118,11 @@ impl<'cx> TyChecker<'cx> {
                 self.get_contextual_ty_for_class_property_element(parent, flags)
             }
             ArrayBinding(parent) => self.get_contextual_ty_for_array_binding(parent, id, flags),
+            ObjectBindingElem(parent) => {
+                self.get_contextual_ty_for_object_binding_element(parent, id, flags)
+            }
             ArrowFnExpr(_) | RetStmt(_) => self.get_contextual_ty_for_return_expr(id, flags),
+            YieldExpr(n) => self.get_contextual_ty_for_yield_op(n, flags),
             ArrayLit(parent) => {
                 let ty = self.get_apparent_ty_of_contextual_ty(parent.id, flags);
                 let element_idx = self.p.index_of_node(parent.elems, id);
@@ -88,13 +141,15 @@ impl<'cx> TyChecker<'cx> {
                     }
                     (first, last)
                 };
-                self.get_contextual_ty_for_element_expr(
-                    ty,
-                    element_idx,
-                    Some(parent.elems.len()),
-                    first,
-                    last,
-                )
+                ty.and_then(|ty| {
+                    self.get_contextual_ty_for_element_expr(
+                        ty,
+                        element_idx,
+                        Some(parent.elems.len()),
+                        first,
+                        last,
+                    )
+                })
             }
             TyAssertionExpr(parent) => {
                 debug_assert!(parent.id == parent_id);
@@ -282,7 +337,7 @@ impl<'cx> TyChecker<'cx> {
         if fn_flags.contains(FnFlags::ASYNC) {
             self.map_ty(
                 contextual_return_ty,
-                |this, t| this.get_awaited_ty_no_alias(t),
+                |this, t| this.get_awaited_ty_no_alias(t, None, NOOP_HEADING_ERROR),
                 false,
             )
             .map(|contextual_await_ty| {
@@ -404,7 +459,7 @@ impl<'cx> TyChecker<'cx> {
                         TypeFlags::ANY_OR_UNKNOWN
                             .union(TypeFlags::VOID)
                             .union(TypeFlags::INSTANTIABLE_NON_PRIMITIVE),
-                    ) || this.get_awaited_ty_of_promise(t, None).is_some()
+                    ) || this.get_awaited_ty_of_promise(t).is_some()
                 })
             } else {
                 ret_ty
@@ -421,7 +476,7 @@ impl<'cx> TyChecker<'cx> {
     fn get_contextual_ty_for_assign(
         &mut self,
         parent: &'cx ast::AssignExpr<'cx>,
-        _flagss: Option<ContextFlags>,
+        _flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         let kind = self
             .node_query(parent.id.module())
@@ -463,15 +518,64 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             AssignmentDeclarationKind::Property => {
-                // TODO: isPossiblyAliasedThisProperty
-                // TODO: !can_have_symbol
-                // TODO: let decl = self.final_res(parent.left.id());
-                None
+                if self.is_possibly_aliased_this_property(parent, Some(kind)) {
+                    // TODO:
+                    None
+                } else if !parent.left.can_have_symbol()
+                    || !self
+                        .binder
+                        .get(parent.left.id().module())
+                        .final_res
+                        .contains_key(&parent.left.id())
+                {
+                    Some(self.get_ty_of_expr(parent.left))
+                } else {
+                    // TODO: let decl = self.final_res(parent.left.id());
+                    None
+                }
+            }
+            AssignmentDeclarationKind::ObjectDefinePropertyValue
+            | AssignmentDeclarationKind::ObjectDefinePropertyExports
+            | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                unreachable!()
             }
             _ => {
                 // TODO: other case
                 None
             }
+        }
+    }
+
+    fn is_possibly_aliased_this_property(
+        &mut self,
+        n: &'cx ast::AssignExpr<'cx>,
+        kind: Option<AssignmentDeclarationKind>,
+    ) -> bool {
+        let kind = kind.unwrap_or_else(|| {
+            self.node_query(n.id.module())
+                .get_assignment_declaration_kind_for_assign_expr(n)
+        });
+        if matches!(kind, AssignmentDeclarationKind::ThisProperty) {
+            return true;
+        }
+        if !self.node_query(n.id.module()).is_in_js_file(n.id)
+            || !matches!(kind, AssignmentDeclarationKind::Property)
+            || match n.left.kind {
+                ast::ExprKind::EleAccess(n) => !matches!(n.expr.kind, ast::ExprKind::Ident(_)),
+                ast::ExprKind::PropAccess(n) => !matches!(n.expr.kind, ast::ExprKind::Ident(_)),
+                _ => unreachable!(),
+            }
+        {
+            false
+        } else {
+            let name = match n.left.kind {
+                ast::ExprKind::EleAccess(n) if let ast::ExprKind::Ident(n) = n.expr.kind => n,
+                ast::ExprKind::PropAccess(n) if let ast::ExprKind::Ident(n) = n.expr.kind => n,
+                _ => unreachable!(),
+            };
+            let symbol = self.resolve_ident::<true, true>(name, SymbolFlags::VALUE);
+            let value_declaration = self.symbol(symbol).value_decl;
+            value_declaration.is_some_and(|v| self.p.node(v).is_this_initialized_declaration())
         }
     }
 
@@ -559,16 +663,49 @@ impl<'cx> TyChecker<'cx> {
         None
     }
 
+    fn get_contextual_ty_for_object_binding_element(
+        &mut self,
+        parent: &'cx ast::ObjectBindingElem<'cx>,
+        node: ast::NodeID,
+        _context_flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
+        if parent.init.is_some_and(|init| init.id() == node) {
+            let parent_parent_id = self.parent(parent.id).unwrap();
+            debug_assert!(self.p.node(parent_parent_id).is_object_pat());
+            let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
+            let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
+                ast::Node::VarDecl(n) => {
+                    // TODO: init_ty
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                }
+                _ => {
+                    // TODO: other cases
+                    None
+                }
+            }?;
+            let prop_name = parent.name.name();
+            let name_ty = self.get_literal_ty_from_prop_name(&prop_name);
+            if name_ty.usable_as_prop_name() {
+                let text = self.get_prop_name_from_ty(name_ty);
+                self.get_ty_of_prop_of_ty(parent_parent_parent_ty, text)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     fn get_contextual_ty_for_array_binding(
         &mut self,
         parent: &'cx ast::ArrayBinding<'cx>,
         node: ast::NodeID,
-        _context_flagss: Option<ContextFlags>,
+        _context_flags: Option<ContextFlags>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         debug_assert!(self.parent(node).is_some_and(|p| p == parent.id));
         if parent.init.is_some_and(|init| init.id() == node) {
             // TODO: js
-            let _namee = parent.name;
             let parent_parent_id = self.parent(parent.id).unwrap();
             debug_assert!(self.p.node(parent_parent_id).is_array_pat());
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
@@ -593,7 +730,7 @@ impl<'cx> TyChecker<'cx> {
                     ast::ArrayBindingElemKind::Binding(item) => std::ptr::eq(item, parent),
                 })?;
             self.get_contextual_ty_for_element_expr(
-                Some(parent_parent_parent_ty),
+                parent_parent_parent_ty,
                 index,
                 None,
                 None,
@@ -606,14 +743,14 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_contextual_ty_for_element_expr(
         &mut self,
-        ty: Option<&'cx ty::Ty<'cx>>,
+        ty: &'cx ty::Ty<'cx>,
         index: usize,
         length: Option<usize>,
         first_spread_index: Option<usize>,
         last_spread_index: Option<usize>,
     ) -> Option<&'cx ty::Ty<'cx>> {
         self.map_ty(
-            ty?,
+            ty,
             |this, t| {
                 if let Some(tup) = t.as_tuple() {
                     if first_spread_index
@@ -931,9 +1068,9 @@ impl<'cx> TyChecker<'cx> {
                             if !prop_symbol.flags.contains(SymbolFlags::OPTIONAL) {
                                 return None;
                             }
-                            let s = self.binder.symbol(self.final_res(n.id));
-                            let members = s.members.as_ref()?;
-                            let name = s.name;
+                            let node_symbol = self.binder.symbol(self.final_res(n.id));
+                            let members = node_symbol.members.as_ref()?;
+                            let name = prop_symbol.name;
                             if !members.0.contains_key(&name)
                                 && self.is_discriminant_prop(contextual_ty, name)
                             {

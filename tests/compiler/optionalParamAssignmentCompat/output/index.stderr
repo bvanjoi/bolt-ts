@@ -1,0 +1,5 @@
+  × Type '(p1: undefined | string) => I1' is not assignable to type 'I1'.
+    ╭─[../../tests/compiler/optionalParamAssignmentCompat/index.ts:14:5]
+ 14 │ d
+    · ─
+    ╰────

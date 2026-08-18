@@ -1,0 +1,76 @@
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+    ╭─[../../tests/compiler/genericDefaults/index.ts:49:26]
+ 49 │ T
+    · ─
+    ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:243:26]
+ 243 │ U
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:261:29]
+ 261 │ V
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:285:26]
+ 285 │ U
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:302:29]
+ 302 │ V
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:325:26]
+ 325 │ U
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:344:29]
+ 344 │ V
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:370:26]
+ 370 │ U
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:389:29]
+ 389 │ V
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:438:19]
+ 438 │ T
+     · ─
+     ╰────
+
+  × Type parameter defaults can only reference previously declared type
+  │ parameters.
+     ╭─[../../tests/compiler/genericDefaults/index.ts:443:19]
+ 443 │ U
+     · ─
+     ╰────

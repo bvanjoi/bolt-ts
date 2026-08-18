@@ -5,7 +5,7 @@ use bolt_ts_ast as ast;
 use bolt_ts_ast::TokenKind;
 use bolt_ts_ast_factory::ASTFactory;
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn can_follow_modifier(&self) -> bool {
         let t = self.token.kind;
         use bolt_ts_ast::TokenKind::*;
@@ -36,8 +36,13 @@ impl<'cx> ParserState<'cx, '_> {
             if !self.try_parse(Lookahead::next_token_is_on_same_line_and_can_follow_modifier) {
                 return None;
             }
-        } else if ((STOP_ON_START_OF_CLASS_STATIC_BLOCK || has_seen_static_modifier)
-            && t == TokenKind::Static)
+        } else if (t == TokenKind::Static
+            && ((STOP_ON_START_OF_CLASS_STATIC_BLOCK
+                && self.lookahead(|l| {
+                    l.p().next_token();
+                    l.p().token.kind == TokenKind::LBrace
+                }))
+                || has_seen_static_modifier))
             || !self.parse_any_contextual_modifier()
         {
             return None;

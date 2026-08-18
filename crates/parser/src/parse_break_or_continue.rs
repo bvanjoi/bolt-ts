@@ -11,19 +11,19 @@ pub(super) struct ParseBreak;
 #[derive(Copy, Clone)]
 pub(super) struct ParseContinue;
 
-pub(super) trait ParseBreakOrContinue<'cx, 'p> {
+pub(super) trait ParseBreakOrContinue<'cx, 'p, const VARIANT: u8> {
     type Node;
     const IS_CONTINUE: bool;
     fn expect_token(&self) -> TokenKind;
     fn finish(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node;
 }
 
-impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
+impl<'cx, 'p, const VARIANT: u8> ParseBreakOrContinue<'cx, 'p, VARIANT> for ParseBreak {
     type Node = &'cx ast::BreakStmt<'cx>;
     const IS_CONTINUE: bool = false;
     fn expect_token(&self) -> TokenKind {
@@ -31,7 +31,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
     }
     fn finish(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
@@ -39,7 +39,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseBreak {
     }
 }
 
-impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
+impl<'cx, 'p, const VARIANT: u8> ParseBreakOrContinue<'cx, 'p, VARIANT> for ParseContinue {
     type Node = &'cx ast::ContinueStmt<'cx>;
     const IS_CONTINUE: bool = true;
     fn expect_token(&self) -> TokenKind {
@@ -47,7 +47,7 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
     }
     fn finish(
         &self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         label: Option<&'cx ast::Ident>,
     ) -> Self::Node {
@@ -55,8 +55,11 @@ impl<'cx, 'p> ParseBreakOrContinue<'cx, 'p> for ParseContinue {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
-    pub(super) fn parse_break_or_continue<Node, P: ParseBreakOrContinue<'cx, 'p, Node = Node>>(
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
+    pub(super) fn parse_break_or_continue<
+        Node,
+        P: ParseBreakOrContinue<'cx, 'p, VARIANT, Node = Node>,
+    >(
         &mut self,
         kind: &P,
     ) -> PResult<Node> {

@@ -1,0 +1,13 @@
+  × Property 'x3' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/declFileTypeofClass/index.ts:9:13]
+ 9 │ x3
+   · ──
+   ╰────
+
+  × Property 'y3' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileTypeofClass/index.ts:11:12]
+ 11 │ y3
+    · ──
+    ╰────

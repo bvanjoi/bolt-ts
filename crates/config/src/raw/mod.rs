@@ -70,6 +70,7 @@ with_option!(
     (resolve_json_module, bool),
     (resolve_package_json_exports, bool),
     (resolve_package_json_imports, bool),
+    (remove_comments, bool),
     (target, RawTarget),
     (module, RawModule),
     (module_resolution, RawModuleResolution),
@@ -157,6 +158,9 @@ impl RawCompilerOptions {
         }
         if self.no_error_truncation.unwrap_or_default() {
             flags.insert(super::CompilerOptionFlags::NO_ERROR_TRUNCATION);
+        }
+        if self.remove_comments.unwrap_or_default() {
+            flags.insert(super::CompilerOptionFlags::REMOVE_COMMENTS);
         }
         if get_strict_option_value(self.use_unknown_in_catch_variables) {
             flags.insert(super::CompilerOptionFlags::USE_UNKNOWN_IN_CATCH_VARIABLES);

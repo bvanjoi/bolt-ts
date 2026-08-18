@@ -1,0 +1,17 @@
+  × An export assignment must be at the top level of a file or module
+  │ declaration.
+   ╭─[../../tests/compiler/exportInFunction/index.ts:6:12]
+ 6 │ =
+   · ─
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/exportInFunction/index.ts:8:24]
+   ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+   ╭─[../../tests/compiler/exportInFunction/index.ts:5:14]
+ 5 │ {
+   · ─
+   ╰────

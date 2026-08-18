@@ -1,0 +1,6 @@
+  × Type of 'await' operand must either be a valid promise or must not contain
+  │ a callable 'then' member.
+    ╭─[../../tests/compiler/crashInYieldStarInAsyncFunction/index.ts:17:12]
+ 17 │ obj
+    · ───
+    ╰────

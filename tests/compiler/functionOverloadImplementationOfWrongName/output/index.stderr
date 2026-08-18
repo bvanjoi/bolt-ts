@@ -1,0 +1,5 @@
+  × Function implementation name must be 'foo'.
+   ╭─[../../tests/compiler/functionOverloadImplementationOfWrongName/index.ts:8:10]
+ 8 │ bar
+   · ───
+   ╰────

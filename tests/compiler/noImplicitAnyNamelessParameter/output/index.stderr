@@ -1,0 +1,53 @@
+  × Rest parameter 'string' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:7:20]
+ 7 │ ...string
+   · ─────────
+   ╰────
+
+  × Parameter 'string' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:9:17]
+ 9 │ string
+   · ──────
+   ╰────
+
+  × Parameter 'C' implicitly has an 'any' type.
+   ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:9:24]
+ 9 │  C
+   · ──
+   ╰────
+
+  × Parameter 'C' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:12:19]
+ 12 │ C
+    · ─
+    ╰────
+
+  × Parameter 'number' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:12:21]
+ 12 │  number
+    · ───────
+    ╰────
+
+  × Parameter 'boolean' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:15:20]
+ 15 │ boolean
+    · ───────
+    ╰────
+
+  × Parameter 'C' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:15:28]
+ 15 │  C
+    · ──
+    ╰────
+
+  × Parameter 'object' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:15:31]
+ 15 │  object
+    · ───────
+    ╰────
+
+  × Parameter 'undefined' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/noImplicitAnyNamelessParameter/index.ts:15:39]
+ 15 │  undefined
+    · ──────────
+    ╰────

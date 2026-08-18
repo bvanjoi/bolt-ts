@@ -22,6 +22,12 @@
    · ─
    ╰────
 
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:13]
+ 7 │ [name:string]
+   · ─────────────
+   ╰────
+
   × Declaration or statement expected.
    ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:7:26]
  7 │ :
@@ -29,8 +35,8 @@
    ╰────
 
   × Declaration or statement expected.
-    ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:15:1]
- 15 │ }
+    ╭─[../../tests/compiler/classMemberWithMissingIdentifier2/index.ts:16:1]
+ 16 │ }
     · ─
     ╰────
 

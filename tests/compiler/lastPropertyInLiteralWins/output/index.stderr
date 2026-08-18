@@ -1,0 +1,42 @@
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/lastPropertyInLiteralWins/index.ts:13:5]
+ 12 │ thunk: (str: string) => {},
+    · ──┬──
+    ·   ╰── Previous definition here
+ 13 │     thunk
+    ·     ─────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/lastPropertyInLiteralWins/index.ts:13:5]
+ 12 │ thunk: (str: string) => {},
+    · ──┬──
+    ·   ╰── Previous definition here
+ 13 │     thunk
+    ·     ─────
+    ╰────
+
+  × Type '(num: number) => void' is not assignable to type '(str: string) =>
+  │ void'.
+    ╭─[../../tests/compiler/lastPropertyInLiteralWins/index.ts:13:5]
+ 13 │ thunk
+    · ─────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/lastPropertyInLiteralWins/index.ts:22:5]
+ 21 │ thunk: (num: number) => {},
+    · ──┬──
+    ·   ╰── Previous definition here
+ 22 │     thunk
+    ·     ─────
+    ╰────
+
+  × An object literal cannot have multiple properties with the same name.
+    ╭─[../../tests/compiler/lastPropertyInLiteralWins/index.ts:13:5]
+ 12 │ thunk: (str: string) => {},
+    · ──┬──
+    ·   ╰── Previous definition here
+ 13 │     thunk
+    ·     ─────
+    ╰────

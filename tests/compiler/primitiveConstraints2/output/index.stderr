@@ -1,0 +1,17 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/primitiveConstraints2/index.ts:7:14]
+ 7 │ null
+   · ────
+   ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/primitiveConstraints2/index.ts:13:11]
+ 13 │ ""
+    · ──
+    ╰────
+
+  × Type 'string' does not satisfy the constraint 'number'.
+    ╭─[../../tests/compiler/primitiveConstraints2/index.ts:15:8]
+ 15 │ string
+    · ──────
+    ╰────

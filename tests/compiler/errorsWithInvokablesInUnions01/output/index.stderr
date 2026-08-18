@@ -1,0 +1,13 @@
+  × Type '(x: string) => void' is not assignable to type 'ConstructableA |
+  │ IDirectiveLinkFn<number> | IDirectivePrePost<number>'.
+    ╭─[../../tests/compiler/errorsWithInvokablesInUnions01/index.ts:18:12]
+ 18 │ blah
+    · ────
+    ╰────
+
+  × Type 'typeof (Anonymous class)' is not assignable to type 'ConstructableA
+  │ | IDirectiveLinkFn<number> | IDirectivePrePost<number>'.
+    ╭─[../../tests/compiler/errorsWithInvokablesInUnions01/index.ts:21:12]
+ 21 │ ctor
+    · ────
+    ╰────

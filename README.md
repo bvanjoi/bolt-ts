@@ -17,7 +17,7 @@ Core functionalities are operational but require refinement. Key pending improve
 - Module Resolution: cache, `exports`/`imports` field support, `node_modules/@types` type definition resolution.
 - Type Checking: various edge-case bugs.
 - Output Generation: sourcemap generation, different module systems.
-- And others: js file processing, language service..
+- And others: language service..
 
 ## Community
 

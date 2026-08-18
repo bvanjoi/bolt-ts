@@ -1,0 +1,31 @@
+  × Cannot find name 'notfoundsymbol'.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase1/index.ts:36:16]
+ 36 │ notfoundsymbol
+    · ──────────────
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase1/index.ts:14:21]
+ 14 │ fn1
+    · ───
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase1/index.ts:20:20]
+ 20 │ fn2
+    · ───
+    ╰────
+
+  × Argument of type 'string' is not assignable to parameter of type 'number'.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase1/index.ts:27:20]
+ 27 │ "hello world"
+    · ─────────────
+    ╰────
+
+  × 'fn5' implicitly has return type 'any' because it does not have a return
+  │ type annotation and is referenced directly or indirectly in one of its
+  │ return expressions.
+    ╭─[../../tests/compiler/simpleRecursionWithBaseCase1/index.ts:41:10]
+ 41 │ fn5
+    · ───
+    ╰────

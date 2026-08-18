@@ -1,0 +1,5 @@
+  × This kind of expression is always falsy.
+    ╭─[../../tests/compiler/bestCommonTypeWithContextualTyping/index.ts:24:31]
+ 24 │ null
+    · ────
+    ╰────

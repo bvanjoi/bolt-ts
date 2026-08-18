@@ -1,3 +1,6 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/controlFlowForCatchAndFinally.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
+//@compiler-options: strict
 async function test() {
   var browser = undefined;
   var page = undefined;

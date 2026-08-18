@@ -1,0 +1,23 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/genericWithOpenTypeParameters1/index.ts:6:26]
+ 6 │ null
+   · ────
+   ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'T'.
+    ╭─[../../tests/compiler/genericWithOpenTypeParameters1/index.ts:12:40]
+ 12 │ 1
+    · ─
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericWithOpenTypeParameters1/index.ts:14:40]
+ 14 │ <T>
+    · ───
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/genericWithOpenTypeParameters1/index.ts:16:40]
+ 16 │ <number>
+    · ────────
+    ╰────

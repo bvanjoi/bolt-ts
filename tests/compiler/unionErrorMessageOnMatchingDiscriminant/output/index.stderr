@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type '{ a: string; }'.
+    ╭─[../../tests/compiler/unionErrorMessageOnMatchingDiscriminant/index.ts:26:5]
+ 26 │ data
+    · ────
+    ╰────

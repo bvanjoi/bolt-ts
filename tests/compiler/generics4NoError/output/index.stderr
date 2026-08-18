@@ -1,0 +1,6 @@
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/generics4NoError/index.ts:6:22]
+ 6 │ x
+   · ─
+   ╰────

@@ -1,0 +1,20 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/mutuallyRecursiveInference/index.ts:6:5]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/mutuallyRecursiveInference/index.ts:14:5]
+ 14 │ a
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/mutuallyRecursiveInference/index.ts:16:5]
+ 16 │ b
+    · ─
+    ╰────

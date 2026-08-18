@@ -1,0 +1,11 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/valueOfTypedArray.ts`, Apache-2.0 License
+var typedArray0 = (new Int8Array()).valueOf();
+var typedArray1 = (new Uint8Array()).valueOf();
+var typedArray2 = (new Int16Array()).valueOf();
+var typedArray3 = (new Uint16Array()).valueOf();
+var typedArray4 = (new Int32Array()).valueOf();
+var typedArray5 = (new Uint32Array()).valueOf();
+var typedArray6 = (new Float32Array()).valueOf();
+var typedArray7 = (new Float64Array()).valueOf();
+var typedArray8 = (new BigInt64Array()).valueOf();
+var typedArray9 = (new BigUint64Array()).valueOf();

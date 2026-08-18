@@ -1,4 +1,4 @@
-  × Type '() => cond' is not assignable to type '() => cond'.
+  × Type '<T>() => cond' is not assignable to type '<T>() => cond'.
    ╭─[../../tests/compiler/exactOptionalPropertyTypesIdentical/index.ts:8:12]
  8 │ b
    · ─

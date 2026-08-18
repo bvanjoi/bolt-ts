@@ -1,0 +1,20 @@
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+    ╭─[../../tests/compiler/constDeclarationShadowedByVarDeclaration/index.ts:10:9]
+ 10 │ x
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'y' in the same scope as block
+  │ scoped declaration 'y'.
+    ╭─[../../tests/compiler/constDeclarationShadowedByVarDeclaration/index.ts:19:13]
+ 19 │ y
+    · ─
+    ╰────
+
+  × Cannot initialize outer scoped variable 'z' in the same scope as block
+  │ scoped declaration 'z'.
+    ╭─[../../tests/compiler/constDeclarationShadowedByVarDeclaration/index.ts:27:7]
+ 27 │ z
+    · ─
+    ╰────

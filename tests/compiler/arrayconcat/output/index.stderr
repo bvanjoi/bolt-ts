@@ -1,0 +1,30 @@
+  × Property 'options' has no initializer and is not definitely assigned in
+  │ the constructor.
+    ╭─[../../tests/compiler/arrayconcat/index.ts:16:9]
+ 16 │ options
+    · ───────
+    ╰────
+
+  × 'a.name' is possibly 'undefined'.
+    ╭─[../../tests/compiler/arrayconcat/index.ts:21:25]
+ 21 │ a.name
+    · ──────
+    ╰────
+
+  × 'a.name' is possibly 'undefined'.
+    ╭─[../../tests/compiler/arrayconcat/index.ts:21:25]
+ 21 │ a.name
+    · ──────
+    ╰────
+
+  × 'b.name' is possibly 'undefined'.
+    ╭─[../../tests/compiler/arrayconcat/index.ts:24:25]
+ 24 │ b.name
+    · ──────
+    ╰────
+
+  × 'b.name' is possibly 'undefined'.
+    ╭─[../../tests/compiler/arrayconcat/index.ts:24:25]
+ 24 │ b.name
+    · ──────
+    ╰────

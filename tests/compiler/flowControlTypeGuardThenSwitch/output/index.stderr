@@ -1,0 +1,5 @@
+  × Type 'undefined' is not assignable to type 'Base'.
+    ╭─[../../tests/compiler/flowControlTypeGuardThenSwitch/index.ts:28:5]
+ 28 │ foo
+    · ───
+    ╰────

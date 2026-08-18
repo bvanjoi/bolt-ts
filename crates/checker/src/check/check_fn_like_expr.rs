@@ -341,13 +341,13 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         with_alias: bool,
-        _error_nodee: ast::NodeID,
-        _push_errorr: impl FnOnce(&mut Self),
+        error_node: ast::NodeID,
+        push_error: impl FnOnce(&mut Self) + Copy,
     ) -> &'cx ty::Ty<'cx> {
         let awaited_ty = if with_alias {
-            self.get_awaited_ty(ty)
+            self.get_awaited_ty(ty, Some(error_node), Some(push_error))
         } else {
-            self.get_awaited_ty_no_alias(ty)
+            self.get_awaited_ty_no_alias(ty, Some(error_node), Some(push_error))
         };
         awaited_ty.unwrap_or(self.error_ty)
     }

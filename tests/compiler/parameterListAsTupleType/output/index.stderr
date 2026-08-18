@@ -4,7 +4,7 @@
     · ─────────────────
     ╰────
 
-  × Type 'typeof C' does not satisfy the constraint '(args: any) => any'.
+  × Type 'typeof C' does not satisfy the constraint '(...args: any) => any'.
     ╭─[../../tests/compiler/parameterListAsTupleType/index.ts:21:23]
  21 │ typeof C
     · ────────

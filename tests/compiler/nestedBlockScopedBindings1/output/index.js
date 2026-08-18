@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.2/tests/cases/compiler/nestedBlockScopedBindings1.ts`, Apache-2.0 License
 function a0() {
   {
     var x = 1;

@@ -1,0 +1,17 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/referenceSatisfiesExpression/index.ts:13:2]
+ 13 │ b
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/referenceSatisfiesExpression/index.ts:17:3]
+ 17 │ c
+    · ─
+    ╰────
+
+  × Variable 'c' is used before being assigned.
+    ╭─[../../tests/compiler/referenceSatisfiesExpression/index.ts:17:3]
+ 17 │ c
+    · ─
+    ╰────

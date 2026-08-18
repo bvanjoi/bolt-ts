@@ -1,0 +1,95 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:7:9]
+ 7 │ x
+   · ─
+   ╰────
+
+  × Variable 'y' is used before being assigned.
+   ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:7:13]
+ 7 │ y
+   · ─
+   ╰────
+
+  × Operator '+' cannot be applied to types 'Number' and 'Number'.
+   ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:7:9]
+ 7 │ x + y
+   · ─────
+   ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:11:10]
+ 11 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:11:14]
+ 11 │ y
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:11:10]
+ 11 │ x
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:11:14]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:16:10]
+ 16 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:16:14]
+ 16 │ y
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:16:10]
+ 16 │ x
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:16:14]
+ 16 │ y
+    · ─
+    ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:21:10]
+ 21 │ x
+    · ─
+    ╰────
+
+  × Variable 'y' is used before being assigned.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:21:14]
+ 21 │ y
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:21:10]
+ 21 │ x
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/arithmeticOnInvalidTypes/index.ts:21:14]
+ 21 │ y
+    · ─
+    ╰────

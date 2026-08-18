@@ -1,0 +1,5 @@
+  × A module cannot have multiple default exports.
+    ╭─[../../tests/compiler/exportDefaultTypeAndFunctionOverloads/index.ts:12:16]
+ 12 │ Foo
+    · ───
+    ╰────

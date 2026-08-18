@@ -1,0 +1,41 @@
+  × An element access expression should take an argument.
+   ╭─[../../tests/compiler/createArray/index.ts:6:19]
+ 6 │ ]
+   · ─
+   ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/createArray/index.ts:13:7]
+ 13 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/createArray/index.ts:15:20]
+ 15 │ ]
+    · ─
+    ╰────
+
+  × An element access expression should take an argument.
+    ╭─[../../tests/compiler/createArray/index.ts:18:19]
+ 18 │ ]
+    · ─
+    ╰────
+
+  × Cannot find name 'number'.
+   ╭─[../../tests/compiler/createArray/index.ts:6:12]
+ 6 │ number
+   · ──────
+   ╰────
+
+  × Cannot find name 'boolean'.
+    ╭─[../../tests/compiler/createArray/index.ts:15:12]
+ 15 │ boolean
+    · ───────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/createArray/index.ts:18:12]
+ 18 │ string
+    · ──────
+    ╰────

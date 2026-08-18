@@ -1,0 +1,36 @@
+  × Member 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:11:10]
+ 11 │ y
+    · ─
+    ╰────
+
+  × Member 'z' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:11:13]
+ 11 │ z
+    · ─
+    ╰────
+
+  × Member 'z1' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:14:18]
+ 14 │ z1
+    · ──
+    ╰────
+
+  × Construct signature, which lacks return-type annotation, implicitly has an
+  │ 'any' return type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:16:12]
+ 16 │ new ();
+    · ───────
+    ╰────
+
+  × Parameter 'y2' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:18:10]
+ 18 │ y2
+    · ──
+    ╰────
+
+  × Parameter 'y3' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareTypePropertyWithoutType/index.ts:20:21]
+ 20 │  y3
+    · ───
+    ╰────

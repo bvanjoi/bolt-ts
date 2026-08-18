@@ -6,6 +6,6 @@
 
 export let a: <T>() => T extends {a?: string} ? 0 : 1 = null!;
 export let b: <T>() => T extends {a?: string | undefined} ? 0 : 1 = a;
-//~^ ERROR: Type '() => cond' is not assignable to type '() => cond'.
+//~^ ERROR: Type '<T>() => cond' is not assignable to type '<T>() => cond'.
 
 type A = {[x: string]: string; a?: string};

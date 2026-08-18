@@ -1,0 +1,13 @@
+  × Cannot initialize outer scoped variable 'x' in the same scope as block
+  │ scoped declaration 'x'.
+   ╭─[../../tests/compiler/shadowingViaLocalValue/index.ts:8:13]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Cannot initialize outer scoped variable 'x1' in the same scope as block
+  │ scoped declaration 'x1'.
+    ╭─[../../tests/compiler/shadowingViaLocalValue/index.ts:16:18]
+ 16 │ x1
+    · ──
+    ╰────

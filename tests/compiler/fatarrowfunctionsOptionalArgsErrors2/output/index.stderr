@@ -1,0 +1,125 @@
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:23]
+ 6 │ =>
+   · ──
+   ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:23]
+ 16 │ =>
+    · ──
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:26:17]
+ 26 │ =>
+    · ──
+    ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:12]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:16]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:19]
+ 6 │ c
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:26]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Cannot find name 'b'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:28]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Cannot find name 'c'.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:30]
+ 6 │ c
+   · ─
+   ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:13]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'b'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:17]
+ 16 │ b
+    · ─
+    ╰────
+
+  × Cannot find name 'c'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:20]
+ 16 │ c
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:26]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'b'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:28]
+ 16 │ b
+    · ─
+    ╰────
+
+  × Cannot find name 'c'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:30]
+ 16 │ c
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:26:13]
+ 26 │ a
+    · ─
+    ╰────
+
+  × Cannot find name 'a'.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:26:20]
+ 26 │ a
+    · ─
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:16]
+ 6 │ b
+   · ─
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+   ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:6:12]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:12]
+ 16 │ (a)
+    · ───
+    ╰────
+
+  × Left side of comma operator is unused and has no side effects.
+    ╭─[../../tests/compiler/fatarrowfunctionsOptionalArgsErrors2/index.ts:16:12]
+ 16 │ (a), b
+    · ──────
+    ╰────

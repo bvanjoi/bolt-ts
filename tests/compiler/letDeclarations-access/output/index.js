@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/letDeclarations-access.ts`, Apache-2.0 License
 var x = 0;
 x = 1;
 x += 2;

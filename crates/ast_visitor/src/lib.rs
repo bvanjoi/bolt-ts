@@ -66,6 +66,7 @@ make_visitor!(
     (visit_named_tuple_ty, ast::NamedTupleTy<'cx>),
     (visit_tuple_ty, ast::TupleTy<'cx>),
     (visit_rest_ty, ast::RestTy<'cx>),
+    (visit_optional_ty, ast::OptionalTy<'cx>),
     (visit_cond_ty, ast::CondTy<'cx>),
     (visit_union_ty, ast::UnionTy<'cx>),
     (visit_intersection_ty, ast::IntersectionTy<'cx>),

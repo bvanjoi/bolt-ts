@@ -1,0 +1,5 @@
+  × Variable 'b' is used before being assigned.
+    ╭─[../../tests/compiler/genericCloduleInModule/index.ts:16:1]
+ 16 │ b
+    · ─
+    ╰────

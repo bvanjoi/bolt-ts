@@ -1,0 +1,12 @@
+  × Cannot find name 'U'.
+    ╭─[../../tests/compiler/conflictingTypeParameterSymbolTransfer/index.ts:16:16]
+ 16 │ U
+    · ─
+    ╰────
+
+  × Property 'data' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/conflictingTypeParameterSymbolTransfer/index.ts:33:5]
+ 33 │ data
+    · ────
+    ╰────

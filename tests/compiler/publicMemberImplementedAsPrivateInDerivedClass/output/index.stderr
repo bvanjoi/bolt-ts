@@ -1,0 +1,12 @@
+  × Class 'Foo' incorrectly implements interface 'Qux'.
+   ╭─[../../tests/compiler/publicMemberImplementedAsPrivateInDerivedClass/index.ts:8:22]
+ 8 │ Qux
+   · ───
+   ╰────
+
+  × Property 'Bar' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/publicMemberImplementedAsPrivateInDerivedClass/index.ts:10:10]
+ 10 │ Bar
+    · ───
+    ╰────

@@ -1,0 +1,6 @@
+  × 'x' is defined as a property in class 'a', but is overridden here in 'b'
+  │ as an accessor.
+    ╭─[../../tests/compiler/inheritanceMemberAccessorOverridingProperty/index.ts:11:9]
+ 11 │ x
+    · ─
+    ╰────

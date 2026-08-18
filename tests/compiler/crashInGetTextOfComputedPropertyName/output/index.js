@@ -1,3 +1,5 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/crashInGetTextOfComputedPropertyName.ts`, Apache-2.0 License
+//@compiler-options: target=es2015
 var itemId = 'some-id';
 var items = {};
 var {[itemId]: itemOk1} = items;

@@ -1,0 +1,5 @@
+  × Argument of type 'null' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/arrayAssignmentTest3/index.ts:13:16]
+ 13 │ null
+    · ────
+    ╰────

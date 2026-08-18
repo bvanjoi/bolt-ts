@@ -38,7 +38,7 @@ impl<'cx> TyChecker<'cx> {
             && node.ty_args().is_some()
             && let Some(ty_params) = self.get_ty_params_for_ty_refer_ty_or_import(node)
         {
-            self.check_type_argument_constraints(node, ty_params);
+            self.check_type_argument_constraints(node.id(), node.ty_args(), ty_params);
         }
     }
 
@@ -517,22 +517,25 @@ impl<'cx> TyChecker<'cx> {
         self.get_resolved_base_constraint(ty_param) != self.circular_constraint_ty()
     }
 
-    fn check_type_argument_constraints(
+    pub(super) fn check_type_argument_constraints(
         &mut self,
-        node: &impl TyReferTyOrImport<'cx>,
-        ty_params: ty::Tys<'cx>,
+        node_id: ast::NodeID,
+        node_ty_arguments: Option<&'cx ast::Tys<'cx>>,
+        ty_parameters: ty::Tys<'cx>,
     ) -> bool {
         let mut result = true;
-        let ty_args = self.get_effective_ty_args(node.id(), ty_params).unwrap();
-        debug_assert_eq!(ty_params.len(), ty_args.len());
-        let mapper = self.create_ty_mapper(ty_params, ty_args);
-        for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_params.iter()).enumerate() {
+        let ty_args = self.get_effective_ty_args(node_id, ty_parameters).unwrap();
+        debug_assert_eq!(ty_parameters.len(), ty_args.len());
+        let mapper = self.create_ty_mapper(ty_parameters, ty_args);
+        for (idx, (ty_arg, ty_param)) in ty_args.iter().zip(ty_parameters.iter()).enumerate() {
             if let Some(constraint) = self.get_constraint_of_ty_param(ty_param)
                 && result
                 && let target = self.instantiate_ty_worker(constraint, mapper)
                 && !self.check_type_assignable_to(ty_arg, target, None, NOOP_HEADING_ERROR)
             {
-                if let Some(error_node) = node.ty_args().and_then(|ty_args| ty_args.list.get(idx)) {
+                if let Some(error_node) =
+                    node_ty_arguments.and_then(|ty_args| ty_args.list.get(idx))
+                {
                     let error = errors::TypeXDoesNotSatisfyTheConstraintY {
                         span: error_node.span(),
                         x: self.print_ty(ty_arg, None).to_string(),

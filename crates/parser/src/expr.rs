@@ -2,11 +2,14 @@ use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::LanguageVariant;
+use super::state::is_jsx_like_variant;
+use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
 
+use bolt_ts_ast::SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS;
+use bolt_ts_ast::SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
 use bolt_ts_ast::r#trait::{NoParenRule, ParenRuleTrait};
 use bolt_ts_ast::{self as ast, ModifierFlags, ModifierKind, TokenFlags, keyword};
 use bolt_ts_ast::{BinPrec, Token, TokenKind};
@@ -19,12 +22,12 @@ bitflags::bitflags! {
     }
 }
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn is_update_expr(&self) -> bool {
         use bolt_ts_ast::TokenKind::*;
         match self.token.kind {
             Plus | Minus | Tilde | Excl | Delete | Typeof | Void | Await => false,
-            Less if !matches!(self.variant, LanguageVariant::Jsx) => false,
+            Less if !is_jsx_like_variant(VARIANT) => false,
             _ => true,
         }
     }
@@ -102,6 +105,7 @@ impl<'cx> ParserState<'cx, '_> {
         flags: CheckParameterFlags,
     ) {
         let is_container = flags.contains(CheckParameterFlags::CONSTRUCTOR);
+        let is_missing_body = flags.contains(CheckParameterFlags::MISSING_BODY);
         for param in params {
             if let Some(ms) = param.modifiers {
                 if ms
@@ -131,6 +135,20 @@ impl<'cx> ParserState<'cx, '_> {
                     }
                     flags.insert(m.kind().into_flag());
                 }
+            }
+
+            if !is_missing_body
+                && matches!(
+                    param.name.kind,
+                    ast::BindingKind::ArrayPat(_) | ast::BindingKind::ObjectPat(_)
+                )
+                && let Some(question) = param.question
+            {
+                let error =
+                    errors::ABindingPatternParameterCannotBeOptionalInAnImplementationSignature {
+                        span: question,
+                    };
+                self.push_error(Box::new(error));
             }
         }
     }
@@ -329,7 +347,9 @@ impl<'cx> ParserState<'cx, '_> {
         {
             self.parse_simple_arrow_fn_expr::<ALLOW_RET_TY_IN_ARROW_FN>(ident, None)
         } else if expr.is_left_hand_side_expr_kind() && self.re_scan_greater().is_assignment() {
-            match expr.kind {
+            const FLAGS: u8 =
+                SKIP_OUTER_EXPRESSION_ASSERTIONS_FLAGS | SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS;
+            match ast::Expr::skip_outer_expr::<FLAGS>(expr).kind {
                 ast::ExprKind::Ident(n) => {
                     if self.in_strict_mode {
                         self.check_strict_mode_eval_or_arguments(n);
@@ -548,8 +568,8 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_update_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         if matches!(self.token.kind, TokenKind::PlusPlus | TokenKind::MinusMinus) {
             self.parse_prefix_unary_expr(Self::parse_left_hand_side_expr_or_higher)
-        } else if self.token.kind == TokenKind::Less
-            && matches!(self.variant, LanguageVariant::Jsx)
+        } else if is_jsx_like_variant(VARIANT)
+            && self.token.kind == TokenKind::Less
             && self
                 .lookahead(Lookahead::next_token_is_ident_or_keyword_or_great)
                 .unwrap_or_default()
@@ -804,7 +824,7 @@ impl<'cx> ParserState<'cx, '_> {
             return Ok(m);
         }
 
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, true>(false);
 
         let check_invalid_modifiers_for_method_like = |this: &mut Self| {
             if let Some(ms) = &modifiers {
@@ -1168,6 +1188,12 @@ impl<'cx> ParserState<'cx, '_> {
             ty_args = e.ty_args;
             expr = e.expr;
         }
+        if self.token.kind == TokenKind::QuestionDot {
+            let error = errors::InvalidOptionalChainFromNewExpression {
+                span: self.token.span,
+            };
+            self.push_error(Box::new(error));
+        }
         let args = if self.token.kind == TokenKind::LParen {
             Some(self.parse_args())
         } else {
@@ -1398,7 +1424,9 @@ impl<'cx> ParserState<'cx, '_> {
                     expr = self.alloc(ast::Expr { kind });
                     continue;
                 }
-                if let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())? {
+                if is_ts_like_variant(VARIANT)
+                    && let Some(ty_args) = self.try_parse(|l| l.p().parse_ty_args_in_expr())?
+                {
                     let span = self.new_span(start as u32);
                     let ele = self.create_expression_with_type_arguments(span, expr, Some(ty_args));
                     expr = self.alloc(ast::Expr {

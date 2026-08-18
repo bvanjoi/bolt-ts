@@ -1,0 +1,25 @@
+  × Interface 'F' cannot simultaneously extend types 'E' and 'D'.
+   ╭─[../../tests/compiler/interfacePropertiesWithSameName3/index.ts:7:11]
+ 7 │ F
+   · ─
+   ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfacePropertiesWithSameName3/index.ts:10:12]
+ 10 │ a
+    · ─
+    ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfacePropertiesWithSameName3/index.ts:12:12]
+ 12 │ a
+    · ─
+    ╰────
+
+  × Interface 'F2' cannot simultaneously extend types 'E2' and 'D2'.
+    ╭─[../../tests/compiler/interfacePropertiesWithSameName3/index.ts:14:11]
+ 14 │ F2
+    · ──
+    ╰────

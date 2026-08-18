@@ -1,0 +1,29 @@
+  × Variable 'paired' is used before being assigned.
+   ╭─[../../tests/compiler/anyInferenceAnonymousFunctions/index.ts:7:1]
+ 7 │ paired
+   · ──────
+   ╰────
+
+  × Variable 'paired' is used before being assigned.
+    ╭─[../../tests/compiler/anyInferenceAnonymousFunctions/index.ts:14:1]
+ 14 │ paired
+    · ──────
+    ╰────
+
+  × Variable 'paired' is used before being assigned.
+    ╭─[../../tests/compiler/anyInferenceAnonymousFunctions/index.ts:20:1]
+ 20 │ paired
+    · ──────
+    ╰────
+
+  × Variable 'paired' is used before being assigned.
+    ╭─[../../tests/compiler/anyInferenceAnonymousFunctions/index.ts:22:1]
+ 22 │ paired
+    · ──────
+    ╰────
+
+  × Variable 'paired' is used before being assigned.
+    ╭─[../../tests/compiler/anyInferenceAnonymousFunctions/index.ts:24:1]
+ 24 │ paired
+    · ──────
+    ╰────

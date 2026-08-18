@@ -2,6 +2,7 @@
 
 //@compiler-options: target=esnext
 //@compiler-options: strict
+//@run-fail
 
 interface Cat {
     type: 'cat';

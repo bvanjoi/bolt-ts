@@ -1,0 +1,6 @@
+  × Type 'undefined' is not assignable to type 'TypeScript2.PullTypeSymbol<A,
+  │ B, C>'.
+    ╭─[../../tests/compiler/genericRecursiveImplicitConstructorErrors2/index.ts:22:14]
+ 22 │ undefined
+    · ─────────
+    ╰────

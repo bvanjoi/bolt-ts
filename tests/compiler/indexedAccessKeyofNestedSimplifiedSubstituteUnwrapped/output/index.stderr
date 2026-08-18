@@ -1,0 +1,13 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/indexedAccessKeyofNestedSimplifiedSubstituteUnwrapped/index.ts:17:2]
+ 17 │ foo
+    · ───
+    ╰────
+
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/indexedAccessKeyofNestedSimplifiedSubstituteUnwrapped/index.ts:26:2]
+ 26 │ foo
+    · ───
+    ╰────

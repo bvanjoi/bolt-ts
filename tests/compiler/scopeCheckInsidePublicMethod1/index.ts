@@ -2,7 +2,7 @@
 
 class C {
   static s;
-  //~^ ERROR: Variable 's' implicitly has an 'any' type.
+  //~^ ERROR: Member 's' implicitly has an 'any' type.
   public a() {
      s = 1; //~ ERROR: Cannot find name 's'.
   }

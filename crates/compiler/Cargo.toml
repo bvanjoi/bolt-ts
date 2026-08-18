@@ -30,7 +30,7 @@ bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_module_resolve = { path = "../module_resolve" }
 bolt_ts_path = { path = "../path" }
 bolt_ts_tracing = { path = "../tracing" }
-bolt_ts_wf_errors = { path = "../wf_errors" }
+bolt_ts_wf_check = { path = "../wf_check" }
 project-root = { workspace = true }
 thin-vec = { workspace = true }
 include_dir = "0.7.3"

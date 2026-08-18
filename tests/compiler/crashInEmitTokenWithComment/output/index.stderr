@@ -1,0 +1,18 @@
+  × Type '{ }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/crashInEmitTokenWithComment/index.ts:10:6]
+ 10 │ [foo.bar]
+    · ─────────
+    ╰────
+
+  × Type '{ }' has no matching index signature for type 'string'.
+    ╭─[../../tests/compiler/crashInEmitTokenWithComment/index.ts:10:6]
+ 10 │ [foo.bar]
+    · ─────────
+    ╰────
+
+  × Argument of type '({ [computed]: c }: { }) => undefined' is not assignable
+  │ to parameter of type 'string'.
+    ╭─[../../tests/compiler/crashInEmitTokenWithComment/index.ts:10:4]
+ 10 │ ({[foo.bar]: c}) => undefined
+    · ─────────────────────────────
+    ╰────

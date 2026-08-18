@@ -15,13 +15,7 @@ use super::utils::is_declaration_filename;
 use super::{CommentDirective, FileReference, NodeFlagsMap, Nodes, TokenValue};
 use super::{PragmaMap, errors};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LanguageVariant {
-    Standard,
-    Jsx,
-}
-
-pub(super) struct ParserState<'cx, 'p> {
+pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) atoms: Arc<Mutex<AtomIntern>>,
     pub(super) input: &'p [u8],
     pub(super) token: Token,
@@ -42,7 +36,6 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
-    pub(super) comments: Vec<ast::Comment>,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
@@ -50,15 +43,41 @@ pub(super) struct ParserState<'cx, 'p> {
     pub(super) filepath: Atom,
     pub(super) _in_ambient_module: bool,
     pub(super) has_no_default_lib: bool,
-    pub(super) variant: LanguageVariant,
     pub(super) parsing_context: ParsingContext,
     pub(super) parse_context: ParseContext,
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
-    #[allow(clippy::too_many_arguments)]
+pub const JS_VARIANT: u8 = 0;
+pub const TS_VARIANT: u8 = 1;
+pub const JSX_VARIANT: u8 = 2;
+pub const TSX_VARIANT: u8 = 3;
+pub const DTS_VARIANT: u8 = 4;
+
+const fn is_valid_variant(variant: u8) -> bool {
+    matches!(
+        variant,
+        JS_VARIANT | TS_VARIANT | JSX_VARIANT | TSX_VARIANT | DTS_VARIANT
+    )
+}
+
+pub const fn is_jsx_like_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_variant(variant));
+    matches!(variant, JSX_VARIANT | TSX_VARIANT)
+}
+
+pub const fn is_js_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_variant(variant));
+    matches!(variant, JS_VARIANT)
+}
+
+pub const fn is_ts_like_variant(variant: u8) -> bool {
+    debug_assert!(is_valid_variant(variant));
+    matches!(variant, TS_VARIANT | TSX_VARIANT | DTS_VARIANT)
+}
+
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     pub(super) fn new(
         atoms: Arc<Mutex<AtomIntern>>,
         arena: &'p bolt_ts_arena::bumpalo_herd::Member<'cx>,
@@ -66,7 +85,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         input: &'p [u8],
         module_id: ModuleID,
         file_path: &std::path::Path,
-        variant: LanguageVariant,
         always_strict: bool,
     ) -> Self {
         debug_assert!(file_path.is_normalized());
@@ -98,7 +116,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
-            comments: Vec::with_capacity(256),
 
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),
@@ -109,7 +126,6 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             lib_reference_directives: Vec::with_capacity(8),
             pragmas: PragmaMap::default(),
             has_no_default_lib: false,
-            variant,
             parsing_context: ParsingContext::default(),
             parse_context: ParseContext::TOP_LEVEL,
             in_strict_mode: always_strict,

@@ -1,0 +1,91 @@
+  × Abstract property 'prop' in class 'AbstractClass' cannot be accessed in
+  │ the constructor.
+   ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:8:19]
+ 8 │ this.prop
+   · ─────────
+   ╰────
+
+  × Abstract property 'prop' in class 'AbstractClass' cannot be accessed in
+  │ the constructor.
+   ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:8:19]
+ 8 │ this.prop
+   · ─────────
+   ╰────
+
+  × Abstract property 'prop' in class 'AbstractClass' cannot be accessed in
+  │ the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:13:13]
+ 13 │ this.prop
+    · ─────────
+    ╰────
+
+  × Abstract property 'cb' in class 'AbstractClass' cannot be accessed in the
+  │ constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:16:9]
+ 16 │ this.cb
+    · ───────
+    ╰────
+
+  × Property 'prop' is used before its initialization.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:33:18]
+ 33 │ prop
+    · ────
+    ╰────
+
+  × Abstract property 'prop' in class 'AbstractClass' cannot be accessed in
+  │ the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:33:13]
+ 33 │ this.prop
+    · ─────────
+    ╰────
+
+  × Abstract property 'prop' in class 'AbstractClass' cannot be accessed in
+  │ the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:50:17]
+ 50 │ this.prop
+    · ─────────
+    ╰────
+
+  × Abstract property 'x' in class 'C1' cannot be accessed in the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:90:15]
+ 90 │ x
+    · ─
+    ╰────
+
+  × Abstract property 'y' in class 'C1' cannot be accessed in the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:90:18]
+ 90 │ y: y1
+    · ─────
+    ╰────
+
+  × Abstract property 'x' in class 'C1' cannot be accessed in the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:93:12]
+ 93 │ x
+    · ─
+    ╰────
+
+  × Abstract property 'y' in class 'C1' cannot be accessed in the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:93:15]
+ 93 │ y: y1
+    · ─────
+    ╰────
+
+  × Abstract property 'y' in class 'C1' cannot be accessed in the constructor.
+    ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:93:22]
+ 93 │ "y": y1
+    · ───────
+    ╰────
+
+  × Property 'x' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:101:5]
+ 101 │ x
+     · ─
+     ╰────
+
+  × Property 'y' has no initializer and is not definitely assigned in the
+  │ constructor.
+     ╭─[../../tests/compiler/abstractPropertyInConstructor/index.ts:103:5]
+ 103 │ y
+     · ─
+     ╰────

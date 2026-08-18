@@ -788,9 +788,18 @@ pub struct TypeXProvidesNoMatchForTheSignatureY {
 pub struct OperatorCannotBeAppliedToTypesXAndY {
     #[label(primary)]
     pub span: Span,
-    pub op: String,
+    pub op: &'static str,
     pub ty1: String,
     pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Operator '{op}' cannot be applied to type '{ty}'.")]
+pub struct OperatorCannotBeAppliedToTypeX {
+    #[label(primary)]
+    pub span: Span,
+    pub op: &'static str,
+    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -905,7 +914,7 @@ pub struct TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Property '{name}' is used before its initialization.")]
-pub struct Property0IsUsedBeforeItsInitialization {
+pub struct PropertyXIsUsedBeforeItsInitialization {
     #[label(primary)]
     pub span: Span,
     pub name: String,
@@ -1226,7 +1235,7 @@ pub struct XWhichLacksReturnTypeAnnotationImplicitlyHasAnYReturnType {
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Parameter '{parameter}' implicitly has an '{ty}' type.")]
-pub struct ParameterImplicitlyHasAn1Type {
+pub struct ParameterImplicitlyHasAnXType {
     #[label(primary)]
     pub span: Span,
     pub parameter: String,
@@ -1399,14 +1408,6 @@ pub struct SuperCannotBeReferencedInConstructorArguments {
 pub struct AThisTypeIsAvailableOnlyInANonStaticMemberOfAClassOrInterface {
     #[label(primary)]
     pub span: Span,
-}
-
-#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Type '{ty}' must have a '[Symbol.iterator]()' method that returns an iterator.")]
-pub struct TypeMustHaveASymbolIteratorMethodThatReturnsAnIterator {
-    #[label(primary)]
-    pub span: Span,
-    pub ty: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -1779,6 +1780,13 @@ pub struct FunctionOverloadMustBeStatic {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("Function overload must not be static.")]
+pub struct FunctionOverloadMustNotBeStatic {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error(
     "This comparison appears to be unintentional because the types '{ty1}' and '{ty2}' have no overlap."
 )]
@@ -1940,6 +1948,15 @@ pub struct VariableXImplicitlyHasAnYType {
 }
 
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Member '{member}' implicitly has an '{ty}' type.")]
+pub struct MemberXImplicitlyHasAnYType {
+    #[label(primary)]
+    pub span: Span,
+    pub member: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error(
     "A mixin class that extends from a type variable containing an abstract construct signature must also be declared 'abstract'."
 )]
@@ -2013,6 +2030,110 @@ pub struct LeftSideOfCommaOperatorIsUnusedAndHasNoSideEffects {
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("The containing arrow function captures the global value of 'this'.")]
 pub struct TheContainingArrowFunctionCapturesTheGlobalValueOfThis {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Function implementation name must be '{name}'.")]
+pub struct FunctionImplementationNameMustBeX {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Module '{module_name}' is hidden by a local declaration with the same name.")]
+pub struct ModuleXIsHiddenByALocalDeclarationWithTheSameName {
+    #[label(primary)]
+    pub span: Span,
+    pub module_name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of 'await' operand must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfAwaitOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of iterated elements of a 'yield*' operand must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfIteratedElementsOfAYieldAsteriskOperandMustEitherBeAValidPromiseOrMustNotContainACallableThenMember
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Type of 'yield' operand in an async generator must either be a valid promise or must not contain a callable 'then' member."
+)]
+pub struct TypeOfYieldOperandInAnAsyncGeneratorMustEitherBeAValidPromiseOrMustNotContainACallableThenMember
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Abstract property '{property}' in class '{class}' cannot be accessed in the constructor.")]
+pub struct AbstractPropertyXInClassYCannotBeAccessedInTheConstructor {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub class: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("This condition will always return true since this '{ty}' is always defined.")]
+pub struct ThisConditionWillAlwaysReturnTrueSinceThisXIsAlwaysDefined {
+    #[label(primary)]
+    pub span: Span,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'{name}' is specified more than once, so this usage will be overwritten.")]
+pub struct XIsSpecifiedMoreThanOnceSoThisUsageWillBeOverwritten {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'."
+)]
+pub struct ImplicitConversionOfASymbolToAStringWillFailAtRuntimeConsiderWrappingThisExpressionInString
+{
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'The '{operator}' operator cannot be applied to type 'symbol'.")]
+pub struct TheXOperatorCannotBeAppliedToTypeSymbol {
+    #[label(primary)]
+    pub span: Span,
+    pub operator: &'static str,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "'Return type of constructor signature must be assignable to the instance type of the class."
+)]
+pub struct ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTheClass {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Spread types may only be created from object types.")]
+pub struct SpreadTypesMayOnlyBeCreatedFromObjectTypes {
     #[label(primary)]
     pub span: Span,
 }

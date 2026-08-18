@@ -47,7 +47,8 @@ impl<'cx> TyChecker<'cx> {
             }
             NullLit(_) => PredicateSemantics::ALWAYS,
             Ident(n) => {
-                if self.final_res(n.id) == Symbol::ERR {
+                // TODO: use undefined_symbol
+                if n.name == keyword::KW_UNDEFINED || self.final_res(n.id) == Symbol::ERR {
                     PredicateSemantics::ALWAYS
                 } else {
                     PredicateSemantics::SOMETIMES

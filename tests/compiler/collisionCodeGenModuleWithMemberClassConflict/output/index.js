@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionCodeGenModuleWithMemberClassConflict.ts`, Apache-2.0 License
 var m1 = {};
 (function (m1_1) {
 

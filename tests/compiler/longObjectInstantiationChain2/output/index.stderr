@@ -1,0 +1,62 @@
+  × Property 'p51' does not exist on type '{ p1: 1; }'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain2/index.ts:67:10]
+ 67 │ p51
+    · ───
+    ╰────
+
+  × Property 'p3' does not exist on type 'merge<{ p1: 1; }, { p2: number; }>'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain2/index.ts:72:10]
+ 72 │ p3
+    · ──
+    ╰────
+
+  × Property 'p31' does not exist on type
+  │ 'merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<m
+  │ erge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<mer
+  │ ge<merge<merge<merge<merge<{ p1: 1; }, { p2: number; }>, { p3: number; }>,
+  │ { p4: number; }>, { p5: number; }>, { p6: number; }>, { p7: number; }>,
+  │ { p8: number; }>, { p9: number; }>, { p10: number; }>, { p11: number; }>,
+  │ { p12: number; }>, { p13: number; }>, { p14: number; }>, { p15: number; }
+  │ >, { p16: number; }>, { p17: number; }>, { p18: number; }>, { p19:
+  │ number; }>, { p20: number; }>, { p21: number; }>, { p22: number; }>,
+  │ { p23: number; }>, { p24: number; }>, { p25: number; }>, { p26: number; }
+  │ >, { p27: number; }>, { p28: number; }>, { p29: number; }>, { p30:
+  │ number; }>'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain2/index.ts:80:11]
+ 80 │ p31
+    · ───
+    ╰────
+
+  × Property 'p38' does not exist on type
+  │ 'merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<m
+  │ erge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<mer
+  │ ge<merge<merge<merge<merge<{ p1: 1; }, { p2: number; }>, { p3: number; }>,
+  │ { p4: number; }>, { p5: number; }>, { p6: number; }>, { p7: number; }>,
+  │ { p8: number; }>, { p9: number; }>, { p10: number; }>, { p11: number; }>,
+  │ { p12: number; }>, { p13: number; }>, { p14: number; }>, { p15: number; }
+  │ >, { p16: number; }>, { p17: number; }>, { p18: number; }>, { p19:
+  │ number; }>, { p20: number; }>, { p21: number; }>, { p22: number; }>,
+  │ { p23: number; }>, { p24: number; }>, { p25: number; }>, { p26: number; }
+  │ >, { p27: number; }>, { p28: number; }>, { p29: number; }>, { p30:
+  │ number; }>'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain2/index.ts:82:11]
+ 82 │ p38
+    · ───
+    ╰────
+
+  × Property 'p50' does not exist on type
+  │ 'merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<m
+  │ erge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<merge<mer
+  │ ge<merge<merge<merge<merge<{ p1: 1; }, { p2: number; }>, { p3: number; }>,
+  │ { p4: number; }>, { p5: number; }>, { p6: number; }>, { p7: number; }>,
+  │ { p8: number; }>, { p9: number; }>, { p10: number; }>, { p11: number; }>,
+  │ { p12: number; }>, { p13: number; }>, { p14: number; }>, { p15: number; }
+  │ >, { p16: number; }>, { p17: number; }>, { p18: number; }>, { p19:
+  │ number; }>, { p20: number; }>, { p21: number; }>, { p22: number; }>,
+  │ { p23: number; }>, { p24: number; }>, { p25: number; }>, { p26: number; }
+  │ >, { p27: number; }>, { p28: number; }>, { p29: number; }>, { p30:
+  │ number; }>'.
+    ╭─[../../tests/compiler/longObjectInstantiationChain2/index.ts:84:11]
+ 84 │ p50
+    · ───
+    ╰────

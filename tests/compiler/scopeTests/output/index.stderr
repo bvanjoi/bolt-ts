@@ -1,0 +1,5 @@
+  × Class 'D' incorrectly extends base class 'C'.
+   ╭─[../../tests/compiler/scopeTests/index.ts:7:7]
+ 7 │ D
+   · ─
+   ╰────

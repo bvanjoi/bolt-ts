@@ -1,0 +1,10 @@
+  × Property '"z"' does not exist on type '{ a: number; b: string; c:
+  │ boolean; }'.
+    ╭─[../../tests/compiler/indexedAccessWithFreshObjectLiteral/index.ts:39:10]
+ 39 │ ╭─▶ {
+ 40 │ │       //~^ ERROR: Property '"z"' does not exist on type '{ a: number; b: string; c: boolean; }'.
+ 41 │ │         a: 1,
+ 42 │ │         b: "",
+ 43 │ │         c: false
+ 44 │ ╰─▶   }[id]
+    ╰────

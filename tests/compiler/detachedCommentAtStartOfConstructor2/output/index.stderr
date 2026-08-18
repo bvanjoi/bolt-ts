@@ -1,0 +1,6 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/detachedCommentAtStartOfConstructor2/index.ts:7:12]
+ 7 │ name
+   · ────
+   ╰────

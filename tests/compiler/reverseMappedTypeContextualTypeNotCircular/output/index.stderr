@@ -1,0 +1,6 @@
+  × Type '(state: any, props: any) => { }' is not assignable to type
+  │ 'Selector<unknown, { }>'.
+    ╭─[../../tests/compiler/reverseMappedTypeContextualTypeNotCircular/index.ts:14:3]
+ 14 │ editable
+    · ────────
+    ╰────

@@ -151,3 +151,4 @@
 09.x
 //~^ ERROR: Decimals with leading zeros are not allowed.
 //~| ERROR: Cannot find name 'x'.
+//~| ERROR: Unexpected keyword or identifier.

@@ -5,7 +5,6 @@ mod compiler_result;
 mod diag;
 mod emit_declaration;
 mod match_files;
-mod wf;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -13,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use self::cli::get_filenames;
 pub use self::compiler_result::{CompilerResult, OutputFile};
 use self::emit_declaration::emit_declarations;
-use self::wf::well_formed_check_parallel;
 
 use bolt_ts_atom::AtomIntern;
 use bolt_ts_binder::bind_parallel;
@@ -27,6 +25,7 @@ use bolt_ts_optimize::optimize_and_js_emit;
 use bolt_ts_parser::{ParseResultForGraph, ParsedMap};
 use bolt_ts_span::ModuleArena;
 use bolt_ts_utils::path::NormalizePath;
+use bolt_ts_wf_check::well_formed_check_parallel;
 
 use rayon::prelude::*;
 
@@ -215,6 +214,20 @@ pub fn eval_from_memory_path<'cx>(
     eval_from_memory_path_worker(cwd, default_lib_dir, parser_arena, type_arena, fs, atoms)
 }
 
+pub const ES5_DEFAULT_LIBS_PRESERVE_LEN: usize = 3;
+pub const ES2015_DEFAULT_LIBS_PRESERVE_LEN: usize = 19;
+pub const ES2016_DEFAULT_LIBS_PRESERVE_LEN: usize = 16;
+pub const ES2017_DEFAULT_LIBS_PRESERVE_LEN: usize = 24;
+pub const ES2018_DEFAULT_LIBS_PRESERVE_LEN: usize = 30;
+pub const ES2019_DEFAULT_LIBS_PRESERVE_LEN: usize = 36;
+pub const ES2020_DEFAULT_LIBS_PRESERVE_LEN: usize = 45;
+pub const ES2021_DEFAULT_LIBS_PRESERVE_LEN: usize = 50;
+pub const ES2022_DEFAULT_LIBS_PRESERVE_LEN: usize = 57;
+pub const ES2023_DEFAULT_LIBS_PRESERVE_LEN: usize = 61;
+pub const ES2024_DEFAULT_LIBS_PRESERVE_LEN: usize = 69;
+pub const ES2025_DEFAULT_LIBS_PRESERVE_LEN: usize = 76;
+pub const ESNEXT_DEFAULT_LIBS_PRESERVE_LEN: usize = 87;
+
 #[allow(clippy::too_many_arguments)]
 pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     root: PathBuf,
@@ -226,6 +239,10 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     mut fs: FS,
     mut atoms: bolt_ts_atom::AtomIntern,
 ) -> CompilerResult<'cx, FS> {
+    debug_assert!({
+        let dir = Some(default_lib_dir.as_ref());
+        default_libs.iter().all(|p| p.parent() == dir)
+    });
     bolt_ts_tracing::init_tracing();
     // ==== collect entires ====
     let config_file_specs = cli::ConfigFileSpecs::get_config_file_specs(&tsconfig);
@@ -233,8 +250,24 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     include.sort();
     include.dedup();
 
-    let cap = (default_libs.len() + include.len()) * 2;
-    let mut module_arena = ModuleArena::new(cap * 8);
+    let preserve_len = match *tsconfig.compiler_options().target() {
+        bolt_ts_config::Target::ES3 => todo!(),
+        bolt_ts_config::Target::ES5 => ES5_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2015 => ES2015_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2016 => ES2016_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2017 => ES2017_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2018 => ES2018_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2019 => ES2019_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2020 => ES2020_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2021 => ES2021_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2022 => ES2022_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2023 => ES2023_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2024 => ES2024_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ES2025 => ES2025_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::ESNext => ESNEXT_DEFAULT_LIBS_PRESERVE_LEN,
+        bolt_ts_config::Target::JSON => todo!(),
+    };
+    let mut module_arena = ModuleArena::preserve(preserve_len);
 
     let entries_with_read_file = default_libs
         .into_iter()
@@ -266,37 +299,57 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
                 let computed_atom = atoms.atom(&content);
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
-                return Some(module_arena.new_module_with_content(p, is_default_lib, atom, &atoms));
+                debug_assert!(is_default_lib);
+                return Some(module_arena.new_module_with_content_within_preserve(
+                    p,
+                    is_default_lib,
+                    atom,
+                    &atoms,
+                ));
             }
             if is_default_lib && p.file_name().unwrap() != default_lib_filename {
                 return None;
             }
             let m = if fs.is_vfs() {
                 assert!(content.is_none());
-                module_arena.new_module(
-                    p,
-                    is_default_lib,
-                    |p, atoms| {
-                        let Ok(atom) = fs.read_file(p, atoms) else {
-                            return None;
-                        };
-                        Some(atom)
-                    },
-                    &mut atoms,
-                )
+                let read_file = |p: &std::path::Path, atoms: &mut bolt_ts_atom::AtomIntern| {
+                    let Ok(atom) = fs.read_file(p, atoms) else {
+                        return None;
+                    };
+                    Some(atom)
+                };
+                if is_default_lib {
+                    module_arena.new_module_within_preserve(
+                        p,
+                        is_default_lib,
+                        read_file,
+                        &mut atoms,
+                    )
+                } else {
+                    module_arena.new_module(p, is_default_lib, read_file, &mut atoms)
+                }
             } else {
                 let content = content.unwrap();
                 let computed_atom = atoms.atom(&content);
                 let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
                 assert_eq!(computed_atom, atom);
-                module_arena.new_module_with_content(p, is_default_lib, atom, &atoms)
+                if is_default_lib {
+                    module_arena.new_module_with_content_within_preserve(
+                        p,
+                        is_default_lib,
+                        atom,
+                        &atoms,
+                    )
+                } else {
+                    module_arena.new_module_with_content(p, is_default_lib, atom, &atoms)
+                }
             };
             Some(m)
         })
         .collect::<Vec<_>>();
 
     // ==== build graph ====
-    let mut p = bolt_ts_parser::ParsedMap::new();
+    let mut p = bolt_ts_parser::ParsedMapState::preserve(preserve_len);
     let atoms = Arc::new(Mutex::new(atoms));
     let fs = Arc::new(Mutex::new(fs));
     let mut mg = bolt_ts_module_graph::build_graph(
@@ -309,6 +362,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         fs.clone(),
         &tsconfig,
     );
+    let p = p.to_result();
     let fs = Arc::try_unwrap(fs).unwrap().into_inner().unwrap();
 
     // ==== bind ====
@@ -435,6 +489,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         merged_symbols,
         global_symbols,
         emit_standard_class_fields,
+        well_formed_check_results,
     );
     for item in &entries {
         let is_default_lib = checker.module_arena.get_module(*item).is_default_lib();
@@ -443,7 +498,7 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
         checker.check_program(root);
         checker.check_deferred_nodes(*item);
         if checker.p.get(*item).is_external_or_commonjs_module() {
-            checker.check_external_module_exports(root);
+            checker.check_external_module_exports(root.id());
         }
         assert!(
             !is_default_lib || prev == checker.diags.len(),

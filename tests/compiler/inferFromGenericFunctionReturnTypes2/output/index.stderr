@@ -1,0 +1,6 @@
+  × Property '_store' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/inferFromGenericFunctionReturnTypes2/index.ts:31:3]
+ 31 │ _store
+    · ──────
+    ╰────

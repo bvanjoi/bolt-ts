@@ -11,7 +11,7 @@ Advice:
    · ─
    ╰────
 
-  × Variable 's' implicitly has an 'any' type.
+  × Member 's' implicitly has an 'any' type.
    ╭─[../../tests/compiler/scopeCheckInsidePublicMethod1/index.ts:4:3]
  4 │ static s
    · ────────

@@ -1,0 +1,11 @@
+  × Property 'Baz' does not exist on type 'C'.
+    ╭─[../../tests/compiler/gettersAndSetters/index.ts:29:13]
+ 29 │ Baz
+    · ───
+    ╰────
+
+  × Property 'Baz' does not exist on type 'C'.
+    ╭─[../../tests/compiler/gettersAndSetters/index.ts:31:3]
+ 31 │ Baz
+    · ───
+    ╰────

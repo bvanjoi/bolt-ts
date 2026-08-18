@@ -1,4 +1,6 @@
 use bolt_ts_ast as ast;
+use bolt_ts_ast::pprint_binding;
+use bolt_ts_ast::pprint_ident;
 use bolt_ts_ast::r#trait::node_id_of_binding;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
@@ -7,16 +9,17 @@ use bolt_ts_binder::SymbolID;
 use super::Resolver;
 use super::errors;
 use super::get_symbol;
+use super::resolve_symbol_by_identifier::AssociatedDeclarationForContainingInitializerOrBindingName;
 
 impl<'cx> Resolver<'cx, '_, '_> {
     fn check_param_refer_itself(
         &self,
         ident: &'cx ast::Ident,
         result: SymbolID,
-        associated_declaration_for_containing_initializer_or_binding_name: ast::Node<'cx>,
+        associated_declaration_for_containing_initializer_or_binding_name: AssociatedDeclarationForContainingInitializerOrBindingName<'cx>,
     ) -> Option<errors::ParameterXCannotReferenceItself> {
-        if let Some(param_decl) =
-            associated_declaration_for_containing_initializer_or_binding_name.as_param_decl()
+        if let AssociatedDeclarationForContainingInitializerOrBindingName::ParamDecl(param_decl) =
+            associated_declaration_for_containing_initializer_or_binding_name
         {
             let id = node_id_of_binding(param_decl);
             if result == self.symbol_of_decl(id) {
@@ -78,34 +81,55 @@ impl<'cx> Resolver<'cx, '_, '_> {
         &mut self,
         ident: &'cx ast::Ident,
         result: SymbolID,
-        associated_declaration_for_containing_initializer_or_binding_name: Option<ast::NodeID>,
+        associated_declaration_for_containing_initializer_or_binding_name: Option<
+            AssociatedDeclarationForContainingInitializerOrBindingName<'cx>,
+        >,
         within_deferred_context: bool,
     ) {
         if !within_deferred_context
             && let Some(associated_declaration_for_containing_initializer_or_binding_name) =
                 associated_declaration_for_containing_initializer_or_binding_name
         {
-            let node = self
-                .p
-                .node(associated_declaration_for_containing_initializer_or_binding_name);
-            if let Some(error) = self.check_param_refer_itself(ident, result, node) {
+            if let Some(error) = self.check_param_refer_itself(
+                ident,
+                result,
+                associated_declaration_for_containing_initializer_or_binding_name,
+            ) {
                 self.push_error(Box::new(error));
             } else if let s = self.symbol(result)
                 && let Some(value_decl) = s.value_decl
-                && self.p.node(value_decl).span().hi() > node.span().hi()
+                && self.p.node(value_decl).span().lo()
+                    > associated_declaration_for_containing_initializer_or_binding_name
+                        .span()
+                        .lo()
                 && let nq = self.node_query()
                 && let root = nq.get_root_decl(
-                    associated_declaration_for_containing_initializer_or_binding_name,
+                    associated_declaration_for_containing_initializer_or_binding_name.id(),
                 )
                 && let root_parent = self.parent(root).unwrap()
                 && let Some(locals) = self.locals(root_parent)
                 && get_symbol(self, locals, s.name, SymbolFlags::VALUE)
                     .is_some_and(|res| res == result)
             {
+                let parameter =
+                    match associated_declaration_for_containing_initializer_or_binding_name {
+                        AssociatedDeclarationForContainingInitializerOrBindingName::ParamDecl(n) => {
+                            pprint_binding(n.name, self.atoms)
+                        }
+                        AssociatedDeclarationForContainingInitializerOrBindingName::ObjectBindingElem(n) => {
+                            match n.name {
+                                ast::ObjectBindingName::Shorthand(ident) => pprint_ident(ident, self.atoms),
+                                ast::ObjectBindingName::Prop {  name, .. } => pprint_binding(name, self.atoms),
+                            }
+                        }
+                        AssociatedDeclarationForContainingInitializerOrBindingName::ArrayBinding(n) => {
+                            pprint_binding(n.name, self.atoms)
+                        }
+                    };
                 let error = errors::ParameterXCannotReferenceIdentifierYDeclaredAfterIt {
                     span: ident.span,
-                    parameter: self.atoms.get(node.ident_name().unwrap().name).to_string(),
-                    identifier: self.atoms.get(ident.name).to_string(),
+                    parameter,
+                    identifier: s.name.to_string(self.atoms),
                 };
                 self.push_error(Box::new(error));
             }

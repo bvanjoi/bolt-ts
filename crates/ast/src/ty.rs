@@ -41,6 +41,7 @@ impl<'cx> Ty<'cx> {
             TyKind::TemplateLit(n) => n.span,
             TyKind::This(n) => n.span,
             TyKind::Import(n) => n.span,
+            TyKind::Optional(n) => n.span,
         }
     }
 
@@ -70,6 +71,7 @@ impl<'cx> Ty<'cx> {
             TyKind::Intrinsic(n) => n.id,
             TyKind::This(n) => n.id,
             TyKind::Import(n) => n.id,
+            TyKind::Optional(n) => n.id,
         }
     }
 
@@ -148,6 +150,7 @@ pub enum TyKind<'cx> {
     NamedTuple(&'cx NamedTupleTy<'cx>),
     Tuple(&'cx TupleTy<'cx>),
     Rest(&'cx RestTy<'cx>),
+    Optional(&'cx OptionalTy<'cx>),
     Cond(&'cx CondTy<'cx>),
     Union(&'cx UnionTy<'cx>),
     Intersection(&'cx IntersectionTy<'cx>),
@@ -313,6 +316,13 @@ pub struct TupleTy<'cx> {
     pub id: NodeID,
     pub span: Span,
     pub tys: &'cx [&'cx Ty<'cx>],
+}
+
+#[derive(Debug, Clone)]
+pub struct OptionalTy<'cx> {
+    pub id: NodeID,
+    pub span: Span,
+    pub ty: &'cx Ty<'cx>,
 }
 
 /// ```txt
@@ -601,6 +611,13 @@ pub struct ObjectLit<'cx> {
 pub struct MappedTy<'cx> {
     pub id: NodeID,
     pub span: Span,
+    /// ```ts
+    /// type T<U> = {
+    ///     [K in keyof U ]: number;
+    /// //   ~~~~~~~~~~~~ type_parameter
+    /// }
+    ///
+    /// ```
     pub ty_param: &'cx self::TyParam<'cx>,
     /// - Plus token means `+readonly`,
     /// - Minus token means `-readonly`,
@@ -608,6 +625,13 @@ pub struct MappedTy<'cx> {
     /// - Other token is unreachable.
     /// - No token means no modifier.
     pub readonly_token: Option<Token>,
+    /// ```ts
+    /// type T<U> = {
+    ///     [K in keyof U as `keyof N`]: number;
+    /// //                   ~~~~~~~~~ name_ty
+    /// }
+    ///
+    /// ```
     pub name_ty: Option<&'cx Ty<'cx>>,
     pub question_token: Option<Token>,
     pub ty: Option<&'cx Ty<'cx>>,

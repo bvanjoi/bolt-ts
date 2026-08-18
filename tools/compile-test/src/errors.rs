@@ -184,6 +184,7 @@ fn parse_expected(
         (which, line_num)
     };
 
+    assert!(!msg.is_empty());
     Some((
         which,
         Error {

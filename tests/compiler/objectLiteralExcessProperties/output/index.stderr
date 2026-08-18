@@ -1,0 +1,109 @@
+  × Cannot find name 'IFoo'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:51:25]
+ 51 │ IFoo
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'forword' does not
+  │ exist in type 'Book'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:13:18]
+ 13 │ forword
+    · ───────
+    ╰────
+
+  × Object literal may only specify known properties, and 'foreward' does not
+  │ exist in type 'Book'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:16:27]
+ 16 │ foreward
+    · ────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'forwards' does not
+  │ exist in type 'Book'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:19:53]
+ 19 │ forwards
+    · ────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'colour' does not
+  │ exist in type 'Book & Cover'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:22:42]
+ 22 │ colour
+    · ──────
+    ╰────
+
+  × Object literal may only specify known properties, and 'foreward' does not
+  │ exist in type 'Book & Cover'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:25:26]
+ 25 │ foreward
+    · ────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'price' does not
+  │ exist in type 'Book & Cover'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:28:57]
+ 28 │ price
+    · ─────
+    ╰────
+
+  × Type '{ foreword: string; price: number; }' is not assignable to type
+  │ 'Book & number'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:31:5]
+ 31 │ b7
+    · ──
+    ╰────
+
+  × Object literal may only specify known properties, and 'couleur' does not
+  │ exist in type 'Cover | Cover[]'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:34:29]
+ 34 │ couleur
+    · ───────
+    ╰────
+
+  × Object literal may only specify known properties, and 'forewarned' does
+  │ not exist in type 'Book | Book[]'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:37:27]
+ 37 │ forewarned
+    · ──────────
+    ╰────
+
+  × Object literal may only specify known properties, and 'colour' does not
+  │ exist in type 'Cover'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:46:27]
+ 46 │ colour
+    · ──────
+    ╰────
+
+  × Type '{ name: string; }' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:54:11]
+ 54 │ obj1
+    · ────
+    ╰────
+
+  × Type '{ name: string; prop: boolean; }' is not assignable to type 'T &
+  │ { prop: boolean; }'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:57:11]
+ 57 │ obj2
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'name' does not
+  │ exist in type '{ prop: boolean; }'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:60:43]
+ 60 │ name
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'prop' does not
+  │ exist in type '{ name: string; }'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:63:76]
+ 63 │ prop
+    · ────
+    ╰────
+
+  × Object literal may only specify known properties, and 'z' does not exist
+  │ in type 'object & { x: string; }'.
+    ╭─[../../tests/compiler/objectLiteralExcessProperties/index.ts:68:44]
+ 68 │ z
+    · ─
+    ╰────

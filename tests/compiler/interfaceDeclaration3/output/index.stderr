@@ -1,0 +1,96 @@
+  × Property 'item' in type 'C1<C1>' is not assignable to the same property in
+  │ base type 'I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:12:16]
+ 12 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:12:16]
+ 12 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:17:16]
+ 17 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:21:16]
+ 21 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:26:16]
+ 26 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:31:16]
+ 31 │ item
+    · ────
+    ╰────
+
+  × Property 'item' in type 'C1<C1>' is not assignable to the same property in
+  │ base type 'M2.I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:43:16]
+ 43 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:43:16]
+ 43 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:48:16]
+ 48 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:52:16]
+ 52 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:58:12]
+ 58 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:63:12]
+ 63 │ item
+    · ────
+    ╰────
+
+  × Property 'item' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:68:12]
+ 68 │ item
+    · ────
+    ╰────
+
+  × Interface 'I2' incorrectly extends interface 'I1'.
+    ╭─[../../tests/compiler/interfaceDeclaration3/index.ts:72:11]
+ 72 │ I2
+    · ──
+    ╰────

@@ -1,0 +1,5 @@
+  × Type '"str"' is not assignable to type '"sym"'.
+    ╭─[../../tests/compiler/uniqueSymbolAllowsIndexInObjectWithIndexSignature/index.ts:16:13]
+ 16 │ [SYM]
+    · ─────
+    ╰────

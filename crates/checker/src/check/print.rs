@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use super::TyChecker;
 use super::ty;
 use super::ty::ElementFlags;
@@ -6,6 +8,9 @@ use super::ty::SigKind;
 use bolt_ts_ast as ast;
 use bolt_ts_binder::Symbol;
 use bolt_ts_binder::SymbolFlags;
+use bolt_ts_binder::SymbolName;
+use bolt_ts_scanner::is_identifier_part;
+use bolt_ts_scanner::is_identifier_start;
 use bolt_ts_ty::TypeFlags;
 
 impl<'cx> TyChecker<'cx> {
@@ -149,8 +154,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 }
                 s
             }),
-            ty::TyKind::Param(param) => {
-                let Some(symbol) = param.symbol else {
+            ty::TyKind::Param(t) => {
+                let Some(symbol) = t.symbol else {
                     return "dummy_parameter".to_string();
                 };
                 let name = self.c.symbol(symbol).name;
@@ -182,25 +187,29 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                 let name = self.c.binder.symbol(s.symbol).name;
                 self.c.atoms.get(name.expect_atom()).to_string()
             }
-            ty::TyKind::TemplateLit(n) => {
-                let mut s = String::with_capacity(32);
-                s.push('`');
-                for i in 0..n.texts.len() {
-                    let text = n.texts[i];
-                    s.push_str(self.c.atoms.get(text));
-                    if let Some(ty) = n.tys.get(i) {
-                        s.push_str(&format!(
-                            "${{{}}}",
-                            self.c.print_ty(ty, self.enclosing_declaration)
-                        ));
-                    }
-                }
-                s.push('`');
-                s
-            }
+            ty::TyKind::TemplateLit(n) => self.print_template_literal_type(n),
             ty::TyKind::UniqueESSymbol(_) => "unique symbol".to_string(),
             ty::TyKind::Enum(n) => self.print_enum_symbol(n.symbol),
         }
+    }
+
+    fn print_template_literal_type(&mut self, n: &'cx ty::TemplateLitTy<'cx>) -> String {
+        let mut s = String::with_capacity(32);
+        s.push('`');
+        for i in 0..n.texts.len() {
+            let text = n.texts[i];
+            let str = self.c.atoms.get(text);
+            let str = display_escape(str);
+            s.push_str(&str);
+            if let Some(ty) = n.tys.get(i) {
+                s.push_str(&format!(
+                    "${{{}}}",
+                    self.c.print_ty(ty, self.enclosing_declaration)
+                ));
+            }
+        }
+        s.push('`');
+        s
     }
 
     fn print_alias_symbol(&mut self, ty: &'cx ty::Ty<'cx>) -> Option<String> {
@@ -286,9 +295,14 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             ty::ObjectTyKind::Reference(_) => self.print_reference_ty(ty),
             ty::ObjectTyKind::SingleSigTy(_) => "single signature type".to_string(),
             ty::ObjectTyKind::Mapped(_) => self.print_mapped_ty(ty),
-            ty::ObjectTyKind::ReversedMapped(_) => todo!(),
+            ty::ObjectTyKind::ReversedMapped(_) => self.print_reversed_mapped_ty(ty),
             ty::ObjectTyKind::EvolvingArray(_) => todo!(),
         }
+    }
+
+    fn print_reversed_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
+        let reversed_mapped = ty.kind.expect_object_reverse_mapped();
+        self.print_ty(reversed_mapped.mapped_ty)
     }
 
     fn print_mapped_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
@@ -331,7 +345,7 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                             res.push_str(self.c.atoms.get(n.name))
                         }
                         ast::PropNameKind::StringLit { raw, .. } => {
-                            res.push_str(self.c.atoms.get(raw.val))
+                            res.push_str(self.c.atoms.get(raw.val));
                         }
                         ast::PropNameKind::NumLit(n) => res.push_str(&n.val.to_string()),
                         ast::PropNameKind::Computed(_) => res.push_str("[computed]"),
@@ -387,6 +401,23 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
     fn print_anonymous_object_ty(&mut self, ty: &'cx ty::Ty<'cx>) -> String {
         let a = ty.kind.expect_object_anonymous();
         let print_fn_like_str = |this: &mut Self, sig: &'cx super::Sig<'cx>| -> String {
+            let ty_params = this.c.get_sig_links(sig.id).get_ty_params();
+            let ty_params = ty_params.map(|ty_params| {
+                ty_params
+                    .iter()
+                    .map(|p| {
+                        let ty = this.c.print_ty(p, this.enclosing_declaration).to_string();
+                        match this.c.get_base_constraint_of_ty(p) {
+                            Some(c) => {
+                                let c = this.print_ty(c);
+                                format!("{} extends {}", ty, c)
+                            }
+                            None => ty,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            });
             let params = sig
                 .params
                 .iter()
@@ -396,13 +427,17 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
                     let name = this.print_binding(n.name);
                     let ty = this.c.get_type_of_symbol(*param);
                     let ty = this.c.print_ty(ty, this.enclosing_declaration);
-                    format!("{name}: {ty}",)
+                    format!("{}{name}: {ty}", if n.is_rest() { "..." } else { "" })
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
             let ret = this.c.get_return_type_of_signature(sig);
             let ret = this.c.print_ty(ret, this.enclosing_declaration);
-            format!("({params}) => {ret}")
+            if let Some(ty_params) = ty_params {
+                format!("<{ty_params}>({params}) => {ret}")
+            } else {
+                format!("({params}) => {ret}")
+            }
         };
         let symbol_flags = a.symbol.map(|s| self.c.symbol(s).flags);
         if symbol_flags.is_some_and(|s| s.contains(SymbolFlags::OBJECT_LITERAL)) {
@@ -415,17 +450,23 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             let members = members
                 .iter()
                 .map(|(name, symbol)| {
-                    let name = if let Some(name) = name.as_atom() {
-                        let name = self.c.atoms.get(name).to_string();
-                        if name.is_empty() {
-                            "''".to_string()
-                        } else {
-                            name
+                    let name = match name {
+                        SymbolName::Atom(name) => {
+                            let name = self.c.atoms.get(*name).to_string();
+                            if name.is_empty() {
+                                "''".to_string()
+                            } else if is_valid_identifier(&name) {
+                                name
+                            } else {
+                                format!("\"{name}\"")
+                            }
                         }
-                    } else if let Some(num) = name.as_numeric() {
-                        num.to_string()
-                    } else {
-                        unreachable!()
+                        SymbolName::EleNum(n) => Into::<f64>::into(*n).to_string(),
+                        SymbolName::ESSymbol { escaped_name, .. } => {
+                            let name = self.c.atoms.get(*escaped_name).to_string();
+                            format!("[{name}]")
+                        }
+                        _ => unreachable!(),
                     };
                     let ty = self.c.get_type_of_symbol(*symbol);
                     format!(
@@ -445,8 +486,8 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
             )
         }) {
             let s = self.c.symbol(a.symbol.unwrap());
-            let name = s.name.expect_atom();
-            format!("typeof {}", self.c.atoms.get(name))
+            let name = s.name.to_string(&self.c.atoms);
+            format!("typeof {}", name)
         } else if let Some(sig) = self.c.get_signatures_of_type(ty, SigKind::Call).first() {
             print_fn_like_str(self, sig)
         } else if let Some(sig) = self
@@ -575,4 +616,31 @@ impl<'a, 'cx> Ctx<'a, 'cx> {
         }
         res
     }
+}
+
+fn display_escape<'a>(s: &'a str) -> Cow<'a, str> {
+    if !s.contains('\r') && !s.contains('\n') && !s.contains('\t') {
+        return Cow::Borrowed(s);
+    }
+    let s = s
+        .replace('\t', "\\t")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n");
+    Cow::Owned(s)
+}
+
+fn is_valid_identifier(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    let Some(first) = bytes.first() else {
+        return false;
+    };
+    if !is_identifier_start::<false>(*first as u32) {
+        return false;
+    }
+    for byte in bytes.iter().skip(1) {
+        if !is_identifier_part::<false>(*byte as u32) {
+            return false;
+        }
+    }
+    true
 }

@@ -3,7 +3,7 @@ use bolt_ts_errors::miette::Severity;
 use bolt_ts_fs::LocalFS;
 use bolt_ts_utils::path::NormalizePath;
 use compile_test::run_tests::run;
-use compile_test::{ensure_node_exist, run_node_with_assert_context};
+use compile_test::{ensure_node_exist, run_node};
 use std::path::PathBuf;
 
 #[test]
@@ -34,14 +34,11 @@ fn eval_in_test<'cx>(
     // ==== fs init ====
     let fs = LocalFS::new(&mut atoms);
     let exe_dir = bolt_ts_compiler::current_exe_dir();
-    let mut default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::DEFAULT_LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
 
-    // extra default lib
-    let current_dir = std::env::current_dir().unwrap();
-    default_libs.push(current_dir.join("tests/test.d.ts"));
     bolt_ts_compiler::eval_with_fs(
         root,
         tsconfig,
@@ -61,15 +58,18 @@ fn run_test_with(
     output: String,
     try_run_node: bool,
 ) -> Result<(), Vec<compile_test::errors::Error>> {
-    assert!(file_name == "index.ts" || file_name == "index.tsx");
     assert!(
         !dir.join("tsconfig.json").exists(),
-        "use tsconfig d instead of providing tsconfig.json file"
+        "use tsconfig directive instead of providing tsconfig.json file"
     );
     let default_include = if file_name == "index.ts" {
         vec!["./*.ts".to_string()]
+    } else if file_name == "index.tsx" {
+        vec!["./*.tsx".to_string(), "./*.ts".to_string()]
+    } else if file_name == "index.js" {
+        vec!["./*.js".to_string(), "./*.ts".to_string()]
     } else {
-        vec![file_name.to_string()]
+        unreachable!()
     };
     let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
     let tsconfig = RawTsConfig::default()
@@ -93,12 +93,17 @@ fn run_test_with(
         let _ = std::fs::remove_file(output_err_path);
 
         let mut index_file_path = None;
+        let has_multiple_js_output = output_files
+            .keys()
+            .filter(|k| k.extension().is_some_and(|ext| ext.eq("js")))
+            .count()
+            > 1;
         for (p, content) in &output_files {
             if content.trim().is_empty() {
                 continue;
             }
 
-            if p.ends_with("index.js") {
+            if p.ends_with("index.js") && !has_multiple_js_output {
                 let temp_node_file =
                     compile_test::temp_node_file(p.file_stem().unwrap().to_str().unwrap());
                 assert!(temp_node_file.is_absolute());
@@ -116,7 +121,7 @@ fn run_test_with(
         if let Some(index_file_path) = index_file_path
             && try_run_node
         {
-            match run_node_with_assert_context(&index_file_path) {
+            match run_node(&index_file_path) {
                 Ok(_) => {}
                 Err(_) => return Err(vec![]),
             }
@@ -198,7 +203,7 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
 
 #[dir_test::dir_test(
     dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
-    glob: "**/index.ts",
+    glob: "*/index.ts",
 )]
 fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
@@ -207,9 +212,18 @@ fn run_index_ts_test(arg: dir_test::Fixture<&str>) {
 
 #[dir_test::dir_test(
     dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
-    glob: "**/index.tsx",
+    glob: "*/index.tsx",
 )]
 fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry, false);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
+    glob: "*/index.js",
+)]
+fn run_index_js_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
     run_test(entry, false);
 }

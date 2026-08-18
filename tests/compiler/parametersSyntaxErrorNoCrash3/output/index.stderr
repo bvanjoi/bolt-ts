@@ -1,0 +1,76 @@
+  × Expected ':'.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × Expected ':'.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
+ 18 │ }
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
+ 18 │ }
+    · ─
+    ╰────
+
+  × Expected ')'.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:22:25]
+   ╰────
+
+  × '' is an unused renaming of 'return'. Did you intend to use it as a type
+  │ annotation?
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:13:13]
+ 13 │ " string"
+    · ─────────
+    ╰────
+
+  × '' is an unused renaming of ' string'. Did you intend to use it as a type
+  │ annotation?
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:18:1]
+ 18 │ }
+    · ─
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:9:17]
+ 9 │ getHtml
+   · ───────
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:9:17]
+ 9 │ getHtml
+   · ───────
+   ╰────
+
+  × 'getHtml', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+    ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash3/index.ts:9:8]
+  9 │ ╭─▶ function getHtml({
+ 10 │ │       //~^ ERROR: Function implementation is missing or not immediately following the declaration.
+ 11 │ │       //~| ERROR: Function implementation is missing or not immediately following the declaration.
+ 12 │ │       //~| ERROR: 'getHtml', which lacks return-type annotation, implicitly has an 'any' return type.
+ 13 │ │       return  " string" // a long string;
+ 14 │ │       //~^ ERROR: Expected ':'.
+ 15 │ │       //~| ERROR: Identifier expected.
+ 16 │ │       //~| ERROR: Expected ','.
+ 17 │ │       //~| ERROR: '' is an unused renaming of 'return'. Did you intend to use it as a type annotation?
+ 18 │ ╰─▶ }
+    ╰────

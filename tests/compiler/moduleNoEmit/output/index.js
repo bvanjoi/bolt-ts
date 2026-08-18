@@ -1,6 +1,6 @@
 var Foo = {};
 (function (Foo) {
 
-  2;
+  1 + 1;
   
 })(Foo);

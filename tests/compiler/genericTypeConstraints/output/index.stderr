@@ -1,0 +1,5 @@
+  × Type 'FooExtended' does not satisfy the constraint 'Foo'.
+    ╭─[../../tests/compiler/genericTypeConstraints/index.ts:13:31]
+ 13 │ FooExtended
+    · ───────────
+    ╰────

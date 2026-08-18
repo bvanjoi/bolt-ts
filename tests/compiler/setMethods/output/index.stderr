@@ -1,0 +1,83 @@
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:18:17]
+ 18 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:18:17]
+ 18 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:26:24]
+ 26 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:26:24]
+ 26 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:34:22]
+ 34 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:34:22]
+ 34 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:42:31]
+ 42 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:42:31]
+ 42 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:50:22]
+ 50 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:50:22]
+ 50 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:58:24]
+ 58 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:58:24]
+ 58 │ []
+    · ──
+    ╰────
+
+  × Property 'has' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:66:26]
+ 66 │ []
+    · ──
+    ╰────
+
+  × Property 'size' is missing.
+    ╭─[../../tests/compiler/setMethods/index.ts:66:26]
+ 66 │ []
+    · ──
+    ╰────

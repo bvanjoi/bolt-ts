@@ -1,0 +1,6 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/extendAndImplementTheSameBaseType/index.ts:6:5]
+ 6 │ foo
+   · ───
+   ╰────

@@ -1,0 +1,27 @@
+  × A binding pattern parameter cannot be optional in an implementation
+  │ signature.
+   ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:6:21]
+ 6 │ ?
+   · ─
+   ╰────
+
+  × A binding pattern parameter cannot be optional in an implementation
+  │ signature.
+   ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:9:27]
+ 9 │ ?
+   · ─
+   ╰────
+
+  × A binding pattern parameter cannot be optional in an implementation
+  │ signature.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:12:25]
+ 12 │ ?
+    · ─
+    ╰────
+
+  × A binding pattern parameter cannot be optional in an implementation
+  │ signature.
+    ╭─[../../tests/compiler/declarationEmitDestructuringWithOptionalBindingParameters/index.ts:15:25]
+ 15 │ ?
+    · ─
+    ╰────

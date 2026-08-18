@@ -10,6 +10,7 @@ declare module "m" {
     declare export import a = x.c;
     //~^ ERROR: A 'declare' modifier cannot be used with an import declaration.
     //~| ERROR: A 'declare' modifier cannot be used in an already ambient context.
+    //~| ERROR: 'export' modifier must precede 'declare' modifier.
     declare const d = 1;
     //~^ ERROR: A 'declare' modifier cannot be used in an already ambient context.
     var b: a;

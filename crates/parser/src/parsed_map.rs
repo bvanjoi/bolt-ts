@@ -1,21 +1,65 @@
+use std::mem::MaybeUninit;
+
 use bolt_ts_ast as ast;
 use bolt_ts_span::ModuleID;
 
-use crate::ParseResultForGraph;
+use super::ParseResultForGraph;
 
 #[derive(Default)]
+pub struct ParsedMapState<'cx> {
+    map: Vec<MaybeUninit<ParseResultForGraph<'cx>>>,
+}
+
+impl<'cx> ParsedMapState<'cx> {
+    #[inline(always)]
+    pub fn preserve(cap: usize) -> Self {
+        let mut map: Vec<MaybeUninit<ParseResultForGraph<'cx>>> = Vec::with_capacity(cap * 4);
+        unsafe {
+            map.set_len(cap);
+        }
+        Self { map }
+    }
+
+    #[inline(always)]
+    pub fn to_result(self) -> ParsedMap<'cx> {
+        debug_assert!(self.map.iter().all(|item| !item.as_ptr().is_null()));
+        let this = std::mem::ManuallyDrop::new(self);
+        let (ptr, len, cap) = (this.map.as_ptr(), this.map.len(), this.map.capacity());
+        let map = unsafe { Vec::from_raw_parts(ptr as *mut ParseResultForGraph<'cx>, len, cap) };
+        ParsedMap { map }
+    }
+
+    #[inline(always)]
+    pub fn insert(&mut self, id: ModuleID, result: ParseResultForGraph<'cx>) {
+        assert_eq!(id.as_usize(), self.map.len());
+        self.map.push(MaybeUninit::new(result));
+    }
+
+    #[inline(always)]
+    pub fn insert_within_preserve(&mut self, index: ModuleID, result: ParseResultForGraph<'cx>) {
+        debug_assert!(index.as_usize() < self.map.len());
+        self.map[index.as_usize()] = MaybeUninit::new(result);
+    }
+
+    #[inline(always)]
+    fn get(&self, id: ModuleID) -> &ParseResultForGraph<'cx> {
+        let idx = id.as_usize();
+        debug_assert!(idx < self.map.len());
+        let item = unsafe { self.map.get_unchecked(idx) };
+        unsafe { item.assume_init_ref() }
+    }
+
+    #[inline(always)]
+    pub fn node(&self, id: ast::NodeID) -> ast::Node<'cx> {
+        self.get(id.module()).node(id)
+    }
+}
+
 pub struct ParsedMap<'cx> {
     map: Vec<ParseResultForGraph<'cx>>,
 }
 
 impl<'cx> ParsedMap<'cx> {
-    #[inline(always)]
-    pub fn new() -> Self {
-        Self {
-            map: Vec::with_capacity(512),
-        }
-    }
-
     #[inline(always)]
     pub fn from_map(map: Vec<ParseResultForGraph<'cx>>) -> Self {
         Self { map }
@@ -27,14 +71,8 @@ impl<'cx> ParsedMap<'cx> {
     }
 
     #[inline(always)]
-    pub fn get_map(&self) -> &Vec<ParseResultForGraph<'cx>> {
-        &self.map
-    }
-
-    #[inline(always)]
-    pub fn insert(&mut self, id: ModuleID, result: ParseResultForGraph<'cx>) {
-        assert_eq!(id.as_usize(), self.map.len());
-        self.map.push(result);
+    pub fn get_map(&self) -> &[ParseResultForGraph<'cx>] {
+        self.map.as_slice()
     }
 
     #[inline(always)]

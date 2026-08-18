@@ -1,0 +1,8 @@
+  × Duplicate identifier 'myFn'.
+   ╭─[../../tests/compiler/anyDeclare/index.ts:8:14]
+ 7 │ myFn;
+   · ──┬─
+   ·   ╰── Previous definition here
+ 8 │     function myFn
+   ·              ────
+   ╰────

@@ -6,7 +6,7 @@ use bolt_ts_fs::PathId;
 use bolt_ts_middle::Extension;
 use bolt_ts_module_resolve::ResolveFlags;
 use bolt_ts_module_resolve::{RResult, ResolveError, get_resolution_mode_for_usage_location};
-use bolt_ts_parser::ParsedMap;
+use bolt_ts_parser::ParsedMapState;
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::fx_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
@@ -60,7 +60,7 @@ pub fn build_graph<'cx>(
     atoms: Arc<Mutex<AtomIntern>>,
     default_lib_dir: &std::path::Path,
     herd: &'cx bolt_ts_arena::bumpalo_herd::Herd,
-    parsed: &mut ParsedMap<'cx>,
+    parsed: &mut ParsedMapState<'cx>,
     fs: Arc<Mutex<impl bolt_ts_fs::CachedFileSystem>>,
     options: &bolt_ts_config::NormalizedTsConfig,
 ) -> ModuleGraph {
@@ -183,7 +183,7 @@ pub fn build_graph<'cx>(
                             continue;
                         }
                         let content = fs.read_file(lib_reference, atoms).unwrap();
-                        let to = module_arena.new_module_with_content(
+                        let to = module_arena.new_module_with_content_within_preserve(
                             lib_reference.to_path_buf(),
                             true,
                             content,
@@ -194,7 +194,11 @@ pub fn build_graph<'cx>(
                 }
             }
 
-            parsed.insert(id, parse_result);
+            if module_arena.is_preserve(id) {
+                parsed.insert_within_preserve(id, parse_result);
+            } else {
+                parsed.insert(id, parse_result);
+            }
 
             for (ast_id, dep) in deps {
                 let module_name_node = parsed.node(ast_id);

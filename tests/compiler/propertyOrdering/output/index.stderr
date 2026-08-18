@@ -1,0 +1,27 @@
+  × Cannot find name 'store'.
+    ╭─[../../tests/compiler/propertyOrdering/index.ts:10:23]
+ 10 │ store
+    · ─────
+    ╰────
+
+Advice: 
+  ☞ Initializer of instance member variable '_store' cannot reference
+  │ identifier 'store' declared in the constructor.
+
+  × Property 'store' does not exist on type 'Foo<Foo>'.
+    ╭─[../../tests/compiler/propertyOrdering/index.ts:14:34]
+ 14 │ store
+    · ─────
+    ╰────
+
+  × Property '_store' does not exist on type 'Bar<Bar>'.
+    ╭─[../../tests/compiler/propertyOrdering/index.ts:22:25]
+ 22 │ _store
+    · ──────
+    ╰────
+
+  × Property '_store' does not exist on type 'Bar<Bar>'.
+    ╭─[../../tests/compiler/propertyOrdering/index.ts:27:14]
+ 27 │ _store
+    · ──────
+    ╰────

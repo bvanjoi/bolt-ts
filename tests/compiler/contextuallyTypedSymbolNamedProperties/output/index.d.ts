@@ -1,7 +1,5 @@
-declare const A: unique symbol;
-
-declare const B: unique symbol;
-
+declare var A: unique symbol;
+declare var B: unique symbol;
 type Action = {
   type: typeof A;
   data: string;
@@ -9,15 +7,13 @@ type Action = {
   type: typeof B;
   data: number;
 };
-declare const ab: Action;
-
+declare var ab: Action;
 declare function f<T extends {
   type: string | symbol;
 }>(action: T, blah: {
 [K in T["type"]]: (p: K) => void
 }): any;
 
-declare const x: {
+declare var x: {
   [sym:symbol]: (p: string) => void;
 };
-

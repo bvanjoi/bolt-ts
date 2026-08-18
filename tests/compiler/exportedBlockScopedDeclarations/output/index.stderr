@@ -1,0 +1,103 @@
+  × Block-scoped variable 'foo' used before its declaration.
+   ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:7:13]
+ 7 │ foo
+   · ───
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'foo' is defined here
+   ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:7:7]
+ 7 │ foo = foo
+   · ─────────
+   ╰────
+
+  × Block-scoped variable 'bar' used before its declaration.
+   ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:9:20]
+ 9 │ bar
+   · ───
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar' is defined here
+   ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:9:14]
+ 9 │ bar = bar
+   · ─────────
+   ╰────
+
+  × Block-scoped variable 'bar' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:12:15]
+ 12 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:12:9]
+ 12 │ bar = bar
+    · ─────────
+    ╰────
+
+  × Block-scoped variable 'bar' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:16:22]
+ 16 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:16:16]
+ 16 │ bar = bar
+    · ─────────
+    ╰────
+
+  × Block-scoped variable 'foo1' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:20:12]
+ 20 │ foo1
+    · ────
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'foo1' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:20:5]
+ 20 │ foo1 = foo1
+    · ───────────
+    ╰────
+
+  × Block-scoped variable 'bar1' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:22:19]
+ 22 │ bar1
+    · ────
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar1' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:22:12]
+ 22 │ bar1 = bar1
+    · ───────────
+    ╰────
+
+  × Block-scoped variable 'bar1' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:25:14]
+ 25 │ bar1
+    · ────
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar1' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:25:7]
+ 25 │ bar1 = bar1
+    · ───────────
+    ╰────
+
+  × Block-scoped variable 'bar1' used before its declaration.
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:29:21]
+ 29 │ bar1
+    · ────
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'bar1' is defined here
+    ╭─[../../tests/compiler/exportedBlockScopedDeclarations/index.ts:29:14]
+ 29 │ bar1 = bar1
+    · ───────────
+    ╰────

@@ -1,0 +1,13 @@
+  × 'string' is an unused renaming of '[computed]'. Did you intend to use it
+  │ as a type annotation?
+   ╭─[../../tests/compiler/renamingDestructuredPropertyInFunctionType3/index.ts:8:22]
+ 8 │ string
+   · ──────
+   ╰────
+
+  × 'string' is an unused renaming of '[computed]'. Did you intend to use it
+  │ as a type annotation?
+    ╭─[../../tests/compiler/renamingDestructuredPropertyInFunctionType3/index.ts:10:26]
+ 10 │ string
+    · ──────
+    ╰────

@@ -1,0 +1,5 @@
+  × Property 'bar' is missing.
+    ╭─[../../tests/compiler/objectLiteralThisWidenedOnUse/index.ts:13:21]
+ 13 │ this
+    · ────
+    ╰────

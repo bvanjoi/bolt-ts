@@ -1,0 +1,17 @@
+  × Variable 'middle' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterDiamond1/index.ts:12:19]
+ 12 │ middle
+    · ──────
+    ╰────
+
+  × Variable 'bottom' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterDiamond1/index.ts:14:22]
+ 14 │ bottom
+    · ──────
+    ╰────
+
+  × Variable 'bottom' is used before being assigned.
+    ╭─[../../tests/compiler/typeParameterDiamond1/index.ts:16:19]
+ 16 │ bottom
+    · ──────
+    ╰────

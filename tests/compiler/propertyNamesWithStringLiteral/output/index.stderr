@@ -1,0 +1,27 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/propertyNamesWithStringLiteral/index.ts:6:5]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Property 'r' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/propertyNamesWithStringLiteral/index.ts:6:16]
+ 6 │ r
+   · ─
+   ╰────
+
+  × Property 'g' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/propertyNamesWithStringLiteral/index.ts:6:27]
+ 6 │ g
+   · ─
+   ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/propertyNamesWithStringLiteral/index.ts:6:38]
+ 6 │ b
+   · ─
+   ╰────

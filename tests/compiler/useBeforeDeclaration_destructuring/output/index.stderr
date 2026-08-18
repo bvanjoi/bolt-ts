@@ -1,0 +1,30 @@
+  × Parameter 'd' cannot reference identifier 'c' declared after it.
+    ╭─[../../tests/compiler/useBeforeDeclaration_destructuring/index.ts:13:21]
+ 13 │ c
+    · ─
+    ╰────
+
+  × Parameter 'c' cannot reference identifier 'd' declared after it.
+    ╭─[../../tests/compiler/useBeforeDeclaration_destructuring/index.ts:17:21]
+ 17 │ d
+    · ─
+    ╰────
+
+  × Block-scoped variable 'a' used before its declaration.
+   ╭─[../../tests/compiler/useBeforeDeclaration_destructuring/index.ts:5:1]
+ 5 │ a
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'a' is defined here
+   ╭─[../../tests/compiler/useBeforeDeclaration_destructuring/index.ts:8:6]
+ 8 │ a
+   · ─
+   ╰────
+
+  × Variable 'a' is used before being assigned.
+   ╭─[../../tests/compiler/useBeforeDeclaration_destructuring/index.ts:5:1]
+ 5 │ a
+   · ─
+   ╰────

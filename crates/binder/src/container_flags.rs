@@ -2,7 +2,7 @@ use super::NodeQuery;
 
 bitflags::bitflags! {
   #[derive(Clone, Copy, Debug, Default)]
-  pub struct ContainerFlags: u8 {
+  pub struct ContainerFlags: u16 {
     const IS_CONTAINER = 1 << 0;
     const IS_BLOCK_SCOPED_CONTAINER = 1 << 1;
     const IS_CONTROL_FLOW_CONTAINER = 1 << 2;
@@ -11,6 +11,7 @@ bitflags::bitflags! {
     const HAS_LOCALS = 1 << 5;
     const IS_INTERFACE = 1 << 6;
     const IS_OBJECT_LITERAL_OR_CLASS_EXPRESSION_METHOD_OR_ACCESSOR = 1 << 7;
+    const PROPAGATES_THIS_KEY_WORD  = 1 << 8;
   }
 }
 
@@ -136,11 +137,16 @@ pub(super) fn container_flags_for_node(
         | IndexSigDecl(_) => C_AND_L,
         Program(_) => C_AND_L_AND_CF,
         ObjectMethodMember(_) => C_AND_L_AND_CF_AND_F_AND_O,
-        ClassCtor(_) | FnDecl(_) | MethodSignature(_) | CallSigDecl(_) => C_AND_L_AND_CF_AND_F,
+        ClassCtor(_) | FnDecl(_) | ClassStaticBlockDecl(_) => C_AND_L_AND_CF_AND_F,
         // TODO: js doc sig
         // TODO: js doc fn
-        FnTy(_) | CtorSigDecl(_) | CtorTy(_) | ClassStaticBlockDecl(_) => C_AND_L_AND_CF_AND_F,
-        FnExpr(_) | ArrowFnExpr(_) => C_AND_L_AND_CF_AND_F_AND_FE,
+        MethodSignature(_) | CallSigDecl(_) | FnTy(_) | CtorSigDecl(_) | CtorTy(_) => {
+            C_AND_L_AND_CF_AND_F.union(ContainerFlags::PROPAGATES_THIS_KEY_WORD)
+        }
+        FnExpr(_) => C_AND_L_AND_CF_AND_F_AND_FE,
+        ArrowFnExpr(_) => {
+            C_AND_L_AND_CF_AND_F_AND_FE.union(ContainerFlags::PROPAGATES_THIS_KEY_WORD)
+        }
         ModuleBlock(_) => ContainerFlags::IS_CONTROL_FLOW_CONTAINER,
         CatchClause(_) | ForStmt(_) | ForInStmt(_) | ForOfStmt(_) | CaseBlock(_) => BS_AND_L,
         GetterDecl(n) => n.get_container_flags(p, parent_map),

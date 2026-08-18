@@ -1,0 +1,5 @@
+  × Variable 'a' is used before being assigned.
+    ╭─[../../tests/compiler/recursiveIdenticalAssignment/index.ts:13:20]
+ 13 │ a
+    · ─
+    ╰────

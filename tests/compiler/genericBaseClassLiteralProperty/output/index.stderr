@@ -1,0 +1,13 @@
+  × Property '_getValue1' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/genericBaseClassLiteralProperty/index.ts:6:12]
+ 6 │ _getValue1
+   · ──────────
+   ╰────
+
+  × Property '_getValue2' has no initializer and is not definitely assigned in
+  │ the constructor.
+   ╭─[../../tests/compiler/genericBaseClassLiteralProperty/index.ts:8:12]
+ 8 │ _getValue2
+   · ──────────
+   ╰────

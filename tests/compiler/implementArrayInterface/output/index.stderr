@@ -1,0 +1,6 @@
+  × Property 'every' in type 'MyArray<T, MyArray>' is not assignable to the
+  │ same property in base type 'T[]'.
+    ╭─[../../tests/compiler/implementArrayInterface/index.ts:23:5]
+ 23 │ every
+    · ─────
+    ╰────

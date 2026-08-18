@@ -1,0 +1,5 @@
+  × Invalid optional chain from new expression.
+   ╭─[../../tests/compiler/invalidOptionalChainFromNewExpression/index.ts:9:6]
+ 9 │ ?.
+   · ──
+   ╰────

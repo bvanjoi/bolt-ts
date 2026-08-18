@@ -1,0 +1,6 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/detachedCommentAtStartOfLambdaFunction1/index.ts:6:5]
+ 6 │ name
+   · ────
+   ╰────

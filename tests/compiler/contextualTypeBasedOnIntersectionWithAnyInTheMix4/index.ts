@@ -53,5 +53,5 @@ test4({
 
 test4({
   a: () => ({ prop: "bar" }),
-  //~^ ERROR: Type '{ prop: "bar"; }' is not assignable to type '{ prop: "foo"; }'.
+  //~^ ERROR: Type '"bar"' is not assignable to type '"foo"'.
 });

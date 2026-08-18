@@ -453,7 +453,6 @@ pub trait ASTFactory<'cx> {
     }
 
     #[inline(always)]
-    #[allow(clippy::too_many_arguments)]
     fn create_object_property_assignment(
         &mut self,
         span: Span,
@@ -1585,6 +1584,18 @@ pub trait ASTFactory<'cx> {
         let id = self.next_node_id();
         let node = self.alloc(ast::RestTy { id, span, ty });
         self.insert_node(id, ast::Node::RestTy(node));
+        self.insert_node_flags(id, self.node_context_flags());
+        node
+    }
+
+    fn create_optional_type(
+        &mut self,
+        span: Span,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> &'cx ast::OptionalTy<'cx> {
+        let id = self.next_node_id();
+        let node = self.alloc(ast::OptionalTy { id, span, ty });
+        self.insert_node(id, ast::Node::OptionalTy(node));
         self.insert_node_flags(id, self.node_context_flags());
         node
     }

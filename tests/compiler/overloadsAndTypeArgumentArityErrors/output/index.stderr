@@ -1,0 +1,17 @@
+  × Expected 2 type arguments, but got 3.
+    ╭─[../../tests/compiler/overloadsAndTypeArgumentArityErrors/index.ts:10:10]
+ 10 │ <number, string, boolean>
+    · ─────────────────────────
+    ╰────
+
+  × Expected 2 type arguments, but got 3.
+    ╭─[../../tests/compiler/overloadsAndTypeArgumentArityErrors/index.ts:12:14]
+ 12 │ <number, string, boolean>
+    · ─────────────────────────
+    ╰────
+
+  × Expected 1 arguments, but got 0.
+    ╭─[../../tests/compiler/overloadsAndTypeArgumentArityErrors/index.ts:16:1]
+ 16 │ f
+    · ─
+    ╰────

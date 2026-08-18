@@ -1,0 +1,5 @@
+  × Type '"URL"' does not satisfy the constraint '"NonExistentTag"'.
+    ╭─[../../tests/compiler/uniqueSymbolAssignmentOnGlobalAugmentationSuceeds/index.ts:20:38]
+ 20 │ ,
+    · ─
+    ╰────

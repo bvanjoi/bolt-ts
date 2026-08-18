@@ -5,3 +5,4 @@ class List<T> {
 }
 
 List.prototype.add("abc"); // Valid because T is instantiated to any
+List.prototype.add(123)

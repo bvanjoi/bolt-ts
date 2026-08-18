@@ -1,0 +1,44 @@
+  × Type 'null' is not assignable to type 'number'.
+   ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:5:41]
+ 5 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'string'.
+   ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:8:41]
+ 8 │ null
+   · ────
+   ╰────
+
+  × Type 'null' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:11:41]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Type '(x: string) => string' is not assignable to type '(s1: string) =>
+  │ number'.
+    ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:24:1]
+ 24 │ g
+    · ─
+    ╰────
+
+  × Type '(x: number) => number' is not assignable to type '(s1: string) =>
+  │ number'.
+    ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:27:1]
+ 27 │ g
+    · ─
+    ╰────
+
+  × Type '(x: string) => string' is not assignable to type '(s1: string) =>
+  │ number'.
+    ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:30:1]
+ 30 │ g
+    · ─
+    ╰────
+
+  × Type 'typeof C' is not assignable to type 'new (x: number) => void'.
+    ╭─[../../tests/compiler/assignmentCompatWithOverloads/index.ts:44:1]
+ 44 │ d
+    · ─
+    ╰────

@@ -4,6 +4,7 @@ use super::get_declared_ty::EnumMemberValue;
 
 use bolt_ts_ast::{self as ast, keyword};
 use bolt_ts_atom::Atom;
+use bolt_ts_binder::SymbolName;
 use bolt_ts_binder::{Symbol, SymbolFlags, SymbolID};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +57,7 @@ impl<'cx> TyChecker<'cx> {
             ast::ExprKind::Ident(n) => self.eval_ident(n, SymbolFlags::VALUE, true, location),
             ast::ExprKind::NumLit(n) => EvalResult::Number(n.val),
             ast::ExprKind::StringLit(n) => EvalResult::Str(n.val),
+            ast::ExprKind::NoSubstitutionTemplateLit(n) => EvalResult::Str(n.val),
             ast::ExprKind::Paren(n) => self.eval_expr(n.expr, location),
             ast::ExprKind::Bin(n) => {
                 let left = self.eval_expr(n.left, location);
@@ -118,6 +120,103 @@ impl<'cx> TyChecker<'cx> {
                     ast::PrefixUnaryOp::Excl => EvalResult::Err,
                 }
             }
+            ast::ExprKind::PropAccess(_) if expr.is_entity_name_expr() => {
+                self.evaluate_entity_name_expr(expr, location)
+            }
+            ast::ExprKind::EleAccess(expr) => self.evaluate_element_access_expr(expr, location),
+            _ => EvalResult::Err,
+        }
+    }
+
+    fn evaluate_element_access_expr(
+        &mut self,
+        expr: &'cx ast::EleAccessExpr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        let root = expr.expr;
+        if root.is_entity_name_expr() && expr.arg.is_string_lit_like() {
+            let root_symbol = match root.kind {
+                ast::ExprKind::Ident(n) => self.resolve_symbol_by_ident(n),
+                ast::ExprKind::PropAccess(n) => self.resolve_qualified_name_like::<true, true>(
+                    n.expr.id(),
+                    n.name,
+                    SymbolFlags::VALUE,
+                ),
+                _ => unreachable!(),
+            };
+            if root_symbol == Symbol::ERR {
+                return EvalResult::Err;
+            }
+            let s = self.symbol(root_symbol);
+            if s.flags.intersects(SymbolFlags::ENUM) {
+                let name = match expr.arg.kind {
+                    ast::ExprKind::StringLit(n) => n.val,
+                    ast::ExprKind::NoSubstitutionTemplateLit(n) => n.val,
+                    _ => unreachable!(),
+                };
+                if let Some(member) = s
+                    .exports
+                    .as_ref()
+                    .and_then(|exports| exports.0.get(&SymbolName::Atom(name)))
+                    .copied()
+                {
+                    debug_assert_eq!(
+                        self.symbol(member).value_decl.map(|n| n.module()),
+                        s.value_decl.map(|n| n.module())
+                    );
+                    return match location {
+                        Some(location) => self.eval_enum_member(member, location),
+                        None => {
+                            let member_symbol = self.symbol(member);
+                            let member = self
+                                .p
+                                .node(member_symbol.value_decl.unwrap())
+                                .expect_enum_member();
+                            let result = self.get_enum_member_value(member);
+                            match result {
+                                EnumMemberValue::Number(n) => EvalResult::Number(n),
+                                EnumMemberValue::Str(n) => EvalResult::Str(n),
+                                EnumMemberValue::Err => EvalResult::Err,
+                            }
+                        }
+                    };
+                }
+            }
+        }
+        EvalResult::Err
+    }
+
+    fn evaluate_entity_name_expr(
+        &mut self,
+        expr: &'cx ast::Expr<'cx>,
+        location: Option<ast::NodeID>,
+    ) -> EvalResult {
+        match expr.kind {
+            ast::ExprKind::Ident(n) => self.eval_ident(n, SymbolFlags::VALUE, true, location),
+            ast::ExprKind::PropAccess(n) => {
+                let symbol = self.resolve_qualified_name_like::<true, true>(
+                    n.expr.id(),
+                    n.name,
+                    SymbolFlags::VALUE,
+                );
+                let s = self.symbol(symbol);
+                if s.flags.contains(SymbolFlags::ENUM_MEMBER) {
+                    return match location {
+                        Some(location) => self.eval_enum_member(symbol, location),
+                        None => {
+                            let member = self.p.node(s.value_decl.unwrap()).expect_enum_member();
+                            let result = self.get_enum_member_value(member);
+                            match result {
+                                EnumMemberValue::Number(n) => EvalResult::Number(n),
+                                EnumMemberValue::Str(n) => EvalResult::Str(n),
+                                EnumMemberValue::Err => EvalResult::Err,
+                            }
+                        }
+                    };
+                }
+                // TODO:
+                EvalResult::Err
+            }
             _ => EvalResult::Err,
         }
     }
@@ -125,8 +224,8 @@ impl<'cx> TyChecker<'cx> {
     fn eval_ident(
         &mut self,
         ident: &'cx ast::Ident,
-        _meaningg: SymbolFlags,
-        _ignore_errorss: bool,
+        _meaning: SymbolFlags,
+        _ignore_errors: bool,
         location: Option<ast::NodeID>,
     ) -> EvalResult {
         if ident.name == keyword::KW_UNDEFINED {

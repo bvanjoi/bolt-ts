@@ -1,53 +1,35 @@
 #![allow(dead_code)]
 
 mod emit;
-mod interpreter;
-mod ir;
-mod lowering;
-mod pipeline;
 
 use bolt_ts_checker::check::TyChecker;
+use bolt_ts_checker::emit_resolver::EmitResolver;
 use bolt_ts_span::ModuleID;
 
 pub use self::emit::Emitter;
-pub use self::lowering::LoweringResult;
-use self::lowering::lowering;
-
-pub struct IrOutput {
-    pub lowered: LoweringResult,
-}
 
 pub struct OptimizeAndEmitOutput {
     pub files: Vec<(ModuleID, String)>,
-    pub ir: Vec<(ModuleID, IrOutput)>,
 }
 
 pub fn optimize_and_js_emit<'cx>(
     entries: Vec<ModuleID>,
     checker: &mut TyChecker<'cx>,
 ) -> OptimizeAndEmitOutput {
-    let output = entries
+    let files = entries
         .into_iter()
         .filter_map(|item| {
             let is_default_lib = checker.module_arena.get_module(item).is_default_lib();
             if is_default_lib {
                 None
             } else {
-                let mut ir = lowering(item, checker);
-                pipeline::reducer::ReduceGraph::new(&mut ir.nodes, &mut ir.graph_arena);
-                let origin = checker.module_arena.get_content(item);
-                let files_output = emit::emit_js(&checker.atoms, &ir, origin);
-                let ir_output = IrOutput { lowered: ir };
-                Some((item, (files_output, ir_output)))
+                let resolver = EmitResolver::new(checker);
+                // TODO: remove `to_string`.
+                let origin = resolver.module_content(item).to_string();
+                let files_output = emit::emit_js(resolver, item, origin);
+                Some((item, files_output))
             }
         })
         .collect::<Vec<_>>();
-    let output = output
-        .into_iter()
-        .map(|(m, (file, ir))| ((m, file), (m, ir)))
-        .collect::<(Vec<_>, Vec<_>)>();
-    OptimizeAndEmitOutput {
-        files: output.0,
-        ir: output.1,
-    }
+    OptimizeAndEmitOutput { files }
 }

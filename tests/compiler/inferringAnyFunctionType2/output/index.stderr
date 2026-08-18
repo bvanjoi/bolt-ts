@@ -1,3 +1,15 @@
+  × Argument of type 'boolean' is not assignable to parameter of type 'true'.
+    ╭─[../../tests/compiler/inferringAnyFunctionType2/index.ts:30:4]
+ 30 │ false
+    · ─────
+    ╰────
+
+  × Argument of type 'boolean' is not assignable to parameter of type 'true'.
+    ╭─[../../tests/compiler/inferringAnyFunctionType2/index.ts:50:3]
+ 50 │ false
+    · ─────
+    ╰────
+
   × Type 'number' is not assignable to type 'string'.
    ╭─[../../tests/compiler/inferringAnyFunctionType2/index.ts:9:7]
  9 │ j

@@ -1,0 +1,5 @@
+  × Type '<S>() => S[]' is not assignable to type '<T>(x: T) => T'.
+    ╭─[../../tests/compiler/functionTypeArgumentAssignmentCompat/index.ts:13:1]
+ 13 │ f
+    · ─
+    ╰────

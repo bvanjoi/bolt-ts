@@ -1,0 +1,6 @@
+  × Property 'model' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/specializedInheritedConstructors1/index.ts:11:5]
+ 11 │ model
+    · ─────
+    ╰────

@@ -1,0 +1,5 @@
+  × Cannot find name 'X'.
+    ╭─[../../tests/compiler/exportSpecifierAndLocalMemberDeclaration/index.ts:16:20]
+ 16 │ X
+    · ─
+    ╰────

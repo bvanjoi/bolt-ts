@@ -1,0 +1,95 @@
+  × Type 'null' is not assignable to type 'T'.
+   ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:6:23]
+ 6 │ null
+   · ────
+   ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:14:9]
+ 14 │ C
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:16:9]
+ 16 │ I
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:18:11]
+ 18 │ I
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:20:11]
+ 20 │ C
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:23:17]
+ 23 │ C
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:23:23]
+ 23 │ I
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:26:20]
+ 26 │ I
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:26:29]
+ 26 │ C
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:30:13]
+ 30 │ C
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:32:14]
+ 32 │ I
+    · ─
+    ╰────
+
+  × Generic type 'C<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:36:8]
+ 36 │ C
+    · ─
+    ╰────
+
+  × Generic type 'D<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:38:8]
+ 38 │ D
+    · ─
+    ╰────
+
+  × Generic type 'I<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:43:8]
+ 43 │ I
+    · ─
+    ╰────
+
+  × Generic type 'J<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:45:8]
+ 45 │ J
+    · ─
+    ╰────
+
+  × Generic type 'A<T>' requires 1 type argument.
+    ╭─[../../tests/compiler/genericsWithoutTypeParameters1/index.ts:50:22]
+ 50 │ A
+    · ─
+    ╰────

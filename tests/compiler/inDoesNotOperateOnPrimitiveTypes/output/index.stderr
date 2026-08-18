@@ -1,0 +1,81 @@
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:24:17]
+ 24 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T | U'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:29:12]
+ 29 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T | U'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:34:12]
+ 34 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'number
+  │ | string | T'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:42:12]
+ 42 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:45:14]
+ 45 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:51:12]
+ 51 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T | U'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:64:14]
+ 64 │ p
+    · ─
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T & U'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:72:12]
+ 72 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T & 0 |
+  │ T & 1 | T & 2'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:77:12]
+ 77 │ thing
+    · ─────
+    ╰────
+
+]8;;https://tc39.es/ecma262/#sec-relational-operators-runtime-semantics-evaluation\(link)]8;;\
+
+  × The right value of the `in` operator must be an 'object', but got 'T'.
+    ╭─[../../tests/compiler/inDoesNotOperateOnPrimitiveTypes/index.ts:16:17]
+ 16 │ thing
+    · ─────
+    ╰────

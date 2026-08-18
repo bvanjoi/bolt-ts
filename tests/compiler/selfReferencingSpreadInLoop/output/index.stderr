@@ -1,0 +1,12 @@
+  × Variable 'additional' implicitly has type 'any[]' in some locations where
+  │ its type cannot be determined.
+   ╭─[../../tests/compiler/selfReferencingSpreadInLoop/index.ts:6:5]
+ 6 │ additional
+   · ──────────
+   ╰────
+
+  × Variable 'additional' implicitly has an 'any[]' type.
+   ╭─[../../tests/compiler/selfReferencingSpreadInLoop/index.ts:9:22]
+ 9 │ additional
+   · ──────────
+   ╰────

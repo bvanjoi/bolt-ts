@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/inferringReturnTypeFromConstructSignatureGeneric.ts`, Apache-2.0 License
 class GenericObject {
   give(value) {
     return value;

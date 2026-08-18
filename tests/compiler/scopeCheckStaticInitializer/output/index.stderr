@@ -1,0 +1,37 @@
+  × Property 'data' is used before its initialization.
+   ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:6:38]
+ 6 │ data
+   · ────
+   ╰────
+
+  × Class 'After' used before its declaration.
+    ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:10:23]
+ 10 │ After
+    · ─────
+    ╰────
+
+Advice: 
+  ☞ Class 'After' is defined here
+    ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:18:7]
+ 18 │ After
+    · ─────
+    ╰────
+
+  × Property 'data' is used before its initialization.
+    ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:10:29]
+ 10 │ data
+    · ────
+    ╰────
+
+  × Class 'After' used before its declaration.
+    ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:13:23]
+ 13 │ After
+    · ─────
+    ╰────
+
+Advice: 
+  ☞ Class 'After' is defined here
+    ╭─[../../tests/compiler/scopeCheckStaticInitializer/index.ts:18:7]
+ 18 │ After
+    · ─────
+    ╰────

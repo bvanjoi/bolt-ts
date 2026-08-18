@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'A'.
+    ╭─[../../tests/compiler/overloadOnConstConstraintChecks4/index.ts:14:12]
+ 14 │ null
+    · ────
+    ╰────

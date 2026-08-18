@@ -1,0 +1,13 @@
+  × Property 'kind' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/partiallyDiscriminantedUnions/index.ts:32:16]
+ 32 │ kind
+    · ────
+    ╰────
+
+  × Property 'kind' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/partiallyDiscriminantedUnions/index.ts:34:16]
+ 34 │ kind
+    · ────
+    ╰────

@@ -1,0 +1,6 @@
+  × Type '__test1__.interfaceWithPublicAndOptional<number, string>' is not
+  │ assignable to type '{ two: any[]; }'.
+    ╭─[../../tests/compiler/assignmentCompatability17/index.ts:13:1]
+ 13 │ __test2__.__val__obj
+    · ────────────────────
+    ╰────

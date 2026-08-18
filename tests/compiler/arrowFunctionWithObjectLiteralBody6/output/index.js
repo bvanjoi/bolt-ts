@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/arrowFunctionWithObjectLiteralBody6.ts`, Apache-2.0 License
 var a = () => (({
   name: 'foo',
   message: 'bar'  

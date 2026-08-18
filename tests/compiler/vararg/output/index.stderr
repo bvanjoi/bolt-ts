@@ -1,0 +1,47 @@
+  × Cannot find name 'builder'.
+    ╭─[../../tests/compiler/vararg/index.ts:22:13]
+ 22 │ builder
+    · ───────
+    ╰────
+
+  × Cannot find name 'builder'.
+    ╭─[../../tests/compiler/vararg/index.ts:25:17]
+ 25 │ builder
+    · ───────
+    ╰────
+
+  × Cannot find name 'builder'.
+    ╭─[../../tests/compiler/vararg/index.ts:28:20]
+ 28 │ builder
+    · ───────
+    ╰────
+
+  × A rest parameter must be of an array type.
+    ╭─[../../tests/compiler/vararg/index.ts:16:31]
+ 16 │ ...rest:number
+    · ──────────────
+    ╰────
+
+  × Argument of type 'M.C' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/vararg/index.ts:36:13]
+ 36 │ x
+    · ─
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/vararg/index.ts:38:13]
+ 38 │ 3
+    · ─
+    ╰────
+
+  × Argument of type 'number' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/vararg/index.ts:42:17]
+ 42 │ 3
+    · ─
+    ╰────
+
+  × Argument of type 'M.C' is not assignable to parameter of type 'string'.
+    ╭─[../../tests/compiler/vararg/index.ts:44:17]
+ 44 │ x
+    · ─
+    ╰────

@@ -1,0 +1,17 @@
+  × Parameter 'y' cannot reference identifier 'z' declared after it.
+    ╭─[../../tests/compiler/capturedParametersInInitializers1/index.ts:23:20]
+ 23 │ z
+    · ─
+    ╰────
+
+  × Parameter 'y' cannot reference identifier 'z' declared after it.
+    ╭─[../../tests/compiler/capturedParametersInInitializers1/index.ts:28:26]
+ 28 │ z
+    · ─
+    ╰────
+
+  × Parameter 'y' cannot reference identifier 'z' declared after it.
+    ╭─[../../tests/compiler/capturedParametersInInitializers1/index.ts:45:21]
+ 45 │ z
+    · ─
+    ╰────

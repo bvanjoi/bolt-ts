@@ -1,0 +1,35 @@
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:14:10]
+ 14 │ utils
+    · ─────
+    ╰────
+
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:14:10]
+ 14 │ utils
+    · ─────
+    ╰────
+
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:17:10]
+ 17 │ utils
+    · ─────
+    ╰────
+
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:17:10]
+ 17 │ utils
+    · ─────
+    ╰────
+
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:22:10]
+ 22 │ utils
+    · ─────
+    ╰────
+
+  × Variable 'utils' is used before being assigned.
+    ╭─[../../tests/compiler/genericFunctionsWithOptionalParameters3/index.ts:22:10]
+ 22 │ utils
+    · ─────
+    ╰────

@@ -2,13 +2,14 @@ use super::CheckParameterFlags;
 use super::SignatureFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
+use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 
 use bolt_ts_ast::{Token, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn should_parse_ret_ty<const IS_COLON: bool, const IS_TY: bool>(&mut self) -> bool {
         if !IS_COLON {
             self.expect(TokenKind::EqGreat);
@@ -25,39 +26,61 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_return_ty<const IS_COLON: bool, const IS_TY: bool>(
         &mut self,
     ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
+        self.parse_return_ty_impl::<IS_COLON, IS_TY, false>()
+    }
+
+    fn parse_return_ty_impl<const IS_COLON: bool, const IS_TY: bool, const IN_TUPLE_TY: bool>(
+        &mut self,
+    ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.should_parse_ret_ty::<IS_COLON, IS_TY>() {
-            self.parse_ty_or_ty_predicate().map(Some)
+            self.parse_ty_or_ty_predicate_impl::<IN_TUPLE_TY>()
+                .map(Some)
         } else {
             Ok(None)
         }
     }
 
     pub(super) fn parse_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        self.parse_ty_inner::<false>()
+    }
+
+    fn parse_ty_inner<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.is_start_of_fn_or_ctor_ty() {
-            self.parse_fn_or_ctor_ty()
+            self.parse_fn_or_ctor_ty::<IN_TUPLE_TY>()
         } else {
             let start = self.token.start();
-            let ty = self.parse_union_ty_or_higher()?;
+            let ty = self.parse_union_ty_or_higher::<IN_TUPLE_TY>()?;
             if !self.has_preceding_line_break() && self.parse_optional(TokenKind::Extends).is_some()
             {
-                let extends_ty = self.disallow_conditional_tys_and(Self::parse_ty)?;
-                self.expect(TokenKind::Question);
-                let true_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
-                self.expect(TokenKind::Colon);
-                let false_ty = self.allow_conditional_tys_and(Self::parse_ty)?;
-                let span = self.new_span(start);
-                let ty = self.create_conditional_type(span, ty, extends_ty, true_ty, false_ty);
-                let ty = self.alloc(ast::Ty {
-                    kind: ast::TyKind::Cond(ty),
-                });
-                Ok(ty)
+                self.parse_conditional_ty::<IN_TUPLE_TY>(start, ty)
             } else {
                 Ok(ty)
             }
         }
     }
 
-    fn parse_union_or_intersection_ty<const IS_UNION_TY: bool>(
+    fn parse_conditional_ty<const IN_TUPLE_TY: bool>(
+        &mut self,
+        start: u32,
+        ty: &'cx ast::Ty<'cx>,
+    ) -> PResult<&'cx ast::Ty<'cx>> {
+        let extends_ty =
+            self.disallow_conditional_tys_and(|this| this.parse_ty_inner::<IN_TUPLE_TY>())?;
+        self.expect(TokenKind::Question);
+        let true_ty =
+            self.allow_conditional_tys_and(|this| this.parse_ty_inner::<IN_TUPLE_TY>())?;
+        self.expect(TokenKind::Colon);
+        let false_ty =
+            self.allow_conditional_tys_and(|this| this.parse_ty_inner::<IN_TUPLE_TY>())?;
+        let span = self.new_span(start);
+        let ty = self.create_conditional_type(span, ty, extends_ty, true_ty, false_ty);
+        let ty = self.alloc(ast::Ty {
+            kind: ast::TyKind::Cond(ty),
+        });
+        Ok(ty)
+    }
+
+    fn parse_union_or_intersection_ty<const IS_UNION_TY: bool, const IN_TUPLE_TY: bool>(
         &mut self,
         parse_constituent_type: impl FnOnce(&mut Self) -> PResult<&'cx ast::Ty<'cx>> + Copy,
     ) -> PResult<&'cx ast::Ty<'cx>> {
@@ -68,7 +91,7 @@ impl<'cx> ParserState<'cx, '_> {
         };
         let has_leading_operator = self.parse_optional(expect).is_some();
         let ty = if has_leading_operator {
-            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY>()? {
+            if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY, IN_TUPLE_TY>()? {
                 ty
             } else {
                 parse_constituent_type(self)?
@@ -80,7 +103,7 @@ impl<'cx> ParserState<'cx, '_> {
         if self.token.kind == expect {
             let mut tys = vec![ty];
             while self.parse_optional(expect).is_some() {
-                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY>()? {
+                if let Some(ty) = self.parse_fn_or_ctor_ty_to_error::<IS_UNION_TY, IN_TUPLE_TY>()? {
                     tys.push(ty);
                 } else {
                     let ty = parse_constituent_type(self)?;
@@ -109,12 +132,16 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_intersection_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty::<false>(Self::parse_ty_op_or_higher)
+    fn parse_intersection_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        self.parse_union_or_intersection_ty::<false, IN_TUPLE_TY>(|this| {
+            this.parse_ty_op_or_higher::<IN_TUPLE_TY>()
+        })
     }
 
-    fn parse_union_ty_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
-        self.parse_union_or_intersection_ty::<true>(Self::parse_intersection_ty)
+    fn parse_union_ty_or_higher<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        self.parse_union_or_intersection_ty::<true, IN_TUPLE_TY>(|this| {
+            this.parse_intersection_ty::<IN_TUPLE_TY>()
+        })
     }
 
     fn parse_ty_predicate_prefix(&mut self) -> PResult<Option<&'cx ast::Ident>> {
@@ -127,10 +154,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_this_ty_pred(&mut self, this_ty: &'cx ast::ThisTy) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_this_ty_pred<const IN_TUPLE_TY: bool>(
+        &mut self,
+        this_ty: &'cx ast::ThisTy,
+    ) -> PResult<&'cx ast::Ty<'cx>> {
         let start = this_ty.span.lo();
         self.next_token();
-        let ty = self.parse_ty()?;
+        let ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
         let name = ast::PredTyName::This(this_ty);
         let span = self.new_span(start);
         let ty = self.create_type_predicate(span, None, name, Some(ty));
@@ -141,10 +171,16 @@ impl<'cx> ParserState<'cx, '_> {
     }
 
     pub(super) fn parse_ty_or_ty_predicate(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+        self.parse_ty_or_ty_predicate_impl::<false>()
+    }
+
+    fn parse_ty_or_ty_predicate_impl<const IN_TUPLE_TY: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::Ty<'cx>> {
         if self.is_ident() {
             let start = self.token.start();
             if let Ok(Some(name)) = self.try_parse(|l| l.p().parse_ty_predicate_prefix()) {
-                let ty = self.parse_ty()?;
+                let ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
                 let span = self.new_span(start);
                 let name = ast::PredTyName::Ident(name);
                 let ty = self.create_type_predicate(span, None, name, Some(ty));
@@ -154,14 +190,14 @@ impl<'cx> ParserState<'cx, '_> {
                 return Ok(ty);
             }
         }
-        self.parse_ty()
+        self.parse_ty_inner::<IN_TUPLE_TY>()
     }
 
-    fn parse_fn_or_ctor_ty_to_error<const IS_UNION_TY: bool>(
+    fn parse_fn_or_ctor_ty_to_error<const IS_UNION_TY: bool, const IN_TUPLE_TY: bool>(
         &mut self,
     ) -> PResult<Option<&'cx ast::Ty<'cx>>> {
         if self.is_start_of_fn_or_ctor_ty() {
-            let ty = self.parse_fn_or_ctor_ty()?;
+            let ty = self.parse_fn_or_ctor_ty::<IN_TUPLE_TY>()?;
             let error = match ty.kind {
                 ast::TyKind::Fn(n) => {
                         errors::FunctionTypeOrConstructorTypeNotationMustBeParenthesizedWhenUsedInAUnionTypeOrIntersectionType {
@@ -203,25 +239,26 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_fn_or_ctor_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_fn_or_ctor_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let modifiers = self.parse_modifiers_for_ctor_ty();
         let is_ctor_ty = self.parse_optional(TokenKind::New).is_some();
         assert!(modifiers.is_none() || is_ctor_ty);
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::TYPE);
-        self.check_parameters(params, CheckParameterFlags::empty());
-        let ty = self.parse_return_ty::<false, false>()?.unwrap();
+        self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+        let ty = self
+            .parse_return_ty_impl::<false, false, IN_TUPLE_TY>()?
+            .unwrap();
         let span = self.new_span(start);
-        let ty = if is_ctor_ty {
+        let kind = if is_ctor_ty {
             let node = self.create_constructor_type(span, modifiers, ty_params, params, ty);
-            let kind = ast::TyKind::Ctor(node);
-            self.alloc(ast::Ty { kind })
+            ast::TyKind::Ctor(node)
         } else {
             let node = self.create_function_type(span, ty_params, params, ty);
-            let kind = ast::TyKind::Fn(node);
-            self.alloc(ast::Ty { kind })
+            ast::TyKind::Fn(node)
         };
+        let ty = self.alloc(ast::Ty { kind });
         Ok(ty)
     }
 
@@ -267,21 +304,24 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_ty_op_or_higher(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_ty_op_or_higher<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         match self.token.kind {
             TokenKind::Keyof | TokenKind::Readonly | TokenKind::Unique => {
                 let op = self.token.kind.try_into().unwrap();
-                self.parse_ty_op(op)
+                self.parse_ty_op::<IN_TUPLE_TY>(op)
             }
             TokenKind::Infer => self.parse_infer_ty(),
-            _ => self.allow_conditional_tys_and(Self::parse_postfix_ty),
+            _ => self.allow_conditional_tys_and(|this| this.parse_postfix_ty::<IN_TUPLE_TY>()),
         }
     }
 
-    fn parse_ty_op(&mut self, op: ast::TyOpKind) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_ty_op<const IN_TUPLE_TY: bool>(
+        &mut self,
+        op: ast::TyOpKind,
+    ) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         self.next_token();
-        let ty = self.parse_ty_op_or_higher()?;
+        let ty = self.parse_ty_op_or_higher::<IN_TUPLE_TY>()?;
         let op_ty = self.create_type_operator_type(self.new_span(start), op, ty);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::TypeOp(op_ty),
@@ -289,9 +329,9 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_postfix_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_postfix_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
-        let mut ty = self.parse_non_array_ty()?;
+        let mut ty = self.parse_non_array_ty::<IN_TUPLE_TY>()?;
         loop {
             if self.has_preceding_line_break() {
                 return Ok(ty);
@@ -301,9 +341,16 @@ impl<'cx> ParserState<'cx, '_> {
                     todo!()
                 }
                 TokenKind::Question => {
-                    if self.lookahead(Lookahead::next_token_is_start_of_expr) {
+                    if IN_TUPLE_TY || self.lookahead(Lookahead::next_token_is_start_of_expr) {
                         return Ok(ty);
                     } else {
+                        if is_ts_like_variant(VARIANT) {
+                            let error = errors::XAtTheEndOfATypeIsNotValidTypeScriptSyntax {
+                                span: self.token.span,
+                                token: TokenKind::Question.as_str().to_string(),
+                            };
+                            self.push_error(Box::new(error));
+                        }
                         self.next_token();
                         let n = self.create_nullable_type(self.new_span(start), ty);
                         ty = self.alloc(ast::Ty {
@@ -314,7 +361,7 @@ impl<'cx> ParserState<'cx, '_> {
                 TokenKind::LBracket => {
                     self.expect(TokenKind::LBracket);
                     if self.is_start_of_ty(false) {
-                        let index_ty = self.parse_ty()?;
+                        let index_ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
                         self.expect(TokenKind::RBracket);
                         let kind =
                             self.create_indexed_access_type(self.new_span(start), ty, index_ty);
@@ -468,7 +515,7 @@ impl<'cx> ParserState<'cx, '_> {
         })
     }
 
-    fn parse_non_array_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_non_array_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         use bolt_ts_ast::TokenKind::*;
         let t = self.token.kind;
         match t {
@@ -493,23 +540,23 @@ impl<'cx> ParserState<'cx, '_> {
             }
             Typeof => {
                 if self.lookahead(Lookahead::is_start_of_ty_of_import_ty) {
-                    self.parse_import_type::<true>()
+                    self.parse_import_type::<true, IN_TUPLE_TY>()
                 } else {
                     self.parse_ty_query()
                 }
             }
-            LParen => self.parse_paren_ty(),
+            LParen => self.parse_paren_ty::<IN_TUPLE_TY>(),
             LBrace => {
                 if self
                     .lookahead(Lookahead::is_start_of_mapped_ty)
                     .unwrap_or_default()
                 {
-                    self.parse_mapped_ty()
+                    self.parse_mapped_ty::<IN_TUPLE_TY>()
                 } else {
                     Ok(self.parse_ty_lit())
                 }
             }
-            LBracket => self.parse_tuple_ty(),
+            LBracket => self.parse_tuple_ty::<IN_TUPLE_TY>(),
             Minus => {
                 if self.lookahead(Lookahead::next_token_is_numeric_or_big_int_literal) {
                     Ok(self.parse_literal_ty::<true>())
@@ -517,12 +564,12 @@ impl<'cx> ParserState<'cx, '_> {
                     todo!()
                 }
             }
-            TemplateHead => self.parse_template_ty(),
+            TemplateHead => self.parse_template_ty::<IN_TUPLE_TY>(),
             This => {
                 let this_ty = self.parse_this_ty();
                 if self.token.kind == TokenKind::Is && !self.has_preceding_line_break() {
                     if let ast::TyKind::This(this_ty) = this_ty.kind {
-                        self.parse_this_ty_pred(this_ty)
+                        self.parse_this_ty_pred::<IN_TUPLE_TY>(this_ty)
                     } else {
                         unreachable!()
                     }
@@ -530,15 +577,17 @@ impl<'cx> ParserState<'cx, '_> {
                     Ok(this_ty)
                 }
             }
-            Import => self.parse_import_type::<false>(),
+            Import => self.parse_import_type::<false, IN_TUPLE_TY>(),
             Asserts if self.lookahead(Lookahead::next_token_is_ident_or_keyword_on_same_line) => {
-                self.parse_asserts_ty_pred()
+                self.parse_asserts_ty_pred::<IN_TUPLE_TY>()
             }
             _ => Ok(self.parse_ty_reference()),
         }
     }
 
-    fn parse_import_type<const IS_TYPE_OF: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_import_type<const IS_TYPE_OF: bool, const IN_TUPLE_TY: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::Ty<'cx>> {
         // TODO: sourceFlags |= NodeFlags.PossiblyContainsDynamicImport;
         let start = self.token.start();
         if IS_TYPE_OF {
@@ -548,7 +597,7 @@ impl<'cx> ParserState<'cx, '_> {
         debug_assert!(self.token.kind == TokenKind::Import);
         self.next_token(); // consume `import`
         self.expect(TokenKind::LParen);
-        let argument = self.parse_ty()?;
+        let argument = self.parse_ty_inner::<IN_TUPLE_TY>()?;
         // let attributes = None;
         if self.parse_optional(TokenKind::Comma).is_some() {
             // `import(xxx), `?
@@ -568,7 +617,7 @@ impl<'cx> ParserState<'cx, '_> {
         }))
     }
 
-    fn parse_asserts_ty_pred(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_asserts_ty_pred<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Asserts);
         let pos = self.token.start();
         let assert_modifier = self.token.span;
@@ -581,7 +630,7 @@ impl<'cx> ParserState<'cx, '_> {
             ast::PredTyName::Ident(self.create_ident(is_ident, None))
         };
         let ty = if self.parse_optional(TokenKind::Is).is_some() {
-            Some(self.parse_ty()?)
+            Some(self.parse_ty_inner::<IN_TUPLE_TY>()?)
         } else {
             None
         };
@@ -636,11 +685,13 @@ impl<'cx> ParserState<'cx, '_> {
         }
     }
 
-    fn parse_template_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_template_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let head = self.parse_template_head::<false>()?;
-        let spans = self
-            .parse_template_spans(|this| this.parse_template_ty_span().map(|n| (n, !n.is_tail)))?;
+        let spans = self.parse_template_spans(|this| {
+            this.parse_template_ty_span::<IN_TUPLE_TY>()
+                .map(|n| (n, !n.is_tail))
+        })?;
         let kind = self.create_template_literal_type(self.new_span(start), head, spans);
         let ty = self.alloc(ast::Ty {
             kind: ast::TyKind::TemplateLit(kind),
@@ -648,15 +699,17 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_template_ty_span(&mut self) -> PResult<&'cx ast::TemplateSpanTy<'cx>> {
+    fn parse_template_ty_span<const IN_TUPLE_TY: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::TemplateSpanTy<'cx>> {
         let start = self.token.start();
-        let ty = self.parse_ty()?;
+        let ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
         let (text, is_tail) = self.parse_template_span_text::<false>();
         let node = self.create_template_span_type(self.new_span(start), ty, text, is_tail);
         Ok(node)
     }
 
-    fn parse_mapped_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_mapped_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         debug_assert_eq!(self.token.kind, TokenKind::LBrace);
         let start = self.token.start();
         self.next_token(); // consume `LBrace`
@@ -674,9 +727,9 @@ impl<'cx> ParserState<'cx, '_> {
             _ => {}
         }
         self.expect(TokenKind::LBracket);
-        let ty_param = self.parse_mapped_ty_param()?;
+        let ty_param = self.parse_mapped_ty_param::<IN_TUPLE_TY>()?;
         let name_ty = if self.parse_optional(TokenKind::As).is_some() {
-            let ty = self.parse_ty()?;
+            let ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
             Some(ty)
         } else {
             None
@@ -714,17 +767,19 @@ impl<'cx> ParserState<'cx, '_> {
         Ok(ty)
     }
 
-    fn parse_mapped_ty_param(&mut self) -> PResult<&'cx ast::TyParam<'cx>> {
+    fn parse_mapped_ty_param<const IN_TUPLE_TY: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::TyParam<'cx>> {
         let start = self.token.start();
         let name = self.create_ident(true, None);
         self.expect(TokenKind::In);
-        let constraint = self.parse_ty()?;
+        let constraint = self.parse_ty_inner::<IN_TUPLE_TY>()?;
         let span = self.new_span(start);
         let ty = self.create_type_parameter(span, None, name, Some(constraint), None);
         Ok(ty)
     }
 
-    fn parse_tuple_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_tuple_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         let start = self.token.start();
         let tys = self.parse_bracketed_list::<false, _>(
             ParsingContext::TUPLE_ELEMENT_TYPES,
@@ -766,7 +821,7 @@ impl<'cx> ParserState<'cx, '_> {
     fn parse_tuple_ele_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         if self.parse_optional(TokenKind::DotDotDot).is_some() {
             let pos = self.token.start();
-            let ty = self.parse_ty()?;
+            let ty = self.parse_ty_inner::<true>()?;
             let span = self.new_span(pos);
             let ty = self.create_rest_type(span, ty);
             let ty = self.alloc(ast::Ty {
@@ -774,7 +829,18 @@ impl<'cx> ParserState<'cx, '_> {
             });
             Ok(ty)
         } else {
-            self.parse_ty()
+            let ty = self.parse_ty_inner::<true>()?;
+            if self.parse_optional(TokenKind::Question).is_some() {
+                let pos = self.token.start();
+                let span = self.new_span(pos);
+                let ty = self.create_optional_type(span, ty);
+                let ty = self.alloc(ast::Ty {
+                    kind: ast::TyKind::Optional(ty),
+                });
+                Ok(ty)
+            } else {
+                Ok(ty)
+            }
         }
     }
 
@@ -791,11 +857,11 @@ impl<'cx> ParserState<'cx, '_> {
         })) as _
     }
 
-    fn parse_paren_ty(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
+    fn parse_paren_ty<const IN_TUPLE_TY: bool>(&mut self) -> PResult<&'cx ast::Ty<'cx>> {
         debug_assert_eq!(self.token.kind, TokenKind::LParen);
         let start = self.token.start();
         self.next_token(); // consume `TokenKind:LParen`
-        let ty = self.parse_ty()?;
+        let ty = self.parse_ty_inner::<IN_TUPLE_TY>()?;
         self.expect(TokenKind::RParen);
         let kind = self.create_parenthesized_type(self.new_span(start), ty);
         let ty = self.alloc(ast::Ty {
@@ -814,7 +880,7 @@ impl<'cx> ParserState<'cx, '_> {
         let kind = if matches!(self.token.kind, TokenKind::LParen | TokenKind::Less) {
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters(SignatureFlags::TYPE);
-            self.check_parameters(params, CheckParameterFlags::empty());
+            self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
             let ty = self.parse_return_ty::<true, false>()?;
             let span = self.new_span(start);
             let sig = self.create_method_signature(span, name, question, ty_params, params, ty);
@@ -847,7 +913,7 @@ impl<'cx> ParserState<'cx, '_> {
 
         let ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::TYPE);
-        self.check_parameters(params, CheckParameterFlags::empty());
+        self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
         let ty = self.parse_return_ty::<true, false>()?;
         self.parse_ty_member_semi();
         let span = self.new_span(start);
@@ -871,7 +937,7 @@ impl<'cx> ParserState<'cx, '_> {
         }
 
         let start = self.token.start();
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, false>(false);
 
         if self.parse_contextual_modifier(TokenKind::Get) {
             let decl =

@@ -1,0 +1,11 @@
+  × Variable 'p' is used before being assigned.
+    ╭─[../../tests/compiler/ipromise2/index.ts:18:10]
+ 18 │ p
+    · ─
+    ╰────
+
+  × Variable 'p' is used before being assigned.
+    ╭─[../../tests/compiler/ipromise2/index.ts:18:10]
+ 18 │ p
+    · ─
+    ╰────

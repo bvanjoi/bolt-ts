@@ -1,0 +1,70 @@
+  × Cannot find name 'C1'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:25:13]
+ 25 │ C1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:12:10]
+ 12 │ C1
+    · ──
+    ╰────
+
+  × Cannot find name 'C1'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:27:13]
+ 27 │ C1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:12:10]
+ 12 │ C1
+    · ──
+    ╰────
+
+  × Cannot find name 'C2'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:32:13]
+ 32 │ C2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:13:10]
+ 13 │ C2
+    · ──
+    ╰────
+
+  × Cannot find name 'C2'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:34:13]
+ 34 │ C2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Cannot use type as a namespace.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:13:10]
+ 13 │ C2
+    · ──
+    ╰────
+
+  × 'Color.Red' refers to a value, but is being used as a type here. Did you
+  │ mean 'typeof Color.Red'?
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:15:19]
+ 15 │ Red
+    · ───
+    ╰────
+
+  × Property '"Red"' does not exist on type 'Color'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:18:24]
+ 18 │ ]
+    · ─
+    ╰────
+
+  × Property '"Red"' does not exist on type 'Color'.
+    ╭─[../../tests/compiler/errorForUsingPropertyOfTypeAsType03/index.ts:29:21]
+ 29 │ ]
+    · ─
+    ╰────

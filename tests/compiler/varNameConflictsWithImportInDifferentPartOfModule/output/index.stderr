@@ -1,0 +1,5 @@
+  × Import declaration conflicts with local declaration of 'q'.
+    ╭─[../../tests/compiler/varNameConflictsWithImportInDifferentPartOfModule/index.ts:10:12]
+ 10 │ import q = M1.s;
+    · ────────────────
+    ╰────

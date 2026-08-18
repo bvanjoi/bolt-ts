@@ -1,12 +1,24 @@
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/autoLift2/index.ts:9:9]
+ 9 │ this.foo
+   · ────────
+   ╰────
+
   × Declaration or statement expected.
    ╭─[../../tests/compiler/autoLift2/index.ts:9:17]
  9 │ :
    · ─
    ╰────
 
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/autoLift2/index.ts:14:9]
+ 14 │ this.bar
+    · ────────
+    ╰────
+
   × Declaration or statement expected.
-    ╭─[../../tests/compiler/autoLift2/index.ts:13:17]
- 13 │ :
+    ╭─[../../tests/compiler/autoLift2/index.ts:14:17]
+ 14 │ :
     · ─
     ╰────
 
@@ -17,8 +29,8 @@
    ╰────
 
   × Cannot find name 'any'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:13:19]
- 13 │ any
+    ╭─[../../tests/compiler/autoLift2/index.ts:14:19]
+ 14 │ any
     · ───
     ╰────
 
@@ -29,31 +41,31 @@
    ╰────
 
   × Property 'bar' does not exist on type 'A<A>'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:13:14]
- 13 │ bar
+    ╭─[../../tests/compiler/autoLift2/index.ts:14:14]
+ 14 │ bar
     · ───
     ╰────
 
   × Property 'foo' does not exist on type 'A<A>'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:22:11]
- 22 │ foo
+    ╭─[../../tests/compiler/autoLift2/index.ts:24:11]
+ 24 │ foo
     · ───
     ╰────
 
   × Property 'bar' does not exist on type 'A<A>'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:25:11]
- 25 │ bar
+    ╭─[../../tests/compiler/autoLift2/index.ts:27:11]
+ 27 │ bar
     · ───
     ╰────
 
   × Property 'foo' does not exist on type 'A<A>'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:28:33]
- 28 │ foo
+    ╭─[../../tests/compiler/autoLift2/index.ts:30:33]
+ 30 │ foo
     · ───
     ╰────
 
   × Property 'bar' does not exist on type 'A<A>'.
-    ╭─[../../tests/compiler/autoLift2/index.ts:31:33]
- 31 │ bar
+    ╭─[../../tests/compiler/autoLift2/index.ts:33:33]
+ 33 │ bar
     · ───
     ╰────

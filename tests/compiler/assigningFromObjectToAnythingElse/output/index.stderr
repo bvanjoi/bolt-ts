@@ -1,0 +1,30 @@
+  × Type 'Object' is missing the following properties from type 'RegExp':
+  │ exec, test, and 13 more.
+   ╭─[../../tests/compiler/assigningFromObjectToAnythingElse/index.ts:7:1]
+ 7 │ y
+   · ─
+   ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/assigningFromObjectToAnythingElse/index.ts:10:30]
+ 10 │ <Object>
+    · ────────
+    ╰────
+
+  × Expected 0 type arguments, but got 1.
+    ╭─[../../tests/compiler/assigningFromObjectToAnythingElse/index.ts:12:30]
+ 12 │ <Number>
+    · ────────
+    ╰────
+
+  × Property 'name' is missing.
+    ╭─[../../tests/compiler/assigningFromObjectToAnythingElse/index.ts:15:5]
+ 15 │ w
+    · ─
+    ╰────
+
+  × Property 'message' is missing.
+    ╭─[../../tests/compiler/assigningFromObjectToAnythingElse/index.ts:15:5]
+ 15 │ w
+    · ─
+    ╰────

@@ -6,10 +6,11 @@ use bolt_ts_span::Span;
 use super::CheckParameterFlags;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
+use super::state::is_js_variant;
 use super::{PResult, ParserState};
 use super::{SignatureFlags, keyword};
 
-pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
+pub(super) fn is_class_ele_start<const VARIANT: u8>(s: &mut ParserState<'_, '_, VARIANT>) -> bool {
     let mut id_token = None;
 
     if s.token.kind == TokenKind::At {
@@ -52,12 +53,12 @@ pub(super) fn is_class_ele_start(s: &mut ParserState) -> bool {
     }
 }
 
-pub(super) trait ClassLike<'cx, 'p> {
+pub(super) trait ClassLike<'cx, 'p, const VARIANT: u8> {
     type Node;
     #[allow(clippy::too_many_arguments)]
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -69,11 +70,11 @@ pub(super) trait ClassLike<'cx, 'p> {
 }
 
 pub(super) struct ParseClassDecl;
-impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
+impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassDecl {
     type Node = &'cx ast::ClassDecl<'cx>;
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -87,11 +88,11 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassDecl {
 }
 
 pub(super) struct ParseClassExpr;
-impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
+impl<'cx, 'p, const VARIANT: u8> ClassLike<'cx, 'p, VARIANT> for ParseClassExpr {
     type Node = &'cx ast::ClassExpr<'cx>;
     fn finish(
         self,
-        state: &mut ParserState<'cx, 'p>,
+        state: &mut ParserState<'cx, 'p, VARIANT>,
         span: Span,
         _modifiers: Option<&'cx ast::Modifiers<'cx>>,
         name: Option<&'cx ast::Ident>,
@@ -104,7 +105,7 @@ impl<'cx, 'p> ClassLike<'cx, 'p> for ParseClassExpr {
     }
 }
 
-impl<'cx, 'p> ParserState<'cx, 'p> {
+impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     fn parse_name_of_class_decl_or_expr(&mut self) -> Option<&'cx ast::Ident> {
         (self.token.kind.is_binding_ident() && !self.is_implements_clause())
             .then(|| self.parse_binding_ident())
@@ -112,7 +113,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
 
     pub(super) fn parse_class_decl_or_expr<Node>(
         &mut self,
-        mode: impl ClassLike<'cx, 'p, Node = Node>,
+        mode: impl ClassLike<'cx, 'p, VARIANT, Node = Node>,
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> PResult<Node> {
         debug_assert!(self.token.kind == TokenKind::Class);
@@ -180,12 +181,22 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             }
         }
 
+        let allow_abstract_modifier =
+            modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT));
         let elements = if let Some(ms) = modifiers
             && ms.flags.contains(ast::ModifierFlags::AMBIENT)
         {
-            self.do_inside_of_node_flags(ast::NodeFlags::AMBIENT, Self::parse_class_members)
+            self.do_inside_of_node_flags(ast::NodeFlags::AMBIENT, |this| {
+                if allow_abstract_modifier {
+                    this.parse_class_members::<true>()
+                } else {
+                    this.parse_class_members::<false>()
+                }
+            })
+        } else if allow_abstract_modifier {
+            self.parse_class_members::<true>()
         } else {
-            self.parse_class_members()
+            self.parse_class_members::<false>()
         };
         self.in_strict_mode = old_in_strict_mode;
         self.set_await_context(old_awaited_context);
@@ -352,9 +363,13 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             };
             let ty_params = self.parse_ty_params();
             let params = self.parse_parameters(flags);
-            self.check_parameters(params, CheckParameterFlags::empty());
             let ty = self.parse_return_ty::<true, false>()?;
             let body = self.parse_fn_block_or_semi(flags);
+            if body.is_some() {
+                self.check_parameters(params, CheckParameterFlags::empty());
+            } else {
+                self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+            }
             let span = self.new_span(start);
             let method = self.create_class_method_element(
                 span, modifiers, asterisk, name, ty_params, params, ty, body,
@@ -437,6 +452,11 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
                 }
 
                 let span = this.p().new_span(start);
+                if is_js_variant(VARIANT) && body.is_none() {
+                    let error =
+                        errors::SignatureDeclarationsCanOnlyBeUsedInTypeScriptFiles { span };
+                    this.p().push_error(Box::new(error));
+                }
                 let ctor = this
                     .p()
                     .create_class_constructor(span, mods, name_span, params, ret, body);
@@ -450,7 +470,9 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         })
     }
 
-    fn parse_class_element(&mut self) -> PResult<&'cx ast::ClassElem<'cx>> {
+    fn parse_class_element<const ALLOW_ABSTRACT_MODIFIER: bool>(
+        &mut self,
+    ) -> PResult<&'cx ast::ClassElem<'cx>> {
         let start = self.token.start();
 
         let token = self.token.kind;
@@ -474,7 +496,7 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
             _ => {}
         }
 
-        let modifiers = self.parse_modifiers::<false, true>(true);
+        let modifiers = self.parse_modifiers::<true, true, ALLOW_ABSTRACT_MODIFIER>(true);
         let under_type_context = |this: &Self| {
             this.node_context_flags.contains(ast::NodeFlags::AMBIENT)
                 || modifiers.is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ABSTRACT))
@@ -558,12 +580,18 @@ impl<'cx, 'p> ParserState<'cx, 'p> {
         }))
     }
 
-    fn parse_class_members(&mut self) -> &'cx ast::ClassElems<'cx> {
+    fn parse_class_members<const ALLOW_ABSTRACT_MODIFIER: bool>(
+        &mut self,
+    ) -> &'cx ast::ClassElems<'cx> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
         let elems = self.do_outside_of_parse_context(
             ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
-            |this| this.parse_list(ParsingContext::CLASS_MEMBERS, Self::parse_class_element),
+            |this| {
+                this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
+                    this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
+                })
+            },
         );
         let end = self.token.end();
         self.expect(TokenKind::RBrace);

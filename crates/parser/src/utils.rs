@@ -2,6 +2,8 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use crate::state::is_ts_like_variant;
+
 use super::CheckParameterFlags;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
@@ -25,7 +27,7 @@ impl<T, E> ParseSuccess for Result<Option<T>, E> {
     }
 }
 
-impl<'cx> ParserState<'cx, '_> {
+impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     pub(super) fn parse_fn_block_or_semi(
         &mut self,
         flags: SignatureFlags,
@@ -106,18 +108,21 @@ impl<'cx> ParserState<'cx, '_> {
         let open = LBrace;
         let open_brace_parsed = self.expect(LBrace);
         let saved_external_module_indicator = self.external_module_indicator;
-        let stmts = self.do_outside_of_parse_context(ParseContext::TOP_LEVEL, |this| {
-            this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
-                this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
-            })
-        });
+        let stmts = self.do_outside_of_parse_context(
+            ParseContext::TOP_LEVEL.union(ParseContext::DISALLOW_BLOCK_DECLARATION),
+            |this| {
+                this.do_inside_of_parse_context(ParseContext::BLOCK, |this| {
+                    this.parse_list(ParsingContext::BLOCK_STATEMENTS, Self::parse_stmt)
+                })
+            },
+        );
         self.external_module_indicator = saved_external_module_indicator;
         self.parse_expected_matching_brackets(open, RBrace, open_brace_parsed, start as usize);
         self.create_block_statement(self.new_span(start), stmts)
     }
 
     pub(super) fn parse_ty_params(&mut self) -> Option<ast::TyParams<'cx>> {
-        if self.token.kind == TokenKind::Less {
+        if is_ts_like_variant(VARIANT) && self.token.kind == TokenKind::Less {
             let less_token_span = self.token.span;
             let ty_params = self.parse_bracketed_list::<false, _>(
                 ParsingContext::TYPE_PARAMETERS,
@@ -423,6 +428,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn parse_modifiers<
         const STOP_ON_START_OF_CLASS_STATIC_BLOCK: bool,
         const PERMIT_CONST_AS_MODIFIER: bool,
+        const ALLOW_ABSTRACT_MODIFIER: bool,
     >(
         &mut self,
         _allow_decorators: bool,
@@ -469,30 +475,55 @@ impl<'cx> ParserState<'cx, '_> {
                 ast::ModifierKind::Public
                 | ast::ModifierKind::Protected
                 | ast::ModifierKind::Private => {
-                    if flags.contains(ast::ModifierFlags::STATIC) {
-                        push_precede_error(self, m, ast::ModifierKind::Static);
-                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
-                        push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierFlags::READONLY) {
-                        push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
-                        push_precede_error(self, m, ast::ModifierKind::Async);
+                    const FLAGS: ast::ModifierFlags = ast::ModifierFlags::STATIC
+                        .union(ast::ModifierFlags::ACCESSOR)
+                        .union(ast::ModifierFlags::READONLY)
+                        .union(ast::ModifierFlags::ASYNC);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::STATIC) {
+                            push_precede_error(self, m, ast::ModifierKind::Static);
+                        }
+                        if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                            push_precede_error(self, m, ast::ModifierKind::Accessor);
+                        }
+                        if flags.contains(ast::ModifierFlags::READONLY) {
+                            push_precede_error(self, m, ast::ModifierKind::Readonly);
+                        }
+                        if flags.contains(ast::ModifierFlags::ASYNC) {
+                            push_precede_error(self, m, ast::ModifierKind::Async);
+                        }
                     }
                 }
                 ast::ModifierKind::Static => {
-                    if flags.contains(ast::ModifierFlags::READONLY) {
-                        push_precede_error(self, m, ast::ModifierKind::Readonly);
-                    } else if flags.contains(ast::ModifierFlags::ASYNC) {
-                        push_precede_error(self, m, ast::ModifierKind::Async);
-                    } else if flags.contains(ast::ModifierFlags::ACCESSOR) {
-                        push_precede_error(self, m, ast::ModifierKind::Accessor);
-                    } else if flags.contains(ast::ModifierFlags::OVERRIDE) {
-                        push_precede_error(self, m, ast::ModifierKind::Override);
+                    const FLAGS: ast::ModifierFlags = ast::ModifierFlags::READONLY
+                        .union(ast::ModifierFlags::ASYNC)
+                        .union(ast::ModifierFlags::ACCESSOR)
+                        .union(ast::ModifierFlags::OVERRIDE);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::READONLY) {
+                            push_precede_error(self, m, ast::ModifierKind::Readonly);
+                        }
+                        if flags.contains(ast::ModifierFlags::ASYNC) {
+                            push_precede_error(self, m, ast::ModifierKind::Async);
+                        }
+                        if flags.contains(ast::ModifierFlags::ACCESSOR) {
+                            push_precede_error(self, m, ast::ModifierKind::Accessor);
+                        }
+                        if flags.contains(ast::ModifierFlags::OVERRIDE) {
+                            push_precede_error(self, m, ast::ModifierKind::Override);
+                        }
                     }
                 }
                 ast::ModifierKind::Export => {
-                    if flags.contains(ast::ModifierFlags::EXPORT) {
-                        push_already_seen_error(self, m);
+                    const FLAGS: ast::ModifierFlags =
+                        ast::ModifierFlags::EXPORT.union(ast::ModifierFlags::AMBIENT);
+                    if flags.intersects(FLAGS) {
+                        if flags.contains(ast::ModifierFlags::EXPORT) {
+                            push_already_seen_error(self, m);
+                        }
+                        if flags.contains(ast::ModifierFlags::AMBIENT) {
+                            push_precede_error(self, m, ast::ModifierKind::Ambient);
+                        }
                     }
                 }
                 ast::ModifierKind::Ambient => {
@@ -506,6 +537,12 @@ impl<'cx> ParserState<'cx, '_> {
                         };
                         self.push_error(Box::new(error));
                     }
+                }
+                ast::ModifierKind::Abstract if !ALLOW_ABSTRACT_MODIFIER => {
+                    let error = errors::AbstractModifierCanOnlyAppearWithinAnAbstractClass {
+                        span: m.span(),
+                    };
+                    self.push_error(Box::new(error));
                 }
                 _ => {}
             }
@@ -550,7 +587,7 @@ impl<'cx> ParserState<'cx, '_> {
         self.parse_error_for_missing_semicolon_after(node_span);
     }
 
-    fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
+    pub(super) fn parse_error_for_missing_semicolon_after(&mut self, node_span: Span) {
         let error = errors::UnexpectedKeywordOrIdentifier { span: node_span };
         self.push_error(Box::new(error));
     }
@@ -694,7 +731,7 @@ impl<'cx> ParserState<'cx, '_> {
         &mut self,
     ) -> PResult<&'cx ast::ParamDecl<'cx>> {
         let start = self.full_start_pos as u32;
-        let modifiers = self.parse_modifiers::<false, false>(false);
+        let modifiers = self.parse_modifiers::<false, false, false>(false);
         const INVALID_MODIFIERS: ast::ModifierFlags = ast::ModifierFlags::STATIC
             .union(ast::ModifierFlags::EXPORT)
             .union(ast::ModifierFlags::AMBIENT);
@@ -798,7 +835,7 @@ impl<'cx> ParserState<'cx, '_> {
     pub(super) fn is_start_of_fn_or_ctor_ty(&mut self) -> bool {
         let skip_param_start = |this: &mut Self| -> PResult<bool> {
             if this.token.kind.is_modifier_kind() {
-                this.parse_modifiers::<false, false>(false);
+                this.parse_modifiers::<false, false, false>(false);
             }
             if this.is_ident() || this.token.kind == TokenKind::This {
                 this.next_token();
@@ -971,8 +1008,9 @@ impl<'cx> ParserState<'cx, '_> {
         let ty = match self.parse_ty_anno()? {
             Some(ty) => ty,
             None => {
-                let lo = self.token.span.lo();
-                let span = Span::new(lo, lo + 1, self.module_id);
+                let lo = name.span.lo();
+                let hi = name_ty.span().hi();
+                let span = Span::new(lo, hi, self.module_id);
                 let error = errors::AnIndexSignatureMustHaveATypeAnnotation { span };
                 self.push_error(Box::new(error));
                 self.parse_missing_ty()
@@ -1037,7 +1075,6 @@ impl<'cx> ParserState<'cx, '_> {
         let name = self.parse_prop_name::<true>();
         let _ty_params = self.parse_ty_params();
         let params = self.parse_parameters(SignatureFlags::empty());
-        self.check_parameters(params, CheckParameterFlags::empty());
         let params = if params.is_empty() {
             self.push_error(Box::new(errors::ASetAccessorMustHaveExactlyOneParameter {
                 span: name.span(),
@@ -1068,6 +1105,11 @@ impl<'cx> ParserState<'cx, '_> {
         }
         let _ty = self.parse_return_ty::<true, false>()?;
         let mut body = self.parse_fn_block_or_semi(flags);
+        if body.is_some() {
+            self.check_parameters(params, CheckParameterFlags::empty());
+        } else {
+            self.check_parameters(params, CheckParameterFlags::MISSING_BODY);
+        }
         self.check_body_during_parse_accessor(under_type_context, &mut body);
         let span = self.new_span(start);
         Ok(self.create_setter_declaration(span, modifiers, name, params, body))

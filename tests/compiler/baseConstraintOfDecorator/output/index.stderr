@@ -1,0 +1,24 @@
+  × Type 'TFunction' is not a constructor function type.
+   ╭─[../../tests/compiler/baseConstraintOfDecorator/index.ts:7:40]
+ 7 │ superClass
+   · ──────────
+   ╰────
+
+  × Type 'typeof decoratorFunc' is not assignable to type 'TFunction'.
+    ╭─[../../tests/compiler/baseConstraintOfDecorator/index.ts:7:12]
+  7 │ ╭─▶ class decoratorFunc extends superClass {
+  8 │ │         //~^ ERROR: Type 'typeof decoratorFunc' is not assignable to type 'TFunction'.
+  9 │ │         //~| ERROR: Type 'TFunction' is not a constructor function type.
+ 10 │ │           constructor(...args: any[]) {
+ 11 │ │               super(...args);
+ 12 │ │               _instanceModifier(this, args);
+ 13 │ │           }
+ 14 │ ╰─▶     }
+    ╰────
+
+  × A mixin class must have a constructor with a single rest parameter of type
+  │ 'any[]'.
+    ╭─[../../tests/compiler/baseConstraintOfDecorator/index.ts:19:18]
+ 19 │ decoratorFunc
+    · ─────────────
+    ╰────

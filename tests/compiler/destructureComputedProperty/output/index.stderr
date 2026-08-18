@@ -1,0 +1,30 @@
+  × Property 'p' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/destructureComputedProperty/index.ts:9:19]
+ 9 │ p
+   · ─
+   ╰────
+
+  × Property 'p' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructureComputedProperty/index.ts:12:9]
+ 12 │ "p": p0
+    · ───────
+    ╰────
+
+  × Property 'p' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructureComputedProperty/index.ts:14:9]
+ 14 │ ["p"]: p1
+    · ─────────
+    ╰────
+
+  × Property 'p' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructureComputedProperty/index.ts:16:9]
+ 16 │ [nameP]: p2
+    · ───────────
+    ╰────
+
+  × Property 'p' is private and only accessible within class 'C'.
+    ╭─[../../tests/compiler/destructureComputedProperty/index.ts:18:9]
+ 18 │ p: p3
+    · ─────
+    ╰────

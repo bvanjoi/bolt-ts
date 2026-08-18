@@ -4,7 +4,7 @@
    · ─────────────────────────────────
    ╰────
 
-  × Property 'a' does not exist on type 'T'.
+  × Property 'a' does not exist on type 'never'.
    ╭─[../../tests/compiler/arrayConcatMap/index.ts:4:23]
  4 │ a
    · ─

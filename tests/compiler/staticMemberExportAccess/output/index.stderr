@@ -1,0 +1,24 @@
+  × This expression is not constructable.
+    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:19:41]
+ 19 │ sammy
+    · ─────
+    ╰────
+
+  × Property 'bar' does not exist on type 'Sammy'.
+    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:23:18]
+ 23 │ bar
+    · ───
+    ╰────
+
+Advice: 
+  ☞ Did you mean to access the static member 'Sammy.bar' instead?
+    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:23:18]
+ 23 │ bar
+    · ───
+    ╰────
+
+  × Property 'x' does not exist on type 'Sammy'.
+    ╭─[../../tests/compiler/staticMemberExportAccess/index.ts:25:18]
+ 25 │ x
+    · ─
+    ╰────

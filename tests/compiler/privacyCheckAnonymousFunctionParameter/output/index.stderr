@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'Iterator<T>'.
+    ╭─[../../tests/compiler/privacyCheckAnonymousFunctionParameter/index.ts:13:16]
+ 13 │ null
+    · ────
+    ╰────

@@ -1,0 +1,74 @@
+  × Expected ':'.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × Expected ':'.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Identifier expected.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Expected ','.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Expected ')'.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:21:25]
+   ╰────
+
+  × '' is an unused renaming of 'return'. Did you intend to use it as a type
+  │ annotation?
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:44]
+ 9 │ 'thing'
+   · ───────
+   ╰────
+
+  × '' is an unused renaming of 'thing'. Did you intend to use it as a type
+  │ annotation?
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:51]
+ 9 │ ;
+   · ─
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:25]
+ 9 │ getThing
+   · ────────
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:25]
+ 9 │ getThing
+   · ────────
+   ╰────
+
+  × 'getThing', which lacks return-type annotation, implicitly has an 'any'
+  │ return type.
+   ╭─[../../tests/compiler/parametersSyntaxErrorNoCrash2/index.ts:9:16]
+ 9 │ function getThing( { return 'thing'; }
+   · ──────────────────────────────────────
+   ╰────

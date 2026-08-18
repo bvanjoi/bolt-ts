@@ -1,3 +1,4 @@
+// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/collisionSuperAndPropertyNameAsConstuctorParameter.ts`, Apache-2.0 License
 class a {}
 class b1 extends a {
   constructor(_super) {super();}

@@ -1,3 +1,3 @@
 var v;
-function foo(a = v[2]) {}
-function bar(a = v[2]) {}
+function foo(a = v[1 + 1]) {}
+function bar(a = v[1 + 1]) {}

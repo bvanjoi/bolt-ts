@@ -162,6 +162,7 @@ pub enum Node<'cx> {
     PropSignature(&'cx super::PropSignature<'cx>),
     MethodSignature(&'cx super::MethodSignature<'cx>),
     RestTy(&'cx super::RestTy<'cx>),
+    OptionalTy(&'cx super::OptionalTy<'cx>),
     NamedTupleTy(&'cx super::NamedTupleTy<'cx>),
     TupleTy(&'cx super::TupleTy<'cx>),
     CondTy(&'cx super::CondTy<'cx>),
@@ -334,6 +335,19 @@ impl<'cx> Node<'cx> {
             ImportEqualsDecl(n) => Some(DeclarationName::Ident(n.name)),
             ImportNamedSpec(n) => Some(DeclarationName::Ident(n.name)),
             IndexSigDecl(n) => DeclarationName::from_binding(n.key),
+            ArrayBinding(n) => match n.name.kind {
+                super::BindingKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                super::BindingKind::ObjectPat(_) => None,
+                super::BindingKind::ArrayPat(_) => None,
+            },
+            ObjectBindingElem(n) => match n.name {
+                super::ObjectBindingName::Shorthand(ident) => Some(DeclarationName::Ident(ident)),
+                super::ObjectBindingName::Prop { name, .. } => match name.kind {
+                    super::BindingKind::Ident(ident) => Some(DeclarationName::Ident(ident)),
+                    super::BindingKind::ObjectPat(_) => None,
+                    super::BindingKind::ArrayPat(_) => None,
+                },
+            },
             _ => None,
         }
     }
@@ -391,6 +405,7 @@ impl<'cx> Node<'cx> {
     pub fn ty_args(&self) -> Option<&'cx super::Tys<'cx>> {
         match self {
             Node::ReferTy(n) => n.ty_args,
+            Node::ExprWithTyArgs(n) => n.ty_args,
             _ => None,
         }
     }
@@ -403,6 +418,7 @@ impl<'cx> Node<'cx> {
             Node::ClassDecl(n) => n.ty_params,
             Node::ClassExpr(n) => n.ty_params,
             Node::CtorSigDecl(n) => n.ty_params,
+            Node::CtorTy(n) => n.ty_params,
             Node::ClassMethodElem(n) => n.ty_params,
             Node::TypeAliasDecl(n) => n.ty_params,
             Node::MethodSignature(n) => n.ty_params,
@@ -1145,6 +1161,24 @@ impl<'cx> Node<'cx> {
         // TODO: SyntaxKind.MetaProperty:
         // TODO: SyntaxKind.ImportKeyword:
     }
+
+    pub fn is_this_property(&self) -> bool {
+        match self {
+            self::Node::EleAccessExpr(super::EleAccessExpr { expr, .. })
+            | self::Node::PropAccessExpr(super::PropAccessExpr { expr, .. }) => {
+                matches!(expr.kind, self::ExprKind::This(_))
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_this_initialized_declaration(&self) -> bool {
+        let self::Node::VarDecl(n) = self else {
+            return false;
+        };
+        n.init
+            .is_some_and(|init| matches!(init.kind, self::ExprKind::This(_)))
+    }
 }
 
 macro_rules! as_node {
@@ -1361,6 +1395,7 @@ as_node!(
     (SatisfiesExpr, super::SatisfiesExpr<'cx>, satisfies_expr),
     (TypeAliasDecl, super::TypeAliasDecl<'cx>, type_alias_decl),
     (RestTy, super::RestTy<'cx>, rest_ty),
+    (OptionalTy, super::OptionalTy<'cx>, optional_ty),
     (NamedTupleTy, super::NamedTupleTy<'cx>, named_tuple_ty),
     (TupleTy, super::TupleTy<'cx>, tuple_ty),
     (

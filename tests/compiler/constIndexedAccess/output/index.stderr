@@ -1,0 +1,47 @@
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:17:9]
+ 17 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:19:9]
+ 19 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:22:10]
+ 22 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:24:10]
+ 24 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:27:10]
+ 27 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:29:10]
+ 29 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:37:10]
+ 37 │ test
+    · ────
+    ╰────
+
+  × Variable 'test' is used before being assigned.
+    ╭─[../../tests/compiler/constIndexedAccess/index.ts:39:10]
+ 39 │ test
+    · ────
+    ╰────

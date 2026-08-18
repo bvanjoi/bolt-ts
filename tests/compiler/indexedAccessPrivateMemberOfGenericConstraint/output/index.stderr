@@ -1,0 +1,31 @@
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/indexedAccessPrivateMemberOfGenericConstraint/index.ts:6:11]
+ 6 │ a
+   · ─
+   ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/indexedAccessPrivateMemberOfGenericConstraint/index.ts:11:11]
+ 11 │ a
+    · ─
+    ╰────
+
+  × Private or protected member 'a' cannot be accessed on a type parameter.
+    ╭─[../../tests/compiler/indexedAccessPrivateMemberOfGenericConstraint/index.ts:15:24]
+ 15 │ T["a"]
+    · ──────
+    ╰────
+
+  × Private or protected member 'a' cannot be accessed on a type parameter.
+    ╭─[../../tests/compiler/indexedAccessPrivateMemberOfGenericConstraint/index.ts:15:32]
+ 15 │ (T | B)["a"]
+    · ────────────
+    ╰────
+
+  × Private or protected member 'a' cannot be accessed on a type parameter.
+    ╭─[../../tests/compiler/indexedAccessPrivateMemberOfGenericConstraint/index.ts:18:27]
+ 18 │ T["a"]
+    · ──────
+    ╰────

@@ -16,6 +16,12 @@
    · ─
    ╰────
 
+  × Unexpected keyword or identifier.
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:1]
+ 1 │ <Foo bar=bar
+   · ────────────
+   ╰────
+
   × Expression expected.
    ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:1:14]
  1 │ )
@@ -29,5 +35,5 @@
    ╰────
 
   × Expression expected.
-   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:7:32]
+   ╭─[../../tests/compiler/jsxArbitraryExprInAttribute/index.tsx:8:32]
    ╰────

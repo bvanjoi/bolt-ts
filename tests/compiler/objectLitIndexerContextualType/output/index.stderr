@@ -1,0 +1,90 @@
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:17:13]
+ 17 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:17:17]
+ 17 │ t
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:24:13]
+ 24 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:24:17]
+ 24 │ t
+    · ─
+    ╰────
+
+  × Object literal may only specify known properties, and 's' does not exist
+  │ in type 'J'.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:31:5]
+ 31 │ s
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:35:13]
+ 35 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:35:17]
+ 35 │ t
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:17:13]
+ 17 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:17:17]
+ 17 │ t
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:24:13]
+ 24 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:24:17]
+ 24 │ t
+    · ─
+    ╰────
+
+  × The left-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:35:13]
+ 35 │ t
+    · ─
+    ╰────
+
+  × The right-hand side of an arithmetic operation must be of type 'any',
+  │ 'number', 'bigint' or an enum type.
+    ╭─[../../tests/compiler/objectLitIndexerContextualType/index.ts:35:17]
+ 35 │ t
+    · ─
+    ╰────

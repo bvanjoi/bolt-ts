@@ -10,5 +10,5 @@ function f (m: string) {
     })
     const a1: {[m]: number} = {[m]: 42};
     const a2: {[m]: number} = {[m]: '42'};
-    //~^ ERROR: Type 'string' is not assignable to type 'number'.
+    //~^ ERROR: Type '{ }' is not assignable to type '{ __Index: error; }'.
 }

@@ -21,10 +21,12 @@ const result1: A[] = Array.from(inputA);
 const result2: A[] = Array.from(inputA.values());
 const result3: B[] = Array.from(inputA.values()); // expect error
 //~^ ERROR: Property 'b' is missing.
+//~| ERROR: Property 'b' is missing.
 const result4: A[] = Array.from(inputB, ({ b }): A => ({ a: b }));
 const result5: A[] = Array.from(inputALike);
 const result6: B[] = Array.from(inputALike); // expect error
 //~^ ERROR: Property 'b' is missing.
+//~| ERROR: Property 'b' is missing.
 const result7: B[] = Array.from(inputALike, ({ a }): B => ({ b: a }));
 const result8: A[] = Array.from(inputARand);
 const result9: B[] = Array.from(inputARand, ({ a }): B => ({ b: a }));

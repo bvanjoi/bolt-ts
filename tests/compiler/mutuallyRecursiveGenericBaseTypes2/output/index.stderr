@@ -1,0 +1,5 @@
+  × Type 'null' is not assignable to type 'foo2<T[]>'.
+   ╭─[../../tests/compiler/mutuallyRecursiveGenericBaseTypes2/index.ts:7:31]
+ 7 │ null
+   · ────
+   ╰────

@@ -1,0 +1,36 @@
+  × Class declaration cannot implement overload list for 'Foo'.
+   ╭─[../../tests/compiler/callOverloads2/index.ts:6:7]
+ 6 │ Foo
+   · ───
+   ╰────
+
+  × Function with bodies can only merge with classes that are ambient.
+    ╭─[../../tests/compiler/callOverloads2/index.ts:15:10]
+ 15 │ Foo
+    · ───
+    ╰────
+
+  × Function implementation name must be 'Foo'.
+    ╭─[../../tests/compiler/callOverloads2/index.ts:18:10]
+ 18 │ F1
+    · ──
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/callOverloads2/index.ts:18:10]
+ 18 │ F1
+    · ──
+    ╰────
+
+  × Duplicate function implementation.
+    ╭─[../../tests/compiler/callOverloads2/index.ts:21:10]
+ 21 │ F1
+    · ──
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/callOverloads2/index.ts:24:10]
+ 24 │ Goo
+    · ───
+    ╰────

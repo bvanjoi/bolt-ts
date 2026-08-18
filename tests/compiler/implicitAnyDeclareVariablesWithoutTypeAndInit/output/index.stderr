@@ -1,0 +1,24 @@
+  × Variable 'foo' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareVariablesWithoutTypeAndInit/index.ts:10:13]
+ 10 │ foo
+    · ───
+    ╰────
+
+  × Parameter 'k' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareVariablesWithoutTypeAndInit/index.ts:12:15]
+ 12 │ k
+    · ─
+    ╰────
+
+  × Variable 'y' implicitly has type 'any' in some locations where its type
+  │ cannot be determined.
+   ╭─[../../tests/compiler/implicitAnyDeclareVariablesWithoutTypeAndInit/index.ts:8:5]
+ 8 │ y
+   · ─
+   ╰────
+
+  × Variable 'y' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/implicitAnyDeclareVariablesWithoutTypeAndInit/index.ts:12:20]
+ 12 │ y
+    · ─
+    ╰────

@@ -32,11 +32,18 @@ impl<'cx> TyChecker<'cx> {
         use bolt_ts_ast::Node::*;
         let node = self.p.node(node);
         match node {
-            ArrayLit(node) => self.elaborate_array_lit(node, source, target, relation),
-            ObjectLit(node) => self.elaborate_object_lit(node, source, target, relation),
-            ArrowFnExpr(node) => {
-                self.elaborate_arrow_fn_expr(node, source, target, relation, error_node)
+            ArrayLit(n) => self.elaborate_array_lit(n, source, target, relation),
+            ObjectLit(n) => self.elaborate_object_lit(n, source, target, relation),
+            ParenExpr(n) => {
+                self.elaborate_error(Some(n.expr.id()), source, target, relation, error_node)
             }
+            BinExpr(n) if n.op.kind == ast::BinOpKind::Comma => {
+                self.elaborate_error(Some(n.right.id()), source, target, relation, error_node)
+            }
+            AssignExpr(n) if n.op == ast::AssignOp::Eq => {
+                self.elaborate_error(Some(n.right.id()), source, target, relation, error_node)
+            }
+            ArrowFnExpr(n) => self.elaborate_arrow_fn_expr(n, source, target, relation, error_node),
             _ => false,
         }
     }
@@ -134,6 +141,9 @@ impl<'cx> TyChecker<'cx> {
                     TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
                     false,
                 );
+                if ty.flags.contains(TypeFlags::NEVER) {
+                    return None;
+                }
                 use bolt_ts_ast::ObjectMemberKind::*;
                 match member.kind {
                     Shorthand(n) => Some(Elaboration {

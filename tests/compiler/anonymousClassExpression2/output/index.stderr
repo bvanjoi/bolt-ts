@@ -1,0 +1,5 @@
+  × Property 'methodA' does not exist on type 'B<B>'.
+    ╭─[../../tests/compiler/anonymousClassExpression2/index.ts:14:18]
+ 14 │ methodA
+    · ───────
+    ╰────

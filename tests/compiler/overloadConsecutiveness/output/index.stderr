@@ -1,0 +1,114 @@
+  × Expected '{'.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:7:14]
+ 7 │ ,
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:7:14]
+ 7 │ ,
+   · ─
+   ╰────
+
+  × Expected '{'.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:8:14]
+ 8 │ ,
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:8:14]
+ 8 │ ,
+   · ─
+   ╰────
+
+  × Declaration or statement expected.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:9:17]
+ 9 │ ,
+   · ─
+   ╰────
+
+  × Expected '{'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:12:6]
+ 12 │ ,
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:12:6]
+ 12 │ ,
+    · ─
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:13:2]
+ 13 │ m2(), m2()
+    · ──────────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:14:2]
+ 14 │ m3()
+    · ────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:14:9]
+ 14 │ ,
+    · ─
+    ╰────
+
+  × Expected '}'.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:16:1]
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:16:1]
+   ╰────
+
+  × '}' expected.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:16:1]
+   ╰────
+
+  × Cannot find name 'm1'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:12:8]
+ 12 │ m1
+    · ──
+    ╰────
+
+  × Cannot find name 'm2'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:13:2]
+ 13 │ m2
+    · ──
+    ╰────
+
+  × Cannot find name 'm2'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:13:8]
+ 13 │ m2
+    · ──
+    ╰────
+
+  × Cannot find name 'm3'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:14:2]
+ 14 │ m3
+    · ──
+    ╰────
+
+  × Cannot find name 'm3'.
+    ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:14:11]
+ 14 │ m3
+    · ──
+    ╰────
+
+  × Function implementation name must be 'f1'.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:8:10]
+ 8 │ f2
+   · ──
+   ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+   ╭─[../../tests/compiler/overloadConsecutiveness/index.ts:9:28]
+ 9 │ f3
+   · ──
+   ╰────

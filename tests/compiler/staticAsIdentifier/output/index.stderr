@@ -1,0 +1,11 @@
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/staticAsIdentifier/index.ts:24:12]
+ 24 │ static
+    · ──────
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/staticAsIdentifier/index.ts:29:12]
+ 29 │ static
+    · ──────
+    ╰────
