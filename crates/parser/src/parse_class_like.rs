@@ -4,9 +4,9 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
+use super::const_variant::is_js_variant;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_js_variant;
 use super::{PResult, ParserState};
 use super::{SignatureFlags, keyword};
 

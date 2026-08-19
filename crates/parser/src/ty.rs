@@ -1,8 +1,8 @@
 use super::CheckParameterFlags;
 use super::SignatureFlags;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{ast, errors};
 

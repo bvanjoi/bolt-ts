@@ -518,6 +518,7 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
+ "bolt_ts_middle",
  "bolt_ts_module_resolve",
  "bolt_ts_parser_errors",
  "bolt_ts_path",
@@ -568,6 +569,7 @@ dependencies = [
  "bitflags 2.9.4",
  "bolt_ts_atom",
  "bolt_ts_ecma_logical",
+ "rustc-hash",
  "unicode-id-start",
 ]
 

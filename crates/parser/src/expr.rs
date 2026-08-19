@@ -1,9 +1,9 @@
 use super::SignatureFlags;
+use super::const_variant::is_jsx_like_variant;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_jsx_like_variant;
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};

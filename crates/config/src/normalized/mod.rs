@@ -20,7 +20,7 @@ macro_rules! normalized_option {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct CompilerOptionFlags: u32 {
         const NO_EMIT                                   = 1 << 0;
         const NO_IMPLICIT_ANY                           = 1 << 1;

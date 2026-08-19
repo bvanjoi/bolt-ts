@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/classAttributeInferenceTemplate.ts`, Apache-2.0 License
-//@compiler-options: target=esnext
 class MyClass {
   property;
   property2;

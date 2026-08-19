@@ -1,7 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/constDeclarations.ts`, Apache-2.0 License
-//@compiler-options: target=es6
-//@compiler-options: strict=false
-//@compiler-options: declaration
 var c1 = false;
 var c2 = 23;
 var c3 = 0, c4 = '', c5 = null;

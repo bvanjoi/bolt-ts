@@ -18,6 +18,7 @@ bolt_ts_parser_errors = { path = "../parser_errors" }
 bolt_ts_scanner = { path = "../scanner" }
 bolt_ts_span = { path = "../../helper/span" }
 bolt_ts_libs = { path = "../libs" }
+bolt_ts_middle = { path = "../middle" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_ecma_logical = { path = "../ecma_logical" }
 bolt_ts_ecma_rules = { path = "../ecma_rules" }

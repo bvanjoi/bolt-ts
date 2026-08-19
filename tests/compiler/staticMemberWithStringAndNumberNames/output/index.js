@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v5.9.3/tests/cases/compiler/staticMemberWithStringAndNumberNames.ts`, Apache-2.0 License
 class C {
   static 'foo' = 0;
   static 0 = 1;

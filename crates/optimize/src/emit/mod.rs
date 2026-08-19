@@ -622,24 +622,24 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         });
     }
 
-    fn emit_leading_comments(&mut self, pos: u32) {
+    fn emit_leading_comments(&mut self, _pos: u32) {
         if self.resolver.config().compiler_options().remove_comments() {
             return;
         }
-        bolt_ts_scanner::iterate_comment_ranges::<false, false>(
-            &self.origin,
-            pos as usize,
-            |kind, start, end, has_trailing_newline| {
-                let comment = &self.origin[start..end];
-                self.emitter.print().p(comment);
-                if has_trailing_newline {
-                    self.emitter.print().p_newline();
-                } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
-                    self.emitter.print().p_whitespace();
-                }
-                false
-            },
-        );
+        // bolt_ts_scanner::iterate_comment_ranges::<false, false>(
+        //     &self.origin,
+        //     pos as usize,
+        //     |kind, start, end, has_trailing_newline| {
+        //         let comment = &self.origin[start..end];
+        //         self.emitter.print().p(comment);
+        //         if has_trailing_newline {
+        //             self.emitter.print().p_newline();
+        //         } else if matches!(kind, bolt_ts_scanner::CommentKind::MultiLine) {
+        //             self.emitter.print().p_whitespace();
+        //         }
+        //         false
+        //     },
+        // );
     }
 }
 

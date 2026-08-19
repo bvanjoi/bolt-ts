@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/augmentedTypesModules3b.ts`, Apache-2.0 License
 class m3b {
   foo() {}
 }

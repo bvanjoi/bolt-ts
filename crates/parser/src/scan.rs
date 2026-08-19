@@ -1,12 +1,13 @@
 use std::borrow::Cow;
 
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-use bolt_ts_scanner::{is_ascii_identifier_part, is_ascii_identifier_start};
+use bolt_ts_scanner::{Comment, CommentKind, is_ascii_identifier_part, is_ascii_identifier_start};
 use bolt_ts_scanner::{is_identifier_part, is_identifier_start};
 use bolt_ts_scanner::{is_line_break, is_non_ascii_identifier_start};
 use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
 use bolt_ts_span::Span;
 
+use super::const_variant::is_preserve_comment;
 use super::{CommentDirective, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
 
@@ -450,6 +451,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
+        let mut leading_comments = Vec::new();
         let mut start;
         loop {
             start = self.pos;
@@ -493,6 +495,24 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
+                        if is_preserve_comment(VARIANT) {
+                            let comment = Comment::new(
+                                start as u32,
+                                self.pos as u32,
+                                CommentKind::SingleLine,
+                            );
+                            let is_leading_comment =
+                                start == 0 || self.input[start - 1].is_ascii_whitespace();
+                            if is_leading_comment {
+                                leading_comments.push(comment);
+                            } else {
+                                self.leading_trailing_comments.add_trailing_comment(
+                                    start as u32,
+                                    comment,
+                                    &mut self.comments,
+                                );
+                            }
+                        }
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -503,6 +523,21 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 break;
                             } else {
                                 self.pos += 1;
+                            }
+                        }
+                        if is_preserve_comment(VARIANT) {
+                            let comment =
+                                Comment::new(start as u32, self.pos as u32, CommentKind::MultiLine);
+                            let is_leading_comment =
+                                start == 0 || self.input[start - 1].is_ascii_whitespace();
+                            if is_leading_comment {
+                                leading_comments.push(comment);
+                            } else {
+                                self.leading_trailing_comments.add_trailing_comment(
+                                    start as u32,
+                                    comment,
+                                    &mut self.comments,
+                                );
                             }
                         }
                         continue;
@@ -890,11 +925,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                         } else {
                             continue;
                         };
-                        self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
-                        return;
-                    }
-
-                    if let Some(cooked_char) = self.peek_unicode_escape()
+                        self.get_ident_token(Cow::Owned(unicode), start as u32)
+                    } else if let Some(cooked_char) = self.peek_unicode_escape()
                         && is_identifier_start::<false>(cooked_char)
                     {
                         self.pos += 6;
@@ -909,18 +941,17 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                         } else {
                             continue;
                         };
-                        self.token = self.get_ident_token(Cow::Owned(s), start as u32);
-                        return;
+                        self.get_ident_token(Cow::Owned(s), start as u32)
+                    } else {
+                        self.push_error(Box::new(errors::InvalidCharacter {
+                            span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
+                        }));
+                        self.pos += 1;
+                        Token::new(
+                            TokenKind::Unknown,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
-
-                    self.push_error(Box::new(errors::InvalidCharacter {
-                        span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
-                    }));
-                    self.pos += 1;
-                    Token::new(
-                        TokenKind::Unknown,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
                 }
                 _ if ch.is_ascii_whitespace() => {
                     self.pos += 1;
@@ -941,6 +972,15 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                 },
             };
+            if is_preserve_comment(VARIANT) {
+                for comment in leading_comments {
+                    self.leading_trailing_comments.add_leading_comment(
+                        token.start(),
+                        comment,
+                        &mut self.comments,
+                    );
+                }
+            }
             self.token = token;
             break;
         }

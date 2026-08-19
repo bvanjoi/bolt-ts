@@ -2,6 +2,7 @@ use bolt_ts_ast::{self as ast, NodeFlags, NodeID, is_strict_mode_reserved_atom, 
 use bolt_ts_ast::{Token, TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_atom::{Atom, AtomIntern};
+use bolt_ts_scanner::{Comments, LeadingTrailingComments};
 use bolt_ts_span::{ModuleID, Span};
 use bolt_ts_utils::FxIndexSet;
 use bolt_ts_utils::path::NormalizePath;
@@ -36,6 +37,8 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) pragmas: PragmaMap,
     pub(super) has_export_decl: bool,
     pub(super) comment_directives: Vec<CommentDirective>,
+    pub(super) comments: Comments,
+    pub(super) leading_trailing_comments: LeadingTrailingComments,
     pub(super) line: usize,
     pub(super) line_start: usize, // offset
     pub(super) line_map: Vec<u32>,
@@ -47,34 +50,6 @@ pub(super) struct ParserState<'cx, 'p, const VARIANT: u8> {
     pub(super) parse_context: ParseContext,
     pub(super) in_strict_mode: bool,
     pub(super) labels: FxIndexSet<Atom>,
-}
-
-pub const JS_VARIANT: u8 = 0;
-pub const TS_VARIANT: u8 = 1;
-pub const JSX_VARIANT: u8 = 2;
-pub const TSX_VARIANT: u8 = 3;
-pub const DTS_VARIANT: u8 = 4;
-
-const fn is_valid_variant(variant: u8) -> bool {
-    matches!(
-        variant,
-        JS_VARIANT | TS_VARIANT | JSX_VARIANT | TSX_VARIANT | DTS_VARIANT
-    )
-}
-
-pub const fn is_jsx_like_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, JSX_VARIANT | TSX_VARIANT)
-}
-
-pub const fn is_js_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, JS_VARIANT)
-}
-
-pub const fn is_ts_like_variant(variant: u8) -> bool {
-    debug_assert!(is_valid_variant(variant));
-    matches!(variant, TS_VARIANT | TSX_VARIANT | DTS_VARIANT)
 }
 
 impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
@@ -116,6 +91,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             has_export_decl: false,
 
             comment_directives: Vec::with_capacity(16),
+            comments: Comments::default(),
+            leading_trailing_comments: LeadingTrailingComments::default(),
 
             line_start: 0,
             line_map: Vec::with_capacity(input.len() / 12),

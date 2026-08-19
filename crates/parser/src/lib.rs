@@ -1,5 +1,5 @@
-use bolt_ts_parser_errors as errors;
 mod check;
+mod const_variant;
 mod expr;
 mod jsx;
 mod lookahead;
@@ -25,18 +25,22 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
 use bolt_ts_ast_visitor::{ControlFlow, Visitor};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_scanner::TokenValue;
+use bolt_ts_config::CompilerOptionFlags;
+use bolt_ts_middle::Extension;
+use bolt_ts_parser_errors as errors;
+use bolt_ts_scanner::{Comments, LeadingTrailingComments, TokenValue};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
+use self::const_variant::PRESERVE_COMMENT;
+use self::const_variant::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::parsed_map::ParsedMapState;
 pub use self::pragmas::PragmaMap;
 use self::state::ParserState;
-use self::state::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 pub use self::touch::get_touching_property_name;
 pub use self::utils::parse_pseudo_bigint;
 use std::path::PathBuf;
@@ -82,6 +86,8 @@ pub struct ParseResult<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub comments: Comments,
+    pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
@@ -113,6 +119,8 @@ pub struct ParseResultForGraph<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub comments: Comments,
+    pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
@@ -158,7 +166,7 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
-    always_strict: bool,
+    flags: CompilerOptionFlags,
 ) -> impl ParallelIterator<Item = (ModuleID, ParseResultForGraph<'cx>)> {
     // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
 
@@ -188,7 +196,7 @@ pub fn parse_parallel<'cx, 'p>(
                 input.as_bytes(),
                 *module_id,
                 module_arena,
-                always_strict,
+                flags,
             );
             debug_assert!(
                 !module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty()
@@ -201,6 +209,8 @@ pub fn parse_parallel<'cx, 'p>(
                 external_module_indicator: p.external_module_indicator,
                 commonjs_module_indicator: p.commonjs_module_indicator,
                 comment_directives: p.comment_directives,
+                comments: p.comments,
+                leading_trailing_comments: p.leading_trailing_comments,
                 line_map: p.line_map,
                 filepath: p.filepath,
                 is_declaration: p.is_declaration,
@@ -237,6 +247,7 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
     file_path: &std::path::Path,
     always_strict: bool,
 ) -> ParseResult<'cx> {
+    debug_assert!(VARIANT != 0);
     let mut s = ParserState::<{ VARIANT }>::new(
         atoms,
         arena,
@@ -265,6 +276,8 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
+        comments: s.comments,
+        leading_trailing_comments: s.leading_trailing_comments,
         line_map: s.line_map,
         filepath: s.filepath,
         is_declaration: s.is_declaration,
@@ -282,74 +295,45 @@ pub fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
-    always_strict: bool,
+    flags: CompilerOptionFlags,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
-
-    if let Some(ext) = file_path.extension() {
-        let ext = ext.to_ascii_lowercase();
-        if ext.eq_ignore_ascii_case("jsx") {
-            parser_state_parse::<{ JSX_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("tsx") {
-            parser_state_parse::<{ TSX_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("ts") {
-            parser_state_parse::<{ TS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("d.ts") {
-            parser_state_parse::<{ DTS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else {
-            parser_state_parse::<{ JS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        }
-    } else {
-        parser_state_parse::<{ TS_VARIANT }>(
-            atoms,
-            arena,
-            nodes,
-            input,
-            module_id,
-            file_path,
-            always_strict,
-        )
+    let always_strict = flags.contains(CompilerOptionFlags::ALWAYS_STRICT);
+    let preserve_comment = !flags.contains(CompilerOptionFlags::REMOVE_COMMENTS);
+    macro_rules! parse_with_variant {
+        ($variant:expr) => {
+            if preserve_comment {
+                parser_state_parse::<{ $variant | PRESERVE_COMMENT }>(
+                    atoms,
+                    arena,
+                    nodes,
+                    input,
+                    module_id,
+                    file_path,
+                    always_strict,
+                )
+            } else {
+                parser_state_parse::<{ $variant }>(
+                    atoms,
+                    arena,
+                    nodes,
+                    input,
+                    module_id,
+                    file_path,
+                    always_strict,
+                )
+            }
+        };
+    }
+    match Extension::extension_of_file_name(file_path.as_os_str().as_encoded_bytes()) {
+        Extension::Js => parse_with_variant!(JS_VARIANT),
+        Extension::Jsx => parse_with_variant!(JSX_VARIANT),
+        Extension::Tsx => parse_with_variant!(TSX_VARIANT),
+        Extension::Ts => parse_with_variant!(TS_VARIANT),
+        Extension::Dts => parse_with_variant!(DTS_VARIANT),
+        Extension::Empty => parse_with_variant!(TS_VARIANT),
+        _ => parse_with_variant!(JS_VARIANT),
     }
 }
 
