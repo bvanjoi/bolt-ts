@@ -2022,8 +2022,10 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let ty_args = self.alloc(ty_args);
-        // TODO: is_js
-        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), false, None);
+        let is_js = sig
+            .node_id
+            .is_some_and(|n| self.node_query(n.module()).is_in_js_file(n));
+        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), is_js, None);
         self.get_mut_sig_links(sig.id)
             .set_canonical_sig(canonical_sig_cache);
         canonical_sig_cache

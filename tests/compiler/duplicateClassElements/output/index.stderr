@@ -32,28 +32,30 @@
     ╰────
 
   × Duplicate identifier 'z'.
-    ╭─[../../tests/compiler/duplicateClassElements/index.ts:35:9]
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:37:9]
  30 │ z() {
     · ┬
     · ╰── Previous definition here
  31 │     }
- 32 │     get z() { //~ERROR: Duplicate identifier 'z'.
- 33 │         return "Hello";
- 34 │     }
- 35 │     set z
+ 32 │     get z() { 
+ 33 │         //~^ ERROR: Duplicate identifier 'z'.
+ 34 │         //~| ERROR: Duplicate identifier 'z'.
+ 35 │         return "Hello";
+ 36 │     }
+ 37 │     set z
     ·         ─
     ╰────
 
   × Duplicate identifier 'z2'.
-    ╭─[../../tests/compiler/duplicateClassElements/index.ts:52:12]
- 47 │ z2() {
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:56:12]
+ 51 │ z2() {
     · ─┬
     ·  ╰── Previous definition here
- 48 │         return "Hello";
- 49 │     }
- 50 │     set z2(_y: string) {
- 51 │     }
- 52 │     public z2
+ 52 │         return "Hello";
+ 53 │     }
+ 54 │     set z2(_y: string) {
+ 55 │     }
+ 56 │     public z2
     ·            ──
     ╰────
 
@@ -75,9 +77,27 @@
     · ─
     ╰────
 
+  × Duplicate identifier 'z'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:32:9]
+ 32 │ z
+    · ─
+    ╰────
+
+  × Duplicate identifier 'z'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:37:9]
+ 37 │ z
+    · ─
+    ╰────
+
   × Duplicate identifier 'x2'.
-    ╭─[../../tests/compiler/duplicateClassElements/index.ts:43:12]
- 43 │ x2
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:47:12]
+ 47 │ x2
+    · ──
+    ╰────
+
+  × Duplicate identifier 'z2'.
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:56:12]
+ 56 │ z2
     · ──
     ╰────
 
@@ -93,9 +113,9 @@
     · ─
     ╰────
 
-  × Subsequent variable declarations must have the same type. Variable 'x2'
+  × Subsequent property declarations must have the same type. Property 'x2'
   │ must be of type 'number', but here has type 'any'.
-    ╭─[../../tests/compiler/duplicateClassElements/index.ts:43:12]
- 43 │ x2
+    ╭─[../../tests/compiler/duplicateClassElements/index.ts:47:12]
+ 47 │ x2
     · ──
     ╰────

@@ -206,6 +206,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         mapper: &'cx dyn ty::TyMap<'cx>,
     ) -> &'cx ty::Sig<'cx> {
+        // TODO: try dont instantiate if map to itself, such as source(Ty(a)) -> target(Ty(a))
         let ExtraSig {
             sig,
             ty_params,

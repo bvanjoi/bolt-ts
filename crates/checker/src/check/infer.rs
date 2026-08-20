@@ -370,8 +370,8 @@ impl<'cx> TyChecker<'cx> {
             candidates.to_vec()
         };
 
+        let ty_param = self.inference_info(inference, idx).type_parameter;
         let has_primitive_constraint = {
-            let ty_param = self.inference_info(inference, idx).type_parameter;
             self.get_constraint_of_ty_param(ty_param)
                 .is_some_and(|constraint| {
                     let t = if let Some(cond_ty) = constraint.kind.as_cond_ty() {
@@ -387,8 +387,7 @@ impl<'cx> TyChecker<'cx> {
                     )
                 })
         };
-
-        let primitive_constraint = has_primitive_constraint;
+        let primitive_constraint = has_primitive_constraint || self.is_const_ty_variable(ty_param);
 
         // for case:
         // `function foo<T>(a: T, b: T): void`
@@ -660,8 +659,14 @@ impl<'cx> TyChecker<'cx> {
                         .priority
                         .is_some_and(|p| p == InferencePriority::RETURN_TYPE)
                     {
-                        // TODO: filter_ty
-                        ty
+                        self.filter_type(ty, |this, t| {
+                            // TODO: `ctx.compare_types`
+                            this.is_type_related_to(
+                                t,
+                                constraint_with_this,
+                                super::relation::RelationKind::Assignable,
+                            )
+                        })
                     } else {
                         self.never_ty
                     };

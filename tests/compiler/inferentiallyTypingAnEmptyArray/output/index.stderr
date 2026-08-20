@@ -1,0 +1,5 @@
+  × Property 'bar' does not exist on type 'never'.
+    ╭─[../../tests/compiler/inferentiallyTypingAnEmptyArray/index.ts:21:9]
+ 21 │ bar
+    · ───
+    ╰────

@@ -1,0 +1,5 @@
+  × Variable 'i' is used before being assigned.
+   ╭─[../../tests/compiler/newExpressionWithTypeParameterConstrainedToOuterTypeParameter/index.ts:9:13]
+ 9 │ i
+   · ─
+   ╰────

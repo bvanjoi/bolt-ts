@@ -1054,6 +1054,18 @@ pub struct SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfType
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Subsequent property declarations must have the same type. Property '{property}' must be of type '{ty1}', but here has type '{ty2}'."
+)]
+pub struct SubsequentPropertyDeclarationsMustHaveTheSameTypePropertyXMustBeOfTypeYButHereHasTypeZ {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub ty1: String,
+    pub ty2: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
 #[error("Type '{ty1}' is not comparable to type '{ty2}'.")]
 pub struct TypeXIsNotComparableToTypeY {
     #[label(primary)]

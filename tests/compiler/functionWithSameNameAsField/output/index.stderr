@@ -8,6 +8,12 @@
    ·            ─────
    ╰────
 
+  × Duplicate identifier 'total'.
+   ╭─[../../tests/compiler/functionWithSameNameAsField/index.ts:6:12]
+ 6 │ total
+   · ─────
+   ╰────
+
   × Property 'total' has no initializer and is not definitely assigned in the
   │ constructor.
    ╭─[../../tests/compiler/functionWithSameNameAsField/index.ts:4:12]

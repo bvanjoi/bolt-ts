@@ -8,5 +8,5 @@ interface Foo {
 
 interface Foo {
     bold: string;
-    //~^ ERROR: Subsequent variable declarations must have the same type. Variable 'bold' must be of type '() => string', but here has type 'string'.
+    //~^ ERROR: Subsequent property declarations must have the same type. Property 'bold' must be of type '() => string', but here has type 'string'.
 }

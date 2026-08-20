@@ -348,7 +348,11 @@ impl<'cx> TyChecker<'cx> {
                         let is_method = meaning.contains(DeclarationMeaning::METHOD);
                         if prev_is_method || is_method {
                             if prev_is_method != is_method {
-                                // todo!("error handle")
+                                let error = errors::DuplicateIdentifier {
+                                    span: prop_name_span,
+                                    ident: this.atoms.get(prop_name_atom).to_string(),
+                                };
+                                this.push_error(Box::new(error));
                             }
                         } else if prev
                             .intersection(meaning)

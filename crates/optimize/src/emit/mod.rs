@@ -623,9 +623,9 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
     }
 
     fn emit_leading_comments(&mut self, _pos: u32) {
-        if self.resolver.config().compiler_options().remove_comments() {
-            return;
-        }
+        // if self.resolver.config().compiler_options().remove_comments() {
+        //     return;
+        // }
         // bolt_ts_scanner::iterate_comment_ranges::<false, false>(
         //     &self.origin,
         //     pos as usize,

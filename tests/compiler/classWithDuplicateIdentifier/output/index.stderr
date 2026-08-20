@@ -1,0 +1,69 @@
+  × Duplicate identifier 'b'.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:15:5]
+ 13 │ b: number; // error: duplicate identifier
+    · ┬
+    · ╰── Previous definition here
+ 14 │     //~^ ERROR: Property 'b' has no initializer and is not definitely assigned in the constructor.
+ 15 │     b
+    ·     ─
+    ╰────
+
+  × Duplicate identifier 'a'.
+   ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Subsequent property declarations must have the same type. Property 'a'
+  │ must be of type '() => number', but here has type 'number'.
+   ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Property 'a' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:7:5]
+ 7 │ a
+   · ─
+   ╰────
+
+  × Duplicate identifier 'b'.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:15:5]
+ 15 │ b
+    · ─
+    ╰────
+
+  × Property 'b' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:13:5]
+ 13 │ b
+    · ─
+    ╰────
+
+  × Duplicate identifier 'c'.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:22:5]
+ 22 │ c
+    · ─
+    ╰────
+
+  × Subsequent property declarations must have the same type. Property 'c'
+  │ must be of type 'number', but here has type 'string'.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:22:5]
+ 22 │ c
+    · ─
+    ╰────
+
+  × Property 'c' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:20:5]
+ 20 │ c
+    · ─
+    ╰────
+
+  × Property 'c' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/classWithDuplicateIdentifier/index.ts:22:5]
+ 22 │ c
+    · ─
+    ╰────
