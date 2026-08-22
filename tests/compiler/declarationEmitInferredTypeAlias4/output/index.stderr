@@ -1,0 +1,5 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/declarationEmitInferredTypeAlias4/index.ts:9:12]
+ 9 │ x
+   · ─
+   ╰────

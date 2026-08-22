@@ -389,10 +389,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_lib_reference"
+version = "0.1.0"
+dependencies = [
+ "project-root",
+ "rustc-hash",
+]
+
+[[package]]
 name = "bolt_ts_libs"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_config",
+ "bolt_ts_lib_reference",
  "rustc-hash",
 ]
 

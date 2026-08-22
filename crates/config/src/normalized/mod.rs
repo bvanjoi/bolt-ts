@@ -33,27 +33,28 @@ bitflags::bitflags! {
         const NO_STRICT_GENERIC_CHECKS                  = 1 << 8;
         const NO_FALLTHROUGH_CASES_IN_SWITCH            = 1 << 9;
         const NO_ERROR_TRUNCATION                       = 1 << 10;
+        const NO_LIB                                    = 1 << 11;
 
-        const STRICT                                    = 1 << 11;
-        const STRICT_NULL_CHECKS                        = 1 << 12;
-        const STRICT_PROPERTY_INITIALIZATION            = 1 << 13;
-        const STRICT_FUNCTION_TYPES                     = 1 << 14;
-        const STRICT_BIND_CALL_APPLY                    = 1 << 15;
-        const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 16;
+        const STRICT                                    = 1 << 12;
+        const STRICT_NULL_CHECKS                        = 1 << 13;
+        const STRICT_PROPERTY_INITIALIZATION            = 1 << 14;
+        const STRICT_FUNCTION_TYPES                     = 1 << 15;
+        const STRICT_BIND_CALL_APPLY                    = 1 << 16;
+        const STRICT_BUILTIN_ITERATION_RETURN           = 1 << 17;
 
-        const RESOLVE_JSON_MODULE                       = 1 << 17;
-        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 18;
-        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 19;
-        const REMOVE_COMMENTS                           = 1 << 20;
+        const RESOLVE_JSON_MODULE                       = 1 << 18;
+        const RESOLVE_PACKAGE_JSON_EXPORTS              = 1 << 19;
+        const RESOLVE_PACKAGE_JSON_IMPORTS              = 1 << 20;
+        const REMOVE_COMMENTS                           = 1 << 21;
 
-        const ALWAYS_STRICT                             = 1 << 21;
-        const DECLARATION                               = 1 << 22;
-        const PRESERVE_SYMLINKS                         = 1 << 23;
-        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 24;
-        const ES_MODULE_INTEROP                         = 1 << 25;
-        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 26;
-        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 27;
-        const CHECK_JS                                  = 1 << 28;
+        const ALWAYS_STRICT                             = 1 << 22;
+        const DECLARATION                               = 1 << 23;
+        const PRESERVE_SYMLINKS                         = 1 << 24;
+        const EXACT_OPTIONAL_PROPERTY_TYPES             = 1 << 25;
+        const ES_MODULE_INTEROP                         = 1 << 26;
+        const USE_DEFINE_FOR_CLASS_FIELDS               = 1 << 27;
+        const USE_UNKNOWN_IN_CATCH_VARIABLES            = 1 << 28;
+        const CHECK_JS                                  = 1 << 29;
     }
 }
 
@@ -221,6 +222,11 @@ impl NormalizedCompilerOptions {
             && *module_resolution <= NormalizedModuleResolution::NodeNext)
             || self.resolve_package_json_exports()
             || self.resolve_package_json_imports()
+    }
+
+    #[inline(always)]
+    pub const fn no_lib(&self) -> bool {
+        self.flags.contains(CompilerOptionFlags::NO_LIB)
     }
 
     #[inline(always)]

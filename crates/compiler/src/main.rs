@@ -96,30 +96,33 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
 #[test]
 fn check_for_test_default_lib_file_count_list() {
     use bolt_ts_config::RawTarget::*;
+    // Expected values are the distinct-file counts of each target's default
+    // lib closure; they are anchored as literals so a regression in the DAG
+    // computation (`bolt_ts_libs::dag::closure_len`) is caught here.
     let es2015 = check_for_test_default_lib_file_count(ES2015);
-    assert_eq!(es2015, bolt_ts_compiler::ES2015_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2015, 19);
     let es5 = check_for_test_default_lib_file_count(ES5);
-    assert_eq!(es5, bolt_ts_compiler::ES5_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es5, 3);
     let es2016 = check_for_test_default_lib_file_count(ES2016);
-    assert_eq!(es2016, bolt_ts_compiler::ES2016_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2016, 16);
     let es2017 = check_for_test_default_lib_file_count(ES2017);
-    assert_eq!(es2017, bolt_ts_compiler::ES2017_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2017, 24);
     let es2018 = check_for_test_default_lib_file_count(ES2018);
-    assert_eq!(es2018, bolt_ts_compiler::ES2018_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2018, 30);
     let es2019 = check_for_test_default_lib_file_count(ES2019);
-    assert_eq!(es2019, bolt_ts_compiler::ES2019_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2019, 36);
     let es2020 = check_for_test_default_lib_file_count(ES2020);
-    assert_eq!(es2020, bolt_ts_compiler::ES2020_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2020, 45);
     let es2021 = check_for_test_default_lib_file_count(ES2021);
-    assert_eq!(es2021, bolt_ts_compiler::ES2021_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2021, 50);
     let es2022 = check_for_test_default_lib_file_count(ES2022);
-    assert_eq!(es2022, bolt_ts_compiler::ES2022_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2022, 57);
     let es2023 = check_for_test_default_lib_file_count(ES2023);
-    assert_eq!(es2023, bolt_ts_compiler::ES2023_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2023, 61);
     let es2024 = check_for_test_default_lib_file_count(ES2024);
-    assert_eq!(es2024, bolt_ts_compiler::ES2024_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2024, 69);
     let es2025 = check_for_test_default_lib_file_count(ES2025);
-    assert_eq!(es2025, bolt_ts_compiler::ES2025_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(es2025, 76);
     let esnext = check_for_test_default_lib_file_count(ESNext);
-    assert_eq!(esnext, bolt_ts_compiler::ESNEXT_DEFAULT_LIBS_PRESERVE_LEN);
+    assert_eq!(esnext, 87);
 }

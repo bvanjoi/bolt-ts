@@ -1,0 +1,23 @@
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/multiExtendsSplitInterfaces2/index.ts:23:9]
+ 23 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/multiExtendsSplitInterfaces2/index.ts:25:10]
+ 25 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/multiExtendsSplitInterfaces2/index.ts:27:9]
+ 27 │ i
+    · ─
+    ╰────
+
+  × Variable 'i' is used before being assigned.
+    ╭─[../../tests/compiler/multiExtendsSplitInterfaces2/index.ts:29:10]
+ 29 │ i
+    · ─
+    ╰────

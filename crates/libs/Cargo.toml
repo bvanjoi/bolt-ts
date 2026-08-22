@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 bolt_ts_config = { path = "../config" }
+bolt_ts_lib_reference = { path = "../../helper/lib_reference" }
 rustc-hash = { workspace = true }

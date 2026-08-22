@@ -1507,7 +1507,7 @@ pub struct AccessorsMustBothBeAbstractOrNonAbstract {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("Get accessor must be at least as accessible as the set accessor.")]
+#[error("A get accessor must be at least as accessible as the setter.")]
 pub struct AGetAccessorMustBeAtLeastAsAccessibleAsTheSetter {
     #[label(primary)]
     pub getter_span: Span,
@@ -2146,6 +2146,13 @@ pub struct ReturnTypeOfConstructorSignatureMustBeAssignableToTheInstanceTypeOfTh
 #[derive(Error, Diagnostic, DiagnosticExt, Debug)]
 #[error("Spread types may only be created from object types.")]
 pub struct SpreadTypesMayOnlyBeCreatedFromObjectTypes {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("'this' cannot be referenced in current location.")]
+pub struct ThisCannotBeReferencedInCurrentLocation {
     #[label(primary)]
     pub span: Span,
 }

@@ -1471,6 +1471,9 @@ impl<'cx> TyChecker<'cx> {
         } else if container.is_module_declaration() {
             let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr_span };
             self.push_error(Box::new(error));
+        } else if container.is_enum_decl() {
+            let error = errors::ThisCannotBeReferencedInCurrentLocation { span: expr_span };
+            self.push_error(Box::new(error));
         }
 
         let ty = self.try_get_this_ty_at::<true>(expr_id, Some(container_id));

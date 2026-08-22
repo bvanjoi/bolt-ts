@@ -939,3 +939,10 @@ pub struct InvalidOptionalChainFromNewExpression {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest element cannot have an initializer.")]
+pub struct ARestElementCannotHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}

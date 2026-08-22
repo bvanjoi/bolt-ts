@@ -38,6 +38,7 @@ members = [
   "helper/diag_derive",
   "helper/errors",
   "helper/fs",
+  "helper/lib_reference",
   "helper/query_system",
   "helper/query_system_macros",
   "helper/span",

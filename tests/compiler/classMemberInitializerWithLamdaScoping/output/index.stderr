@@ -1,0 +1,6 @@
+  × Initializer of instance member variable 'messageHandler' cannot reference
+  │ identifier 'field1' declared in the constructor.
+    ╭─[../../tests/compiler/classMemberInitializerWithLamdaScoping/index.ts:28:21]
+ 28 │ field1
+    · ──────
+    ╰────

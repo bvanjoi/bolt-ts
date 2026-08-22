@@ -1,0 +1,150 @@
+  × Property '3' of type 'boolean' is not assignable to 'number' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:23:5]
+ 23 │ 3
+    · ─
+    ╰────
+
+  × Property '6' of type '() => string' is not assignable to 'number' index
+  │ type 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:25:5]
+ 25 │ 6
+    · ─
+    ╰────
+
+  × Property '4' of type 'boolean' is not assignable to 'number' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:30:5]
+ 30 │ 4
+    · ─
+    ╰────
+
+  × Property '1' of type 'Z' is not assignable to 'number' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:20:6]
+ 20 │ n
+    · ─
+    ╰────
+
+  × Property 'c' of type 'boolean' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:40:5]
+ 40 │ c
+    · ─
+    ╰────
+
+  × Property '3' of type 'boolean' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:42:5]
+ 42 │ 3
+    · ─
+    ╰────
+
+  × Property 'a' of type 'Y' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:36:6]
+ 36 │ s
+    · ─
+    ╰────
+
+  × Property 'b' of type 'X' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:36:6]
+ 36 │ s
+    · ─
+    ╰────
+
+  × Property '1' of type 'Z' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:36:6]
+ 36 │ s
+    · ─
+    ╰────
+
+  × Property '2' of type 'Z' is not assignable to 'number' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:51:5]
+ 51 │ 2
+    · ─
+    ╰────
+
+  × Property '2' of type 'Z' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:51:5]
+ 51 │ 2
+    · ─
+    ╰────
+
+  × Property 'Infinity' of type 'number' is not assignable to 'number' index
+  │ type 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:54:5]
+ 54 │ Infinity
+    · ────────
+    ╰────
+
+  × Property 'zoo' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:56:5]
+ 56 │ zoo
+    · ───
+    ╰────
+
+  × Property '6' of type '() => string' is not assignable to 'string' index
+  │ type 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:46:11]
+ 46 │ D
+    · ─
+    ╰────
+
+  × Property '4' of type 'boolean' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:46:11]
+ 46 │ D
+    · ─
+    ╰────
+
+  × Property '5' of type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:46:11]
+ 46 │ D
+    · ─
+    ╰────
+
+  × 'number' index type 'string' is not assignable to 'string' index type
+  │ 'number'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:46:1]
+ 46 │ ╭─▶ interface D extends B, C {
+ 47 │ │     //~^ ERROR: Property '4' of type 'boolean' is not assignable to 'string' index type 'number'.
+ 48 │ │     //~| ERROR: Property '5' of type 'string' is not assignable to 'string' index type 'number'.
+ 49 │ │     //~| ERROR: Property '6' of type '() => string' is not assignable to 'string' index type 'number'.
+ 50 │ │     //~| ERROR: 'number' index type 'string' is not assignable to 'string' index type 'number'.
+ 51 │ │       2: Z;
+ 52 │ │       //~^ ERROR: Property '2' of type 'Z' is not assignable to 'number' index type 'string'.
+ 53 │ │       //~| ERROR: Property '2' of type 'Z' is not assignable to 'string' index type 'number'.
+ 54 │ │       Infinity: number;
+ 55 │ │       //~^ ERROR: Property 'Infinity' of type 'number' is not assignable to 'number' index type 'string'.
+ 56 │ │       zoo: string;
+ 57 │ │       //~^ ERROR: Property 'zoo' of type 'string' is not assignable to 'string' index type 'number'.
+ 58 │ ╰─▶ }
+    ╰────
+
+  × Property 't' of type 'number' is not assignable to 'string' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:65:5]
+ 65 │ t
+    · ─
+    ╰────
+
+  × Property 't' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:65:5]
+ 65 │ t
+    · ─
+    ╰────
+
+  × Property '3' of type 'boolean' is not assignable to 'number' index type
+  │ 'string'.
+    ╭─[../../tests/compiler/propertiesAndIndexers/index.ts:73:5]
+ 73 │ 3
+    · ─
+    ╰────

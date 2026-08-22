@@ -1,0 +1,8 @@
+[package]
+name = "bolt_ts_lib_reference"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rustc-hash = { workspace = true }
+project-root = { workspace = true }

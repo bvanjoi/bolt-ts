@@ -3564,7 +3564,16 @@ impl<'cx> TyChecker<'cx> {
             )
         );
         let s = self.binder.symbol(id);
-        let Some(decl) = s.opt_decl() else {
+        let Some(&decl) = s.decls.as_ref().and_then(|decls| {
+            decls.iter().find(|&&decl| {
+                self.node_query(decl.module())
+                    .is_block_or_catch_scoped(decl)
+                    || {
+                        let n = self.p.node(decl);
+                        n.is_class_like() || n.is_enum_decl()
+                    }
+            })
+        }) else {
             unreachable!()
         };
 

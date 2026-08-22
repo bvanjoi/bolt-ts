@@ -1385,7 +1385,7 @@ impl<'cx> TyChecker<'cx> {
     ) -> Vec<SymbolID> {
         let left_count = left.get_param_count(self);
         let right_count = right.get_param_count(self);
-        let longest = if left_count > right_count {
+        let longest = if left_count >= right_count {
             left
         } else {
             right
@@ -1516,7 +1516,7 @@ impl<'cx> TyChecker<'cx> {
             None
         };
         let mut flags = left.flags.union(right.flags).intersection(
-            SigFlags::PROPAGATING_FLAGS.union(SigFlags::HAS_REST_PARAMETER.complement()),
+            SigFlags::PROPAGATING_FLAGS.intersection(SigFlags::HAS_REST_PARAMETER.complement()),
         );
         let params = self.combine_union_parameters(left, right, param_mapper);
         if let Some(last_param) = params.last().copied()

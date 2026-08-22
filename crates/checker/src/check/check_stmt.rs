@@ -80,6 +80,18 @@ impl<'cx> TyChecker<'cx> {
             unreachable!()
         };
 
+        if let ast::ExprKind::Ident(n) = node.expr.kind {
+            let symbol = self.resolve_ident::<true, true>(n, SymbolFlags::all());
+            let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+            if symbol != Symbol::ERR
+                && self
+                    .get_symbol_flags::<false>(symbol)
+                    .intersects(SymbolFlags::VALUE)
+            {
+                self.check_expression_cached(node.expr, None);
+            }
+        }
+
         self.check_external_module_exports(container);
     }
 

@@ -1416,7 +1416,7 @@ impl<'cx> TyChecker<'cx> {
         if access_flags.contains(AccessFlags::ALLOWING_MISSING) && object_ty.is_object_literal() {
             return Some(self.undefined_ty);
         }
-        // TODO: js
+        // TODO: is js literal type
 
         if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expression(access_node);
@@ -1449,6 +1449,10 @@ impl<'cx> TyChecker<'cx> {
                 })
             };
             self.push_error(error);
+        }
+
+        if self.is_type_any(index_ty) {
+            return Some(index_ty);
         }
 
         None

@@ -1145,6 +1145,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
             let name = self.parse_ident_or_pat();
             let init = self.parse_init()?;
+            if init.is_some() && dotdotdot.is_some() {
+                let error = errors::ARestElementCannotHaveAnInitializer { span: name.span };
+                self.push_error(Box::new(error));
+            }
             let binding = self.create_array_binding(self.new_span(start), dotdotdot, name, init);
             ast::ArrayBindingElemKind::Binding(binding)
         };
