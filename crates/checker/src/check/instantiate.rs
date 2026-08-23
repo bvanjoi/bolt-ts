@@ -1154,7 +1154,7 @@ impl<'cx> TyChecker<'cx> {
             let new_ret_sig = self.new_sig(new_ret_sig);
             let prev = self.sig_links.insert(new_ret_sig.id, new_links);
             debug_assert!(prev.is_none());
-            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig, sig.mapper);
+            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig);
             let new_instantiated_sig = self.clone_sig(sig);
             self.get_mut_sig_links(new_instantiated_sig.id)
                 .set_resolved_ret_ty(new_ret_ty);
@@ -1486,7 +1486,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         ty_param: &'cx ty::ParamTy<'cx>,
     ) -> Option<&[bolt_ts_ast::NodeID]> {
-        let symbol = self.binder.symbol(ty_param.symbol?);
+        let symbol = self.symbol(ty_param.symbol?);
         symbol.decls.as_ref().map(|decls| decls.as_slice())
     }
 }

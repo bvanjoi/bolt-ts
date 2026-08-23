@@ -1821,7 +1821,7 @@ impl<'cx> TyChecker<'cx> {
                     }
 
                     self.append_inferred_type_parameters(context_inference, unique_type_parameters);
-                    return self.get_or_create_ty_from_sig(instantiated_sig, None);
+                    return self.get_or_create_ty_from_sig(instantiated_sig);
                 }
             }
         }
@@ -1840,7 +1840,7 @@ impl<'cx> TyChecker<'cx> {
         //     })
         //     .flatten()
         //     .collect::<Vec<_>>();
-        self.get_or_create_ty_from_sig(sig, None)
+        self.get_or_create_ty_from_sig(sig)
     }
 
     fn get_unique_type_parameters(
@@ -1938,7 +1938,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let new_type_parameters = self.alloc(new_type_parameters);
             let old_type_parameters = self.alloc(old_type_parameters);
-            let mapper = self.create_ty_mapper(new_type_parameters, old_type_parameters);
+            let mapper = self.create_ty_mapper(old_type_parameters, new_type_parameters);
             for tp in new_type_parameters {
                 debug_assert!(tp.kind.as_param().is_some_and(|p| p.target.is_some()));
                 let prev = self
@@ -1964,19 +1964,16 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn get_or_create_ty_from_sig(
-        &mut self,
-        sig: &'cx ty::Sig<'cx>,
-        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
-        //TODO: cache `isolated_sig_ty`
+    fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_sig_links(sig.id).get_isolated_sig_ty() {
+            return ty;
+        }
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
         let ty = ty::SingleSigTy {
             symbol: sig.node_id.map(|node_id| self.final_res(node_id)),
-            mapper,
         };
         let ty = self.create_single_sig_ty(
             ty,
@@ -1999,6 +1996,7 @@ impl<'cx> TyChecker<'cx> {
         }));
         let prev = self.ty_links.insert(ty.id, links);
         assert!(prev.is_none());
+        self.get_mut_sig_links(sig.id).set_isolated_sig_ty(ty);
         ty
     }
 

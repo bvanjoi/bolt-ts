@@ -789,7 +789,7 @@ impl<'cx> TyChecker<'cx> {
                                 contextual_sig,
                                 Some(ty_param),
                             );
-                            self.get_or_create_ty_from_sig(sig, None)
+                            self.get_or_create_ty_from_sig(sig)
                         } else {
                             instantiated_ty
                         }

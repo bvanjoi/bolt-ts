@@ -11,4 +11,5 @@ links!(
     (this_param, bolt_ts_binder::SymbolID),
     (inner_optional_call_sig, &'cx ty::Sig<'cx>),
     (outer_optional_call_sig, &'cx ty::Sig<'cx>),
+    (isolated_sig_ty, &'cx ty::Ty<'cx>),
 );

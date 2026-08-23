@@ -492,7 +492,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn create_single_sig_ty(
         &mut self,
-        ty: ty::SingleSigTy<'cx>,
+        ty: ty::SingleSigTy,
         object_flags: ObjectFlags,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(object_flags.contains(ObjectFlags::SINGLE_SIGNATURE_TYPE));

@@ -211,6 +211,7 @@ impl SymbolFlags {
     }
 }
 
+// TODO: use `SymbolBuilder` in binder..
 #[derive(Debug)]
 pub struct Symbol {
     pub name: SymbolName,
