@@ -1,0 +1,87 @@
+  × Cannot find name 'Map'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:16:13]
+ 16 │ Map
+    · ───
+    ╰────
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:34:6]
+ 34 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:39:18]
+ 39 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Proxy'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:44:13]
+ 44 │ Proxy
+    · ─────
+    ╰────
+
+  × Cannot find name 'Reflect'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:48:1]
+ 48 │ Reflect
+    · ───────
+    ╰────
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:62:9]
+ 62 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:67:6]
+ 67 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Property 'from' does not exist on type 'ArrayConstructor'.
+   ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:9:18]
+ 9 │ from
+   · ────
+   ╰────
+
+  × Property 'name' does not exist on type '() => void'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:24:5]
+ 24 │ name
+    · ────
+    ╰────
+
+  × Property 'sign' does not exist on type 'Math'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:28:6]
+ 28 │ sign
+    · ────
+    ╰────
+
+  × Property 'flags' does not exist on type 'RegExp'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:53:5]
+ 53 │ flags
+    · ─────
+    ╰────
+
+  × Property 'includes' does not exist on type 'string'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingES6FeaturesWithOnlyES5Lib/index.ts:58:5]
+ 58 │ includes
+    · ────────
+    ╰────

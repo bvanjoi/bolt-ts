@@ -57,6 +57,7 @@ pub fn is_identifier_part<const IS_ES5_TARGET: bool>(ch: u32) -> bool {
 
 pub mod non_ascii_character_code {
     pub const NON_BREAKING_SPACE: u32 = 0x00A0;
+    pub const LINE_BREAK: u32 = 0x0085;
     pub const EN_QUAD: u32 = 0x2000;
     pub const EM_QUAD: u32 = 0x2001;
     pub const EN_SPACE: u32 = 0x2002;

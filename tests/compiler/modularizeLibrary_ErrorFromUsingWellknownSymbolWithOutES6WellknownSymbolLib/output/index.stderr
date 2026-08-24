@@ -1,0 +1,15 @@
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingWellknownSymbolWithOutES6WellknownSymbolLib/index.ts:12:3]
+ 12 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Type 'boolean' is not assignable to type 'string'.
+    ╭─[../../tests/compiler/modularizeLibrary_ErrorFromUsingWellknownSymbolWithOutES6WellknownSymbolLib/index.ts:12:1]
+ 12 │ a[Symbol.isConcatSpreadable]
+    · ────────────────────────────
+    ╰────
