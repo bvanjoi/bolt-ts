@@ -11,6 +11,7 @@ use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
 use super::ast;
+use super::check::CheckMode;
 use super::check_expr::IterationUse;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
@@ -676,8 +677,14 @@ impl<'cx> TyChecker<'cx> {
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
             let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
                 ast::Node::VarDecl(n) => {
-                    // TODO: init_ty
-                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty)).or_else(|| {
+                        let check_mode = if parent.dotdotdot.is_some() {
+                            CheckMode::REST_BINDING_ELEMENT
+                        } else {
+                            CheckMode::empty()
+                        };
+                        Some(self.check_declaration_initializer(n, check_mode, None))
+                    })
                 }
                 _ => {
                     // TODO: other cases
@@ -711,8 +718,14 @@ impl<'cx> TyChecker<'cx> {
             let parent_parent_parent_id = self.parent(parent_parent_id).unwrap();
             let parent_parent_parent_ty = match self.p.node(parent_parent_parent_id) {
                 ast::Node::VarDecl(n) => {
-                    // TODO: init_ty
-                    n.ty.map(|ty| self.get_ty_from_type_node(ty))
+                    n.ty.map(|ty| self.get_ty_from_type_node(ty)).or_else(|| {
+                        let check_mode = if parent.dotdotdot.is_some() {
+                            CheckMode::REST_BINDING_ELEMENT
+                        } else {
+                            CheckMode::empty()
+                        };
+                        Some(self.check_declaration_initializer(n, check_mode, None))
+                    })
                 }
                 _ => {
                     // TODO: other cases

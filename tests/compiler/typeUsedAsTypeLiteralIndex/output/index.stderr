@@ -1,0 +1,67 @@
+  × Cannot find name 'K'.
+   ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:7:6]
+ 7 │ K
+   · ─
+   ╰────
+
+Advice: 
+  ☞ 'K' only refers to a type, but is being used as a value here.
+   ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:7:6]
+ 5 │ K = number | string;
+   · ┬
+   · ╰── 'K' is defined here.
+ 6 │ type T = {
+ 7 │     [K
+   ·      ─
+   ╰────
+
+  × Cannot find name 'K2'.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:18:6]
+ 18 │ K2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ 'K2' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:18:6]
+ 16 │ K2 = "x" | "y";
+    · ─┬
+    ·  ╰── 'K2' is defined here.
+ 17 │ type T2 = {
+ 18 │     [K2
+    ·      ──
+    ╰────
+
+  × Cannot find name 'K3'.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:24:6]
+ 24 │ K3
+    · ──
+    ╰────
+
+Advice: 
+  ☞ 'K3' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:24:6]
+ 22 │ K3 = number | string;
+    · ─┬
+    ·  ╰── 'K3' is defined here.
+ 23 │ type T3 = {
+ 24 │     [K3
+    ·      ──
+    ╰────
+
+  × Cannot find name 'K4'.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:30:6]
+ 30 │ K4
+    · ──
+    ╰────
+
+Advice: 
+  ☞ 'K4' only refers to a type, but is being used as a value here.
+    ╭─[../../tests/compiler/typeUsedAsTypeLiteralIndex/index.ts:30:6]
+ 28 │ K4 = number | string;
+    · ─┬
+    ·  ╰── 'K4' is defined here.
+ 29 │ type T4 = {
+ 30 │     [K4
+    ·      ──
+    ╰────

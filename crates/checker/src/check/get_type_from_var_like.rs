@@ -626,7 +626,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(if let Some(decl_ty) = decl.decl_ty() {
                 let decl_ty = self.get_ty_from_type_node(decl_ty);
                 if self.is_type_any(decl_ty) || decl_ty == self.unknown_ty {
-                    self.unknown_ty
+                    decl_ty
                 } else {
                     self.error_ty
                 }

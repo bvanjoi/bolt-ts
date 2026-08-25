@@ -223,10 +223,8 @@ impl<'cx> TyChecker<'cx> {
                 self.check_object_prop_assignment(n, None)
             }
             // TODO: jsx
-        } else if node.is_object_shorthand_member() {
-            todo!()
         } else if let Some(n) = node.as_object_method_member() {
-            if let Some(ty) = node.ty_anno() {
+            if let Some(ty) = n.ty {
                 self.get_ty_from_type_node(ty)
             } else {
                 self.check_object_method_member(n, CheckMode::empty())
