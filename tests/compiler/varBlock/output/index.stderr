@@ -1,0 +1,121 @@
+  × A parameter property is only allowed in a constructor implementation.
+    ╭─[../../tests/compiler/varBlock/index.ts:17:22]
+ 17 │ public
+    · ──────
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:13:18]
+ 13 │ 10
+    · ──
+    ╰────
+
+  × A parameter initializer is only allowed in a function or constructor
+  │ implementation.
+    ╭─[../../tests/compiler/varBlock/index.ts:17:22]
+ 17 │ public c = 10
+    · ─────────────
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:23:17]
+ 23 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:30:18]
+ 30 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:32:22]
+ 32 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:36:21]
+ 36 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:38:26]
+ 38 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:38:35]
+ 38 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:41:29]
+ 41 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:43:35]
+ 43 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:43:45]
+ 43 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:49:13]
+ 49 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:51:18]
+ 51 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:51:26]
+ 51 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:54:21]
+ 54 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:56:27]
+ 56 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:56:37]
+ 56 │ 10
+    · ──
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:62:17]
+ 62 │ 10
+    · ──
+    ╰────
+
+  × Subsequent variable declarations must have the same type. Variable 'c'
+  │ must be of type 'any', but here has type 'number'.
+    ╭─[../../tests/compiler/varBlock/index.ts:62:13]
+ 62 │ c
+    · ─
+    ╰────

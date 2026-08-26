@@ -662,7 +662,20 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 {
                     return Some(n.id);
                 }
-                // TODO: for_in and for_of
+                ForInStmt(n) => {
+                    return if let ast::ForInitKind::Expr(expr) = n.init {
+                        (expr.id() == id).then_some(n.id)
+                    } else {
+                        None
+                    };
+                }
+                ForOfStmt(n) => {
+                    return if let ast::ForInitKind::Expr(expr) = n.init {
+                        (expr.id() == id).then_some(n.id)
+                    } else {
+                        None
+                    };
+                }
                 ParenExpr(_) | ArrayLit(_) | NonNullExpr(_) => id = p,
                 SpreadAssignment(_) => {
                     id = self.parent(p).unwrap();

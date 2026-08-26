@@ -1432,7 +1432,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
+    pub(super) fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
         if self.is_narrowable_reference(n) {
             self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), n.id()));
         } else {

@@ -2585,6 +2585,7 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty,
             ShrEq => self.undefined_ty,
             UShrEq => self.undefined_ty,
+            AsteriskAsteriskEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,

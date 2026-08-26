@@ -7,11 +7,11 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::SymbolName;
 use bolt_ts_ty::CheckFlags;
 
+use super::CheckMode;
 use super::IterationTypeKind;
 use super::Ternary;
 use super::TyChecker;
 use super::ast;
-use super::check::CheckMode;
 use super::check_expr::IterationUse;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;

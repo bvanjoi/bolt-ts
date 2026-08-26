@@ -786,6 +786,7 @@ pub enum AssignOp {
     LogicalAndEq,
     LogicalOrEq,
     NullishEq,
+    AsteriskAsteriskEq,
 }
 
 impl From<AssignOp> for TokenKind {
@@ -807,6 +808,7 @@ impl From<AssignOp> for TokenKind {
             LogicalAndEq => todo!(),
             LogicalOrEq => todo!(),
             NullishEq => TokenKind::QuestionQuestionEq,
+            AsteriskAsteriskEq => TokenKind::AsteriskAsteriskEq,
         }
     }
 }
@@ -830,6 +832,7 @@ impl AssignOp {
             LogicalAndEq => "&&=",
             LogicalOrEq => "||=",
             NullishEq => "??=",
+            AsteriskAsteriskEq => "**=",
         }
     }
 
