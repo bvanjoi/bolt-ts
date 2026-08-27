@@ -3095,14 +3095,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 this.c.is_generic_ty(ty)
             };
         for i in 0..param_count {
-            let source_ty;
-            let target_ty;
-            if i == rest_index {
-                source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
-                target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+            let (source_ty, target_ty) = if i == rest_index {
+                let source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
+                let target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+                (source_ty, target_ty)
             } else {
-                source_ty = self.c.try_get_ty_at_pos(source, i);
-                target_ty = self.c.try_get_ty_at_pos(target, i);
+                let source_ty = self.c.try_get_ty_at_pos(source, i);
+                let target_ty = self.c.try_get_ty_at_pos(target, i);
+                (source_ty, target_ty)
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty

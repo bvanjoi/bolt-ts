@@ -458,11 +458,6 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_semi();
     }
 
-    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
-        self.emit_type_parameters(node.ty_params);
-        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node)
-    }
-
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
         self.emitter.print().p("constructor");
         self.emitter.print().p_l_paren();
@@ -644,6 +639,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_ty(&mut self, node: &'cx ast::FnTy<'cx>) -> Self::Result {
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
             node.params,

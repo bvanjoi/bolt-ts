@@ -1,0 +1,11 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/customEventDetail/index.ts:8:1]
+ 8 │ x
+   · ─
+   ╰────
+
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/customEventDetail/index.ts:10:9]
+ 10 │ x
+    · ─
+    ╰────
