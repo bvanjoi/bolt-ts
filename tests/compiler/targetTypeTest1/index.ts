@@ -3,6 +3,14 @@
 //@compiler-options: target=es2015
 //@compiler-options: strict=false
 
+declare class A 
+{
+      static origin: A;
+}
+
+function A() {}
+A.origin = new A;
+
 declare class Point
 {
       constructor(x: number, y: number);

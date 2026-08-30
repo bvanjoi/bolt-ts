@@ -54,7 +54,7 @@ fn eval_in_test<'cx>(
 fn run_test_with(
     dir: &std::path::Path,
     file_name: &str,
-    option: serde_json::Map<String, serde_json::Value>,
+    options: serde_json::Map<String, serde_json::Value>,
     output: String,
     try_run_node: bool,
 ) -> Result<(), Vec<compile_test::errors::Error>> {
@@ -71,7 +71,7 @@ fn run_test_with(
     } else {
         unreachable!()
     };
-    let compiler_options: RawCompilerOptions = serde_json::from_value(option.into()).unwrap();
+    let compiler_options: RawCompilerOptions = serde_json::from_value(options.into()).unwrap();
     let tsconfig = RawTsConfig::default()
         .with_compiler_options(compiler_options)
         .with_include_if_none(default_include)
@@ -175,29 +175,12 @@ fn run_test(entry: &std::path::Path, try_run_node: bool) {
     run(entry, |test_ctx| {
         let file_name = test_ctx.test_file().file_name().unwrap().to_str().unwrap();
         let dir = test_ctx.test_file().parent().unwrap();
-        let mut options = test_ctx.compiler_options().to_serde_json();
-        if options.len() == 1 {
-            run_test_with(
-                dir,
-                file_name,
-                options.pop().unwrap().0,
-                "output".to_string(),
-                try_run_node,
-            )
-        } else {
-            let mut errors = vec![];
-            for (option, output) in options {
-                let output = format!("output{}", output.unwrap());
-                if let Err(err) = run_test_with(dir, file_name, option, output, try_run_node) {
-                    errors.extend(err);
-                }
-            }
-            if errors.is_empty() {
-                Ok(())
-            } else {
-                Err(errors)
-            }
-        }
+        let options = test_ctx.compiler_options().as_serde_json();
+        let output = match test_ctx.revision() {
+            compile_test::TestPropsKey::Base => "output".to_string(),
+            compile_test::TestPropsKey::Custom(revision) => format!("output({revision})",),
+        };
+        run_test_with(dir, file_name, options.clone(), output, try_run_node)
     });
 }
 

@@ -54,7 +54,6 @@ rustc-hash = "2.1.1"
 nohash-hasher = "0.2.0"
 miette = { version = "7.6.0", features = ["fancy"] }
 thin-vec = "0.2.14"
-regex = { version = "1.11.1" }
 serde = { version = "1.0.226", features = ["derive"] }
 serde_json = "1.0.145"
 bitflags = "2.9.4"

@@ -1674,4 +1674,28 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
             }
         }
     }
+
+    pub fn get_assigned_expando_initializer(
+        &self,
+        node: ast::NodeID,
+        parent: Option<ast::NodeID>,
+    ) -> Option<&'cx ast::ExprKind<'cx>> {
+        if let Some(parent) = parent
+            && let ast::Node::AssignExpr(assign) = self.node(parent)
+            && assign.op == ast::AssignOp::Eq
+        {
+            let is_prototype_assignment = assign.left.is_prototype_access();
+            // TODO: get_defaulted_expando_initializer
+            return assign.right.kind.get_expando_init(is_prototype_assignment);
+        }
+
+        if let Some(n) = self.node(node).as_call_expr()
+            && n.is_bindable_object_define_property_call_expr()
+        {
+            // TODO: hasExpandoValueProperty
+            return None;
+        }
+
+        None
+    }
 }

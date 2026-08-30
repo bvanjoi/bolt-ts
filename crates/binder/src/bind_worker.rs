@@ -709,19 +709,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
 
     fn bind_special_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
         if node.left.is_bindable_static_name_expr::<false>() {
-            self.bind_static_prop_assignment(node.left);
+            self.bind_static_prop_assignment(node.left, node.id);
         }
     }
 
-    fn bind_static_prop_assignment(&mut self, node: &'cx ast::Expr<'cx>) {
+    fn bind_static_prop_assignment(&mut self, node: &'cx ast::Expr<'cx>, parent: ast::NodeID) {
         match node.kind {
             ast::ExprKind::EleAccess(n) => {
-                let node_id = node.id();
-                // self.parent_map.insert(n.expr.id(), node_id);
                 let Some(key_name) = argument_name_from_element_access_node(n) else {
                     return;
                 };
-                self.bind_prop_assignment::<false, false>(n.expr, key_name, node_id);
+                self.bind_prop_assignment::<false, false>(n.expr, key_name, n.id, parent);
+            }
+            ast::ExprKind::PropAccess(n) => {
+                let key_name = SymbolName::Atom(n.name.name);
+                self.bind_prop_assignment::<false, false>(n.expr, key_name, n.id, parent);
             }
             ast::ExprKind::Ident(_) => unreachable!(),
             _ => {}
@@ -733,6 +735,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         prop_name: &'cx ast::Expr<'cx>,
         key_name: SymbolName,
         prop_access: ast::NodeID,
+        prop_access_parent: ast::NodeID,
     ) -> Option<SymbolID> {
         let namespace_symbol = self.lookup_symbol_for_prop_access(
             prop_name.id(),
@@ -741,6 +744,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         );
         self.bind_potentially_new_expando_member_to_namespace::<IS_PROTOTYPE_PROPERTY>(
             prop_access,
+            prop_access_parent,
             namespace_symbol,
             key_name,
         )
@@ -798,6 +802,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_potentially_new_expando_member_to_namespace<const IS_PROTOTYPE_PROPERTY: bool>(
         &mut self,
         decl: ast::NodeID,
+        decl_parent: ast::NodeID,
         namespace_symbol: Option<SymbolID>,
         key_name: SymbolName,
     ) -> Option<SymbolID> {
@@ -812,8 +817,18 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             SymbolTableLocation::symbol_exports(namespace_symbol)
         };
 
-        let includes = SymbolFlags::METHOD;
-        let excludes = SymbolFlags::METHOD_EXCLUDES;
+        let mut includes = SymbolFlags::empty();
+        let mut excludes = SymbolFlags::empty();
+
+        // TODO
+        if self
+            .node_query()
+            .get_assigned_expando_initializer(decl, Some(decl_parent))
+            .is_some_and(|init| init.is_fn_like_declaration())
+        {
+            includes = SymbolFlags::METHOD;
+            excludes = SymbolFlags::METHOD_EXCLUDES;
+        }
 
         Some(self.declare_symbol(
             Some(key_name),
@@ -821,7 +836,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             Some(namespace_symbol),
             decl,
             includes | SymbolFlags::ASSIGNMENT,
-            excludes & !SymbolFlags::ASSIGNMENT,
+            excludes & SymbolFlags::ASSIGNMENT.complement(),
             DeclareSymbolProperty::empty(),
         ))
     }

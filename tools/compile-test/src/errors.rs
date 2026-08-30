@@ -5,9 +5,8 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::str::FromStr;
 
-use regex::Regex;
-
 use self::WhichLine::*;
+use super::parse_error_directive::parse_error_directive;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ErrorKind {
@@ -109,27 +108,12 @@ fn parse_expected(
     line: &str,
     test_revision: Option<&str>,
 ) -> Option<(WhichLine, Error)> {
-    // Matches comments like:
-    //     //~
-    //     //~|
-    //     //~^
-    //     //~^^^^^
-    //     //[rev1]~
-    //     //[rev1,rev2]~^^
-    static RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"//(?:\[(?P<revs>[\w,]+)])?~(?P<adjust>\||\^*)").unwrap()
-    });
+    let directive = parse_error_directive(line)?;
 
-    let captures = RE.captures(line)?;
-
-    match (test_revision, captures.name("revs")) {
+    match (test_revision, directive.revisions().as_ref()) {
         // Only error messages that contain our revision between the square brackets apply to us.
         (Some(test_revision), Some(revision_filters)) => {
-            if !revision_filters
-                .as_str()
-                .split(',')
-                .any(|r| r == test_revision)
-            {
+            if revision_filters.iter().all(|r| r != test_revision) {
                 return None;
             }
         }
@@ -140,14 +124,10 @@ fn parse_expected(
         (Some(_), None) | (None, None) => {}
     }
 
-    let (follow, adjusts) = match &captures["adjust"] {
-        "|" => (true, 0),
-        circumflexes => (false, circumflexes.len()),
-    };
+    let follow = directive.follow();
+    let adjusts = directive.adjusts() as usize;
 
-    // Get the part of the comment after the sigil (e.g. `~^^` or ~|).
-    let whole_match = captures.get(0).unwrap();
-    let (_, mut msg) = line.split_at(whole_match.end());
+    let (_, mut msg) = line.split_at(directive.end());
 
     let first_word = msg
         .split_whitespace()

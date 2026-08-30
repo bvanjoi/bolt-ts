@@ -686,7 +686,6 @@ dependencies = [
 name = "bootstrap"
 version = "0.1.0"
 dependencies = [
- "regex",
  "serde_json",
 ]
 
@@ -854,7 +853,6 @@ name = "compile-test"
 version = "0.1.0"
 dependencies = [
  "rand",
- "regex",
  "serde_json",
  "symlink",
 ]

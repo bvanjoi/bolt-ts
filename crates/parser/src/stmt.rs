@@ -766,19 +766,33 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
-        if let Some(mods) = modifiers
-            && mods.flags.contains(ast::ModifierFlags::AMBIENT)
-        {
-            let m = mods
-                .list
-                .iter()
-                .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                .unwrap();
-            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                span: m.span(),
-                modifier: m.kind(),
-            };
-            self.push_error(Box::new(error));
+        if let Some(mods) = modifiers {
+            if mods.flags.contains(ast::ModifierFlags::AMBIENT) {
+                let m = mods
+                    .list
+                    .iter()
+                    .find(|m| m.kind() == ast::ModifierKind::Ambient)
+                    .unwrap();
+                let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                    span: m.span(),
+                    modifier: m.kind(),
+                };
+                self.push_error(Box::new(error));
+            }
+            if mods.flags.intersects(ast::ModifierFlags::ACCESSIBILITY) {
+                for m in mods.list {
+                    if m.kind() == ast::ModifierKind::Private
+                        || m.kind() == ast::ModifierKind::Protected
+                        || m.kind() == ast::ModifierKind::Public
+                    {
+                        let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
+                            modifier: m.kind().to_string(),
+                            span: m.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
         }
         self.check_module_element_context(|this| {
             let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {

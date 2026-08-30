@@ -946,3 +946,11 @@ pub struct ARestElementCannotHaveAnInitializer {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{modifier}' modifier cannot appear on a module or namespace element.")]
+pub struct ModifierCannotAppearOnAModuleOrNamespaceElement {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: String,
+}

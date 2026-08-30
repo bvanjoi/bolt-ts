@@ -538,6 +538,10 @@ impl<'cx> ExprKind<'cx> {
             _ => false,
         }
     }
+
+    pub fn is_fn_like_declaration(&self) -> bool {
+        matches!(self, ExprKind::Fn(_) | ExprKind::ArrowFn(_))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1167,6 +1171,31 @@ impl<'cx> CallExpr<'cx> {
             } else {
                 true
             }
+        } else {
+            false
+        }
+    }
+
+    pub fn is_bindable_object_define_property_call_expr(&self) -> bool {
+        if self.args.len() != 3 {
+            return false;
+        }
+        let ExprKind::PropAccess(expr) = &self.expr.kind else {
+            return false;
+        };
+        if let ExprKind::Ident(i) = &expr.expr.kind
+            && i.name == keyword::IDENT_OBJECT_CLASS
+            && expr.name.name == keyword::IDENT_DEFINE_PROPERTY
+            && self
+                .args
+                .get(1)
+                .is_some_and(|arg| arg.is_string_or_number_lit_like())
+            && self
+                .args
+                .get(0)
+                .is_some_and(|arg| arg.is_bindable_static_name_expr::<true>())
+        {
+            true
         } else {
             false
         }

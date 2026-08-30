@@ -443,7 +443,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
-        let ty = if self.config.compiler_options().strict_null_checks()
+        let mut prop_ty = if self.config.compiler_options().strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
@@ -454,11 +454,16 @@ impl<'cx> TyChecker<'cx> {
             prop_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            // TODO: error report
-            return self.error_ty;
+            let error = errors::TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+                span: self.p.node(self.current_node.unwrap()).span(),
+                property: self.symbol(symbol).name.to_string(&self.atoms),
+                ty: self.print_ty(ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+            prop_ty = self.error_ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
-        ty
+        self.get_mut_symbol_links(symbol).set_ty(prop_ty);
+        prop_ty
     }
 
     fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {

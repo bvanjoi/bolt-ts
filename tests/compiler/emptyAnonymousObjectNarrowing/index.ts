@@ -1,7 +1,9 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/emptyAnonymousObjectNarrowing.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
-//@compiler-options: strictNullChecks=true, false
+//@[strictNullChecks=true]  compiler-options: strictNullChecks=true
+//@[strictNullChecks=false] compiler-options: strictNullChecks=false
+//@run-fail
 
 declare let nonNull: {};
 if (nonNull === "foo") {

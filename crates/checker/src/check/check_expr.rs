@@ -1682,6 +1682,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 this.check_expression::<false>(loc, None)
             };
+
             if ty.flags.contains(TypeFlags::ENUM_LITERAL)
                 && let ast::ExprKind::PropAccess(access) = loc.kind
                 && let s = this.final_res(access.expr.id())
@@ -1700,6 +1701,14 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(Box::new(error));
                 return;
             }
+            if !this.has_type_facts(ty, TypeFacts::TRUTHY) {
+                return;
+            }
+
+            match loc.kind {
+                ast::ExprKind::PropAccess(n) if n.expr.kind.is_type_assertion() => return,
+                _ => (),
+            };
 
             let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
             let is_promise = this.get_awaited_ty_of_promise(ty).is_some();

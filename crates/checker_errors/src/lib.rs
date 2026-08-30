@@ -2156,3 +2156,12 @@ pub struct ThisCannotBeReferencedInCurrentLocation {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type of property '{property}' circularly references itself in mapped type '{ty}'.")]
+pub struct TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+    pub ty: String,
+}
