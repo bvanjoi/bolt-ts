@@ -617,16 +617,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 node.members,
                 |this, elem| {
-                    use ast::ObjectTyMemberKind::*;
-                    match elem.kind {
-                        IndexSig(_n) => todo!(),
-                        Prop(n) => this.visit_prop_signature(n),
-                        Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => this.visit_call_sig_decl(n),
-                        CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
-                    }
+                    bolt_ts_ast_visitor::visit_object_ty_member(this, elem);
                 },
                 |this, _| {
                     this.emitter.print().p_newline();

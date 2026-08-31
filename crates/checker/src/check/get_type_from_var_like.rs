@@ -29,10 +29,10 @@ impl<'cx> TyChecker<'cx> {
             self.undefined_ty
         };
         if ty == missing_or_undefined
-            || ty
-                .kind
-                .as_union()
-                .is_some_and(|u| u.tys[0] == missing_or_undefined)
+            || ty.kind.as_union().is_some_and(|u| {
+                debug_assert!(u.tys.iter().is_sorted_by_key(|t| t.id.as_u32()));
+                u.tys[0] == missing_or_undefined
+            })
         {
             ty
         } else {

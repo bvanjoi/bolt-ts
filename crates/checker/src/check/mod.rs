@@ -2435,6 +2435,7 @@ impl<'cx> TyChecker<'cx> {
                 index_info.val_ty
             }
         };
+
         self.get_flow_type_of_access_expression(node, prop, prop_ty, Some(right.id), check_mode)
     }
 

@@ -8,8 +8,18 @@ use bolt_ts_binder::{SymbolFlags, SymbolID};
 
 impl<'cx> TyChecker<'cx> {
     pub(super) fn get_write_type_of_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
+        if let check_flags = self.get_check_flags(symbol)
+            && check_flags.contains(CheckFlags::SYNTHETIC_PROPERTY)
+        {
+            return if check_flags.contains(CheckFlags::DEFERRED_TYPE) {
+                todo!()
+            } else {
+                let links = self.get_transient_symbol_links(symbol);
+                links.get_write_ty().or(links.get_ty()).unwrap()
+            };
+        }
+
         let flags = self.symbol(symbol).flags;
-        // TODO: synthetic property
         if flags.contains(SymbolFlags::PROPERTY) {
             let ty = self.get_type_of_symbol(symbol);
             self.remove_missing_ty(ty, flags.contains(SymbolFlags::OPTIONAL))

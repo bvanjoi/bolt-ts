@@ -373,7 +373,7 @@ pub fn visit_interface_decl<'cx, V: Visitor<'cx>>(
     visit_object_ty_members(v, n.members)
 }
 
-fn visit_object_ty_member<'cx, V: Visitor<'cx>>(
+pub fn visit_object_ty_member<'cx, V: Visitor<'cx>>(
     v: &mut V,
     member: &'cx ast::ObjectTyMember<'cx>,
 ) -> V::Result {

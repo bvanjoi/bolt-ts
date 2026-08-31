@@ -1,0 +1,5 @@
+  × Variable 'x' is used before being assigned.
+   ╭─[../../tests/compiler/reverseInferenceInContextualInstantiation/index.ts:7:1]
+ 7 │ x
+   · ─
+   ╰────
