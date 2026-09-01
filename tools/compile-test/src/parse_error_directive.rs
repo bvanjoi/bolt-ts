@@ -134,9 +134,9 @@ impl ErrorDirectiveParser<'_> {
             }
             Some(Token::Circumflexes(count)) => {
                 self.follow = Some(false);
-                self.adjusts = Some(count as u8);
+                self.adjusts = Some(count);
             }
-            None => return,
+            None => (),
             _ => unreachable!(),
         }
     }
@@ -179,7 +179,7 @@ fn test_parse_error_directive_0() {
     let line = "//~ ERROR: abc";
     let directive = parse_error_directive(line).unwrap();
     assert_eq!(directive.revisions, None);
-    assert_eq!(directive.follow, false);
+    assert!(!directive.follow);
     assert_eq!(directive.adjusts, 0);
     assert_eq!(directive.end, 4);
 }
@@ -189,7 +189,7 @@ fn test_parse_error_directive_1() {
     let line = "//~| ERROR: abc";
     let directive = parse_error_directive(line).unwrap();
     assert_eq!(directive.revisions, None);
-    assert_eq!(directive.follow, true);
+    assert!(directive.follow);
     assert_eq!(directive.adjusts, 0);
     assert_eq!(directive.end, 4);
 }
@@ -199,7 +199,7 @@ fn test_parse_error_directive_2() {
     let line = "//~^ ERROR: abc";
     let directive = parse_error_directive(line).unwrap();
     assert_eq!(directive.revisions, None);
-    assert_eq!(directive.follow, false);
+    assert!(!directive.follow);
     assert_eq!(directive.adjusts, 1);
     assert_eq!(directive.end, 4);
 }
@@ -209,7 +209,7 @@ fn test_parse_error_directive_3() {
     let line = "//~^^ ERROR: abc";
     let directive = parse_error_directive(line).unwrap();
     assert_eq!(directive.revisions, None);
-    assert_eq!(directive.follow, false);
+    assert!(!directive.follow);
     assert_eq!(directive.adjusts, 2);
     assert_eq!(directive.end, 5);
 }
@@ -219,7 +219,7 @@ fn test_parse_error_directive_4() {
     let line = "abcdefg //~ ERROR: abc";
     let directive = parse_error_directive(line).unwrap();
     assert_eq!(directive.revisions, None);
-    assert_eq!(directive.follow, false);
+    assert!(!directive.follow);
     assert_eq!(directive.adjusts, 0);
     assert_eq!(directive.end, 12);
 }
@@ -232,7 +232,7 @@ fn test_parse_error_directive_with_revision_0() {
         directive.revisions,
         Some(vec!["a".to_string(), "b".to_string(), "c".to_string()])
     );
-    assert_eq!(directive.follow, false);
+    assert!(!directive.follow);
     assert_eq!(directive.adjusts, 2);
     assert_eq!(directive.end, 12);
 }

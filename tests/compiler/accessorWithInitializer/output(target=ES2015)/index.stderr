@@ -1,0 +1,11 @@
+  × A 'set' accessor parameter cannot have an initializer.
+   ╭─[../../tests/compiler/accessorWithInitializer/index.ts:8:15]
+ 8 │ 0
+   · ─
+   ╰────
+
+  × A 'set' accessor parameter cannot have an initializer.
+    ╭─[../../tests/compiler/accessorWithInitializer/index.ts:10:23]
+ 10 │ 0
+    · ─
+    ╰────

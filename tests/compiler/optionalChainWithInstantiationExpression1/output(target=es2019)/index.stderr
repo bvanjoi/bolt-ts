@@ -1,0 +1,11 @@
+  × An instantiation expression cannot be followed by a property access.
+    ╭─[../../tests/compiler/optionalChainWithInstantiationExpression1/index.ts:17:1]
+ 17 │ a?.b<c>
+    · ───────
+    ╰────
+
+  × An instantiation expression cannot be followed by a property access.
+    ╭─[../../tests/compiler/optionalChainWithInstantiationExpression1/index.ts:21:1]
+ 21 │ a?.['b']<c>
+    · ───────────
+    ╰────

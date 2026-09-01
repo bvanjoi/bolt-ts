@@ -1,6 +1,0 @@
-  × Type '{ }' is missing the following properties from type
-  │ 'TemplateStringsArray': raw, length, and 19 more.
-   ╭─[../../tests/compiler/templateStringsArrayTypeNotDefinedES5Mode/index.ts:9:3]
- 9 │ {}
-   · ──
-   ╰────

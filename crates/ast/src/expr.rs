@@ -1192,7 +1192,7 @@ impl<'cx> CallExpr<'cx> {
                 .is_some_and(|arg| arg.is_string_or_number_lit_like())
             && self
                 .args
-                .get(0)
+                .first()
                 .is_some_and(|arg| arg.is_bindable_static_name_expr::<true>())
         {
             true

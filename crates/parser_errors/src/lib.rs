@@ -954,3 +954,10 @@ pub struct ModifierCannotAppearOnAModuleOrNamespaceElement {
     pub span: Span,
     pub modifier: String,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An instantiation expression cannot be followed by a property access.")]
+pub struct AnInstantiationExpressionCannotBeFollowedByAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+}

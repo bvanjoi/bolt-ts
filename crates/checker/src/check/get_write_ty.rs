@@ -1,6 +1,5 @@
 use super::ResolutionKey;
 use super::TyChecker;
-
 use super::ty;
 use super::ty::CheckFlags;
 

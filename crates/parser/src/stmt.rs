@@ -630,6 +630,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 self.next_token(); // consume `export`
                 match self.token.kind {
                     Default => {
+                        debug_assert!(self.token.kind == TokenKind::Default);
                         self.check_export_default_error(self.token.span);
                         self.next_token(); // consume `default`
                         ast::StmtKind::ExportAssign(
@@ -637,6 +638,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         )
                     }
                     Eq => {
+                        debug_assert!(self.token.kind == TokenKind::Eq);
                         self.check_export_assignment_error(self.token.span);
                         self.next_token(); // consume `eq`
                         ast::StmtKind::ExportAssign(

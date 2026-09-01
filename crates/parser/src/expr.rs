@@ -1276,6 +1276,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
+
+        if let ast::ExprKind::ExprWithTyArgs(n) = expr.kind
+            && n.ty_args.is_some_and(|ty_args| !ty_args.list.is_empty())
+        {
+            let error =
+                errors::AnInstantiationExpressionCannotBeFollowedByAPropertyAccess { span: n.span };
+            self.push_error(Box::new(error));
+        }
+
         if is_optional_chain {
             self.create_property_access_chain(span, expr, question_dot, name)
         } else {

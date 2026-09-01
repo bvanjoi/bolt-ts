@@ -985,6 +985,9 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             }
             ObjectShorthandMember(n) => {
                 self.bind(n.name.id);
+                if let Some(init) = n.object_assignment_initializer {
+                    self.bind(init.id());
+                }
             }
             ObjectPropAssignment(n) => {
                 self.in_assignment_pattern = save_in_assignment_pattern;

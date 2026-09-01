@@ -106,9 +106,7 @@ fn build_test_props(s: &str) -> TestProps {
                                        ..
                                    }| {
         match header_revision {
-            Some(_) => {
-                return;
-            }
+            Some(_) => {}
             None => {
                 base_attr.update(directive);
             }

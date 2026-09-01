@@ -70,7 +70,7 @@ enum WhichLine {
 ///          //~| ERROR message two for that same line.
 ///
 /// If revision is not None, then we look
-/// for `//[X]~` instead, where `X` is the current revision.
+/// for `//~[X]` instead, where `X` is the current revision.
 pub fn load_errors(testfile: &Path, revision: Option<&str>) -> Vec<Error> {
     let rdr = BufReader::new(File::open(testfile).unwrap());
 
@@ -118,7 +118,7 @@ fn parse_expected(
             }
         }
 
-        (None, Some(_)) => panic!("Only tests with revisions should use `//[X]~`"),
+        (None, Some(_)) => panic!("Only tests with revisions should use `//~[X]`"),
 
         // If an error has no list of revisions, it applies to all revisions.
         (Some(_), None) | (None, None) => {}

@@ -138,3 +138,13 @@ pub struct ExportDeclarationsAreNotPermittedInANamespace {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Export assignment cannot be used when targeting ECMAScript modules. Consider using 'export default' or another module format instead."
+)]
+pub struct ExportAssignmentCannotBeUsedWhenTargetingEcmascriptModulesConsiderUsingExportDefaultOrAnotherModuleFormatInstead
+{
+    #[label(primary)]
+    pub span: Span,
+}

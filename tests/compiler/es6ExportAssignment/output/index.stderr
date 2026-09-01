@@ -1,0 +1,6 @@
+  × Export assignment cannot be used when targeting ECMAScript modules.
+  │ Consider using 'export default' or another module format instead.
+   ╭─[../../tests/compiler/es6ExportAssignment/index.ts:6:1]
+ 6 │ export = a;
+   · ───────────
+   ╰────

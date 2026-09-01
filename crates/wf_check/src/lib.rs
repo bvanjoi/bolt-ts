@@ -311,6 +311,24 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         // TODO:
         true
     }
+
+    fn check_export_assignment(&mut self, node: &'cx ast::ExportAssign<'cx>) {
+        if node.is_export_equals {
+            let m = *self.compiler_options.module();
+            if m != bolt_ts_config::Module::Preserve
+                && m >= bolt_ts_config::Module::ES2015
+                && let flags = self.node_query().node_flags(node.id)
+                && let in_ambient = flags.contains(ast::NodeFlags::AMBIENT)
+                // TODO: implied_node_format_of_root
+                && !in_ambient
+            {
+                let error = errors::ExportAssignmentCannotBeUsedWhenTargetingEcmascriptModulesConsiderUsingExportDefaultOrAnotherModuleFormatInstead {
+                    span: node.span,
+                };
+                self.push_error(Box::new(error));
+            }
+        }
+    }
 }
 
 impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
@@ -485,5 +503,9 @@ impl<'cx, 'a> bolt_ts_ast_visitor::Visitor<'cx> for CheckState<'cx, 'a> {
     fn visit_export_decl(&mut self, node: &'cx ast::ExportDecl<'cx>) -> Self::Result {
         self.check_external_export_declaration(node);
         bolt_ts_ast_visitor::visit_export_decl(self, node);
+    }
+    fn visit_export_assign(&mut self, node: &'cx bolt_ts_ast::ExportAssign<'cx>) -> Self::Result {
+        self.check_export_assignment(node);
+        bolt_ts_ast_visitor::visit_export_assign(self, node)
     }
 }

@@ -1,0 +1,38 @@
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:19:12]
+ 19 │ this
+    · ────
+    ╰────
+
+  × The containing arrow function captures the global value of 'this'.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:24:38]
+ 24 │ this
+    · ────
+    ╰────
+
+  × The containing arrow function captures the global value of 'this'.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:24:38]
+ 24 │ this
+    · ────
+    ╰────
+
+  × The containing arrow function captures the global value of 'this'.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:27:22]
+ 27 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:30:36]
+ 30 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/noImplicitThisFunctions/index.ts:32:50]
+ 32 │ this
+    · ────
+    ╰────

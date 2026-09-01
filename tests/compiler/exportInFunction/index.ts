@@ -5,4 +5,5 @@
 function f() {
     export = 0;
     //~^ ERROR: An export assignment must be at the top level of a file or module declaration.
+    //~| ERROR: Export assignment cannot be used when targeting ECMAScript modules. Consider using 'export default' or another module format instead.
 //~ERROR: '}' expected.
