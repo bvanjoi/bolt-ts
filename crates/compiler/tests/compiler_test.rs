@@ -34,7 +34,7 @@ fn eval_in_test<'cx>(
     // ==== fs init ====
     let fs = LocalFS::new(&mut atoms);
     let exe_dir = bolt_ts_compiler::current_exe_dir();
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();

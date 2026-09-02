@@ -120,7 +120,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 } else {
                     // parse default clause
                     let start = this.token.start();
-                    if this.expect(TokenKind::Default) {
+                    if this.token.kind == TokenKind::Default {
                         if seen_default_clause {
                             let error =
                                 errors::ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
@@ -130,6 +130,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         } else {
                             seen_default_clause = true;
                         }
+                        debug_assert!(this.token.kind == TokenKind::Default);
+                        this.next_token(); // consume `default`
+                    } else {
+                        let error = Box::new(errors::ExpectX {
+                            span: this.token.span,
+                            x: this.token.kind.as_str().to_string(),
+                        });
+                        this.push_error(error);
                     }
                     this.expect(TokenKind::Colon);
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {

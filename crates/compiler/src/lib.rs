@@ -183,7 +183,7 @@ pub fn eval_from_memory_path_worker<'cx>(
     } else {
         Default::default()
     };
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();

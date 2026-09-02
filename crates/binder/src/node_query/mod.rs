@@ -1447,15 +1447,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
     }
 
     pub fn is_class_instance_property(&self, node: ast::NodeID) -> bool {
-        // TODO: js
+        if self.is_in_js_file(node) {
+            todo!()
+        }
         let Some(parent) = self.parent(node) else {
             return false;
         };
-        let parent_node = self.node(parent);
-        let node = self.node(node);
-        parent_node.is_class_like()
-            && node.is_class_prop_elem()
-            && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
+        self.node(parent).is_class_like() && {
+            let node = self.node(node);
+            node.is_class_prop_elem() && !node.has_syntactic_modifier(ast::ModifierFlags::ACCESSOR)
+        }
     }
 
     pub fn is_in_right_side_of_internal_import_equals_declaration(

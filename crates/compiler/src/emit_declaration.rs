@@ -523,17 +523,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 node.elems.list,
                 |this, elem| {
-                    use ast::ClassElemKind::*;
-                    match elem.kind {
-                        Ctor(n) => this.visit_class_ctor(n),
-                        Prop(n) => this.visit_class_prop_elem(n),
-                        Method(n) => this.visit_class_method_elem(n),
-                        IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(_n) => todo!(),
-                        Setter(n) => this.visit_setter_decl(n),
-                        StaticBlockDecl(_n) => todo!(),
-                        Semi(_) => {}
-                    }
+                    bolt_ts_ast_visitor::visit_class_elem(this, elem);
                 },
                 |this, _| {
                     this.emitter.print().p_newline();
@@ -687,7 +677,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             Undefined => self.emitter.print().p("undefined"),
             Num(num) => self.emitter.print().p(&num.to_string()),
             String(atom) => self.emit_string_literal(*atom),
-            BigInt { neg: _, val: _ } => todo!(),
+            BigInt { neg, val } => {
+                if *neg {
+                    self.emitter.print().p("-");
+                }
+                self.emitter.emit_atom(self.resolver.atoms(), *val);
+                self.emitter.print().p("n")
+            }
         }
     }
 

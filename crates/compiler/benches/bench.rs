@@ -110,7 +110,7 @@ fn compile(input_dir: std::path::PathBuf) {
             .join("src")
             .join("declared_file")
     };
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();

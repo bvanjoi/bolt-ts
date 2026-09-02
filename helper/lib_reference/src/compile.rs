@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use super::DEFAULT_LIB_MAP;
-use super::DEFAULT_LIBS;
+use super::LIB_MAP;
+use super::LIBS;
 
 struct Node {
     references: Vec<&'static str>,
@@ -11,7 +11,7 @@ fn read_default_libs() -> HashMap<&'static str, Node> {
     let dir = project_root::get_project_root()
         .unwrap()
         .join("crates/libs/src/declared_file");
-    let map = DEFAULT_LIBS
+    let map = LIBS
         .iter()
         .map(|&lib| {
             assert!(lib.starts_with("lib.") && lib.ends_with(".d.ts"));
@@ -25,7 +25,7 @@ fn read_default_libs() -> HashMap<&'static str, Node> {
                         let lib_name = line
                             .trim_start_matches("/// <reference lib=\"")
                             .trim_end_matches("\" />");
-                        DEFAULT_LIB_MAP.get(&lib_name).copied()
+                        LIB_MAP.get(&lib_name).copied()
                     } else {
                         None
                     }
@@ -34,7 +34,7 @@ fn read_default_libs() -> HashMap<&'static str, Node> {
             (lib, Node { references })
         })
         .collect::<HashMap<_, _>>();
-    assert!(map.len() == DEFAULT_LIBS.len());
+    assert!(map.len() == LIBS.len());
     map
 }
 
@@ -64,7 +64,7 @@ fn toposort(map: &HashMap<&'static str, Node>) -> Vec<&'static str> {
         sorted.push(lib);
     }
 
-    for &lib in DEFAULT_LIBS.iter() {
+    for &lib in LIBS.iter() {
         visit(lib, map, &mut visited, &mut sorted);
     }
 
@@ -72,14 +72,14 @@ fn toposort(map: &HashMap<&'static str, Node>) -> Vec<&'static str> {
 }
 
 fn build_bitset(map: HashMap<&'static str, Node>) -> Vec<u128> {
-    assert!(map.len() == DEFAULT_LIBS.len());
+    assert!(map.len() == LIBS.len());
     let mut result = vec![0; map.len()];
     let sorted_libs = toposort(&map);
     for lib in sorted_libs {
-        let i = DEFAULT_LIBS.iter().position(|&l| l == lib).unwrap();
+        let i = LIBS.iter().position(|&l| l == lib).unwrap();
         let node = &map[lib];
         for &reference in &node.references {
-            let j = DEFAULT_LIBS
+            let j = LIBS
                 .iter()
                 .position(|&l| l == reference)
                 .unwrap_or_else(|| panic!("Reference {} not found in DEFAULT_LIBS", reference));

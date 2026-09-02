@@ -2,7 +2,7 @@ use rustc_hash::FxHashMap;
 
 mod compile;
 
-pub const DEFAULT_LIBS: &[&str] = &[
+pub const LIBS: &[&str] = &[
     "lib.d.ts",
     "lib.decorators.d.ts",
     "lib.decorators.legacy.d.ts",
@@ -120,7 +120,7 @@ pub const DEFAULT_LIBS: &[&str] = &[
     "lib.webworker.iterable.d.ts",
 ];
 
-const DEFAULT_LIB_ENTIRES: &[(&str, &str)] = &[
+const LIB_ENTIRES: &[(&str, &str)] = &[
     // JavaScript only
     ("es5", "lib.es5.d.ts"),
     ("es6", "lib.es2015.d.ts"),
@@ -248,9 +248,9 @@ const DEFAULT_LIB_ENTIRES: &[(&str, &str)] = &[
     ("decorators.legacy", "lib.decorators.legacy.d.ts"),
 ];
 
-pub static DEFAULT_LIB_MAP: std::sync::LazyLock<FxHashMap<&'static str, &'static str>> =
+pub static LIB_MAP: std::sync::LazyLock<FxHashMap<&'static str, &'static str>> =
     std::sync::LazyLock::new(|| {
-        DEFAULT_LIB_ENTIRES
+        LIB_ENTIRES
             .iter()
             .copied()
             .collect::<FxHashMap<&str, &str>>()
@@ -376,7 +376,7 @@ const BITSET: &[u128] = &[
 ];
 
 pub fn bitset_of_lib(lib: &str) -> u128 {
-    let index = DEFAULT_LIBS
+    let index = LIBS
         .iter()
         .position(|&l| l == lib)
         .expect("lib not found in DEFAULT_LIBS");
@@ -386,7 +386,7 @@ pub fn bitset_of_lib(lib: &str) -> u128 {
 #[test]
 fn test_lib_reference_bitset() {
     let bitset = compile::bitset();
-    assert_eq!(bitset.len(), DEFAULT_LIBS.len());
+    assert_eq!(bitset.len(), LIBS.len());
     assert!(
         bitset == BITSET,
         "The bitset of lib reference has changed. Please update the `BITSET` to\n&[{}]",

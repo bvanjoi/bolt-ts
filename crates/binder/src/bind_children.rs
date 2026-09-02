@@ -226,23 +226,24 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let saved_has_flow_effects = self.has_flow_effects;
 
         self.has_flow_effects = false;
-        self.bind_cond(Some(cond.cond), true_label, false_label);
 
+        self.bind_cond(Some(cond.cond), true_label, false_label);
         self.current_flow = Some(self.finish_flow_label(true_label));
         let when_true_flow = self.current_flow.unwrap();
+
         self.bind(cond.when_true.id());
         self.flow_nodes
-            .add_antecedent(post_expression_label, when_true_flow);
-
+            .add_antecedent(post_expression_label, self.current_flow.unwrap());
         self.current_flow = Some(self.finish_flow_label(false_label));
         let when_false_flow = self.current_flow.unwrap();
+
         if self.in_return_position {
             self.flow_nodes
                 .insert_cond_expr_flow(cond, when_true_flow, when_false_flow);
         }
         self.bind(cond.when_false.id());
         self.flow_nodes
-            .add_antecedent(post_expression_label, when_false_flow);
+            .add_antecedent(post_expression_label, self.current_flow.unwrap());
 
         self.current_flow = if self.has_flow_effects {
             Some(self.finish_flow_label(post_expression_label))

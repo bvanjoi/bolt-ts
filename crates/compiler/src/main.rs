@@ -54,7 +54,7 @@ struct Result {
 
 fn run(atoms: bolt_ts_atom::AtomIntern, fs: bolt_ts_fs::LocalFS, tsconfig: RawTsConfig) -> Result {
     let exe_dir = current_exe_dir();
-    let libs = bolt_ts_libs::DEFAULT_LIBS
+    let libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| exe_dir.join(filename))
         .collect::<Vec<_>>();
@@ -96,33 +96,30 @@ fn check_for_test_default_lib_file_count(target: bolt_ts_config::RawTarget) -> u
 #[test]
 fn check_for_test_default_lib_file_count_list() {
     use bolt_ts_config::RawTarget::*;
-    // Expected values are the distinct-file counts of each target's default
-    // lib closure; they are anchored as literals so a regression in the DAG
-    // computation (`bolt_ts_libs::dag::closure_len`) is caught here.
-    let es2015 = check_for_test_default_lib_file_count(ES2015);
-    assert_eq!(es2015, 19);
     let es5 = check_for_test_default_lib_file_count(ES5);
-    assert_eq!(es5, 3);
+    expect_test::expect!["3"].assert_eq(&es5.to_string());
+    let es2015 = check_for_test_default_lib_file_count(ES2015);
+    expect_test::expect!["19"].assert_eq(&es2015.to_string());
     let es2016 = check_for_test_default_lib_file_count(ES2016);
-    assert_eq!(es2016, 16);
+    expect_test::expect!["22"].assert_eq(&es2016.to_string());
     let es2017 = check_for_test_default_lib_file_count(ES2017);
-    assert_eq!(es2017, 24);
+    expect_test::expect!["30"].assert_eq(&es2017.to_string());
     let es2018 = check_for_test_default_lib_file_count(ES2018);
-    assert_eq!(es2018, 30);
+    expect_test::expect!["36"].assert_eq(&es2018.to_string());
     let es2019 = check_for_test_default_lib_file_count(ES2019);
-    assert_eq!(es2019, 36);
+    expect_test::expect!["42"].assert_eq(&es2019.to_string());
     let es2020 = check_for_test_default_lib_file_count(ES2020);
-    assert_eq!(es2020, 45);
+    expect_test::expect!["51"].assert_eq(&es2020.to_string());
     let es2021 = check_for_test_default_lib_file_count(ES2021);
-    assert_eq!(es2021, 50);
+    expect_test::expect!["56"].assert_eq(&es2021.to_string());
     let es2022 = check_for_test_default_lib_file_count(ES2022);
-    assert_eq!(es2022, 57);
+    expect_test::expect!["63"].assert_eq(&es2022.to_string());
     let es2023 = check_for_test_default_lib_file_count(ES2023);
-    assert_eq!(es2023, 61);
+    expect_test::expect!["67"].assert_eq(&es2023.to_string());
     let es2024 = check_for_test_default_lib_file_count(ES2024);
-    assert_eq!(es2024, 69);
+    expect_test::expect!["75"].assert_eq(&es2024.to_string());
     let es2025 = check_for_test_default_lib_file_count(ES2025);
-    assert_eq!(es2025, 76);
+    expect_test::expect!["82"].assert_eq(&es2025.to_string());
     let esnext = check_for_test_default_lib_file_count(ESNext);
-    assert_eq!(esnext, 87);
+    expect_test::expect!["93"].assert_eq(&esnext.to_string());
 }

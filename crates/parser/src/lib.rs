@@ -483,7 +483,7 @@ fn get_lib_filename_from_lib_reference(
 ) -> Option<&'static str> {
     let reference_name = atoms.get(reference_name).to_lowercase();
     let key = reference_name.as_str();
-    bolt_ts_libs::DEFAULT_LIB_MAP.get(key).copied()
+    bolt_ts_libs::LIB_MAP.get(key).copied()
 }
 
 fn process_lib_reference_directives(

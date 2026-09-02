@@ -1354,9 +1354,9 @@ impl<'cx> TyChecker<'cx> {
             let flags = flow_node.flags;
             if flags.intersects(FlowFlags::SHARED) {
                 if !no_cache_check {
-                    // TODO:
+                    // TODO: cache
                 }
-                no_cache_check = true;
+                no_cache_check = false;
             }
             if flags.intersects(
                 FlowFlags::ASSIGNMENT
@@ -1395,7 +1395,7 @@ impl<'cx> TyChecker<'cx> {
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
                 todo!()
             } else {
-                return flags.intersects(FlowFlags::UNREACHABLE);
+                return flags.contains(FlowFlags::UNREACHABLE);
             }
         }
     }

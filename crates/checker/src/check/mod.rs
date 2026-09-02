@@ -390,12 +390,13 @@ pub struct TyChecker<'cx> {
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    /// `${number}`
     numeric_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -1129,14 +1130,12 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_assignable_to(source, target)
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
             || (target == self.number_ty
-                && (
-                    // TODO: numericStringType
-                    source.flags.contains(TypeFlags::STRING_LITERAL)
+                && (source == self.numeric_string_ty()
+                    || (source.flags.contains(TypeFlags::STRING_LITERAL)
                         && match source.kind {
                             ty::TyKind::StringLit(t) => self.is_numerical_literal_name(t.val),
                             _ => unreachable!(),
-                        }
-                ))
+                        })))
     }
 
     fn is_numerical_literal_name(&self, name: bolt_ts_atom::Atom) -> bool {
@@ -2574,6 +2573,19 @@ impl<'cx> TyChecker<'cx> {
                 return false;
             }
 
+            if flags.contains(ast::ModifierFlags::ABSTRACT) {
+                if let Some(error_node) = error_node {
+                    let class = self.get_declaring_class(prop).unwrap();
+                    let error = errors::AbstractMethodXInClassYCannotBeAccessedViaSuperExpression {
+                        span: self.p.node(error_node).span(),
+                        method: self.symbol(prop).name.to_string(&self.atoms),
+                        class: self.print_ty(class, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                return false;
+            }
+
             if !flags.contains(ast::ModifierFlags::STATIC)
                 && let prop_symbol = self.symbol(prop)
                 && let Some(decls) = prop_symbol.decls.as_ref()
@@ -2583,7 +2595,7 @@ impl<'cx> TyChecker<'cx> {
                 })
             {
                 if let Some(error_node) = error_node {
-                    let error = errors::AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+                    let error = errors::ClassFieldXDefinedByTheParentClassIsNotAccessibleInTheChildClassViaSuper {
                         span: self.p.node(error_node).span(),
                         field: prop_symbol.name.to_string(&self.atoms),
                     };

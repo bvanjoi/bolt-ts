@@ -1453,8 +1453,19 @@ pub struct XImplicitlyHasAnYReturnTypeButABetterTypeMayBeInferredFromUsage {
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
-#[error("'{field}' defined by the parent class is not accessible in the child class via super.")]
-pub struct AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+#[error("Abstract method '{method}' in class '{class}' cannot be accessed via super expression.")]
+pub struct AbstractMethodXInClassYCannotBeAccessedViaSuperExpression {
+    #[label(primary)]
+    pub span: Span,
+    pub method: String,
+    pub class: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Class field '{field}' defined by the parent class is not accessible in the child class via super."
+)]
+pub struct ClassFieldXDefinedByTheParentClassIsNotAccessibleInTheChildClassViaSuper {
     #[label(primary)]
     pub span: Span,
     pub field: String,
@@ -1555,6 +1566,18 @@ pub struct XImplicitlyHasTypeAnyBecauseItDoesNotHaveATypeAnnotationAndIsReferenc
     #[label(primary)]
     pub span: Span,
     pub name: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error(
+    "Class '{class_name}' defines instance member function '{function_name}', but extended class '{extended_class_name}' defines it as instance member accessor."
+)]
+pub struct ClassDefinesInstanceMemberFunctionButExtendedClassDefinesItAsInstanceMemberAccessor {
+    #[label(primary)]
+    pub span: Span,
+    pub class_name: String,
+    pub function_name: String,
+    pub extended_class_name: String,
 }
 
 #[derive(Error, Diagnostic, Debug, DiagnosticExt)]
@@ -2163,5 +2186,13 @@ pub struct TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
     #[label(primary)]
     pub span: Span,
     pub property: String,
+    pub ty: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Type '{ty}' has no signatures for which the type argument list is applicable.")]
+pub struct TypeHasNoSignaturesForWhichTheTypeArgumentListIsApplicable {
+    #[label(primary)]
+    pub span: Span,
     pub ty: String,
 }

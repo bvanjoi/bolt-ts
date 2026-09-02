@@ -723,7 +723,24 @@ impl<'cx> TyChecker<'cx> {
                             // correct case
                             continue;
                         } else if self.is_prototype_prop(base) {
-                            // TODO:
+                            if self.is_prototype_prop(derived)
+                                || self.symbol(derived).flags.contains(SymbolFlags::PROPERTY)
+                            {
+                                continue;
+                            } else {
+                                let span = if let Some(decl) = derived_symbol.value_decl {
+                                    self.p.node(decl).name().unwrap().span()
+                                } else {
+                                    unreachable!()
+                                };
+                                let error = errors::ClassDefinesInstanceMemberFunctionButExtendedClassDefinesItAsInstanceMemberAccessor {
+                                    span,
+                                    class_name: self.print_ty(base_ty, None).to_string(),
+                                    function_name: base_s_name.to_string(&self.atoms),
+                                    extended_class_name: self.atoms.get(class.name().unwrap().name).to_string(),
+                                };
+                                self.push_error(Box::new(error));
+                            }
                         } else if base_flags.intersects(SymbolFlags::ACCESSOR) {
                             let span = if let Some(decl) = derived_symbol.value_decl {
                                 self.p.node(decl).name().unwrap().span()
