@@ -473,6 +473,9 @@ impl<'cx> TyChecker<'cx> {
     }
 
     fn check_var_decl(&mut self, decl: &'cx ast::VarDecl<'cx>) {
+        // TODO: skip ambient var decl when under for-in or for-of
+        self.check_ambient_initializer(decl);
+
         self.check_var_like_decl(decl);
     }
 

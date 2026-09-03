@@ -2196,3 +2196,12 @@ pub struct TypeHasNoSignaturesForWhichTheTypeArgumentListIsApplicable {
     pub span: Span,
     pub ty: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+)]
+pub struct AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLiteralEnumReference {
+    #[label(primary)]
+    pub span: Span,
+}

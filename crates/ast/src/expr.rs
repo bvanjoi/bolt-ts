@@ -132,6 +132,10 @@ impl<'cx> Expr<'cx> {
         self.kind.is_string_or_number_lit_like()
     }
 
+    pub fn is_bigint_lit(&self) -> bool {
+        self.kind.is_bigint_lit()
+    }
+
     pub fn is_entity_name_expr(&self) -> bool {
         matches!(self.kind, ExprKind::Ident(n) if !is_prim_value_name(n.name))
             || self.is_prop_access_entity_name_expr()
@@ -398,6 +402,15 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
+    pub fn is_bigint_lit(&self) -> bool {
+        match self {
+            ExprKind::BigIntLit(_) => true,
+            ExprKind::PrefixUnary(n) if matches!(n.op, PrefixUnaryOp::Minus) => {
+                matches!(n.expr.kind, ExprKind::BigIntLit(_))
+            }
+            _ => false,
+        }
+    }
     pub fn is_string_literal_like(&self) -> bool {
         matches!(
             self,

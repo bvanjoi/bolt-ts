@@ -1,5 +1,5 @@
 [package]
-name = "bolt_ts_wf_errors"
+name = "bolt_ts_wf_check_errors"
 version = "0.1.0"
 edition = "2024"
 

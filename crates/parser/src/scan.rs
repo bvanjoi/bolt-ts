@@ -866,22 +866,36 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 }
                 b'`' => self.scan_template_and_set_token_value::<false>(),
                 b'#' => {
-                    let char_after_hash = self.next_ch();
-                    if let Some(ch) = char_after_hash
-                        && is_ascii_identifier_start(ch)
-                    {
-                        self.pos += 1;
-                        if let Some(token) = self.scan_identifier::<true>(ch)
-                            && token.kind == TokenKind::Ident
+                    self.pos += 1;
+                    if let Some(ch) = self.ch() {
+                        if is_ascii_identifier_start(ch) {
+                            if let Some(token) = self.scan_identifier::<true>(ch)
+                                && token.kind == TokenKind::Ident
+                            {
+                                debug_assert!(self.token_value.is_some_and(|value| matches!(
+                                    value,
+                                    TokenValue::Ident { .. }
+                                )));
+                                Token::new(
+                                    TokenKind::PrivateIdent,
+                                    Span::new(start as u32, self.pos as u32, self.module_id),
+                                )
+                            } else {
+                                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                                self.push_error(Box::new(errors::InvalidCharacter { span }));
+                                Token::new(TokenKind::Unknown, span)
+                            }
+                        } else if let Some(ch) = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()
+                            // TODO: use `is_non_ascii_identifier_start` instead of `is_identifier_start` here
+                        && is_identifier_start::<false>(ch)
                         {
-                            debug_assert!(
-                                self.token_value
-                                    .is_some_and(|value| matches!(value, TokenValue::Ident { .. }))
-                            );
-                            Token::new(
-                                TokenKind::PrivateIdent,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
+                            if let Some(token) = self.scan_identifier_part::<false>(start) {
+                                token
+                            } else {
+                                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                                self.push_error(Box::new(errors::InvalidCharacter { span }));
+                                Token::new(TokenKind::Unknown, span)
+                            }
                         } else {
                             let span = Span::new(start as u32, self.pos as u32, self.module_id);
                             self.push_error(Box::new(errors::InvalidCharacter { span }));

@@ -92,7 +92,8 @@ use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
-use bolt_ts_wf_check::IssueExternalExportDeclarations;
+use bolt_ts_wf_check::InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl;
+use bolt_ts_wf_check::{InvalidInitializerInAmbientContext, IssueExternalExportDeclarations};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
@@ -287,6 +288,9 @@ pub struct TyChecker<'cx> {
     final_array_ty_of_evolving_array_cache: IntMap<TyID, &'cx ty::Ty<'cx>>,
     widened_context_arena: WideningContextArena<'cx>,
     issue_external_export_declarations: IssueExternalExportDeclarations,
+    invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext,
+    invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+        InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -530,7 +534,7 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: MergedSymbols,
         mut global_symbols: GlobalSymbols,
         emit_standard_class_fields: bool,
-        wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
+        mut wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
     ) -> Self {
         let cap = p.module_count() * 1024;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
@@ -686,11 +690,27 @@ impl<'cx> TyChecker<'cx> {
 
         let issue_external_export_declarations = IssueExternalExportDeclarations::join(
             wf_check_result
-                .into_iter()
-                .map(|r| r.issue_external_export_declarations),
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.issue_external_export_declarations)),
         );
+        let invalid_initializer_in_ambient_context = InvalidInitializerInAmbientContext::join(
+            wf_check_result
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.invalid_initializer_in_ambient_context)),
+        );
+        let invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl =
+            InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl::join(
+                wf_check_result.iter_mut().map(|r| {
+                    std::mem::take(
+                        &mut r.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
+                    )
+                }),
+            );
+
         let mut this = Self {
             issue_external_export_declarations,
+            invalid_initializer_in_ambient_context,
+            invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
             tys,
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
@@ -9061,6 +9081,38 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             _ => false,
+        }
+    }
+
+    fn check_ambient_initializer(&mut self, n: &impl self::VarLike<'cx>) {
+        let Some(init) = n.init() else {
+            return;
+        };
+
+        let is_simple_lit_enum_reference = |this: &mut Self, expr: &'cx ast::Expr<'cx>| {
+            match expr.kind {
+                ast::ExprKind::PropAccess(_) => {}
+                ast::ExprKind::EleAccess(n) if n.arg.is_string_or_number_lit_like() => {}
+                _ => return false,
+            };
+            let ty = this.check_expression_cached(expr, None);
+            ty.flags.intersects(TypeFlags::ENUM_LIKE)
+        };
+
+        let id = n.id();
+        if self.invalid_initializer_in_ambient_context.contains(id) {
+            let error = bolt_ts_wf_check_errors::XAreNotAllowedInAmbientContexts {
+                kind: bolt_ts_wf_check_errors::AmbientContextKind::Initializers,
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
+        } else if self.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl.contains(id)
+                && !is_simple_lit_enum_reference(self, init)
+        {
+            let error = errors::AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLiteralEnumReference {
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 }

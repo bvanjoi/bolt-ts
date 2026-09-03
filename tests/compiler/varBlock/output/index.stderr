@@ -4,17 +4,17 @@
     · ──────
     ╰────
 
-  × Initializers are not allowed in ambient contexts.
-    ╭─[../../tests/compiler/varBlock/index.ts:13:18]
- 13 │ 10
-    · ──
-    ╰────
-
   × A parameter initializer is only allowed in a function or constructor
   │ implementation.
     ╭─[../../tests/compiler/varBlock/index.ts:17:22]
  17 │ public c = 10
     · ─────────────
+    ╰────
+
+  × Initializers are not allowed in ambient contexts.
+    ╭─[../../tests/compiler/varBlock/index.ts:13:18]
+ 13 │ 10
+    · ──
     ╰────
 
   × Initializers are not allowed in ambient contexts.

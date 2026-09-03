@@ -217,6 +217,7 @@ dependencies = [
  "bolt_ts_ty",
  "bolt_ts_utils",
  "bolt_ts_wf_check",
+ "bolt_ts_wf_check_errors",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -665,7 +666,7 @@ dependencies = [
  "bolt_ts_parser",
  "bolt_ts_span",
  "bolt_ts_utils",
- "bolt_ts_wf_errors",
+ "bolt_ts_wf_check_errors",
  "nohash-hasher",
  "rayon",
  "rustc-hash",
@@ -673,7 +674,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolt_ts_wf_errors"
+name = "bolt_ts_wf_check_errors"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_checker_errors",

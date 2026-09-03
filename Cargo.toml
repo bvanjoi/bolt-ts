@@ -31,7 +31,7 @@ members = [
   "crates/ty",
   "crates/wasm",
   "crates/wf_check",
-  "crates/wf_errors",
+  "crates/wf_check_errors",
 
   "helper/arena",
   "helper/atom",

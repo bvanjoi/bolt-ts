@@ -5,7 +5,7 @@ use bolt_ts_checker_errors::DeclKind;
 use bolt_ts_config::{NormalizedCompilerOptions, Target};
 use bolt_ts_parser::ParsedMap;
 use bolt_ts_span::ModuleID;
-use bolt_ts_wf_errors as errors;
+use bolt_ts_wf_check_errors as errors;
 use rustc_hash::FxHashSet;
 
 mod r#trait;
@@ -54,6 +54,11 @@ fn well_formed_check<'cx, 'a>(
         diags: vec![],
         potential_unused_renamed_binding_elements_in_types: FxHashSet::default(),
         issue_external_export_declarations: IssueExternalExportDeclarations::default(),
+        invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext(
+            FxHashSet::default(),
+        ),
+        invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+            InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl(FxHashSet::default()),
     };
     let program = p.root(module_id);
     bolt_ts_ast_visitor::visit_program(&mut s, program);
@@ -62,6 +67,9 @@ fn well_formed_check<'cx, 'a>(
         potential_unused_renamed_binding_elements_in_types: s
             .potential_unused_renamed_binding_elements_in_types,
         issue_external_export_declarations: s.issue_external_export_declarations,
+        invalid_initializer_in_ambient_context: s.invalid_initializer_in_ambient_context,
+        invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl: s
+            .invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
     }
 }
 
@@ -69,6 +77,43 @@ pub struct WellFormedCheckResult {
     pub diags: Vec<bolt_ts_errors::Diag>,
     pub potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
     pub issue_external_export_declarations: IssueExternalExportDeclarations,
+    pub invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext,
+    pub invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+        InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl,
+}
+
+#[derive(Default)]
+pub struct InvalidInitializerInAmbientContext(FxHashSet<ast::NodeID>);
+impl InvalidInitializerInAmbientContext {
+    pub fn contains(&self, key: ast::NodeID) -> bool {
+        self.0.contains(&key)
+    }
+    pub fn join(iter: impl Iterator<Item = InvalidInitializerInAmbientContext>) -> Self {
+        let mut set = FxHashSet::default();
+        for item in iter {
+            set.extend(item.0);
+        }
+        Self(set)
+    }
+}
+
+#[derive(Default)]
+pub struct InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl(
+    FxHashSet<ast::NodeID>,
+);
+impl InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl {
+    pub fn contains(&self, key: ast::NodeID) -> bool {
+        self.0.contains(&key)
+    }
+    pub fn join(
+        iter: impl Iterator<Item = InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl>,
+    ) -> Self {
+        let mut set = FxHashSet::default();
+        for item in iter {
+            set.extend(item.0);
+        }
+        Self(set)
+    }
 }
 
 struct CheckState<'cx, 'a> {
@@ -81,6 +126,9 @@ struct CheckState<'cx, 'a> {
     diags: Vec<bolt_ts_errors::Diag>,
     potential_unused_renamed_binding_elements_in_types: FxHashSet<ast::NodeID>,
     issue_external_export_declarations: IssueExternalExportDeclarations,
+    invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext,
+    invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+        InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl,
 }
 
 #[derive(Default)]
@@ -244,28 +292,24 @@ impl<'cx, 'a> CheckState<'cx, 'a> {
         if !node_flags.contains(ast::NodeFlags::AMBIENT) {
             return;
         }
-        if node.is_declaration_readonly(&self.node_query())
-            || node.decl_ty().is_none() && node.is_var_const(&self.node_query())
-        {
-            let is_invalid_init = !(
-                init.is_string_or_number_lit_like()
-            // TODO: simple literal enum reference
+
+        let is_const_or_readonly = node.is_declaration_readonly(&self.node_query())
+            || (self.p.node(node.id()).is_var_decl() && node.is_var_const(&self.node_query()));
+
+        if is_const_or_readonly && node.decl_ty().is_none() {
+            // check is enum reference during type check
+            let is_invalid_init = !(init.is_string_or_number_lit_like()
                 || matches!(init.kind, ast::ExprKind::BoolLit(_))
-                // TODO: is bigint literal
-            );
+                || init.is_bigint_lit());
             if is_invalid_init {
-                let error = errors::XAreNotAllowedInAmbientContexts {
-                    kind: errors::AmbientContextKind::Initializers,
-                    span: init.span(),
-                };
-                self.push_error(Box::new(error));
+                self.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl
+                    .0
+                    .insert(node.id());
             }
         } else {
-            let error = errors::XAreNotAllowedInAmbientContexts {
-                kind: errors::AmbientContextKind::Initializers,
-                span: init.span(),
-            };
-            self.push_error(Box::new(error));
+            self.invalid_initializer_in_ambient_context
+                .0
+                .insert(node.id());
         }
     }
 

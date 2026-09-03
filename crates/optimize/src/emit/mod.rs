@@ -346,6 +346,7 @@ impl<'cx, 'a> JSEmitter<'cx, 'a> {
         }
     }
 
+    // TODO: remove this
     fn stmt_is_omitted(&self, stmt: &'cx ast::Stmt<'cx>) -> bool {
         use ast::StmtKind::*;
         match stmt.kind {

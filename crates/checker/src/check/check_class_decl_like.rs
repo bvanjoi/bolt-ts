@@ -245,7 +245,8 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn check_class_prop_ele(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+    fn check_class_prop_elem(&mut self, prop: &'cx ast::ClassPropElem<'cx>) {
+        self.check_ambient_initializer(prop);
         let decl_name = ast::DeclarationName::from_prop_name(prop.name);
         self.check_invalid_dynamic_name(decl_name, |this| {
             let error = errors::AComputedPropertyNameInAClassPropertyDeclarationMustHaveASimpleLiteralTypeOrAUniqueSymbolType {
@@ -851,7 +852,7 @@ impl<'cx> TyChecker<'cx> {
         for element in class.elems().list {
             use bolt_ts_ast::ClassElemKind::*;
             match element.kind {
-                Prop(n) => self.check_class_prop_ele(n),
+                Prop(n) => self.check_class_prop_elem(n),
                 Method(n) => self.check_class_method_element(n),
                 Ctor(n) => self.check_class_ctor(n),
                 IndexSig(_) => {}
