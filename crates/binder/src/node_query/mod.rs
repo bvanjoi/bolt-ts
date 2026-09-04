@@ -968,25 +968,30 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         decl_container: ast::NodeID,
     ) -> bool {
         let parent = self.parent(decl.id).unwrap();
-        match self.node(parent) {
-            ast::Node::VarStmt(_)
+        let parent_node = self.node(parent);
+        match parent_node {
+            ast::Node::VarStmt(_) | ast::Node::ForStmt(_)
                 if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container) =>
             {
                 return true;
             }
-            // TODO: handle other case
+            ast::Node::ForOfStmt(n) => {
+                if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container) {
+                    return true;
+                } else if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container)
+                {
+                    return true;
+                }
+            }
+            ast::Node::ForInStmt(n) => {
+                if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container) {
+                    return true;
+                }
+            }
             _ => (),
         }
 
-        let grand = self.parent(parent).unwrap();
-        let g = self.node(grand);
-        if let Some(g) = g.as_for_in_stmt() {
-            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
-        } else if let Some(g) = g.as_for_of_stmt() {
-            self.is_same_scope_descendent_of(usage, Some(g.expr.id()), decl_container)
-        } else {
-            false
-        }
+        false
     }
 
     fn is_same_scope_descendent_of(

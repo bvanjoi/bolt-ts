@@ -203,6 +203,7 @@ dependencies = [
  "bolt_ts_ast_visitor",
  "bolt_ts_atom",
  "bolt_ts_binder",
+ "bolt_ts_binder_errors",
  "bolt_ts_checker_errors",
  "bolt_ts_config",
  "bolt_ts_early_resolve",

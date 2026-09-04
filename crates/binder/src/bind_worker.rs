@@ -85,6 +85,21 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.create_final_res(t.id, symbol);
     }
 
+    pub(super) fn bind_anonymous_decl(
+        &mut self,
+        node: ast::NodeID,
+        flags: SymbolFlags,
+        name: SymbolName,
+    ) -> SymbolID {
+        let symbol = self.create_symbol(name, flags);
+        if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
+            let container = self.final_res[&self.container.unwrap()];
+            self.symbols.get_mut(symbol).parent = Some(container);
+        }
+        self.add_declaration_to_symbol(symbol, node, flags);
+        symbol
+    }
+
     fn bind_ty_param(&mut self, ty_param: &'cx ast::TyParam<'cx>) {
         let name = SymbolName::Atom(ty_param.name.name);
         let parent = self.parent_map.parent(ty_param.id).unwrap();
@@ -324,6 +339,36 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
+    fn check_strict_mode_eval_or_arguments(&mut self, context_node: ast::NodeID, n: &ast::Ident) {
+        debug_assert!(self.in_strict_mode);
+        if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {
+            if self
+                .node_query()
+                .get_containing_class(context_node)
+                .is_some()
+            {
+                let error = bolt_ts_binder_errors::CodeContainedInAClassIsEvaluatedInJavaScriptSStrictModeWhichDoesNotAllowThisUseOf0ForMoreInformationSeeHttpsColonSlashSlashdeveloperMozillaOrgSlashenUsSlashdocsSlashWebSlashJavaScriptSlashReferenceSlashStrictMode {
+                    span: n.span,
+                    name: self.atoms.get(n.name).to_string(),
+                };
+                self.push_error(Box::new(error));
+            } else if self.p.external_module_indicator.is_some() {
+                let error =
+                    bolt_ts_binder_errors::InvalidUseOfXModulesAreAutomaticallyInStrictMode {
+                        name: self.atoms.get(n.name).to_string(),
+                        span: n.span,
+                    };
+                self.push_error(Box::new(error));
+            } else {
+                let error = bolt_ts_binder_errors::InvalidUseOfXInStrictMode {
+                    name: self.atoms.get(n.name).to_string(),
+                    span: n.span,
+                };
+                self.push_error(Box::new(error));
+            }
+        }
+    }
+
     pub(super) fn bind_worker(&mut self, node: ast::NodeID) {
         let n = self.p.node(node);
         use ast::Node::*;
@@ -381,11 +426,25 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 // TODO: self.check_strict_mode_catch_clause()
             }
             // TODO: delete expr
-            PostfixUnaryExpr(_) => {
-                // TODO: check
+            PostfixUnaryExpr(n) => {
+                // check_strict_mode_postfix_unary_expression
+                if self.in_strict_mode
+                    && let ast::ExprKind::Ident(ident) = n.expr.kind
+                {
+                    self.check_strict_mode_eval_or_arguments(node, ident);
+                }
             }
-            PrefixUnaryExpr(_) => {
-                // TODO: check
+            PrefixUnaryExpr(n) => {
+                // check_strict_mode_prefix_unary_expression
+                if self.in_strict_mode
+                    && matches!(
+                        n.op,
+                        ast::PrefixUnaryOp::PlusPlus | ast::PrefixUnaryOp::MinusMinus
+                    )
+                    && let ast::ExprKind::Ident(ident) = n.expr.kind
+                {
+                    self.check_strict_mode_eval_or_arguments(node, ident);
+                }
             }
             // TODO: with stmt
             // TODO: label

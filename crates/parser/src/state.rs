@@ -391,12 +391,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     }
 
     pub(super) fn in_await_context(&self) -> bool {
-        let res = self.parse_context.contains(ParseContext::AWAIT);
-        debug_assert_eq!(
-            res,
-            self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
-        );
-        res
+        self.node_context_flags.contains(NodeFlags::AWAIT_CONTEXT)
     }
 
     pub(super) fn in_yield_context(&self) -> bool {
@@ -420,10 +415,8 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
 
     pub(super) fn set_await_context(&mut self, val: bool) {
         if val {
-            self.parse_context.insert(ParseContext::AWAIT);
             self.node_context_flags.insert(NodeFlags::AWAIT_CONTEXT);
         } else {
-            self.parse_context.remove(ParseContext::AWAIT);
             self.node_context_flags.remove(NodeFlags::AWAIT_CONTEXT);
         }
     }

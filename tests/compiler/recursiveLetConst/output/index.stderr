@@ -1,0 +1,155 @@
+  × Block-scoped variable 'x' used before its declaration.
+   ╭─[../../tests/compiler/recursiveLetConst/index.ts:8:9]
+ 8 │ x
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x' is defined here
+   ╭─[../../tests/compiler/recursiveLetConst/index.ts:8:5]
+ 8 │ x = x + 1
+   · ─────────
+   ╰────
+
+  × Block-scoped variable 'x1' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:10:12]
+ 10 │ x1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x1' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:10:6]
+ 10 │ x1
+    · ──
+    ╰────
+
+  × Block-scoped variable 'y' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:12:11]
+ 12 │ y
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'y' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:12:7]
+ 12 │ y = y + 2
+    · ─────────
+    ╰────
+
+  × Block-scoped variable 'y1' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:14:14]
+ 14 │ y1
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'y1' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:14:8]
+ 14 │ y1
+    · ──
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:16:14]
+ 16 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:16:10]
+ 16 │ v = v
+    · ─────
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:18:16]
+ 18 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:18:11]
+ 18 │ v
+    · ─
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:20:15]
+ 20 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:20:10]
+ 20 │ v
+    · ─
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:20:15]
+ 20 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:20:10]
+ 20 │ v
+    · ─
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:23:15]
+ 23 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:23:10]
+ 23 │ v
+    · ─
+    ╰────
+
+  × Block-scoped variable 'v' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:25:17]
+ 25 │ v
+    · ─
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'v' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:25:11]
+ 25 │ v
+    · ─
+    ╰────
+
+  × Block-scoped variable 'x2' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:27:11]
+ 27 │ x2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x2' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:27:6]
+ 27 │ x2 = x2
+    · ───────
+    ╰────
+
+  × Block-scoped variable 'x2' used before its declaration.
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:27:11]
+ 27 │ x2
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Block-scoped variable 'x2' is defined here
+    ╭─[../../tests/compiler/recursiveLetConst/index.ts:27:6]
+ 27 │ x2 = x2
+    · ───────
+    ╰────

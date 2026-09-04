@@ -1209,6 +1209,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
     }
 
+    // TODO: move to binder because we need to know is this file has module augmentation
     pub(super) fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
         debug_assert!(self.in_strict_mode);
         if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {
