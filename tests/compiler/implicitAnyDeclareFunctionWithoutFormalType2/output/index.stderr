@@ -1,0 +1,5 @@
+  × Variable 'x' is used before being assigned.
+    ╭─[../../tests/compiler/implicitAnyDeclareFunctionWithoutFormalType2/index.ts:10:12]
+ 10 │ x
+    · ─
+    ╰────

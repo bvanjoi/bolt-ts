@@ -614,7 +614,6 @@ impl<'cx, FS: CachedFileSystem> CompilerResult<'cx, FS> {
 enum SpecialSearchKind {
     None,
     Constructor,
-    Class,
 }
 
 fn get_special_search_kind(node: ast::Node<'_>) -> SpecialSearchKind {

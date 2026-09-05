@@ -2,9 +2,8 @@ use bolt_ts_ast::{TokenFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
-use crate::state::is_ts_like_variant;
-
 use super::CheckParameterFlags;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parsing_ctx::{ParseContext, ParsingContext};
 use super::{PResult, ParserState};

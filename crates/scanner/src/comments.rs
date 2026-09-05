@@ -1,3 +1,5 @@
+use rustc_hash::FxHashMap;
+
 const CARRIAGE_RETURN: u8 = b'\r';
 const LINE_FEED: u8 = b'\n';
 const TAB: u8 = b'\t';
@@ -7,6 +9,7 @@ const SPACE: u8 = b' ';
 const SLASH: u8 = b'/';
 const ASTERISK: u8 = b'*';
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentKind {
     SingleLine,
     MultiLine,
@@ -115,5 +118,58 @@ pub fn iterate_comment_ranges<const REDUCE: bool, const TRAILING: bool>(
                 break;
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Comment {
+    start: u32,
+    end: u32,
+    kind: CommentKind,
+}
+
+impl Comment {
+    pub fn new(start: u32, end: u32, kind: CommentKind) -> Self {
+        Self { start, end, kind }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Comments(Vec<Comment>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CommentId(u32);
+
+impl Comments {
+    fn push(&mut self, comment: Comment) -> CommentId {
+        let id = self.0.len() as u32;
+        self.0.push(comment);
+        CommentId(id)
+    }
+    pub fn get(&self, id: CommentId) -> Option<&Comment> {
+        debug_assert!((id.0 as usize) < self.0.len());
+        unsafe { Some(self.0.get_unchecked(id.0 as usize)) }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct LeadingTrailingComments {
+    leading: FxHashMap<u32, Vec<CommentId>>,
+    trailing: FxHashMap<u32, Vec<CommentId>>,
+}
+
+impl LeadingTrailingComments {
+    pub fn add_leading_comment(&mut self, pos: u32, comment: Comment, comments: &mut Comments) {
+        let comment_id = comments.push(comment);
+        self.leading.entry(pos).or_default().push(comment_id);
+    }
+
+    pub fn get_leading_comments(&self, start: u32) -> Option<&[CommentId]> {
+        self.leading.get(&start).map(|v| v.as_slice())
+    }
+
+    pub fn add_trailing_comment(&mut self, pos: u32, comment: Comment, comments: &mut Comments) {
+        let comment_id = comments.push(comment);
+        self.trailing.entry(pos).or_default().push(comment_id);
     }
 }

@@ -52,7 +52,7 @@ impl<'cx> BinderState<'cx, '_, '_> {
             }
             Expr(expr) => {
                 self.bind(expr.id());
-                // TODO: bind_assignment_target_flow
+                self.bind_assignment_target_flow(expr);
             }
         }
         self.bind_iterative_stmt(node.stmt(), post_loop_label, pre_loop_label);

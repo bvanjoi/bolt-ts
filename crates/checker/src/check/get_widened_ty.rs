@@ -108,7 +108,7 @@ impl<'cx> TyChecker<'cx> {
                 .same_map_tys(Some(i.tys), |this, t, _| this.get_widened_ty(t))
                 .unwrap();
             self.get_intersection_ty(widened_tys, IntersectionFlags::None, None, None)
-        } else if self.is_array_or_tuple(ty) {
+        } else if self.is_array_or_tuple_ty(ty) {
             let refer = ty.kind.expect_object_reference();
             let ty_args = self.get_ty_arguments(ty);
             let ty_args =

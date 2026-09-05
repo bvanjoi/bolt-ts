@@ -939,3 +939,25 @@ pub struct InvalidOptionalChainFromNewExpression {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("A rest element cannot have an initializer.")]
+pub struct ARestElementCannotHaveAnInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'{modifier}' modifier cannot appear on a module or namespace element.")]
+pub struct ModifierCannotAppearOnAModuleOrNamespaceElement {
+    #[label(primary)]
+    pub span: Span,
+    pub modifier: String,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("An instantiation expression cannot be followed by a property access.")]
+pub struct AnInstantiationExpressionCannotBeFollowedByAPropertyAccess {
+    #[label(primary)]
+    pub span: Span,
+}

@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/voidFunctionAssignmentCompat.ts`, Apache-2.0 License
 var fa = function () {
   return 3;
 };

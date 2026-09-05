@@ -1,0 +1,51 @@
+  × Property 'a' is missing.
+   ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:9:1]
+ 9 │ A
+   · ─
+   ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:11:1]
+ 11 │ B
+    · ─
+    ╰────
+
+  × Property 'b' does not exist on type 'Required<{ a: undefined | 1; x: 1; }
+  │ >'.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:14:3]
+ 14 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'Required<{ b: undefined | 1; x: 1; }
+  │ >'.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:16:3]
+ 16 │ a
+    · ─
+    ╰────
+
+  × Property 'a' is missing.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:26:1]
+ 26 │ AA
+    · ──
+    ╰────
+
+  × Property 'b' is missing.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:28:1]
+ 28 │ BB
+    · ──
+    ╰────
+
+  × Property 'b' does not exist on type 'Required<{ a: undefined | 1; x: 1; }
+  │ >'.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:31:6]
+ 31 │ b
+    · ─
+    ╰────
+
+  × Property 'a' does not exist on type 'Required<{ b: undefined | 1; x: 1; }
+  │ >'.
+    ╭─[../../tests/compiler/requiredMappedTypeModifierTrumpsVariance/index.ts:33:6]
+ 33 │ a
+    · ─
+    ╰────

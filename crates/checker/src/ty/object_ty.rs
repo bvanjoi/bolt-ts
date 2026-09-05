@@ -16,7 +16,7 @@ pub struct ObjectTy<'cx> {
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectTyKind<'cx> {
     Anonymous(&'cx AnonymousTy<'cx>),
-    SingleSigTy(&'cx SingleSigTy<'cx>),
+    SingleSigTy(&'cx SingleSigTy),
     Tuple(&'cx TupleTy<'cx>),
     Interface(&'cx InterfaceTy<'cx>),
     Reference(&'cx ReferenceTy<'cx>),
@@ -263,9 +263,8 @@ pub struct AnonymousTy<'cx> {
 }
 
 #[derive(Debug)]
-pub struct SingleSigTy<'cx> {
+pub struct SingleSigTy {
     pub symbol: Option<SymbolID>,
-    pub mapper: Option<&'cx dyn TyMap<'cx>>,
 }
 
 #[derive(Debug)]

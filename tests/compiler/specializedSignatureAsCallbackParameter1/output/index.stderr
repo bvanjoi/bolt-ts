@@ -1,0 +1,29 @@
+  × No overload matches this call.
+    ╭─[../../tests/compiler/specializedSignatureAsCallbackParameter1/index.ts:12:1]
+  6 │ x3(a: number, cb: (x: number) => number);
+    · ─┬
+    ·  ╰── Unmatched call.
+  7 │ function x3(a: string, cb: (x: number) => number);
+    ·          ─┬
+    ·           ╰── Unmatched call.
+  8 │ function x3(a: any, cb: (x: number) => number) {
+  9 │    cb(a);
+ 10 │ }
+ 11 │ // both are errors
+ 12 │ x3(1, (x: string) => 1)
+    · ───────────────────────
+    ╰────
+
+  × No overload matches this call.
+   ╭─[../../tests/compiler/specializedSignatureAsCallbackParameter1/index.ts:6:10]
+ 6 │ x3(a: number, cb: (x: number) => number);
+   · ─┬
+   ·  ╰── Unmatched call.
+ 7 │ function x3
+   ·          ─┬
+   ·           ╰── Unmatched call.
+   ╰────
+    ╭─[../../tests/compiler/specializedSignatureAsCallbackParameter1/index.ts:14:1]
+ 14 │ x3(1, (x: 'hm') => 1)
+    · ─────────────────────
+    ╰────

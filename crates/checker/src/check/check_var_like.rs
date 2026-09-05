@@ -86,13 +86,27 @@ impl<'cx> TyChecker<'cx> {
                 && !is_assignment
             {
                 let name = self.p.node(name_id).ident_name().unwrap();
-                let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
-                    span: self.p.node(name_id).span(),
-                    var: self.atoms.get(name.name).to_string(),
-                    ty1: self.print_ty(ty, None).to_string(),
-                    ty2: self.print_ty(decl_ty, None).to_string(),
+                let error: bolt_ts_errors::BoxedDiag = if matches!(
+                    self.p.node(decl_id),
+                    ast::Node::ClassPropElem(_) | ast::Node::PropSignature(_)
+                ) {
+                    let error = errors::SubsequentPropertyDeclarationsMustHaveTheSameTypePropertyXMustBeOfTypeYButHereHasTypeZ {
+                        span: self.p.node(name_id).span(),
+                        property: self.atoms.get(name.name).to_string(),
+                        ty1: self.print_ty(ty, None).to_string(),
+                        ty2: self.print_ty(decl_ty, None).to_string(),
+                    };
+                    Box::new(error)
+                } else {
+                    let error = errors::SubsequentVariableDeclarationsMustHaveTheSameTypeVariableMustBeOfTypeXButHereHasTypeY {
+                        span: self.p.node(name_id).span(),
+                        var: self.atoms.get(name.name).to_string(),
+                        ty1: self.print_ty(ty, None).to_string(),
+                        ty2: self.print_ty(decl_ty, None).to_string(),
+                    };
+                    Box::new(error)
                 };
-                self.push_error(Box::new(error));
+                self.push_error(error);
             }
         }
 

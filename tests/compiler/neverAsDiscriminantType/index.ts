@@ -1,7 +1,8 @@
 // From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/neverAsDiscriminantType.ts`, Apache-2.0 License
 
 //@compiler-options: target=es2015
-//@compiler-options: strict=true,false
+//@[strict=true]  compiler-options: strict
+//@[strict=false] compiler-options: strict=false
 
 type Foo1 = { kind: 'a', a: number } | { kind: 'b' } | { kind: never };
 

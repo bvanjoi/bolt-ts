@@ -1,0 +1,29 @@
+  × Type 'T' is not assignable to type 'S'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2/index.ts:12:49]
+ 12 │ t
+    · ─
+    ╰────
+
+  × Type 'T' is not assignable to type 'S'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2/index.ts:16:35]
+ 16 │ t
+    · ─
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2/index.ts:39:9]
+ 39 │ (new Chain2(i)).then(ii => t).then(tt => s).value.x
+    · ───────────────────────────────────────────────────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2/index.ts:44:9]
+ 44 │ (new Chain2(i)).then(ii => t).then(tt => t).then(tt => t).then(tt => t).value.x
+    · ───────────────────────────────────────────────────────────────────────────────
+    ╰────
+
+  × Type 'string' is not assignable to type 'number'.
+    ╭─[../../tests/compiler/chainedCallsWithTypeParameterConstrainedToOtherTypeParameter2/index.ts:46:9]
+ 46 │ (new Chain2(i)).then(ii => s).then(ss => s).then(ss => s).then(ss => s).value.x
+    · ───────────────────────────────────────────────────────────────────────────────
+    ╰────

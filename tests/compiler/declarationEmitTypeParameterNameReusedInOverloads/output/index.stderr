@@ -1,0 +1,20 @@
+  × Property 'foo' has no initializer and is not definitely assigned in the
+  │ constructor.
+   ╭─[../../tests/compiler/declarationEmitTypeParameterNameReusedInOverloads/index.ts:8:21]
+ 8 │ foo
+   · ───
+   ╰────
+
+  × Property 'bar' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declarationEmitTypeParameterNameReusedInOverloads/index.ts:10:37]
+ 10 │ bar
+    · ───
+    ╰────
+
+  × Property 'baz' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declarationEmitTypeParameterNameReusedInOverloads/index.ts:12:41]
+ 12 │ baz
+    · ───
+    ╰────

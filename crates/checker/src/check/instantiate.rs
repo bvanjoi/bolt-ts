@@ -623,7 +623,9 @@ impl<'cx> TyChecker<'cx> {
                             .is_none()
                             && c.get_constraint_of_ty_param(ty_var)
                                 .is_some_and(|constraint| {
-                                    c.every_type(constraint, |this, ty| this.is_array_or_tuple(ty))
+                                    c.every_type(constraint, |this, ty| {
+                                        this.is_array_or_tuple_ty(ty)
+                                    })
                                 }))
                     {
                         let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));
@@ -1154,7 +1156,7 @@ impl<'cx> TyChecker<'cx> {
             let new_ret_sig = self.new_sig(new_ret_sig);
             let prev = self.sig_links.insert(new_ret_sig.id, new_links);
             debug_assert!(prev.is_none());
-            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig, sig.mapper);
+            let new_ret_ty = self.get_or_create_ty_from_sig(new_ret_sig);
             let new_instantiated_sig = self.clone_sig(sig);
             self.get_mut_sig_links(new_instantiated_sig.id)
                 .set_resolved_ret_ty(new_ret_ty);
@@ -1486,7 +1488,7 @@ impl<'cx> TyChecker<'cx> {
         &self,
         ty_param: &'cx ty::ParamTy<'cx>,
     ) -> Option<&[bolt_ts_ast::NodeID]> {
-        let symbol = self.binder.symbol(ty_param.symbol?);
+        let symbol = self.symbol(ty_param.symbol?);
         symbol.decls.as_ref().map(|decls| decls.as_slice())
     }
 }

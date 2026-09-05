@@ -4,9 +4,9 @@ use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
 use super::CheckParameterFlags;
+use super::const_variant::is_js_variant;
 use super::errors;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_js_variant;
 use super::{PResult, ParserState};
 use super::{SignatureFlags, keyword};
 
@@ -585,14 +585,11 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
     ) -> &'cx ast::ClassElems<'cx> {
         let start = self.token.start();
         self.expect(TokenKind::LBrace);
-        let elems = self.do_outside_of_parse_context(
-            ParseContext::TOP_LEVEL.union(ParseContext::ASYNC),
-            |this| {
-                this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
-                    this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
-                })
-            },
-        );
+        let elems = self.do_outside_of_parse_context(ParseContext::ASYNC, |this| {
+            this.parse_list(ParsingContext::CLASS_MEMBERS, |this| {
+                this.parse_class_element::<ALLOW_ABSTRACT_MODIFIER>()
+            })
+        });
         let end = self.token.end();
         self.expect(TokenKind::RBrace);
         let span = Span::new(start, end, self.module_id);

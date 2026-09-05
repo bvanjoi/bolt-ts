@@ -203,6 +203,7 @@ dependencies = [
  "bolt_ts_ast_visitor",
  "bolt_ts_atom",
  "bolt_ts_binder",
+ "bolt_ts_binder_errors",
  "bolt_ts_checker_errors",
  "bolt_ts_config",
  "bolt_ts_early_resolve",
@@ -217,6 +218,7 @@ dependencies = [
  "bolt_ts_ty",
  "bolt_ts_utils",
  "bolt_ts_wf_check",
+ "bolt_ts_wf_check_errors",
  "indexmap",
  "nohash-hasher",
  "paste",
@@ -389,10 +391,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bolt_ts_lib_reference"
+version = "0.1.0"
+dependencies = [
+ "project-root",
+ "rustc-hash",
+]
+
+[[package]]
 name = "bolt_ts_libs"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_config",
+ "bolt_ts_lib_reference",
  "rustc-hash",
 ]
 
@@ -518,6 +529,7 @@ dependencies = [
  "bolt_ts_errors",
  "bolt_ts_fs",
  "bolt_ts_libs",
+ "bolt_ts_middle",
  "bolt_ts_module_resolve",
  "bolt_ts_parser_errors",
  "bolt_ts_path",
@@ -568,6 +580,7 @@ dependencies = [
  "bitflags 2.9.4",
  "bolt_ts_atom",
  "bolt_ts_ecma_logical",
+ "rustc-hash",
  "unicode-id-start",
 ]
 
@@ -654,7 +667,7 @@ dependencies = [
  "bolt_ts_parser",
  "bolt_ts_span",
  "bolt_ts_utils",
- "bolt_ts_wf_errors",
+ "bolt_ts_wf_check_errors",
  "nohash-hasher",
  "rayon",
  "rustc-hash",
@@ -662,7 +675,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bolt_ts_wf_errors"
+name = "bolt_ts_wf_check_errors"
 version = "0.1.0"
 dependencies = [
  "bolt_ts_checker_errors",
@@ -675,7 +688,6 @@ dependencies = [
 name = "bootstrap"
 version = "0.1.0"
 dependencies = [
- "regex",
  "serde_json",
 ]
 
@@ -843,7 +855,6 @@ name = "compile-test"
 version = "0.1.0"
 dependencies = [
  "rand",
- "regex",
  "serde_json",
  "symlink",
 ]

@@ -3,6 +3,6 @@
 //@compiler-options: target=es2015
 
 class C99 {
-	private get Baz():number { return 0; } //~ERROR: Get accessor must be at least as accessible as the set accessor.
+	private get Baz():number { return 0; } //~ERROR: A get accessor must be at least as accessible as the setter.
 	public set Baz(n:number) {} // error - accessors do not agree in visibility
 }

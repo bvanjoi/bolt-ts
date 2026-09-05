@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/constructorWithCapturedSuper.ts`, Apache-2.0 License
 var oneA;
 class A {
   constructor() {return oneA;}

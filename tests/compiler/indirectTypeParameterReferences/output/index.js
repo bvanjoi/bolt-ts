@@ -1,6 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/indirectTypeParameterReferences.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
-//@compiler-options: strict=false
 var flowtypes = (b) => {
   var combined = (fn) => (null);
   var literal = (fn) => (null);

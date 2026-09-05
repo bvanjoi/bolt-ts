@@ -16,6 +16,30 @@ use bolt_ts_ast::keyword::is_push_or_unshift;
 use bolt_ts_ast::r#trait::VarLike;
 
 impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
+    fn bind_getter_decl_children(&mut self, n: &'cx ast::GetterDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind_prop_name(n.name);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        if let Some(body) = n.body {
+            self.bind_block_stmt_children(body);
+        }
+    }
+
+    fn bind_setter_decl_children(&mut self, n: &'cx ast::SetterDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind_prop_name(n.name);
+        self.bind_params(n.params);
+        if let Some(body) = n.body {
+            self.bind_block_stmt_children(body);
+        }
+    }
+
     fn bind_if_stmt(&mut self, n: &'cx ast::IfStmt<'cx>) {
         let then_label = self.flow_nodes.create_branch_label();
         let else_label = self.flow_nodes.create_branch_label();
@@ -198,7 +222,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    pub(super) fn bind_block_stmt(&mut self, block: &'cx ast::BlockStmt<'cx>) {
+    fn bind_block_stmt_children(&mut self, block: &'cx ast::BlockStmt<'cx>) {
         self.bind(block.id);
     }
 
@@ -226,23 +250,24 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         let saved_has_flow_effects = self.has_flow_effects;
 
         self.has_flow_effects = false;
-        self.bind_cond(Some(cond.cond), true_label, false_label);
 
+        self.bind_cond(Some(cond.cond), true_label, false_label);
         self.current_flow = Some(self.finish_flow_label(true_label));
         let when_true_flow = self.current_flow.unwrap();
+
         self.bind(cond.when_true.id());
         self.flow_nodes
-            .add_antecedent(post_expression_label, when_true_flow);
-
+            .add_antecedent(post_expression_label, self.current_flow.unwrap());
         self.current_flow = Some(self.finish_flow_label(false_label));
         let when_false_flow = self.current_flow.unwrap();
+
         if self.in_return_position {
             self.flow_nodes
                 .insert_cond_expr_flow(cond, when_true_flow, when_false_flow);
         }
         self.bind(cond.when_false.id());
         self.flow_nodes
-            .add_antecedent(post_expression_label, when_false_flow);
+            .add_antecedent(post_expression_label, self.current_flow.unwrap());
 
         self.current_flow = if self.has_flow_effects {
             Some(self.finish_flow_label(post_expression_label))
@@ -658,14 +683,1020 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     pub(super) fn bind_children(&mut self, node: ast::NodeID) {
-        use ast::Node::*;
         let save_in_assignment_pattern = self.in_assignment_pattern;
         self.in_assignment_pattern = true;
 
-        let n = self.p.node(node);
+        if self
+            .current_flow
+            .is_some_and(|f| f == self.unreachable_flow_node)
+        {
+            self.bind_children_worker_in_unreachable_flow(node);
+            self.in_assignment_pattern = save_in_assignment_pattern;
+            return;
+        }
+
         // if n.ge_first_stmt_and_le_last_stmt() && (n.is_ret_stmt() || )
 
+        self.bind_children_worker(node, save_in_assignment_pattern);
+        // TODO: bind_js_doc
+        self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    fn bind_object_pat_children(&mut self, node: &'cx ast::ObjectPat<'cx>) {
+        for elem in node.elems {
+            self.bind(elem.id);
+        }
+    }
+
+    fn bind_object_binding_name(&mut self, node: &'cx ast::ObjectBindingName<'cx>) {
+        match node {
+            ast::ObjectBindingName::Shorthand(ident) => {
+                self.bind(ident.id);
+            }
+            ast::ObjectBindingName::Prop { prop_name, name } => {
+                self.bind(prop_name.id());
+                self.bind_binding(name);
+            }
+        }
+    }
+
+    fn bind_object_binding_elem_children(&mut self, node: &'cx ast::ObjectBindingElem<'cx>) {
+        self.bind_object_binding_name(node.name);
+        if let Some(init) = node.init() {
+            self.bind(init.id());
+        }
+    }
+
+    fn bind_array_pat_children(&mut self, node: &'cx ast::ArrayPat<'cx>) {
+        for elem in node.elems {
+            match elem.kind {
+                ast::ArrayBindingElemKind::Omit(e) => {
+                    self.bind(e.id);
+                }
+                ast::ArrayBindingElemKind::Binding(e) => {
+                    self.bind(e.id);
+                }
+            }
+        }
+    }
+
+    fn bind_enum_member_children(&mut self, node: &'cx ast::EnumMember<'cx>) {
+        match node.name {
+            ast::EnumMemberNameKind::Ident(ident) => self.bind(ident.id),
+            ast::EnumMemberNameKind::StringLit { raw, .. } => self.bind(raw.id),
+        }
+        if let Some(init) = node.init {
+            self.bind(init.id());
+        }
+    }
+
+    fn bind_object_shorthand_member_children(
+        &mut self,
+        node: &'cx ast::ObjectShorthandMember<'cx>,
+    ) {
+        self.bind(node.name.id);
+        if let Some(init) = node.object_assignment_initializer {
+            self.bind(init.id());
+        }
+    }
+
+    fn bind_object_prop_assignment_children(&mut self, node: &'cx ast::ObjectPropAssignment<'cx>) {
+        self.bind_prop_name(node.name);
+        self.bind(node.init.id());
+    }
+
+    fn bind_object_method_member_children(&mut self, node: &'cx ast::ObjectMethodMember<'cx>) {
+        self.bind_prop_name(node.name);
+        self.bind_type_parameters(node.ty_params);
+        self.bind_params(node.params);
+        if let Some(ty) = node.ty {
+            self.bind(ty.id());
+        }
+        self.bind(node.body.id);
+    }
+
+    fn bind_spread_assignment_children(&mut self, n: &'cx ast::SpreadAssignment<'cx>) {
+        self.bind(n.expr.id());
+    }
+
+    fn bind_spread_element_children(&mut self, n: &'cx ast::SpreadElement<'cx>) {
+        self.bind(n.expr.id());
+    }
+
+    fn bind_template_span_children(&mut self, n: &'cx ast::TemplateSpan<'cx>) {
+        self.bind(n.expr.id());
+    }
+
+    fn bind_default_clause_children(&mut self, n: &'cx ast::DefaultClause<'cx>) {
+        for stmt in n.stmts {
+            self.bind(stmt.id());
+        }
+    }
+
+    fn bind_case_or_default_clause_children(&mut self, clause: &ast::CaseOrDefaultClause<'cx>) {
+        match clause {
+            ast::CaseOrDefaultClause::Case(c) => self.bind(c.id),
+            ast::CaseOrDefaultClause::Default(d) => {
+                self.bind(d.id);
+            }
+        }
+    }
+
+    fn bind_var_stmt_children(&mut self, n: &'cx ast::VarStmt<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        for item in n.list {
+            self.bind(item.id);
+        }
+    }
+
+    fn bind_fn_declaration_children(&mut self, n: &'cx ast::FnDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        if let Some(name) = n.name {
+            self.bind(name.id);
+        }
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        if let Some(body) = n.body {
+            self.bind_block_stmt_children(body);
+        }
+    }
+
+    fn bind_class_declaration_children(&mut self, n: &'cx ast::ClassDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        if let Some(name) = n.name {
+            self.bind(name.id);
+        }
+        self.bind_type_parameters(n.ty_params);
+        if let Some(extends) = n.extends {
+            self.bind(extends.id);
+        }
+        if let Some(implements) = n.implements {
+            for elem in implements.list {
+                self.bind(elem.id);
+            }
+        }
+        for elem in n.elems.list {
+            self.bind_class_elem(elem);
+        }
+    }
+
+    fn bind_interface_decl_children(&mut self, n: &'cx ast::InterfaceDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind(n.name.id);
+        self.bind_type_parameters(n.ty_params);
+        if let Some(extends) = n.extends {
+            self.bind(extends.id);
+        }
+        for m in n.members {
+            self.bind_object_ty_member(m);
+        }
+    }
+
+    fn bind_type_alias_decl_children(&mut self, n: &'cx ast::TypeAliasDecl<'cx>) {
+        self.bind(n.name.id);
+        self.bind_type_parameters(n.ty_params);
+        self.bind(n.ty.id());
+    }
+
+    fn bind_interface_extends_clause_children(&mut self, n: &'cx ast::InterfaceExtendsClause<'cx>) {
+        for ty in n.list {
+            self.bind(ty.id);
+        }
+    }
+
+    fn bind_class_implements_clause_children(&mut self, n: &'cx ast::ClassImplementsClause<'cx>) {
+        for ty in n.list {
+            self.bind(ty.id);
+        }
+    }
+
+    fn bind_enum_decl_children(&mut self, n: &'cx ast::EnumDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind(n.name.id);
+        for member in n.members {
+            self.bind(member.id);
+        }
+    }
+
+    fn bind_import_decl_children(&mut self, n: &'cx ast::ImportDecl<'cx>) {
+        if let Some(clause) = n.clause {
+            self.bind(clause.id);
+        }
+        self.bind(n.module.id);
+    }
+
+    fn bind_import_equals_decl_children(&mut self, n: &'cx ast::ImportEqualsDecl<'cx>) {
+        self.bind(n.name.id);
+        match n.module_reference {
+            ast::ModuleReferenceKind::ExternalModuleReference(n) => {
+                self.bind(n.id());
+            }
+            ast::ModuleReferenceKind::EntityName(n) => self.bind_entity_name(n),
+        }
+    }
+
+    fn bind_catch_clause_children(&mut self, n: &'cx ast::CatchClause<'cx>) {
+        if let Some(var) = n.var {
+            self.bind(var.id);
+        }
+        self.bind(n.block.id);
+    }
+
+    fn bind_labeled_stmt_children(&mut self, n: &'cx ast::LabeledStmt<'cx>) {
+        self.bind(n.label.id);
+        self.bind(n.stmt.id());
+    }
+
+    fn bind_fn_expr_children(&mut self, n: &'cx ast::FnExpr<'cx>) {
+        if let Some(name) = n.name {
+            self.bind(name.id);
+        }
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        self.bind(n.body.id);
+    }
+
+    fn bind_class_expr_children(&mut self, n: &'cx ast::ClassExpr<'cx>) {
+        if let Some(name) = n.name {
+            self.bind(name.id);
+        }
+        self.bind_type_parameters(n.ty_params);
+        if let Some(extends) = n.extends {
+            self.bind(extends.id);
+        }
+        if let Some(implements) = n.implements {
+            for ty in implements.list {
+                self.bind(ty.id);
+            }
+        }
+        for elem in n.elems.list {
+            self.bind_class_elem(elem);
+        }
+    }
+
+    fn bind_new_expr_children(&mut self, n: &'cx ast::NewExpr<'cx>) {
+        self.bind(n.expr.id());
+        self.bind_type_arguments(n.ty_args);
+        if let Some(args) = n.args {
+            for arg in args {
+                self.bind(arg.id());
+            }
+        }
+    }
+
+    fn bind_arrow_fn_expr_children(&mut self, n: &'cx ast::ArrowFnExpr<'cx>) {
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        use ast::ArrowFnExprBody::*;
+        match n.body {
+            Block(n) => self.bind_block_stmt_children(n),
+            Expr(n) => self.bind(n.id()),
+        }
+    }
+
+    fn bind_yield_expr_children(&mut self, n: &'cx ast::YieldExpr<'cx>) {
+        if let Some(expr) = n.expr {
+            self.bind(expr.id());
+        }
+    }
+
+    fn bind_as_expr_children(&mut self, n: &'cx ast::AsExpr<'cx>) {
+        self.bind(n.expr.id());
+        self.bind(n.ty.id());
+    }
+
+    fn bind_ty_assertion_expr_children(&mut self, n: &'cx ast::TyAssertion<'cx>) {
+        self.bind(n.expr.id());
+        self.bind(n.ty.id());
+    }
+
+    fn bind_satisfies_expr_children(&mut self, n: &'cx ast::SatisfiesExpr<'cx>) {
+        self.bind(n.expr.id());
+        self.bind(n.ty.id());
+    }
+
+    fn bind_template_expr_children(&mut self, n: &'cx ast::TemplateExpr<'cx>) {
+        self.bind(n.head.id);
+        for span in n.spans {
+            self.bind(span.id);
+        }
+    }
+
+    fn bind_tagged_template_expr_children(&mut self, n: &'cx ast::TaggedTemplateExpr<'cx>) {
+        self.bind(n.tag.id());
+        self.bind_type_arguments(n.ty_args);
+        self.bind(n.tpl.id());
+    }
+
+    fn bind_expr_with_ty_args_children(&mut self, n: &'cx ast::ExprWithTyArgs<'cx>) {
+        self.bind(n.expr.id());
+        self.bind_type_arguments(n.ty_args);
+    }
+
+    fn bind_qualified_name_children(&mut self, n: &'cx ast::QualifiedName<'cx>) {
+        self.bind(n.left.id());
+        self.bind(n.right.id);
+    }
+
+    fn bind_refer_ty_children(&mut self, n: &'cx ast::ReferTy<'cx>) {
+        self.bind_entity_name(n.name);
+        self.bind_type_arguments(n.ty_args);
+    }
+
+    fn bind_import_type_children(&mut self, n: &'cx ast::ImportType<'cx>) {
+        self.bind(n.argument.id());
+        self.bind_type_arguments(n.type_arguments);
+        if let Some(qualifier) = n.qualifier {
+            self.bind_entity_name(qualifier);
+        }
+    }
+
+    fn bind_indexed_access_ty_children(&mut self, n: &'cx ast::IndexedAccessTy<'cx>) {
+        self.bind(n.ty.id());
+        self.bind(n.index_ty.id());
+    }
+
+    fn bind_fn_ty_children(&mut self, n: &'cx ast::FnTy<'cx>) {
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        self.bind(n.ty.id());
+    }
+
+    fn bind_ctor_ty_children(&mut self, n: &'cx ast::CtorTy<'cx>) {
+        if let Some(modifiers) = n.modifiers {
+            self.bind_modifiers(modifiers);
+        }
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        self.bind(n.ty.id());
+    }
+
+    fn bind_object_lit_ty_children(&mut self, n: &'cx ast::ObjectLitTy<'cx>) {
+        for m in n.members {
+            self.bind_object_ty_member(m);
+        }
+    }
+
+    fn bind_ty_param_children(&mut self, n: &'cx ast::TyParam<'cx>) {
+        self.bind(n.name.id);
+        if let Some(constraint) = n.constraint {
+            self.bind(constraint.id());
+        }
+        if let Some(default) = n.default {
+            self.bind(default.id());
+        }
+    }
+
+    fn bind_index_sig_decl_children(&mut self, n: &'cx ast::IndexSigDecl<'cx>) {
+        if let Some(modifiers) = n.modifiers {
+            self.bind_modifiers(modifiers);
+        }
+        self.bind_binding(n.key);
+        self.bind(n.key_ty.id());
+        self.bind(n.ty.id());
+    }
+
+    fn bind_call_sig_decl_children(&mut self, n: &'cx ast::CallSigDecl<'cx>) {
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_ctor_sig_decl_children(&mut self, n: &'cx ast::CtorSigDecl<'cx>) {
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_prop_signature_children(&mut self, n: &'cx ast::PropSignature<'cx>) {
+        if let Some(modifiers) = n.modifiers {
+            self.bind_modifiers(modifiers);
+        }
+        self.bind_prop_name(n.name);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_method_signature_children(&mut self, n: &'cx ast::MethodSignature<'cx>) {
+        self.bind_prop_name(n.name);
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_named_tuple_ty_children(&mut self, n: &'cx ast::NamedTupleTy<'cx>) {
+        self.bind(n.name.id);
+        self.bind(n.ty.id());
+    }
+
+    fn bind_tuple_ty_children(&mut self, n: &'cx ast::TupleTy<'cx>) {
+        for ty in n.tys {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_cond_ty_children(&mut self, n: &'cx ast::CondTy<'cx>) {
+        self.bind(n.check_ty.id());
+        self.bind(n.extends_ty.id());
+        self.bind(n.true_ty.id());
+        self.bind(n.false_ty.id());
+    }
+
+    fn bind_intersection_ty_children(&mut self, n: &'cx ast::IntersectionTy<'cx>) {
+        for ty in n.tys {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_union_ty_children(&mut self, n: &'cx ast::UnionTy<'cx>) {
+        for ty in n.tys {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_typeof_ty_children(&mut self, n: &'cx ast::TypeofTy<'cx>) {
+        self.bind_entity_name(n.name);
+        self.bind_type_arguments(n.ty_args);
+    }
+
+    fn bind_mapped_ty_children(&mut self, n: &'cx ast::MappedTy<'cx>) {
+        self.bind(n.ty_param.id);
+        if let Some(name_ty) = n.name_ty {
+            self.bind(name_ty.id());
+        }
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_pred_ty_children(&mut self, n: &'cx ast::PredTy<'cx>) {
+        match n.name {
+            ast::PredTyName::Ident(n) => self.bind(n.id),
+            ast::PredTyName::This(n) => self.bind(n.id),
+        }
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+    }
+
+    fn bind_template_lit_ty_children(&mut self, n: &'cx ast::TemplateLitTy<'cx>) {
+        self.bind(n.head.id);
+        for span in n.spans {
+            self.bind(span.id);
+        }
+    }
+
+    fn bind_jsx_ns_name_children(&mut self, n: &'cx ast::JsxNsName<'cx>) {
+        self.bind(n.ns.id);
+        self.bind(n.name.id);
+    }
+
+    fn bind_jsx_named_attr_children(&mut self, n: &'cx ast::JsxNamedAttr<'cx>) {
+        self.bind(n.name.id());
+        if let Some(attr_value) = n.init {
+            self.bind(attr_value.id());
+        }
+    }
+
+    fn bind_jsx_expr_children(&mut self, n: &'cx ast::JsxExpr<'cx>) {
+        if let Some(e) = n.expr {
+            self.bind(e.id());
+        }
+    }
+
+    fn bind_jsx_opening_elem_children(&mut self, n: &'cx ast::JsxOpeningElem<'cx>) {
+        self.bind(n.tag_name.id());
+        self.bind_type_arguments(n.ty_args);
+        for attr in n.attrs {
+            self.bind(attr.id());
+        }
+    }
+
+    fn bind_jsx_self_closing_elem_children(&mut self, n: &'cx ast::JsxSelfClosingElem<'cx>) {
+        self.bind(n.tag_name.id());
+        self.bind_type_arguments(n.ty_args);
+        for attr in n.attrs {
+            self.bind(attr.id());
+        }
+    }
+
+    fn bind_jsx_frag_children(&mut self, n: &'cx ast::JsxFrag<'cx>) {
+        self.bind(n.opening_frag.id);
+        for child in n.children {
+            self.bind(child.id());
+        }
+        self.bind(n.closing_frag.id);
+    }
+
+    fn bind_jsx_elem_children(&mut self, n: &'cx ast::JsxElem<'cx>) {
+        self.bind(n.opening_elem.id);
+        for child in n.children {
+            self.bind(child.id());
+        }
+        self.bind(n.closing_elem.id);
+    }
+
+    fn bind_property_access_expr_children(&mut self, n: &'cx ast::PropAccessExpr<'cx>) {
+        self.bind(n.expr.id());
+        self.bind(n.name.id);
+    }
+
+    fn bind_element_access_expr_children(&mut self, n: &'cx ast::EleAccessExpr<'cx>) {
+        self.bind(n.expr.id());
+        self.bind(n.arg.id());
+    }
+
+    fn bind_children_worker_in_unreachable_flow(&mut self, node: ast::NodeID) {
+        use ast::Node::*;
+        let n = self.p.node(node);
         match n {
+            Program(_) => unreachable!(),
+            Modifier(_) => {}
+            VarDecl(n) => self.bind_variable_declaration(n),
+            ParamDecl(n) => self.bind_parameter_declaration(n),
+            ClassExtendsClause(n) => self.bind_class_extends_clause_children(n),
+            ImportShorthandSpec(n) => self.bind_import_shorthand_spec_children(n),
+            ExportShorthandSpec(n) => self.bind_export_shorthand_spec_children(n),
+            NsImport(n) => self.bind_ns_import_children(n),
+            NsExport(n) => self.bind_ns_export_children(n),
+            GlobExport(n) => self.bind_glob_export_children(n),
+            SpecsExport(n) => self.bind_specs_export_children(n),
+            ExportNamedSpec(n) => self.bind_export_named_spec_children(n),
+            ImportNamedSpec(n) => self.bind_import_named_spec_children(n),
+            ImportClause(n) => self.bind_import_clause_children(n),
+            ObjectPat(n) => self.bind_object_pat_children(n),
+            ObjectBindingElem(n) => self.bind_object_binding_elem_children(n),
+            ArrayPat(n) => self.bind_array_pat_children(n),
+            ArrayBinding(n) => {
+                self.bind_binding(n.name);
+                if let Some(init) = n.init {
+                    self.bind(init.id());
+                }
+            }
+            EnumMember(n) => self.bind_enum_member_children(n),
+            ObjectShorthandMember(n) => self.bind_object_shorthand_member_children(n),
+            ObjectPropAssignment(n) => self.bind_object_prop_assignment_children(n),
+            ObjectMethodMember(n) => self.bind_object_method_member_children(n),
+            SpreadAssignment(n) => self.bind_spread_assignment_children(n),
+            SpreadElement(n) => self.bind_spread_element_children(n),
+            TemplateHead(_) => {}
+            TemplateSpan(n) => self.bind_template_span_children(n),
+            CaseClause(n) => {
+                self.bind(n.expr.id());
+                for stmt in n.stmts {
+                    self.bind(stmt.id());
+                }
+            }
+            DefaultClause(n) => self.bind_default_clause_children(n),
+            CaseBlock(n) => {
+                for clause in n.clauses {
+                    self.bind_case_or_default_clause_children(clause);
+                }
+            }
+            VarStmt(n) => self.bind_var_stmt_children(n),
+            FnDecl(n) => self.bind_fn_declaration_children(n),
+            IfStmt(n) => {
+                self.bind(n.expr.id());
+                self.bind(n.then.id());
+                if let Some(else_then) = n.else_then {
+                    self.bind(else_then.id());
+                }
+            }
+            RetStmt(n) => {
+                if let Some(expr) = n.expr {
+                    self.bind(expr.id());
+                }
+            }
+            EmptyStmt(_) => {}
+            ClassDecl(n) => self.bind_class_declaration_children(n),
+            ClassCtor(n) => self.bind_class_ctor_children(n),
+            ClassPropElem(n) => self.bind_class_prop_elem_children(n),
+            ClassMethodElem(n) => self.bind_class_method_elem_children(n),
+            ClassSemiElem(_) => {}
+            ClassStaticBlockDecl(n) => self.bind_class_static_block_decl_children(n),
+            NestedModuleDecl(n) => self.bind_nested_module_decl_children(n),
+            BlockModuleDecl(n) => self.bind_block_module_decl_children(n),
+            GetterDecl(n) => self.bind_getter_decl_children(n),
+            SetterDecl(n) => self.bind_setter_decl_children(n),
+            InterfaceDecl(n) => self.bind_interface_decl_children(n),
+            TypeAliasDecl(n) => self.bind_type_alias_decl_children(n),
+            InterfaceExtendsClause(n) => self.bind_interface_extends_clause_children(n),
+            ClassImplementsClause(n) => self.bind_class_implements_clause_children(n),
+            BlockStmt(n) => self.bind_stmts_under(node, n.stmts),
+            ModuleBlock(n) => self.bind_stmts_under(node, n.stmts),
+            ThrowStmt(n) => {
+                self.bind(n.expr.id());
+            }
+            EnumDecl(n) => self.bind_enum_decl_children(n),
+            ImportDecl(n) => self.bind_import_decl_children(n),
+            ImportEqualsDecl(n) => self.bind_import_equals_decl_children(n),
+            ExternalModuleReference(n) => {
+                self.bind(n.module_spec().id);
+            }
+            ExportDecl(n) => {
+                self.bind_export_clause(n.clause);
+            }
+            ExportAssign(n) => {
+                self.bind(n.expr.id());
+            }
+            ForStmt(n) => {
+                if let Some(init) = &n.init {
+                    use ast::ForInitKind::*;
+                    match init {
+                        Var(list) => {
+                            for item in *list {
+                                self.bind(item.id);
+                            }
+                        }
+                        Expr(expr) => self.bind(expr.id()),
+                    }
+                }
+                if let Some(cond) = n.cond {
+                    self.bind(cond.id());
+                }
+                self.bind(n.body.id());
+                if let Some(update) = n.incr {
+                    self.bind(update.id());
+                }
+            }
+            ForInStmt(n) => {
+                self.bind(n.expr.id());
+                use ast::ForInitKind::*;
+                match n.init {
+                    Var(list) => {
+                        for item in list {
+                            self.bind(item.id);
+                        }
+                    }
+                    Expr(expr) => self.bind(expr.id()),
+                }
+                self.bind(n.body.id());
+            }
+            ForOfStmt(n) => {
+                self.bind(n.expr.id());
+                use ast::ForInitKind::*;
+                match n.init {
+                    Var(list) => {
+                        for item in list {
+                            self.bind(item.id);
+                        }
+                    }
+                    Expr(expr) => self.bind(expr.id()),
+                }
+                self.bind(n.body.id());
+            }
+            WhileStmt(n) => {
+                self.bind(n.expr.id());
+                self.bind(n.stmt.id());
+            }
+            DoWhileStmt(n) => {
+                self.bind(n.stmt.id());
+                self.bind(n.expr.id());
+            }
+            BreakStmt(n) => {
+                if let Some(label) = n.label {
+                    self.bind(label.id);
+                }
+            }
+            ContinueStmt(n) => {
+                if let Some(label) = n.label {
+                    self.bind(label.id);
+                }
+            }
+            TryStmt(n) => {
+                self.bind(n.try_block.id);
+                if let Some(catch) = n.catch_clause {
+                    self.bind(catch.id);
+                }
+                if let Some(finally) = n.finally_block {
+                    self.bind(finally.id);
+                }
+            }
+            CatchClause(n) => self.bind_catch_clause_children(n),
+            LabeledStmt(n) => self.bind_labeled_stmt_children(n),
+            SwitchStmt(n) => {
+                self.bind(n.expr.id());
+                self.bind(n.case_block.id);
+            }
+            ExprStmt(n) => {
+                self.bind(n.expr.id());
+            }
+            BinExpr(n) => {
+                self.bind(n.left.id());
+                self.bind(n.right.id());
+            }
+            OmitExpr(_) | DebuggerStmt(_) => {}
+            ParenExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            CondExpr(n) => {
+                self.bind(n.cond.id());
+                self.bind(n.when_true.id());
+                self.bind(n.when_false.id());
+            }
+            CallExpr(n) => {
+                self.bind(n.expr.id());
+                self.bind_type_arguments(n.ty_args);
+                for arg in n.args {
+                    self.bind(arg.id());
+                }
+            }
+            FnExpr(n) => self.bind_fn_expr_children(n),
+            ClassExpr(n) => self.bind_class_expr_children(n),
+            NewExpr(n) => self.bind_new_expr_children(n),
+            AssignExpr(n) => {
+                self.bind(n.left.id());
+                self.bind(n.right.id());
+            }
+            ArrowFnExpr(n) => self.bind_arrow_fn_expr_children(n),
+            PrefixUnaryExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            PostfixUnaryExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            PropAccessExpr(n) => self.bind_property_access_expr_children(n),
+            EleAccessExpr(n) => self.bind_element_access_expr_children(n),
+            ThisExpr(_) => {}
+            TypeofExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            VoidExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            AwaitExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            YieldExpr(n) => self.bind_yield_expr_children(n),
+            SuperExpr(_) => {}
+            AsExpr(n) => self.bind_as_expr_children(n),
+            TyAssertionExpr(n) => self.bind_ty_assertion_expr_children(n),
+            SatisfiesExpr(n) => self.bind_satisfies_expr_children(n),
+            NonNullExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            TemplateExpr(n) => self.bind_template_expr_children(n),
+            TaggedTemplateExpr(n) => self.bind_tagged_template_expr_children(n),
+            DeleteExpr(n) => {
+                self.bind(n.expr.id());
+            }
+            ImportExpression(_) => {}
+            NumLit(_)
+            | BigIntLit(_)
+            | BoolLit(_)
+            | NullLit(_)
+            | RegExpLit(_)
+            | StringLit(_)
+            | NoSubstitutionTemplateLit(_)
+            | Ident(_)
+            | PrivateIdent(_)
+            | LitTy(_)
+            | IntrinsicTy(_)
+            | ThisTy(_)
+            | JsxText(_)
+            | JsxOpeningFrag(_)
+            | JsxClosingFrag(_) => {}
+            ArrayLit(n) => {
+                for elem in n.elems {
+                    self.bind(elem.id());
+                }
+            }
+            ObjectLit(n) => {
+                for member in n.members {
+                    self.bind(member.id());
+                }
+            }
+            ComputedPropName(n) => {
+                self.bind(n.expr.id());
+            }
+            ExprWithTyArgs(n) => self.bind_expr_with_ty_args_children(n),
+            NewMetaProperty(n) => {
+                self.bind(n.name.id);
+            }
+            ReferTy(n) => self.bind_refer_ty_children(n),
+            ArrayTy(n) => {
+                self.bind(n.ele.id());
+            }
+            ImportType(n) => self.bind_import_type_children(n),
+            IndexedAccessTy(n) => self.bind_indexed_access_ty_children(n),
+            FnTy(n) => self.bind_fn_ty_children(n),
+            CtorTy(n) => self.bind_ctor_ty_children(n),
+            ObjectLitTy(n) => self.bind_object_lit_ty_children(n),
+            TyParam(n) => self.bind_ty_param_children(n),
+            IndexSigDecl(n) => self.bind_index_sig_decl_children(n),
+            CallSigDecl(n) => self.bind_call_sig_decl_children(n),
+            CtorSigDecl(n) => self.bind_ctor_sig_decl_children(n),
+            PropSignature(n) => self.bind_prop_signature_children(n),
+            MethodSignature(n) => self.bind_method_signature_children(n),
+            RestTy(n) => {
+                self.bind(n.ty.id());
+            }
+            OptionalTy(n) => {
+                self.bind(n.ty.id());
+            }
+            NamedTupleTy(n) => self.bind_named_tuple_ty_children(n),
+            TupleTy(n) => self.bind_tuple_ty_children(n),
+            CondTy(n) => self.bind_cond_ty_children(n),
+            IntersectionTy(n) => self.bind_intersection_ty_children(n),
+            UnionTy(n) => self.bind_union_ty_children(n),
+            TypeofTy(n) => self.bind_typeof_ty_children(n),
+            MappedTy(n) => self.bind_mapped_ty_children(n),
+            TyOp(n) => {
+                self.bind(n.ty.id());
+            }
+            PredTy(n) => self.bind_pred_ty_children(n),
+            ParenTy(n) => {
+                self.bind(n.ty.id());
+            }
+            InferTy(n) => {
+                self.bind(n.ty_param.id);
+            }
+            NullableTy(n) => {
+                self.bind(n.ty.id());
+            }
+            TemplateLitTy(n) => self.bind_template_lit_ty_children(n),
+            TemplateSpanTy(n) => {
+                self.bind(n.ty.id());
+            }
+            QualifiedName(n) => self.bind_qualified_name_children(n),
+            JsxSpreadAttr(n) => {
+                self.bind(n.expr.id());
+            }
+            JsxNsName(n) => self.bind_jsx_ns_name_children(n),
+            JsxNamedAttr(n) => self.bind_jsx_named_attr_children(n),
+            JsxExpr(n) => self.bind_jsx_expr_children(n),
+            JsxOpeningElem(n) => self.bind_jsx_opening_elem_children(n),
+            JsxClosingElem(n) => {
+                self.bind(n.tag_name.id());
+            }
+            JsxSelfClosingElem(n) => self.bind_jsx_self_closing_elem_children(n),
+            JsxFrag(n) => self.bind_jsx_frag_children(n),
+            JsxElem(n) => self.bind_jsx_elem_children(n),
+        }
+    }
+
+    fn bind_class_extends_clause_children(&mut self, n: &'cx ast::ClassExtendsClause<'cx>) {
+        self.bind(n.expr_with_ty_args.id);
+    }
+
+    fn bind_import_shorthand_spec_children(&mut self, n: &'cx ast::ImportShorthandSpec<'cx>) {
+        self.bind(n.name.id);
+    }
+
+    fn bind_export_shorthand_spec_children(&mut self, n: &'cx ast::ExportShorthandSpec<'cx>) {
+        self.bind(n.name.id);
+    }
+
+    fn bind_ns_import_children(&mut self, n: &'cx ast::NsImport<'cx>) {
+        self.bind(n.name.id);
+    }
+
+    fn bind_ns_export_children(&mut self, n: &'cx ast::NsExport<'cx>) {
+        self.bind_module_export_name(n.name);
+        self.bind(n.module.id);
+    }
+
+    fn bind_glob_export_children(&mut self, n: &'cx ast::GlobExport<'cx>) {
+        self.bind(n.module.id);
+    }
+
+    fn bind_specs_export_children(&mut self, n: &'cx ast::SpecsExport<'cx>) {
+        for spec in n.list {
+            self.bind_export_spec(spec);
+        }
+        if let Some(module) = n.module {
+            self.bind(module.id);
+        }
+    }
+
+    fn bind_import_named_spec_children(&mut self, n: &'cx ast::ImportNamedSpec<'cx>) {
+        self.bind_module_export_name(n.prop_name);
+        self.bind(n.name.id);
+    }
+
+    fn bind_export_named_spec_children(&mut self, n: &'cx ast::ExportNamedSpec<'cx>) {
+        self.bind_module_export_name(n.prop_name);
+        self.bind_module_export_name(n.name);
+    }
+
+    fn bind_import_clause_children(&mut self, n: &'cx ast::ImportClause<'cx>) {
+        if let Some(name) = n.name {
+            self.bind(name.id);
+        }
+        if let Some(kind) = n.kind {
+            use bolt_ts_ast::ImportClauseKind::*;
+            match kind {
+                Ns(n) => self.bind(n.id),
+                Specs(n) => {
+                    for spec in n {
+                        use bolt_ts_ast::ImportSpecKind::*;
+                        match spec.kind {
+                            Shorthand(n) => self.bind(n.id),
+                            Named(n) => self.bind(n.id),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn bind_nested_module_decl_children(&mut self, n: &'cx ast::NestedModuleDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind(n.name.id);
+        match n.block {
+            ast::NestedModuleBlock::Nested(n) => self.bind(n.id),
+            ast::NestedModuleBlock::Block(n) => self.bind(n.id),
+        }
+    }
+
+    fn bind_block_module_decl_children(&mut self, n: &'cx ast::BlockModuleDecl<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        match n.name {
+            ast::ModuleName::Ident(n) => self.bind(n.id),
+            ast::ModuleName::StringLit(n) => self.bind(n.id),
+        }
+        if let Some(block) = n.block {
+            self.bind(block.id);
+        }
+    }
+
+    fn bind_class_static_block_decl_children(&mut self, n: &'cx ast::ClassStaticBlockDecl<'cx>) {
+        self.bind_block_stmt_children(n.body);
+    }
+
+    fn bind_class_prop_elem_children(&mut self, n: &'cx ast::ClassPropElem<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind_prop_name(n.name);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        if let Some(init) = n.init {
+            self.bind(init.id());
+        }
+    }
+
+    fn bind_class_method_elem_children(&mut self, n: &'cx ast::ClassMethodElem<'cx>) {
+        if let Some(mods) = n.modifiers {
+            self.bind_modifiers(mods);
+        }
+        self.bind_prop_name(n.name);
+        self.bind_type_parameters(n.ty_params);
+        self.bind_params(n.params);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        if let Some(body) = n.body {
+            self.bind_block_stmt_children(body);
+        }
+    }
+
+    fn bind_class_ctor_children(&mut self, n: &'cx ast::ClassCtor<'cx>) {
+        self.bind_params(n.params);
+        if let Some(ret) = n.ret {
+            self.bind(ret.id());
+        }
+        if let Some(body) = n.body {
+            self.bind_block_stmt_children(body);
+        }
+    }
+
+    fn bind_children_worker(&mut self, node: ast::NodeID, save_in_assignment_pattern: bool) {
+        use ast::Node::*;
+        let n = self.p.node(node);
+        match n {
+            VarDecl(n) => self.bind_var_decl_flow(n),
             WhileStmt(n) => self.bind_while_stmt(n),
             DoWhileStmt(n) => self.bind_do_stmt(n),
             ForStmt(n) => self.bind_for_stmt(n),
@@ -682,14 +1713,12 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             PostfixUnaryExpr(n) => self.bind_postfix_unary_expr_flow(n),
             BinExpr(n) => self.bind_bin_expr_flow(n),
             CondExpr(n) => self.bind_cond_expr_flow(n),
-            VarDecl(n) => self.bind_var_decl_flow(n),
             PropAccessExpr(n) => {
                 let node_id = n.id;
                 if self.node_query().is_optional_chain(node_id) {
                     self.bind_optional_chain_flow(node_id);
                 } else {
-                    self.bind(n.expr.id());
-                    self.bind(n.name.id);
+                    self.bind_property_access_expr_children(n);
                 }
             }
             EleAccessExpr(n) => {
@@ -697,8 +1726,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 if self.node_query().is_optional_chain(node_id) {
                     self.bind_optional_chain_flow(node_id);
                 } else {
-                    self.bind(n.expr.id());
-                    self.bind(n.arg.id());
+                    self.bind_element_access_expr_children(n);
                 }
             }
             CallExpr(n) => self.bind_call_expr_flow(n),
@@ -732,315 +1760,54 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     self.bind(elem.id());
                 }
             }
-            VarStmt(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                for item in n.list {
-                    self.bind(item.id);
-                }
-            }
-            FnDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                if let Some(name) = n.name {
-                    self.bind(name.id);
-                }
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                if let Some(body) = n.body {
-                    self.bind_block_stmt(body);
-                }
-            }
+            VarStmt(n) => self.bind_var_stmt_children(n),
+            FnDecl(n) => self.bind_fn_declaration_children(n),
             EmptyStmt(_) => {}
-            ClassDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                if let Some(name) = n.name {
-                    self.bind(name.id);
-                }
-                self.bind_type_parameters(n.ty_params);
-                if let Some(extends) = n.extends {
-                    self.bind(extends.id);
-                }
-                if let Some(implements) = n.implements {
-                    for elem in implements.list {
-                        self.bind(elem.id);
-                    }
-                }
-                for elem in n.elems.list {
-                    self.bind_class_elem(elem);
-                }
-            }
-            NestedModuleDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind(n.name.id);
-                match n.block {
-                    ast::NestedModuleBlock::Nested(n) => self.bind(n.id),
-                    ast::NestedModuleBlock::Block(n) => self.bind(n.id),
-                }
-            }
-            BlockModuleDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                match n.name {
-                    ast::ModuleName::Ident(n) => self.bind(n.id),
-                    ast::ModuleName::StringLit(n) => self.bind(n.id),
-                }
-                if let Some(block) = n.block {
-                    self.bind(block.id);
-                }
-            }
-            ClassCtor(n) => {
-                self.bind_params(n.params);
-                if let Some(ret) = n.ret {
-                    self.bind(ret.id());
-                }
-                if let Some(body) = n.body {
-                    self.bind_block_stmt(body);
-                }
-            }
-            ClassPropElem(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind_prop_name(n.name);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                if let Some(init) = n.init {
-                    self.bind(init.id());
-                }
-            }
-            ClassMethodElem(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind_prop_name(n.name);
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                if let Some(body) = n.body {
-                    self.bind_block_stmt(body);
-                }
-            }
-            GetterDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind_prop_name(n.name);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                if let Some(body) = n.body {
-                    self.bind_block_stmt(body);
-                }
-            }
-            SetterDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind_prop_name(n.name);
-                self.bind_params(n.params);
-                if let Some(body) = n.body {
-                    self.bind(body.id);
-                }
-            }
-            InterfaceDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind(n.name.id);
-                self.bind_type_parameters(n.ty_params);
-                if let Some(extends) = n.extends {
-                    self.bind(extends.id);
-                }
-                for m in n.members {
-                    self.bind_object_ty_member(m);
-                }
-            }
-            TypeAliasDecl(n) => {
-                self.bind(n.name.id);
-                self.bind_type_parameters(n.ty_params);
-                self.bind(n.ty.id());
-            }
-            InterfaceExtendsClause(n) => {
-                for ty in n.list {
-                    self.bind(ty.id);
-                }
-            }
-            ClassExtendsClause(n) => {
-                self.bind(n.expr_with_ty_args.id);
-            }
-            ClassImplementsClause(n) => {
-                for ty in n.list {
-                    self.bind(ty.id);
-                }
-            }
-            NsImport(n) => {
-                self.bind(n.name.id);
-            }
-            NsExport(n) => {
-                self.bind_module_export_name(n.name);
-                self.bind(n.module.id);
-            }
-            GlobExport(n) => {
-                self.bind(n.module.id);
-            }
-            SpecsExport(n) => {
-                for spec in n.list {
-                    self.bind_export_spec(spec);
-                }
-                if let Some(module) = n.module {
-                    self.bind(module.id);
-                }
-            }
-            ImportNamedSpec(n) => {
-                self.bind_module_export_name(n.prop_name);
-                self.bind(n.name.id);
-            }
-            ImportClause(n) => {
-                if let Some(name) = n.name {
-                    self.bind(name.id);
-                }
-                if let Some(kind) = n.kind {
-                    use bolt_ts_ast::ImportClauseKind::*;
-                    match kind {
-                        Ns(n) => self.bind(n.id),
-                        Specs(n) => {
-                            for spec in n {
-                                use bolt_ts_ast::ImportSpecKind::*;
-                                match spec.kind {
-                                    Shorthand(n) => self.bind(n.id),
-                                    Named(n) => self.bind(n.id),
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            ImportDecl(n) => {
-                if let Some(clause) = n.clause {
-                    self.bind(clause.id);
-                }
-                self.bind(n.module.id);
-            }
+            ClassDecl(n) => self.bind_class_declaration_children(n),
+            NestedModuleDecl(n) => self.bind_nested_module_decl_children(n),
+            BlockModuleDecl(n) => self.bind_block_module_decl_children(n),
+            ClassCtor(n) => self.bind_class_ctor_children(n),
+            ClassPropElem(n) => self.bind_class_prop_elem_children(n),
+            ClassMethodElem(n) => self.bind_class_method_elem_children(n),
+            GetterDecl(n) => self.bind_getter_decl_children(n),
+            SetterDecl(n) => self.bind_setter_decl_children(n),
+            InterfaceDecl(n) => self.bind_interface_decl_children(n),
+            TypeAliasDecl(n) => self.bind_type_alias_decl_children(n),
+            InterfaceExtendsClause(n) => self.bind_interface_extends_clause_children(n),
+            ClassExtendsClause(n) => self.bind_class_extends_clause_children(n),
+            ClassImplementsClause(n) => self.bind_class_implements_clause_children(n),
+            NsImport(n) => self.bind_ns_import_children(n),
+            NsExport(n) => self.bind_ns_export_children(n),
+            GlobExport(n) => self.bind_glob_export_children(n),
+            SpecsExport(n) => self.bind_specs_export_children(n),
+            ImportNamedSpec(n) => self.bind_import_named_spec_children(n),
+            ImportClause(n) => self.bind_import_clause_children(n),
+            ImportDecl(n) => self.bind_import_decl_children(n),
             ExportDecl(n) => {
                 self.bind_export_clause(n.clause);
             }
-            CatchClause(n) => {
-                if let Some(var) = n.var {
-                    self.bind(var.id);
-                }
-                self.bind(n.block.id);
-            }
-            ObjectPat(n) => {
-                for elem in n.elems {
-                    self.bind(elem.id);
-                }
-            }
-            ArrayPat(n) => {
-                for elem in n.elems {
-                    match elem.kind {
-                        ast::ArrayBindingElemKind::Omit(e) => {
-                            self.bind(e.id);
-                        }
-                        ast::ArrayBindingElemKind::Binding(e) => {
-                            self.bind(e.id);
-                        }
-                    }
-                }
-            }
+            CatchClause(n) => self.bind_catch_clause_children(n),
+            ObjectPat(n) => self.bind_object_pat_children(n),
+            ArrayPat(n) => self.bind_array_pat_children(n),
             OmitExpr(_) => {}
             ParenExpr(n) => {
                 self.bind(n.expr.id());
             }
-            EnumDecl(n) => {
-                if let Some(mods) = n.modifiers {
-                    self.bind_modifiers(mods);
-                }
-                self.bind(n.name.id);
-                for member in n.members {
-                    self.bind(member.id);
-                }
-            }
-            EnumMember(n) => {
-                match n.name {
-                    ast::EnumMemberNameKind::Ident(ident) => self.bind(ident.id),
-                    ast::EnumMemberNameKind::StringLit { raw, .. } => self.bind(raw.id),
-                }
-                if let Some(init) = n.init {
-                    self.bind(init.id());
-                }
-            }
-            ObjectShorthandMember(n) => {
-                self.bind(n.name.id);
-            }
+            EnumDecl(n) => self.bind_enum_decl_children(n),
+            EnumMember(n) => self.bind_enum_member_children(n),
+            ObjectShorthandMember(n) => self.bind_object_shorthand_member_children(n),
             ObjectPropAssignment(n) => {
                 self.in_assignment_pattern = save_in_assignment_pattern;
-                self.bind_prop_name(n.name);
-                self.bind(n.init.id());
+                self.bind_object_prop_assignment_children(n);
             }
-            ObjectMethodMember(n) => {
-                self.bind_prop_name(n.name);
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                self.bind(n.body.id);
-            }
+            ObjectMethodMember(n) => self.bind_object_method_member_children(n),
             SpreadAssignment(n) => {
                 self.in_assignment_pattern = save_in_assignment_pattern;
-                self.bind(n.expr.id());
+                self.bind_spread_assignment_children(n);
             }
-            FnExpr(n) => {
-                if let Some(name) = n.name {
-                    self.bind(name.id);
-                }
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                self.bind(n.body.id);
-            }
-            ClassExpr(n) => {
-                if let Some(name) = n.name {
-                    self.bind(name.id);
-                }
-                self.bind_type_parameters(n.ty_params);
-                if let Some(extends) = n.extends {
-                    self.bind(extends.id);
-                }
-                if let Some(implements) = n.implements {
-                    for ty in implements.list {
-                        self.bind(ty.id);
-                    }
-                }
-                for elem in n.elems.list {
-                    self.bind_class_elem(elem);
-                }
-            }
-            NewExpr(n) => {
-                self.bind(n.expr.id());
-                self.bind_type_arguments(n.ty_args);
-                if let Some(args) = n.args {
-                    for arg in args {
-                        self.bind(arg.id());
-                    }
-                }
-            }
+            FnExpr(n) => self.bind_fn_expr_children(n),
+            ClassExpr(n) => self.bind_class_expr_children(n),
+            NewExpr(n) => self.bind_new_expr_children(n),
             AssignExpr(n) => {
                 self.bind(n.left.id());
                 self.bind(n.right.id());
@@ -1058,18 +1825,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                     }
                 }
             }
-            ArrowFnExpr(n) => {
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-                use ast::ArrowFnExprBody::*;
-                match n.body {
-                    Block(n) => self.bind_block_stmt(n),
-                    Expr(n) => self.bind(n.id()),
-                }
-            }
+            ArrowFnExpr(n) => self.bind_arrow_fn_expr_children(n),
             TypeofExpr(n) => {
                 self.bind(n.expr.id());
             }
@@ -1077,166 +1833,45 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.expr.id());
             }
             SuperExpr(_) => {}
-            QualifiedName(n) => {
-                self.bind(n.left.id());
-                self.bind(n.right.id);
-            }
-            AsExpr(n) => {
-                self.bind(n.expr.id());
-                self.bind(n.ty.id());
-            }
-            TyAssertionExpr(n) => {
-                self.bind(n.expr.id());
-                self.bind(n.ty.id());
-            }
-            SatisfiesExpr(n) => {
-                self.bind(n.expr.id());
-                self.bind(n.ty.id());
-            }
-            TemplateExpr(n) => {
-                self.bind(n.head.id);
-                for span in n.spans {
-                    self.bind(span.id);
-                }
-            }
+            QualifiedName(n) => self.bind_qualified_name_children(n),
+            AsExpr(n) => self.bind_as_expr_children(n),
+            TyAssertionExpr(n) => self.bind_ty_assertion_expr_children(n),
+            SatisfiesExpr(n) => self.bind_satisfies_expr_children(n),
+            TemplateExpr(n) => self.bind_template_expr_children(n),
             TemplateHead(_) => {}
-            TemplateSpan(n) => {
-                self.bind(n.expr.id());
-            }
+            TemplateSpan(n) => self.bind_template_span_children(n),
             ComputedPropName(n) => {
                 self.bind(n.expr.id());
             }
             LitTy(_) => {}
-            ReferTy(n) => {
-                self.bind_entity_name(n.name);
-                self.bind_type_arguments(n.ty_args);
-            }
+            ReferTy(n) => self.bind_refer_ty_children(n),
             ArrayTy(n) => {
                 self.bind(n.ele.id());
             }
-            IndexedAccessTy(n) => {
-                self.bind(n.ty.id());
-                self.bind(n.index_ty.id());
-            }
-            FnTy(n) => {
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                self.bind(n.ty.id());
-            }
-            CtorTy(n) => {
-                if let Some(modifiers) = n.modifiers {
-                    self.bind_modifiers(modifiers);
-                }
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                self.bind(n.ty.id());
-            }
-            ObjectLitTy(n) => {
-                for m in n.members {
-                    self.bind_object_ty_member(m);
-                }
-            }
-            TyParam(n) => {
-                self.bind(n.name.id);
-                if let Some(constraint) = n.constraint {
-                    self.bind(constraint.id());
-                }
-                if let Some(default) = n.default {
-                    self.bind(default.id());
-                }
-            }
-            IndexSigDecl(n) => {
-                if let Some(modifiers) = n.modifiers {
-                    self.bind_modifiers(modifiers);
-                }
-                self.bind_binding(n.key);
-                self.bind(n.key_ty.id());
-                self.bind(n.ty.id());
-            }
-            CallSigDecl(n) => {
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
-            CtorSigDecl(n) => {
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
-            PropSignature(n) => {
-                if let Some(modifiers) = n.modifiers {
-                    self.bind_modifiers(modifiers);
-                }
-                self.bind_prop_name(n.name);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
-            MethodSignature(n) => {
-                self.bind_prop_name(n.name);
-                self.bind_type_parameters(n.ty_params);
-                self.bind_params(n.params);
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
+            IndexedAccessTy(n) => self.bind_indexed_access_ty_children(n),
+            FnTy(n) => self.bind_fn_ty_children(n),
+            CtorTy(n) => self.bind_ctor_ty_children(n),
+            ObjectLitTy(n) => self.bind_object_lit_ty_children(n),
+            TyParam(n) => self.bind_ty_param_children(n),
+            IndexSigDecl(n) => self.bind_index_sig_decl_children(n),
+            CallSigDecl(n) => self.bind_call_sig_decl_children(n),
+            CtorSigDecl(n) => self.bind_ctor_sig_decl_children(n),
+            PropSignature(n) => self.bind_prop_signature_children(n),
+            MethodSignature(n) => self.bind_method_signature_children(n),
             RestTy(n) => {
                 self.bind(n.ty.id());
             }
-            NamedTupleTy(n) => {
-                self.bind(n.name.id);
-                self.bind(n.ty.id());
-            }
-            TupleTy(n) => {
-                for ty in n.tys {
-                    self.bind(ty.id());
-                }
-            }
-            CondTy(n) => {
-                self.bind(n.check_ty.id());
-                self.bind(n.extends_ty.id());
-                self.bind(n.true_ty.id());
-                self.bind(n.false_ty.id());
-            }
-            IntersectionTy(n) => {
-                for ty in n.tys {
-                    self.bind(ty.id());
-                }
-            }
-            UnionTy(n) => {
-                for ty in n.tys {
-                    self.bind(ty.id());
-                }
-            }
-            TypeofTy(n) => {
-                self.bind_entity_name(n.name);
-                self.bind_type_arguments(n.ty_args);
-            }
-            MappedTy(n) => {
-                self.bind(n.ty_param.id);
-                if let Some(name_ty) = n.name_ty {
-                    self.bind(name_ty.id());
-                }
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
+            NamedTupleTy(n) => self.bind_named_tuple_ty_children(n),
+            TupleTy(n) => self.bind_tuple_ty_children(n),
+            CondTy(n) => self.bind_cond_ty_children(n),
+            IntersectionTy(n) => self.bind_intersection_ty_children(n),
+            UnionTy(n) => self.bind_union_ty_children(n),
+            TypeofTy(n) => self.bind_typeof_ty_children(n),
+            MappedTy(n) => self.bind_mapped_ty_children(n),
             TyOp(n) => {
                 self.bind(n.ty.id());
             }
-            PredTy(n) => {
-                match n.name {
-                    ast::PredTyName::Ident(n) => self.bind(n.id),
-                    ast::PredTyName::This(n) => self.bind(n.id),
-                }
-                if let Some(ty) = n.ty {
-                    self.bind(ty.id());
-                }
-            }
+            PredTy(n) => self.bind_pred_ty_children(n),
             ParenTy(n) => {
                 self.bind(n.ty.id());
             }
@@ -1246,40 +1881,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             NullableTy(n) => {
                 self.bind(n.ty.id());
             }
-            TemplateLitTy(n) => {
-                self.bind(n.head.id);
-                for span in n.spans {
-                    self.bind(span.id);
-                }
-            }
+            TemplateLitTy(n) => self.bind_template_lit_ty_children(n),
             TemplateSpanTy(n) => {
                 self.bind(n.ty.id());
             }
-            ImportShorthandSpec(n) => self.bind(n.name.id),
-            ExportShorthandSpec(n) => self.bind(n.name.id),
-            ExportNamedSpec(n) => {
-                self.bind_module_export_name(n.prop_name);
-                self.bind_module_export_name(n.name);
-            }
+            ImportShorthandSpec(n) => self.bind_import_shorthand_spec_children(n),
+            ExportShorthandSpec(n) => self.bind_export_shorthand_spec_children(n),
+            ExportNamedSpec(n) => self.bind_export_named_spec_children(n),
             ExportAssign(n) => {
                 self.bind(n.expr.id());
             }
-            ExprWithTyArgs(n) => {
-                self.bind(n.expr.id());
-                self.bind_type_arguments(n.ty_args);
-            }
-            SpreadElement(n) => {
-                self.bind(n.expr.id());
-            }
-            TaggedTemplateExpr(n) => {
-                self.bind(n.tag.id());
-                self.bind_type_arguments(n.ty_args);
-                self.bind(n.tpl.id());
-            }
-            LabeledStmt(n) => {
-                self.bind(n.label.id);
-                self.bind(n.stmt.id());
-            }
+            ExprWithTyArgs(n) => self.bind_expr_with_ty_args_children(n),
+            SpreadElement(n) => self.bind_spread_element_children(n),
+            TaggedTemplateExpr(n) => self.bind_tagged_template_expr_children(n),
+            LabeledStmt(n) => self.bind_labeled_stmt_children(n),
             NullLit(_)
             | StringLit(_)
             | NoSubstitutionTemplateLit(_)
@@ -1299,62 +1914,20 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             JsxSpreadAttr(n) => {
                 self.bind(n.expr.id());
             }
-            JsxNsName(n) => {
-                self.bind(n.ns.id);
-                self.bind(n.name.id);
-            }
-            JsxNamedAttr(n) => {
-                self.bind(n.name.id());
-                if let Some(attr_value) = n.init {
-                    self.bind(attr_value.id());
-                }
-            }
-            JsxExpr(n) => {
-                if let Some(e) = n.expr {
-                    self.bind(e.id());
-                }
-            }
-            JsxOpeningElem(n) => {
-                self.bind(n.tag_name.id());
-                self.bind_type_arguments(n.ty_args);
-                for attr in n.attrs {
-                    self.bind(attr.id());
-                }
-            }
+            JsxNsName(n) => self.bind_jsx_ns_name_children(n),
+            JsxNamedAttr(n) => self.bind_jsx_named_attr_children(n),
+            JsxExpr(n) => self.bind_jsx_expr_children(n),
+            JsxOpeningElem(n) => self.bind_jsx_opening_elem_children(n),
             JsxClosingElem(n) => {
                 self.bind(n.tag_name.id());
             }
-            JsxSelfClosingElem(n) => {
-                self.bind(n.tag_name.id());
-                self.bind_type_arguments(n.ty_args);
-                for attr in n.attrs {
-                    self.bind(attr.id());
-                }
-            }
-            JsxFrag(n) => {
-                self.bind(n.opening_frag.id);
-                for child in n.children {
-                    self.bind(child.id());
-                }
-                self.bind(n.closing_frag.id);
-            }
-            JsxElem(n) => {
-                self.bind(n.opening_elem.id);
-                for child in n.children {
-                    self.bind(child.id());
-                }
-                self.bind(n.closing_elem.id);
-            }
-            ClassStaticBlockDecl(n) => {
-                self.bind(n.body.id);
-            }
-            CaseClause(n) => self.bind_case_clause(n),
-            DefaultClause(n) => {
-                for stmt in n.stmts {
-                    self.bind(stmt.id());
-                }
-            }
-            SwitchStmt(n) => self.bind_switch_stmt(n),
+            JsxSelfClosingElem(n) => self.bind_jsx_self_closing_elem_children(n),
+            JsxFrag(n) => self.bind_jsx_frag_children(n),
+            JsxElem(n) => self.bind_jsx_elem_children(n),
+            ClassStaticBlockDecl(n) => self.bind_class_static_block_decl_children(n),
+            CaseClause(n) => self.bind_case_clause_flow(n),
+            DefaultClause(n) => self.bind_default_clause_children(n),
+            SwitchStmt(n) => self.bind_switch_stmt_flow(n),
             CaseBlock(n) => self.bind_case_block(n),
             DeleteExpr(n) => {
                 self.bind(n.expr.id());
@@ -1362,33 +1935,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             AwaitExpr(n) => {
                 self.bind(n.expr.id());
             }
-            YieldExpr(n) => {
-                if let Some(expr) = n.expr {
-                    self.bind(expr.id());
-                }
-            }
+            YieldExpr(n) => self.bind_yield_expr_children(n),
             PrivateIdent(_) => {
                 // TODO:
             }
-            ImportEqualsDecl(n) => {
-                self.bind(n.name.id);
-                match n.module_reference {
-                    ast::ModuleReferenceKind::ExternalModuleReference(n) => {
-                        self.bind(n.id());
-                    }
-                    ast::ModuleReferenceKind::EntityName(n) => self.bind_entity_name(n),
-                }
-            }
+            ImportEqualsDecl(n) => self.bind_import_equals_decl_children(n),
             ExternalModuleReference(n) => {
                 self.bind(n.module_spec().id);
             }
-            ImportType(n) => {
-                self.bind(n.argument.id());
-                self.bind_type_arguments(n.type_arguments);
-                if let Some(qualifier) = n.qualifier {
-                    self.bind_entity_name(qualifier);
-                }
-            }
+            ImportType(n) => self.bind_import_type_children(n),
             ClassSemiElem(_) => {}
             NewMetaProperty(n) => {
                 self.bind(n.name.id);
@@ -1397,8 +1952,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 self.bind(n.ty.id());
             }
         }
-        // TODO: bind_js_doc
-        self.in_assignment_pattern = save_in_assignment_pattern;
     }
 
     fn bind_type_arguments(&mut self, ty_args: Option<&'cx ast::Tys<'cx>>) {
@@ -1409,7 +1962,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_case_clause(&mut self, n: &'cx ast::CaseClause<'cx>) {
+    fn bind_case_clause_flow(&mut self, n: &'cx ast::CaseClause<'cx>) {
         let saved_current_flow = self.current_flow;
         debug_assert!(self.pre_switch_case_flow.is_some());
         self.current_flow = self.pre_switch_case_flow;
@@ -1432,7 +1985,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
+    pub(super) fn bind_assignment_target_flow(&mut self, n: &'cx ast::Expr<'cx>) {
         if self.is_narrowable_reference(n) {
             self.current_flow = Some(self.create_flow_assign(self.current_flow.unwrap(), n.id()));
         } else {
@@ -1502,10 +2055,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             self.flow_nodes
                 .add_antecedent(prev_case_label, fallthrough_flow);
             self.current_flow = Some(self.finish_flow_label(prev_case_label));
-            match n.clauses[i] {
-                ast::CaseOrDefaultClause::Case(c) => self.bind(c.id),
-                ast::CaseOrDefaultClause::Default(c) => self.bind(c.id),
-            }
+            self.bind_case_or_default_clause_children(&n.clauses[i]);
             fallthrough_flow = self.current_flow.unwrap();
             if !self
                 .flow_nodes
@@ -1524,7 +2074,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_switch_stmt(&mut self, n: &'cx ast::SwitchStmt<'cx>) {
+    fn bind_switch_stmt_flow(&mut self, n: &'cx ast::SwitchStmt<'cx>) {
         let post_switch_label = self.flow_nodes.create_branch_label();
         self.bind(n.expr.id());
         let save_break_target = self.current_break_target;
@@ -1551,6 +2101,16 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.current_flow = Some(self.finish_flow_label(post_switch_label));
     }
 
+    fn bind_parameter_declaration(&mut self, n: &'cx ast::ParamDecl<'cx>) {
+        self.bind_binding(n.name);
+        if let Some(ty) = n.ty {
+            self.bind(ty.id());
+        }
+        if let Some(init) = n.init {
+            self.bind(init.id());
+        }
+    }
+
     fn bind_param_flow(&mut self, n: &'cx ast::ParamDecl<'cx>) {
         self.bind_binding(n.name);
         if let Some(ty) = n.ty {
@@ -1575,15 +2135,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_object_binding_elem_flow(&mut self, n: &ast::ObjectBindingElem<'cx>) {
-        match n.name {
-            ast::ObjectBindingName::Shorthand(ident) => {
-                self.bind(ident.id);
-            }
-            ast::ObjectBindingName::Prop { prop_name, name } => {
-                self.bind(prop_name.id());
-                self.bind_binding(name);
-            }
-        }
+        self.bind_object_binding_name(n.name);
         self.bind_initializer(n.init());
     }
 
@@ -1668,7 +2220,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         }
     }
 
-    fn bind_var_decl_flow(&mut self, n: &ast::VarDecl<'cx>) {
+    fn bind_variable_declaration(&mut self, n: &'cx ast::VarDecl<'cx>) {
         self.bind_binding(n.name);
         if let Some(ty) = n.ty {
             self.bind(ty.id());
@@ -1676,12 +2228,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if let Some(init) = n.init {
             self.bind(init.id());
         }
+    }
 
-        use bolt_ts_ast::Node::*;
+    fn bind_var_decl_flow(&mut self, n: &'cx ast::VarDecl<'cx>) {
+        self.bind_variable_declaration(n);
+
         if n.init.is_some()
             || matches!(
                 self.p.node(self.parent_map.parent(n.id).unwrap()),
-                ForInStmt(_) | ForOfStmt(_)
+                ast::Node::ForInStmt(_) | ast::Node::ForOfStmt(_)
             )
         {
             self.bind_initialized_var_flow(n.id, n.name);
@@ -1973,21 +2528,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         self.parent = save_parent;
 
         self.in_strict_mode = saved_in_strict_mode;
-    }
-
-    pub(super) fn bind_anonymous_decl(
-        &mut self,
-        node: ast::NodeID,
-        flags: SymbolFlags,
-        name: SymbolName,
-    ) -> SymbolID {
-        let symbol = self.create_symbol(name, flags);
-        if flags.intersects(SymbolFlags::ENUM_MEMBER.union(SymbolFlags::CLASS_MEMBER)) {
-            let container = self.final_res[&self.container.unwrap()];
-            self.symbols.get_mut(symbol).parent = Some(container);
-        }
-        self.add_declaration_to_symbol(symbol, node, flags);
-        symbol
     }
 
     pub(super) fn bind_optional_chain_flow(&mut self, node: ast::NodeID) {

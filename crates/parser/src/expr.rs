@@ -1,9 +1,9 @@
 use super::SignatureFlags;
+use super::const_variant::is_jsx_like_variant;
+use super::const_variant::is_ts_like_variant;
 use super::lookahead::Lookahead;
 use super::parse_fn_like::ParseFnExpr;
 use super::parsing_ctx::{ParseContext, ParsingContext};
-use super::state::is_jsx_like_variant;
-use super::state::is_ts_like_variant;
 use super::{PResult, ParserState};
 use super::{Tristate, parse_class_like};
 use super::{errors, parsing_ctx};
@@ -1276,6 +1276,15 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         let name = self.parse_right_side_of_dot::<true>();
         let is_optional_chain = question_dot.is_some() || self.try_reparse_optional_chain(expr);
         let span = self.new_span(start as u32);
+
+        if let ast::ExprKind::ExprWithTyArgs(n) = expr.kind
+            && n.ty_args.is_some_and(|ty_args| !ty_args.list.is_empty())
+        {
+            let error =
+                errors::AnInstantiationExpressionCannotBeFollowedByAPropertyAccess { span: n.span };
+            self.push_error(Box::new(error));
+        }
+
         if is_optional_chain {
             self.create_property_access_chain(span, expr, question_dot, name)
         } else {

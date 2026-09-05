@@ -1,0 +1,108 @@
+  × Property or signature expected.
+   ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:7:17]
+ 7 │ =>
+   · ──
+   ╰────
+
+  × Expected '=>'.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:11:22]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Identifier expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:11:22]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:11:22]
+ 11 │ :
+    · ─
+    ╰────
+
+  × Expected '{'.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × '}' expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × Expected ','.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × Property assignment expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × '}' expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+Advice: 
+  ☞ Expected to find a '{' to match the '}' token here.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:20:9]
+ 20 │ {
+    · ─
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:18]
+ 21 │ =>
+    · ──
+    ╰────
+
+  × Unexpected keyword or identifier.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:21]
+ 21 │ string
+    · ──────
+    ╰────
+
+  × A 'return' statement can only be used within a function body.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:31:9]
+ 31 │ return
+    · ──────
+    ╰────
+
+  × Declaration or statement expected.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:35:1]
+ 35 │ }
+    · ─
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:11:24]
+ 11 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'string'.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:21:21]
+ 21 │ string
+    · ──────
+    ╰────
+
+  × Cannot find name 'n'.
+    ╭─[../../tests/compiler/parseErrorIncorrectReturnToken/index.ts:31:16]
+ 31 │ n
+    · ─
+    ╰────

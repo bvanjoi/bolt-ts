@@ -1050,23 +1050,6 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.any_ty)
     }
 
-    fn report_ty_not_iterable_error(
-        &mut self,
-        error_node: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
-        allow_async_iterables: bool,
-    ) {
-        if allow_async_iterables {
-            todo!()
-        } else {
-            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
-                span: self.p.node(error_node).span(),
-                ty: self.print_ty(ty, None).to_string(),
-            };
-            self.push_error(Box::new(error));
-        };
-    }
-
     pub(super) fn get_iterated_ty_or_element_ty(
         &mut self,
         mode: IterationUse,
@@ -1078,7 +1061,7 @@ impl<'cx> TyChecker<'cx> {
         let allow_async_iterables = mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_ty == self.never_ty {
             if let Some(error_node) = error_node {
-                self.report_ty_not_iterable_error(error_node, input_ty, allow_async_iterables);
+                self.report_ty_not_iterable_error(input_ty, error_node, allow_async_iterables);
             }
             return None;
         }
@@ -1354,9 +1337,9 @@ impl<'cx> TyChecker<'cx> {
             let flags = flow_node.flags;
             if flags.intersects(FlowFlags::SHARED) {
                 if !no_cache_check {
-                    // TODO:
+                    // TODO: cache
                 }
-                no_cache_check = true;
+                no_cache_check = false;
             }
             if flags.intersects(
                 FlowFlags::ASSIGNMENT
@@ -1395,7 +1378,7 @@ impl<'cx> TyChecker<'cx> {
             } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
                 todo!()
             } else {
-                return flags.intersects(FlowFlags::UNREACHABLE);
+                return flags.contains(FlowFlags::UNREACHABLE);
             }
         }
     }
@@ -1470,6 +1453,9 @@ impl<'cx> TyChecker<'cx> {
             todo!()
         } else if container.is_module_declaration() {
             let error = errors::ThisCannotBeReferencedInAModuleOrNamespaceBody { span: expr_span };
+            self.push_error(Box::new(error));
+        } else if container.is_enum_decl() {
+            let error = errors::ThisCannotBeReferencedInCurrentLocation { span: expr_span };
             self.push_error(Box::new(error));
         }
 
@@ -1679,6 +1665,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 this.check_expression::<false>(loc, None)
             };
+
             if ty.flags.contains(TypeFlags::ENUM_LITERAL)
                 && let ast::ExprKind::PropAccess(access) = loc.kind
                 && let s = this.final_res(access.expr.id())
@@ -1697,6 +1684,14 @@ impl<'cx> TyChecker<'cx> {
                 this.push_error(Box::new(error));
                 return;
             }
+            if !this.has_type_facts(ty, TypeFacts::TRUTHY) {
+                return;
+            }
+
+            match loc.kind {
+                ast::ExprKind::PropAccess(n) if n.expr.kind.is_type_assertion() => return,
+                _ => (),
+            };
 
             let call_signatures = this.get_signatures_of_type(ty, ty::SigKind::Call);
             let is_promise = this.get_awaited_ty_of_promise(ty).is_some();
@@ -2582,6 +2577,7 @@ impl<'cx> TyChecker<'cx> {
             ShlEq => self.undefined_ty,
             ShrEq => self.undefined_ty,
             UShrEq => self.undefined_ty,
+            AsteriskAsteriskEq => self.undefined_ty,
             BitOrEq | BitAndEq | BitXorEq => self.check_bin_expr_for_normal(
                 assign.span,
                 l,

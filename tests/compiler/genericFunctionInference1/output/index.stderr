@@ -1,0 +1,6 @@
+  × Argument of type '<a>(value: { key: a; }) => a' is not assignable to
+  │ parameter of type '(value: Data) => string'.
+     ╭─[../../tests/compiler/genericFunctionInference1/index.ts:140:14]
+ 140 │ keyOf
+     · ─────
+     ╰────

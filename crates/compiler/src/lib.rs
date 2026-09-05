@@ -183,7 +183,7 @@ pub fn eval_from_memory_path_worker<'cx>(
     } else {
         Default::default()
     };
-    let default_libs = bolt_ts_libs::DEFAULT_LIBS
+    let default_libs = bolt_ts_libs::LIBS
         .iter()
         .map(|filename| default_lib_dir.join(filename))
         .collect::<Vec<_>>();
@@ -214,19 +214,16 @@ pub fn eval_from_memory_path<'cx>(
     eval_from_memory_path_worker(cwd, default_lib_dir, parser_arena, type_arena, fs, atoms)
 }
 
-pub const ES5_DEFAULT_LIBS_PRESERVE_LEN: usize = 3;
-pub const ES2015_DEFAULT_LIBS_PRESERVE_LEN: usize = 19;
-pub const ES2016_DEFAULT_LIBS_PRESERVE_LEN: usize = 16;
-pub const ES2017_DEFAULT_LIBS_PRESERVE_LEN: usize = 24;
-pub const ES2018_DEFAULT_LIBS_PRESERVE_LEN: usize = 30;
-pub const ES2019_DEFAULT_LIBS_PRESERVE_LEN: usize = 36;
-pub const ES2020_DEFAULT_LIBS_PRESERVE_LEN: usize = 45;
-pub const ES2021_DEFAULT_LIBS_PRESERVE_LEN: usize = 50;
-pub const ES2022_DEFAULT_LIBS_PRESERVE_LEN: usize = 57;
-pub const ES2023_DEFAULT_LIBS_PRESERVE_LEN: usize = 61;
-pub const ES2024_DEFAULT_LIBS_PRESERVE_LEN: usize = 69;
-pub const ES2025_DEFAULT_LIBS_PRESERVE_LEN: usize = 76;
-pub const ESNEXT_DEFAULT_LIBS_PRESERVE_LEN: usize = 87;
+fn get_preserve_len(options: &bolt_ts_config::NormalizedCompilerOptions) -> u32 {
+    let bitset = if let Some(lib) = options.lib() {
+        lib.iter().fold(0u128, |acc, cur| {
+            acc | bolt_ts_libs::bitset_of_lib(cur.entry())
+        })
+    } else {
+        bolt_ts_libs::bitset_of_lib(bolt_ts_libs::get_default_lib_filename(options))
+    };
+    bitset.count_ones()
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
@@ -250,25 +247,10 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     include.sort();
     include.dedup();
 
-    let preserve_len = match *tsconfig.compiler_options().target() {
-        bolt_ts_config::Target::ES3 => todo!(),
-        bolt_ts_config::Target::ES5 => ES5_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2015 => ES2015_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2016 => ES2016_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2017 => ES2017_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2018 => ES2018_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2019 => ES2019_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2020 => ES2020_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2021 => ES2021_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2022 => ES2022_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2023 => ES2023_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2024 => ES2024_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ES2025 => ES2025_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::ESNext => ESNEXT_DEFAULT_LIBS_PRESERVE_LEN,
-        bolt_ts_config::Target::JSON => todo!(),
-    };
+    let preserve_len = get_preserve_len(tsconfig.compiler_options()) as usize;
     let mut module_arena = ModuleArena::preserve(preserve_len);
 
+    // TODO: don't read default lib files that not includes.
     let entries_with_read_file = default_libs
         .into_iter()
         .map(|lib| (lib, true))
@@ -294,21 +276,17 @@ pub fn eval_with_fs<'cx, FS: CachedFileSystem>(
     let entries = entries_with_read_file
         .into_iter()
         .filter_map(|(content, p, is_default_lib)| {
-            if is_default_lib && p.file_name().unwrap() == "test.d.ts" {
-                let content = content.unwrap();
-                let computed_atom = atoms.atom(&content);
-                let atom = fs.add_file(&p, content, Some(computed_atom), &mut atoms);
-                assert_eq!(computed_atom, atom);
-                debug_assert!(is_default_lib);
-                return Some(module_arena.new_module_with_content_within_preserve(
-                    p,
-                    is_default_lib,
-                    atom,
-                    &atoms,
-                ));
-            }
-            if is_default_lib && p.file_name().unwrap() != default_lib_filename {
-                return None;
+            if is_default_lib {
+                if tsconfig.compiler_options().no_lib() {
+                    return None;
+                } else if let Some(lib) = tsconfig.compiler_options().lib() {
+                    let path_filename = p.file_name().unwrap();
+                    if lib.iter().all(|lib| lib.entry() != path_filename) {
+                        return None;
+                    }
+                } else if p.file_name().unwrap() != default_lib_filename {
+                    return None;
+                }
             }
             let m = if fs.is_vfs() {
                 assert!(content.is_none());

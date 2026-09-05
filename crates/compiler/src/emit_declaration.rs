@@ -458,11 +458,6 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
         self.emitter.print().p_semi();
     }
 
-    fn visit_arrow_fn_expr(&mut self, node: &'cx ast::ArrowFnExpr<'cx>) -> Self::Result {
-        self.emit_type_parameters(node.ty_params);
-        bolt_ts_ast_visitor::visit_arrow_fn_expr(self, node)
-    }
-
     fn visit_class_ctor(&mut self, node: &'cx ast::ClassCtor<'cx>) -> Self::Result {
         self.emitter.print().p("constructor");
         self.emitter.print().p_l_paren();
@@ -528,17 +523,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 node.elems.list,
                 |this, elem| {
-                    use ast::ClassElemKind::*;
-                    match elem.kind {
-                        Ctor(n) => this.visit_class_ctor(n),
-                        Prop(n) => this.visit_class_prop_elem(n),
-                        Method(n) => this.visit_class_method_elem(n),
-                        IndexSig(n) => this.visit_index_sig_decl(n),
-                        Getter(_n) => todo!(),
-                        Setter(n) => this.visit_setter_decl(n),
-                        StaticBlockDecl(_n) => todo!(),
-                        Semi(_) => {}
-                    }
+                    bolt_ts_ast_visitor::visit_class_elem(this, elem);
                 },
                 |this, _| {
                     this.emitter.print().p_newline();
@@ -622,16 +607,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             self.emit_list(
                 node.members,
                 |this, elem| {
-                    use ast::ObjectTyMemberKind::*;
-                    match elem.kind {
-                        IndexSig(_n) => todo!(),
-                        Prop(n) => this.visit_prop_signature(n),
-                        Method(n) => this.visit_method_signature(n),
-                        CallSig(n) => this.visit_call_sig_decl(n),
-                        CtorSig(n) => this.visit_ctor_sig_decl(n),
-                        Setter(_n) => todo!(),
-                        Getter(_n) => todo!(),
-                    }
+                    bolt_ts_ast_visitor::visit_object_ty_member(this, elem);
                 },
                 |this, _| {
                     this.emitter.print().p_newline();
@@ -644,6 +620,7 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
     }
 
     fn visit_fn_ty(&mut self, node: &'cx ast::FnTy<'cx>) -> Self::Result {
+        self.emit_type_parameters(node.ty_params);
         self.emitter.print().p_l_paren();
         self.emit_list(
             node.params,
@@ -700,7 +677,13 @@ impl<'cx, 'a> Visitor<'cx> for DeclarationEmitter<'cx, 'a> {
             Undefined => self.emitter.print().p("undefined"),
             Num(num) => self.emitter.print().p(&num.to_string()),
             String(atom) => self.emit_string_literal(*atom),
-            BigInt { neg: _, val: _ } => todo!(),
+            BigInt { neg, val } => {
+                if *neg {
+                    self.emitter.print().p("-");
+                }
+                self.emitter.emit_atom(self.resolver.atoms(), *val);
+                self.emitter.print().p("n")
+            }
         }
     }
 

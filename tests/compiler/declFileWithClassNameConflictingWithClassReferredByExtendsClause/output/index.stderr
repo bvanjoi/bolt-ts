@@ -1,0 +1,13 @@
+  × Property 'name' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileWithClassNameConflictingWithClassReferredByExtendsClause/index.ts:14:9]
+ 14 │ name
+    · ────
+    ╰────
+
+  × Property 'value' has no initializer and is not definitely assigned in the
+  │ constructor.
+    ╭─[../../tests/compiler/declFileWithClassNameConflictingWithClassReferredByExtendsClause/index.ts:22:9]
+ 22 │ value
+    · ─────
+    ╰────

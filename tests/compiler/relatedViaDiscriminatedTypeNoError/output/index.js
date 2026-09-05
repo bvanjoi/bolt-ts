@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/relatedViaDiscriminatedTypeNoError.ts`, Apache-2.0 License
 class Model {
   constructor(flag) {
     this.flag = flag}

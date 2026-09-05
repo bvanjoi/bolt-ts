@@ -1,0 +1,32 @@
+  × 'this' cannot be referenced in current location.
+   ╭─[../../tests/compiler/this_inside-enum-should-not-be-allowed/index.ts:6:36]
+ 6 │ this
+   · ────
+   ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+   ╭─[../../tests/compiler/this_inside-enum-should-not-be-allowed/index.ts:6:36]
+ 6 │ this
+   · ────
+   ╰────
+
+Warning: 
+  ⚠ An outer value of 'this' is shadowed by this container.
+   ╭─[../../tests/compiler/this_inside-enum-should-not-be-allowed/index.ts:6:36]
+ 6 │ this
+   · ────
+   ╰────
+
+  × 'this' cannot be referenced in current location.
+    ╭─[../../tests/compiler/this_inside-enum-should-not-be-allowed/index.ts:13:30]
+ 13 │ this
+    · ────
+    ╰────
+
+  × 'this' implicitly has type 'any' because it does not have a type
+  │ annotation.
+    ╭─[../../tests/compiler/this_inside-enum-should-not-be-allowed/index.ts:13:30]
+ 13 │ this
+    · ────
+    ╰────

@@ -153,7 +153,7 @@ impl<'cx> IterationTysResolver<'cx> for AsyncIterationTysResolver {
         value: &'cx ty::IterationTys<'cx>,
     ) {
         let prev = c.iteration_tys_of_async_iterable.insert(key.id, value);
-        debug_assert!(prev.is_none())
+        debug_assert!(prev.is_none_or(|prev| std::ptr::eq(prev, c.no_iteration_tys())));
     }
     fn get_iteration_tys_of_iterator_cached(
         &self,
@@ -365,20 +365,19 @@ impl<'cx> TyChecker<'cx> {
         resolver: impl IterationTysResolver<'cx>,
         method_name: bolt_ts_atom::Atom,
         error_node: Option<ast::NodeID>,
-        _error_output_containerr: Option<ast::NodeID>,
+        _error_output_container: Option<ast::NodeID>,
     ) -> Option<&'cx ty::IterationTys<'cx>> {
         let name = bolt_ts_binder::SymbolName::Atom(method_name);
         let method = self.get_prop_of_ty::<false, false>(ty, name);
-        let method_name_is_not_next = method_name != keyword::IDENT_NEXT;
-        if method.is_none() && method_name_is_not_next {
+        let method_name_is_next = method_name == keyword::IDENT_NEXT;
+        if method.is_none() && !method_name_is_next {
             return None;
         };
         let method_ty = if let Some(method) = method
-            && !(!method_name_is_not_next
-                && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
+            && !(method_name_is_next && self.symbol(method).flags.contains(SymbolFlags::OPTIONAL))
         {
             let mut ty = self.get_type_of_symbol(method);
-            if method_name_is_not_next {
+            if !method_name_is_next {
                 ty = self.get_ty_with_facts(ty, TypeFacts::NE_UNDEFINED_OR_NULL)
             }
             Some(ty)
@@ -394,10 +393,10 @@ impl<'cx> TyChecker<'cx> {
             self.empty_array()
         };
         if method_sigs.is_empty() {
-            if let Some(_error_nodee) = error_node {
+            if let Some(_error_node) = error_node {
                 todo!()
             }
-            return if !method_name_is_not_next {
+            return if method_name_is_next {
                 Some(self.no_iteration_tys())
             } else {
                 None
@@ -427,15 +426,15 @@ impl<'cx> TyChecker<'cx> {
                 });
             if is_generator_method || is_iterator_method {
                 let global_ty = if is_generator_method {
-                    resolver.get_global_generator_ty::<false>(self)
+                    global_generator_ty
                 } else {
-                    resolver.get_global_iterator_ty::<false>(self)
+                    global_iterator_ty
                 };
                 let mapper = method_ty.kind.expect_object_anonymous().mapper.unwrap();
                 let ty_arguments = self.get_ty_arguments(global_ty);
                 let yield_ty = self.get_mapped_ty(mapper, ty_arguments[0]);
                 let return_ty = self.get_mapped_ty(mapper, ty_arguments[1]);
-                let next_ty = if method_name_is_not_next {
+                let next_ty = if method_name_is_next {
                     self.get_mapped_ty(mapper, ty_arguments[2])
                 } else {
                     self.unknown_ty
@@ -482,7 +481,7 @@ impl<'cx> TyChecker<'cx> {
             } else {
                 self.unknown_ty
             };
-            if method_name_is_not_next {
+            if method_name_is_next {
                 next_ty = Some(method_param_ty);
             } else if method_name == keyword::KW_RETURN {
                 let resolved_method_param_ty = resolver
@@ -511,7 +510,7 @@ impl<'cx> TyChecker<'cx> {
         let iteration_tys = self.get_iteration_tys_of_iterator_result(resolved_method_return_ty);
 
         if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
-            if let Some(_error_nodee) = error_node {
+            if let Some(_error_node) = error_node {
                 todo!()
             }
             yield_ty = self.any_ty;
@@ -927,8 +926,8 @@ impl<'cx> TyChecker<'cx> {
         let yield_ty = tys.yield_ty;
         let return_ty = tys.return_ty;
         let next_ty = tys.next_ty;
-        if let Some(_error_node) = error_node {
-            todo!()
+        if error_node.is_some() {
+            self.get_global_awaited_symbol();
         }
         let yield_ty = self
             .get_awaited_ty(yield_ty, error_node, NOOP_HEADING_ERROR)
@@ -1095,19 +1094,18 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn report_type_not_iterable_error(
+    pub(super) fn report_ty_not_iterable_error(
         &mut self,
         ty: &'cx ty::Ty<'cx>,
         error_node: ast::NodeID,
         allow_async_iterable: bool,
     ) {
-        let ty = self.print_ty(ty, None).to_string();
         if allow_async_iterable {
             todo!()
         } else {
             let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
                 span: self.p.node(error_node).span(),
-                ty,
+                ty: self.print_ty(ty, None).to_string(),
             };
             self.push_error(Box::new(error));
         }
@@ -1134,7 +1132,7 @@ impl<'cx> TyChecker<'cx> {
             );
             if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
                 if let Some(error_node) = error_node {
-                    self.report_type_not_iterable_error(
+                    self.report_ty_not_iterable_error(
                         ty,
                         error_node,
                         mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),

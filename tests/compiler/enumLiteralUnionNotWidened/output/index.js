@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/enumLiteralUnionNotWidened.ts`, Apache-2.0 License
 var A = {};
 (function (A) {
 

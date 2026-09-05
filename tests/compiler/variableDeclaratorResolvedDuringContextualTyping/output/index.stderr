@@ -1,0 +1,17 @@
+  × Cannot find name 'IUploadResult'.
+     ╭─[../../tests/compiler/variableDeclaratorResolvedDuringContextualTyping/index.ts:121:29]
+ 121 │ IUploadResult
+     · ─────────────
+     ╰────
+
+  × Cannot find name 'newFilePath'.
+     ╭─[../../tests/compiler/variableDeclaratorResolvedDuringContextualTyping/index.ts:123:43]
+ 123 │ newFilePath
+     · ───────────
+     ╰────
+
+  × Property 'jsonToStat' does not exist on type 'FileService<FileService>'.
+     ╭─[../../tests/compiler/variableDeclaratorResolvedDuringContextualTyping/index.ts:123:32]
+ 123 │ jsonToStat
+     · ──────────
+     ╰────

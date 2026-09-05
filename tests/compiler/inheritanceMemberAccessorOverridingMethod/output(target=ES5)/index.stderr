@@ -1,0 +1,6 @@
+  × Class 'a' defines instance member function 'x', but extended class 'b'
+  │ defines it as instance member accessor.
+    ╭─[../../tests/compiler/inheritanceMemberAccessorOverridingMethod/index.ts:14:9]
+ 14 │ x
+    · ─
+    ╰────

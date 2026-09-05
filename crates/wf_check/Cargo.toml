@@ -25,5 +25,5 @@ bolt_ts_fs = { path = "../../helper/fs" }
 bolt_ts_parser = { path = "../parser" }
 bolt_ts_checker_errors = { path = "../checker_errors" }
 bolt_ts_module_resolve = { path = "../module_resolve" }
-bolt_ts_wf_errors = { path = "../wf_errors" }
+bolt_ts_wf_check_errors = { path = "../wf_check_errors" }
 thiserror = { workspace = true }

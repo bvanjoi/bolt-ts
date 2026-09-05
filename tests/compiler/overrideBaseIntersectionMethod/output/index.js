@@ -1,5 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/overrideBaseIntersectionMethod.ts`, Apache-2.0 License
-//@compiler-options: target=es2015
 var WithLocation = (Base) => (class extends Base {
   getLocation() {
     var [x, y] = super.getLocation();

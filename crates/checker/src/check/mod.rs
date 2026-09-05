@@ -92,7 +92,8 @@ use bolt_ts_parser::parse_pseudo_bigint;
 use bolt_ts_span::ModuleID;
 use bolt_ts_utils::{fx_hashmap_with_capacity, no_hashmap_with_capacity, no_hashset_with_capacity};
 
-use bolt_ts_wf_check::IssueExternalExportDeclarations;
+use bolt_ts_wf_check::InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl;
+use bolt_ts_wf_check::{InvalidInitializerInAmbientContext, IssueExternalExportDeclarations};
 use nohash_hasher::IntMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
@@ -287,6 +288,9 @@ pub struct TyChecker<'cx> {
     final_array_ty_of_evolving_array_cache: IntMap<TyID, &'cx ty::Ty<'cx>>,
     widened_context_arena: WideningContextArena<'cx>,
     issue_external_export_declarations: IssueExternalExportDeclarations,
+    invalid_initializer_in_ambient_context: InvalidInitializerInAmbientContext,
+    invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl:
+        InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl,
     // === ast ===
     pub p: ParsedMap<'cx>,
     pub mg: ModuleGraph,
@@ -390,12 +394,13 @@ pub struct TyChecker<'cx> {
     no_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     no_ty_pred: std::cell::OnceCell<&'cx TyPred<'cx>>,
     number_or_bigint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
+    /// `${number}`
     numeric_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     resolving_default_type: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_or_number_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     string_number_symbol_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     typeof_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
-    template_constraint_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_union_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     unknown_empty_object_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
     empty_string_ty: std::cell::OnceCell<&'cx ty::Ty<'cx>>,
@@ -529,7 +534,7 @@ impl<'cx> TyChecker<'cx> {
         merged_symbols: MergedSymbols,
         mut global_symbols: GlobalSymbols,
         emit_standard_class_fields: bool,
-        wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
+        mut wf_check_result: Vec<bolt_ts_wf_check::WellFormedCheckResult>,
     ) -> Self {
         let cap = p.module_count() * 1024;
         let mut transient_symbols = Symbols::new_transient(p.module_count());
@@ -685,11 +690,27 @@ impl<'cx> TyChecker<'cx> {
 
         let issue_external_export_declarations = IssueExternalExportDeclarations::join(
             wf_check_result
-                .into_iter()
-                .map(|r| r.issue_external_export_declarations),
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.issue_external_export_declarations)),
         );
+        let invalid_initializer_in_ambient_context = InvalidInitializerInAmbientContext::join(
+            wf_check_result
+                .iter_mut()
+                .map(|r| std::mem::take(&mut r.invalid_initializer_in_ambient_context)),
+        );
+        let invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl =
+            InvalidInitializerInAmbientContextUnderConstOrReadonlyAndNotHasTyInVariableLikeDecl::join(
+                wf_check_result.iter_mut().map(|r| {
+                    std::mem::take(
+                        &mut r.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
+                    )
+                }),
+            );
+
         let mut this = Self {
             issue_external_export_declarations,
+            invalid_initializer_in_ambient_context,
+            invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl,
             tys,
             sigs: Vec::with_capacity(p.module_count() * 256),
             arena: ty_arena,
@@ -1129,14 +1150,12 @@ impl<'cx> TyChecker<'cx> {
         self.is_type_assignable_to(source, target)
             || (target == self.string_ty && self.is_type_assignable_to(source, self.number_ty))
             || (target == self.number_ty
-                && (
-                    // TODO: numericStringType
-                    source.flags.contains(TypeFlags::STRING_LITERAL)
+                && (source == self.numeric_string_ty()
+                    || (source.flags.contains(TypeFlags::STRING_LITERAL)
                         && match source.kind {
                             ty::TyKind::StringLit(t) => self.is_numerical_literal_name(t.val),
                             _ => unreachable!(),
-                        }
-                ))
+                        })))
     }
 
     fn is_numerical_literal_name(&self, name: bolt_ts_atom::Atom) -> bool {
@@ -1821,7 +1840,7 @@ impl<'cx> TyChecker<'cx> {
                     }
 
                     self.append_inferred_type_parameters(context_inference, unique_type_parameters);
-                    return self.get_or_create_ty_from_sig(instantiated_sig, None);
+                    return self.get_or_create_ty_from_sig(instantiated_sig);
                 }
             }
         }
@@ -1840,7 +1859,7 @@ impl<'cx> TyChecker<'cx> {
         //     })
         //     .flatten()
         //     .collect::<Vec<_>>();
-        self.get_or_create_ty_from_sig(sig, None)
+        self.get_or_create_ty_from_sig(sig)
     }
 
     fn get_unique_type_parameters(
@@ -1938,7 +1957,7 @@ impl<'cx> TyChecker<'cx> {
             };
             let new_type_parameters = self.alloc(new_type_parameters);
             let old_type_parameters = self.alloc(old_type_parameters);
-            let mapper = self.create_ty_mapper(new_type_parameters, old_type_parameters);
+            let mapper = self.create_ty_mapper(old_type_parameters, new_type_parameters);
             for tp in new_type_parameters {
                 debug_assert!(tp.kind.as_param().is_some_and(|p| p.target.is_some()));
                 let prev = self
@@ -1964,19 +1983,16 @@ impl<'cx> TyChecker<'cx> {
         false
     }
 
-    fn get_or_create_ty_from_sig(
-        &mut self,
-        sig: &'cx ty::Sig<'cx>,
-        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-    ) -> &'cx ty::Ty<'cx> {
-        //TODO: cache `isolated_sig_ty`
+    fn get_or_create_ty_from_sig(&mut self, sig: &'cx ty::Sig<'cx>) -> &'cx ty::Ty<'cx> {
+        if let Some(ty) = self.get_sig_links(sig.id).get_isolated_sig_ty() {
+            return ty;
+        }
         let is_constructor = sig.node_id.is_none_or(|node_id| {
             use bolt_ts_ast::Node::*;
             matches!(self.p.node(node_id), ClassCtor(_) | CtorSigDecl(_))
         });
         let ty = ty::SingleSigTy {
             symbol: sig.node_id.map(|node_id| self.final_res(node_id)),
-            mapper,
         };
         let ty = self.create_single_sig_ty(
             ty,
@@ -1999,6 +2015,7 @@ impl<'cx> TyChecker<'cx> {
         }));
         let prev = self.ty_links.insert(ty.id, links);
         assert!(prev.is_none());
+        self.get_mut_sig_links(sig.id).set_isolated_sig_ty(ty);
         ty
     }
 
@@ -2022,8 +2039,10 @@ impl<'cx> TyChecker<'cx> {
             })
             .collect::<Vec<_>>();
         let ty_args = self.alloc(ty_args);
-        // TODO: is_js
-        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), false, None);
+        let is_js = sig
+            .node_id
+            .is_some_and(|n| self.node_query(n.module()).is_in_js_file(n));
+        let canonical_sig_cache = self.get_sig_instantiation(sig, Some(ty_args), is_js, None);
         self.get_mut_sig_links(sig.id)
             .set_canonical_sig(canonical_sig_cache);
         canonical_sig_cache
@@ -2435,6 +2454,7 @@ impl<'cx> TyChecker<'cx> {
                 index_info.val_ty
             }
         };
+
         self.get_flow_type_of_access_expression(node, prop, prop_ty, Some(right.id), check_mode)
     }
 
@@ -2573,6 +2593,19 @@ impl<'cx> TyChecker<'cx> {
                 return false;
             }
 
+            if flags.contains(ast::ModifierFlags::ABSTRACT) {
+                if let Some(error_node) = error_node {
+                    let class = self.get_declaring_class(prop).unwrap();
+                    let error = errors::AbstractMethodXInClassYCannotBeAccessedViaSuperExpression {
+                        span: self.p.node(error_node).span(),
+                        method: self.symbol(prop).name.to_string(&self.atoms),
+                        class: self.print_ty(class, None).to_string(),
+                    };
+                    self.push_error(Box::new(error));
+                }
+                return false;
+            }
+
             if !flags.contains(ast::ModifierFlags::STATIC)
                 && let prop_symbol = self.symbol(prop)
                 && let Some(decls) = prop_symbol.decls.as_ref()
@@ -2582,7 +2615,7 @@ impl<'cx> TyChecker<'cx> {
                 })
             {
                 if let Some(error_node) = error_node {
-                    let error = errors::AbstractMethod0InClass1CannotBeAccessedViaSuperExpression {
+                    let error = errors::ClassFieldXDefinedByTheParentClassIsNotAccessibleInTheChildClassViaSuper {
                         span: self.p.node(error_node).span(),
                         field: prop_symbol.name.to_string(&self.atoms),
                     };
@@ -3562,7 +3595,16 @@ impl<'cx> TyChecker<'cx> {
             )
         );
         let s = self.binder.symbol(id);
-        let Some(decl) = s.opt_decl() else {
+        let Some(&decl) = s.decls.as_ref().and_then(|decls| {
+            decls.iter().find(|&&decl| {
+                self.node_query(decl.module())
+                    .is_block_or_catch_scoped(decl)
+                    || {
+                        let n = self.p.node(decl);
+                        n.is_class_like() || n.is_enum_decl()
+                    }
+            })
+        }) else {
             unreachable!()
         };
 
@@ -5043,14 +5085,14 @@ impl<'cx> TyChecker<'cx> {
         Some(aggregated_tys)
     }
 
-    fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) || ty.is_tuple()
     }
 
     fn is_array_or_tuple_or_intersection(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind
             .as_intersection()
-            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple(t)))
+            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple_ty(t)))
             .unwrap_or_default()
     }
 
@@ -9039,6 +9081,38 @@ impl<'cx> TyChecker<'cx> {
                 }
             }
             _ => false,
+        }
+    }
+
+    fn check_ambient_initializer(&mut self, n: &impl self::VarLike<'cx>) {
+        let Some(init) = n.init() else {
+            return;
+        };
+
+        let is_simple_lit_enum_reference = |this: &mut Self, expr: &'cx ast::Expr<'cx>| {
+            match expr.kind {
+                ast::ExprKind::PropAccess(_) => {}
+                ast::ExprKind::EleAccess(n) if n.arg.is_string_or_number_lit_like() => {}
+                _ => return false,
+            };
+            let ty = this.check_expression_cached(expr, None);
+            ty.flags.intersects(TypeFlags::ENUM_LIKE)
+        };
+
+        let id = n.id();
+        if self.invalid_initializer_in_ambient_context.contains(id) {
+            let error = bolt_ts_wf_check_errors::XAreNotAllowedInAmbientContexts {
+                kind: bolt_ts_wf_check_errors::AmbientContextKind::Initializers,
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
+        } else if self.invalid_initializer_in_ambient_context_under_const_or_readonly_and_not_has_ty_in_variable_like_decl.contains(id)
+                && !is_simple_lit_enum_reference(self, init)
+        {
+            let error = errors::AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLiteralEnumReference {
+                span: init.span(),
+            };
+            self.push_error(Box::new(error));
         }
     }
 }

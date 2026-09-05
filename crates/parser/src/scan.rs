@@ -1,12 +1,13 @@
 use std::borrow::Cow;
 
 use bolt_ts_ast::{RegularExpressionFlags, Token, TokenFlags, TokenKind, atom_to_token, keyword};
-use bolt_ts_scanner::{is_ascii_identifier_part, is_ascii_identifier_start};
+use bolt_ts_scanner::{Comment, CommentKind, is_ascii_identifier_part, is_ascii_identifier_start};
 use bolt_ts_scanner::{is_identifier_part, is_identifier_start};
 use bolt_ts_scanner::{is_line_break, is_non_ascii_identifier_start};
 use bolt_ts_scanner::{non_ascii_character_code, utf16_encode_as_bytes};
 use bolt_ts_span::Span;
 
+use super::const_variant::is_preserve_comment;
 use super::{CommentDirective, utils::parse_pseudo_bigint};
 use super::{CommentDirectiveKind, ParserState, TokenValue, errors};
 
@@ -240,15 +241,10 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
         Token::new(kind, Span::new(start as u32, end as u32, self.module_id))
     }
 
-    // From `quickjs/cutils.c/unicode_from_utf8`
     #[cold]
-    fn scan_unicode_from_utf8<const MAX_LEN: u8>(&mut self) -> Option<u32> {
-        const UTF8_MIN_CODE: [u32; 5] = [0x80, 0x800, 0x10000, 0x00200000, 0x04000000];
-        const UTF8_FIRST_CODE_MASK: [u32; 5] = [0x1f, 0xf, 0x7, 0x3, 0x1];
-
-        let mut ch = self.ch_unchecked() as u32;
-        assert!(ch >= 0x80);
-        let mut offset = 1;
+    fn next_unicode_from_utf8<const MAX_LEN: u8>(&self) -> Option<(u32, usize)> {
+        let ch = self.ch_unchecked();
+        debug_assert!(ch >= 0x80);
         let l = match ch {
             0xc0..=0xdf => 1,
             0xe0..=0xef => 2,
@@ -261,7 +257,9 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             return None;
         }
         let idx = (l - 1) as usize;
-        ch &= UTF8_FIRST_CODE_MASK[idx];
+        let mut ch = ch as u32;
+        ch &= [0x1f, 0xf, 0x7, 0x3, 0x1][idx];
+        let mut offset = 1;
         for _ in 0..l {
             let b = self.input[self.pos + offset] as u32;
             if !(0x80..0xc0).contains(&b) {
@@ -270,51 +268,63 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
             offset += 1;
             ch = (ch << 6) | (b & 0x3f);
         }
-        if ch < UTF8_MIN_CODE[idx] {
+        if ch < [0x80, 0x800, 0x10000, 0x00200000, 0x04000000][idx] {
             return None;
         }
+        Some((ch, offset))
+    }
+
+    // From `quickjs/cutils.c/unicode_from_utf8`
+    #[cold]
+    fn scan_unicode_from_utf8<const MAX_LEN: u8>(&mut self) -> Option<u32> {
+        let (ch, offset) = self.next_unicode_from_utf8::<MAX_LEN>()?;
         self.pos += offset;
         Some(ch)
     }
 
+    fn is_non_ascii_space(ch: u32) -> bool {
+        matches!(
+            ch,
+            non_ascii_character_code::NON_BREAKING_SPACE
+                | non_ascii_character_code::LINE_BREAK
+                | non_ascii_character_code::EN_QUAD
+                | non_ascii_character_code::EM_QUAD
+                | non_ascii_character_code::EN_SPACE
+                | non_ascii_character_code::EM_SPACE
+                | non_ascii_character_code::THREE_PER_EM_SPACE
+                | non_ascii_character_code::FOUR_PER_EM_SPACE
+                | non_ascii_character_code::SIX_PER_EM_SPACE
+                | non_ascii_character_code::FIGURE_SPACE
+                | non_ascii_character_code::PUNCTUATION_SPACE
+                | non_ascii_character_code::THIN_SPACE
+                | non_ascii_character_code::HAIR_SPACE
+                | non_ascii_character_code::ZERO_WIDTH_SPACE
+                | non_ascii_character_code::NARROW_NO_BREAK_SPACE
+                | non_ascii_character_code::IDEOGRAPHIC_SPACE
+                | non_ascii_character_code::MATHEMATICAL_SPACE
+                | non_ascii_character_code::OGHAM
+        )
+    }
+
     fn scan_identifier<const IS_PRIVATE: bool>(&mut self, ch: u8) -> Option<Token> {
         let start = self.pos;
-        let mut first = true;
+        if is_ascii_identifier_start(ch) {
+            self.pos += 1;
+        } else {
+            let ch = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
+            if Self::is_non_ascii_space(ch) {
+                let ch = self.ch_unchecked();
+                return self.scan_identifier::<false>(ch);
+            } else if !is_non_ascii_identifier_start::<false>(ch) {
+                return None;
+            }
+        }
+        self.scan_identifier_part::<IS_PRIVATE>(start)
+    }
+
+    fn scan_identifier_part<const IS_PRIVATE: bool>(&mut self, start: usize) -> Option<Token> {
         loop {
-            if first {
-                if is_ascii_identifier_start(ch) {
-                    self.pos += 1;
-                } else if ch < 128 {
-                    break;
-                } else {
-                    let ch = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
-                    match ch {
-                        non_ascii_character_code::NON_BREAKING_SPACE
-                        | non_ascii_character_code::EN_QUAD
-                        | non_ascii_character_code::EM_QUAD
-                        | non_ascii_character_code::EN_SPACE
-                        | non_ascii_character_code::EM_SPACE
-                        | non_ascii_character_code::THREE_PER_EM_SPACE
-                        | non_ascii_character_code::FOUR_PER_EM_SPACE
-                        | non_ascii_character_code::SIX_PER_EM_SPACE
-                        | non_ascii_character_code::FIGURE_SPACE
-                        | non_ascii_character_code::PUNCTUATION_SPACE
-                        | non_ascii_character_code::THIN_SPACE
-                        | non_ascii_character_code::HAIR_SPACE
-                        | non_ascii_character_code::ZERO_WIDTH_SPACE
-                        | non_ascii_character_code::NARROW_NO_BREAK_SPACE
-                        | non_ascii_character_code::IDEOGRAPHIC_SPACE
-                        | non_ascii_character_code::MATHEMATICAL_SPACE
-                        | non_ascii_character_code::OGHAM => {
-                            let ch = self.ch_unchecked();
-                            return self.scan_identifier::<false>(ch);
-                        }
-                        _ if !is_non_ascii_identifier_start::<false>(ch) => return None,
-                        _ => {}
-                    }
-                }
-                first = false;
-            } else if self.pos == self.end() {
+            if self.pos == self.end() {
                 break;
             } else if is_ascii_identifier_part(self.ch_unchecked()) {
                 self.pos += 1
@@ -322,8 +332,14 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 return self.scan_identifier_slowly(start);
             } else if self.ch_unchecked() < 128 {
                 break;
+            } else if let Some((ch, offset)) = self.next_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>() {
+                if Self::is_non_ascii_space(ch) {
+                    break;
+                } else {
+                    self.pos += offset;
+                }
             } else {
-                self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()?;
+                return None;
             }
         }
         let start = if IS_PRIVATE { start - 1 } else { start };
@@ -450,6 +466,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
     pub(super) fn next_token_without_checked(&mut self) {
         self.full_start_pos = self.pos;
         self.token_flags = TokenFlags::empty();
+        let mut leading_comments = Vec::new();
         let mut start;
         loop {
             start = self.pos;
@@ -493,6 +510,24 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 self.pos += 1;
                             }
                         }
+                        if is_preserve_comment(VARIANT) {
+                            let comment = Comment::new(
+                                start as u32,
+                                self.pos as u32,
+                                CommentKind::SingleLine,
+                            );
+                            let is_leading_comment =
+                                start == 0 || self.input[start - 1].is_ascii_whitespace();
+                            if is_leading_comment {
+                                leading_comments.push(comment);
+                            } else {
+                                self.leading_trailing_comments.add_trailing_comment(
+                                    start as u32,
+                                    comment,
+                                    &mut self.comments,
+                                );
+                            }
+                        }
                         continue;
                     } else if self.next_ch() == Some(b'*') {
                         // `/*`
@@ -503,6 +538,21 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                                 break;
                             } else {
                                 self.pos += 1;
+                            }
+                        }
+                        if is_preserve_comment(VARIANT) {
+                            let comment =
+                                Comment::new(start as u32, self.pos as u32, CommentKind::MultiLine);
+                            let is_leading_comment =
+                                start == 0 || self.input[start - 1].is_ascii_whitespace();
+                            if is_leading_comment {
+                                leading_comments.push(comment);
+                            } else {
+                                self.leading_trailing_comments.add_trailing_comment(
+                                    start as u32,
+                                    comment,
+                                    &mut self.comments,
+                                );
                             }
                         }
                         continue;
@@ -816,22 +866,36 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                 }
                 b'`' => self.scan_template_and_set_token_value::<false>(),
                 b'#' => {
-                    let char_after_hash = self.next_ch();
-                    if let Some(ch) = char_after_hash
-                        && is_ascii_identifier_start(ch)
-                    {
-                        self.pos += 1;
-                        if let Some(token) = self.scan_identifier::<true>(ch)
-                            && token.kind == TokenKind::Ident
+                    self.pos += 1;
+                    if let Some(ch) = self.ch() {
+                        if is_ascii_identifier_start(ch) {
+                            if let Some(token) = self.scan_identifier::<true>(ch)
+                                && token.kind == TokenKind::Ident
+                            {
+                                debug_assert!(self.token_value.is_some_and(|value| matches!(
+                                    value,
+                                    TokenValue::Ident { .. }
+                                )));
+                                Token::new(
+                                    TokenKind::PrivateIdent,
+                                    Span::new(start as u32, self.pos as u32, self.module_id),
+                                )
+                            } else {
+                                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                                self.push_error(Box::new(errors::InvalidCharacter { span }));
+                                Token::new(TokenKind::Unknown, span)
+                            }
+                        } else if let Some(ch) = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()
+                            // TODO: use `is_non_ascii_identifier_start` instead of `is_identifier_start` here
+                        && is_identifier_start::<false>(ch)
                         {
-                            debug_assert!(
-                                self.token_value
-                                    .is_some_and(|value| matches!(value, TokenValue::Ident { .. }))
-                            );
-                            Token::new(
-                                TokenKind::PrivateIdent,
-                                Span::new(start as u32, self.pos as u32, self.module_id),
-                            )
+                            if let Some(token) = self.scan_identifier_part::<false>(start) {
+                                token
+                            } else {
+                                let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                                self.push_error(Box::new(errors::InvalidCharacter { span }));
+                                Token::new(TokenKind::Unknown, span)
+                            }
                         } else {
                             let span = Span::new(start as u32, self.pos as u32, self.module_id);
                             self.push_error(Box::new(errors::InvalidCharacter { span }));
@@ -890,11 +954,8 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                         } else {
                             continue;
                         };
-                        self.token = self.get_ident_token(Cow::Owned(unicode), start as u32);
-                        return;
-                    }
-
-                    if let Some(cooked_char) = self.peek_unicode_escape()
+                        self.get_ident_token(Cow::Owned(unicode), start as u32)
+                    } else if let Some(cooked_char) = self.peek_unicode_escape()
                         && is_identifier_start::<false>(cooked_char)
                     {
                         self.pos += 6;
@@ -909,18 +970,17 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                         } else {
                             continue;
                         };
-                        self.token = self.get_ident_token(Cow::Owned(s), start as u32);
-                        return;
+                        self.get_ident_token(Cow::Owned(s), start as u32)
+                    } else {
+                        self.push_error(Box::new(errors::InvalidCharacter {
+                            span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
+                        }));
+                        self.pos += 1;
+                        Token::new(
+                            TokenKind::Unknown,
+                            Span::new(start as u32, self.pos as u32, self.module_id),
+                        )
                     }
-
-                    self.push_error(Box::new(errors::InvalidCharacter {
-                        span: Span::new(start as u32, self.pos as u32 + 1, self.module_id),
-                    }));
-                    self.pos += 1;
-                    Token::new(
-                        TokenKind::Unknown,
-                        Span::new(start as u32, self.pos as u32, self.module_id),
-                    )
                 }
                 _ if ch.is_ascii_whitespace() => {
                     self.pos += 1;
@@ -932,15 +992,50 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                     continue;
                 }
-                _ => match self.scan_identifier::<false>(ch) {
-                    Some(token) => token,
-                    None => {
-                        let span = Span::new(start as u32, self.pos as u32, self.module_id);
-                        self.push_error(Box::new(errors::InvalidCharacter { span }));
-                        Token::new(TokenKind::Unknown, span)
+                _ if is_ascii_identifier_part(ch) => {
+                    self.pos += 1;
+                    match self.scan_identifier_part::<false>(start) {
+                        Some(t) => t,
+                        None => {
+                            let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                            self.push_error(Box::new(errors::InvalidCharacter { span }));
+                            Token::new(TokenKind::Unknown, span)
+                        }
                     }
-                },
+                }
+                _ => {
+                    debug_assert!(ch >= 128);
+                    let token = if let Some(ch) = self.scan_unicode_from_utf8::<UTF8_CHAR_LEN_MAX>()
+                    {
+                        if Self::is_non_ascii_space(ch) {
+                            continue;
+                        } else if is_non_ascii_identifier_start::<false>(ch) {
+                            self.scan_identifier_part::<false>(start)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    match token {
+                        Some(t) => t,
+                        None => {
+                            let span = Span::new(start as u32, self.pos as u32, self.module_id);
+                            self.push_error(Box::new(errors::InvalidCharacter { span }));
+                            Token::new(TokenKind::Unknown, span)
+                        }
+                    }
+                }
             };
+            if is_preserve_comment(VARIANT) {
+                for comment in leading_comments {
+                    self.leading_trailing_comments.add_leading_comment(
+                        token.start(),
+                        comment,
+                        &mut self.comments,
+                    );
+                }
+            }
             self.token = token;
             break;
         }

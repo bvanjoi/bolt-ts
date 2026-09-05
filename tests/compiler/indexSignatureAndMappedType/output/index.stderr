@@ -1,0 +1,17 @@
+  × Type '{ [key: string]: T }' is not assignable to type 'Record<K, T>'.
+    ╭─[../../tests/compiler/indexSignatureAndMappedType/index.ts:12:5]
+ 12 │ y
+    · ─
+    ╰────
+
+  × Type 'Record<K, U>' is not assignable to type '{ [key: string]: T }'.
+    ╭─[../../tests/compiler/indexSignatureAndMappedType/index.ts:22:5]
+ 22 │ x
+    · ─
+    ╰────
+
+  × Type '{ [key: string]: T }' is not assignable to type 'Record<K, U>'.
+    ╭─[../../tests/compiler/indexSignatureAndMappedType/index.ts:24:5]
+ 24 │ y
+    · ─
+    ╰────

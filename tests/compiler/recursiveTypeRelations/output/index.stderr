@@ -1,0 +1,30 @@
+  × Cannot find name 'ClassNameObject'.
+    ╭─[../../tests/compiler/recursiveTypeRelations/index.ts:30:38]
+ 30 │ ClassNameObject
+    · ───────────────
+    ╰────
+
+  × Cannot find name 'ClassNameObject'.
+    ╭─[../../tests/compiler/recursiveTypeRelations/index.ts:30:61]
+ 30 │ ClassNameObject
+    · ───────────────
+    ╰────
+
+  × Function implementation is missing or not immediately following the
+  │ declaration.
+    ╭─[../../tests/compiler/recursiveTypeRelations/index.ts:10:5]
+ 10 │ multiply
+    · ────────
+    ╰────
+
+  × No overload matches this call.
+    ╭─[../../tests/compiler/recursiveTypeRelations/index.ts:30:14]
+ 30 │ ╭─▶ Object.keys(arg).reduce<ClassNameObject>((obj: ClassNameObject, key: keyof S) => {
+ 31 │ │           //~^ ERROR: Cannot find name 'ClassNameObject'.
+ 32 │ │           //~| ERROR: Cannot find name 'ClassNameObject'.
+ 33 │ │           //~| ERROR: No overload matches this call.
+ 34 │ │           const exportedClassName = styles[key];
+ 35 │ │           obj[exportedClassName] = (arg as ClassNameMap<S>)[key]; 
+ 36 │ │           return obj;
+ 37 │ ╰─▶       }, {})
+    ╰────

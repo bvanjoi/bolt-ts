@@ -1,0 +1,44 @@
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:25:5]
+ 25 │ perf.measure
+    · ────────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:36:7]
+ 36 │ perf.measure
+    · ────────────
+    ╰────
+
+  × This condition will always return true since this function is always
+  │ defined. Did you mean to call it instead?
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:56:5]
+ 56 │ perf.clearMeasures
+    · ──────────────────
+    ╰────
+
+  × Parameter 'tag' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:59:13]
+ 59 │ tag
+    · ───
+    ╰────
+
+  × Parameter 'name' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:61:16]
+ 61 │ name
+    · ────
+    ╰────
+
+  × Parameter 'startTag' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:61:21]
+ 61 │  startTag
+    · ─────────
+    ╰────
+
+  × Parameter 'endTag' implicitly has an 'any' type.
+    ╭─[../../tests/compiler/uncalledFunctionChecksInConditional2/index.ts:61:31]
+ 61 │  endTag
+    · ───────
+    ╰────

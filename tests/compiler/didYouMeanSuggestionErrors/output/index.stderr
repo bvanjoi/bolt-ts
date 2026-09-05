@@ -1,0 +1,121 @@
+  × Cannot find name 'describe'.
+   ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:6:1]
+ 6 │ describe
+   · ────────
+   ╰────
+
+  × Cannot find name 'it'.
+   ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:8:5]
+ 8 │ it
+   · ──
+   ╰────
+
+  × Cannot find name '$'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:10:19]
+ 10 │ $
+    · ─
+    ╰────
+
+  × Cannot find name 'suite'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:15:1]
+ 15 │ suite
+    · ─────
+    ╰────
+
+  × Cannot find name 'test'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:17:5]
+ 17 │ test
+    · ────
+    ╰────
+
+  × Cannot find name 'console'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:19:9]
+ 19 │ console
+    · ───────
+    ╰────
+
+  × Cannot find name 'process'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:19:21]
+ 19 │ process
+    · ───────
+    ╰────
+
+  × Cannot find name 'document'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:22:9]
+ 22 │ document
+    · ────────
+    ╰────
+
+  × Cannot find name 'require'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:24:19]
+ 24 │ require
+    · ───────
+    ╰────
+
+  × Cannot find name 'Buffer'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:26:19]
+ 26 │ Buffer
+    · ──────
+    ╰────
+
+  × Cannot find name 'module'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:28:19]
+ 28 │ module
+    · ──────
+    ╰────
+
+  × Cannot find name 'Map'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:31:23]
+ 31 │ Map
+    · ───
+    ╰────
+
+  × Cannot find name 'Set'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:33:23]
+ 33 │ Set
+    · ───
+    ╰────
+
+  × Cannot find name 'WeakMap'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:35:23]
+ 35 │ WeakMap
+    · ───────
+    ╰────
+
+  × Cannot find name 'WeakSet'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:37:23]
+ 37 │ WeakSet
+    · ───────
+    ╰────
+
+  × Cannot find name 'Symbol'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:39:19]
+ 39 │ Symbol
+    · ──────
+    ╰────
+
+Advice: 
+  ☞ 'Symbol' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Symbol' is defined here.` (offset: 3518, length: 6): OutOfBounds]
+
+  × Cannot find name 'Promise'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:41:19]
+ 41 │ Promise
+    · ───────
+    ╰────
+
+Advice: 
+  ☞ 'Promise' only refers to a type, but is being used as a value here.
+  [Failed to read contents for label `'Promise' is defined here.` (offset: 71948, length: 7): OutOfBounds]
+
+  × Cannot find name 'Iterator'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:44:18]
+ 44 │ Iterator
+    · ────────
+    ╰────
+
+  × Cannot find name 'AsyncIterator'.
+    ╭─[../../tests/compiler/didYouMeanSuggestionErrors/index.ts:46:18]
+ 46 │ AsyncIterator
+    · ─────────────
+    ╰────

@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/es6ModuleClassDeclaration.ts`, Apache-2.0 License
 export class c {
   constructor() {}
   x = 10;

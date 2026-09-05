@@ -1,0 +1,29 @@
+  × Cannot find name 'top'.
+   ╭─[../../tests/compiler/recursiveNamedLambdaCall/index.ts:9:8]
+ 9 │ top
+   · ───
+   ╰────
+
+  × Cannot find name 'top'.
+   ╭─[../../tests/compiler/recursiveNamedLambdaCall/index.ts:9:15]
+ 9 │ top
+   · ───
+   ╰────
+
+  × Cannot find name 'top'.
+    ╭─[../../tests/compiler/recursiveNamedLambdaCall/index.ts:16:7]
+ 16 │ top
+    · ───
+    ╰────
+
+  × Cannot find name 'setTimeout'.
+    ╭─[../../tests/compiler/recursiveNamedLambdaCall/index.ts:19:14]
+ 19 │ setTimeout
+    · ──────────
+    ╰────
+
+  × Cannot find name 'detach'.
+    ╭─[../../tests/compiler/recursiveNamedLambdaCall/index.ts:24:6]
+ 24 │ detach
+    · ──────
+    ╰────

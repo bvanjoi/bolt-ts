@@ -1,5 +1,5 @@
-use bolt_ts_parser_errors as errors;
 mod check;
+mod const_variant;
 mod expr;
 mod jsx;
 mod lookahead;
@@ -20,25 +20,31 @@ mod stmt;
 mod touch;
 mod ty;
 mod utils;
+mod visitor_collect_dependencies;
 
 use bolt_ts_ast::keyword;
 use bolt_ts_ast::{self as ast, Node, NodeFlags, NodeID};
-use bolt_ts_ast_visitor::{ControlFlow, Visitor};
 use bolt_ts_atom::{Atom, AtomIntern};
-use bolt_ts_scanner::TokenValue;
+use bolt_ts_config::CompilerOptionFlags;
+use bolt_ts_middle::Extension;
+use bolt_ts_parser_errors as errors;
+use bolt_ts_scanner::{Comments, LeadingTrailingComments, TokenValue};
 use bolt_ts_span::{ModuleArena, ModuleID};
 use bolt_ts_utils::no_hashmap_with_capacity;
 use bolt_ts_utils::path::NormalizePath;
 
+use self::const_variant::PRESERVE_COMMENT;
+use self::const_variant::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 use self::expr::CheckParameterFlags;
 pub use self::nodes::Nodes;
 pub use self::parsed_map::ParsedMap;
 pub use self::parsed_map::ParsedMapState;
 pub use self::pragmas::PragmaMap;
 use self::state::ParserState;
-use self::state::{DTS_VARIANT, JS_VARIANT, JSX_VARIANT, TS_VARIANT, TSX_VARIANT};
 pub use self::touch::get_touching_property_name;
 pub use self::utils::parse_pseudo_bigint;
+use self::visitor_collect_dependencies::collect_deps;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -82,6 +88,8 @@ pub struct ParseResult<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub comments: Comments,
+    pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
@@ -113,6 +121,8 @@ pub struct ParseResultForGraph<'cx> {
     pub external_module_indicator: Option<ast::NodeID>,
     pub commonjs_module_indicator: Option<ast::NodeID>,
     pub comment_directives: Vec<CommentDirective>,
+    pub comments: Comments,
+    pub leading_trailing_comments: LeadingTrailingComments,
     pub line_map: Vec<u32>,
     pub filepath: Atom,
     pub is_declaration: bool,
@@ -158,7 +168,7 @@ pub fn parse_parallel<'cx, 'p>(
     list: &'p [ModuleID],
     module_arena: &'p ModuleArena,
     default_lib_dir: &'p std::path::Path,
-    always_strict: bool,
+    flags: CompilerOptionFlags,
 ) -> impl ParallelIterator<Item = (ModuleID, ParseResultForGraph<'cx>)> {
     // ) -> impl Iterator<Item = (ModuleID, ParseResult<'cx>)> {
 
@@ -188,7 +198,7 @@ pub fn parse_parallel<'cx, 'p>(
                 input.as_bytes(),
                 *module_id,
                 module_arena,
-                always_strict,
+                flags,
             );
             debug_assert!(
                 !module_arena.get_module(*module_id).is_default_lib() || p.diags.is_empty()
@@ -201,6 +211,8 @@ pub fn parse_parallel<'cx, 'p>(
                 external_module_indicator: p.external_module_indicator,
                 commonjs_module_indicator: p.commonjs_module_indicator,
                 comment_directives: p.comment_directives,
+                comments: p.comments,
+                leading_trailing_comments: p.leading_trailing_comments,
                 line_map: p.line_map,
                 filepath: p.filepath,
                 is_declaration: p.is_declaration,
@@ -237,6 +249,7 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
     file_path: &std::path::Path,
     always_strict: bool,
 ) -> ParseResult<'cx> {
+    debug_assert!(VARIANT != 0);
     let mut s = ParserState::<{ VARIANT }>::new(
         atoms,
         arena,
@@ -251,10 +264,12 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
     s.record_new_line_offset();
     assert_eq!(s.line_map[0], 0);
     debug_assert!(s.line_map.is_sorted(), "line_map: {:#?}", s.line_map);
+    let root = s.nodes.root();
+    let is_external_module_file = s.external_module_indicator.is_some();
     let c = collect_deps(
         s.is_declaration,
-        s.external_module_indicator.is_some(),
-        s.nodes.root(),
+        is_external_module_file,
+        root,
         s.atoms.clone(),
     );
 
@@ -265,6 +280,8 @@ fn parser_state_parse<'cx, 'p, const VARIANT: u8>(
         external_module_indicator: s.external_module_indicator,
         commonjs_module_indicator: s.commonjs_module_indicator,
         comment_directives: s.comment_directives,
+        comments: s.comments,
+        leading_trailing_comments: s.leading_trailing_comments,
         line_map: s.line_map,
         filepath: s.filepath,
         is_declaration: s.is_declaration,
@@ -282,180 +299,45 @@ pub fn parse<'cx, 'p>(
     input: &'p [u8],
     module_id: ModuleID,
     module_arena: &'p ModuleArena,
-    always_strict: bool,
+    flags: CompilerOptionFlags,
 ) -> ParseResult<'cx> {
     let nodes = Nodes(Vec::with_capacity(1024 * 8));
     let file_path = module_arena.get_path(module_id);
-
-    if let Some(ext) = file_path.extension() {
-        let ext = ext.to_ascii_lowercase();
-        if ext.eq_ignore_ascii_case("jsx") {
-            parser_state_parse::<{ JSX_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("tsx") {
-            parser_state_parse::<{ TSX_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("ts") {
-            parser_state_parse::<{ TS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else if ext.eq_ignore_ascii_case("d.ts") {
-            parser_state_parse::<{ DTS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        } else {
-            parser_state_parse::<{ JS_VARIANT }>(
-                atoms,
-                arena,
-                nodes,
-                input,
-                module_id,
-                file_path,
-                always_strict,
-            )
-        }
-    } else {
-        parser_state_parse::<{ TS_VARIANT }>(
-            atoms,
-            arena,
-            nodes,
-            input,
-            module_id,
-            file_path,
-            always_strict,
-        )
-    }
-}
-
-fn collect_deps<'cx>(
-    is_declaration: bool,
-    is_external_module_file: bool,
-    root: &'cx ast::Program<'cx>,
-    atoms: Arc<Mutex<AtomIntern>>,
-) -> CollectDepsResult<'cx> {
-    let mut visitor = CollectDepsVisitor {
-        in_ambient_module: false,
-        is_declaration,
-        is_external_module_file,
-        atoms,
-        imports: Vec::with_capacity(32),
-        ambient_modules: Vec::with_capacity(8),
-        module_augmentations: Vec::with_capacity(8),
-    };
-    visitor.visit_program(root);
-    CollectDepsResult {
-        imports: visitor.imports,
-        module_augmentations: visitor.module_augmentations,
-        ambient_modules: visitor.ambient_modules,
-    }
-}
-
-struct CollectDepsVisitor<'cx> {
-    is_declaration: bool,
-    in_ambient_module: bool,
-    is_external_module_file: bool,
-    atoms: Arc<Mutex<AtomIntern>>,
-
-    imports: Vec<ImportInfo<'cx>>,
-    module_augmentations: Vec<ast::NodeID>,
-    ambient_modules: Vec<Atom>,
-}
-
-struct CollectDepsResult<'cx> {
-    imports: Vec<ImportInfo<'cx>>,
-    module_augmentations: Vec<ast::NodeID>,
-    ambient_modules: Vec<Atom>,
-}
-
-impl<'cx> Visitor<'cx> for CollectDepsVisitor<'cx> {
-    type Result = bolt_ts_ast_visitor::ControlFlow;
-    fn visit_stmt(&mut self, node: &'cx ast::Stmt<'cx>) -> ControlFlow {
-        let module_name = match node.kind {
-            ast::StmtKind::Import(n) => Some(n.module),
-            ast::StmtKind::Export(n) => n.module_spec(),
-            // TODO: import equal
-            ast::StmtKind::BlockModule(n) => {
-                if n.is_ambient()
-                    && (self.in_ambient_module
-                        || n.modifiers
-                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::AMBIENT))
-                        || self.is_declaration)
-                {
-                    let name = match n.name {
-                        bolt_ts_ast::ModuleName::Ident(_) => {
-                            assert!(n.is_global_argument);
-                            keyword::IDENT_GLOBAL
-                        }
-                        bolt_ts_ast::ModuleName::StringLit(lit) => lit.val,
-                    };
-                    if self.is_external_module_file
-                        || (self.in_ambient_module
-                            && name != keyword::IDENT_GLOBAL
-                            && !bolt_ts_path::is_external_module_relative(
-                                self.atoms.lock().unwrap().get(name),
-                            ))
-                    {
-                        self.module_augmentations.push(n.name.id());
-                    } else if !self.in_ambient_module {
-                        if self.is_declaration {
-                            self.ambient_modules.push(name);
-                        }
-
-                        if let Some(block) = n.block {
-                            self.in_ambient_module = true;
-                            for stmt in block.stmts {
-                                if self.visit_stmt(stmt).is_break() {
-                                    self.in_ambient_module = false;
-                                    return ControlFlow::Break;
-                                }
-                            }
-                            self.in_ambient_module = false;
-                        }
-                    }
-                }
-                return ControlFlow::Continue;
+    let always_strict = flags.contains(CompilerOptionFlags::ALWAYS_STRICT);
+    let preserve_comment = !flags.contains(CompilerOptionFlags::REMOVE_COMMENTS);
+    macro_rules! parse_with_variant {
+        ($variant:expr) => {
+            if preserve_comment {
+                parser_state_parse::<{ $variant | PRESERVE_COMMENT }>(
+                    atoms,
+                    arena,
+                    nodes,
+                    input,
+                    module_id,
+                    file_path,
+                    always_strict,
+                )
+            } else {
+                parser_state_parse::<{ $variant }>(
+                    atoms,
+                    arena,
+                    nodes,
+                    input,
+                    module_id,
+                    file_path,
+                    always_strict,
+                )
             }
-            _ => return ControlFlow::Continue,
         };
-        if let Some(module_name) = module_name
-            && !(self.in_ambient_module
-                && bolt_ts_path::is_external_module_relative(
-                    self.atoms.lock().unwrap().get(module_name.val),
-                ))
-        {
-            self.imports.push(ImportInfo {
-                module_name,
-                // kind: todo!(),
-            });
-        }
-        // TODO: use_uri_style_node_core_modules
-        ControlFlow::Continue
+    }
+    match Extension::extension_of_file_name(file_path.as_os_str().as_encoded_bytes()) {
+        Extension::Js => parse_with_variant!(JS_VARIANT),
+        Extension::Jsx => parse_with_variant!(JSX_VARIANT),
+        Extension::Tsx => parse_with_variant!(TSX_VARIANT),
+        Extension::Ts => parse_with_variant!(TS_VARIANT),
+        Extension::Dts => parse_with_variant!(DTS_VARIANT),
+        Extension::Empty => parse_with_variant!(TS_VARIANT),
+        _ => parse_with_variant!(JS_VARIANT),
     }
 }
 
@@ -499,7 +381,7 @@ fn get_lib_filename_from_lib_reference(
 ) -> Option<&'static str> {
     let reference_name = atoms.get(reference_name).to_lowercase();
     let key = reference_name.as_str();
-    bolt_ts_libs::DEFAULT_LIB_MAP.get(key).copied()
+    bolt_ts_libs::LIB_MAP.get(key).copied()
 }
 
 fn process_lib_reference_directives(

@@ -9,6 +9,7 @@ bolt_ts_ast_visitor = { path = "../ast_visitor" }
 bolt_ts_atom = { path = "../../helper/atom" }
 bolt_ts_arena = { path = "../../helper/arena" }
 bolt_ts_binder = { path = "../binder" }
+bolt_ts_binder_errors = { path = "../binder_errors" }
 bolt_ts_config = { path = "../config" }
 bolt_ts_middle = { path = "../middle" }
 bolt_ts_scanner = { path = "../scanner" }
@@ -23,6 +24,7 @@ bolt_ts_ty = { path = "../ty" }
 bolt_ts_utils = { path = "../../helper/utils" }
 bolt_ts_early_resolve = { path = "../early_resolve" }
 bolt_ts_wf_check = { path = "../wf_check" }
+bolt_ts_wf_check_errors = { path = "../wf_check_errors" }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
 bitflags = { workspace = true }

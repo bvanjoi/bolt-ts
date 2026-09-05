@@ -1,0 +1,35 @@
+  × Type 'null' is not assignable to type 'C.A<C.B>'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:11:47]
+ 11 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'C.A<C.B>'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:13:52]
+ 13 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'C.A<C.B>[]'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:15:54]
+ 15 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'C.A<C.B>[]'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:17:72]
+ 17 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:20:41]
+ 20 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'T'.
+    ╭─[../../tests/compiler/declFileGenericType/index.ts:23:58]
+ 23 │ null
+    · ────
+    ╰────

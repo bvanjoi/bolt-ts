@@ -28,7 +28,11 @@ impl<'cx> TyChecker<'cx> {
         ty: &'cx ty::Ty<'cx>,
     ) -> &'cx ty::Ty<'cx> {
         debug_assert!(ty.flags.intersects(TypeFlags::ENUM_LIKE));
-        let s = ty.symbol().unwrap();
+        let s = if let Some(enum_symbol) = ty.kind.as_union().and_then(|u| u.enum_symbol) {
+            enum_symbol
+        } else {
+            ty.symbol().unwrap()
+        };
         let p = self.get_parent_of_symbol(s).unwrap();
         self.get_declared_ty_of_symbol(p)
     }

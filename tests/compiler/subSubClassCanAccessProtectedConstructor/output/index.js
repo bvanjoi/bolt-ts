@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/subSubClassCanAccessProtectedConstructor.ts`, Apache-2.0 License
 class Base {
   constructor() {}
   instance1 = new Base();

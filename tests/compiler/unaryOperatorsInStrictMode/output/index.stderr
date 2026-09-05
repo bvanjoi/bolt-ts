@@ -1,0 +1,95 @@
+  × Invalid use of 'eval' in strict mode.
+   ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:7:3]
+ 7 │ eval
+   · ────
+   ╰────
+
+  × Invalid use of 'eval' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:10:3]
+ 10 │ eval
+    · ────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:13:3]
+ 13 │ arguments
+    · ─────────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:16:3]
+ 16 │ arguments
+    · ─────────
+    ╰────
+
+  × Invalid use of 'eval' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:19:1]
+ 19 │ eval
+    · ────
+    ╰────
+
+  × Invalid use of 'eval' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:22:1]
+ 22 │ eval
+    · ────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:25:1]
+ 25 │ arguments
+    · ─────────
+    ╰────
+
+  × Invalid use of 'arguments' in strict mode.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:28:1]
+ 28 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:13:3]
+ 13 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:16:3]
+ 16 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:25:1]
+ 25 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot find name 'arguments'.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:28:1]
+ 28 │ arguments
+    · ─────────
+    ╰────
+
+  × Cannot assign to 'eval' because it is a function.
+   ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:7:3]
+ 7 │ eval
+   · ────
+   ╰────
+
+  × Cannot assign to 'eval' because it is a function.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:10:3]
+ 10 │ eval
+    · ────
+    ╰────
+
+  × Cannot assign to 'eval' because it is a function.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:19:1]
+ 19 │ eval
+    · ────
+    ╰────
+
+  × Cannot assign to 'eval' because it is a function.
+    ╭─[../../tests/compiler/unaryOperatorsInStrictMode/index.ts:22:1]
+ 22 │ eval
+    · ────
+    ╰────

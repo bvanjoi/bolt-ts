@@ -1,0 +1,5 @@
+  × The containing arrow function captures the global value of 'this'.
+   ╭─[../../tests/compiler/topLevelLambda3/index.ts:5:16]
+ 5 │ this
+   · ────
+   ╰────

@@ -29,10 +29,10 @@ impl<'cx> TyChecker<'cx> {
             self.undefined_ty
         };
         if ty == missing_or_undefined
-            || ty
-                .kind
-                .as_union()
-                .is_some_and(|u| u.tys[0] == missing_or_undefined)
+            || ty.kind.as_union().is_some_and(|u| {
+                debug_assert!(u.tys.iter().is_sorted_by_key(|t| t.id.as_u32()));
+                u.tys[0] == missing_or_undefined
+            })
         {
             ty
         } else {
@@ -562,8 +562,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         stmt: &'cx ast::ForOfStmt<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: await
-        let mode = IterationUse::FOR_OF;
+        let mode = if stmt.r#await.is_some() {
+            IterationUse::FOR_AWAIT_OF
+        } else {
+            IterationUse::FOR_OF
+        };
         let input_ty = self.check_non_null_expr(stmt.expr);
         self.check_iterated_ty_or_element_ty(
             mode,
@@ -626,7 +629,7 @@ impl<'cx> TyChecker<'cx> {
             return Some(if let Some(decl_ty) = decl.decl_ty() {
                 let decl_ty = self.get_ty_from_type_node(decl_ty);
                 if self.is_type_any(decl_ty) || decl_ty == self.unknown_ty {
-                    self.unknown_ty
+                    decl_ty
                 } else {
                     self.error_ty
                 }

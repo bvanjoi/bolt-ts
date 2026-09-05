@@ -1,4 +1,3 @@
-// From `github.com/microsoft/TypeScript/blob/v6.0.3/tests/cases/compiler/controlFlowDestructuringLoop.ts`, Apache-2.0 License
 function isNumVal(x) {
   return typeof x.val === 'number';
 }

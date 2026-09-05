@@ -14,11 +14,12 @@ function boo {
   //~| ERROR: Argument expression expected.
   //~| ERROR: Cannot find name 'test'.
   //~| ERROR: Cannot find name 'string'.
+  //~| ERROR: Cannot find name 'name'.
   static test(name?:any){ }
   //~^ ERROR: Declaration or statement expected.
   //~| ERROR: Expression expected.
   //~| ERROR: Cannot find name 'test'.
   //~| ERROR: Cannot find name 'any'.
+  //~| ERROR: Cannot find name 'name'.
   //~| ERROR: Unexpected keyword or identifier.
-   //~| ERROR: An expression of type 'void' cannot be tested for truthiness.
 }

@@ -364,9 +364,20 @@ impl<'cx> TyChecker<'cx> {
                 return Some(self.get_type_of_symbol(symbol));
             } else if self.p.node(decl).is_var_decl()
                 && let Some(parent_parent) = self.parent(decl).and_then(|_nn| self.parent(decl))
-                && self.p.node(parent_parent).is_for_of_stmt()
+                && let Some(n) = self.p.node(parent_parent).as_for_of_stmt()
+                && let Some(expr_ty) = self.get_ty_of_dotted_name(n.expr)
             {
-                todo!()
+                let iteration_use = if n.r#await.is_some() {
+                    super::IterationUse::FOR_AWAIT_OF
+                } else {
+                    super::IterationUse::FOR_OF
+                };
+                return Some(self.check_iterated_ty_or_element_ty(
+                    iteration_use,
+                    expr_ty,
+                    self.undefined_ty,
+                    None,
+                ));
             }
             None
         } else {
@@ -397,9 +408,15 @@ impl<'cx> TyChecker<'cx> {
                 // TODO:
                 None
             }
-            PropAccess(_) => {
-                // TODO:
-                None
+            PropAccess(n) => {
+                let ty = self.get_ty_of_dotted_name(n.expr)?;
+                let name = n.name;
+                // TODO: private
+                let prop = self.get_prop_of_ty::<false, false>(
+                    ty,
+                    bolt_ts_binder::SymbolName::Atom(name.name),
+                );
+                prop.and_then(|prop| self.get_explicit_ty_of_symbol(prop))
             }
             Paren(n) => self.get_ty_of_dotted_name(n.expr),
             _ => None,
@@ -418,11 +435,11 @@ impl<'cx> TyChecker<'cx> {
                 _ => unreachable!(),
             };
             if let Some(bin) = n.as_bin_expr() {
-                let _right_tyy = self.check_non_null_expr(bin.right);
+                let _right_ty = self.check_non_null_expr(bin.right);
                 // func_ty = Some()
                 todo!()
             } else if let parent = self.parent(node).unwrap()
-                && let Some(_stmt) = self.p.node(parent).as_expr_stmt()
+                && self.p.node(parent).is_expr_stmt()
             {
                 func_ty = self.get_ty_of_dotted_name(expr);
             } else if !matches!(expr.kind, ast::ExprKind::Super(_)) {

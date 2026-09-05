@@ -223,10 +223,8 @@ impl<'cx> TyChecker<'cx> {
                 self.check_object_prop_assignment(n, None)
             }
             // TODO: jsx
-        } else if node.is_object_shorthand_member() {
-            todo!()
         } else if let Some(n) = node.as_object_method_member() {
-            if let Some(ty) = node.ty_anno() {
+            if let Some(ty) = n.ty {
                 self.get_ty_from_type_node(ty)
             } else {
                 self.check_object_method_member(n, CheckMode::empty())
@@ -445,7 +443,7 @@ impl<'cx> TyChecker<'cx> {
             self.append_ty_mapping(mapped_ty.mapper, source, key_ty)
         };
         let prop_ty = self.instantiate_ty_worker(template_ty, mapper);
-        let ty = if self.config.compiler_options().strict_null_checks()
+        let mut prop_ty = if self.config.compiler_options().strict_null_checks()
             && self.symbol(symbol).flags.intersects(SymbolFlags::OPTIONAL)
             && !prop_ty.maybe_type_of_kind(TypeFlags::UNDEFINED.union(TypeFlags::VOID))
         {
@@ -456,11 +454,16 @@ impl<'cx> TyChecker<'cx> {
             prop_ty
         };
         if self.pop_ty_resolution().has_cycle() {
-            // TODO: error report
-            return self.error_ty;
+            let error = errors::TypeOfPropertyXCircularlyReferencesItselfInMappedTypeY {
+                span: self.p.node(self.current_node.unwrap()).span(),
+                property: self.symbol(symbol).name.to_string(&self.atoms),
+                ty: self.print_ty(ty, None).to_string(),
+            };
+            self.push_error(Box::new(error));
+            prop_ty = self.error_ty;
         }
-        self.get_mut_symbol_links(symbol).set_ty(ty);
-        ty
+        self.get_mut_symbol_links(symbol).set_ty(prop_ty);
+        prop_ty
     }
 
     fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolID) -> &'cx ty::Ty<'cx> {
@@ -738,7 +741,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
                     && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
                     && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
-                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple_ty(c))
                 {
                     let tys = &[self.number_ty, self.numeric_string_ty()];
                     let t = self.get_union_ty::<false>(
@@ -1416,7 +1419,7 @@ impl<'cx> TyChecker<'cx> {
         if access_flags.contains(AccessFlags::ALLOWING_MISSING) && object_ty.is_object_literal() {
             return Some(self.undefined_ty);
         }
-        // TODO: js
+        // TODO: is js literal type
 
         if let Some(access_node) = access_node {
             let index_node = self.get_index_node_for_access_expression(access_node);
@@ -1449,6 +1452,10 @@ impl<'cx> TyChecker<'cx> {
                 })
             };
             self.push_error(error);
+        }
+
+        if self.is_type_any(index_ty) {
+            return Some(index_ty);
         }
 
         None
@@ -2463,7 +2470,7 @@ impl<'cx> TyChecker<'cx> {
                     error_reported |= self.report_widening_errors_in_ty(ty);
                 }
             }
-        } else if self.is_array_or_tuple(ty) {
+        } else if self.is_array_or_tuple_ty(ty) {
             for t in self.get_ty_arguments(ty) {
                 if error_reported {
                     break;

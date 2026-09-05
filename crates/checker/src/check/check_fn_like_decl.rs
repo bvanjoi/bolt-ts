@@ -118,7 +118,10 @@ impl<'cx> TyChecker<'cx> {
         let error_span = |this: &Self| {
             this.get_effective_ret_type_node(func.id())
                 .map(|n| n.span())
-                .unwrap_or_else(|| this.p.node(func.id()).name().unwrap().span())
+                .unwrap_or_else(|| {
+                    let n = this.p.node(func.id());
+                    n.name().map(|name| name.span()).unwrap_or(n.span())
+                })
         };
         let has_explicit_return = self
             .p

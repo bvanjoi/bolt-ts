@@ -1,0 +1,59 @@
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:12:5]
+ 12 │ default
+    · ───────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:14:5]
+ 14 │ default
+    · ───────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:26:13]
+ 26 │ default
+    · ───────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:31:13]
+ 31 │ default
+    · ───────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:33:13]
+ 33 │ def\u0061ult
+    · ────────────
+    ╰────
+
+  × Keywords cannot contain escape characters.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:33:13]
+ 33 │ def\u0061ult
+    · ────────────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:37:13]
+ 37 │ default
+    · ───────
+    ╰────
+
+  × A 'return' statement can only be used within a function body.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:37:22]
+ 37 │ return
+    · ──────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:40:13]
+ 40 │ default
+    · ───────
+    ╰────
+
+  × A 'default' clause cannot appear more than once in a 'switch' statement.
+    ╭─[../../tests/compiler/switchStatementsWithMultipleDefaults/index.ts:40:22]
+ 40 │ default
+    · ───────
+    ╰────

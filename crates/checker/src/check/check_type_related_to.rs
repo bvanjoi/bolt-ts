@@ -523,6 +523,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         true
     }
 
+    fn can_elaborate_array_like_errors(
+        &mut self,
+        source: &'cx Ty<'cx>,
+        target: &'cx Ty<'cx>,
+    ) -> bool {
+        if let Some(s) = source.as_tuple() {
+            if s.readonly && self.c.is_mutable_array_like_ty(target) {
+                true
+            } else {
+                !self.c.is_array_or_tuple_ty(target)
+            }
+        } else if source.is_readonly_array(self.c) && self.c.is_mutable_array_or_tuple_ty(target) {
+            true
+        } else if target.is_tuple() {
+            !source.kind.is_array(self.c)
+        } else {
+            false
+        }
+    }
+
     fn properties_related_to(
         &mut self,
         source: &'cx Ty<'cx>,
@@ -539,7 +559,13 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         let mut result = Ternary::TRUE;
 
         if let Some(t_tuple) = target.as_tuple() {
-            if self.c.is_array_or_tuple(source) {
+            if self.c.is_array_or_tuple_ty(source) {
+                if !t_tuple.readonly
+                    && (source.is_readonly_array(self.c)
+                        || source.as_tuple().is_some_and(|t| t.readonly))
+                {
+                    return Ternary::FALSE;
+                }
                 let source_arity = TyChecker::get_ty_reference_arity(source);
                 let target_arity = TyChecker::get_ty_reference_arity(target);
                 let source_rest_flags = if let Some(s_tuple) = source.as_tuple() {
@@ -651,9 +677,8 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         {
             debug_assert!(!unmatched.is_empty());
             if report_error && self.should_report_unmatched_prop_error(source, target) {
-                if source.symbol().is_none() {
-                    // TODO: unreachable!()
-                    return Ternary::TRUE;
+                if self.can_elaborate_array_like_errors(source, target) {
+                    return Ternary::FALSE;
                 }
                 // report unmatched properties
                 unmatched.sort_by(|a, b| {
@@ -1199,7 +1224,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         );
                     }
                 } else if self.c.is_non_generic_object_ty(target)
-                    && !self.c.is_array_or_tuple(target)
+                    && !self.c.is_array_or_tuple_ty(target)
                     && let Some(s) = source.kind.as_intersection()
                     && self
                         .c
@@ -2108,7 +2133,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
 
             if if target.is_readonly_array(self.c) {
                 self.c
-                    .every_type(source, |this, t| this.is_array_or_tuple(t))
+                    .every_type(source, |this, t| this.is_array_or_tuple_ty(t))
             } else if target.kind.is_array(self.c) {
                 self.c
                     .every_type(source, |_, t| t.as_tuple().is_some_and(|t| !t.readonly))
@@ -3095,14 +3120,14 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                 this.c.is_generic_ty(ty)
             };
         for i in 0..param_count {
-            let source_ty;
-            let target_ty;
-            if i == rest_index {
-                source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
-                target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+            let (source_ty, target_ty) = if i == rest_index {
+                let source_ty = Some(self.c.get_rest_or_any_ty_at_pos(source, i));
+                let target_ty = Some(self.c.get_rest_or_any_ty_at_pos(target, i));
+                (source_ty, target_ty)
             } else {
-                source_ty = self.c.try_get_ty_at_pos(source, i);
-                target_ty = self.c.try_get_ty_at_pos(target, i);
+                let source_ty = self.c.try_get_ty_at_pos(source, i);
+                let target_ty = self.c.try_get_ty_at_pos(target, i);
+                (source_ty, target_ty)
             };
             if let Some(source_ty) = source_ty
                 && let Some(target_ty) = target_ty

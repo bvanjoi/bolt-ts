@@ -120,7 +120,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 } else {
                     // parse default clause
                     let start = this.token.start();
-                    if this.expect(TokenKind::Default) {
+                    if this.token.kind == TokenKind::Default {
                         if seen_default_clause {
                             let error =
                                 errors::ADefaultClauseCannotAppearMoreThanOnceInASwitchStatement {
@@ -130,6 +130,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         } else {
                             seen_default_clause = true;
                         }
+                        debug_assert!(this.token.kind == TokenKind::Default);
+                        this.next_token(); // consume `default`
+                    } else {
+                        let error = Box::new(errors::ExpectX {
+                            span: this.token.span,
+                            x: this.token.kind.as_str().to_string(),
+                        });
+                        this.push_error(error);
                     }
                     this.expect(TokenKind::Colon);
                     let stmts = this.parse_list(ParsingContext::SWITCH_CLAUSE_STATEMENTS, |this| {
@@ -630,6 +638,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                 self.next_token(); // consume `export`
                 match self.token.kind {
                     Default => {
+                        debug_assert!(self.token.kind == TokenKind::Default);
                         self.check_export_default_error(self.token.span);
                         self.next_token(); // consume `default`
                         ast::StmtKind::ExportAssign(
@@ -637,6 +646,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                         )
                     }
                     Eq => {
+                        debug_assert!(self.token.kind == TokenKind::Eq);
                         self.check_export_assignment_error(self.token.span);
                         self.next_token(); // consume `eq`
                         ast::StmtKind::ExportAssign(
@@ -766,19 +776,33 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         modifiers: Option<&'cx ast::Modifiers<'cx>>,
     ) -> ast::StmtKind<'cx> {
         debug_assert!(self.token.kind == TokenKind::Import);
-        if let Some(mods) = modifiers
-            && mods.flags.contains(ast::ModifierFlags::AMBIENT)
-        {
-            let m = mods
-                .list
-                .iter()
-                .find(|m| m.kind() == ast::ModifierKind::Ambient)
-                .unwrap();
-            let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
-                span: m.span(),
-                modifier: m.kind(),
-            };
-            self.push_error(Box::new(error));
+        if let Some(mods) = modifiers {
+            if mods.flags.contains(ast::ModifierFlags::AMBIENT) {
+                let m = mods
+                    .list
+                    .iter()
+                    .find(|m| m.kind() == ast::ModifierKind::Ambient)
+                    .unwrap();
+                let error = errors::AModifierCannotBeUsedWithAnImportDeclaration {
+                    span: m.span(),
+                    modifier: m.kind(),
+                };
+                self.push_error(Box::new(error));
+            }
+            if mods.flags.intersects(ast::ModifierFlags::ACCESSIBILITY) {
+                for m in mods.list {
+                    if m.kind() == ast::ModifierKind::Private
+                        || m.kind() == ast::ModifierKind::Protected
+                        || m.kind() == ast::ModifierKind::Public
+                    {
+                        let error = errors::ModifierCannotAppearOnAModuleOrNamespaceElement {
+                            modifier: m.kind().to_string(),
+                            span: m.span(),
+                        };
+                        self.push_error(Box::new(error));
+                    }
+                }
+            }
         }
         self.check_module_element_context(|this| {
             let error = errors::AnImportDeclarationCanOnlyBeUsedAtTheTopLevelOfANamespaceOrModule {
@@ -1145,6 +1169,10 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             let dotdotdot = self.parse_optional(TokenKind::DotDotDot).map(|t| t.span);
             let name = self.parse_ident_or_pat();
             let init = self.parse_init()?;
+            if init.is_some() && dotdotdot.is_some() {
+                let error = errors::ARestElementCannotHaveAnInitializer { span: name.span };
+                self.push_error(Box::new(error));
+            }
             let binding = self.create_array_binding(self.new_span(start), dotdotdot, name, init);
             ast::ArrayBindingElemKind::Binding(binding)
         };
@@ -1181,6 +1209,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         }
     }
 
+    // TODO: move to binder because we need to know is this file has module augmentation
     pub(super) fn check_strict_mode_eval_or_arguments(&mut self, n: &ast::Ident) {
         debug_assert!(self.in_strict_mode);
         if matches!(n.name, keyword::IDENT_ARGUMENTS | keyword::IDENT_EVAL) {

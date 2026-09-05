@@ -37,3 +37,30 @@ pub struct DeclarationNameConflictsWithBuiltInGlobalIdentifierX {
     pub span: Span,
     pub name: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Code contained in a class is evaluated in JavaScript's strict mode, which does not allow this use of '{name}'. For more information, see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode"
+)]
+pub struct CodeContainedInAClassIsEvaluatedInJavaScriptSStrictModeWhichDoesNotAllowThisUseOf0ForMoreInformationSeeHttpsColonSlashSlashdeveloperMozillaOrgSlashenUsSlashdocsSlashWebSlashJavaScriptSlashReferenceSlashStrictMode
+{
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Invalid use of '{name}'. Modules are automatically in strict mode.")]
+pub struct InvalidUseOfXModulesAreAutomaticallyInStrictMode {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("Invalid use of '{name}' in strict mode.")]
+pub struct InvalidUseOfXInStrictMode {
+    #[label(primary)]
+    pub span: Span,
+    pub name: String,
+}

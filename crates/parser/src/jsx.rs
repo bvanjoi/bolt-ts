@@ -2,9 +2,9 @@ use bolt_ts_ast::{JsxTagName, NodeFlags, TokenKind};
 use bolt_ts_ast_factory::ASTFactory;
 use bolt_ts_span::Span;
 
+use super::const_variant::is_jsx_like_variant;
 use super::errors;
 use super::parsing_ctx::ParsingContext;
-use super::state::is_jsx_like_variant;
 use super::{PResult, ParserState};
 
 #[derive(Debug)]
