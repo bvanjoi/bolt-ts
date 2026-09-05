@@ -1,0 +1,137 @@
+  × Argument of type 'readonly [3, 4]' is not assignable to parameter of type
+  │ '[number, number]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:12:20]
+ 12 │ point
+    · ─────
+    ╰────
+
+  × Argument of type 'readonly [3, 4]' is not assignable to parameter of type
+  │ 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:16:8]
+ 16 │ point
+    · ─────
+    ╰────
+
+  × Argument of type 'readonly [3, 4]' is not assignable to parameter of type
+  │ 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:20:9]
+ 20 │ point
+    · ─────
+    ╰────
+
+  × Argument of type 'readonly number[]' is not assignable to parameter of
+  │ type 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:27:9]
+ 27 │ a
+    · ─
+    ╰────
+
+  × Argument of type 'readonly number[]' is not assignable to parameter of
+  │ type 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:29:9]
+ 29 │ b
+    · ─
+    ╰────
+
+  × Argument of type 'readonly number[]' is not assignable to parameter of
+  │ type 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:31:9]
+ 31 │ c
+    · ─
+    ╰────
+
+  × Type 'readonly [1]' is not assignable to type 'readonly []'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:35:7]
+ 35 │ t2
+    · ──
+    ╰────
+
+  × Type 'readonly [1]' is not assignable to type '[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:39:7]
+ 39 │ t4
+    · ──
+    ╰────
+
+  × Type '[1]' is not assignable to type 'readonly []'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:43:7]
+ 43 │ t6
+    · ──
+    ╰────
+
+  × Type '[1]' is not assignable to type '[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:47:7]
+ 47 │ t8
+    · ──
+    ╰────
+
+  × Type 'readonly number[]' is not assignable to type 'readonly boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:51:7]
+ 51 │ a2
+    · ──
+    ╰────
+
+  × Type 'readonly number[]' is not assignable to type 'boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:55:7]
+ 55 │ a4
+    · ──
+    ╰────
+
+  × Type 'number[]' is not assignable to type 'readonly boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:59:7]
+ 59 │ a6
+    · ──
+    ╰────
+
+  × Type 'number[]' is not assignable to type 'boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:63:7]
+ 63 │ a8
+    · ──
+    ╰────
+
+  × Type 'readonly [1]' is not assignable to type 'readonly boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:67:7]
+ 67 │ ta2
+    · ───
+    ╰────
+
+  × Type 'readonly [1]' is not assignable to type 'number[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:71:7]
+ 71 │ ta4
+    · ───
+    ╰────
+
+  × Type '[1]' is not assignable to type 'readonly boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:75:7]
+ 75 │ ta6
+    · ───
+    ╰────
+
+  × Type '[1]' is not assignable to type 'boolean[]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:79:7]
+ 79 │ ta8
+    · ───
+    ╰────
+
+  × Type 'readonly number[]' is not assignable to type 'readonly [1]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:83:7]
+ 83 │ at2
+    · ───
+    ╰────
+
+  × Type 'readonly number[]' is not assignable to type '[1]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:87:7]
+ 87 │ at4
+    · ───
+    ╰────
+
+  × Type 'number[]' is not assignable to type 'readonly [1]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:91:7]
+ 91 │ at6
+    · ───
+    ╰────
+
+  × Type 'number[]' is not assignable to type '[1]'.
+    ╭─[../../tests/compiler/readonlyTupleAndArrayElaboration/index.ts:95:7]
+ 95 │ at8
+    · ───
+    ╰────

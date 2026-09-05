@@ -976,17 +976,16 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
                 return true;
             }
             ast::Node::ForOfStmt(n) => {
-                if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container) {
-                    return true;
-                } else if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container)
+                if self.is_same_scope_descendent_of(usage, Some(decl.id), decl_container)
+                    || self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container)
                 {
                     return true;
                 }
             }
-            ast::Node::ForInStmt(n) => {
-                if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container) {
-                    return true;
-                }
+            ast::Node::ForInStmt(n)
+                if self.is_same_scope_descendent_of(usage, Some(n.expr.id()), decl_container) =>
+            {
+                return true;
             }
             _ => (),
         }

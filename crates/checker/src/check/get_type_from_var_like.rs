@@ -562,8 +562,11 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         stmt: &'cx ast::ForOfStmt<'cx>,
     ) -> &'cx ty::Ty<'cx> {
-        // TODO: await
-        let mode = IterationUse::FOR_OF;
+        let mode = if stmt.r#await.is_some() {
+            IterationUse::FOR_AWAIT_OF
+        } else {
+            IterationUse::FOR_OF
+        };
         let input_ty = self.check_non_null_expr(stmt.expr);
         self.check_iterated_ty_or_element_ty(
             mode,

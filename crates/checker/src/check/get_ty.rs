@@ -741,7 +741,7 @@ impl<'cx> TyChecker<'cx> {
                 if self.get_ty_param_from_mapped_ty(mapped_ty) == self.get_actual_ty_variable(ty)
                     && let Some(type_parameter) = self.get_homomorphic_ty_var(mapped_ty)
                     && let Some(constraint) = self.get_constraint_of_ty_param(type_parameter)
-                    && self.every_type(constraint, |this, c| this.is_array_or_tuple(c))
+                    && self.every_type(constraint, |this, c| this.is_array_or_tuple_ty(c))
                 {
                     let tys = &[self.number_ty, self.numeric_string_ty()];
                     let t = self.get_union_ty::<false>(
@@ -2470,7 +2470,7 @@ impl<'cx> TyChecker<'cx> {
                     error_reported |= self.report_widening_errors_in_ty(ty);
                 }
             }
-        } else if self.is_array_or_tuple(ty) {
+        } else if self.is_array_or_tuple_ty(ty) {
             for t in self.get_ty_arguments(ty) {
                 if error_reported {
                     break;

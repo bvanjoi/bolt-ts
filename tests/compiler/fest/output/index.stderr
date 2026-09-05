@@ -228,13 +228,13 @@
       · ─────────────────────────────────────────
       ╰────
 
-  × Type '"why a string?"' does not satisfy the constraint 'any[]'.
+  × Type '"why a string?"' does not satisfy the constraint 'readonly any[]'.
       ╭─[../../tests/compiler/fest/index.ts:1048:37]
  1048 │ ,
       · ─
       ╰────
 
-  × Type '{ key: "value"; }' does not satisfy the constraint 'any[]'.
+  × Type '{ key: "value"; }' does not satisfy the constraint 'readonly any[]'.
       ╭─[../../tests/compiler/fest/index.ts:1052:22]
  1052 │ {key: 'value'}
       · ──────────────
@@ -434,7 +434,7 @@
       · ───────
       ╰────
 
-  × Property 'push' does not exist on type 'string[]'.
+  × Property 'push' does not exist on type 'readonly string[]'.
       ╭─[../../tests/compiler/fest/index.ts:2111:6]
  2111 │ push
       · ────
@@ -708,15 +708,15 @@
       · ──
       ╰────
 
-  × Type '{ }' is missing the following properties from type 'unknown[]':
-  │ length, concat, and 18 more.
+  × Type '{ }' is missing the following properties from type 'readonly
+  │ unknown[]': length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2762:9]
  2762 │ b2
       · ──
       ╰────
 
   × Type '{ 0: number; }' is missing the following properties from type
-  │ 'unknown[]': length, concat, and 18 more.
+  │ 'readonly unknown[]': length, concat, and 18 more.
       ╭─[../../tests/compiler/fest/index.ts:2764:9]
  2764 │ b3
       · ──
@@ -729,7 +729,7 @@
       ╰────
 
   × Type 'DateConstructor' is missing the following properties from type
-  │ 'unknown[]': concat, join, and 17 more.
+  │ 'readonly unknown[]': concat, join, and 17 more.
       ╭─[../../tests/compiler/fest/index.ts:2768:9]
  2768 │ b5
       · ──

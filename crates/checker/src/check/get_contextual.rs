@@ -251,7 +251,22 @@ impl<'cx> TyChecker<'cx> {
             }
             CallExpr(n) => self.get_contextual_ty_for_argument(n, id),
             NewExpr(n) => self.get_contextual_ty_for_argument(n, id),
+            CondExpr(n) => self.get_contextual_ty_for_conditional_operand(n, id, flags),
             _ => None,
+        }
+    }
+
+    fn get_contextual_ty_for_conditional_operand(
+        &mut self,
+        parent: &'cx ast::CondExpr<'cx>,
+        id: ast::NodeID,
+        flags: Option<ContextFlags>,
+    ) -> Option<&'cx ty::Ty<'cx>> {
+        debug_assert!(self.parent(id).is_some_and(|p| p == parent.id));
+        if parent.when_true.id() == id || parent.when_false.id() == id {
+            self.get_contextual_ty(parent.id, flags)
+        } else {
+            None
         }
     }
 

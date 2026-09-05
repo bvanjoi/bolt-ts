@@ -1046,11 +1046,11 @@ type Includes<Value extends readonly any[], Item> =
 
   // Value generic parameter is a string not an array.
   type A2 = Includes<'why a string?', 5>;
-  //~^ ERROR: Type '"why a string?"' does not satisfy the constraint 'any[]'.
+  //~^ ERROR: Type '"why a string?"' does not satisfy the constraint 'readonly any[]'.
 
   // Value generic parameter is an object not an array.
   type A3 = Includes<{key: 'value'}, 7>;
-  //~^ ERROR: Type '{ key: "value"; }' does not satisfy the constraint 'any[]'.
+  //~^ ERROR: Type '{ key: "value"; }' does not satisfy the constraint 'readonly any[]'.
 }
 
 // =========== IsEqual ===========
@@ -2109,7 +2109,7 @@ T extends readonly [...infer U] ?
 {
   let a0: SetArrayAccess<string[], true> = [];
   a0.push('42');
-  //~^ ERROR: Property 'push' does not exist on type 'string[]'.
+  //~^ ERROR: Property 'push' does not exist on type 'readonly string[]'.
   let a1: SetArrayAccess<string[], false> = [];
   a1.push('42');
 }
@@ -2760,13 +2760,13 @@ type UnknownArray = readonly unknown[];
   const b1: UnknownArray = undefined; // depend on `strictNullChecks`
   //~^ ERROR: Type 'undefined' is not assignable to type 'UnknownArray'.
   const b2: UnknownArray = {};
-  //~^ ERROR: Type '{ }' is missing the following properties from type 'unknown[]'
+  //~^ ERROR: Type '{ }' is missing the following properties from type 'readonly unknown[]'
   const b3: UnknownArray = {0: 1};
-  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'unknown[]'
+  //~^ ERROR: Type '{ 0: number; }' is missing the following properties from type 'readonly unknown[]'
   const b4: UnknownArray = 1;
   //~^ ERROR: Type 'number' is not assignable to type 'UnknownArray'.
   const b5: UnknownArray = Date;
-  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'unknown[]'
+  //~^ ERROR: Type 'DateConstructor' is missing the following properties from type 'readonly unknown[]'
 
   type IsArray<T> = T extends UnknownArray ? true : false;
 

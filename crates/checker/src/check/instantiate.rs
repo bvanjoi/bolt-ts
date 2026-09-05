@@ -623,7 +623,9 @@ impl<'cx> TyChecker<'cx> {
                             .is_none()
                             && c.get_constraint_of_ty_param(ty_var)
                                 .is_some_and(|constraint| {
-                                    c.every_type(constraint, |this, ty| this.is_array_or_tuple(ty))
+                                    c.every_type(constraint, |this, ty| {
+                                        this.is_array_or_tuple_ty(ty)
+                                    })
                                 }))
                     {
                         let mapper = c.prepend_ty_mapping(ty_var, mapped_ty_var, Some(mapper));

@@ -5085,14 +5085,14 @@ impl<'cx> TyChecker<'cx> {
         Some(aggregated_tys)
     }
 
-    fn is_array_or_tuple(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    fn is_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) || ty.is_tuple()
     }
 
     fn is_array_or_tuple_or_intersection(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind
             .as_intersection()
-            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple(t)))
+            .map(|i| i.tys.iter().all(|t| self.is_array_or_tuple_ty(t)))
             .unwrap_or_default()
     }
 

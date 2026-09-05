@@ -65,13 +65,13 @@ declare function outer3<A>(
 
 // error
 outer3(function* <T>(value: T) {
-  //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, never>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
+  //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, any>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
   yield* inner3(value);
 });
 
 // error
 outer3(function* <T>(value: T) {
-  //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, never>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
+  //~^ ERROR: Argument of type '<T>(value: T) => Generator<number, void, any>' is not assignable to parameter of type '(value: unknown) => Generator<never, unknown, unknown>'.
   const x = inner3(value);
   yield* x;
 });

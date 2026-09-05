@@ -1050,23 +1050,6 @@ impl<'cx> TyChecker<'cx> {
             .unwrap_or(self.any_ty)
     }
 
-    fn report_ty_not_iterable_error(
-        &mut self,
-        error_node: ast::NodeID,
-        ty: &'cx ty::Ty<'cx>,
-        allow_async_iterables: bool,
-    ) {
-        if allow_async_iterables {
-            todo!()
-        } else {
-            let error = errors::TypeXMustHaveASymbolIteratorMethodThatReturnsAnIterator {
-                span: self.p.node(error_node).span(),
-                ty: self.print_ty(ty, None).to_string(),
-            };
-            self.push_error(Box::new(error));
-        };
-    }
-
     pub(super) fn get_iterated_ty_or_element_ty(
         &mut self,
         mode: IterationUse,
@@ -1078,7 +1061,7 @@ impl<'cx> TyChecker<'cx> {
         let allow_async_iterables = mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_ty == self.never_ty {
             if let Some(error_node) = error_node {
-                self.report_ty_not_iterable_error(error_node, input_ty, allow_async_iterables);
+                self.report_ty_not_iterable_error(input_ty, error_node, allow_async_iterables);
             }
             return None;
         }

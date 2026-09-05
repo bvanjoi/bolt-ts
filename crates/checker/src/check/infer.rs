@@ -956,7 +956,7 @@ impl<'cx> TyChecker<'cx> {
                 && self.is_type_assignable_to(ty, self.any_array_ty())
     }
 
-    fn is_mutable_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
+    pub(super) fn is_mutable_array_or_tuple_ty(&self, ty: &'cx ty::Ty<'cx>) -> bool {
         ty.kind.is_array(self) && !ty.is_readonly_array(self)
             || ty.as_tuple().is_some_and(|t| !t.readonly)
     }
