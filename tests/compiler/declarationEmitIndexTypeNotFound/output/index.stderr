@@ -1,0 +1,12 @@
+  × Cannot find name 'TypeNotFound'.
+   ╭─[../../tests/compiler/declarationEmitIndexTypeNotFound/index.ts:8:13]
+ 8 │ TypeNotFound
+   · ────────────
+   ╰────
+
+  × An index signature parameter type must be 'string', 'number', 'symbol', or
+  │ a template literal type.
+   ╭─[../../tests/compiler/declarationEmitIndexTypeNotFound/index.ts:8:5]
+ 8 │ [index: TypeNotFound]: any;
+   · ───────────────────────────
+   ╰────

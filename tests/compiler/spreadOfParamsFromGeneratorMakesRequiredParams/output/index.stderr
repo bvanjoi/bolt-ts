@@ -1,5 +1,11 @@
   × Expected 2 arguments, but got 1.
     ╭─[../../tests/compiler/spreadOfParamsFromGeneratorMakesRequiredParams/index.ts:10:1]
- 10 │ call(function* (a: 'a') { })
-    · ────────────────────────────
+ 10 │ call
+    · ────
+    ╰────
+
+  × Expected 2 arguments, but got 3.
+    ╭─[../../tests/compiler/spreadOfParamsFromGeneratorMakesRequiredParams/index.ts:13:30]
+ 13 │ 'a', 'b'
+    · ────────
     ╰────

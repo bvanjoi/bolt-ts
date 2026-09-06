@@ -1,0 +1,11 @@
+  × Property 'g' does not exist on type 'M.C<C>'.
+   ╭─[../../tests/compiler/statics/index.ts:9:18]
+ 9 │ g
+   · ─
+   ╰────
+
+  × Property 'g' does not exist on type 'M.C'.
+    ╭─[../../tests/compiler/statics/index.ts:27:33]
+ 27 │ g
+    · ─
+    ╰────

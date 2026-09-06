@@ -1167,8 +1167,11 @@ impl<'cx> TyChecker<'cx> {
                 error_output_container,
             );
             if std::ptr::eq(iteration_tys, self.no_iteration_tys()) {
-                if let Some(_error_nodee) = error_node {
-                    todo!()
+                if let Some(error_node) = error_node {
+                    let allow_async_iterable =
+                        mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
+                    self.report_ty_not_iterable_error(ty, error_node, allow_async_iterable);
+                    return None;
                 }
                 if mode.contains(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
                     AsyncIterationTysResolver.set_iteration_tys_of_iterable_cached(

@@ -364,7 +364,7 @@
       · ──────────────
       ╰────
 
-  × Expected 1 arguments, but got 0.
+  × Expected at least 1 arguments, but got 0.
       ╭─[../../tests/compiler/fest/index.ts:1748:3]
  1748 │ sum()
       · ─────

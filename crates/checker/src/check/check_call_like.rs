@@ -1407,12 +1407,8 @@ impl<'cx> TyChecker<'cx> {
         check_mode: CheckMode,
         call_chain_flags: SigFlags,
     ) -> &'cx Sig<'cx> {
-        debug_assert!(!sigs.is_empty());
-
         let report_error = !self.is_inference_partially_blocked && candidates_out_array.is_none();
-
-        let mut min_required_params = usize::MAX;
-        let mut max_required_params = usize::MIN;
+        let is_jsx_open_fragment = self.p.node(n.id()).is_jsx_opening_frag();
 
         let mut candidates_for_argument_error = no_hashset_with_capacity(sigs.len());
         let mut candidate_for_argument_arity_error = None;
@@ -1521,83 +1517,6 @@ impl<'cx> TyChecker<'cx> {
             self.get_mut_node_links(n.id()).set_resolved_sig(candidate);
         }
 
-        for sig in &candidates {
-            if (sig.min_args_count as usize) < min_required_params {
-                min_required_params = sig.min_args_count as usize;
-            }
-            // max_required_params = usize::max(max, sig.get_param_count(self));
-            max_required_params = if sig.has_rest_param() {
-                usize::MAX
-            } else {
-                usize::max(sig.params.len(), max_required_params)
-            }
-        }
-
-        let prev_errors = self.diags.len();
-        if min_required_params <= effective_call_arguments.len()
-            && effective_call_arguments.len() <= max_required_params
-        {
-            // arguments had been check in `choose_overload`
-        } else if min_required_params == max_required_params {
-            let x = min_required_params;
-            let y = effective_call_arguments.len();
-            let span = if x < y && y - x < effective_call_arguments.len() {
-                let lo = effective_call_arguments.index(y - x).span().lo();
-                let hi = effective_call_arguments.last().span().hi();
-                Span::new(lo, hi, n.span().module())
-            } else {
-                n.callee_most_right_span()
-            };
-            let error = errors::ExpectedXArgsButGotY {
-                span,
-                x: ExpectedArgsCount::Count(x),
-                y,
-                is_ty: false,
-            };
-            self.push_error(Box::new(error));
-        } else if effective_call_arguments.len() > max_required_params {
-            let lo = effective_call_arguments
-                .index(max_required_params)
-                .span()
-                .lo();
-            let hi = effective_call_arguments.last().span().hi();
-            let span = Span::new(lo, hi, n.span().module());
-            let error = errors::ExpectedXArgsButGotY {
-                span,
-                x: ExpectedArgsCount::Range {
-                    lo: min_required_params,
-                    hi: max_required_params,
-                },
-                y: effective_call_arguments.len(),
-                is_ty: false,
-            };
-            self.push_error(Box::new(error));
-        } else if effective_call_arguments.len() < min_required_params {
-            let span = n.span();
-            let error: bolt_ts_errors::BoxedDiag = if max_required_params == usize::MAX {
-                Box::new(errors::ExpectedAtLeastXArgsButGotY {
-                    span,
-                    x: min_required_params,
-                    y: effective_call_arguments.len(),
-                })
-            } else {
-                Box::new(errors::ExpectedXArgsButGotY {
-                    span,
-                    x: ExpectedArgsCount::Range {
-                        lo: min_required_params,
-                        hi: max_required_params,
-                    },
-                    y: effective_call_arguments.len(),
-                    is_ty: false,
-                })
-            };
-            self.push_error(error);
-        }
-
-        if prev_errors < self.diags.len() {
-            return candidate;
-        }
-
         if report_error {
             if !candidates_for_argument_error.is_empty() {
                 if candidates_for_argument_error.len() == 1 {
@@ -1659,8 +1578,7 @@ impl<'cx> TyChecker<'cx> {
                     n.ty_args().unwrap(),
                     true,
                 );
-            } else {
-                // TODO: !is_jsx
+            } else if !is_jsx_open_fragment {
                 let sigs_with_correct_ty_arg_arity = candidates
                     .iter()
                     .filter(|sig| self.has_correct_ty_arg_arity(sig, n.ty_args()))
@@ -1774,7 +1692,9 @@ impl<'cx> TyChecker<'cx> {
         let mut max_below = usize::MIN;
         let mut min_above = usize::MAX;
         let mut _closest_sig = None;
+        let mut has_rest_parameter = false;
         for sig in sigs {
+            has_rest_parameter |= self.has_effective_rest_param(sig);
             let min_param = self.get_min_arg_count(sig);
             let max_param = sig.get_param_count(self);
             if min_param < min {
@@ -1790,57 +1710,61 @@ impl<'cx> TyChecker<'cx> {
             }
         }
 
-        let has_rest_param = sigs.iter().any(|sig| self.has_effective_rest_param(sig));
-        let param_range = if has_rest_param {
-            (min, min)
-        } else if min < max {
-            (min, max)
-        } else {
-            (min, min)
-        };
-
-        if min < args.len() && args.len() < max {
+        let args_len = args.len();
+        if min <= args_len && args_len <= max {
+            // arguments had been check in `choose_overload`
             let error = errors::NoOverloadExpectsXArgumentsButOverloadsDoExistThatExpectEitherAOrBArguments {
-                span: expr.span(),
-                argument_count: args.len(),
+                span: expr.callee().span(),
+                argument_count: args_len,
                 max_below,
                 min_above,
             };
             self.push_error(Box::new(error));
-        } else if args.len() < min {
-            let (min, max) = param_range;
-            if min == max {
-                let error = errors::ExpectedXArgsButGotY {
-                    span: expr.span(),
-                    x: ExpectedArgsCount::Count(min),
-                    y: args.len(),
-                    is_ty: false,
-                };
-                self.push_error(Box::new(error));
-            }
-        } else {
-            let (lo, hi) = match args {
-                EffectiveCallArguments::Borrowed(n) => {
-                    let sliced = &n[max..];
-                    let lo = sliced.first().unwrap().span().lo();
-                    let hi = sliced.last().unwrap().span().hi();
-                    (lo, hi)
-                }
-                EffectiveCallArguments::Owned(n) => {
-                    let sliced = &n[max..];
-                    let lo = sliced.first().unwrap().span().lo();
-                    let hi = sliced.last().unwrap().span().hi();
-                    (lo, hi)
-                }
+        } else if min == max {
+            let x = min;
+            let y = args_len;
+            let span = if x < y && x > 0 {
+                let lo = args.index(y - x).span().lo();
+                let hi = args.last().span().hi();
+                Span::new(lo, hi, expr.span().module())
+            } else {
+                expr.callee_most_right_span()
             };
-
             let error = errors::ExpectedXArgsButGotY {
-                span: Span::new(lo, hi, expr.span().module()),
-                x: ExpectedArgsCount::Range { lo: min, hi: max },
-                y: args.len(),
+                span,
+                x: ExpectedArgsCount::Count(x),
+                y,
                 is_ty: false,
             };
             self.push_error(Box::new(error));
+        } else if args_len > max {
+            let lo = args.index(max).span().lo();
+            let hi = args.last().span().hi();
+            let span = Span::new(lo, hi, expr.span().module());
+            let error = errors::ExpectedXArgsButGotY {
+                span,
+                x: ExpectedArgsCount::Range { lo: min, hi: max },
+                y: args_len,
+                is_ty: false,
+            };
+            self.push_error(Box::new(error));
+        } else if args_len < min {
+            let span = expr.span();
+            let error: bolt_ts_errors::BoxedDiag = if has_rest_parameter {
+                Box::new(errors::ExpectedAtLeastXArgsButGotY {
+                    span,
+                    x: min,
+                    y: args_len,
+                })
+            } else {
+                Box::new(errors::ExpectedXArgsButGotY {
+                    span,
+                    x: ExpectedArgsCount::Range { lo: min, hi: max },
+                    y: args_len,
+                    is_ty: false,
+                })
+            };
+            self.push_error(error);
         }
     }
 

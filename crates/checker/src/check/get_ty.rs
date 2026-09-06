@@ -315,29 +315,24 @@ impl<'cx> TyChecker<'cx> {
         let s = self.binder.symbol(symbol);
         let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
         let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
-        let ty = if let Some(getter_ty) = getter
-            .and_then(|getter| {
-                let getter = self.p.node(getter).expect_getter_decl();
-                getter.ty
-            })
-            .map(|getter_ty| self.get_ty_from_type_node(getter_ty))
-        {
-            Some(getter_ty)
-        } else {
-            setter
-                .and_then(|setter| {
-                    let setter = self.p.node(setter).expect_setter_decl();
-                    setter.params[0].ty
-                })
-                .map(|setter_ty| self.get_ty_from_type_node(setter_ty))
-        };
 
-        let mut ty = if let Some(ty) = ty {
+        let mut ty = if let Some(getter) = getter
+            && let Some(ty) = self.get_annotated_accessor_ty(getter)
+        {
             ty
+        } else if let Some(setter) = setter
+            && let Some(ty) = self.get_annotated_accessor_ty(setter)
+        {
+            ty
+            // TODO: accessor
+        } else if let Some(getter) = getter {
+            self.get_return_type_from_body(getter, None)
         } else {
+            // TODO: accessor
             // TODO: throw error
             self.any_ty
         };
+
         if self.pop_ty_resolution().has_cycle() {
             if let Some(getter) = getter
                 && self.p.get_annotated_accessor_ty_node(getter).is_some()

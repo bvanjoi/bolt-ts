@@ -1048,9 +1048,6 @@ impl<'cx> TyChecker<'cx> {
         if let ast::PropNameKind::Computed(name) = n.name().kind {
             self.check_computed_property_name(name);
         }
-        if let Some(body) = n.body() {
-            self.check_block(body);
-        }
         let id = n.id();
         self.check_sig_decl(id);
 
@@ -1096,6 +1093,13 @@ impl<'cx> TyChecker<'cx> {
                     self.push_error(Box::new(error));
                 }
             }
+        }
+        let s = self.get_symbol_of_declaration(id);
+        let _ = self.get_ty_of_accessor(s);
+        // TODO: self.check_all_code_paths_in_non_void_fn_ret_or_throw(n, Some(ret_ty));
+
+        if let Some(body) = n.body() {
+            self.check_block(body);
         }
     }
 }

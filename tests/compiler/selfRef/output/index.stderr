@@ -1,0 +1,11 @@
+  × Cannot find name 'name'.
+    ╭─[../../tests/compiler/selfRef/index.ts:13:8]
+ 13 │ name
+    · ────
+    ╰────
+
+  × Cannot find name 'name'.
+    ╭─[../../tests/compiler/selfRef/index.ts:18:18]
+ 18 │ name
+    · ────
+    ╰────

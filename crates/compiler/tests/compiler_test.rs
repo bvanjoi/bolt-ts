@@ -68,6 +68,8 @@ fn run_test_with(
         vec!["./*.tsx".to_string(), "./*.ts".to_string()]
     } else if file_name == "index.js" {
         vec!["./*.js".to_string(), "./*.ts".to_string()]
+    } else if file_name == "index.d.ts" {
+        vec!["./*.d.ts".to_string(), "./*.ts".to_string()]
     } else {
         unreachable!()
     };
@@ -207,6 +209,15 @@ fn run_index_tsx_test(arg: dir_test::Fixture<&str>) {
     glob: "*/index.js",
 )]
 fn run_index_js_test(arg: dir_test::Fixture<&str>) {
+    let entry = std::path::Path::new(arg.path());
+    run_test(entry, false);
+}
+
+#[dir_test::dir_test(
+    dir: "$CARGO_MANIFEST_DIR/../../tests/compiler",
+    glob: "*/index.d.ts",
+)]
+fn run_index_dts_test(arg: dir_test::Fixture<&str>) {
     let entry = std::path::Path::new(arg.path());
     run_test(entry, false);
 }

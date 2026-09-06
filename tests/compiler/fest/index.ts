@@ -1746,7 +1746,7 @@ type NonEmptyTuple<T = unknown> = readonly [T, ...T[]];
   const a0: number = sum(1, 2, 3);
   const a1: number = sum(1);
   sum();
-  //~^ ERROR: Expected 1 arguments, but got 0.
+  //~^ ERROR: Expected at least 1 arguments, but got 0.
 }
 
 // ========== NonNegative ==========

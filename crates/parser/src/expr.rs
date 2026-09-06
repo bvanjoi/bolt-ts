@@ -231,13 +231,6 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             };
             let block = self.parse_fn_block(flags);
             Ok(ast::ArrowFnExprBody::Block(block))
-        } else if !matches!(
-            self.token.kind,
-            TokenKind::Semi | TokenKind::Function | TokenKind::Class
-        ) && self.is_start_of_stmt()
-            && !self.is_start_of_expr_stmt()
-        {
-            todo!()
         } else {
             let saved_yield_context = self.in_yield_context();
             // TODO: top_level

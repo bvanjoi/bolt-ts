@@ -1225,9 +1225,8 @@ impl<'cx> TyChecker<'cx> {
 
         let object_flags = ty.get_object_flags() & !ObjectFlags::FRESH_LITERAL;
         let resolved = self.get_ty_links(ty.id).get_structured_members().unwrap();
-        assert!(resolved.call_sigs.is_empty());
-        assert!(resolved.ctor_sigs.is_empty());
-        assert!(resolved.index_infos.is_empty());
+        assert!(std::ptr::eq(resolved.call_sigs, self.empty_array()));
+        assert!(std::ptr::eq(resolved.ctor_sigs, self.empty_array()));
         let regular = self.create_anonymous_ty_with_resolved(
             a.symbol,
             object_flags,
