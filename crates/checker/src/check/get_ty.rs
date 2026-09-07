@@ -325,11 +325,33 @@ impl<'cx> TyChecker<'cx> {
         {
             ty
             // TODO: accessor
-        } else if let Some(getter) = getter {
+        } else if let Some(getter) = getter 
+            && self.p.node(getter).expect_getter_decl().body.is_some()
+        {
             self.get_return_type_from_body(getter, None)
         } else {
+            if let Some(setter) = setter
+                && !self.is_private_within_ambient(setter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(setter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsSetAccessorLacksAParameterTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
+            } else if let Some(getter) = getter
+                && !self.is_private_within_ambient(getter)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(getter).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),       
+                };
+                self.push_error(Box::new(error));
+            }
             // TODO: accessor
-            // TODO: throw error
             self.any_ty
         };
 

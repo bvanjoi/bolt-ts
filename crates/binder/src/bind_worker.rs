@@ -822,15 +822,15 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
             ast::Node::EleAccessExpr(p) => {
                 self.lookup_symbol_for_prop_access(p.expr.id(), self.container.unwrap())
             }
-            ast::Node::PropAccessExpr(_p) => {
-                // TODO:
-                return None;
+            ast::Node::PropAccessExpr(p) => {
+                self.lookup_symbol_for_prop_access(p.expr.id(), self.container.unwrap())
             }
             _ => unreachable!(),
         }?;
         let exports = self.symbols.get(symbol).exports.as_ref()?;
         let name = match n {
             ast::Node::EleAccessExpr(p) => argument_name_from_element_access_node(p)?,
+            ast::Node::PropAccessExpr(p) => SymbolName::Atom(p.name.name),
             _ => unreachable!(),
         };
         exports.0.get(&name).copied()
@@ -887,6 +887,11 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         {
             includes = SymbolFlags::METHOD;
             excludes = SymbolFlags::METHOD_EXCLUDES;
+        }
+
+        if includes == SymbolFlags::empty() {
+            includes = SymbolFlags::PROPERTY;
+            excludes = SymbolFlags::PROPERTY_EXCLUDES;
         }
 
         Some(self.declare_symbol(

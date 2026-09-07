@@ -3,3 +3,10 @@
  11 │ { return 0; }
     · ─────────────
     ╰────
+
+  × Property 'length' implicitly has type 'any', because its get accessor
+  │ lacks a return type annotation.
+    ╭─[../../tests/compiler/ambientGetters/index.ts:11:9]
+ 11 │ length
+    · ──────
+    ╰────

@@ -63,10 +63,12 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn is_private_within_ambient(&self, id: ast::NodeID) -> bool {
+        if !self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT) {
+            return false;
+        }
         let n = self.p.node(id);
-        (n.has_effective_modifier(ast::ModifierFlags::PRIVATE)
-            || Self::is_private_identifier_class_element_declaration(&n))
-            && self.p.node_flags(id).contains(ast::NodeFlags::AMBIENT)
+        n.has_effective_modifier(ast::ModifierFlags::PRIVATE)
+            || Self::is_private_identifier_class_element_declaration(&n)
     }
 
     pub(super) fn is_private_identifier_class_element_declaration(n: &ast::Node<'cx>) -> bool {

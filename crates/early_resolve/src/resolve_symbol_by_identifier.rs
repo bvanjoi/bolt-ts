@@ -199,6 +199,33 @@ impl<'cx, 'a> Resolver<'cx, 'a> for R<'cx, 'a, '_> {
     }
 }
 
+fn use_outer_variable_scope_in_parameter<'a, 'cx: 'a>(
+    resolver: &impl Resolver<'cx, 'a>,
+    result: SymbolID,
+    location: ast::NodeID,
+    last_location: Option<ast::NodeID>,
+) -> bool {
+    // let last_location_node = self
+    let last_location_node = last_location.map(|id| resolver.node(id));
+    let Some(last_location_node) = last_location_node else {
+        return false;
+    };
+    if last_location_node.is_param_decl()
+        && let Some(body) = resolver.node(location).fn_body()
+        && let s = resolver.symbol(result)
+        && let Some(v) = s.value_decl
+        && let node_span = resolver.node(v).span()
+        && node_span.lo() >= body.span().lo()
+        && node_span.hi() <= body.span().hi()
+        && *resolver.options().target() >= Target::ES2015
+    {
+        // TODO: declaration_requires_scope_change
+        true
+    } else {
+        false
+    }
+}
+
 pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
     resolver: &impl Resolver<'cx, 'a>,
     ident: &'cx ast::Ident,
@@ -281,23 +308,30 @@ pub fn resolve_symbol_by_ident<'a, 'cx: 'a>(
                         false
                     };
                 }
-                if flags.intersects(SymbolFlags::VARIABLE)
-                    && res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-                {
-                    let last = resolver.node(last_location);
-                    // TODO: last_location is synthesized
-                    use_result = last.is_param_decl()
-                        || (match n {
-                            FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
-                            ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
-                            _ => false,
-                        } && res.value_decl.is_some_and(|n| {
-                            resolver
-                                .find_ancestor(n, |current| {
-                                    resolver.node(current).is_param_decl().then_some(true)
-                                })
-                                .is_some()
-                        }))
+                if flags.intersects(SymbolFlags::VARIABLE) {
+                    if use_outer_variable_scope_in_parameter(
+                        resolver,
+                        symbol,
+                        id,
+                        Some(last_location),
+                    ) {
+                        use_result = false;
+                    } else if res_flags.contains(SymbolFlags::FUNCTION_SCOPED_VARIABLE) {
+                        let last = resolver.node(last_location);
+                        // TODO: last_location is synthesized
+                        use_result = last.is_param_decl()
+                            || (match n {
+                                FnDecl(f) => f.ty.is_some_and(|t| t.id() == last_location),
+                                ClassMethodElem(n) => n.ty.is_some_and(|t| t.id() == last_location),
+                                _ => false,
+                            } && res.value_decl.is_some_and(|n| {
+                                resolver
+                                    .find_ancestor(n, |current| {
+                                        resolver.node(current).is_param_decl().then_some(true)
+                                    })
+                                    .is_some()
+                            }))
+                    }
                 };
             } else if let Some(cond) = n.as_cond_ty() {
                 use_result = last_location.is_some_and(|last| last == cond.true_ty.id());

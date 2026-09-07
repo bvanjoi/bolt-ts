@@ -761,6 +761,15 @@ pub enum ArrowFnExprBody<'cx> {
     Expr(&'cx Expr<'cx>),
 }
 
+impl ArrowFnExprBody<'_> {
+    pub fn span(&self) -> bolt_ts_span::Span {
+        match self {
+            ArrowFnExprBody::Block(b) => b.span,
+            ArrowFnExprBody::Expr(e) => e.span(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ArrowFnExpr<'cx> {
     pub id: NodeID,

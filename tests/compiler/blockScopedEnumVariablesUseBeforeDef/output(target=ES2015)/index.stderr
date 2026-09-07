@@ -1,0 +1,12 @@
+  × Enum 'E' used before its declaration.
+   ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef/index.ts:7:12]
+ 7 │ E
+   · ─
+   ╰────
+
+Advice: 
+  ☞ Enum 'E' is defined here
+   ╭─[../../tests/compiler/blockScopedEnumVariablesUseBeforeDef/index.ts:9:5]
+ 9 │ enum E { A }
+   · ────────────
+   ╰────

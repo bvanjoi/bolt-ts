@@ -915,7 +915,16 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         if self.token.kind == TokenKind::String {
             self.parse_string_lit()
         } else {
-            todo!("{:#?}", self.token.kind)
+            let span = self.token.span;
+            let error = Box::new(errors::ExpectX {
+                span,
+                x: "String".to_string(),
+            });
+            self.push_error(error);
+            let lit = self.create_lit(keyword::IDENT_EMPTY, span);
+            self.insert_node(lit.id, ast::Node::StringLit(lit));
+            self.insert_node_flags(lit.id, self.node_context_flags);
+            lit
         }
     }
 

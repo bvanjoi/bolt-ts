@@ -164,7 +164,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     fn bind_export_clause(&mut self, clause: &'cx ast::ExportClause<'cx>) {
         use bolt_ts_ast::ExportClauseKind::*;
         match clause.kind {
-            Glob(n) => self.bind(n.module.id),
+            Glob(n) => self.bind(n.id),
             Ns(_) => todo!(),
             Specs(n) => self.bind(n.id),
         }

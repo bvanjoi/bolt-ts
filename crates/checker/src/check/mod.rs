@@ -9181,7 +9181,8 @@ fn resolve_external_module_name(
         _ => unreachable!(),
     };
     let Some(dep) = mg.get_dep(from, name) else {
-        unreachable!()
+        // TODO: delay span bug
+        return None;
     };
 
     match dep {

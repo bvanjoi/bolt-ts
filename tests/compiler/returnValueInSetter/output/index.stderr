@@ -4,8 +4,15 @@
    · ─────
    ╰────
 
+  × Property 'x' implicitly has type 'any', because its set accessor lacks a
+  │ parameter type annotation.
+   ╭─[../../tests/compiler/returnValueInSetter/index.ts:4:9]
+ 4 │ x
+   · ─
+   ╰────
+
   × Setters cannot return a value.
-   ╭─[../../tests/compiler/returnValueInSetter/index.ts:6:9]
- 6 │ return null;
+   ╭─[../../tests/compiler/returnValueInSetter/index.ts:7:9]
+ 7 │ return null;
    · ────────────
    ╰────

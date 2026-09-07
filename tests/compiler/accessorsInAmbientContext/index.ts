@@ -9,11 +9,13 @@ declare namespace M {
         //~^ ERROR: An implementation cannot be declared in type contexts.
         set X(v) { }
         //~^ ERROR: An implementation cannot be declared in type contexts.
+        //~| ERROR: Property 'X' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
 
         static get Y() { return 1; }
         //~^ ERROR: An implementation cannot be declared in type contexts.
         static set Y(v) { }
         //~^ ERROR: An implementation cannot be declared in type contexts.
+        //~| ERROR: Property 'Y' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
     }
 }
 
@@ -22,9 +24,11 @@ declare class C {
     //~^ ERROR: An implementation cannot be declared in type contexts.
     set X(v) { }
     //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: Property 'X' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
 
     static get Y() { return 1; }
     //~^ ERROR: An implementation cannot be declared in type contexts.
     static set Y(v) { }
     //~^ ERROR: An implementation cannot be declared in type contexts.
+    //~| ERROR: Property 'Y' implicitly has type 'any', because its set accessor lacks a parameter type annotation.
 }

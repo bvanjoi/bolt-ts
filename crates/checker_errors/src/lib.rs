@@ -2205,3 +2205,23 @@ pub struct AConstInitializerInAnAmbientContextMustBeAStringOrNumericLiteralOrLit
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{property}' implicitly has type 'any', because its set accessor lacks a parameter type annotation."
+)]
+pub struct PropertyXImplicitlyHasTypeAnyBecauseItsSetAccessorLacksAParameterTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error(
+    "Property '{property}' implicitly has type 'any', because its get accessor lacks a return type annotation."
+)]
+pub struct PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+    #[label(primary)]
+    pub span: Span,
+    pub property: String,
+}

@@ -5,43 +5,57 @@
    ╰────
 
   × An implementation cannot be declared in type contexts.
-   ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:9:19]
- 9 │ { }
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:10:19]
+ 10 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:15:13]
+ 15 │ { return 0 }
+    · ────────────
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:21:19]
+ 21 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:27:21]
+ 27 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:28:15]
+ 28 │ { return 0 }
+    · ────────────
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:33:19]
+ 33 │ { }
+    · ───
+    ╰────
+
+  × An implementation cannot be declared in type contexts.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:34:13]
+ 34 │ { return 0 }
+    · ────────────
+    ╰────
+
+  × Property 'foo' implicitly has type 'any', because its get accessor lacks a
+  │ return type annotation.
+   ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:4:7]
+ 4 │ foo
    · ───
    ╰────
 
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:14:13]
- 14 │ { return 0 }
-    · ────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:19:19]
- 19 │ { }
+  × Property 'foo' implicitly has type 'any', because its get accessor lacks a
+  │ return type annotation.
+    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:15:7]
+ 15 │ foo
     · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:25:21]
- 25 │ { }
-    · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:26:15]
- 26 │ { return 0 }
-    · ────────────
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:31:19]
- 31 │ { }
-    · ───
-    ╰────
-
-  × An implementation cannot be declared in type contexts.
-    ╭─[../../tests/compiler/accessorBodyInTypeContext/index.ts:32:13]
- 32 │ { return 0 }
-    · ────────────
     ╰────
