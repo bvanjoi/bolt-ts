@@ -1,0 +1,41 @@
+  × Cannot find name 'StrIter'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:13:16]
+ 13 │ StrIter
+    · ───────
+    ╰────
+
+  × Cannot find name 'StrIter'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:15:5]
+ 15 │ StrIter
+    · ───────
+    ╰────
+
+  × Cannot find name 'Add'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:17:25]
+ 17 │ Add
+    · ───
+    ╰────
+
+  × Cannot find name 'StrIter'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:17:37]
+ 17 │ StrIter
+    · ───────
+    ╰────
+
+  × Cannot find name 'StrIter'.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:20:31]
+ 20 │ StrIter
+    · ───────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:27:7]
+ 27 │ Foo<unknown>
+    · ────────────
+    ╰────
+
+  × Type instantiation is excessively deep and possibly infinite.
+    ╭─[../../tests/compiler/recursiveConditionalCrash4/index.ts:27:7]
+ 27 │ Foo<unknown>
+    · ────────────
+    ╰────

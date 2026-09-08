@@ -396,7 +396,7 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+    pub(super) fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
         let links = self.get_symbol_links(symbol);
         if let Some(ty) = links.get_ty() {
             return ty;

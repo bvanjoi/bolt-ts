@@ -1095,8 +1095,10 @@ impl<'cx> TyChecker<'cx> {
             }
         }
         let s = self.get_symbol_of_declaration(id);
-        let _ = self.get_ty_of_accessor(s);
-        // TODO: self.check_all_code_paths_in_non_void_fn_ret_or_throw(n, Some(ret_ty));
+        let ret_ty = self.get_ty_of_accessor(s);
+        if let Some(getter) = self.p.node(id).as_getter_decl() {
+            self.check_all_code_paths_in_non_void_fn_ret_or_throw(getter, Some(ret_ty));
+        }
 
         if let Some(body) = n.body() {
             self.check_block(body);

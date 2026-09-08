@@ -199,7 +199,7 @@ impl<'cx> TyChecker<'cx> {
             return ty;
         }
 
-        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 1000 {
+        if self.instantiation_count >= 5_000_000 || self.instantiation_depth == 100 {
             let current_node = self.current_node.unwrap();
             let error = errors::TypeInstantiationIsExcessivelyDeepAndPossiblyInfinite {
                 span: self.p.node(current_node).span(),
@@ -1358,7 +1358,12 @@ impl<'cx> TyChecker<'cx> {
         let ty_args = self.fill_missing_ty_args(Some(ty_args), Some(ty_params), min_params_count);
         let mapper = self.create_ty_mapper_with_optional_target(ty_params, ty_args);
         let ty = self.instantiate_ty_with_alias(ty, mapper, alias_symbol, alias_ty_args);
-        self.ty_alias_instantiation_map.insert(id, ty);
+        // TODO: remove cycle check
+        if let Some(old) = self.ty_alias_instantiation_map.get(id) {
+            debug_assert!(old == ty);
+        } else {
+            self.ty_alias_instantiation_map.insert(id, ty);
+        }
         ty
     }
 

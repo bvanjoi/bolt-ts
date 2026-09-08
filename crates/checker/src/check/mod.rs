@@ -2380,13 +2380,25 @@ impl<'cx> TyChecker<'cx> {
             if self.get_node_links(node).get_resolved_symbol().is_none() {
                 self.get_mut_node_links(node).set_resolved_symbol(prop);
             }
-            self.check_property_accessibility::<false>(
-                node,
-                self.p.node(left).is_super_expr(),
-                apparent_left_ty,
-                prop,
-                true,
-            );
+            let is_write_access =
+                self.node_query(node.module()).access_kind(node) != AccessKind::Read;
+            if is_write_access {
+                self.check_property_accessibility::<true>(
+                    node,
+                    self.p.node(left).is_super_expr(),
+                    apparent_left_ty,
+                    prop,
+                    true,
+                );
+            } else {
+                self.check_property_accessibility::<false>(
+                    node,
+                    self.p.node(left).is_super_expr(),
+                    apparent_left_ty,
+                    prop,
+                    true,
+                );
+            }
 
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind) {
                 let error = errors::CannotAssignToXBecauseItIsAReadOnlyProperty {

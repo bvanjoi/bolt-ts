@@ -716,14 +716,14 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
             None
         };
 
-        (self.create_named_exports_declaration(self.new_span(start), list, module)) as _
+        self.create_named_exports_declaration(self.new_span(start), list, module)
     }
 
     fn parse_glob_export(&mut self, start: u32) -> &'cx ast::GlobExport<'cx> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
 
-        (self.create_global_export_declaration(self.new_span(start), module)) as _
+        self.create_global_export_declaration(self.new_span(start), module)
     }
 
     fn parse_ns_export(&mut self, start: u32) -> &'cx ast::NsExport<'cx> {
@@ -731,7 +731,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         self.expect(TokenKind::From);
         let module = self.parse_module_spec();
 
-        (self.create_namespace_export_declaration(self.new_span(start), name, module)) as _
+        self.create_namespace_export_declaration(self.new_span(start), name, module)
     }
 
     fn parse_import_equals_declaration(
@@ -1151,7 +1151,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
         self.expect(TokenKind::RBrace);
 
-        (self.create_object_binding_pattern(self.new_span(start), elems)) as _
+        self.create_object_binding_pattern(self.new_span(start), elems)
     }
 
     pub(super) fn parse_array_binding_pat(&mut self) -> &'cx ast::ArrayPat<'cx> {
@@ -1166,7 +1166,7 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
         });
         self.expect(TokenKind::RBracket);
 
-        (self.create_array_binding_pattern(self.new_span(start), elems)) as _
+        self.create_array_binding_pattern(self.new_span(start), elems)
     }
 
     fn parse_array_binding_elem(&mut self) -> PResult<&'cx ast::ArrayBindingElem<'cx>> {
