@@ -296,9 +296,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
     fn parse_yield_expr(&mut self) -> PResult<&'cx ast::Expr<'cx>> {
         debug_assert!(self.token.kind == TokenKind::Yield);
         if !self.in_yield_context() {
-            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody {
-                span: self.token.span,
-            };
+            let span = self.token.span;
+            let error = errors::AYieldExpressionIsOnlyAllowedInAGeneratorBody { span };
+            self.push_error(Box::new(error));
+        } else if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+            let span = self.token.span;
+            let error = errors::YieldExpressionsCannotBeUsedInAParameterInitializer { span };
             self.push_error(Box::new(error));
         }
         let start = self.token.start();
@@ -478,6 +481,12 @@ impl<'cx, const VARIANT: u8> ParserState<'cx, '_, VARIANT> {
                     // parse_await_expression
                     debug_assert!(self.token.kind == TokenKind::Await);
                     let start = self.token.start();
+                    if self.parsing_context.contains(ParsingContext::PARAMETERS) {
+                        let span = self.token.span;
+                        let error =
+                            errors::AwaitExpressionsCannotBeUsedInAParameterInitializer { span };
+                        self.push_error(Box::new(error));
+                    }
                     self.next_token(); // consume `await`
                     let expr = self.parse_simple_unary_expr()?;
                     let expr = self.create_await_expression(self.new_span(start), expr);

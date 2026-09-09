@@ -5,23 +5,23 @@
 
 // error
 export function bar(func = () => foo) {
-  //~[target=ES2015]^ Cannot find name 'foo'.
+  //~[target=ES2015]^ ERROR: Cannot find name 'foo'.
     let foo = "in";
 }
 // error
 export function baz1(func = { f() { return foo } }) {
-  //~[target=ES2015]^ Cannot find name 'foo'.
+  //~[target=ES2015]^ ERROR: Cannot find name 'foo'.
     let foo = "in";
 }
 
 // error
 export function baz2(func = function () { return foo }) {
-  //~[target=ES2015]^ Cannot find name 'foo'.
+  //~[target=ES2015]^ ERROR: Cannot find name 'foo'.
     let foo = "in";
 }
 
 // error
 export function baz3(func = class { x = foo }) {
-  //~[target=ES2015]^ Cannot find name 'foo'.
+  //~[target=ES2015]^ ERROR: Cannot find name 'foo'.
     let foo = "in";
 }

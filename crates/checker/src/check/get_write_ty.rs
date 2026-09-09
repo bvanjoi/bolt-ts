@@ -91,7 +91,6 @@ impl<'cx> TyChecker<'cx> {
         }
 
         let setter = self
-            .binder
             .symbol(symbol)
             .get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
         let write_ty = setter

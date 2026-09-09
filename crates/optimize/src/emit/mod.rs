@@ -1787,7 +1787,7 @@ impl<'cx, 'a> Visitor<'cx> for JSEmitter<'cx, 'a> {
                 }
             }
             ExprWithTyArgs(n) => self.visit_expr_with_ty_args(n),
-            Import(_) => todo!(),
+            Import(n) => self.visit_import_expression(n),
         }
     }
 

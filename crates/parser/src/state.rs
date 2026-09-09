@@ -375,7 +375,7 @@ impl<'cx, 'p, const VARIANT: u8> ParserState<'cx, 'p, VARIANT> {
             Ok(stmt)
         });
 
-        (self.create_program(self.new_span(start as u32), stmts)) as _
+        self.create_program(self.new_span(start as u32), stmts)
     }
 
     pub(super) fn push_error(&mut self, error: bolt_ts_errors::BoxedDiag) {

@@ -1998,37 +1998,38 @@ impl<'cx> TyChecker<'cx> {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        let push_properties_table = |this: &mut TyChecker<'cx>,
-                                     computed_named_ty: Option<&'cx ty::Ty<'cx>>,
-                                     has_computed_string_property: &mut bool,
-                                     has_computed_number_property: &mut bool,
-                                     has_computed_symbol_property: &mut bool,
-                                     pattern_with_computed_properties: &mut bool,
-                                     properties_table: &mut FxIndexMap<SymbolName, SymbolID>,
-                                     in_destructuring_pattern: bool,
-                                     name: SymbolName,
-                                     member: SymbolID| {
-            if let Some(computed_named_ty) = computed_named_ty
-                && !computed_named_ty
-                    .flags
-                    .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
-            {
-                if this.is_type_assignable_to(computed_named_ty, this.string_number_symbol_ty()) {
-                    if this.is_type_assignable_to(computed_named_ty, this.number_ty) {
-                        *has_computed_number_property = true;
-                    } else if this.is_type_assignable_to(computed_named_ty, this.es_symbol_ty) {
-                        *has_computed_symbol_property = true;
-                    } else {
-                        *has_computed_string_property = true;
+        let try_push_computed_name_property =
+            |this: &mut TyChecker<'cx>,
+             computed_named_ty: Option<&'cx ty::Ty<'cx>>,
+             has_computed_string_property: &mut bool,
+             has_computed_number_property: &mut bool,
+             has_computed_symbol_property: &mut bool,
+             pattern_with_computed_properties: &mut bool| {
+                if let Some(computed_named_ty) = computed_named_ty
+                    && !computed_named_ty
+                        .flags
+                        .intersects(TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE)
+                {
+                    if this.is_type_assignable_to(computed_named_ty, this.string_number_symbol_ty())
+                    {
+                        if this.is_type_assignable_to(computed_named_ty, this.number_ty) {
+                            *has_computed_number_property = true;
+                        } else if this.is_type_assignable_to(computed_named_ty, this.es_symbol_ty) {
+                            *has_computed_symbol_property = true;
+                        } else {
+                            *has_computed_string_property = true;
+                        }
+
+                        if in_destructuring_pattern {
+                            *pattern_with_computed_properties = true;
+                        }
                     }
-                    if in_destructuring_pattern {
-                        *pattern_with_computed_properties = true;
-                    }
+                    true
+                } else {
+                    false
                 }
-            } else {
-                properties_table.insert(name, member);
-            }
-        };
+            };
+
         let symbol = std::cell::OnceCell::new();
         let mut offset = 0;
         for member in node.members {
@@ -2136,18 +2137,19 @@ impl<'cx> TyChecker<'cx> {
                     if let Some(p) = all_properties_table.as_mut() {
                         p.insert(name, prop);
                     }
-                    push_properties_table(
+                    if try_push_computed_name_property(
                         self,
                         computed_named_ty,
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
                         &mut pattern_with_computed_properties,
-                        &mut properties_table,
-                        in_destructuring_pattern,
-                        name,
-                        prop,
-                    );
+                    ) {
+                        // nothing
+                    } else {
+                        properties_table.insert(name, prop);
+                    }
+
                     properties_array.push(member_symbol);
 
                     if let Some(_contextual_ty) = contextual_ty
@@ -2228,24 +2230,24 @@ impl<'cx> TyChecker<'cx> {
                 Setter(ast::SetterDecl { id, .. }) | Getter(ast::GetterDecl { id, .. }) => {
                     self.check_node_deferred(*id);
 
-                    let name = match member.kind {
-                        Setter(n) => bolt_ts_binder::prop_name(n.name),
-                        Getter(n) => bolt_ts_binder::prop_name(n.name),
-                        _ => unreachable!(),
-                    };
                     let member_symbol = self.get_symbol_of_declaration(*id);
-                    push_properties_table(
+                    if try_push_computed_name_property(
                         self,
                         computed_named_ty,
                         &mut has_computed_string_property,
                         &mut has_computed_number_property,
                         &mut has_computed_symbol_property,
                         &mut pattern_with_computed_properties,
-                        &mut properties_table,
-                        in_destructuring_pattern,
-                        name,
-                        member_symbol,
-                    );
+                    ) {
+                        // nothing
+                    } else {
+                        let name = match member.kind {
+                            Setter(n) => bolt_ts_binder::prop_name(n.name),
+                            Getter(n) => bolt_ts_binder::prop_name(n.name),
+                            _ => unreachable!(),
+                        };
+                        properties_table.insert(name, member_symbol);
+                    }
                     properties_array.push(member_symbol);
                 }
             }

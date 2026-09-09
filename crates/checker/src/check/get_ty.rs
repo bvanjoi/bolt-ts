@@ -312,7 +312,7 @@ impl<'cx> TyChecker<'cx> {
         if !self.push_ty_resolution(ResolutionKey::Type(symbol)) {
             return self.error_ty;
         }
-        let s = self.binder.symbol(symbol);
+        let s = self.symbol(symbol);
         let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
         let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
 
@@ -325,7 +325,7 @@ impl<'cx> TyChecker<'cx> {
         {
             ty
             // TODO: accessor
-        } else if let Some(getter) = getter 
+        } else if let Some(getter) = getter
             && self.p.node(getter).expect_getter_decl().body.is_some()
         {
             self.get_return_type_from_body(getter, None)
@@ -347,7 +347,7 @@ impl<'cx> TyChecker<'cx> {
                 let name = self.p.node(getter).name().unwrap();
                 let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
                     span: name.span(),
-                    property: name.to_string(&self.atoms),       
+                    property: name.to_string(&self.atoms),
                 };
                 self.push_error(Box::new(error));
             }
@@ -396,7 +396,10 @@ impl<'cx> TyChecker<'cx> {
         ty
     }
 
-    pub(super) fn get_type_of_symbol_with_deferred_type(&mut self, symbol: SymbolID) -> &'cx Ty<'cx> {
+    pub(super) fn get_type_of_symbol_with_deferred_type(
+        &mut self,
+        symbol: SymbolID,
+    ) -> &'cx Ty<'cx> {
         let links = self.get_symbol_links(symbol);
         if let Some(ty) = links.get_ty() {
             return ty;

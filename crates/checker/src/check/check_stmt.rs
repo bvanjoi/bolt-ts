@@ -1053,7 +1053,7 @@ impl<'cx> TyChecker<'cx> {
 
         if self.has_bindable_name(id) {
             let symbol = self.get_symbol_of_declaration(id);
-            let s = self.binder.symbol(symbol);
+            let s = self.symbol(symbol);
             if let Some(getter) = s.get_declaration_of_kind(|n| self.p.node(n).is_getter_decl())
                 && let Some(setter) = s.get_declaration_of_kind(|n| self.p.node(n).is_setter_decl())
                 && self

@@ -961,3 +961,17 @@ pub struct AnInstantiationExpressionCannotBeFollowedByAPropertyAccess {
     #[label(primary)]
     pub span: Span,
 }
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'yield' expressions cannot be used in a parameter initializer.")]
+pub struct YieldExpressionsCannotBeUsedInAParameterInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
+
+#[derive(Error, Diagnostic, Debug, DiagnosticExt)]
+#[error("'await' expressions cannot be used in a parameter initializer.")]
+pub struct AwaitExpressionsCannotBeUsedInAParameterInitializer {
+    #[label(primary)]
+    pub span: Span,
+}
