@@ -1568,6 +1568,7 @@ impl<'cx> TyChecker<'cx> {
                                                 ast::PropNameKind::Computed(n)
                                             }
                                             ast::DeclarationName::BigIntLit(_) => todo!(),
+                                            ast::DeclarationName::ElementAccess(_) => todo!(),
                                         };
                                         ast::PropName { kind }
                                     })

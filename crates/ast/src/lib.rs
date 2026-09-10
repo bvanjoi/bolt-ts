@@ -57,6 +57,7 @@ pub enum DeclarationName<'cx> {
         key: bolt_ts_atom::Atom,
     },
     Computed(&'cx ComputedPropName<'cx>),
+    ElementAccess(&'cx EleAccessExpr<'cx>),
 }
 
 impl<'cx> DeclarationName<'cx> {
@@ -118,6 +119,7 @@ impl<'cx> DeclarationName<'cx> {
             Computed(n) => n.span,
             PrivateIdent(n) => n.span,
             BigIntLit(n) => n.span,
+            ElementAccess(n) => n.span,
         }
     }
 
@@ -130,6 +132,7 @@ impl<'cx> DeclarationName<'cx> {
             Computed(_n) => todo!(),
             PrivateIdent(_n) => todo!(),
             BigIntLit(_n) => todo!(),
+            ElementAccess(_) => todo!(),
         }
     }
 }

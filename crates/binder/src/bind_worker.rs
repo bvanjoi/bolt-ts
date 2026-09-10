@@ -3,6 +3,8 @@ use bolt_ts_ast::keyword;
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::update_strict_mode_statement_list;
 
+use rustc_hash::FxHashSet;
+
 use super::AssignmentDeclarationKind;
 use super::BinderState;
 use super::Symbol;
@@ -767,8 +769,37 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_special_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
-        if node.left.is_bindable_static_name_expr::<false>() {
+        if self.node_query().has_dynamic_name(node.id) {
+            self.bind_anonymous_decl(
+                node.id,
+                SymbolFlags::PROPERTY.union(SymbolFlags::ASSIGNMENT),
+                SymbolName::Computed,
+            );
+            // TODO: bindPotentiallyMissingNamespaces
+            let parent_symbol = self
+                .lookup_symbol_for_prop_access(node.left.id(), self.block_scope_container.unwrap())
+                .or_else(|| {
+                    self.lookup_symbol_for_prop_access(node.left.id(), self.container.unwrap())
+                })
+                .unwrap();
+            self.add_late_bound_assignment_declaration_to_symbol(parent_symbol, node.id);
+        } else if node.left.is_bindable_static_name_expr::<false>() {
             self.bind_static_prop_assignment(node.left, node.id);
+        }
+    }
+
+    fn add_late_bound_assignment_declaration_to_symbol(
+        &mut self,
+        symbol: SymbolID,
+        node: ast::NodeID,
+    ) {
+        let s = self.symbols.get_mut(symbol);
+        if let Some(members) = &mut s.assignment_declaration_members {
+            members.insert(node);
+        } else {
+            let mut members = FxHashSet::default();
+            members.insert(node);
+            s.assignment_declaration_members = Some(members);
         }
     }
 

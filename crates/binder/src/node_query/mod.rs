@@ -59,17 +59,59 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         }
     }
 
+    pub fn get_non_assigned_name_of_decl(
+        &self,
+        id: ast::NodeID,
+    ) -> Option<ast::DeclarationName<'cx>> {
+        let n = self.node(id);
+        use ast::Node::*;
+        match n {
+            Ident(n) => Some(ast::DeclarationName::Ident(n)),
+            AssignExpr(expr) => {
+                let kind = self.get_assignment_declaration_kind_for_assign_expr(expr);
+                match kind {
+                    AssignmentDeclarationKind::ExportsProperty
+                    | AssignmentDeclarationKind::ThisProperty
+                    | AssignmentDeclarationKind::Property
+                    | AssignmentDeclarationKind::PrototypeProperty => Some(
+                        expr.left
+                            .get_element_or_property_access_argument_expression_or_name(),
+                    ),
+                    AssignmentDeclarationKind::ObjectDefinePropertyValue => {
+                        // TODO:
+                        None
+                    }
+                    AssignmentDeclarationKind::ObjectDefinePropertyExports => {
+                        // TODO:
+                        None
+                    }
+                    AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                        // TODO:
+                        None
+                    }
+                    _ => None,
+                }
+            }
+            CallExpr(_) | BinExpr(_) => {
+                // TODO:
+                None
+            }
+            ExportAssign(_) => {
+                // TODO:
+                None
+            }
+            _ => n.name(),
+        }
+    }
+
     pub fn get_name_of_declaration(&self, id: ast::NodeID) -> Option<ast::DeclarationName<'cx>> {
-        self.parse_result
-            .nodes
-            .get_non_assigned_name_of_decl(id)
-            .or_else(|| {
-                use ast::Node::*;
-                let n = self.node(id);
-                matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
-                    .then(|| self.get_assigned_name(id))
-                    .flatten()
-            })
+        self.get_non_assigned_name_of_decl(id).or_else(|| {
+            use ast::Node::*;
+            let n = self.node(id);
+            matches!(n, FnExpr(_) | ArrowFnExpr(_) | ClassExpr(_))
+                .then(|| self.get_assigned_name(id))
+                .flatten()
+        })
     }
 
     pub fn has_dynamic_name(&self, id: ast::NodeID) -> bool {

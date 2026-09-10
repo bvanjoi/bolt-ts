@@ -8,7 +8,8 @@ impl TyChecker<'_> {
     pub fn get_symbol_of_node(&self, id: ast::NodeID) -> Option<SymbolID> {
         let n = self.p.node(id);
         if Symbol::can_have_symbol(n) {
-            Some(self.final_res(id))
+            // TODO: late and merge
+            self.binder.get(id.module()).final_res.get(&id).copied()
         } else {
             None
         }

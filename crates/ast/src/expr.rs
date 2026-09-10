@@ -336,6 +336,21 @@ impl<'cx> Expr<'cx> {
                 | ExprKind::StringLit(_)
         )
     }
+
+    pub fn get_element_or_property_access_argument_expression_or_name(
+        &'cx self,
+    ) -> self::DeclarationName<'cx> {
+        if let self::ExprKind::PropAccess(n) = self.kind {
+            return self::DeclarationName::Ident(n.name);
+        }
+        let arg = self::Expr::skip_parens(&self);
+        match arg.kind {
+            self::ExprKind::EleAccess(n) => self::DeclarationName::ElementAccess(n),
+            self::ExprKind::StringLit(n) => self::DeclarationName::StringLit { raw: n, key: n.val },
+            self::ExprKind::NumLit(n) => self::DeclarationName::NumLit(n),
+            _ => unreachable!(),
+        }
+    }
 }
 
 pub const SKIP_OUTER_EXPRESSION_PARENTHESES_FLAGS: u8 = 1 << 0;

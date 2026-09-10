@@ -562,7 +562,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    fn is_possibly_aliased_this_property(
+    pub(super) fn is_possibly_aliased_this_property(
         &mut self,
         n: &'cx ast::AssignExpr<'cx>,
         kind: Option<AssignmentDeclarationKind>,

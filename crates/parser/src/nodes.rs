@@ -1,6 +1,5 @@
 use super::Node;
 use super::ast;
-use super::ast::Node::*;
 
 #[derive(Debug, Default)]
 pub struct Nodes<'cx>(pub(super) Vec<Node<'cx>>);
@@ -21,25 +20,6 @@ impl<'cx> Nodes<'cx> {
         let idx = self.0.len() - 1;
         let node = unsafe { self.0.get_unchecked(idx) };
         node.expect_program()
-    }
-
-    pub fn get_non_assigned_name_of_decl(
-        &self,
-        id: ast::NodeID,
-    ) -> Option<ast::DeclarationName<'cx>> {
-        let n = self.get(id);
-        match n {
-            Ident(n) => Some(ast::DeclarationName::Ident(n)),
-            CallExpr(_) | BinExpr(_) => {
-                // TODO:
-                None
-            }
-            ExportAssign(_) => {
-                // TODO:
-                None
-            }
-            _ => n.name(),
-        }
     }
 
     pub fn param_is_prop_decl(&self, param: &'cx ast::ParamDecl<'cx>, parent: ast::NodeID) -> bool {

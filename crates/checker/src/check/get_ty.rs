@@ -313,8 +313,29 @@ impl<'cx> TyChecker<'cx> {
             return self.error_ty;
         }
         let s = self.symbol(symbol);
-        let getter = s.get_declaration_of_kind(|id| self.p.node(id).is_getter_decl());
-        let setter = s.get_declaration_of_kind(|id| self.p.node(id).is_setter_decl());
+        let mut getter = None;
+        let mut setter = None;
+        let mut accessor = None;
+        if let Some(decls) = &s.decls {
+            for decl in decls {
+                let n = self.p.node(*decl);
+                match n {
+                    ast::Node::GetterDecl(_) => {
+                        getter = Some(*decl);
+                    }
+                    ast::Node::SetterDecl(_) => {
+                        setter = Some(*decl);
+                    }
+                    ast::Node::ClassPropElem(n)
+                        if n.modifiers
+                            .is_some_and(|ms| ms.flags.contains(ast::ModifierFlags::ACCESSOR)) =>
+                    {
+                        accessor = Some(*decl);
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         let mut ty = if let Some(getter) = getter
             && let Some(ty) = self.get_annotated_accessor_ty(getter)
@@ -350,8 +371,17 @@ impl<'cx> TyChecker<'cx> {
                     property: name.to_string(&self.atoms),
                 };
                 self.push_error(Box::new(error));
+            } else if let Some(accessor) = accessor
+                && !self.is_private_within_ambient(accessor)
+                && self.config.compiler_options().no_implicit_any()
+            {
+                let name = self.p.node(accessor).name().unwrap();
+                let error = errors::PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnnotation {
+                    span: name.span(),
+                    property: name.to_string(&self.atoms),
+                };
+                self.push_error(Box::new(error));
             }
-            // TODO: accessor
             self.any_ty
         };
 
