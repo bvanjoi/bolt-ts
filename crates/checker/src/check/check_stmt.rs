@@ -998,21 +998,17 @@ impl<'cx> TyChecker<'cx> {
             expr_ty
         };
 
-        if !(ret_ty.kind.is_indexed_access() || ret_ty.kind.is_cond_ty())
-            || !self.could_contain_ty_var(ret_ty)
-        {
-            let error_node = match self.p.node(node) {
-                _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
-                ast::Node::RetStmt(n) => Some(n.id),
-                _ => unreachable!(),
-            };
-            self.check_type_assignable_to_and_optionally_elaborate(
-                unwrapped_expr_ty,
-                ret_ty,
-                error_node,
-                error_node,
-            );
-        }
+        let error_node = match self.p.node(node) {
+            _ if let Some(ret_expr) = ret_expr => Some(ret_expr.id()),
+            ast::Node::RetStmt(n) => Some(n.id),
+            _ => unreachable!(),
+        };
+        self.check_type_assignable_to_and_optionally_elaborate(
+            unwrapped_expr_ty,
+            ret_ty,
+            error_node,
+            error_node,
+        );
     }
 
     fn check_class_decl(&mut self, class: &'cx ast::ClassDecl<'cx>) {

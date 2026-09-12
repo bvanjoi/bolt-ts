@@ -343,7 +343,7 @@ impl<'cx> Expr<'cx> {
         if let self::ExprKind::PropAccess(n) = self.kind {
             return self::DeclarationName::Ident(n.name);
         }
-        let arg = self::Expr::skip_parens(&self);
+        let arg = self::Expr::skip_parens(self);
         match arg.kind {
             self::ExprKind::EleAccess(n) => self::DeclarationName::ElementAccess(n),
             self::ExprKind::StringLit(n) => self::DeclarationName::StringLit { raw: n, key: n.val },

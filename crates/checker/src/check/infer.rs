@@ -259,7 +259,7 @@ impl<'cx> TyChecker<'cx> {
         idx: usize,
         ty: &'cx ty::Ty<'cx>,
     ) {
-        let inferences = self.inferences[inference.as_usize()].inferences;
+        let inferences = self.inference(inference).inferences;
         let inferences = self.inference_infos_arena.get_mut(inferences);
         let cache = &mut inferences[idx].inferred_ty;
         assert!(cache.is_none());
@@ -272,7 +272,7 @@ impl<'cx> TyChecker<'cx> {
         idx: usize,
         ty: &'cx ty::Ty<'cx>,
     ) {
-        let inferences = self.inferences[inference.as_usize()].inferences;
+        let inferences = self.inference(inference).inferences;
         let inferences = self.inference_infos_arena.get_mut(inferences);
         let cache = &mut inferences[idx].inferred_ty;
         assert!(cache.is_some());
@@ -797,7 +797,7 @@ impl<'cx> TyChecker<'cx> {
                         instantiated_ty
                     };
                     self.infer_tys::<false>(
-                        self.inferences[inference.as_usize()].inferences,
+                        self.inference(inference).inferences,
                         inference_source_ty,
                         inference_target_ty,
                         InferencePriority::RETURN_TYPE,
@@ -807,7 +807,7 @@ impl<'cx> TyChecker<'cx> {
                 let ret_ctx = self.create_inference_context(
                     sig_ty_params,
                     Some(sig),
-                    self.inferences[inference.as_usize()].flags,
+                    self.inference(inference).flags,
                 );
                 let ret_mapper = outer_context
                     .and_then(|outer_context| outer_context.inference)
@@ -829,7 +829,7 @@ impl<'cx> TyChecker<'cx> {
                     });
                 let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
                 self.infer_tys::<false>(
-                    self.inferences[ret_ctx.as_usize()].inferences,
+                    self.inference(inference).inferences,
                     ret_source_ty,
                     inference_target_ty,
                     InferencePriority::empty(),
@@ -844,7 +844,7 @@ impl<'cx> TyChecker<'cx> {
                     .cloned()
                     .collect::<thin_vec::ThinVec<_>>();
                 if ret_inferences.is_empty() {
-                    debug_assert!(self.inferences[inference.as_usize()].ret_mapper.is_none());
+                    debug_assert!(self.inference(inference).ret_mapper.is_none());
                 } else {
                     let id = InferenceContextId(self.inferences.len() as u32);
                     let sources = ret_inferences
@@ -938,7 +938,7 @@ impl<'cx> TyChecker<'cx> {
                 check_mode,
             );
             self.infer_tys::<false>(
-                self.inferences[inference.as_usize()].inferences,
+                self.inference(inference).inferences,
                 spared_ty,
                 rest_ty,
                 InferencePriority::empty(),
@@ -1149,7 +1149,7 @@ impl<'cx> TyChecker<'cx> {
         inference: InferenceContextId,
     ) {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
-        let inferences = self.inferences[inference.as_usize()].inferences;
+        let inferences = self.inference(inference).inferences;
         for i in 0..len {
             let decl = sig.params[i].decl(&self.binder);
             if let Some(ty_node) = self.p.node(decl).as_param_decl().and_then(|decl| decl.ty) {
@@ -1230,7 +1230,7 @@ impl<'cx> TyChecker<'cx> {
     }
 
     pub(super) fn clear_cached_inferences(&mut self, id: InferenceContextId) {
-        let inferences = self.inferences[id.as_usize()].inferences;
+        let inferences = self.inference(id).inferences;
         let inferences = self.inference_infos_arena.get_mut(inferences);
         for i in inferences {
             if !i.is_fixed {

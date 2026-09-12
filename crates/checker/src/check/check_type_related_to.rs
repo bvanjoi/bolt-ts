@@ -7,6 +7,8 @@ use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashSet;
 
+use crate::check::infer::{InferenceFlags, InferencePriority};
+
 use super::RelationComparisonResult;
 use super::create_ty::IntersectionFlags;
 use super::errors;
@@ -1686,6 +1688,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         None,
                     );
                     if let Some(constraint) = constraint {
+                        // TODO: reset_error_info
                         result = self.is_related_to(
                             source,
                             constraint,
@@ -1980,9 +1983,26 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             if self.c.is_deeply_nested_type(source, &self.source_stack, 10) {
                 return Ternary::MAYBE;
             } else if let Some(target_cond) = target.kind.as_cond_ty() {
-                let source_extends = source_cond.extends_ty;
-                let mapper = None;
-                // TODO: source_params
+                let mut source_extends = source_cond.extends_ty;
+                let mut mapper: Option<&'cx dyn ty::TyMap<'cx>> = None;
+                if let Some(source_params) = source_cond.root.infer_ty_params {
+                    let ctx = self.c.create_inference_context(
+                        source_params,
+                        None,
+                        InferenceFlags::empty(),
+                        // TODO: compare types
+                    );
+                    let inferences = self.c.inference(ctx).inferences;
+                    self.c.infer_tys::<false>(
+                        inferences,
+                        target_cond.extends_ty,
+                        source_extends,
+                        InferencePriority::NO_CONSTRAINTS.union(InferencePriority::ALWAYS_STRICT),
+                    );
+                    let ctx_mapper = self.c.inference(ctx).mapper;
+                    source_extends = self.c.instantiate_ty_worker(source_extends, ctx_mapper);
+                    mapper = Some(ctx_mapper);
+                }
 
                 if self
                     .c
