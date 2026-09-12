@@ -1,3 +1,5 @@
+use super::InferenceId;
+use super::TyChecker;
 use super::check_type_related_to::NOOP_HEADING_ERROR;
 use super::create_ty::IntersectionFlags;
 use super::cycle_check::ResolutionKey;
@@ -15,7 +17,6 @@ use super::type_predicate::IdentTyPred;
 use super::type_predicate::ThisTyPred;
 use super::type_predicate::{TyPred, TyPredKind};
 use super::{CheckMode, errors};
-use super::{InferenceContextId, TyChecker};
 
 use bolt_ts_ast as ast;
 use bolt_ts_ast::keyword;
@@ -1020,7 +1021,7 @@ impl<'cx> TyChecker<'cx> {
         args: &EffectiveCallArguments<'cx>,
         relation: RelationKind,
         check_mode: CheckMode,
-        inference_context: Option<InferenceContextId>,
+        inference_context: Option<InferenceId<'cx>>,
     ) -> bool {
         // TODO: is_jsx_call_like
         if let Some(this_ty) = self.get_this_ty_of_sig(sig)
@@ -1276,6 +1277,7 @@ impl<'cx> TyChecker<'cx> {
                             ty_params,
                             Some(candidate),
                             InferenceFlags::empty(),
+                            None,
                         );
                         infer_ctx = Some(infer);
                         ty_arg_tys = Some(self.infer_type_arguments(
@@ -2020,6 +2022,7 @@ impl<'cx> TyChecker<'cx> {
                 } else {
                     InferenceFlags::empty()
                 },
+                None,
             );
             let type_argument_types = self.infer_type_arguments(
                 expr,

@@ -2025,12 +2025,16 @@ impl<'cx> TyChecker<'cx> {
             let check_ty_deferred = self.is_deferred_ty(check_ty, check_tuples);
             let mut combined_mapper = None;
             if let Some(infer_ty_params) = root.infer_ty_params {
-                let context =
-                    self.create_inference_context(infer_ty_params, None, InferenceFlags::empty());
+                let context = self.create_inference_context(
+                    infer_ty_params,
+                    None,
+                    InferenceFlags::empty(),
+                    None,
+                );
                 if let Some(mapper) = mapper {
                     let non_fixing_mapper = self.inference(context).non_fixing_mapper;
                     let m = self.combine_ty_mappers_worker(non_fixing_mapper, mapper);
-                    self.inferences[context.as_usize()].non_fixing_mapper = m;
+                    self.inferences.set_non_fixing_mapper(context, m);
                 }
                 if !check_ty_deferred {
                     const PRIORITY: InferencePriority =

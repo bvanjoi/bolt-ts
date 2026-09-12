@@ -1,7 +1,7 @@
 use super::RelationComparisonResult;
 use super::get_variances::VarianceFlags;
 use super::ty;
-use super::{InferenceContextId, TyChecker, links};
+use super::{InferenceId, TyChecker, links};
 
 #[derive(Debug)]
 pub(super) struct PermissiveMapper;
@@ -59,7 +59,7 @@ impl<'cx> ty::TyMap<'cx> for RestrictiveMapper {
 
 #[derive(Debug)]
 pub(super) struct NonFixingMapper<'cx> {
-    pub(super) inference: InferenceContextId,
+    pub(super) inference: InferenceId<'cx>,
     pub(super) sources: ty::Tys<'cx>,
 }
 
@@ -80,7 +80,7 @@ impl<'cx> ty::TyMap<'cx> for NonFixingMapper<'cx> {
 
 #[derive(Debug)]
 pub(super) struct FixingMapper<'cx> {
-    pub(super) inference: InferenceContextId,
+    pub(super) inference: InferenceId<'cx>,
     pub(super) sources: ty::Tys<'cx>,
 }
 

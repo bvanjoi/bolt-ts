@@ -15,6 +15,7 @@ use bolt_ts_utils::{ensure_sufficient_stack, fx_indexmap_with_capacity};
 
 use rustc_hash::FxHashMap;
 
+use super::InferenceId;
 use super::IterationTypeKind;
 use super::ObjectFlags;
 use super::TyChecker;
@@ -28,7 +29,7 @@ use super::ty;
 use super::ty::AccessFlags;
 use super::ty::CheckFlags;
 use super::ty::TypeFlags;
-use super::{CheckMode, InferenceContextId, SymbolLinks, TyLinks};
+use super::{CheckMode, SymbolLinks, TyLinks};
 
 fn get_suggestion_boolean_op(op: &str) -> Option<&str> {
     match op {
@@ -1497,7 +1498,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         expr: &'cx ast::Expr,
         contextual_ty: &'cx ty::Ty<'cx>,
-        inference: Option<InferenceContextId>,
+        inference: Option<InferenceId<'cx>>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
         let node = expr.id();

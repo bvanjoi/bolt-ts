@@ -7,12 +7,12 @@ use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::{FxIndexSet, fx_hashset_with_capacity, fx_indexset_with_capacity};
 use rustc_hash::FxHashSet;
 
-use crate::check::infer::{InferenceFlags, InferencePriority};
-
 use super::RelationComparisonResult;
 use super::create_ty::IntersectionFlags;
 use super::errors;
 use super::get_variances::VarianceFlags;
+use super::infer::InferenceCompare;
+use super::infer::{InferenceFlags, InferencePriority};
 use super::relation::RelationKey;
 use super::relation::{RelationKind, SigCheckMode};
 use super::ty::{self, Ty, TyKind, TypeFlags};
@@ -1990,7 +1990,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                         source_params,
                         None,
                         InferenceFlags::empty(),
-                        // TODO: compare types
+                        Some(InferenceCompare::IsRelatedTo(self.relation)),
                     );
                     let inferences = self.c.inference(ctx).inferences;
                     self.c.infer_tys::<false>(
@@ -3008,6 +3008,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                     intersection_state,
                 )
             },
+            InferenceCompare::IsRelatedTo(self.relation),
         )
     }
 
@@ -3018,6 +3019,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
         check_mode: SigCheckMode,
         report_error: bool,
         compare: impl Fn(&mut Self, &'cx ty::Ty<'cx>, &'cx ty::Ty<'cx>, bool) -> Ternary + Copy,
+        inference_compare: InferenceCompare,
     ) -> Ternary {
         if source == target {
             return Ternary::TRUE;
@@ -3084,7 +3086,9 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
             // `<G>() => G` and `<T>() => T`
             // we should canonical the type parameters `G` and `T` into the same type parameter
             target = self.c.get_canonical_sig(target);
-            source = self.c.instantiate_sig_in_context_of(source, target, None);
+            source =
+                self.c
+                    .instantiate_sig_in_context_of(source, target, None, Some(inference_compare));
         }
         let source_count = source.get_param_count(self.c);
         let source_rest_ty = source.get_non_array_rest_ty(self.c);
@@ -3191,6 +3195,7 @@ impl<'cx, 'checker> TypeRelatedChecker<'cx, 'checker> {
                             },
                         report_error,
                         compare,
+                        inference_compare,
                     )
                 } else if !check_mode.intersects(SigCheckMode::CALLBACK) && !strict_variance {
                     let res = compare(self, source_ty, target_ty, false);

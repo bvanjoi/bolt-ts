@@ -115,10 +115,11 @@ pub use self::get_declared_ty::EnumMemberValue;
 use self::get_iteration_tys::IterationTypeKind;
 use self::get_variances::VarianceFlags;
 use self::get_widened_ty::WideningContextArena;
-use self::infer::InferenceContext;
+use self::infer::InferenceCompare;
 use self::infer::InferenceInfo;
 use self::infer::InferenceInfosArena;
 use self::infer::{InferenceFlags, InferencePriority};
+use self::infer::{InferenceId, Inferences};
 use self::instantiation_ty_map::InstantiationTyMap;
 use self::instantiation_ty_map::SubstitutionKey;
 use self::instantiation_ty_map::TyAliasInstantiationMap;
@@ -176,8 +177,6 @@ bitflags::bitflags! {
         const EXPORT_NAMESPACE  = 1 << 3;
     }
 }
-
-bolt_ts_utils::index!(InferenceContextId);
 
 struct FlowLoopTypesArena<'cx> {
     arena: bolt_ts_arena::la_arena::Arena<Vec<&'cx ty::Ty<'cx>>>,
@@ -239,8 +238,8 @@ pub struct TyChecker<'cx> {
     tuple_tys: nohash_hasher::IntMap<u64, &'cx ty::Ty<'cx>>,
     template_literal_tys: FxHashMap<TemplateLiteralTyKey<'cx>, &'cx ty::Ty<'cx>>,
 
-    inferences: Vec<InferenceContext<'cx>>,
-    inference_contextual: Vec<InferenceContextual>,
+    inferences: Inferences<'cx>,
+    inference_contextual: Vec<InferenceContextual<'cx>>,
     inference_infos_arena: InferenceInfosArena<'cx>,
     activity_ty_mapper: Vec<&'cx dyn ty::TyMap<'cx>>,
     instantiation_depth: u32,
@@ -942,7 +941,7 @@ impl<'cx> TyChecker<'cx> {
             binder,
             merged_symbols,
             global_symbols,
-            inferences: Vec::with_capacity(cap),
+            inferences: Inferences::new(),
             inference_contextual: Vec::with_capacity(256),
             inference_infos_arena: InferenceInfosArena::default(),
             type_contextual: Vec::with_capacity(256),
@@ -1840,13 +1839,15 @@ impl<'cx> TyChecker<'cx> {
                         }
                     }
 
-                    self.append_inferred_type_parameters(context_inference, unique_type_parameters);
+                    self.inferences
+                        .append_inferred_type_parameters(context_inference, unique_type_parameters);
                     return self.get_or_create_ty_from_sig(instantiated_sig);
                 }
             }
         }
 
-        let sig = self.instantiate_sig_in_context_of(sig, contextual_sig, Some(context_inference));
+        let sig =
+            self.instantiate_sig_in_context_of(sig, contextual_sig, Some(context_inference), None);
         // let outer_ty_params = self
         //     .inference_contextual
         //     .iter()
@@ -1865,7 +1866,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_unique_type_parameters(
         &mut self,
-        context: InferenceContextual,
+        context: InferenceContextual<'cx>,
         type_parameters: ty::Tys<'cx>,
     ) -> Vec<&'cx ty::Ty<'cx>> {
         let mut result: Vec<&'cx ty::Ty<'cx>> = vec![];
@@ -2053,16 +2054,16 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx ty::Sig<'cx>,
         contextual_sig: &'cx ty::Sig<'cx>,
-        inference_context: Option<InferenceContextId>,
+        inference_context: Option<InferenceId<'cx>>,
+        compare: Option<InferenceCompare>,
     ) -> &'cx ty::Sig<'cx> {
         let context = {
             let ty_params = self.get_ty_params_for_mapper(sig);
-            self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty())
+            self.create_inference_context(ty_params, Some(sig), InferenceFlags::empty(), compare)
         };
-        let rest_ty = contextual_sig.get_effective_rest_ty(self);
         let mut mapper = None;
         if let Some(inference_context) = inference_context {
-            if let Some(rest_ty) = rest_ty {
+            if let Some(rest_ty) = contextual_sig.get_effective_rest_ty(self) {
                 if rest_ty.kind.is_param() {
                     mapper = Some(self.inference(inference_context).non_fixing_mapper);
                 }
@@ -2097,7 +2098,7 @@ impl<'cx> TyChecker<'cx> {
         if check_mode.contains(CheckMode::INFERENTIAL) {
             let context = self.get_inference_context(node).unwrap();
             let inference = context.inference.unwrap();
-            self.config_inference_flags(inference, |flags| {
+            self.inferences.config_inference_flags(inference, |flags| {
                 *flags |= InferenceFlags::SKIPPED_GENERIC_FUNCTION;
             });
         }

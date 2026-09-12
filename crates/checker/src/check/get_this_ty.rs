@@ -95,7 +95,7 @@ impl<'cx> TyChecker<'cx> {
                 return Some(if let Some(this_ty) = this_ty {
                     let inference_context = self.get_inference_context(containing_literal.id);
                     let mapper = inference_context
-                        .and_then(|i| self.get_mapper_from_context(i.inference.unwrap()));
+                        .map(|i| self.get_mapper_from_context(i.inference.unwrap()));
                     self.instantiate_ty(this_ty, mapper)
                 } else if let Some(contextual_ty) = contextual_ty {
                     let ty = self.get_non_nullable_ty(contextual_ty);

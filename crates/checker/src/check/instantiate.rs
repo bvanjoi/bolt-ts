@@ -1120,7 +1120,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx ty::Sig<'cx>,
         ty_args: Option<ty::Tys<'cx>>,
         _is_js: bool,
-        context: Option<super::InferenceContextId>,
+        context: Option<super::InferenceId<'cx>>,
     ) -> &'cx ty::Sig<'cx> {
         let sig_ty_params = self.get_sig_links(sig.id).get_ty_params();
         let ty_args = self.fill_missing_ty_args(

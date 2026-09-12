@@ -1,12 +1,15 @@
+use std::ops::{Index, IndexMut};
+
 use super::check_expr::IterationUse;
 use super::check_type_related_to::RecursionFlags;
 use super::create_ty::IntersectionFlags;
 use super::get_contextual::ContextFlags;
 use super::get_effective_node::{EffectiveCallArgument, EffectiveCallArguments};
+use super::relation::RelationKind;
 use super::ty::{self, SigFlags, SigKind, TyID, TypeFlags};
 use super::ty::{ObjectFlags, Sig};
 use super::utils::append_if_unique;
-use super::{CheckMode, InferenceContextId, TyChecker, fn_mapper};
+use super::{CheckMode, TyChecker, fn_mapper};
 
 use bolt_ts_ast::r#trait;
 use bolt_ts_ast::{self as ast, keyword};
@@ -108,15 +111,31 @@ pub(super) struct InferenceContext<'cx> {
     pub ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     pub outer_ret_mapper: Option<&'cx dyn ty::TyMap<'cx>>,
     pub inferred_type_parameters: Option<thin_vec::ThinVec<&'cx ty::Ty<'cx>>>, // Inferred type parameters for function result
+    pub compare: InferenceCompare,
+}
+
+fn compare_ty<'cx>(
+    checker: &mut TyChecker<'cx>,
+    a: &'cx ty::Ty<'cx>,
+    b: &'cx ty::Ty<'cx>,
+    compare: InferenceCompare,
+) -> bool {
+    match compare {
+        InferenceCompare::CompareTypesAssignable => {
+            checker.is_type_related_to(a, b, RelationKind::Assignable)
+        }
+        InferenceCompare::IsRelatedTo(relation) => checker.is_type_related_to(a, b, relation),
+    }
 }
 
 impl<'cx> InferenceContext<'cx> {
     fn create(
         checker: &TyChecker<'cx>,
-        id: InferenceContextId,
+        id: InferenceId<'cx>,
         inferences: InferenceInfosArenaId<'cx>,
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
+        compare: InferenceCompare,
     ) -> Self {
         let sources = checker
             .inference_infos_arena
@@ -136,6 +155,7 @@ impl<'cx> InferenceContext<'cx> {
             mapper,
             non_fixing_mapper,
             inferred_type_parameters: None,
+            compare,
         }
     }
 }
@@ -146,44 +166,50 @@ impl<'cx> TyChecker<'cx> {
         type_parameters: &[&'cx ty::Ty<'cx>],
         sig: Option<&'cx ty::Sig<'cx>>,
         flags: InferenceFlags,
-    ) -> InferenceContextId {
-        let id = InferenceContextId(self.inferences.len() as u32);
+        compare: Option<InferenceCompare>,
+    ) -> InferenceId<'cx> {
+        let next = self.inferences.next_id();
         let inferences = type_parameters
             .iter()
             .map(|ty_param| InferenceInfo::create(ty_param))
             .collect::<thin_vec::ThinVec<_>>();
         let inferences = self.inference_infos_arena.alloc(inferences);
-        let inference = InferenceContext::create(self, id, inferences, sig, flags);
-        self.inferences.push(inference);
-        id
+        let compare = compare.unwrap_or(InferenceCompare::CompareTypesAssignable);
+        let inference = InferenceContext::create(self, next, inferences, sig, flags, compare);
+        let id = self.inferences.push(inference);
+        debug_assert_eq!(id, next);
+        next
     }
 
     pub(super) fn clone_inference_context(
         &mut self,
-        context_id: InferenceContextId,
+        context_id: InferenceId<'cx>,
         extra_flags: InferenceFlags,
-    ) -> InferenceContextId {
+    ) -> InferenceId<'cx> {
         let inference_context = self.inference(context_id);
         let sig = inference_context.sig;
         let flags = inference_context.flags | extra_flags;
+        let compare = inference_context.compare;
         let inferences = self.inference_infos_arena.get(inference_context.inferences);
         let inferences = self.inference_infos_arena.alloc(inferences.clone());
-        let id = InferenceContextId(self.inferences.len() as u32);
-        let inference = InferenceContext::create(self, id, inferences, sig, flags);
-        self.inferences.push(inference);
+        let next = self.inferences.next_id();
+        let inference = InferenceContext::create(self, next, inferences, sig, flags, compare);
+        let id = self.inferences.push(inference);
+        debug_assert_eq!(id, next);
         id
     }
 
     pub(super) fn get_mapper_from_context(
         &self,
-        inference: InferenceContextId,
-    ) -> Option<&'cx dyn ty::TyMap<'cx>> {
-        Some(self.inference(inference).mapper as &'cx dyn ty::TyMap<'cx>)
+        inference: InferenceId<'cx>,
+    ) -> &'cx dyn ty::TyMap<'cx> {
+        let inference = self.inference(inference);
+        inference.mapper
     }
 
     fn making_inference_fixing_mapper(
         &self,
-        id: InferenceContextId,
+        id: InferenceId<'cx>,
         sources: ty::Tys<'cx>,
     ) -> &'cx fn_mapper::FixingMapper<'cx> {
         self.alloc(fn_mapper::FixingMapper {
@@ -194,7 +220,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn making_inference_non_fixing_mapper(
         &self,
-        id: InferenceContextId,
+        id: InferenceId<'cx>,
         sources: ty::Tys<'cx>,
     ) -> &'cx fn_mapper::NonFixingMapper<'cx> {
         self.alloc(fn_mapper::NonFixingMapper {
@@ -203,59 +229,26 @@ impl<'cx> TyChecker<'cx> {
         })
     }
 
-    fn set_inference_ret_mapper(
-        &mut self,
-        inference: InferenceContextId,
-        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
-    ) {
-        self.inferences[inference.as_usize()].ret_mapper = mapper;
+    pub(super) fn inference(&self, id: InferenceId<'cx>) -> &InferenceContext<'cx> {
+        self.inferences.get(id)
     }
 
-    fn set_inference_outer_ret_mapper(
-        &mut self,
-        inference: InferenceContextId,
-        mapper: &'cx dyn ty::TyMap<'cx>,
-    ) {
-        self.inferences[inference.as_usize()].outer_ret_mapper = Some(mapper);
-    }
-
-    pub(super) fn inference(&self, id: InferenceContextId) -> &InferenceContext<'cx> {
-        let id = id.as_usize();
-        debug_assert!(id < self.inferences.len());
-        unsafe { self.inferences.get_unchecked(id) }
-    }
-
-    pub(super) fn append_inferred_type_parameters(
-        &mut self,
-        inference: InferenceContextId,
-        type_parameters: &[&'cx ty::Ty<'cx>],
-    ) {
-        let inferences = &mut self.inferences[inference.as_usize()].inferred_type_parameters;
-        if let Some(inferences) = inferences {
-            for ty in type_parameters {
-                inferences.push(*ty);
-            }
-        } else {
-            *inferences = Some(type_parameters.to_vec().into());
-        }
-    }
-
-    pub(super) fn inference_infos_len(&self, id: InferenceContextId) -> usize {
+    pub(super) fn inference_infos_len(&self, id: InferenceId<'cx>) -> usize {
         let inferences = self.inference(id).inferences;
         self.inference_infos_arena.get(inferences).len()
     }
 
     pub(super) fn inference_info(
         &self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
     ) -> &InferenceInfo<'cx> {
         &self.inference_infos(inference)[idx]
     }
 
-    pub(crate) fn set_inferred_ty_of_inference_info(
+    pub(super) fn set_inferred_ty_of_inference_info(
         &mut self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
         ty: &'cx ty::Ty<'cx>,
     ) {
@@ -266,9 +259,9 @@ impl<'cx> TyChecker<'cx> {
         *cache = Some(ty)
     }
 
-    pub(crate) fn override_inferred_ty_of_inference_info(
+    pub(super) fn override_inferred_ty_of_inference_info(
         &mut self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
         ty: &'cx ty::Ty<'cx>,
     ) {
@@ -279,20 +272,12 @@ impl<'cx> TyChecker<'cx> {
         *cache = Some(ty)
     }
 
-    pub(super) fn inference_infos(&self, inference: InferenceContextId) -> &[InferenceInfo<'cx>] {
+    pub(super) fn inference_infos(&self, inference: InferenceId<'cx>) -> &[InferenceInfo<'cx>] {
         let inferences = self.inference(inference).inferences;
         self.inference_infos_arena.get(inferences)
     }
 
-    pub(crate) fn config_inference_flags(
-        &mut self,
-        inference: InferenceContextId,
-        f: impl FnOnce(&mut InferenceFlags),
-    ) {
-        f(&mut self.inferences[inference.as_usize()].flags);
-    }
-
-    pub(super) fn get_inferred_tys(&mut self, inference: InferenceContextId) -> ty::Tys<'cx> {
+    pub(super) fn get_inferred_tys(&mut self, inference: InferenceId<'cx>) -> ty::Tys<'cx> {
         let tys = (0..self.inference_infos_len(inference))
             .map(|idx| self.get_inferred_ty(inference, idx))
             .collect::<Vec<_>>();
@@ -337,7 +322,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_covariant_inference(
         &mut self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
         sig: &'cx ty::Sig<'cx>,
     ) -> &'cx ty::Ty<'cx> {
@@ -435,7 +420,7 @@ impl<'cx> TyChecker<'cx> {
 
     fn get_contravariant_inference(
         &mut self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
     ) -> &'cx ty::Ty<'cx> {
         let info = self.inference_info(inference, idx);
@@ -520,15 +505,16 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(crate) fn get_inferred_ty(
+    pub(super) fn get_inferred_ty(
         &mut self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
         idx: usize,
     ) -> &'cx ty::Ty<'cx> {
         let i = self.inference_info(inference, idx);
         if let Some(inferred_ty) = i.inferred_ty {
             return inferred_ty;
         }
+        let compare = self.inference(inference).compare;
         let mut inferred_ty = None;
         let mut fallback_ty = None;
         if let Some(sig) = self.get_inference_sig(inference) {
@@ -648,24 +634,14 @@ impl<'cx> TyChecker<'cx> {
             if let Some(ty) = inferred_ty {
                 let constraint_with_this =
                     self.get_type_with_this_argument::<false>(instantiated_constraint, Some(ty));
-                // TODO: `ctx.compare_types`
-                if !self.is_type_related_to(
-                    ty,
-                    constraint_with_this,
-                    super::relation::RelationKind::Assignable,
-                ) {
+                if !compare_ty(self, ty, constraint_with_this, compare) {
                     let filtered_by_constraint = if self
                         .inference_info(inference, idx)
                         .priority
                         .is_some_and(|p| p == InferencePriority::RETURN_TYPE)
                     {
                         self.filter_type(ty, |this, t| {
-                            // TODO: `ctx.compare_types`
-                            this.is_type_related_to(
-                                t,
-                                constraint_with_this,
-                                super::relation::RelationKind::Assignable,
-                            )
+                            compare_ty(this, t, constraint_with_this, compare)
                         })
                     } else {
                         self.never_ty
@@ -678,14 +654,12 @@ impl<'cx> TyChecker<'cx> {
             if inferred_ty.is_none() {
                 inferred_ty = Some(
                     if let Some(fallback_ty) = fallback_ty
-                    && let target =
-                        self.get_type_with_this_argument::<false>(instantiated_constraint, Some(fallback_ty))
-                        // TODO: `ctx.compare_types`
-                    && self.is_type_related_to(
-                        fallback_ty,
-                        target,
-                        super::relation::RelationKind::Assignable,
-                    ) {
+                        && let target = self.get_type_with_this_argument::<false>(
+                            instantiated_constraint,
+                            Some(fallback_ty),
+                        )
+                        && compare_ty(self, fallback_ty, target, compare)
+                    {
                         fallback_ty
                     } else {
                         instantiated_constraint
@@ -705,7 +679,7 @@ impl<'cx> TyChecker<'cx> {
 
     pub(super) fn get_inference_sig(
         &self,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
     ) -> Option<&'cx ty::Sig<'cx>> {
         self.inference(inference).sig
     }
@@ -745,7 +719,7 @@ impl<'cx> TyChecker<'cx> {
         sig: &'cx Sig<'cx>,
         args: &'cx [&'cx ast::Expr<'cx>],
         check_mode: CheckMode,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
     ) -> ty::Tys<'cx> {
         let Some(sig_ty_params) = self.get_sig_links(sig.id).get_ty_params() else {
             unreachable!()
@@ -777,7 +751,7 @@ impl<'cx> TyChecker<'cx> {
                         .map(|outer_context| {
                             self.clone_inference_context(outer_context, InferenceFlags::NO_DEFAULT)
                         })
-                        .and_then(|id| self.get_mapper_from_context(id));
+                        .map(|id| self.get_mapper_from_context(id));
                     let instantiated_ty = self.instantiate_ty(contextual_ty, outer_mapper);
                     let inference_source_ty = if let Some(contextual_sig) =
                         self.get_single_call_sig(instantiated_ty)
@@ -808,6 +782,7 @@ impl<'cx> TyChecker<'cx> {
                     sig_ty_params,
                     Some(sig),
                     self.inference(inference).flags,
+                    None,
                 );
                 let ret_mapper = outer_context
                     .and_then(|outer_context| outer_context.inference)
@@ -823,13 +798,13 @@ impl<'cx> TyChecker<'cx> {
                             let mapper = self.inference(id).mapper;
                             let ret = self
                                 .merge_ty_mappers(self.inference(outer_context).ret_mapper, mapper);
-                            self.set_inference_outer_ret_mapper(outer_context, ret);
+                            self.inferences.set_outer_return_mapper(outer_context, ret);
                             ret
                         }
                     });
                 let ret_source_ty = self.instantiate_ty(contextual_ty, ret_mapper);
                 self.infer_tys::<false>(
-                    self.inference(inference).inferences,
+                    self.inference(ret_ctx).inferences,
                     ret_source_ty,
                     inference_target_ty,
                     InferencePriority::empty(),
@@ -846,14 +821,15 @@ impl<'cx> TyChecker<'cx> {
                 if ret_inferences.is_empty() {
                     debug_assert!(self.inference(inference).ret_mapper.is_none());
                 } else {
-                    let id = InferenceContextId(self.inferences.len() as u32);
+                    let next = self.inferences.next_id();
                     let sources = ret_inferences
                         .iter()
                         .map(|i| i.type_parameter)
                         .collect::<Vec<_>>();
                     let sources = self.alloc(sources);
-                    let mapper = self.making_inference_fixing_mapper(id, sources);
-                    let non_fixing_mapper = self.making_inference_non_fixing_mapper(id, sources);
+                    let mapper = self.making_inference_fixing_mapper(next, sources);
+                    let non_fixing_mapper = self.making_inference_non_fixing_mapper(next, sources);
+                    let compare = ret_inference.compare;
                     let inference_context = InferenceContext {
                         sig: ret_inference.sig,
                         flags: ret_inference.flags,
@@ -863,12 +839,14 @@ impl<'cx> TyChecker<'cx> {
                         mapper,
                         non_fixing_mapper,
                         inferred_type_parameters: None,
+                        compare,
                     };
-                    self.set_inference_ret_mapper(
+                    self.inferences.set_return_mapper(
                         inference,
                         Some(inference_context.mapper as &'cx dyn ty::TyMap<'cx>),
                     );
-                    self.inferences.push(inference_context);
+                    let id = self.inferences.push(inference_context);
+                    debug_assert_eq!(id, next);
                 };
             }
         }
@@ -882,7 +860,7 @@ impl<'cx> TyChecker<'cx> {
         if let Some(rest_ty) = rest_ty
             && rest_ty.flags.contains(TypeFlags::TYPE_PARAMETER)
         {
-            let inferences = self.inferences[inference.as_usize()].inferences;
+            let inferences = self.inferences.get(inference).inferences;
             let inferences = self.inference_infos_arena.get_mut(inferences);
             let info = inferences.iter_mut().find(|i| i.type_parameter == rest_ty);
             if let Some(info) = info {
@@ -899,7 +877,7 @@ impl<'cx> TyChecker<'cx> {
         {
             let this_argument_node = self.get_this_argument_of_call(node);
             let ty = self.get_this_argument_ty(this_argument_node);
-            let inferences = self.inferences[inference.as_usize()].inferences;
+            let inferences = self.inferences.get(inference).inferences;
             self.infer_tys::<false>(inferences, ty, this_ty, InferencePriority::empty());
         }
 
@@ -917,7 +895,7 @@ impl<'cx> TyChecker<'cx> {
                         check_mode,
                     );
                     self.infer_tys::<false>(
-                        self.inferences[inference.as_usize()].inferences,
+                        self.inferences.get(inference).inferences,
                         arg_ty,
                         param_ty,
                         InferencePriority::empty(),
@@ -996,7 +974,7 @@ impl<'cx> TyChecker<'cx> {
         index: usize,
         arg_count: usize,
         rest_ty: &'cx ty::Ty<'cx>,
-        context: Option<InferenceContextId>,
+        context: Option<InferenceId<'cx>>,
         check_mode: CheckMode,
     ) -> &'cx ty::Ty<'cx> {
         let is_const_context = self.is_const_ty_variable(rest_ty);
@@ -1146,7 +1124,7 @@ impl<'cx> TyChecker<'cx> {
         &mut self,
         sig: &'cx Sig<'cx>,
         contextual_sig: &'cx Sig<'cx>,
-        inference: InferenceContextId,
+        inference: InferenceId<'cx>,
     ) {
         let len = sig.params.len() - (if sig.has_rest_param() { 1 } else { 0 });
         let inferences = self.inference(inference).inferences;
@@ -1229,7 +1207,7 @@ impl<'cx> TyChecker<'cx> {
         }
     }
 
-    pub(super) fn clear_cached_inferences(&mut self, id: InferenceContextId) {
+    pub(super) fn clear_cached_inferences(&mut self, id: InferenceId<'cx>) {
         let inferences = self.inference(id).inferences;
         let inferences = self.inference_infos_arena.get_mut(inferences);
         for i in inferences {
@@ -2823,4 +2801,82 @@ impl<'cx> InferenceState<'cx, '_> {
             }
         }
     }
+}
+
+pub(super) struct Inferences<'cx>(bolt_ts_arena::la_arena::Arena<InferenceContext<'cx>>);
+
+impl<'cx> Inferences<'cx> {
+    pub fn new() -> Self {
+        Self(bolt_ts_arena::la_arena::Arena::new())
+    }
+
+    pub fn push(&mut self, info: InferenceContext<'cx>) -> InferenceId<'cx> {
+        InferenceId(self.0.alloc(info))
+    }
+
+    pub fn get(&self, id: InferenceId<'cx>) -> &InferenceContext<'cx> {
+        self.0.index(id.0)
+    }
+
+    fn next_id(&self) -> InferenceId<'cx> {
+        let raw = bolt_ts_arena::la_arena::RawIdx::from_u32(self.0.len() as u32);
+        let next = bolt_ts_arena::la_arena::Idx::from_raw(raw);
+        InferenceId(next)
+    }
+
+    fn set_return_mapper(
+        &mut self,
+        inference: InferenceId<'cx>,
+        mapper: Option<&'cx dyn ty::TyMap<'cx>>,
+    ) {
+        self.0.index_mut(inference.0).ret_mapper = mapper;
+    }
+
+    fn set_outer_return_mapper(
+        &mut self,
+        inference: InferenceId<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) {
+        self.0.index_mut(inference.0).outer_ret_mapper = Some(mapper);
+    }
+
+    pub(super) fn append_inferred_type_parameters(
+        &mut self,
+        inference: InferenceId<'cx>,
+        type_parameters: ty::Tys<'cx>,
+    ) {
+        let inferences = &mut self.0.index_mut(inference.0).inferred_type_parameters;
+        if let Some(inferences) = inferences {
+            for ty in type_parameters {
+                inferences.push(*ty);
+            }
+        } else {
+            *inferences = Some(type_parameters.to_vec().into());
+        }
+    }
+
+    pub(super) fn set_non_fixing_mapper(
+        &mut self,
+        inference: InferenceId<'cx>,
+        mapper: &'cx dyn ty::TyMap<'cx>,
+    ) {
+        self.0.index_mut(inference.0).non_fixing_mapper = mapper;
+    }
+
+    pub(super) fn config_inference_flags(
+        &mut self,
+        inference: InferenceId<'cx>,
+        f: impl FnOnce(&mut InferenceFlags),
+    ) {
+        f(&mut self.0.index_mut(inference.0).flags);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct InferenceId<'cx>(bolt_ts_arena::la_arena::Idx<InferenceContext<'cx>>);
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum InferenceCompare {
+    IsRelatedTo(RelationKind),
+    CompareTypesAssignable,
 }
