@@ -312,9 +312,6 @@ impl Symbol {
                 .is_some_and(|ns| ns.block.is_none())
         })
     }
-    pub fn is_expando_symbol(&self) -> bool {
-        self.flags.contains(SymbolFlags::FUNCTION)
-    }
 }
 
 bolt_ts_utils::module_index!(SymbolID);

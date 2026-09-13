@@ -2225,3 +2225,10 @@ pub struct PropertyXImplicitlyHasTypeAnyBecauseItsGetAccessorLacksAReturnTypeAnn
     pub span: Span,
     pub property: String,
 }
+
+#[derive(Error, Diagnostic, DiagnosticExt, Debug)]
+#[error("The operand of a 'delete' operator must be optional.")]
+pub struct TheOperandOfADeleteOperatorMustBeOptional {
+    #[label(primary)]
+    pub span: Span,
+}

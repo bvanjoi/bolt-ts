@@ -769,6 +769,32 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
     }
 
     fn bind_special_prop_assignment(&mut self, node: &'cx ast::AssignExpr<'cx>) {
+        let expr = match node.left.kind {
+            ast::ExprKind::PropAccess(left) => left.expr.id(),
+            ast::ExprKind::EleAccess(left) => left.expr.id(),
+            _ => unreachable!(),
+        };
+        if self.node_query().is_in_js_file(node.id) {
+            return;
+        }
+        let Some(parent_symbol) = self
+            .lookup_symbol_for_prop_access(expr, self.block_scope_container.unwrap())
+            .or_else(|| self.lookup_symbol_for_prop_access(expr, self.container.unwrap()))
+        else {
+            return;
+        };
+
+        // is_function_symbol
+        let parent_s = self.symbols.get(parent_symbol);
+        let Some(value_declaration) = parent_s.value_decl else {
+            return;
+        };
+        match self.p.node(value_declaration) {
+            ast::Node::FnDecl(_) => {}
+            ast::Node::VarDecl(n) if n.init.is_some_and(|init| init.kind.is_fn_like()) => {}
+            _ => return,
+        };
+
         if self.node_query().has_dynamic_name(node.id) {
             self.bind_anonymous_decl(
                 node.id,
@@ -776,12 +802,6 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
                 SymbolName::Computed,
             );
             // TODO: bindPotentiallyMissingNamespaces
-            let parent_symbol = self
-                .lookup_symbol_for_prop_access(node.left.id(), self.block_scope_container.unwrap())
-                .or_else(|| {
-                    self.lookup_symbol_for_prop_access(node.left.id(), self.container.unwrap())
-                })
-                .unwrap();
             self.add_late_bound_assignment_declaration_to_symbol(parent_symbol, node.id);
         } else if node.left.is_bindable_static_name_expr::<false>() {
             self.bind_static_prop_assignment(node.left, node.id);
@@ -889,6 +909,53 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         None
     }
 
+    fn is_expando_symbol(&self, symbol: SymbolID, parent: ast::NodeID) -> bool {
+        let s = self.symbols.get(symbol);
+        if s.flags.intersects(
+            SymbolFlags::FUNCTION.union(SymbolFlags::CLASS.union(SymbolFlags::NAMESPACE_MODULE)),
+        ) {
+            return true;
+        }
+        let Some(n) = s.value_decl else { return false };
+        let init = match self.p.node(n) {
+            ast::Node::CallExpr(_) => {
+                return self
+                    .node_query()
+                    .get_assigned_expando_initializer(n, Some(parent))
+                    .is_some();
+            }
+            ast::Node::VarDecl(n) => n.init,
+            ast::Node::BinExpr(n) => Some(n.right),
+            ast::Node::AssignExpr(n) => Some(n.right),
+            ast::Node::PropAccessExpr(_) => match self.p.node(parent) {
+                ast::Node::BinExpr(p) => Some(p.right),
+                ast::Node::AssignExpr(p) => Some(p.right),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(init) = init.map(|init| init.kind.get_right_most_assigned_expr()) {
+            // TODO: is_prototype_assignment
+            let is_prototype_assignment = false;
+            match init {
+                ast::ExprKind::Bin(n)
+                    if matches!(
+                        n.op.kind,
+                        ast::BinOpKind::Nullish | ast::BinOpKind::LogicalOr
+                    ) =>
+                {
+                    n.right
+                        .kind
+                        .get_expando_init(is_prototype_assignment)
+                        .is_some()
+                }
+                _ => init.get_expando_init(is_prototype_assignment).is_some(),
+            }
+        } else {
+            false
+        }
+    }
+
     fn bind_potentially_new_expando_member_to_namespace<const IS_PROTOTYPE_PROPERTY: bool>(
         &mut self,
         decl: ast::NodeID,
@@ -897,7 +964,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         key_name: SymbolName,
     ) -> Option<SymbolID> {
         let namespace_symbol = namespace_symbol?;
-        if !self.symbols.get(namespace_symbol).is_expando_symbol() {
+        if !self.is_expando_symbol(namespace_symbol, decl_parent) {
             return None;
         }
 
@@ -914,7 +981,7 @@ impl<'cx, 'atoms, 'parser> BinderState<'cx, 'atoms, 'parser> {
         if self
             .node_query()
             .get_assigned_expando_initializer(decl, Some(decl_parent))
-            .is_some_and(|init| init.is_fn_like_declaration())
+            .is_some_and(|init| init.is_fn_like())
         {
             includes = SymbolFlags::METHOD;
             excludes = SymbolFlags::METHOD_EXCLUDES;

@@ -1,0 +1,5 @@
+  × Property 'j' does not exist on type 'Foo'.
+    ╭─[../../tests/compiler/deleteExpressionMustBeOptional/index.ts:42:10]
+ 42 │ j
+    · ─
+    ╰────

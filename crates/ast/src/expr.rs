@@ -417,6 +417,13 @@ pub enum ExprKind<'cx> {
 }
 
 impl<'cx> ExprKind<'cx> {
+    pub fn get_right_most_assigned_expr(&'cx self) -> &'cx ExprKind<'cx> {
+        match self {
+            ExprKind::Assign(n) => n.right.kind.get_right_most_assigned_expr(),
+            _ => self,
+        }
+    }
+
     pub fn is_bigint_lit(&self) -> bool {
         match self {
             ExprKind::BigIntLit(_) => true,
@@ -567,7 +574,7 @@ impl<'cx> ExprKind<'cx> {
         }
     }
 
-    pub fn is_fn_like_declaration(&self) -> bool {
+    pub fn is_fn_like(&self) -> bool {
         matches!(self, ExprKind::Fn(_) | ExprKind::ArrowFn(_))
     }
 }

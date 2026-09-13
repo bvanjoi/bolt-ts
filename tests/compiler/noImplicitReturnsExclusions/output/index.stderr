@@ -37,8 +37,9 @@
   × Not all code paths return a value.
      ╭─[../../tests/compiler/noImplicitReturnsExclusions/index.ts:101:53]
  101 │ ╭─▶ async (item) => { // Error, contextual return type of Promise<unknown>
- 102 │ │     if (item instanceof HistoryItem) {
- 103 │ │       return executeCommand("vscode.open", item.input.location.uri);
- 104 │ │     }
- 105 │ ╰─▶ }
+ 102 │ │     //~^ ERROR: Not all code paths return a value.
+ 103 │ │     if (item instanceof HistoryItem) {
+ 104 │ │       return executeCommand("vscode.open", item.input.location.uri);
+ 105 │ │     }
+ 106 │ ╰─▶ }
      ╰────

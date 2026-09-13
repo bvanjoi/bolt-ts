@@ -1,0 +1,17 @@
+  × The operand of a 'delete' operator must be optional.
+    ╭─[../../tests/compiler/deleteExpressionMustBeOptional/index.ts:31:8]
+ 31 │ f.a
+    · ───
+    ╰────
+
+  × The operand of a 'delete' operator must be optional.
+    ╭─[../../tests/compiler/deleteExpressionMustBeOptional/index.ts:34:8]
+ 34 │ f.c
+    · ───
+    ╰────
+
+  × Property 'j' does not exist on type 'Foo'.
+    ╭─[../../tests/compiler/deleteExpressionMustBeOptional/index.ts:42:10]
+ 42 │ j
+    · ─
+    ╰────

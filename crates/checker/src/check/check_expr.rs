@@ -7,6 +7,7 @@ use bolt_ts_binder::SymbolID;
 use bolt_ts_binder::{SymbolFlags, SymbolName};
 use bolt_ts_config::AllowUnreachableCode;
 use bolt_ts_config::Target;
+use bolt_ts_early_resolve::resolve_symbol_by_identifier::Resolver;
 use bolt_ts_span::Span;
 use bolt_ts_ty::TypeFacts;
 use bolt_ts_utils::FxIndexMap;
@@ -841,6 +842,23 @@ impl<'cx> TyChecker<'cx> {
             let error =
                 errors::TheOperandOfADeleteOperatorCannotBeAReadOnlyProperty { span: expr.span() };
             self.push_error(Box::new(error));
+        } else {
+            // check_delete_expression_must_be_optional
+            let ty = self.get_type_of_symbol(symbol);
+            let o = self.options();
+            if o.strict_null_checks()
+                && !ty
+                    .flags
+                    .intersects(TypeFlags::ANY_OR_UNKNOWN.union(TypeFlags::NEVER))
+                && !(if o.exact_optional_property_types() {
+                    self.symbol(symbol).flags.contains(SymbolFlags::OPTIONAL)
+                } else {
+                    self.has_type_facts(ty, TypeFacts::IS_UNDEFINED)
+                })
+            {
+                let error = errors::TheOperandOfADeleteOperatorMustBeOptional { span: expr.span() };
+                self.push_error(Box::new(error));
+            }
         }
 
         self.boolean_ty()

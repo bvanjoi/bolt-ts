@@ -1,0 +1,11 @@
+  × Type 'null' is not assignable to type 'IPromise<void>'.
+    ╭─[../../tests/compiler/bestCommonTypeReturnStatement/index.ts:16:39]
+ 16 │ null
+    · ────
+    ╰────
+
+  × Type 'null' is not assignable to type 'IPromise<any>'.
+    ╭─[../../tests/compiler/bestCommonTypeReturnStatement/index.ts:18:38]
+ 18 │ null
+    · ────
+    ╰────

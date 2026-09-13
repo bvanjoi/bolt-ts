@@ -280,6 +280,13 @@ impl<'cx> TyChecker<'cx> {
         if let Some(ty) = self.get_symbol_links(symbol).get_ty() {
             return ty;
         };
+        // TODO: expando
+        // if let Some(value_declaration) = self.binder.symbol(symbol).value_decl {
+        //     self.getsymbolofex
+        // } else {
+        //     None;
+        // };
+
         let mut ty =
             self.create_anonymous_ty(Some(symbol), ObjectFlags::empty(), None, None, None, None);
 
