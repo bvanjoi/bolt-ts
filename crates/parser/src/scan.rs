@@ -992,7 +992,7 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                     continue;
                 }
-                _ if is_ascii_identifier_part(ch) => {
+                _ if is_ascii_identifier_start(ch) => {
                     self.pos += 1;
                     match self.scan_identifier_part::<false>(start) {
                         Some(t) => t,
@@ -1223,8 +1223,12 @@ impl<const VARIANT: u8> ParserState<'_, '_, VARIANT> {
                     }
                     return result;
                 }
-                // TODO: more case
-                vec![ch]
+                self.token_flags |= TokenFlags::UNICODE_ESCAPE;
+                // TODO: check escaped_value is valid
+                self.pos += 4;
+                let scaped_value = &self.input[start..self.pos];
+                // TODO: check
+                scaped_value.to_vec()
             }
             b'\r' => {
                 if self.pos < end && self.ch_unchecked() == b'\n' {

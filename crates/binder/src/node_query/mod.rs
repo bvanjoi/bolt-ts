@@ -1424,6 +1424,19 @@ impl<'cx, 'a> NodeQuery<'cx, 'a> {
         &self,
         expr: &'cx ast::AssignExpr<'cx>,
     ) -> AssignmentDeclarationKind {
+        let s = self.get_assignment_declaration_kind_for_assign_expr_worker(expr);
+        match s {
+            AssignmentDeclarationKind::Property => s,
+            _ if self.is_in_js_file(expr.id) => s,
+            _ => AssignmentDeclarationKind::None,
+        }
+    }
+
+    fn get_assignment_declaration_kind_for_assign_expr_worker(
+        &self,
+        expr: &'cx ast::AssignExpr<'cx>,
+    ) -> AssignmentDeclarationKind {
+        // TODO: access_node is call expression
         if expr.op != ast::AssignOp::Eq
             || !expr.left.kind.is_access_expr()
             || self
